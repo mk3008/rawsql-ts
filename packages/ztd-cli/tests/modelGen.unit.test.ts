@@ -290,7 +290,7 @@ test('loadModelGenZtdFixtureState creates empty fixtures for DDL-only tables', a
   ]);
 });
 
-test('loadModelGenZtdFixtureState keeps searchPath precedence for duplicate unqualified names', async () => {
+test('loadModelGenZtdFixtureState preserves searchPath precedence so unqualified references resolve to the first matching schema', async () => {
   const workspace = mkdtempSync(path.join(os.tmpdir(), 'model-gen-ztd-search-path-'));
   const ddlDir = path.join(workspace, 'schema');
   mkdirSync(ddlDir, { recursive: true });
@@ -316,6 +316,12 @@ test('loadModelGenZtdFixtureState keeps searchPath precedence for duplicate unqu
     searchPath: ['app', 'public'],
   });
 
+  // DdlFixtureLoader keeps both schema-qualified fixtures, and the first entry matches the searchPath
+  // priority that unqualified references (for example `from users`) will follow during ZTD probing.
+  expect(fixtureState.tableDefinitions.map((table) => (table as { name: string }).name)).toEqual([
+    'app.users',
+    'public.users',
+  ]);
   expect(fixtureState.tableRows.map((fixture) => fixture.tableName)).toEqual([
     'app.users',
     'public.users',

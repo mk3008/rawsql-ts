@@ -411,6 +411,25 @@ Notes:
 - Common failure modes are unsupported placeholder syntax, connection/authentication errors, missing live schema objects in `live` mode, missing DDL directories in `ztd` mode, invalid probe SQL, and queries that do not expose any columns.
 - The generated file is a starting point only. Review imports, nullability, cardinality, rowMapping key, runtime normalization, and example values before typechecking or committing it.
 
+### Developer note: unqualified names and CLI test coverage
+
+- The ZTD probe path resolves unqualified table names such as `from users` through the same `ddl.defaultSchema` / `ddl.searchPath` order that runtime rewrites use.
+- The DB-backed CLI regression tests for this path live in `packages/ztd-cli/tests/cliCommands.test.ts`.
+- Those CLI tests are skipped when `pg_dump` is unavailable in `PATH`, because the suite shares the same disposable-Postgres gate as other CLI database tests.
+
+Manual reproduction command (empty Postgres + DDL snapshot + unqualified SQL):
+
+```bash
+ztd model-gen src/sql/users/list_users.sql \
+  --probe-mode ztd \
+  --sql-root src/sql \
+  --out src/catalog/specs/generated/list-users.spec.ts \
+  --debug-probe \
+  --url postgres://postgres:postgres@127.0.0.1:55432/app_db
+```
+
+Use DDL such as `CREATE TABLE public.users (...)` in `ztd/ddl/public.sql`, keep the SQL unqualified (`select user_id from users`), and set `ddl.defaultSchema` / `ddl.searchPath` in `ztd.config.json` to the schema order you expect.
+
 ## Further Reading
 
 - Local-source quick start:
