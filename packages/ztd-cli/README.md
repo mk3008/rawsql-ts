@@ -156,7 +156,19 @@ Existing `spec.sqlFile` strings do not need to change. `query uses` now resolves
 
 - `impact` is the default view for the initial "used or not, and by which queries?" pass.
 - Use `--view detail` when you need edit-ready locations and snippets for refactoring.
-- Use `--exclude-generated` when `src/catalog/specs/generated` contains review-only scaffolds that would otherwise add noise to the scan.
+- Use `--exclude-generated` when `src/catalog/specs/generated` contains review-only scaffolds that would otherwise add noise to the scan. The flag is optional, and the default scan set is unchanged.
+
+`--exclude-generated` excludes specs under `src/catalog/specs/generated` only. Existing projects do not need to change their catalog layout or `spec.sqlFile` conventions.
+
+Recommended pattern from dogfooding:
+
+- Table add / column add: the default scan is usually enough because the expected answer is often "no matches".
+- Table rename / column rename / column type change: prefer `--exclude-generated` because generated and probe specs are more likely to add noise to the impact list.
+
+Observed dogfooding example for a rename check:
+
+- Without the flag: `catalogs: 9`, `matches: 3`
+- With `--exclude-generated`: `catalogs: 5`, `matches: 1`
 
 ### Strict examples
 
@@ -167,6 +179,11 @@ npx ztd query uses table public.users --exclude-generated
 npx ztd query uses column public.users.email
 npx ztd query uses column public.users.email --format json
 npx ztd query uses column public.users.email --view detail
+npx ztd query uses table public.sale_items --exclude-generated
+npx ztd query uses table public.sale_lines --exclude-generated
+npx ztd query uses column public.products.title --exclude-generated
+npx ztd query uses column public.sale_items.quantity --exclude-generated
+npx ztd query uses table public.sale_lines --view detail --exclude-generated
 ```
 
 ### Relaxed examples
