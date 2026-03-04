@@ -26,4 +26,10 @@ describe('normalizeExecutionResult', () => {
       normalizeExecutionResult({ rows: 'invalid' } as unknown)
     ).toThrow(/expected "rows" to be an array/i)
   })
+  it('throws when rowCount is not a number', () => {
+    expect(() =>
+      normalizeExecutionResult({ rows: [{ id: 1 }], rowCount: '1' } as unknown)
+    ).toThrow(/expected "rowCount" to be a number/i)
+  })
 })
+

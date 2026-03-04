@@ -821,6 +821,13 @@ describe('structured mapping', () => {
     expect(first.order).not.toBe(second.order)
   })
 
+  it('propagates executor failures without wrapping them as shape errors', async () => {
+    const reader = createMapper(async () => {
+      throw new Error('database unavailable')
+    })
+
+    await expect(reader.query('SELECT 1')).rejects.toThrow('database unavailable')
+  })
   it('entity() remains compatible with rowMapping', () => {
     const customerAlias = entity<Customer>({
       name: 'Customer',

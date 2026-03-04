@@ -481,8 +481,9 @@ export class Mapper {
     let rows: Row[]
     let rawResult: QueryExecutionResult | undefined
 
+    rawResult = await this.executor(sql, params)
+
     try {
-      rawResult = await this.executor(sql, params)
       rows = normalizeExecutionResult(rawResult).rows
     } catch (cause) {
       // Include query context to diagnose unsupported driver result shapes quickly.

@@ -254,6 +254,85 @@ describe('catalog create execution', () => {
       { id: 1, name: 'Alice' }
     )
   })
+
+  it('keeps dropped named params when trailing SQL uses @ placeholders', async () => {
+    const loader = {
+      load: vi.fn(() =>
+        Promise.resolve(
+          'INSERT INTO users (id, name, bio) VALUES (:id, :name, :bio) ON CONFLICT (id) DO UPDATE SET bio = @bio'
+        )
+      ),
+    }
+    const executor = vi.fn(() => Promise.resolve([]))
+    const catalog = createCatalogExecutor({
+      loader,
+      executor,
+      allowNamedParamsWithoutBinder: true,
+    })
+
+    const spec: QuerySpec<Record<string, unknown>, never> = {
+      id: 'mutation.insert.trailing-param-ref.at',
+      sqlFile: 'insert-trailing-param-at.sql',
+      params: {
+        shape: 'named',
+        example: { id: 1, name: 'Alice', bio: 'Hello' },
+      },
+      mutation: {
+        kind: 'insert',
+      },
+      output: {
+        example: undefined as never,
+      },
+    }
+
+    await expect(catalog.list(spec, { id: 1, name: 'Alice' })).resolves.toEqual([])
+
+    expect(executor).toHaveBeenCalledTimes(1)
+    expect(executor).toHaveBeenCalledWith(
+      'INSERT INTO users (id, name) VALUES (:id, :name) ON CONFLICT (id) DO UPDATE SET bio = @bio',
+      { id: 1, name: 'Alice' }
+    )
+  })
+
+  it('keeps dropped named params when trailing SQL uses ${name} placeholders', async () => {
+    const loader = {
+      load: vi.fn(() =>
+        Promise.resolve(
+          'INSERT INTO users (id, name, bio) VALUES (:id, :name, :bio) ON CONFLICT (id) DO UPDATE SET bio = ${bio}'
+        )
+      ),
+    }
+    const executor = vi.fn(() => Promise.resolve([]))
+    const catalog = createCatalogExecutor({
+      loader,
+      executor,
+      allowNamedParamsWithoutBinder: true,
+    })
+
+    const spec: QuerySpec<Record<string, unknown>, never> = {
+      id: 'mutation.insert.trailing-param-ref.brace',
+      sqlFile: 'insert-trailing-param-brace.sql',
+      params: {
+        shape: 'named',
+        example: { id: 1, name: 'Alice', bio: 'Hello' },
+      },
+      mutation: {
+        kind: 'insert',
+      },
+      output: {
+        example: undefined as never,
+      },
+    }
+
+    await expect(catalog.list(spec, { id: 1, name: 'Alice' })).resolves.toEqual([])
+
+    expect(executor).toHaveBeenCalledTimes(1)
+    expect(executor).toHaveBeenCalledWith(
+      'INSERT INTO users (id, name) VALUES (:id, :name) ON CONFLICT (id) DO UPDATE SET bio = ${bio}',
+      { id: 1, name: 'Alice' }
+    )
+  })
+
   it('does not subtract non-target insert values (composite expressions)', async () => {
     const loader = {
       load: vi.fn(() =>

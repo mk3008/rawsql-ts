@@ -896,9 +896,13 @@ function rewriteInsertValuesClause(
 
   // Keep params when they are still referenced after VALUES (e.g. ON CONFLICT ... DO UPDATE).
   for (const name of droppedNames) {
-    const isReferencedLater = trailingTokens.some(
-      (token) => token.kind === 'parameter' && token.value === `:${name}`
-    )
+    const isReferencedLater = trailingTokens.some((token) => {
+      if (token.kind !== 'parameter') {
+        return false
+      }
+
+      return normalizeNamedParameter(token.value) === name
+    })
     if (!isReferencedLater) {
       removableNames.add(name)
     }
