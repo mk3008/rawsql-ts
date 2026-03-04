@@ -322,7 +322,33 @@ const catalog = createCatalogExecutor({
 
 ### Mutation specs
 
-Catalog specs can declare mutation metadata for `UPDATE` and `DELETE` assets:
+Catalog specs can declare mutation metadata for `INSERT`, `UPDATE`, and `DELETE` assets:
+
+```ts
+const createUserSpec: QuerySpec<
+  { id: string; display_name?: string | null; created_at?: string },
+  never
+> = {
+  id: 'user.create',
+  sqlFile: 'user/create.sql',
+  params: {
+    shape: 'named',
+    example: {
+      id: 'user-1',
+      display_name: 'Alice',
+      created_at: '2026-03-05T00:00:00.000Z',
+    },
+  },
+  mutation: {
+    kind: 'insert',
+  },
+  output: {
+    example: undefined as never,
+  },
+}
+```
+
+The `insert` behavior is covered by `packages/sql-contract/tests/catalog.create.test.ts`.
 
 ```ts
 const updateUserSpec: QuerySpec<
@@ -346,6 +372,7 @@ const updateUserSpec: QuerySpec<
 
 Phase 1 intentionally keeps the safety rules narrow:
 
+- `INSERT` subtracts only direct `VALUES (:named_param)` entries when the key is missing or `undefined`.
 - `UPDATE` and `DELETE` require a `WHERE` clause by default.
 - `UPDATE` subtracts only simple `SET column = :param` assignments when the key is missing or `undefined`.
 - `null` is preserved, so `SET column = :param` still executes and binds `NULL`.
@@ -558,3 +585,4 @@ await executor('SELECT * FROM customers WHERE id = :id', { id: 42 })
 ## License
 
 MIT
+

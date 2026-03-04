@@ -478,7 +478,24 @@ export class Mapper {
     params: QueryParams = [],
     mappingOrOptions?: RowMapping<T> | MapperOptions
   ): Promise<T[]> {
-    const rows = normalizeExecutionResult(await this.executor(sql, params)).rows
+    let rows: Row[]
+    let rawResult: QueryExecutionResult | undefined
+
+    try {
+      rawResult = await this.executor(sql, params)
+      rows = normalizeExecutionResult(rawResult).rows
+    } catch (cause) {
+      // Include query context to diagnose unsupported driver result shapes quickly.
+      throw new Error(
+        `Mapper executor returned an unsupported result shape. sql=${sql} params=${String(params)} cause=${cause instanceof Error ? cause.message : String(cause)}`
+      )
+    }
+
+    if (!Array.isArray(rows)) {
+      throw new Error(
+        `Mapper executor result must include a rows array. sql=${sql} params=${String(params)} raw=${String(rawResult)}`
+      )
+    }
     if (mappingOrOptions instanceof RowMapping) {
       return mapRows(rows, mappingOrOptions)
     }
@@ -613,7 +630,13 @@ export function toRowsExecutor(
 ): QueryExecutor {
   if (typeof executorOrTarget === 'function') {
     return async (sql, params) => {
-      return normalizeExecutionResult(await executorOrTarget(sql, params)).rows
+      const normalizedResult = normalizeExecutionResult(
+        await executorOrTarget(sql, params)
+      )
+      return {
+        rows: normalizedResult.rows,
+        rowCount: normalizedResult.rowCount,
+      }
     }
   }
 
@@ -626,7 +649,11 @@ export function toRowsExecutor(
       throw new Error(`Method "${methodName}" not found on target`)
     }
     const result = await method.call(executorOrTarget, sql, params)
-    return normalizeExecutionResult(result as QueryExecutionResult).rows
+    const normalizedResult = normalizeExecutionResult(result as QueryExecutionResult)
+    return {
+      rows: normalizedResult.rows,
+      rowCount: normalizedResult.rowCount,
+    }
   }
 
   return executor

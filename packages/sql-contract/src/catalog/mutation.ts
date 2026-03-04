@@ -120,7 +120,7 @@ export type MutationCatalogSpec = {
 export type MutationPreprocessResult = {
   sql: string
   params: QueryParams
-  mutation: NormalizedMutationSpec
+  mutation: NormalizedMutationSpec | undefined
 }
 
 type ContractViolationLike = new (message: string, specId?: string, cause?: unknown) => Error
@@ -891,12 +891,28 @@ function rewriteInsertValuesClause(
   const valuesStart = tokens[bounds.values.startTokenIndex].start
   const valuesEnd = tokens[bounds.values.endTokenIndex - 1].end
 
+  const trailingTokens = tokenizeSql(sql.slice(valuesEnd))
+  const removableNames = new Set<string>()
+
+  // Keep params when they are still referenced after VALUES (e.g. ON CONFLICT ... DO UPDATE).
+  for (const name of droppedNames) {
+    const isReferencedLater = trailingTokens.some(
+      (token) => token.kind === 'parameter' && token.value === `:${name}`
+    )
+    if (!isReferencedLater) {
+      removableNames.add(name)
+    }
+  }
+
   return {
     sql:
       `${sql.slice(0, columnsStart)}${keptColumns.join(', ')}` +
       `${sql.slice(columnsEnd, valuesStart)}${keptValues.join(', ')}` +
       sql.slice(valuesEnd),
-    params: removeNamedParams(params, droppedNames),
+    params:
+      removableNames.size > 0
+        ? removeNamedParams(params, removableNames)
+        : params,
   }
 }
 
@@ -963,7 +979,7 @@ export function preprocessMutationSpec(
     return {
       sql,
       params,
-      mutation: { kind: 'insert', insert: normalizeInsertConfig(spec) },
+      mutation: undefined,
     }
   }
 
@@ -1140,3 +1156,4 @@ export function assertDeleteGuard(
     )
   }
 }
+
