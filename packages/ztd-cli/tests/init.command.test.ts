@@ -545,6 +545,26 @@ test('init local-source mode links sql-contract from the monorepo and emits a lo
   expect(guardResult.stderr).toContain('npx tsc --noEmit');
 });
 
+test('init local-source mode uses npm script commands when package-lock.json selects npm', async () => {
+  const workspace = createTempDir('cli-init-local-source-npm');
+  const prompter = new TestPrompter([]);
+  writeFileSync(path.join(workspace, 'package-lock.json'), '{}', 'utf8');
+
+  const result = await runInitCommand(prompter, {
+    rootDir: workspace,
+    forceOverwrite: true,
+    nonInteractive: true,
+    workflow: 'empty',
+    validator: 'zod',
+    localSourceRoot: repoRoot
+  });
+
+  expect(result.summary).toContain('Run npm install');
+  expect(result.summary).toContain('Run npm run typecheck');
+  expect(result.summary).toContain('Run npm run test');
+  expect(result.summary).toContain('Run npx ztd ztd-config');
+});
+
 test('init local-source mode rejects a root that is not a rawsql-ts monorepo', async () => {
   const workspace = createTempDir('cli-init-local-source-invalid');
   const prompter = new TestPrompter([]);

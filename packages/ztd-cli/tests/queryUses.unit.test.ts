@@ -228,6 +228,55 @@ test('query usage report can exclude generated specs while keeping the default s
   expect(excludedReport.matches.map((match) => match.catalog_id)).toEqual(['sales.byId']);
 });
 
+test('query usage report excludes generated specs under a custom specsDir', () => {
+  const root = createWorkspace('query-uses-exclude-generated-custom-specs');
+  const specsDir = path.join(root, 'custom', 'specs');
+  mkdirSync(path.join(specsDir, 'generated'), { recursive: true });
+  mkdirSync(path.join(root, 'src', 'sql', 'sales'), { recursive: true });
+  writeFileSync(
+    path.join(specsDir, 'sales.spec.ts'),
+    [
+      'export const salesSpec = {',
+      "  id: 'sales.byId',",
+      "  sqlFile: 'sales/get-sale-by-id.sql',",
+      "  params: { shape: 'named', example: { sale_id: 'sale-001' } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(specsDir, 'generated', 'sales.generated.spec.ts'),
+    [
+      'export const generatedSalesSpec = {',
+      "  id: 'sales.generatedById',",
+      "  sqlFile: 'sales/get-sale-by-id.sql',",
+      "  params: { shape: 'named', example: { sale_id: 'sale-001' } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'sales', 'get-sale-by-id.sql'),
+    'SELECT p.name FROM public.sales s LEFT JOIN public.products p ON p.id = s.sale_id;',
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.products',
+    rootDir: root,
+    specsDir: 'custom/specs',
+    excludeGenerated: true
+  });
+
+  expect(report.summary).toMatchObject({
+    catalogsScanned: 1,
+    matches: 1,
+    unresolvedSqlFiles: 0
+  });
+  expect(report.matches.map((match) => match.catalog_id)).toEqual(['sales.byId']);
+});
+
 test('table impact ignores RETURNING-only statements when the target table is never referenced', () => {
   const root = createWorkspace('query-uses-table-ignore-returning');
   mkdirSync(path.join(root, 'src', 'sql', 'sales'), { recursive: true });

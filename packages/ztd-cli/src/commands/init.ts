@@ -1829,6 +1829,8 @@ function buildNextSteps(
     packageManager === 'pnpm' && workspaceGuard.shouldIgnoreWorkspace
       ? 'pnpm install --ignore-workspace'
       : `${packageManager} install`;
+  const runScriptCommand = (script: 'typecheck' | 'test'): string =>
+    packageManager === 'npm' ? `npm run ${script}` : `${packageManager} ${script}`;
 
   if (scaffoldProfile.dependencyProfile === 'local-source') {
     const localSourceSteps = [
@@ -1836,8 +1838,8 @@ function buildNextSteps(
         ? `Review the dumped DDL in ${schemaRelativePath}`
         : `If the schema file is empty, edit ${schemaRelativePath}`,
       `Run ${installCommand}`,
-      'Run pnpm typecheck',
-      'Run pnpm test',
+      `Run ${runScriptCommand('typecheck')}`,
+      `Run ${runScriptCommand('test')}`,
       'Run npx ztd ztd-config',
       'For generated QuerySpecs, prefer ztd model-gen --probe-mode ztd --import-style relative',
       'Provide a SqlClient implementation before adding SQL-backed tests'

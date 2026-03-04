@@ -12,7 +12,7 @@ title: Query Uses — Schema Impact Analysis
 
 **Minimum project structure:**
 
-```
+```text
 project-root/
 ├── src/
 │   ├── catalog/

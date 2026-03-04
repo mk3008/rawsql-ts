@@ -68,7 +68,7 @@ export function walkSqlCatalogSpecFiles(
       if (options?.excludeTestFiles && lowered.includes('.test.')) {
         continue;
       }
-      if (options?.excludeGenerated && isGeneratedSpecPath(absolute)) {
+      if (options?.excludeGenerated && isGeneratedSpecPath(absolute, rootDir)) {
         continue;
       }
       files.push(absolute);
@@ -203,6 +203,9 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
   return proto === Object.prototype || proto === null;
 }
 
-function isGeneratedSpecPath(filePath: string): boolean {
-  return filePath.split(path.sep).join('/').includes('/src/catalog/specs/generated/');
+function isGeneratedSpecPath(filePath: string, specsDir: string): boolean {
+  const generatedDir = path.resolve(specsDir, 'generated');
+  const normalizedFilePath = path.resolve(filePath);
+  const relativePath = path.relative(generatedDir, normalizedFilePath);
+  return relativePath.length > 0 && !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
 }

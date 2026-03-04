@@ -263,23 +263,28 @@ async function createProbeClient(
     };
   }
 
-  const adapterModule = await ensureAdapterNodePgModule();
-  const ztdProbeOptions = resolveModelGenZtdProbeOptions(options);
-  const ztdFixtureState = await loadModelGenZtdFixtureState(ztdProbeOptions);
-  const testkitClient = adapterModule.createPgTestkitClient({
-    connectionFactory: () => pgClient,
-    tableDefinitions: ztdFixtureState.tableDefinitions,
-    tableRows: ztdFixtureState.tableRows,
-    defaultSchema: ztdProbeOptions.defaultSchema,
-    searchPath: ztdProbeOptions.searchPath
-  });
+  try {
+    const adapterModule = await ensureAdapterNodePgModule();
+    const ztdProbeOptions = resolveModelGenZtdProbeOptions(options);
+    const ztdFixtureState = await loadModelGenZtdFixtureState(ztdProbeOptions);
+    const testkitClient = adapterModule.createPgTestkitClient({
+      connectionFactory: () => pgClient,
+      tableDefinitions: ztdFixtureState.tableDefinitions,
+      tableRows: ztdFixtureState.tableRows,
+      defaultSchema: ztdProbeOptions.defaultSchema,
+      searchPath: ztdProbeOptions.searchPath
+    });
 
-  return {
-    queryable: testkitClient,
-    close: async () => {
-      await testkitClient.close();
-    }
-  };
+    return {
+      queryable: testkitClient,
+      close: async () => {
+        await testkitClient.close();
+      }
+    };
+  } catch (error) {
+    await pgClient.end();
+    throw error;
+  }
 }
 
 export function resolveModelGenZtdProbeOptions(
