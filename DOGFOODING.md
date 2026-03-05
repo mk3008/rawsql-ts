@@ -32,6 +32,22 @@ Before starting Scenario 1, capture these versions in the report:
 - Docker Engine
 - PostgreSQL image tag used for execution
 
+### 1.2 Local-source invocation (recommended)
+
+Use this canonical local-source invocation form from `<RUN_DIR>`:
+
+```bash
+node "<LOCAL_SOURCE_ROOT>/packages/ztd-cli/dist/index.js" <ztd-subcommand-and-args>
+```
+
+- `<LOCAL_SOURCE_ROOT>`: absolute path to the `rawsql-ts` repository root.
+- `<RUN_DIR>`: standalone dogfooding run directory (outside any workspace), where commands are executed.
+- If `dist/index.js` is missing, build once from `<LOCAL_SOURCE_ROOT>`:
+
+```bash
+pnpm -C "<LOCAL_SOURCE_ROOT>" --filter @rawsql-ts/ztd-cli build
+```
+
 ## 2) Fixed DDL baseline
 
 Create `schema.sql` with the exact content below.
@@ -252,5 +268,6 @@ Use this order unless a hard blocker appears.
 7. Regenerate affected artifacts and tests.
 8. Run verification commands.
 9. Produce LOG and REPORT files.
+
 
 
