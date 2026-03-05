@@ -73,8 +73,8 @@ export class LinePrinter {
      * @param text Text to append
      */
     appendText(text: string): void {
-        // Handle special comma cleanup first
-        if (this.cleanupLine(text)) {
+        // Handle special comma cleanup only when a comma token is appended.
+        if (text === ',' && this.cleanupLine()) {
             // If cleanup was performed, add comma to previous line
             const previousLine = this.lines[this.lines.length - 1];
             previousLine.text = previousLine.text.trimEnd() + text;
@@ -87,7 +87,6 @@ export class LinePrinter {
             workLine.text += text;
         }
     }
-
     trimTrailingWhitespaceFromPreviousLine(): void {
         if (this.lines.length < 2) {
             return;
@@ -104,12 +103,11 @@ export class LinePrinter {
     /**
      * Cleans up the current line for comma formatting.
      * For 'after' and 'none' comma styles, removes empty line when a comma is being added.
-     * @param text The text being processed
      * @returns true if cleanup was performed, false otherwise
      */
-    cleanupLine(text: string): boolean {
+    cleanupLine(): boolean {
         const workLine = this.getCurrentLine();
-        if (text === ',' && workLine.text.trim() === '' && this.lines.length > 1 && (this.commaBreak === 'after' || this.commaBreak === 'none')) {
+        if (workLine.text.trim() === '' && this.lines.length > 1 && (this.commaBreak === 'after' || this.commaBreak === 'none')) {
             let previousIndex = this.lines.length - 2;
             while (previousIndex >= 0 && this.lines[previousIndex].text.trim() === '') {
                 this.lines.splice(previousIndex, 1);
@@ -169,3 +167,4 @@ export class PrintLine {
         this.text = text;
     }
 }
+
