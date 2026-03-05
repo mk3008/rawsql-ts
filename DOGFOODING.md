@@ -227,6 +227,9 @@ Submit `DOGFOOD_REPORT.md` using this template.
   - mechanizable repetition (CLI/docs/template candidates)
   - judgment-required work (domain design, naming, contract semantics)
 
+## 7.1) Lint placeholder handling note
+
+Note: ztd lint validates SQL via Postgres. When queries contain placeholders ($1, $2, or named params), lint injects default bindings (e.g. null) to avoid unbound-parameter failures (42P02) and to surface SQL-level diagnostics instead.
 ## 8) Recommended run skeleton
 
 Use this order unless a hard blocker appears.
@@ -240,3 +243,4 @@ Use this order unless a hard blocker appears.
 7. Regenerate affected artifacts and tests.
 8. Run verification commands.
 9. Produce LOG and REPORT files.
+
