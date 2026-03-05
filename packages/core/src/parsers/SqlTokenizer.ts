@@ -448,7 +448,30 @@ export class SqlTokenizer {
      * @remarks This method updates the position pointer.
      */
     private readComment(): { position: number, lines: string[] | null } {
-        return StringUtils.readWhiteSpaceAndComment(this.input, this.position);
+        const pos = this.position;
+        const inputLength = this.input.length;
+
+        if (pos >= inputLength) {
+            return { position: pos, lines: null };
+        }
+
+        // Fast path: avoid full whitespace/comment scanner when current char cannot start either.
+        const code = this.input.charCodeAt(pos);
+        if (code !== 32 && code !== 9 && code !== 10 && code !== 13) {
+            if (code === 45) {
+                if (pos + 1 >= inputLength || this.input.charCodeAt(pos + 1) !== 45) {
+                    return { position: pos, lines: null };
+                }
+            } else if (code === 47) {
+                if (pos + 1 >= inputLength || this.input.charCodeAt(pos + 1) !== 42) {
+                    return { position: pos, lines: null };
+                }
+            } else {
+                return { position: pos, lines: null };
+            }
+        }
+
+        return StringUtils.readWhiteSpaceAndComment(this.input, pos);
     }
 
     /**
