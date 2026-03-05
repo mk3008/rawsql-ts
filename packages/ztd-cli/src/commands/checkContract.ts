@@ -8,7 +8,7 @@ import {
   walkSqlCatalogSpecFiles,
   type LoadedSqlCatalogSpec
 } from '../utils/sqlCatalogDiscovery';
-import { getAgentOutputFormat } from '../utils/agentCli';
+import { getAgentOutputFormat, parseJsonPayload } from '../utils/agentCli';
 
 export type CheckFormat = 'human' | 'json';
 export type ViolationSeverity = 'error' | 'warning';
@@ -66,6 +66,7 @@ interface CheckCommandOptions {
   out?: string;
   strict?: boolean;
   specsDir?: string;
+  json?: string;
 }
 
 /** Register `ztd check contract` command on the CLI root program. */
@@ -79,17 +80,20 @@ export function registerCheckContractCommand(program: Command): void {
     .option('--out <path>', 'Write output to file')
     .option('--strict', 'Treat safety warnings as violations')
     .option('--specs-dir <path>', 'Override specs directory (default: src/catalog/specs)')
+    .option('--json <payload>', 'Pass command options as a JSON object')
     .action(async (options: CheckCommandOptions & { format: string }) => {
       try {
-        const format = normalizeFormat(options.format ?? getAgentOutputFormat());
+        const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+        const format = normalizeFormat(normalizeStringOption(merged.format) ?? getAgentOutputFormat());
         const result = runCheckContract({
-          strict: Boolean(options.strict),
+          strict: normalizeBooleanOption(merged.strict),
           rootDir: process.env.ZTD_PROJECT_ROOT,
-          specsDir: options.specsDir
+          specsDir: normalizeStringOption(merged.specsDir)
         });
         const text = formatOutput(result, format);
-        if (options.out) {
-          const absolute = path.resolve(process.cwd(), options.out);
+        const outPath = normalizeStringOption(merged.out);
+        if (outPath) {
+          const absolute = path.resolve(process.cwd(), outPath);
           mkdirSync(path.dirname(absolute), { recursive: true });
           writeFileSync(absolute, text, 'utf8');
         } else {
@@ -113,6 +117,26 @@ function normalizeFormat(format: string): CheckFormat {
     return 'json';
   }
   throw new CheckContractRuntimeError(`Unsupported format: ${format}`);
+}
+
+function normalizeStringOption(value: unknown): string | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    throw new CheckContractRuntimeError(`Expected a string option but received ${typeof value}.`);
+  }
+  return value;
+}
+
+function normalizeBooleanOption(value: unknown): boolean {
+  if (value === undefined) {
+    return false;
+  }
+  if (typeof value !== 'boolean') {
+    throw new CheckContractRuntimeError(`Expected a boolean option but received ${typeof value}.`);
+  }
+  return value;
 }
 
 /**

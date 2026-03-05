@@ -138,6 +138,8 @@ Selected commands accept `--json <payload>` to reduce flag-by-flag construction 
 npx ztd init --dry-run --json '{"workflow":"demo","validator":"zod","withSqlclient":true}'
 npx ztd ddl pull --output json --json '{"out":"ztd/ddl","schema":["public"],"dryRun":true}'
 npx ztd model-gen src/sql/users/list.sql --json '{"sqlRoot":"src/sql","probeMode":"ztd","dryRun":true}'
+npx ztd check contract --json '{"format":"json","strict":true}'
+npx ztd query uses column --json '{"target":"public.users.email","format":"json","summaryOnly":true}'
 ```
 
 ## Recommended Backend Happy Path
@@ -198,11 +200,13 @@ Use this split to classify repetition:
 | `ztd lint <path>` | Lint SQL files with fixture-backed validation |
 | `ztd evidence --mode specification` | Export executable specification evidence from SQL catalogs and test files |
 | `ztd evidence --json <payload>` | Pass evidence options as a raw JSON object |
+| `ztd check contract --json <payload>` | Pass contract-check options as a raw JSON object |
 | `ztd describe` | List command descriptions and machine-readable capability metadata |
 | `ztd describe command <name>` | Describe one command in detail, including dry-run and JSON support |
 | `ztd --output json <command>` | Emit a versioned JSON envelope for supported commands |
 | `ztd query uses table <schema.table>` | Find catalog SQL statements that use a table target |
 | `ztd query uses column <schema.table>.<column>` | Find catalog SQL statements that use a column target with explicit uncertainty labels |
+| `ztd query uses column --json <payload>` | Pass the target and query-uses options as a raw JSON object |
 | `ztd query uses --sql-root <dir>` | Resolve existing `spec.sqlFile` values against a project SQL root such as `src/sql` before trying legacy spec-relative paths |
 | `ztd query uses --exclude-generated` | Exclude specs under `src/catalog/specs/generated` when those files are review-only noise during impact scans |
 
@@ -339,7 +343,15 @@ npx ztd query uses column email --any-schema --any-table --format json
       ]
     }
   ],
-  "warnings": []
+  "warnings": [],
+  "display": {
+    "summaryOnly": false,
+    "totalMatches": 1,
+    "returnedMatches": 1,
+    "totalWarnings": 0,
+    "returnedWarnings": 0,
+    "truncated": false
+  }
 }
 ```
 
@@ -353,6 +365,7 @@ npx ztd query uses column email --any-schema --any-table --format json
 - `statement_fingerprint` is a stable hash of normalized statement text. It is designed to survive comment and whitespace changes under the current normalization contract.
 - `impact` view aggregates by statement fingerprint, while `detail` view emits one row per occurrence with clause-aware locations.
 - `impact` representatives may omit `select` due to high variance and length; use `detail` for edit-ready `SELECT` occurrences.
+- `display` reports whether `--summary-only` or `--limit` truncated the returned rows while preserving the underlying summary totals.
 
 Static column analysis does not guarantee semantic identity.
 

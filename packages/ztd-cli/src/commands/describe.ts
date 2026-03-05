@@ -145,7 +145,7 @@ const COMMANDS: CommandDescriptor[] = [
     summary: 'Validate SQL contract specs and emit deterministic findings.',
     writesFiles: true,
     supportsDryRun: false,
-    supportsJsonPayload: false,
+    supportsJsonPayload: true,
     output: {
       stdout: 'Human report or deterministic JSON report.'
     },
@@ -155,7 +155,8 @@ const COMMANDS: CommandDescriptor[] = [
       '2': 'Runtime or config error.'
     },
     flags: [
-      { name: '--format json', description: 'Emit the report as deterministic JSON.' }
+      { name: '--format json', description: 'Emit the report as deterministic JSON.' },
+      { name: '--json', description: 'Pass check options as a JSON object.' }
     ]
   },
   {
@@ -163,16 +164,19 @@ const COMMANDS: CommandDescriptor[] = [
     summary: 'Inspect catalog SQL usage of tables or columns.',
     writesFiles: true,
     supportsDryRun: false,
-    supportsJsonPayload: false,
+    supportsJsonPayload: true,
     output: {
-      stdout: 'Text report or versioned JSON report.'
+      stdout: 'Text report or versioned JSON report with optional display metadata.'
     },
     exitCodes: {
       '0': 'Report emitted.',
       '1': 'Validation failed.'
     },
     flags: [
-      { name: '--format json', description: 'Emit a versioned JSON usage report.' }
+      { name: '--format json', description: 'Emit a versioned JSON usage report.' },
+      { name: '--json', description: 'Pass target and options as a JSON object.' },
+      { name: '--summary-only', description: 'Emit only summary counts with display metadata.' },
+      { name: '--limit', description: 'Truncate matches and warnings while preserving summary totals.' }
     ]
   },
   {

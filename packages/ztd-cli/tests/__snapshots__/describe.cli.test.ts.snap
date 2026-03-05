@@ -1,0 +1,44 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`describe command emits JSON envelope when global output is json 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Generation completed, dry-run plan emitted, or output contract described.",
+        "1": "Validation or probing failed.",
+      },
+      "flags": [
+        {
+          "description": "Validate probing and show the planned output file without writing it.",
+          "name": "--dry-run",
+        },
+        {
+          "description": "Pass model-gen options as a JSON object.",
+          "name": "--json",
+        },
+        {
+          "description": "Print the generated artifact contract instead of probing.",
+          "name": "--describe-output",
+        },
+      ],
+      "name": "model-gen",
+      "output": {
+        "files": [
+          "Specified --out file when present",
+        ],
+        "stdout": "Generated TypeScript when --out is omitted; JSON envelope in global json mode.",
+      },
+      "summary": "Probe SQL metadata and generate QuerySpec scaffolding.",
+      "supportsDescribeOutput": true,
+      "supportsDryRun": true,
+      "supportsJsonPayload": true,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;

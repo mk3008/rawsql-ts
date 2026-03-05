@@ -33,18 +33,6 @@ test('describe command emits JSON envelope when global output is json', async ()
   writeSpy.mockRestore();
 
   const parsed = JSON.parse(capture.stdout.join(''));
-  expect(parsed).toMatchObject({
-    schemaVersion: 1,
-    command: 'describe command',
-    ok: true,
-    data: {
-      schemaVersion: 1,
-      command: {
-        name: 'model-gen',
-        supportsDescribeOutput: true,
-        supportsDryRun: true
-      }
-    }
-  });
+  expect(parsed).toMatchSnapshot();
   expect(capture.stderr).toEqual([]);
 });

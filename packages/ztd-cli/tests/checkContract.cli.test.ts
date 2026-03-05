@@ -102,3 +102,37 @@ test('CLI: check contract sets exitCode=2 for runtime/config errors', async () =
 
   expect(process.exitCode).toBe(2);
 });
+
+test('CLI: check contract accepts --json payload options', async () => {
+  const workspace = createWorkspace('check-contract-cli-json');
+  writeFileSync(
+    path.join(workspace, 'src', 'catalog', 'specs', 'ok.spec.json'),
+    JSON.stringify(
+      {
+        id: 'users.list',
+        sqlFile: '../../sql/users.list.sql',
+        params: { shape: 'named', example: { status: 'active' } }
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+  writeFileSync(path.join(workspace, 'src', 'sql', 'users.list.sql'), 'select user_id from users where status = :status', 'utf8');
+
+  process.env.ZTD_PROJECT_ROOT = workspace;
+  const capture = { stdout: [] as string[], stderr: [] as string[] };
+  const program = createProgram(capture);
+  const outPath = path.join(workspace, 'artifacts', 'contract-check.json');
+
+  await program.parseAsync(
+    ['check', 'contract', '--json', JSON.stringify({ format: 'json', out: outPath, strict: true })],
+    { from: 'user' }
+  );
+
+  expect(process.exitCode).toBe(0);
+  const output = JSON.parse(readFileSync(outPath, 'utf8'));
+  expect(output).toMatchObject({ ok: true, filesChecked: 1, specsChecked: 1, violations: [] });
+  expect(capture.stdout.join('')).toBe('');
+  expect(capture.stderr.join('')).toBe('');
+});

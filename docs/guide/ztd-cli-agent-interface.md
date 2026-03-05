@@ -47,6 +47,13 @@ The detailed form includes:
 - whether an output contract can be described separately
 - expected stdout/files and exit-code meanings
 
+Examples:
+
+```bash
+ztd check contract --json '{"format":"json","strict":true}'
+ztd query uses column --json '{"target":"public.users.email","format":"json","summaryOnly":true}'
+```
+
 ## Write Safety
 
 These commands support `--dry-run`:
@@ -70,3 +77,46 @@ For large reports, prefer these controls:
 - `ztd evidence ... --limit <count>`
 
 These options keep agent context windows smaller while preserving headline counts in the report summary.
+
+When output controls are applied, JSON reports include `display` metadata so callers can distinguish truncation from a true zero-result scan.
+
+`query uses` example:
+
+```json
+{
+  "schemaVersion": 2,
+  "view": "detail",
+  "summary": {
+    "matches": 12,
+    "parseWarnings": 0
+  },
+  "matches": [],
+  "warnings": [],
+  "display": {
+    "summaryOnly": true,
+    "totalMatches": 12,
+    "returnedMatches": 0,
+    "totalWarnings": 1,
+    "returnedWarnings": 0,
+    "truncated": true
+  }
+}
+```
+
+`evidence` example:
+
+```json
+{
+  "schemaVersion": 1,
+  "mode": "specification",
+  "summary": {
+    "sqlCatalogCount": 4,
+    "testCaseCount": 18
+  },
+  "display": {
+    "summaryOnly": false,
+    "limit": 5,
+    "truncated": true
+  }
+}
+```
