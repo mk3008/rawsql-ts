@@ -337,8 +337,58 @@ async function executeValidationStatement(
   testkit: ReturnType<AdapterNodePgModule['createPgTestkitClient']>,
   statement: string
 ): Promise<void> {
+  const bindings = buildLintDefaultBindings(statement);
   // Execute the rewritten statement so fixtures are applied before Postgres validation.
-  await testkit.query(statement);
+  await testkit.query(statement, bindings);
+}
+
+/**
+ * Detects the highest positional placeholder index used in SQL text.
+ * @param sql SQL text that may contain PostgreSQL-style placeholders such as $1.
+ * @returns The maximum placeholder index, or 0 when no positional placeholders exist.
+ */
+export function detectMaxPositionalParamIndex(sql: string): number {
+  const positionalPattern = /\$([1-9]\d*)/g;
+  let max = 0;
+  let match: RegExpExecArray | null;
+  while ((match = positionalPattern.exec(sql)) !== null) {
+    const index = Number(match[1]);
+    if (Number.isFinite(index) && index > max) {
+      max = index;
+    }
+  }
+  return max;
+}
+
+function detectNamedParams(sql: string): string[] {
+  const namedPattern = /(^|[^:]):([A-Za-z_][A-Za-z0-9_]*)/g;
+  const names = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = namedPattern.exec(sql)) !== null) {
+    names.add(match[2]);
+  }
+  return Array.from(names);
+}
+
+/**
+ * Builds deterministic placeholder bindings for lint execution.
+ * Named placeholders receive a keyed object and positional placeholders receive an indexed array.
+ * @param sql Statement text to inspect for placeholders.
+ * @returns Bind values or undefined when the statement has no placeholders.
+ */
+export function buildLintDefaultBindings(
+  sql: string
+): unknown[] | Record<string, unknown> | undefined {
+  const namedParams = detectNamedParams(sql);
+  if (namedParams.length > 0) {
+    return Object.fromEntries(namedParams.map((name) => [name, null]));
+  }
+
+  const maxPositionalIndex = detectMaxPositionalParamIndex(sql);
+  if (maxPositionalIndex > 0) {
+    return Array.from({ length: maxPositionalIndex }, () => null);
+  }
+  return undefined;
 }
 
 /**

@@ -7,7 +7,13 @@ import {
   extractEnumLabels,
   inferDefaultValue
 } from '../src/utils/sqlLintHelpers';
-import { buildLintConnectionError, buildLintContainerStartError, buildParserFailure } from '../src/commands/lint';
+import {
+  buildLintConnectionError,
+  buildLintContainerStartError,
+  buildLintDefaultBindings,
+  buildParserFailure,
+  detectMaxPositionalParamIndex,
+} from '../src/commands/lint';
 
 function createTempDir(prefix: string): string {
   return mkdtempSync(path.join(os.tmpdir(), `${prefix}-`));
@@ -98,3 +104,20 @@ test('buildLintConnectionError explains Docker recovery when no external connect
   expect(error.message).toContain('ZTD_LINT_DATABASE_URL');
 });
 
+
+
+test('detectMaxPositionalParamIndex returns the highest positional slot', () => {
+  expect(detectMaxPositionalParamIndex('select * from t where a = $1 and b = $3')).toBe(3);
+  expect(detectMaxPositionalParamIndex('select 1')).toBe(0);
+});
+
+test('buildLintDefaultBindings creates null-filled arrays for positional placeholders', () => {
+  expect(buildLintDefaultBindings('select * from t where a = $1 and b = $3')).toEqual([null, null, null]);
+});
+
+test('buildLintDefaultBindings creates name-keyed null objects for named placeholders', () => {
+  expect(buildLintDefaultBindings('select * from t where a = :id and b = :status')).toEqual({
+    id: null,
+    status: null,
+  });
+});
