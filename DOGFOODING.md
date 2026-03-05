@@ -143,6 +143,9 @@ Query requirements (fixed):
 - Join: `payment.sale_id = sale.sale_id` (**INNER JOIN**)
 - Filter: date range on `payment.paid_at`
 
+Rule: For Scenario 2 runs, use a fresh Postgres container / fresh database to apply the updated schema, to avoid noisy "relation already exists" output and keep logs comparable.
+OPTIONAL (destructive): If you must reuse a DB, reset schema first: `drop schema public cascade; create schema public;`.
+
 ### 4.2 Pass criteria
 
 - Still no dev-time migration requirement
