@@ -3,10 +3,8 @@ import * as path from 'path';
 import Benchmark = require('benchmark');
 type BenchmarkCase = Benchmark;
 import * as os from 'os';
-import { format as sqlFormat } from 'sql-formatter';
 import { Parser as NodeSqlParser } from 'node-sql-parser';
-import { SelectQueryParser } from '../packages/core/src/parsers/SelectQueryParser';
-import { SqlFormatter } from '../packages/core/src/transformers/SqlFormatter';
+import { SqlParser } from '../packages/core/src/parsers/SqlParser';
 
 interface BenchmarkResult {
     name: string;
@@ -33,14 +31,41 @@ interface ChartDataset {
     }>;
 }
 
-// Set of SQL queries for benchmarking
+interface BenchmarkRunConfig {
+    defaultMinSamples: number;
+    defaultMaxTimeSec: number;
+    heavyMinSamples: number;
+    heavyMaxTimeSec: number;
+}
+
+const BENCHMARK_RUN_CONFIG: BenchmarkRunConfig = {
+    defaultMinSamples: 10,
+    defaultMaxTimeSec: 0.2,
+    heavyMinSamples: 6,
+    heavyMaxTimeSec: 0.12,
+};
+
+function createCteChainSql(targetLines: number): string {
+    const cteCount = Math.max(2, targetLines - 2);
+    const lines: string[] = ['WITH'];
+
+    for (let i = 1; i <= cteCount; i++) {
+        const cteName = `cte_${i.toString().padStart(4, '0')}`;
+        if (i === 1) {
+            lines.push(`  ${cteName} AS (SELECT 1 AS id)${i === cteCount ? '' : ','}`);
+            continue;
+        }
+
+        const prevCteName = `cte_${(i - 1).toString().padStart(4, '0')}`;
+        lines.push(`  ${cteName} AS (SELECT id + 1 AS id FROM ${prevCteName})${i === cteCount ? '' : ','}`);
+    }
+
+    lines.push(`SELECT id FROM cte_${cteCount.toString().padStart(4, '0')};`);
+    return lines.join('\n');
+}
+
+// Set of SQL queries for parse-only benchmarking
 const queries = [
-    {
-        name: 'Tokens20',
-        sql: `SELECT id, name, email, age, created_at, updated_at, status, role, last_login, country
-              FROM users
-              WHERE id = 1;`
-    },
     {
         name: 'Tokens70',
         sql: `SELECT
@@ -134,10 +159,13 @@ const queries = [
                     ) q
                 ORDER BY
                     line_id;`
+    },
+    {
+        name: 'Tokens12000',
+        sql: createCteChainSql(1000)
     }
 ];
 
-const sqlFormatter = new SqlFormatter();
 const nodeSqlParser = new NodeSqlParser();
 const suite = new Benchmark.Suite();
 const reportLines: string[] = [];
@@ -147,31 +175,19 @@ const logLine = (line = '') => {
     reportLines.push(line);
 };
 
-function formatWithRawSql(sql: string) {
+function parseWithRawSql(sql: string) {
     return () => {
-        // Parse into the rawsql-ts AST to exercise the updated tokenizer with comment support.
-        const query = SelectQueryParser.parse(sql);
-        // Format the query to mirror real-world usage that chains parsing and formatting.
-        sqlFormatter.format(query);
+        SqlParser.parse(sql, { mode: 'single' });
     };
 }
 
-function formatWithSqlFormatter(sql: string) {
+function parseWithNodeSqlParser(sql: string) {
     return () => {
-        // Execute sql-formatter as a baseline formatter-only comparison.
-        sqlFormat(sql, { language: 'postgresql' });
-    };
-}
-
-function formatWithNodeSqlParser(sql: string) {
-    return () => {
-        // Parse using node-sql-parser to compare against another AST-based parser.
         nodeSqlParser.astify(sql, { database: 'postgresql' });
     };
 }
 
 function getSystemInfo(): SystemInfo {
-    // Collect CPU, OS, memory, and runtime metadata for reproducible benchmark context.
     const cpuModel = os.cpus()[0]?.model ?? 'Unknown CPU';
     const logicalCores = os.cpus().length;
     const osName = `${os.type()} ${os.release()}`;
@@ -188,7 +204,6 @@ function getSystemInfo(): SystemInfo {
 }
 
 function printHeader() {
-    // Emit benchmark metadata as a fenced block for easy copying into documentation.
     const info = getSystemInfo();
     const currentDate = new Date().toISOString().split('T')[0];
     const benchmarkVersion = require('benchmark/package.json').version;
@@ -198,12 +213,12 @@ function printHeader() {
     logLine(`${info.cpuModel.trim()}, ${info.logicalCores} logical cores`);
     logLine(`Node.js ${info.nodeVersion}`);
     logLine(`Date ${currentDate}`);
+    logLine(`Benchmark config: default minSamples=${BENCHMARK_RUN_CONFIG.defaultMinSamples}, maxTime=${BENCHMARK_RUN_CONFIG.defaultMaxTimeSec}s; heavy minSamples=${BENCHMARK_RUN_CONFIG.heavyMinSamples}, maxTime=${BENCHMARK_RUN_CONFIG.heavyMaxTimeSec}s`);
     logLine('```');
     logLine('');
 }
 
 function printResults(results: BenchmarkResult[]) {
-    // Organize results by query complexity so readers can compare like-for-like workloads.
     const queryNames = queries.map(q => q.name);
     const groupedResults: Record<string, BenchmarkResult[]> = {};
 
@@ -211,7 +226,6 @@ function printResults(results: BenchmarkResult[]) {
         groupedResults[name] = results.filter(r => r.name.includes(name));
     });
 
-    // Render each group as a Markdown table with a rawsql-ts baseline column.
     Object.keys(groupedResults).forEach(groupName => {
         logLine(`\n#### ${groupName}`);
         logLine('| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |');
@@ -222,7 +236,6 @@ function printResults(results: BenchmarkResult[]) {
         const rawsqlMean = rawsqlResult ? rawsqlResult.mean : null;
 
         groupResults.forEach(result => {
-            // Match the library segment before the query name for consistent labels.
             const methodMatch = result.name.match(/^([^]+)\s+Tokens\d+$/);
             const methodName = methodMatch ? methodMatch[1] : result.name;
             const name = methodName.padEnd(30).substring(0, 30);
@@ -250,9 +263,8 @@ function printResults(results: BenchmarkResult[]) {
 }
 
 function buildChartDataset(results: BenchmarkResult[]): ChartDataset {
-    // Generate QuickChart-compatible data for the README bar chart.
     const labels = queries.map(query => query.name);
-    const methods = ['rawsql-ts', 'node-sql-parser', 'sql-formatter'];
+    const methods = ['rawsql-ts', 'node-sql-parser'];
 
     const datasets = methods.map(label => {
         const data = labels.map(queryName => {
@@ -278,7 +290,6 @@ function buildChartDataset(results: BenchmarkResult[]): ChartDataset {
 }
 
 function printChartDataset(results: BenchmarkResult[]) {
-    // Emit chart data as JSON so documentation can be updated without manual transcription.
     const dataset = buildChartDataset(results);
     logLine('#### Chart Dataset');
     logLine('```json');
@@ -288,7 +299,6 @@ function printChartDataset(results: BenchmarkResult[]) {
 }
 
 function writeReportFile(lines: string[]): string {
-    // Persist the Markdown report under ./tmp for downstream documentation updates.
     const timestamp = new Date().toISOString().replace(/[:]/g, '-');
     const tmpDir = path.resolve(__dirname, '../tmp');
     fs.mkdirSync(tmpDir, { recursive: true });
@@ -299,10 +309,18 @@ function writeReportFile(lines: string[]): string {
     return filePath;
 }
 
+function getBenchmarkOptions(queryName: string): Benchmark.Options {
+    const isHeavy = queryName === 'Tokens12000';
+    return {
+        minSamples: isHeavy ? BENCHMARK_RUN_CONFIG.heavyMinSamples : BENCHMARK_RUN_CONFIG.defaultMinSamples,
+        maxTime: isHeavy ? BENCHMARK_RUN_CONFIG.heavyMaxTimeSec : BENCHMARK_RUN_CONFIG.defaultMaxTimeSec,
+    };
+}
+
 queries.forEach(query => {
-    suite.add(`rawsql-ts ${query.name}`, formatWithRawSql(query.sql));
-    suite.add(`node-sql-parser ${query.name}`, formatWithNodeSqlParser(query.sql));
-    suite.add(`sql-formatter ${query.name}`, formatWithSqlFormatter(query.sql));
+    const options = getBenchmarkOptions(query.name);
+    suite.add(`rawsql-ts ${query.name}`, parseWithRawSql(query.sql), options);
+    suite.add(`node-sql-parser ${query.name}`, parseWithNodeSqlParser(query.sql), options);
 });
 
 suite.on('cycle', () => {
@@ -310,7 +328,6 @@ suite.on('cycle', () => {
 });
 
 suite.on('complete', function (this: Benchmark.Suite) {
-    // Collect successful benchmarks for reporting once the suite finishes.
     const results = this.filter('successful').map((benchmark: BenchmarkCase) => ({
         name: benchmark.name,
         hz: benchmark.hz,

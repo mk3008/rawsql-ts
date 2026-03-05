@@ -100,15 +100,22 @@ const { formattedSql, params } = formatter.format(query);
 
 ## Benchmarks
 
-![Benchmark Results](https://quickchart.io/chart?c={type:'bar',data:{labels:['Tokens20','Tokens70','Tokens140','Tokens230'],datasets:[{label:'rawsql-ts',data:[0.029,0.075,0.137,0.239],backgroundColor:'rgba(54,162,235,0.8)',borderColor:'rgba(54,162,235,1)',borderWidth:1},{label:'node-sql-parser',data:[0.210,0.223,0.420,0.871],backgroundColor:'rgba(255,206,86,0.8)',borderColor:'rgba(255,206,86,1)',borderWidth:1},{label:'sql-formatter',data:[0.228,0.547,1.057,1.906],backgroundColor:'rgba(255,99,132,0.8)',borderColor:'rgba(255,99,132,1)',borderWidth:1}]},options:{plugins:{legend:{labels:{color:'black'}}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}}&width=700&height=450)
+![Benchmark Results](https://quickchart.io/chart?c={type:'bar',data:{labels:['Tokens70','Tokens140','Tokens230'],datasets:[{label:'rawsql-ts',data:[0.092,0.152,0.282],backgroundColor:'rgba(54,162,235,0.8)',borderColor:'rgba(54,162,235,1)',borderWidth:1},{label:'node-sql-parser',data:[0.604,1.212,1.628],backgroundColor:'rgba(255,206,86,0.8)',borderColor:'rgba(255,206,86,1)',borderWidth:1}]},options:{plugins:{legend:{labels:{color:'black'}}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}}&width=700&height=450)
 
-| Workload | rawsql-ts | node-sql-parser | sql-formatter |
-|----------|----------:|----------------:|--------------:|
-| Tokens70 | 0.075 ms | 0.223 ms (3.0x) | 0.547 ms (7.3x) |
-| Tokens140 | 0.137 ms | 0.420 ms (3.1x) | 1.057 ms (7.7x) |
-| Tokens230 | 0.239 ms | 0.871 ms (3.6x) | 1.906 ms (8.0x) |
+| Workload | rawsql-ts | node-sql-parser |
+|----------|----------:|----------------:|
+| Tokens70 | 0.092 ms | 0.604 ms (6.6x) |
+| Tokens140 | 0.152 ms | 1.212 ms (8.0x) |
+| Tokens230 | 0.282 ms | 1.628 ms (5.8x) |
 
-> Benchmarked on AMD Ryzen 7 7800X3D / Node.js v22.14.0. See [benchmark details](../../docs/bench) for full results.
+> Benchmarked on AMD Ryzen 7 7800X3D / Node.js v22.14.0 (2026-03-05). See [benchmark details](../../docs/bench/parse-benchmark.md) for full results.
+### Tokens12000 (1000line) Comparison
+
+![Tokens12000 Benchmark](https://quickchart.io/chart?c={type:'bar',data:{labels:['Tokens12000_1000line'],datasets:[{label:'rawsql-ts',data:[15.969],backgroundColor:'rgba(54,162,235,0.8)',borderColor:'rgba(54,162,235,1)',borderWidth:1},{label:'node-sql-parser',data:[52.814],backgroundColor:'rgba(255,206,86,0.8)',borderColor:'rgba(255,206,86,1)',borderWidth:1}]},options:{plugins:{legend:{labels:{color:'black'}}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}}&width=700&height=340)
+
+| Workload | rawsql-ts | node-sql-parser |
+|----------|----------:|----------------:|
+| Tokens12000 (1000line) | 15.969 ms | 52.814 ms (3.3x) |
 
 ## Online Demo
 
@@ -117,3 +124,5 @@ const { formattedSql, params } = formatter.format(query);
 ## License
 
 MIT
+
+
