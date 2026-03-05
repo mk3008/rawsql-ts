@@ -31,7 +31,9 @@ export class TokenReaderManager {
      * @returns This manager instance for chaining
      */
     public registerAll(readers: BaseTokenReader[]): TokenReaderManager {
-        readers.forEach(reader => this.register(reader));
+        for (let i = 0; i < readers.length; i++) {
+            this.readers.push(readers[i]);
+        }
         return this;
     }
 
@@ -44,8 +46,10 @@ export class TokenReaderManager {
     public tryRead(position: number, previous: Lexeme | null): Lexeme | null {
         this.position = position;
 
-        // Set reader position lazily so we avoid touching readers after the winning parser.
-        for (const reader of this.readers) {
+        const readers = this.readers;
+        // Index-based iteration avoids iterator allocations in the hottest parse loop.
+        for (let i = 0; i < readers.length; i++) {
+            const reader = readers[i];
             reader.setPosition(position);
             const lexeme = reader.tryRead(previous);
             if (lexeme) {
