@@ -183,6 +183,16 @@ const keywordTrie = new KeywordTrie([
 ]);
 const keywordParser = new KeywordParser(keywordTrie);
 export const joinkeywordParser = new KeywordParser(joinTrie);
+function canStartJoinKeyword(input: string, position: number): boolean {
+    const code = input.charCodeAt(position) | 32;
+    return code === 106 || // j
+        code === 105 ||    // i
+        code === 99 ||     // c
+        code === 108 ||    // l
+        code === 114 ||    // r
+        code === 102 ||    // f
+        code === 110;      // n
+}
 export { keywordTrie as commandKeywordTrie };
 
 export class CommandTokenReader extends BaseTokenReader {
@@ -191,12 +201,14 @@ export class CommandTokenReader extends BaseTokenReader {
             return null;
         }
 
-        const keywordJoin = joinkeywordParser.parse(this.input, this.position);
-        if (keywordJoin !== null) {
-            this.position = keywordJoin.newPosition;
-            return this.createLexeme(TokenType.Command, keywordJoin.keyword);
+        // Skip JOIN-specific parsing unless the leading character can start JOIN phrases.
+        if (canStartJoinKeyword(this.input, this.position)) {
+            const keywordJoin = joinkeywordParser.parse(this.input, this.position);
+            if (keywordJoin !== null) {
+                this.position = keywordJoin.newPosition;
+                return this.createLexeme(TokenType.Command, keywordJoin.keyword);
+            }
         }
-
         // Check for keyword identifiers
         const keyword = keywordParser.parse(this.input, this.position);
         if (keyword !== null) {
@@ -231,5 +243,9 @@ export class CommandTokenReader extends BaseTokenReader {
         return null;
     }
 }
+
+
+
+
 
 
