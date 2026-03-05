@@ -1,4 +1,4 @@
-﻿import { KeywordMatchResult } from "../parsers/KeywordParser";
+import { KeywordMatchResult } from "../parsers/KeywordParser";
 
 // Note: An object-based trie (string-keyed object) was tested, but benchmark results showed no improvement and sometimes worse performance for long queries.
 // Therefore, the original Map-based implementation is retained for best stability and speed.
@@ -6,10 +6,6 @@
 export class KeywordTrie {
     private root: Map<string, any> = new Map();
     private currentNode: Map<string, any>;
-
-    // cache properties
-    private hasEndProperty: boolean = false;
-    private hasMoreProperties: boolean = false;
 
     constructor(keywords: string[][]) {
         // initialize root node
@@ -33,27 +29,23 @@ export class KeywordTrie {
 
     public reset(): void {
         this.currentNode = this.root;
-        this.hasEndProperty = false;
-        this.hasMoreProperties = false;
     }
 
     public pushLexeme(lexeme: string): KeywordMatchResult {
-        if (!this.currentNode.has(lexeme)) {
+        const nextNode = this.currentNode.get(lexeme);
+        if (!nextNode) {
             return KeywordMatchResult.NotAKeyword;
         }
 
         // move to next node
-        this.currentNode = this.currentNode.get(lexeme);
+        this.currentNode = nextNode;
 
-        // Cache property checks to avoid repeated operations
-        this.hasEndProperty = this.currentNode.has("__end__");
-        this.hasMoreProperties = this.currentNode.size > (this.hasEndProperty ? 1 : 0);
-
-        if (this.hasEndProperty && !this.hasMoreProperties) {
-            return KeywordMatchResult.Final;
-        }
-        if (this.hasEndProperty && this.hasMoreProperties) {
-            return KeywordMatchResult.PartialOrFinal;
+        // Resolve terminal state with a single node reference.
+        const hasEndProperty = nextNode.has("__end__");
+        if (hasEndProperty) {
+            return nextNode.size === 1
+                ? KeywordMatchResult.Final
+                : KeywordMatchResult.PartialOrFinal;
         }
 
         return KeywordMatchResult.PartialOnly;
