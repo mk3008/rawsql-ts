@@ -1,5 +1,5 @@
 import { BaseTokenReader } from './BaseTokenReader';
-import { Lexeme, TokenType } from '../models/Lexeme';
+import { Lexeme } from '../models/Lexeme';
 
 /**
  * Manages and coordinates multiple token readers
@@ -54,22 +54,16 @@ export class TokenReaderManager {
     public tryRead(position: number, previous: Lexeme | null): Lexeme | null {
         this.setPosition(position);
 
-        // Try to read with each reader
-        let lexeme: Lexeme | null = null;
+        // Keep only the winning reader position; the next call will re-seed all readers.
         for (const reader of this.readers) {
-            lexeme = reader.tryRead(previous);
+            const lexeme = reader.tryRead(previous);
             if (lexeme) {
                 this.position = reader.getPosition();
-                break;
+                return lexeme;
             }
         }
 
-        // Update all readers' positions
-        for (const reader of this.readers) {
-            reader.setPosition(this.position);
-        }
-
-        return lexeme;
+        return null;
     }
 
     /**
