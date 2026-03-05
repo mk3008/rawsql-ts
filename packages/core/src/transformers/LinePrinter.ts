@@ -61,7 +61,8 @@ export class LinePrinter {
         if (this.lines.length > 0) {
             const current = this.lines[this.lines.length - 1];
             if (current.text !== '') {
-                current.text = current.text.trimEnd() + this.newline;
+                const lineText = this.endsWithAsciiWhitespace(current.text) ? current.text.trimEnd() : current.text;
+                current.text = lineText + this.newline;
             }
         }
         this.lines.push(new PrintLine(level, ''));
@@ -77,7 +78,8 @@ export class LinePrinter {
         if (text === ',' && this.cleanupLine()) {
             // If cleanup was performed, add comma to previous line
             const previousLine = this.lines[this.lines.length - 1];
-            previousLine.text = previousLine.text.trimEnd() + text;
+            const lineText = this.endsWithAsciiWhitespace(previousLine.text) ? previousLine.text.trimEnd() : previousLine.text;
+            previousLine.text = lineText + text;
             return;
         }
 
@@ -86,6 +88,14 @@ export class LinePrinter {
         if (!(text === ' ' && workLine.text === '')) {
             workLine.text += text;
         }
+    }
+    private endsWithAsciiWhitespace(text: string): boolean {
+        if (text.length === 0) {
+            return false;
+        }
+
+        const tail = text.charCodeAt(text.length - 1);
+        return tail === 32 || tail === 9 || tail === 10 || tail === 13;
     }
     trimTrailingWhitespaceFromPreviousLine(): void {
         if (this.lines.length < 2) {
