@@ -16,7 +16,10 @@ Follow this file exactly and do not substitute ad-hoc scenarios.
 - PostgreSQL version: **18**
 - DBMS runtime: **Docker**
 - `rawsql-ts` packages: use **local source code**, not npm releases
-- Work location: a **git-untracked** folder (for example `tmp/dogfood-run-<timestamp>`)
+- Work location: a **git-untracked standalone folder outside any pnpm workspace/monorepo**
+  - This is the default mode because real-world usage is `@rawsql-ts/ztd-cli` as an npm package in a standalone repo.
+  - Windows-friendly example: `C:\Users\<you>\tmp\rawsql-ts-dogfood\run-XX\` (must NOT be under the `rawsql-ts` repository tree)
+- Local-source mode note: even with `--local-source-root`, the run directory must stay standalone (outside workspace) to keep dependency resolution deterministic and avoid workspace absorption.
 - DDL baseline is fixed to Section 2
 
 ### 1.1 Required environment capture
@@ -230,11 +233,17 @@ Submit `DOGFOOD_REPORT.md` using this template.
 ## 7.1) Lint placeholder handling note
 
 Note: ztd lint validates SQL via Postgres. When queries contain placeholders ($1, $2, or named params), lint injects default bindings (e.g. null) to avoid unbound-parameter failures (42P02) and to surface SQL-level diagnostics instead.
+
+## 7.2) OPTIONAL: Running inside a workspace (not recommended)
+
+- If you run under a directory governed by a parent `pnpm-workspace.yaml`, pnpm may absorb installs into the parent workspace.
+- This can introduce unrelated dependency-resolution friction and reduce determinism for dogfooding signals.
+- This mode is intentionally not the default because it does not represent typical npm-package users.
 ## 8) Recommended run skeleton
 
 Use this order unless a hard blocker appears.
 
-1. Prepare untracked workspace under `tmp/`.
+1. Prepare an untracked standalone workspace outside any pnpm workspace (for example `C:\Users\<you>\tmp\rawsql-ts-dogfood\run-XX\`).
 2. Create Docker PostgreSQL 18 container for runtime checks.
 3. Scaffold project with local source linkage.
 4. Apply fixed baseline DDL.
@@ -243,4 +252,5 @@ Use this order unless a hard blocker appears.
 7. Regenerate affected artifacts and tests.
 8. Run verification commands.
 9. Produce LOG and REPORT files.
+
 
