@@ -8,6 +8,7 @@ import {
   inferDefaultValue
 } from '../src/utils/sqlLintHelpers';
 import {
+  buildLintCommandFailureData,
   buildLintConnectionError,
   buildLintContainerStartError,
   buildLintDefaultBindings,
@@ -105,6 +106,14 @@ test('buildLintConnectionError explains Docker recovery when no external connect
   expect(error.message).toContain('ZTD_LINT_DATABASE_URL');
 });
 
+test('buildLintCommandFailureData returns a stable JSON envelope payload for command failures', () => {
+  expect(buildLintCommandFailureData(new Error('lint exploded'))).toEqual({
+    schemaVersion: 1,
+    filesChecked: 0,
+    failures: [],
+    error: 'lint exploded'
+  });
+});
 
 
 test('detectMaxPositionalParamIndex returns the highest positional slot', () => {

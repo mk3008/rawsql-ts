@@ -60,6 +60,13 @@ export interface RunSqlLintResult {
   filesChecked: number;
 }
 
+export interface LintCommandEnvelopeData {
+  schemaVersion: 1;
+  filesChecked: number;
+  failures: LintFailure[];
+  error?: string;
+}
+
 interface LintModuleConstructors {
   DdlLintError: TestkitCoreModule['DdlLintError'];
   TableNameResolver: TestkitCoreModule['TableNameResolver'];
@@ -174,12 +181,7 @@ export function registerLintCommand(program: Command): void {
         await runLintCommand(resolved.path);
       } catch (error) {
         if (isJsonOutput()) {
-          writeCommandResultEnvelope('lint', false, {
-            schemaVersion: 1,
-            filesChecked: 0,
-            failures: [],
-            error: error instanceof Error ? error.message : String(error)
-          });
+          writeCommandResultEnvelope('lint', false, buildLintCommandFailureData(error));
         }
         throw error;
       }
@@ -275,6 +277,15 @@ export function resolveLintCommandInput(pattern: string | undefined, options: Li
     throw new Error('A lint path must be provided either as a positional argument or via --json {"path":"..."}');
   }
   return { path: merged.path };
+}
+
+export function buildLintCommandFailureData(error: unknown): LintCommandEnvelopeData {
+  return {
+    schemaVersion: 1,
+    filesChecked: 0,
+    failures: [],
+    error: error instanceof Error ? error.message : String(error)
+  };
 }
 
 function resolveDbConnectTimeoutMs(): number {

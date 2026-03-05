@@ -107,6 +107,11 @@ npx ztd ztd-config --watch # Or keep types updated while editing DDL
 
 `ztd-cli` keeps the human-oriented CLI, but now also exposes a machine-readable path for agents and scripts.
 
+Reference docs:
+
+- [ztd-cli Agent Interface](../../docs/guide/ztd-cli-agent-interface.md)
+- [ztd-cli Describe Schema](../../docs/guide/ztd-cli-describe-schema.md)
+
 ### Global JSON mode
 
 ```bash
