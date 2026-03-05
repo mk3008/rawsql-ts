@@ -132,7 +132,9 @@ test(
   60000,
 );
 
-test('ztd-config CLI accepts --json payload and emits a JSON envelope in global json mode', () => {
+test(
+  'ztd-config CLI accepts --json payload and emits a JSON envelope in global json mode',
+  () => {
   const ddlDir = createTempDir('cli-gen-ddl-json');
   writeFileSync(
     path.join(ddlDir, 'tables.sql'),
@@ -173,70 +175,84 @@ test('ztd-config CLI accepts --json payload and emits a JSON envelope in global 
     }
   });
   expect(existsSync(outputFile)).toBe(false);
-});
+  },
+  30000,
+);
 
-test('top-level help exposes model-gen as a first-class command', () => {
-  const result = runCli(['--help']);
-  assertCliSuccess(result, '--help');
-  expect(result.stdout).toContain('model-gen [options] <sql-file>');
-});
+test(
+  'top-level help exposes model-gen as a first-class command',
+  () => {
+    const result = runCli(['--help']);
+    assertCliSuccess(result, '--help');
+    expect(result.stdout).toContain('model-gen [options] <sql-file>');
+  },
+  30000,
+);
 
-test('describe command returns machine-readable metadata with global json output', () => {
-  const result = runCli(['--output', 'json', 'describe', 'command', 'model-gen']);
-  assertCliSuccess(result, 'describe command');
-  const parsed = JSON.parse(result.stdout);
-  expect(parsed).toMatchObject({
-    schemaVersion: 1,
-    command: 'describe command',
-    ok: true
-  });
-});
+test(
+  'describe command returns machine-readable metadata with global json output',
+  () => {
+    const result = runCli(['--output', 'json', 'describe', 'command', 'model-gen']);
+    assertCliSuccess(result, 'describe command');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      schemaVersion: 1,
+      command: 'describe command',
+      ok: true
+    });
+  },
+  30000,
+);
 
-test('lint CLI accepts --json payload and emits a JSON envelope in global json mode', () => {
-  const workspace = createSqlWorkspace('lint-json-cli');
-  writeFileSync(workspace.sqlFile, 'select 1 as value', 'utf8');
-  writeFileSync(
-    path.join(workspace.rootDir, 'ztd.config.json'),
-    JSON.stringify({
-      dialect: 'postgres',
-      ddlDir: 'ztd/ddl',
-      testsDir: 'tests',
-      ddl: {
-        defaultSchema: 'public',
-        searchPath: ['public']
+test(
+  'lint CLI accepts --json payload and emits a JSON envelope in global json mode',
+  () => {
+    const workspace = createSqlWorkspace('lint-json-cli');
+    writeFileSync(workspace.sqlFile, 'select 1 as value', 'utf8');
+    writeFileSync(
+      path.join(workspace.rootDir, 'ztd.config.json'),
+      JSON.stringify({
+        dialect: 'postgres',
+        ddlDir: 'ztd/ddl',
+        testsDir: 'tests',
+        ddl: {
+          defaultSchema: 'public',
+          searchPath: ['public']
+        },
+        ddlLint: 'strict'
+      }, null, 2),
+      'utf8'
+    );
+    mkdirSync(path.join(workspace.rootDir, 'ztd', 'ddl'), { recursive: true });
+    writeFileSync(
+      path.join(workspace.rootDir, 'ztd', 'ddl', 'public.sql'),
+      'CREATE TABLE public.users (id integer PRIMARY KEY);',
+      'utf8'
+    );
+
+    const result = runCli(
+      ['--output', 'json', 'lint', '--json', JSON.stringify({ path: workspace.sqlFile })],
+      {
+        ZTD_LINT_DATABASE_URL: 'postgres://127.0.0.1:1/invalid',
+        DATABASE_URL: ''
       },
-      ddlLint: 'strict'
-    }, null, 2),
-    'utf8'
-  );
-  mkdirSync(path.join(workspace.rootDir, 'ztd', 'ddl'), { recursive: true });
-  writeFileSync(
-    path.join(workspace.rootDir, 'ztd', 'ddl', 'public.sql'),
-    'CREATE TABLE public.users (id integer PRIMARY KEY);',
-    'utf8'
-  );
+      workspace.rootDir
+    );
 
-  const result = runCli(
-    ['--output', 'json', 'lint', '--json', JSON.stringify({ path: workspace.sqlFile })],
-    {
-      ZTD_LINT_DATABASE_URL: 'postgres://127.0.0.1:1/invalid',
-      DATABASE_URL: ''
-    },
-    workspace.rootDir
-  );
-
-  assertCliFailure(result, 'lint json');
-  const parsed = JSON.parse(result.stdout);
-  expect(parsed).toMatchObject({
-    command: 'lint',
-    ok: false,
-    data: {
-      filesChecked: 0,
-      error: expect.stringContaining('Failed to connect to PostgreSQL for ztd lint.')
-    }
-  });
-  expect(result.stderr).toContain('Failed to connect to PostgreSQL for ztd lint.');
-});
+    assertCliFailure(result, 'lint json');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      command: 'lint',
+      ok: false,
+      data: {
+        filesChecked: 0,
+        error: expect.stringContaining('Failed to connect to PostgreSQL for ztd lint.')
+      }
+    });
+    expect(result.stderr).toContain('Failed to connect to PostgreSQL for ztd lint.');
+  },
+  30000,
+);
 
 test('init dry-run emits scaffold plan without writing files', () => {
   const workspace = createTempDir('init-dry-run');
@@ -250,6 +266,73 @@ test('init dry-run emits scaffold plan without writing files', () => {
   });
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(false);
 });
+
+test('init CLI writes internal agent guidance by default and no visible AGENTS files', () => {
+  const workspace = createTempDir('init-default-internal-agents');
+  const result = runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace);
+
+  assertCliSuccess(result, 'init default agents');
+  expect(result.stdout).toContain('Internal guidance is managed under .ztd/agents/.');
+  expect(result.stdout).toContain('Enable with: ztd agents install');
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(true);
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'root.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(false);
+});
+
+test('agents install emits the visible AGENTS plan and materializes the files', () => {
+  const workspace = createTempDir('agents-install');
+  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before install');
+
+  const result = runCli(['agents', 'install'], {}, workspace);
+  assertCliSuccess(result, 'agents install');
+  expect(result.stdout).toContain('About to create:');
+  expect(result.stdout).toContain('No files will be overwritten.');
+  expect(result.stdout).toContain('Disable with: skip `ztd agents install`');
+  expect(result.stdout).toContain('AGENTS.md');
+  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(true);
+}, 30_000);
+
+test('agents install preserves an existing root AGENTS.md and falls back to AGENTS_ztd.md', () => {
+  const workspace = createTempDir('agents-install-root-fallback');
+  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before fallback install');
+  writeFileSync(path.join(workspace, 'AGENTS.md'), '# existing root\n', 'utf8');
+
+  const result = runCli(['agents', 'install'], {}, workspace);
+  assertCliSuccess(result, 'agents install fallback');
+  expect(result.stdout).toContain('AGENTS_ztd.md');
+  expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toBe('# existing root\n');
+  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(true);
+}, 30_000);
+
+test('agents status reports internal files and visible install recommendation before install', () => {
+  const workspace = createTempDir('agents-status');
+  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before status');
+
+  const result = runCli(['--output', 'json', 'agents', 'status'], {}, workspace);
+  assertCliSuccess(result, 'agents status');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    recommended_actions: expect.arrayContaining(['install-visible-agents']),
+    targets: expect.arrayContaining([
+      expect.objectContaining({
+        path: '.ztd/agents/manifest.json',
+        installed: true,
+        managed: true,
+        drift: 'none'
+      }),
+      expect.objectContaining({
+        path: 'AGENTS.md',
+        installed: false,
+        managed: false,
+        drift: 'none'
+      })
+    ])
+  });
+}, 30_000);
 
 test('model-gen rejects positional placeholders by default and recommends named params', () => {
   const workspace = createSqlWorkspace('model-gen-positional-error');

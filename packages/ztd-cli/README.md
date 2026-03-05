@@ -64,6 +64,7 @@ After `ztd init` you should see:
 | `tests/support/testkit-client.ts` | Driver wiring placeholder |
 | `src/catalog/specs/` | Spec and runtime files for the smoke contract |
 | `CONTEXT.md` | Agent-focused project invariants and recommended command usage |
+| `.ztd/agents/manifest.json` | Managed AI guidance index with security notices and entrypoints |
 
 ```bash
 # 4. Generate test types from the demo DDL
@@ -88,6 +89,7 @@ All smoke tests should pass. You now have a working ZTD project.
 
 - Replace the demo DDL with your own schema, or pull from a live database with `npx ztd ddl pull`
 - Re-run `npx ztd ztd-config` whenever DDL changes (or use `--watch`)
+- Install visible AGENTS files only if you want them in the repo: `npx ztd agents install`
 - Wire a real driver in `tests/support/testkit-client.ts` (see [adapter-node-pg](../adapters/adapter-node-pg) for Postgres)
 - Write domain tests against generated `TestRowMap` types
 
@@ -185,6 +187,8 @@ Use this split to classify repetition:
 | `ztd init --local-source-root <path>` | Scaffold for local-source dogfooding and link `@rawsql-ts/sql-contract` from a monorepo path instead of npm |
 | `ztd init --with-sqlclient` | Also scaffold a minimal `SqlClient` boundary for repositories |
 | `ztd init --with-app-interface` | Append application interface guidance to `AGENTS.md` only |
+| `ztd agents install` | Materialize visible `AGENTS.md` files from the managed templates |
+| `ztd agents status` | Report internal/visible AGENTS state and drift signals |
 | `ztd ztd-config` | Generate `TestRowMap` and layout from DDL files (prints next-step hints) |
 | `ztd ztd-config --watch` | Regenerate on DDL changes |
 | `ztd ztd-config --dry-run` | Validate DDL inputs and render generated outputs without writing files |

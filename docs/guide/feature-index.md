@@ -11,6 +11,9 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Feature | Command / Location | When to use |
 |---------|-------------------|-------------|
 | Non-interactive init | `ztd init --yes --workflow demo --validator zod` | CI/CD pipelines, agent-driven scaffolding |
+| Internal agent guidance | `.ztd/agents/manifest.json` | Default AI/project guidance without repo-visible `AGENTS.md` files |
+| Visible AGENTS install | `ztd agents install` | Materialize repo-visible `AGENTS.md` files only when you want them |
+| AGENTS status | `ztd agents status` | Check managed guidance state and drift |
 | DDL pull from live DB | `ztd ddl pull` | Bootstrap DDL from an existing Postgres database |
 | DDL diff | `ztd ddl diff` | Compare local DDL against a live database after changes |
 | Watch mode | `ztd ztd-config --watch` | Continuous type regeneration while editing DDL |
@@ -42,7 +45,7 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | SqlClient interface | `src/db/sql-client.ts` | Define the app ↔ driver boundary |
 | SqlClient adapter (pg) | `src/db/sql-client-adapters.ts` | Convert `pg` Client/Pool to SqlClient |
 | Runtime coercions | `src/catalog/runtime/_coercions.ts` | Driver-type normalization before validation |
-| AGENTS.md guidance | Every directory | AI-assisted development context |
+| Internal agent manifest | `.ztd/agents/*` | Default AI-assisted development context |
 | Spec files | `src/catalog/specs/` | Define catalog contracts with validators |
 | Global test setup | `tests/support/global-setup.ts` | Test-runner initialization hooks |
 

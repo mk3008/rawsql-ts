@@ -31,7 +31,7 @@ const COMMANDS: CommandDescriptor[] = [
     supportsJsonPayload: true,
     output: {
       stdout: 'Human summary in text mode, JSON envelope in global json mode.',
-      files: ['ztd.config.json', 'ztd/ddl/*.sql', 'tests/generated/*', 'AGENTS.md', 'CONTEXT.md']
+      files: ['ztd.config.json', 'ztd/ddl/*.sql', 'tests/generated/*', '.ztd/agents/*', 'CONTEXT.md']
     },
     exitCodes: {
       '0': 'Scaffold completed or dry-run plan emitted.',
@@ -42,6 +42,37 @@ const COMMANDS: CommandDescriptor[] = [
       { name: '--json', description: 'Pass init options as a JSON object.' },
       { name: '--yes', description: 'Accept defaults and overwrite existing files.' }
     ]
+  },
+  {
+    name: 'agents install',
+    summary: 'Install visible AGENTS.md files from the managed templates.',
+    writesFiles: true,
+    supportsDryRun: false,
+    supportsJsonPayload: false,
+    output: {
+      stdout: 'Human install summary in text mode, JSON envelope in global json mode.',
+      files: ['AGENTS.md or AGENTS_ztd.md', 'ztd/AGENTS.md', 'src/**/AGENTS.md', 'tests/**/AGENTS.md']
+    },
+    exitCodes: {
+      '0': 'Visible AGENTS installation completed or was already up to date.',
+      '1': 'Filesystem or validation error.'
+    },
+    flags: []
+  },
+  {
+    name: 'agents status',
+    summary: 'Report managed AGENTS guidance state and drift signals.',
+    writesFiles: false,
+    supportsDryRun: false,
+    supportsJsonPayload: false,
+    output: {
+      stdout: 'Human status report in text mode, JSON envelope in global json mode.'
+    },
+    exitCodes: {
+      '0': 'Status emitted.',
+      '1': 'Filesystem or parsing error.'
+    },
+    flags: []
   },
   {
     name: 'ztd-config',

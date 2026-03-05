@@ -8,6 +8,8 @@
 - Expect structured diagnostics on stderr when JSON output is enabled.
 - Prefer `--dry-run` before commands that write files.
 - Use `--json <payload>` on supported commands when nested option construction is easier than individual flags.
+- Read `.ztd/agents/manifest.json` first when you need project guidance without repo-visible `AGENTS.md` files.
+- Use `ztd agents status` to distinguish managed templates from user-owned instruction files.
 
 ## JSON Envelope
 
@@ -52,11 +54,32 @@ The full field contract is documented in [ztd-cli Describe Schema](./ztd-cli-des
 Examples:
 
 ```bash
+ztd --output json agents status
 ztd ztd-config --json '{"ddlDir":"ztd/ddl","extensions":".sql,.ddl","dryRun":true}'
 ztd check contract --json '{"format":"json","strict":true}'
 ztd query uses column --json '{"target":"public.users.email","format":"json","summaryOnly":true}'
 ztd lint --json '{"path":"src/sql/**/*.sql"}'
 ```
+
+## Agent Guidance Discovery
+
+`ztd init` now writes managed internal guidance under `.ztd/agents/` by default:
+
+- `.ztd/agents/manifest.json`
+- `.ztd/agents/root.md`
+- `.ztd/agents/src.md`
+- `.ztd/agents/tests.md`
+- `.ztd/agents/ztd.md`
+
+Visible `AGENTS.md` files are opt-in via `ztd agents install`.
+
+The manifest includes:
+
+- template version
+- managed ownership marker
+- security notices
+- visible install targets
+- stable guidance entrypoints for automation
 
 ## Write Safety
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import { registerAgentsCommand } from './commands/agents';
 import { CheckContractRuntimeError, registerCheckContractCommand } from './commands/checkContract';
 import { registerDescribeCommand } from './commands/describe';
 import { registerDdlCommands } from './commands/ddl';
@@ -22,6 +23,7 @@ async function main(): Promise<void> {
   });
 
   registerInitCommand(program);
+  registerAgentsCommand(program);
   registerLintCommand(program);
   registerModelGenCommand(program);
   registerQueryCommands(program);
@@ -35,6 +37,7 @@ async function main(): Promise<void> {
 Getting started:
   $ ztd init                   Create a new ZTD project (interactive)
   $ ztd init --yes             Create a new ZTD project (non-interactive, demo + Zod defaults)
+  $ ztd agents install         Materialize visible AGENTS.md files on demand
   $ ztd ztd-config             Generate TestRowMap types from DDL
   $ ztd lint <path>            Lint SQL files against the schema
   $ ztd query uses table public.users
