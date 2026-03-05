@@ -254,15 +254,21 @@ export class SqlTokenizer {
         suffixComments: string[] | null;
     }>): Lexeme[] {
         const lexemes: Lexeme[] = new Array(tokenData.length);
+        const resolveLineColumn = this.createOrderedLineColumnResolver();
         for (let i = 0; i < tokenData.length; i++) {
             const token = tokenData[i];
             const lexeme = token.lexeme;
+            const startInfo = resolveLineColumn(token.startPos);
+            const endInfo = resolveLineColumn(token.endPos);
 
             // Keep position metadata behavior identical while skipping comment relocation work.
             lexeme.position = {
                 startPosition: token.startPos,
                 endPosition: token.endPos,
-                ...this.getLineColumnInfo(token.startPos, token.endPos)
+                startLine: startInfo.line,
+                startColumn: startInfo.column,
+                endLine: endInfo.line,
+                endColumn: endInfo.column,
             };
 
             lexemes[i] = lexeme;
@@ -277,6 +283,7 @@ export class SqlTokenizer {
         suffixComments: string[] | null;
     }>): Lexeme[] {
         const lexemes: Lexeme[] = new Array(tokenData.length);
+        const resolveLineColumn = this.createOrderedLineColumnResolver();
         let hasPositionedComments = false;
 
         for (let i = 0; i < tokenData.length; i++) {
@@ -366,11 +373,17 @@ export class SqlTokenizer {
                 }
             }
             this.attachCommentsToLexeme(lexeme, current);
+            const startInfo = resolveLineColumn(current.startPos);
+            const endInfo = resolveLineColumn(current.endPos);
+
             // Attach source position metadata so downstream parsers can report precise locations.
             lexeme.position = {
                 startPosition: current.startPos,
                 endPosition: current.endPos,
-                ...this.getLineColumnInfo(current.startPos, current.endPos)
+                startLine: startInfo.line,
+                startColumn: startInfo.column,
+                endLine: endInfo.line,
+                endColumn: endInfo.column,
             };
             if (lexeme.positionedComments && lexeme.positionedComments.length > 0) {
                 hasPositionedComments = true;
@@ -741,7 +754,24 @@ private getLineColumnInfo(startPos: number, endPos: number) {
         };
     }
 
-    private ensureLineStartPositions(): number[] {
+
+    private createOrderedLineColumnResolver(): (position: number) => { line: number; column: number } {
+        const starts = this.ensureLineStartPositions();
+        let lineIndex = 0;
+
+        // Token positions are processed in ascending order, so a forward-only cursor avoids repeated binary searches.
+        return (position: number) => {
+            while (lineIndex + 1 < starts.length && starts[lineIndex + 1] <= position) {
+                lineIndex++;
+            }
+
+            const lineStart = starts[lineIndex];
+            return {
+                line: lineIndex + 1,
+                column: position - lineStart + 1,
+            };
+        };
+    }    private ensureLineStartPositions(): number[] {
         if (this.lineStartPositions) {
             return this.lineStartPositions;
         }
@@ -759,6 +789,9 @@ private getLineColumnInfo(startPos: number, endPos: number) {
         return starts;
     }
 }
+
+
+
 
 
 
