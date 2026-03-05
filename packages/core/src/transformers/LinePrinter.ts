@@ -181,13 +181,50 @@ export class LinePrinter {
             return true;
         }
 
-        // Strip simple quoted sections so comment markers inside literals are ignored.
-        const withoutStrings = text
-            .replace(/'([^']|'')*'/g, '')
-            .replace(/"([^"]|"")*"/g, '')
-            .trim();
-        // Treat any remaining '--' as a line comment marker so we never pull commas onto commented lines.
-        return withoutStrings.includes('--');
+        let quote: number | null = null;
+
+        for (let i = 0; i < text.length - 1; i++) {
+            const current = text.charCodeAt(i);
+            const next = text.charCodeAt(i + 1);
+
+            if (quote === 39) {
+                if (current === 39) {
+                    if (next === 39) {
+                        i++;
+                        continue;
+                    }
+                    quote = null;
+                }
+                continue;
+            }
+
+            if (quote === 34) {
+                if (current === 34) {
+                    if (next === 34) {
+                        i++;
+                        continue;
+                    }
+                    quote = null;
+                }
+                continue;
+            }
+
+            if (current === 39) {
+                quote = 39;
+                continue;
+            }
+
+            if (current === 34) {
+                quote = 34;
+                continue;
+            }
+
+            if (current === 45 && next === 45) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     getCurrentLine(): PrintLine {

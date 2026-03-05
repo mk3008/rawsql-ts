@@ -74,4 +74,34 @@ describe('LinePrinter - Comma Break Styles', () => {
         expect(result).toContain('field1 -- keep comment line intact\n    , field2');
         expect(result).not.toContain('field1 -- keep comment line intact,');
     });
+    test('should move comma when -- appears only inside single-quoted string literal', () => {
+        const printer = new LinePrinter(' ', 4, '\n', 'after');
+
+        printer.appendText('SELECT');
+        printer.appendNewline(1);
+        printer.appendText("field1 = '-- literal marker'");
+        printer.appendNewline(1);
+        printer.appendText(',');
+        printer.appendText(' field2');
+
+        const result = printer.print();
+
+        expect(result).toContain("field1 = '-- literal marker',");
+    });
+
+    test('should move comma when -- appears only inside double-quoted identifier', () => {
+        const printer = new LinePrinter(' ', 4, '\n', 'after');
+
+        printer.appendText('SELECT');
+        printer.appendNewline(1);
+        printer.appendText('"field--name"');
+        printer.appendNewline(1);
+        printer.appendText(',');
+        printer.appendText(' field2');
+
+        const result = printer.print();
+
+        expect(result).toContain('"field--name",');
+    });
 });
+
