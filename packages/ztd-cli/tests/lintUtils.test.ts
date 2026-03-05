@@ -7,7 +7,7 @@ import {
   extractEnumLabels,
   inferDefaultValue
 } from '../src/utils/sqlLintHelpers';
-import { buildParserFailure } from '../src/commands/lint';
+import { buildLintConnectionError, buildLintContainerStartError, buildParserFailure } from '../src/commands/lint';
 
 function createTempDir(prefix: string): string {
   return mkdtempSync(path.join(os.tmpdir(), `${prefix}-`));
@@ -79,3 +79,22 @@ test('buildParserFailure marks parser kind with parse keyword', () => {
   expect(failure.message.toLowerCase()).toContain('parse');
   expect(failure.details?.code).toBeUndefined();
 });
+
+test('buildLintContainerStartError appends Docker guidance for runtime failures', () => {
+  const error = buildLintContainerStartError(new Error('Could not find a working container runtime strategy'));
+  expect(error.message).toContain('Start Docker Desktop/service');
+  expect(error.message).toContain('ZTD_LINT_DATABASE_URL');
+});
+
+test('buildLintConnectionError explains external connection recovery', () => {
+  const error = buildLintConnectionError(new Error('ECONNREFUSED'), true);
+  expect(error.message).toContain('ZTD_LINT_DATABASE_URL or DATABASE_URL');
+  expect(error.message).toContain('ECONNREFUSED');
+});
+
+test('buildLintConnectionError explains Docker recovery when no external connection is set', () => {
+  const error = buildLintConnectionError(new Error('timeout'), false);
+  expect(error.message).toContain('Docker Desktop/service');
+  expect(error.message).toContain('ZTD_LINT_DATABASE_URL');
+});
+

@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { Command } from 'commander';
 import { MultiQuerySplitter, SqlParser } from 'rawsql-ts';
@@ -172,14 +173,20 @@ async function runLintCommand(pattern: string): Promise<void> {
   const sqlFiles = resolveSqlFiles(pattern);
 
   const databaseUrl = process.env.ZTD_LINT_DATABASE_URL?.trim() ?? process.env.DATABASE_URL?.trim();
+  const connectionUrl = databaseUrl && databaseUrl.length > 0 ? databaseUrl : null;
+
+  if (!connectionUrl) {
+    assertDockerReadyForLint();
+  }
+
   const pgModule = await ensurePgModule();
   const { Client: PgClient } = pgModule;
   let client: InstanceType<typeof PgClient> | null = null;
   let container: { getConnectionUri(): string; stop(): Promise<unknown> } | null = null;
-  let connectionUrl = databaseUrl && databaseUrl.length > 0 ? databaseUrl : null;
 
   try {
-    if (!connectionUrl) {
+    let resolvedConnectionUrl = connectionUrl;
+    if (!resolvedConnectionUrl) {
       const containerModule = await ensurePostgresContainerModule().catch((error) => {
         const baseMessage = error instanceof Error ? error.message : String(error);
         throw new Error(`${baseMessage} Or set ZTD_LINT_DATABASE_URL to reuse an existing Postgres connection.`);
@@ -189,13 +196,21 @@ async function runLintCommand(pattern: string): Promise<void> {
         .withDatabase('ztdlint')
         .withUsername('ztd')
         .withPassword('ztd')
-        .start();
+        .start()
+        .catch((error) => {
+          throw buildLintContainerStartError(error);
+        });
       container = started;
-      connectionUrl = started.getConnectionUri();
+      resolvedConnectionUrl = started.getConnectionUri();
     }
 
-    client = new PgClient({ connectionString: connectionUrl! });
-    await client.connect();
+    client = new PgClient({
+      connectionString: resolvedConnectionUrl!,
+      connectionTimeoutMillis: resolveDbConnectTimeoutMs()
+    });
+    await client.connect().catch((error) => {
+      throw buildLintConnectionError(error, Boolean(connectionUrl));
+    });
 
     const result = await runSqlLint({
       sqlFiles,
@@ -219,6 +234,51 @@ async function runLintCommand(pattern: string): Promise<void> {
   }
 }
 
+function resolveDbConnectTimeoutMs(): number {
+  const raw = process.env.ZTD_DB_CONNECT_TIMEOUT_MS?.trim();
+  if (!raw) {
+    return 3000;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 3000;
+  }
+  return Math.floor(parsed);
+}
+
+function assertDockerReadyForLint(): void {
+  // Run a quick Docker CLI probe so daemon-off states fail before lint does heavier setup.
+  const probe = spawnSync('docker', ['info', '--format', '{{json .ServerVersion}}'], {
+    encoding: 'utf8',
+    timeout: 3000
+  });
+
+  if (probe.error || probe.status !== 0) {
+    const stderr = (probe.stderr ?? '').trim();
+    const detail = stderr.length > 0 ? ` (${stderr})` : '';
+    throw new Error(
+      `Docker is not reachable. Start Docker Desktop/service before running ztd lint without ZTD_LINT_DATABASE_URL.${detail}`
+    );
+  }
+}
+
+export function buildLintContainerStartError(error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.toLowerCase().includes('container runtime strategy') || message.toLowerCase().includes('docker')) {
+    return new Error(
+      `${message} Start Docker Desktop/service, or set ZTD_LINT_DATABASE_URL to use an existing Postgres.`
+    );
+  }
+  return new Error(message);
+}
+
+export function buildLintConnectionError(error: unknown, usingExternalConnection: boolean): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  const guidance = usingExternalConnection
+    ? 'Check ZTD_LINT_DATABASE_URL or DATABASE_URL and verify the target Postgres is reachable.'
+    : 'Check Docker Desktop/service and retry, or set ZTD_LINT_DATABASE_URL to skip container startup.';
+  return new Error(`Failed to connect to PostgreSQL for ztd lint. ${guidance} (${message})`);
+}
 function readFileSafe(filePath: string): string {
   return readFileSync(filePath, 'utf8');
 }
@@ -516,3 +576,4 @@ function reportFailures(failures: LintFailure[]): void {
     }
   }
 }
+

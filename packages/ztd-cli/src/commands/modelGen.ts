@@ -68,7 +68,7 @@ export async function runModelGen(sqlFilePath: string, options: ModelGenCommandO
   ensureSpecIdAvailable(path.resolve(process.cwd(), 'src', 'catalog', 'specs'), derivedNames.specId, sqlFile);
   const probeMode = normalizeProbeMode(options.probeMode);
 
-  const connection = resolveCliConnection(options);
+  const connection = resolveCliConnectionWithProbeGuidance(options, probeMode);
   const probeClient = await createProbeClient(probeMode, connection.url, options);
 
   try {
@@ -147,6 +147,48 @@ export function registerModelGenCommand(program: Command): void {
     });
 }
 
+
+export function resolveCliConnectionWithProbeGuidance(
+  options: ModelGenCommandOptions,
+  probeMode: ModelGenProbeMode
+) {
+  try {
+    return resolveCliConnection(options);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('No database connection information supplied') && probeMode === 'ztd') {
+      throw new Error(
+        [
+          message,
+          'model-gen --probe-mode ztd still needs a reachable PostgreSQL connection for type probing.',
+          'Start Docker/service and provide DATABASE_URL (or --db-* flags), then rerun.'
+        ].join('\n')
+      );
+    }
+    throw error;
+  }
+}
+
+function resolveDbConnectTimeoutMs(): number {
+  const raw = process.env.ZTD_DB_CONNECT_TIMEOUT_MS?.trim();
+  if (!raw) {
+    return 3000;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 3000;
+  }
+  return Math.floor(parsed);
+}
+
+export function buildModelGenConnectionFailure(error: unknown, probeMode: ModelGenProbeMode): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  const modeHint =
+    probeMode === 'ztd'
+      ? 'Ensure DATABASE_URL (or --db-* flags) points to a reachable PostgreSQL instance before ztd probing.'
+      : 'Ensure DATABASE_URL (or --db-* flags) points to a reachable PostgreSQL instance.';
+  return new Error(`Failed to connect to PostgreSQL for model-gen. ${modeHint} (${message})`);
+}
 function normalizeFormat(format?: string): ModelGenFormat {
   const normalized = (format ?? 'spec').trim().toLowerCase();
   if (normalized === 'spec' || normalized === 'row-mapping' || normalized === 'interface') {
@@ -251,8 +293,13 @@ async function createProbeClient(
   options: ModelGenCommandOptions
 ): Promise<ProbeClientHandle> {
   const pgModule = await ensurePgModule();
-  const pgClient = new pgModule.Client({ connectionString: connectionUrl });
-  await pgClient.connect();
+  const pgClient = new pgModule.Client({
+    connectionString: connectionUrl,
+    connectionTimeoutMillis: resolveDbConnectTimeoutMs()
+  });
+  await pgClient.connect().catch((error) => {
+    throw buildModelGenConnectionFailure(error, probeMode);
+  });
 
   if (probeMode === 'live') {
     return {
@@ -524,3 +571,4 @@ function assertUniqueProperties(properties: string[]): void {
     seen.add(property);
   }
 }
+
