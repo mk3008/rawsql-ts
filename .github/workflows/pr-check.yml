@@ -58,6 +58,8 @@ jobs:
     - name: TypeScript compilation check
       run: pnpm -r --workspace-concurrency=1 run build
 
+    - name: Run parser benchmark (PR lightweight)
+      run: pnpm run benchmark:parser:pr
     - name: Validate test-evidence packages and consumers (dist shape)
       run: |
         pnpm -r --if-present --filter @rawsql-ts/test-evidence-core --filter @rawsql-ts/test-evidence-renderer-md --filter @rawsql-ts/shared-binder --filter @rawsql-ts/testkit-core --filter @rawsql-ts/testkit-postgres --filter @rawsql-ts/testkit-sqlite --filter @rawsql-ts/adapter-node-pg --filter @rawsql-ts/ztd-cli --filter @rawsql-ts/sql-contract-zod run build
@@ -98,3 +100,4 @@ jobs:
         
     - name: Check prisma-integration package
       run: echo "prisma-integration removed"
+
