@@ -48,6 +48,8 @@ node "<LOCAL_SOURCE_ROOT>/packages/ztd-cli/dist/index.js" <ztd-subcommand-and-ar
 pnpm -C "<LOCAL_SOURCE_ROOT>" --filter @rawsql-ts/ztd-cli build
 ```
 
+Note: model-gen (probe-mode ztd) requires DATABASE_URL. Also, model-gen is currently SELECT-oriented; INSERT/UPDATE/DELETE SQL may fail with parser errors and is out of scope for model-gen in this dogfooding scenario.
+
 ## 2) Fixed DDL baseline
 
 Create `schema.sql` with the exact content below.
@@ -268,6 +270,4 @@ Use this order unless a hard blocker appears.
 7. Regenerate affected artifacts and tests.
 8. Run verification commands.
 9. Produce LOG and REPORT files.
-
-
 
