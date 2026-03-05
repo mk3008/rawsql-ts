@@ -240,85 +240,87 @@ export class SqlTokenizer {
             const lexeme = current.lexeme;
             const lexemeValue = lexeme.value;
 
-            // Redirect SELECT suffix comments to the first meaningful select item.
-            if (lexemeValue === 'select' && current.suffixComments && current.suffixComments.length > 0) {
-                const suffixComments = current.suffixComments;
-                let targetIndex = i + 1;
-                while (targetIndex < tokenData.length) {
-                    const target = tokenData[targetIndex];
-                    // Allow SELECT-prefix comments to bind to '*' tokens so they stay with the select list.
-                    const isStarOperator = (target.lexeme.type & TokenType.Operator) && target.lexeme.value === '*';
-                    if ((target.lexeme.type & TokenType.Identifier) ||
-                        (target.lexeme.type & TokenType.Literal) ||
-                        isStarOperator ||
-                        (!(target.lexeme.type & TokenType.Command) &&
-                         !(target.lexeme.type & TokenType.Comma) &&
-                         !(target.lexeme.type & TokenType.Operator))) {
+            // Most statements have no trailing comments, so skip forwarding logic early.
+            if (current.suffixComments && current.suffixComments.length > 0) {
+                // Redirect SELECT suffix comments to the first meaningful select item.
+                if (lexemeValue === 'select') {
+                    const suffixComments = current.suffixComments!;
+                    let targetIndex = i + 1;
+                    while (targetIndex < tokenData.length) {
+                        const target = tokenData[targetIndex];
+                        // Allow SELECT-prefix comments to bind to '*' tokens so they stay with the select list.
+                        const isStarOperator = (target.lexeme.type & TokenType.Operator) && target.lexeme.value === '*';
+                        if ((target.lexeme.type & TokenType.Identifier) ||
+                            (target.lexeme.type & TokenType.Literal) ||
+                            isStarOperator ||
+                            (!(target.lexeme.type & TokenType.Command) &&
+                             !(target.lexeme.type & TokenType.Comma) &&
+                             !(target.lexeme.type & TokenType.Operator))) {
+                            if (!target.prefixComments) {
+                                target.prefixComments = [];
+                            }
+                            target.prefixComments.unshift(...suffixComments);
+                            current.suffixComments = null;
+                            break;
+                        }
+                        targetIndex++;
+                    }
+                }
+
+                if (lexemeValue === 'from') {
+                    const suffixComments = current.suffixComments!;
+                    let targetIndex = i + 1;
+                    while (targetIndex < tokenData.length) {
+                        const target = tokenData[targetIndex];
+                        // Attach FROM suffix comments to the immediately following source token.
+                        const isCommand = (target.lexeme.type & TokenType.Command) !== 0;
+                        if (!isCommand) {
+                            if (!target.prefixComments) {
+                                target.prefixComments = [];
+                            }
+                            target.prefixComments.unshift(...suffixComments);
+                            current.suffixComments = null;
+                            break;
+                        }
+                        targetIndex++;
+                    }
+                }
+
+                // Ensure commas push trailing comments onto the following token.
+                if (lexeme.type & TokenType.Comma) {
+                    const suffixComments = current.suffixComments!;
+                    const targetIndex = i + 1;
+                    if (targetIndex < tokenData.length) {
+                        const target = tokenData[targetIndex];
                         if (!target.prefixComments) {
                             target.prefixComments = [];
                         }
                         target.prefixComments.unshift(...suffixComments);
                         current.suffixComments = null;
-                        break;
                     }
-                    targetIndex++;
                 }
-            }
 
-            if (lexemeValue === 'from' && current.suffixComments && current.suffixComments.length > 0) {
-                const suffixComments = current.suffixComments;
-                let targetIndex = i + 1;
-                while (targetIndex < tokenData.length) {
-                    const target = tokenData[targetIndex];
-                    // Attach FROM suffix comments to the immediately following source token.
-                    const isCommand = (target.lexeme.type & TokenType.Command) !== 0;
-                    if (!isCommand) {
-                        if (!target.prefixComments) {
-                            target.prefixComments = [];
+                // Bridge set-operator suffix comments to the subsequent SELECT clause.
+                if (current.suffixComments) {
+                    const normalized = lexemeValue.toLowerCase();
+                    if (normalized === 'union' || normalized === 'intersect' || normalized === 'except') {
+                        const suffixComments = current.suffixComments!;
+                        let targetIndex = i + 1;
+                        while (targetIndex < tokenData.length) {
+                            const target = tokenData[targetIndex];
+                            if (target.lexeme.value.toLowerCase() === 'select') {
+                                if (!target.prefixComments) {
+                                    target.prefixComments = [];
+                                }
+                                target.prefixComments.unshift(...suffixComments);
+                                current.suffixComments = null;
+                                break;
+                            }
+                            targetIndex++;
                         }
-                        target.prefixComments.unshift(...suffixComments);
-                        current.suffixComments = null;
-                        break;
                     }
-                    targetIndex++;
                 }
             }
-
-            // Ensure commas push trailing comments onto the following token.
-            if ((lexeme.type & TokenType.Comma) && current.suffixComments && current.suffixComments.length > 0) {
-                const suffixComments = current.suffixComments;
-                let targetIndex = i + 1;
-                if (targetIndex < tokenData.length) {
-                    const target = tokenData[targetIndex];
-                    if (!target.prefixComments) {
-                        target.prefixComments = [];
-                    }
-                    target.prefixComments.unshift(...suffixComments);
-                    current.suffixComments = null;
-                }
-            }
-
-            // Bridge set-operator suffix comments to the subsequent SELECT clause.
-            if ((lexeme.value.toLowerCase() === 'union' ||
-                 lexeme.value.toLowerCase() === 'intersect' ||
-                 lexeme.value.toLowerCase() === 'except') &&
-                current.suffixComments && current.suffixComments.length > 0) {
-                const suffixComments = current.suffixComments;
-                let targetIndex = i + 1;
-                while (targetIndex < tokenData.length) {
-                    const target = tokenData[targetIndex];
-                    if (target.lexeme.value.toLowerCase() === 'select') {
-                        if (!target.prefixComments) {
-                            target.prefixComments = [];
-                        }
-                        target.prefixComments.unshift(...suffixComments);
-                        current.suffixComments = null;
-                        break;
-                    }
-                    targetIndex++;
-                }
-            }
-
             this.attachCommentsToLexeme(lexeme, current);
             // Attach source position metadata so downstream parsers can report precise locations.
             lexeme.position = {
