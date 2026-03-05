@@ -320,6 +320,79 @@ const catalog = createCatalogExecutor({
 })
 ```
 
+### Mutation specs
+
+Catalog specs can declare mutation metadata for `INSERT`, `UPDATE`, and `DELETE` assets:
+
+```ts
+const createUserSpec: QuerySpec<
+  { id: string; display_name?: string | null; created_at?: string },
+  never
+> = {
+  id: 'user.create',
+  sqlFile: 'user/create.sql',
+  params: {
+    shape: 'named',
+    example: {
+      id: 'user-1',
+      display_name: 'Alice',
+      created_at: '2026-03-05T00:00:00.000Z',
+    },
+  },
+  mutation: {
+    kind: 'insert',
+  },
+  output: {
+    example: undefined as never,
+  },
+}
+```
+
+The `insert` behavior is covered by `packages/sql-contract/tests/catalog.create.test.ts`.
+
+```ts
+const updateUserSpec: QuerySpec<
+  { id: string; display_name?: string | null; bio?: string | null },
+  never
+> = {
+  id: 'user.update-profile',
+  sqlFile: 'user/update-profile.sql',
+  params: {
+    shape: 'named',
+    example: { id: 'user-1', display_name: 'Alice', bio: null },
+  },
+  mutation: {
+    kind: 'update',
+  },
+  output: {
+    example: undefined as never,
+  },
+}
+```
+
+Phase 1 intentionally keeps the safety rules narrow:
+
+- `INSERT` subtracts only direct `VALUES (:named_param)` entries when the key is missing or `undefined`.
+- `UPDATE` and `DELETE` require a `WHERE` clause by default.
+- `UPDATE` subtracts only simple `SET column = :param` assignments when the key is missing or `undefined`.
+- `null` is preserved, so `SET column = :param` still executes and binds `NULL`.
+- Mandatory parameter validation only inspects the `WHERE` clause because Phase 1 focuses on preventing accidental broad mutations first.
+
+For example, the SQL asset below will drop `display_name = :display_name` when
+`display_name` is omitted or `undefined`, but it keeps the fixed timestamp write:
+
+```sql
+UPDATE public.user_account
+SET display_name = :display_name,
+    bio = :bio,
+    updated_at = NOW()
+WHERE id = :id
+```
+
+Assignments with inline comments or more complex expressions stay untouched in
+Phase 1. They remain visible in SQL and any unresolved placeholders still flow
+through the configured binder/executor path.
+
 ### Rewriters
 
 Rewriters apply semantic-preserving SQL transformations before execution:
@@ -339,6 +412,52 @@ const catalog = createCatalogExecutor({
 ```
 
 The execution pipeline order is: **SQL load → rewriters → binders → executor**.
+
+Mutation specs apply one extra safety rule in Phase 1: every configured
+rewriter must explicitly declare `mutationSafety: 'safe'`. This keeps mutation
+preprocessing stable by rejecting rewriters that might alter `SET` or `WHERE`
+structure.
+
+```ts
+const auditCommentRewriter: Rewriter & { mutationSafety: 'safe' } = {
+  name: 'audit-comment',
+  mutationSafety: 'safe',
+  rewrite: ({ sql, params }) => ({
+    sql: `${sql} -- audit`,
+    params,
+  }),
+}
+```
+
+Rewriters without that explicit marker still work for non-mutation specs.
+
+### DELETE guards and `rowCount`
+
+Physical deletes default to an affected-row guard of `exactly 1`. To evaluate
+that guard safely, the configured executor must expose `rowCount` via
+`{ rows, rowCount }` results.
+
+```ts
+const executor = async (sql: string, params: QueryParams) => {
+  const result = await client.query(sql, params as unknown[])
+  return {
+    rows: result.rows,
+    rowCount: result.rowCount,
+  }
+}
+```
+
+If the executor does not expose `rowCount`, delete specs fail by default. You
+may opt out per spec only when you intentionally want no guard:
+
+```ts
+mutation: {
+  kind: 'delete',
+  delete: {
+    affectedRowsGuard: { mode: 'none' },
+  },
+}
+```
 
 For fixture-backed tests, `@rawsql-ts/testkit-core` provides `createCatalogRewriter()` so you can plug `SelectFixtureRewriter` into the catalog pipeline without writing an adapter:
 
@@ -466,3 +585,4 @@ await executor('SELECT * FROM customers WHERE id = :id', { id: 42 })
 ## License
 
 MIT
+

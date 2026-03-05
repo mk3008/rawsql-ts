@@ -77,6 +77,16 @@ describe('reader validator and scalar', () => {
     await expect(reader.scalar('select count(*)')).resolves.toBe('5')
   })
 
+
+  it('includes query context when scalar normalization fails', async () => {
+    const mapper = createMapper(async () => ({ invalid: true } as unknown as Row[]))
+    const reader = mapper.bind(customerMapping)
+
+    await expect(reader.scalar('select broken scalar', { id: 1 })).rejects.toThrow(
+      /Scalar executor returned an unsupported result shape\. sql=select broken scalar params=\[object Object\]/i
+    )
+  })
+
   it('throws when scalar results contain zero rows, multiple rows, or multiple columns', async () => {
     const none = createReaderFromRows([])
     await expect(none.scalar('select ...')).rejects.toThrow(
@@ -99,3 +109,6 @@ describe('reader validator and scalar', () => {
     )
   })
 })
+
+
+

@@ -32,6 +32,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@rawsql-ts/sql-contract": "workspace:^",
     "@rawsql-ts/testkit-core": "workspace:^",
     "rawsql-ts": "workspace:^"
   },
@@ -43,3 +44,4 @@
     "dist"
   ]
 }
+

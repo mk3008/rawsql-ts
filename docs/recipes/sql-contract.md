@@ -129,6 +129,65 @@ const touchedThreadSpec: QuerySpec<[string], string> = {
 const threadId = await catalog.scalar(touchedThreadSpec, ['thread-1']);
 ```
 
+## Mutation catalog notes
+
+`UPDATE` and `DELETE` specs can opt into Phase 1 mutation preprocessing through
+`QuerySpec.mutation`. The defaults are intentionally conservative:
+
+- `UPDATE` and `DELETE` require a `WHERE` clause.
+- `DELETE` defaults to `affectedRowsGuard: { mode: 'exactly', count: 1 }`.
+- Guarded deletes require the executor to return `{ rows, rowCount }`.
+- `UPDATE` subtraction only targets simple `SET column = :param` assignments.
+
+Example:
+
+```ts
+const updateProfileSpec: QuerySpec<
+  { id: string; display_name?: string | null; bio?: string | null },
+  never
+> = {
+  id: 'user.update-profile',
+  sqlFile: 'user/update-profile.sql',
+  params: {
+    shape: 'named',
+    example: { id: 'user-1', display_name: 'Alice', bio: null },
+  },
+  mutation: {
+    kind: 'update',
+  },
+  output: {
+    example: undefined as never,
+  },
+};
+```
+
+Phase 1 validates only `WHERE`-bound named parameters before execution because
+its main goal is preventing accidental broad updates and deletes first.
+
+If you use guarded physical deletes, prefer an executor that preserves both
+`rows` and `rowCount`:
+
+```ts
+const executor = async (sql: string, params: readonly unknown[]) => {
+  const result = await client.query(sql, params);
+  return {
+    rows: result.rows,
+    rowCount: result.rowCount,
+  };
+};
+```
+
+Disable the guard only with an explicit per-spec override:
+
+```ts
+mutation: {
+  kind: 'delete',
+  delete: {
+    affectedRowsGuard: { mode: 'none' },
+  },
+}
+```
+
 ## What’s next
 
 - Wire runtime validation by following the [Zod](./validation-zod.md) or [ArkType](./validation-arktype.md) recipe. Validation is required for every ZTD project, so keep your chosen validator aligned with the reader/writer wiring.

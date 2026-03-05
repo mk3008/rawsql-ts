@@ -37,6 +37,22 @@ describe('Postgres testkit client', () => {
     expect(fixturesApplied).toEqual([['users']]);
   });
 
+  it('accepts object-shaped executor results and preserves rowCount', async () => {
+    const executor: QueryExecutor = async () => ({
+      rows: [{ id: 1, email: 'alice@example.com' }],
+      rowCount: 7,
+    })
+
+    const client = createPostgresTestkitClient({
+      queryExecutor: executor,
+      tableDefinitions: [usersTableDefinition],
+      tableRows: [{ tableName: 'users', rows: [{ id: 1, email: 'alice@example.com' }] }],
+    })
+
+    const response = await client.query('select id, email from users')
+    expect(response.rows).toEqual([{ id: 1, email: 'alice@example.com' }])
+    expect(response.rowCount).toBe(7)
+  })
   it('disposes the executor exactly once', async () => {
     let disposeCount = 0;
     const client = createPostgresTestkitClient({
@@ -51,3 +67,4 @@ describe('Postgres testkit client', () => {
     expect(disposeCount).toBe(1);
   });
 });
+
