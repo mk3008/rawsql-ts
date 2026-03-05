@@ -1,4 +1,4 @@
-﻿import { FormattingLexeme } from '../models/FormattingLexeme';
+import { FormattingLexeme } from '../models/FormattingLexeme';
 import { Lexeme, LexemePositionedComment, TokenType } from '../models/Lexeme';
 import { CommandTokenReader } from '../tokenReaders/CommandTokenReader';
 import { EscapedIdentifierTokenReader } from '../tokenReaders/EscapedIdentifierTokenReader';
@@ -233,6 +233,7 @@ export class SqlTokenizer {
         suffixComments: string[] | null;
     }>): Lexeme[] {
         const lexemes: Lexeme[] = new Array(tokenData.length);
+        let hasPositionedComments = false;
 
         for (let i = 0; i < tokenData.length; i++) {
             const current = tokenData[i];
@@ -325,10 +326,16 @@ export class SqlTokenizer {
                 endPosition: current.endPos,
                 ...this.getLineColumnInfo(current.startPos, current.endPos)
             };
+            if (lexeme.positionedComments && lexeme.positionedComments.length > 0) {
+                hasPositionedComments = true;
+            }
             lexemes[i] = lexeme;
         }
 
-        this.relocateOrderByComments(lexemes);
+        // Skip relocation pass when no positioned comments exist in this statement.
+        if (hasPositionedComments) {
+            this.relocateOrderByComments(lexemes);
+        }
         return lexemes;
     }
 
@@ -683,10 +690,4 @@ private getLineColumnInfo(startPos: number, endPos: number) {
         return starts;
     }
 }
-
-
-
-
-
-
 
