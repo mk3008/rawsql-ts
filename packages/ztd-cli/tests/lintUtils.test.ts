@@ -13,6 +13,7 @@ import {
   buildLintDefaultBindings,
   buildParserFailure,
   detectMaxPositionalParamIndex,
+  resolveLintCommandInput,
 } from '../src/commands/lint';
 
 function createTempDir(prefix: string): string {
@@ -120,4 +121,14 @@ test('buildLintDefaultBindings creates name-keyed null objects for named placeho
     id: null,
     status: null,
   });
+});
+
+test('resolveLintCommandInput accepts a path from --json payload', () => {
+  expect(
+    resolveLintCommandInput(undefined, { json: JSON.stringify({ path: 'src/sql/**/*.sql' }) })
+  ).toEqual({ path: 'src/sql/**/*.sql' });
+});
+
+test('resolveLintCommandInput rejects missing path across positional and json inputs', () => {
+  expect(() => resolveLintCommandInput(undefined, {})).toThrow(/must be provided/);
 });

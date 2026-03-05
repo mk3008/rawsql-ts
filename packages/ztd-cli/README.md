@@ -136,10 +136,12 @@ Selected commands accept `--json <payload>` to reduce flag-by-flag construction 
 
 ```bash
 npx ztd init --dry-run --json '{"workflow":"demo","validator":"zod","withSqlclient":true}'
+npx ztd ztd-config --output json --json '{"ddlDir":"ztd/ddl","extensions":".sql,.ddl","dryRun":true}'
 npx ztd ddl pull --output json --json '{"out":"ztd/ddl","schema":["public"],"dryRun":true}'
 npx ztd model-gen src/sql/users/list.sql --json '{"sqlRoot":"src/sql","probeMode":"ztd","dryRun":true}'
 npx ztd check contract --json '{"format":"json","strict":true}'
 npx ztd query uses column --json '{"target":"public.users.email","format":"json","summaryOnly":true}'
+npx ztd lint --json '{"path":"src/sql/**/*.sql"}'
 ```
 
 ## Recommended Backend Happy Path
@@ -181,6 +183,7 @@ Use this split to classify repetition:
 | `ztd ztd-config` | Generate `TestRowMap` and layout from DDL files (prints next-step hints) |
 | `ztd ztd-config --watch` | Regenerate on DDL changes |
 | `ztd ztd-config --dry-run` | Validate DDL inputs and render generated outputs without writing files |
+| `ztd ztd-config --json <payload>` | Pass ztd-config options as a raw JSON object |
 | `ztd model-gen <sql-file>` | Generate QuerySpec DTO types and rowMapping by probing live PostgreSQL metadata or ZTD-backed DDL metadata |
 | `ztd model-gen --dry-run` | Validate the probe and generated output without writing the destination file |
 | `ztd model-gen --describe-output` | Describe the generated artifact contract, output rules, and collision behavior |
@@ -198,6 +201,7 @@ Use this split to classify repetition:
 | `ztd ddl gen-entities --dry-run` | Render `entities.ts` output without writing the destination file |
 | `ztd ddl gen-entities --json <payload>` | Pass generation options as a raw JSON object |
 | `ztd lint <path>` | Lint SQL files with fixture-backed validation |
+| `ztd lint --json <payload>` | Pass the lint path as a raw JSON object |
 | `ztd evidence --mode specification` | Export executable specification evidence from SQL catalogs and test files |
 | `ztd evidence --json <payload>` | Pass evidence options as a raw JSON object |
 | `ztd check contract --json <payload>` | Pass contract-check options as a raw JSON object |

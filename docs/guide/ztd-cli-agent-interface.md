@@ -50,8 +50,10 @@ The detailed form includes:
 Examples:
 
 ```bash
+ztd ztd-config --json '{"ddlDir":"ztd/ddl","extensions":".sql,.ddl","dryRun":true}'
 ztd check contract --json '{"format":"json","strict":true}'
 ztd query uses column --json '{"target":"public.users.email","format":"json","summaryOnly":true}'
+ztd lint --json '{"path":"src/sql/**/*.sql"}'
 ```
 
 ## Write Safety

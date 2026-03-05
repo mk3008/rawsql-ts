@@ -62,10 +62,14 @@ export function emitDiagnostic(event: DiagnosticEvent): void {
 }
 
 export function writeCommandEnvelope<T>(command: string, data: T): void {
+  writeCommandResultEnvelope(command, true, data);
+}
+
+export function writeCommandResultEnvelope<T>(command: string, ok: boolean, data: T): void {
   const payload: CommandEnvelope<T> = {
     schemaVersion: DEFAULT_SCHEMA_VERSION,
     command,
-    ok: true,
+    ok,
     data
   };
   process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
@@ -89,4 +93,3 @@ export function parseJsonPayload<T extends Record<string, unknown>>(value: strin
 export function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
-

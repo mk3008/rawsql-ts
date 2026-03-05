@@ -20,6 +20,7 @@ import {
   extractEnumLabels,
   buildLintFixtureRow
 } from '../utils/sqlLintHelpers';
+import { isJsonOutput, parseJsonPayload, writeCommandResultEnvelope } from '../utils/agentCli';
 
 /** Categorizes the type of failure encountered when validating SQL statements. */
 export type LintFailureKind = 'parser' | 'transform' | 'db';
@@ -72,6 +73,11 @@ type TransformError =
   | InstanceType<TestkitCoreModule['MissingFixtureError']>
   | InstanceType<TestkitCoreModule['SchemaValidationError']>
   | InstanceType<TestkitCoreModule['QueryRewriteError']>;
+
+interface LintCommandOptions {
+  json?: string;
+  path?: string;
+}
 
 /**
  * Validate every SQL file against the configured DDL fixtures by replaying each
@@ -159,10 +165,12 @@ export async function runSqlLint(options: RunSqlLintOptions): Promise<RunSqlLint
  */
 export function registerLintCommand(program: Command): void {
   program
-    .command('lint <path>')
+    .command('lint [path]')
     .description('Lint SQL files for syntax and analysis correctness via ZTD')
-    .action(async (pattern: string) => {
-      await runLintCommand(pattern);
+    .option('--json <payload>', 'Pass lint options as a JSON object')
+    .action(async (pattern: string | undefined, options: LintCommandOptions) => {
+      const resolved = resolveLintCommandInput(pattern, options);
+      await runLintCommand(resolved.path);
     });
 }
 
@@ -222,16 +230,39 @@ async function runLintCommand(pattern: string): Promise<void> {
     });
 
     if (result.failures.length > 0) {
+      if (isJsonOutput()) {
+        writeCommandResultEnvelope('lint', false, {
+          schemaVersion: 1,
+          filesChecked: result.filesChecked,
+          failures: result.failures
+        });
+      }
       reportFailures(result.failures);
       process.exitCode = 1;
       throw new Error('ztd lint failed');
     }
 
-    // Success is implied by the absence of failures, so the command stays silent.
+    if (isJsonOutput()) {
+      writeCommandResultEnvelope('lint', true, {
+        schemaVersion: 1,
+        filesChecked: result.filesChecked,
+        failures: []
+      });
+    }
   } finally {
     await client?.end().catch(() => undefined);
     await container?.stop();
   }
+}
+
+export function resolveLintCommandInput(pattern: string | undefined, options: LintCommandOptions): { path: string } {
+  const merged = options.json
+    ? { path: pattern, ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') }
+    : { path: pattern, ...options };
+  if (typeof merged.path !== 'string' || merged.path.trim().length === 0) {
+    throw new Error('A lint path must be provided either as a positional argument or via --json {"path":"..."}');
+  }
+  return { path: merged.path };
 }
 
 function resolveDbConnectTimeoutMs(): number {

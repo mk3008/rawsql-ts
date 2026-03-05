@@ -48,7 +48,7 @@ const COMMANDS: CommandDescriptor[] = [
     summary: 'Generate TestRowMap and layout metadata from local DDL.',
     writesFiles: true,
     supportsDryRun: true,
-    supportsJsonPayload: false,
+    supportsJsonPayload: true,
     output: {
       stdout: 'Status or JSON envelope.',
       files: ['tests/generated/ztd-row-map.generated.ts', 'tests/generated/ztd-layout.generated.ts']
@@ -59,6 +59,7 @@ const COMMANDS: CommandDescriptor[] = [
     },
     flags: [
       { name: '--dry-run', description: 'Render and validate generation without writing files.' },
+      { name: '--json', description: 'Pass ztd-config options as a JSON object.' },
       { name: '--watch', description: 'Watch DDL files and regenerate on change.', defaultValue: false }
     ]
   },
@@ -180,6 +181,23 @@ const COMMANDS: CommandDescriptor[] = [
     ]
   },
   {
+    name: 'lint',
+    summary: 'Lint SQL files with fixture-backed validation.',
+    writesFiles: false,
+    supportsDryRun: false,
+    supportsJsonPayload: true,
+    output: {
+      stdout: 'Silent on success in text mode, JSON envelope in global json mode.'
+    },
+    exitCodes: {
+      '0': 'Lint completed without failures.',
+      '1': 'Lint failures or runtime error.'
+    },
+    flags: [
+      { name: '--json', description: 'Pass lint options as a JSON object.' }
+    ]
+  },
+  {
     name: 'evidence',
     summary: 'Generate deterministic specification evidence artifacts.',
     writesFiles: true,
@@ -198,6 +216,10 @@ const COMMANDS: CommandDescriptor[] = [
     ]
   }
 ];
+
+export function getDescribeCommandDescriptors(): readonly CommandDescriptor[] {
+  return COMMANDS;
+}
 
 export function registerDescribeCommand(program: Command): void {
   const describe = program.command('describe').description('Describe ztd-cli commands and output contracts');
