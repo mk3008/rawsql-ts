@@ -212,7 +212,9 @@ export class SqlTokenizer {
         }
 
         const statementEnd = this.position;
-        const lexemes = this.buildLexemesFromTokenData(tokenData);
+        const lexemes = this.hasCommentMetadata(tokenData)
+            ? this.buildLexemesFromTokenData(tokenData)
+            : this.extractLexemes(tokenData);
         const nextPosition = this.skipPastTerminator(statementEnd);
 
         return {
@@ -225,6 +227,48 @@ export class SqlTokenizer {
         };
     }
 
+    private hasCommentMetadata(tokenData: Array<{
+        lexeme: Lexeme;
+        startPos: number;
+        endPos: number;
+        prefixComments: string[] | null;
+        suffixComments: string[] | null;
+    }>): boolean {
+        for (let i = 0; i < tokenData.length; i++) {
+            const token = tokenData[i];
+            if ((token.prefixComments && token.prefixComments.length > 0) ||
+                (token.suffixComments && token.suffixComments.length > 0) ||
+                (token.lexeme.comments && token.lexeme.comments.length > 0) ||
+                (token.lexeme.positionedComments && token.lexeme.positionedComments.length > 0)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private extractLexemes(tokenData: Array<{
+        lexeme: Lexeme;
+        startPos: number;
+        endPos: number;
+        prefixComments: string[] | null;
+        suffixComments: string[] | null;
+    }>): Lexeme[] {
+        const lexemes: Lexeme[] = new Array(tokenData.length);
+        for (let i = 0; i < tokenData.length; i++) {
+            const token = tokenData[i];
+            const lexeme = token.lexeme;
+
+            // Keep position metadata behavior identical while skipping comment relocation work.
+            lexeme.position = {
+                startPosition: token.startPos,
+                endPosition: token.endPos,
+                ...this.getLineColumnInfo(token.startPos, token.endPos)
+            };
+
+            lexemes[i] = lexeme;
+        }
+        return lexemes;
+    }
     private buildLexemesFromTokenData(tokenData: Array<{
         lexeme: Lexeme;
         startPos: number;
@@ -715,4 +759,8 @@ private getLineColumnInfo(startPos: number, endPos: number) {
         return starts;
     }
 }
+
+
+
+
 
