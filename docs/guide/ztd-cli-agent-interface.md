@@ -47,6 +47,8 @@ The detailed form includes:
 - whether an output contract can be described separately
 - expected stdout/files and exit-code meanings
 
+The full field contract is documented in [ztd-cli Describe Schema](./ztd-cli-describe-schema.md).
+
 Examples:
 
 ```bash

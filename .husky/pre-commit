@@ -14,7 +14,7 @@ ZTD_ONLY=true
 for file in $STAGED_FILES
 do
   case "$file" in
-    .husky/pre-commit|packages/ztd-cli/*|docs/guide/ztd-cli-agent-interface.md|.changeset/*|README.md)
+    .husky/pre-commit|packages/ztd-cli/*|docs/guide/ztd-cli-*|.changeset/*|README.md)
       ;;
     *)
       ZTD_ONLY=false

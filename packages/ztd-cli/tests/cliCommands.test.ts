@@ -132,6 +132,49 @@ test(
   60000,
 );
 
+test('ztd-config CLI accepts --json payload and emits a JSON envelope in global json mode', () => {
+  const ddlDir = createTempDir('cli-gen-ddl-json');
+  writeFileSync(
+    path.join(ddlDir, 'tables.sql'),
+    `
+      CREATE TABLE public.users (
+        id serial PRIMARY KEY,
+        email text NOT NULL
+      );
+    `,
+    'utf8'
+  );
+
+  const outDir = createTempDir('cli-gen-out-json');
+  const outputFile = path.join(outDir, 'ztd-row-map.generated.ts');
+  const result = runCli([
+    '--output',
+    'json',
+    'ztd-config',
+    '--json',
+    JSON.stringify({
+      ddlDir,
+      extensions: '.sql',
+      out: outputFile,
+      dryRun: true
+    })
+  ]);
+
+  assertCliSuccess(result, 'ztd-config json');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed).toMatchObject({
+    command: 'ztd-config',
+    ok: true,
+    data: {
+      dryRun: true,
+      outputs: expect.arrayContaining([
+        expect.objectContaining({ path: outputFile, written: false })
+      ])
+    }
+  });
+  expect(existsSync(outputFile)).toBe(false);
+});
+
 test('top-level help exposes model-gen as a first-class command', () => {
   const result = runCli(['--help']);
   assertCliSuccess(result, '--help');
@@ -147,6 +190,52 @@ test('describe command returns machine-readable metadata with global json output
     command: 'describe command',
     ok: true
   });
+});
+
+test('lint CLI accepts --json payload and emits a JSON envelope in global json mode', () => {
+  const workspace = createSqlWorkspace('lint-json-cli');
+  writeFileSync(workspace.sqlFile, 'select 1 as value', 'utf8');
+  writeFileSync(
+    path.join(workspace.rootDir, 'ztd.config.json'),
+    JSON.stringify({
+      dialect: 'postgres',
+      ddlDir: 'ztd/ddl',
+      testsDir: 'tests',
+      ddl: {
+        defaultSchema: 'public',
+        searchPath: ['public']
+      },
+      ddlLint: 'strict'
+    }, null, 2),
+    'utf8'
+  );
+  mkdirSync(path.join(workspace.rootDir, 'ztd', 'ddl'), { recursive: true });
+  writeFileSync(
+    path.join(workspace.rootDir, 'ztd', 'ddl', 'public.sql'),
+    'CREATE TABLE public.users (id integer PRIMARY KEY);',
+    'utf8'
+  );
+
+  const result = runCli(
+    ['--output', 'json', 'lint', '--json', JSON.stringify({ path: workspace.sqlFile })],
+    {
+      ZTD_LINT_DATABASE_URL: 'postgres://127.0.0.1:1/invalid',
+      DATABASE_URL: ''
+    },
+    workspace.rootDir
+  );
+
+  assertCliFailure(result, 'lint json');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed).toMatchObject({
+    command: 'lint',
+    ok: false,
+    data: {
+      filesChecked: 0,
+      error: expect.stringContaining('Failed to connect to PostgreSQL for ztd lint.')
+    }
+  });
+  expect(result.stderr).toContain('Failed to connect to PostgreSQL for ztd lint.');
 });
 
 test('init dry-run emits scaffold plan without writing files', () => {

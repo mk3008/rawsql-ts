@@ -169,8 +169,20 @@ export function registerLintCommand(program: Command): void {
     .description('Lint SQL files for syntax and analysis correctness via ZTD')
     .option('--json <payload>', 'Pass lint options as a JSON object')
     .action(async (pattern: string | undefined, options: LintCommandOptions) => {
-      const resolved = resolveLintCommandInput(pattern, options);
-      await runLintCommand(resolved.path);
+      try {
+        const resolved = resolveLintCommandInput(pattern, options);
+        await runLintCommand(resolved.path);
+      } catch (error) {
+        if (isJsonOutput()) {
+          writeCommandResultEnvelope('lint', false, {
+            schemaVersion: 1,
+            filesChecked: 0,
+            failures: [],
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+        throw error;
+      }
     });
 }
 
