@@ -1,6 +1,7 @@
 import { Command } from 'commander';
-import { formatQueryUsageReport } from '../query/format';
+import { applyQueryOutputControls, formatQueryUsageReport } from '../query/format';
 import { buildQueryUsageReport, writeQueryUsageOutput } from '../query/report';
+import { getAgentOutputFormat } from '../utils/agentCli';
 
 interface QueryUsesOptions {
   format?: string;
@@ -11,6 +12,8 @@ interface QueryUsesOptions {
   view?: string;
   anySchema?: boolean;
   anyTable?: boolean;
+  summaryOnly?: boolean;
+  limit?: string;
 }
 
 /**
@@ -50,6 +53,8 @@ Notes:
     .option('--sql-root <path>', 'Resolve sqlFile paths relative to the project SQL root first (default: src/sql)')
     .option('--exclude-generated', 'Exclude specs under src/catalog/specs/generated from scan targets')
     .option('--out <path>', 'Write output to file')
+    .option('--summary-only', 'Emit summary counts without per-match details')
+    .option('--limit <count>', 'Limit returned matches and warnings in the output')
     .option('--any-schema', 'Allow <table> lookup across schemas')
     .option('--any-table', 'Unsupported for table usage')
     .action((target: string, options: QueryUsesOptions) => {
@@ -65,6 +70,8 @@ Notes:
     .option('--sql-root <path>', 'Resolve sqlFile paths relative to the project SQL root first (default: src/sql)')
     .option('--exclude-generated', 'Exclude specs under src/catalog/specs/generated from scan targets')
     .option('--out <path>', 'Write output to file')
+    .option('--summary-only', 'Emit summary counts without per-match details')
+    .option('--limit <count>', 'Limit returned matches and warnings in the output')
     .option('--any-schema', 'Allow <table.column> or <column> lookup across schemas')
     .option('--any-table', 'Allow <column> lookup across tables (requires --any-schema)')
     .addHelpText(
@@ -82,7 +89,7 @@ Notes:
 }
 
 function runQueryUsesCommand(kind: 'table' | 'column', target: string, options: QueryUsesOptions): void {
-  const format = normalizeFormat(options.format ?? 'text');
+  const format = normalizeFormat(options.format ?? getAgentOutputFormat());
   const view = normalizeView(options.view ?? 'impact');
   const report = buildQueryUsageReport({
     kind,
@@ -95,12 +102,27 @@ function runQueryUsesCommand(kind: 'table' | 'column', target: string, options: 
     anySchema: Boolean(options.anySchema),
     anyTable: Boolean(options.anyTable)
   });
-  const contents = formatQueryUsageReport(report, format);
+  const limitedReport = applyQueryOutputControls(report, {
+    summaryOnly: Boolean(options.summaryOnly),
+    limit: normalizeLimit(options.limit)
+  });
+  const contents = formatQueryUsageReport(limitedReport, format);
   if (options.out) {
     writeQueryUsageOutput(options.out, contents);
     return;
   }
   console.log(contents.trimEnd());
+}
+
+function normalizeLimit(value?: string): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Unsupported limit: ${value}. Use a positive integer.`);
+  }
+  return parsed;
 }
 
 function normalizeFormat(format: string): 'text' | 'json' {

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { expect, test } from 'vitest';
-import { formatQueryUsageReport } from '../src/query/format';
+import { applyQueryOutputControls, formatQueryUsageReport } from '../src/query/format';
 import { buildQueryUsageReport } from '../src/query/report';
 import { parseQueryTarget } from '../src/query/targets';
 
@@ -165,6 +165,49 @@ test('query usage report defaults to impact view unless detail is requested expl
   expect(explicitImpactReport).toEqual(defaultReport);
   expect(detailReport.view).toBe('detail');
   expect(detailReport.matches.every((match) => match.kind === 'detail')).toBe(true);
+});
+
+test('query usage output controls can emit summary-only and limited reports', () => {
+  const root = createWorkspace('query-uses-output-controls');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
+    JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'users.sql'),
+    [
+      'SELECT email FROM public.users;',
+      'SELECT email FROM public.users WHERE email IS NOT NULL;'
+    ].join('\n'),
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'column',
+    rawTarget: 'public.users.email',
+    rootDir: root,
+    view: 'detail'
+  });
+  const summaryOnly = applyQueryOutputControls(report, { summaryOnly: true });
+  const limited = applyQueryOutputControls(report, { limit: 1 });
+
+  expect(summaryOnly.matches).toEqual([]);
+  expect(summaryOnly.display).toMatchObject({
+    summaryOnly: true,
+    totalMatches: report.matches.length,
+    returnedMatches: 0,
+    truncated: true
+  });
+  expect(formatQueryUsageReport(summaryOnly, 'text')).toContain('summary only: true');
+
+  expect(limited.matches).toHaveLength(1);
+  expect(limited.display).toMatchObject({
+    summaryOnly: false,
+    limit: 1,
+    returnedMatches: 1,
+    truncated: true
+  });
 });
 
 test('query usage report can exclude generated specs while keeping the default scan set unchanged', () => {

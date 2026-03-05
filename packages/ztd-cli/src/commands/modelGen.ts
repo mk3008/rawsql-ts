@@ -20,6 +20,8 @@ import {
 import { ModelGenSqlScanError, scanModelGenSql, type PlaceholderMode, type SqlScanResult } from '../utils/modelGenScanner';
 import { resolveCliConnection, type ConnectionCliOptions } from './connectionOptions';
 import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
+import { isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
+import { validateProjectPath, validateResourceIdentifier } from '../utils/agentSafety';
 
 interface ModelGenCommandOptions extends ConnectionCliOptions {
   out?: string;
@@ -31,6 +33,9 @@ interface ModelGenCommandOptions extends ConnectionCliOptions {
   ddlDir?: string;
   importStyle?: ModelGenImportStyle;
   importFrom?: string;
+  dryRun?: boolean;
+  describeOutput?: boolean;
+  json?: string;
 }
 
 type ModelGenProbeMode = 'live' | 'ztd';
@@ -108,8 +113,8 @@ export async function runModelGen(sqlFilePath: string, options: ModelGenCommandO
       columns
     });
 
-    if (options.out) {
-      const absoluteOut = path.resolve(process.cwd(), options.out);
+    if (options.out && !options.dryRun) {
+      const absoluteOut = validateProjectPath(options.out, '--out');
       mkdirSync(path.dirname(absoluteOut), { recursive: true });
       writeFileSync(absoluteOut, rendered, 'utf8');
     }
@@ -133,6 +138,9 @@ export function registerModelGenCommand(program: Command): void {
     .option('--import-style <style>', 'Generated sql-contract import style: package or relative (default: package)', 'package')
     .option('--import-from <specifier>', 'Override the module specifier used for sql-contract imports in generated files')
     .option('--debug-probe', 'Print the bound probe SQL and ordered parameter names to stderr before probing')
+    .option('--dry-run', 'Validate probing and render output metadata without writing the generated file')
+    .option('--describe-output', 'Describe the generated artifact contract and exit')
+    .option('--json <payload>', 'Pass model-gen options as a JSON object')
     .option('--url <databaseUrl>', 'Connection string to use for probing (optional; fallback to env/config)')
     .option('--db-host <host>', 'Database host to use instead of DATABASE_URL')
     .option('--db-port <port>', 'Database port (defaults to 5432)')
@@ -140,8 +148,49 @@ export function registerModelGenCommand(program: Command): void {
     .option('--db-password <password>', 'Database password')
     .option('--db-name <name>', 'Database name to connect to')
     .action(async (sqlFile: string, options: ModelGenCommandOptions) => {
-      const rendered = await runModelGen(sqlFile, options);
-      if (!options.out) {
+      const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+      if (merged.describeOutput) {
+        const payload = {
+          schemaVersion: 1,
+          command: 'model-gen',
+          fileRules: {
+            requiresSqlRootContainment: true,
+            detectsStableSpecIdCollisions: true
+          },
+          outputs: {
+            spec: 'TypeScript QuerySpec scaffold',
+            'row-mapping': 'TypeScript row mapping object',
+            interface: 'TypeScript row interface'
+          },
+          writeBehavior: merged.out
+            ? { writesTo: validateProjectPath(String(merged.out), '--out'), dryRun: Boolean(merged.dryRun) }
+            : { writesTo: null, dryRun: Boolean(merged.dryRun) }
+        };
+        if (isJsonOutput()) {
+          writeCommandEnvelope('model-gen describe-output', payload);
+        } else {
+          process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+        }
+        return;
+      }
+
+      const rendered = await runModelGen(validateProjectPath(sqlFile, '<sql-file>'), {
+        ...merged,
+        ddlDir: merged.ddlDir ? validateProjectPath(String(merged.ddlDir), '--ddl-dir') : undefined,
+        importFrom: merged.importFrom ? validateImportFrom(String(merged.importFrom)) : undefined,
+        out: merged.out ? validateProjectPath(String(merged.out), '--out') : undefined
+      });
+      if (isJsonOutput()) {
+        writeCommandEnvelope('model-gen', {
+          schemaVersion: 1,
+          dryRun: Boolean(merged.dryRun),
+          outFile: merged.out ? validateProjectPath(String(merged.out), '--out') : null,
+          bytes: rendered.length,
+          format: merged.format ?? 'spec'
+        });
+        return;
+      }
+      if (!merged.out) {
         process.stdout.write(rendered);
       }
     });
@@ -211,6 +260,11 @@ function normalizeImportStyle(value?: string): ModelGenImportStyle {
     return normalized;
   }
   throw new Error(`Unsupported import style "${value}". Use one of: package, relative.`);
+}
+
+function validateImportFrom(value: string): string {
+  const trimmed = validateResourceIdentifier(value, '--import-from');
+  return trimmed.startsWith('@') ? trimmed : value;
 }
 
 function normalizeRealPath(targetPath: string): string {

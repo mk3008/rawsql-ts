@@ -18,6 +18,10 @@ CLI tool for scaffolding **Zero Table Dependency (ZTD)** projects and keeping DD
 - Deterministic test specification evidence export (JSON / Markdown)
 - Watch mode for continuous regeneration
 - Validator selection (Zod or ArkType) during init
+- Global machine-readable mode via `--output json`
+- Runtime command introspection via `ztd describe`
+- Dry-run support for write-capable commands such as `init`, `ztd-config`, `model-gen`, and `ddl *`
+- Optional raw JSON request payloads for automation on selected commands
 
 ## Installation
 
@@ -53,12 +57,13 @@ After `ztd init` you should see:
 
 | Path | Purpose |
 |------|---------|
-| `ztd/ddl/demo.sql` | Sample DDL (3 tables: user, task, task_assignment) |
+| `ztd/ddl/public.sql` | Sample or starter DDL for the default schema |
 | `ztd.config.json` | CLI defaults and resolver hints |
 | `tests/smoke.test.ts` | Minimal smoke test |
 | `tests/smoke.validation.test.ts` | Validator integration smoke test |
 | `tests/support/testkit-client.ts` | Driver wiring placeholder |
 | `src/catalog/specs/` | Spec and runtime files for the smoke contract |
+| `CONTEXT.md` | Agent-focused project invariants and recommended command usage |
 
 ```bash
 # 4. Generate test types from the demo DDL
@@ -98,6 +103,43 @@ npx vitest run             # Run tests
 npx ztd ztd-config --watch # Or keep types updated while editing DDL
 ```
 
+## Agent-Friendly Automation
+
+`ztd-cli` keeps the human-oriented CLI, but now also exposes a machine-readable path for agents and scripts.
+
+### Global JSON mode
+
+```bash
+npx ztd --output json describe
+npx ztd --output json describe command model-gen
+npx ztd --output json query uses column public.users.email --format json
+```
+
+Use global `--output json` when you want command envelopes on stdout and structured diagnostics on stderr.
+
+### Dry-run safety rails
+
+Use `--dry-run` before commands that would write files:
+
+```bash
+npx ztd init --dry-run --workflow demo --validator zod
+npx ztd ztd-config --dry-run
+npx ztd model-gen src/sql/users/list.sql --sql-root src/sql --out src/catalog/specs/list.spec.ts --dry-run
+npx ztd ddl pull --out ztd/ddl --dry-run
+npx ztd ddl diff --out artifacts/schema.diff --dry-run
+npx ztd ddl gen-entities --out src/entities.ts --dry-run
+```
+
+### JSON request payloads
+
+Selected commands accept `--json <payload>` to reduce flag-by-flag construction in automation. Prefix the value with `@` to load JSON from a file.
+
+```bash
+npx ztd init --dry-run --json '{"workflow":"demo","validator":"zod","withSqlclient":true}'
+npx ztd ddl pull --output json --json '{"out":"ztd/ddl","schema":["public"],"dryRun":true}'
+npx ztd model-gen src/sql/users/list.sql --json '{"sqlRoot":"src/sql","probeMode":"ztd","dryRun":true}'
+```
+
 ## Recommended Backend Happy Path
 
 For backend work, split the loop into **ZTD-only** work and **Live-schema** work instead of mixing them from the start.
@@ -129,24 +171,48 @@ Use this split to classify repetition:
 | `ztd init --yes` | Non-interactive mode: accept defaults (demo workflow, Zod validator) and overwrite existing files |
 | `ztd init --workflow <type>` | Specify schema workflow: `pg_dump`, `empty`, or `demo` |
 | `ztd init --validator <type>` | Specify validator backend: `zod` or `arktype` |
+| `ztd init --dry-run` | Validate init inputs and emit the planned scaffold without writing files |
+| `ztd init --json <payload>` | Pass init options as a raw JSON object for automation |
 | `ztd init --local-source-root <path>` | Scaffold for local-source dogfooding and link `@rawsql-ts/sql-contract` from a monorepo path instead of npm |
 | `ztd init --with-sqlclient` | Also scaffold a minimal `SqlClient` boundary for repositories |
 | `ztd init --with-app-interface` | Append application interface guidance to `AGENTS.md` only |
 | `ztd ztd-config` | Generate `TestRowMap` and layout from DDL files (prints next-step hints) |
 | `ztd ztd-config --watch` | Regenerate on DDL changes |
+| `ztd ztd-config --dry-run` | Validate DDL inputs and render generated outputs without writing files |
 | `ztd model-gen <sql-file>` | Generate QuerySpec DTO types and rowMapping by probing live PostgreSQL metadata or ZTD-backed DDL metadata |
+| `ztd model-gen --dry-run` | Validate the probe and generated output without writing the destination file |
+| `ztd model-gen --describe-output` | Describe the generated artifact contract, output rules, and collision behavior |
+| `ztd model-gen --json <payload>` | Pass `model-gen` options as a raw JSON object |
 | `ztd model-gen --import-style <style>` | Switch generated `sql-contract` imports between package and local relative styles |
 | `ztd model-gen --import-from <specifier>` | Override the generated `sql-contract` import target explicitly |
 | `ztd ztd-config --quiet` | Suppress next-step hints (useful in scripts) |
 | `ztd ddl pull` | Fetch schema from a live Postgres database via `pg_dump` |
+| `ztd ddl pull --dry-run` | Run `pg_dump` and normalize the schema without writing files |
+| `ztd ddl pull --json <payload>` | Pass pull options as a raw JSON object |
 | `ztd ddl diff` | Diff local DDL snapshot against a live database |
+| `ztd ddl diff --dry-run` | Compute the diff plan without writing the patch file |
+| `ztd ddl diff --json <payload>` | Pass diff options as a raw JSON object |
 | `ztd ddl gen-entities` | Generate `entities.ts` for ad-hoc schema inspection |
+| `ztd ddl gen-entities --dry-run` | Render `entities.ts` output without writing the destination file |
+| `ztd ddl gen-entities --json <payload>` | Pass generation options as a raw JSON object |
 | `ztd lint <path>` | Lint SQL files with fixture-backed validation |
 | `ztd evidence --mode specification` | Export executable specification evidence from SQL catalogs and test files |
+| `ztd evidence --json <payload>` | Pass evidence options as a raw JSON object |
+| `ztd describe` | List command descriptions and machine-readable capability metadata |
+| `ztd describe command <name>` | Describe one command in detail, including dry-run and JSON support |
+| `ztd --output json <command>` | Emit a versioned JSON envelope for supported commands |
 | `ztd query uses table <schema.table>` | Find catalog SQL statements that use a table target |
 | `ztd query uses column <schema.table>.<column>` | Find catalog SQL statements that use a column target with explicit uncertainty labels |
 | `ztd query uses --sql-root <dir>` | Resolve existing `spec.sqlFile` values against a project SQL root such as `src/sql` before trying legacy spec-relative paths |
 | `ztd query uses --exclude-generated` | Exclude specs under `src/catalog/specs/generated` when those files are review-only noise during impact scans |
+
+### Introspection examples
+
+```bash
+npx ztd describe
+npx ztd describe command init
+npx ztd --output json describe command model-gen
+```
 
 ## Impact Investigation
 
@@ -382,6 +448,7 @@ Important context:
 1. Write SQL in src/sql/ using named parameters such as :customerId
 2. Prefer the ZTD-first command during the inner loop:
    - `ztd model-gen src/sql/my_query.sql --probe-mode ztd --out src/catalog/specs/my-query.spec.ts`
+   - Or validate only: `ztd model-gen src/sql/my_query.sql --probe-mode ztd --out src/catalog/specs/my-query.spec.ts --dry-run`
 3. Use the live probe only when local DDL is not the source of truth:
    - `ztd model-gen src/sql/my_query.sql --probe-mode live --out src/catalog/specs/my-query.spec.ts`
 4. Review the generated types, rowMapping key, nullability, and normalization
@@ -431,6 +498,9 @@ Notes:
 - `--import-style relative` targets `src/local/sql-contract.ts` by convention and requires `--out`.
 - `--import-from` overrides the generated import target and can point at either a bare package specifier or a filesystem path.
 - `--sql-root` defaults to `src/sql` and controls how `sqlFile` plus `spec id` are derived.
+- `--dry-run` validates the probe and reports the intended output path without writing the generated file.
+- `--describe-output` prints the generated artifact contract without connecting to PostgreSQL.
+- `--json <payload>` accepts a raw JSON object of command options for automation.
 - `--debug-probe` prints the bound probe SQL and ordered parameter names to stderr before the live probe runs.
 - Common failure modes are unsupported placeholder syntax, connection/authentication errors, missing live schema objects in `live` mode, missing DDL directories in `ztd` mode, invalid probe SQL, and queries that do not expose any columns.
 - The generated file is a starting point only. Review imports, nullability, cardinality, rowMapping key, runtime normalization, and example values before typechecking or committing it.

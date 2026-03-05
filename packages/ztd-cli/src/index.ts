@@ -2,6 +2,7 @@
 
 import { Command } from 'commander';
 import { CheckContractRuntimeError, registerCheckContractCommand } from './commands/checkContract';
+import { registerDescribeCommand } from './commands/describe';
 import { registerDdlCommands } from './commands/ddl';
 import { registerInitCommand } from './commands/init';
 import { registerLintCommand } from './commands/lint';
@@ -9,10 +10,16 @@ import { registerModelGenCommand } from './commands/modelGen';
 import { registerQueryCommands } from './commands/query';
 import { TestEvidenceRuntimeError, registerTestEvidenceCommand } from './commands/testEvidence';
 import { registerZtdConfigCommand } from './commands/ztdConfigCommand';
+import { setAgentOutputFormat } from './utils/agentCli';
 
 async function main(): Promise<void> {
   const program = new Command();
   program.name('ztd').description('Zero Table Dependency scaffolding and DDL helpers');
+  program.option('--output <format>', 'Global output format (text|json)', 'text');
+  program.hook('preAction', (rootCommand) => {
+    const options = rootCommand.optsWithGlobals() as { output?: string };
+    setAgentOutputFormat(options.output);
+  });
 
   registerInitCommand(program);
   registerLintCommand(program);
@@ -22,6 +29,7 @@ async function main(): Promise<void> {
   registerTestEvidenceCommand(program);
   registerZtdConfigCommand(program);
   registerDdlCommands(program);
+  registerDescribeCommand(program);
 
   program.addHelpText('after', `
 Getting started:

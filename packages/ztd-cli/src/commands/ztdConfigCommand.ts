@@ -15,6 +15,8 @@ import {
 import { loadZtdProjectConfig, writeZtdProjectConfig, type ZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConfig';
 import { ensureDirectory } from '../utils/fs';
+import { emitDiagnostic, isJsonOutput, writeCommandEnvelope } from '../utils/agentCli';
+import { validateProjectPath, validateResourceIdentifier } from '../utils/agentSafety';
 
 const WATCH_DEBOUNCE_MS = 150;
 
@@ -60,6 +62,7 @@ export function registerZtdConfigCommand(program: Command): void {
     .option('--search-path <list>', 'Comma-separated schema search path entries', parseCsvList)
     .option('--watch', 'Watch DDL files and regenerate when schema changes', false)
     .option('--quiet', 'Suppress next-step hints after generation', false)
+    .option('--dry-run', 'Validate inputs and render outputs without writing files', false)
     .action(async (options) => {
       const projectConfig = loadZtdProjectConfig();
       const directories = normalizeDirectoryList(options.ddlDir as string[], projectConfig.ddlDir ?? DEFAULT_DDL_DIRECTORY);
@@ -76,44 +79,67 @@ export function registerZtdConfigCommand(program: Command): void {
       let shouldUpdateConfig = false;
 
       if (options.defaultSchema) {
-        ddlOverrides.defaultSchema = options.defaultSchema;
+        ddlOverrides.defaultSchema = validateResourceIdentifier(options.defaultSchema, '--default-schema');
         shouldUpdateConfig = true;
       }
 
       if (options.searchPath && options.searchPath.length > 0) {
-        ddlOverrides.searchPath = options.searchPath;
+        ddlOverrides.searchPath = options.searchPath.map((entry: string) => validateResourceIdentifier(entry, '--search-path'));
         shouldUpdateConfig = true;
       }
 
-      if (shouldUpdateConfig) {
+       const validatedOutput = validateProjectPath(output, '--out');
+       const validatedLayoutOut = validateProjectPath(layoutOut, 'generated layout output');
+
+      if (shouldUpdateConfig && !options.dryRun) {
         writeZtdProjectConfig(process.cwd(), { ddl: ddlOverrides });
-        console.log('[notice] ztd.config.json ddl schema settings updated.');
+        emitDiagnostic({ code: 'ztd-config.config-updated', message: 'ztd.config.json ddl schema settings updated.' });
       }
 
       const generationOptions: ZtdConfigGenerationOptions = {
         directories,
         extensions,
-        out: output,
+        out: validatedOutput,
         defaultSchema: ddlOverrides.defaultSchema,
         searchPath: ddlOverrides.searchPath,
-        ddlLint: projectConfig.ddlLint
+        ddlLint: projectConfig.ddlLint,
+        dryRun: Boolean(options.dryRun)
       };
 
-      await runGenerateZtdConfig(generationOptions);
+      const generation = await runGenerateZtdConfig(generationOptions);
       const layoutConfig: ZtdProjectConfig = { ...projectConfig, ddl: ddlOverrides };
-      writeZtdLayoutFile(layoutOut, layoutConfig);
+      if (!options.dryRun) {
+        writeZtdLayoutFile(validatedLayoutOut, layoutConfig);
+      }
+
+      if (isJsonOutput()) {
+        writeCommandEnvelope('ztd-config', {
+          schemaVersion: 1,
+          dryRun: Boolean(options.dryRun),
+          configUpdated: shouldUpdateConfig,
+          outputs: [
+            { path: validatedOutput, bytes: generation.rendered.length, written: !options.dryRun },
+            { path: validatedLayoutOut, written: !options.dryRun }
+          ],
+          tables: generation.tables.map((table) => ({ name: table.name, columns: table.columns.length }))
+        });
+      }
 
       if (options.watch) {
+        if (options.dryRun) {
+          throw new Error('--watch cannot be combined with --dry-run.');
+        }
         console.log(`[watch] Initial generation complete: ${generationOptions.out}`);
-        await watchZtdConfig(generationOptions, layoutOut, layoutConfig);
+        await watchZtdConfig(generationOptions, validatedLayoutOut, layoutConfig);
       } else if (!options.quiet) {
-        console.log('');
-        console.log('Next steps:');
-        console.log('  1. npx vitest run              Run tests to verify generated types');
-        console.log('  2. npx ztd lint <path>         Lint SQL files against the schema');
-        console.log('  3. npx ztd check-contract      Validate catalog contracts');
-        console.log('');
-        console.log('Tip: use --watch to regenerate automatically when DDL files change.');
+        if (options.dryRun) {
+          emitDiagnostic({
+            code: 'ztd-config.dry-run',
+            message: `Dry-run validated generation for ${validatedOutput} and ${validatedLayoutOut}.`
+          });
+        } else {
+          emitDiagnostic({ code: 'ztd-config.next-steps', message: 'Next: run vitest, ztd lint, and ztd check-contract.' });
+        }
       }
     });
 }

@@ -12,6 +12,7 @@ export interface PullSchemaOptions {
   schemas?: string[];
   tables?: string[];
   connectionContext?: DbConnectionContext;
+  dryRun?: boolean;
 }
 
 interface TableSpecifier {
@@ -19,7 +20,17 @@ interface TableSpecifier {
   original: string;
 }
 
-export function runPullSchema(options: PullSchemaOptions): void {
+export interface PullSchemaResult {
+  outDir: string;
+  files: Array<{
+    schema: string;
+    filePath: string;
+    contents: string;
+  }>;
+  dryRun: boolean;
+}
+
+export function runPullSchema(options: PullSchemaOptions): PullSchemaResult {
   // Canonicalize CLI filters before invoking pg_dump so later steps can rely on consistent casing.
   const schemaFilters = (options.schemas ?? []).map((value) => normalizeSchemaName(value));
   const tableFilters = (options.tables ?? []).map((value) => parseTableSpecifier(value));
@@ -52,23 +63,32 @@ export function runPullSchema(options: PullSchemaOptions): void {
   }
 
   const outDir = path.resolve(options.out);
-  ensureDirectory(outDir);
-  // Remove the legacy schema.sql snapshot only when it is still present.
-  const legacySchemaFile = path.join(outDir, 'schema.sql');
-  if (existsSync(legacySchemaFile)) {
-    rmSync(legacySchemaFile, { force: true });
-  }
-  const schemasDir = path.join(outDir, 'schemas');
-  if (existsSync(schemasDir)) {
-    rmSync(schemasDir, { recursive: true, force: true });
+  const files = Array.from(normalizedMap.entries()).map(([schema, statements]) => ({
+    schema,
+    filePath: path.join(outDir, `${sanitizeSchemaFileName(schema)}.sql`),
+    contents: buildSchemaFile(statements)
+  }));
+
+  if (!options.dryRun) {
+    ensureDirectory(outDir);
+    // Remove the legacy schema.sql snapshot only when it is still present.
+    const legacySchemaFile = path.join(outDir, 'schema.sql');
+    if (existsSync(legacySchemaFile)) {
+      rmSync(legacySchemaFile, { force: true });
+    }
+    const schemasDir = path.join(outDir, 'schemas');
+    if (existsSync(schemasDir)) {
+      rmSync(schemasDir, { recursive: true, force: true });
+    }
+
+    // Persist each schema snapshot directly under the DDL directory for easier discovery.
+    for (const file of files) {
+      writeFileSync(file.filePath, file.contents, 'utf8');
+      console.log(`Wrote normalized schema for ${file.schema} at ${file.filePath}`);
+    }
   }
 
-  // Persist each schema snapshot directly under the DDL directory for easier discovery.
-  for (const [schema, statements] of normalizedMap) {
-    const filePath = path.join(outDir, `${sanitizeSchemaFileName(schema)}.sql`);
-    writeFileSync(filePath, buildSchemaFile(statements), 'utf8');
-    console.log(`Wrote normalized schema for ${schema} at ${filePath}`);
-  }
+  return { outDir, files, dryRun: Boolean(options.dryRun) };
 }
 
 function buildPgDumpArguments(schemaFilters: string[], tableFilters: TableSpecifier[]): string[] {

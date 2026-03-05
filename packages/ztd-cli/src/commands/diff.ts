@@ -14,9 +14,17 @@ export interface DiffSchemaOptions {
   out: string;
   pgDumpPath?: string;
   connectionContext?: DbConnectionContext;
+  dryRun?: boolean;
 }
 
-export function runDiffSchema(options: DiffSchemaOptions): void {
+export interface DiffSchemaResult {
+  outFile: string;
+  patch: string;
+  dryRun: boolean;
+  hasChanges: boolean;
+}
+
+export function runDiffSchema(options: DiffSchemaOptions): DiffSchemaResult {
   const localSources = collectSqlFiles(options.directories, options.extensions);
   if (localSources.length === 0) {
     throw new Error(`No SQL files were discovered under ${options.directories.join(', ')}`);
@@ -40,7 +48,16 @@ export function runDiffSchema(options: DiffSchemaOptions): void {
   const header = `-- ztd ddl diff plan\n-- Local DDL: ${options.directories.join(', ')}\n-- Database: ${databaseTarget}\n-- Generated: ${new Date().toISOString()}\n\n`;
 
   // Guarantee the target path exists before emitting the plan file.
-  ensureDirectory(path.dirname(options.out));
-  writeFileSync(options.out, `${header}${patch}\n`, 'utf8');
-  console.log(`DDL diff plan written to ${options.out}`);
+  if (!options.dryRun) {
+    ensureDirectory(path.dirname(options.out));
+    writeFileSync(options.out, `${header}${patch}\n`, 'utf8');
+    console.log(`DDL diff plan written to ${options.out}`);
+  }
+
+  return {
+    outFile: options.out,
+    patch: `${header}${patch}\n`,
+    dryRun: Boolean(options.dryRun),
+    hasChanges
+  };
 }

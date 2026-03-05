@@ -9,6 +9,8 @@ import { copyAgentsTemplate } from '../utils/agents';
 import { DEFAULT_ZTD_CONFIG, writeZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConfig';
 import { runPullSchema, type PullSchemaOptions } from './pull';
+import { isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
+import { rejectControlChars, rejectEncodedTraversal } from '../utils/agentSafety';
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn';
 type PackageInstallKind = 'devDependencies' | 'install';
@@ -123,6 +125,7 @@ type FileKey =
   | 'vitestConfig'
   | 'tsconfig'
   | 'readme'
+  | 'context'
   | 'ztdDocsAgent'
   | 'ztdDocsReadme'
   | 'ztdDdlAgents'
@@ -171,8 +174,8 @@ export interface ZtdConfigWriterDependencies {
   ensureDirectory: (directory: string) => void;
   writeFile: (filePath: string, contents: string) => void;
   fileExists: (filePath: string) => boolean;
-  runPullSchema: (options: PullSchemaOptions) => Promise<void> | void;
-  runGenerateZtdConfig: (options: ZtdConfigGenerationOptions) => Promise<void> | void;
+  runPullSchema: (options: PullSchemaOptions) => Promise<unknown> | unknown;
+  runGenerateZtdConfig: (options: ZtdConfigGenerationOptions) => Promise<unknown> | unknown;
   checkPgDump: () => boolean;
   log: (message: string) => void;
   copyAgentsTemplate: (rootDir: string) => string | null;
@@ -197,6 +200,7 @@ export interface InitCommandOptions {
   workflow?: InitWorkflow;
   validator?: ValidatorBackend;
   localSourceRoot?: string;
+  dryRun?: boolean;
 }
 
 type ValidatorBackend = 'zod' | 'arktype';
@@ -247,6 +251,7 @@ async function gatherOptionalFeatures(
 type InitWorkflow = 'pg_dump' | 'empty' | 'demo';
 
 const README_TEMPLATE = 'README.md';
+const CONTEXT_TEMPLATE = 'CONTEXT.md';
 const TESTS_AGENTS_TEMPLATE = 'tests/AGENTS.md';
 const TESTS_SUPPORT_AGENTS_TEMPLATE = 'tests/support/AGENTS.md';
 const TESTS_GENERATED_AGENTS_TEMPLATE = 'tests/generated/AGENTS.md';
@@ -456,6 +461,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     testsGeneratedAgents: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'AGENTS.md'),
     testsSmoke: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'smoke.test.ts'),
     readme: path.join(rootDir, 'README.md'),
+    context: path.join(rootDir, 'CONTEXT.md'),
     sqlReadme: path.join(rootDir, 'src', 'sql', 'README.md'),
     viewsRepoReadme: path.join(rootDir, 'src', 'repositories', 'views', 'README.md'),
     tablesRepoReadme: path.join(rootDir, 'src', 'repositories', 'tables', 'README.md'),
@@ -585,6 +591,20 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (readmeSummary) {
     summaries.readme = readmeSummary;
+  }
+
+  const contextSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.context,
+    relativePath('context'),
+    CONTEXT_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy,
+    true
+  );
+  if (contextSummary) {
+    summaries.context = contextSummary;
   }
 
   const ztdDocsAgentSummary = await writeTemplateFile(
@@ -1996,6 +2016,59 @@ function buildSummaryLines(
 const VALID_WORKFLOWS: readonly InitWorkflow[] = ['pg_dump', 'empty', 'demo'] as const;
 const VALID_VALIDATORS: readonly ValidatorBackend[] = ['zod', 'arktype'] as const;
 
+interface InitDryRunPlan {
+  schemaVersion: 1;
+  workflow: InitWorkflow;
+  validator: ValidatorBackend;
+  dryRun: true;
+  files: string[];
+}
+
+function buildInitDryRunPlan(rootDir: string, options: {
+  withSqlClient?: boolean;
+  withAppInterface?: boolean;
+  workflow: InitWorkflow;
+  validator: ValidatorBackend;
+  localSourceRoot?: string;
+}): InitDryRunPlan {
+  const schemaName = normalizeSchemaName(DEFAULT_ZTD_CONFIG.ddl.defaultSchema);
+  const schemaFileName = `${sanitizeSchemaFileName(schemaName)}.sql`;
+  const files = [
+    'ztd.config.json',
+    path.join(DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
+    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'smoke.test.ts'),
+    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'smoke.validation.test.ts'),
+    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'testkit-client.ts'),
+    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
+    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-row-map.generated.ts'),
+    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-layout.generated.ts'),
+    'README.md',
+    'AGENTS.md',
+    'CONTEXT.md',
+    'vitest.config.ts',
+    'tsconfig.json'
+  ];
+
+  if (options.withSqlClient) {
+    files.push(path.join('src', 'db', 'sql-client.ts'));
+    files.push(path.join('src', 'db', 'sql-client-adapters.ts'));
+  }
+  if (options.withAppInterface) {
+    files.splice(0, files.length, 'AGENTS.md');
+  }
+  if (options.localSourceRoot) {
+    resolveInitScaffoldProfile(rootDir, options.localSourceRoot);
+  }
+
+  return {
+    schemaVersion: 1,
+    workflow: options.workflow,
+    validator: options.validator,
+    dryRun: true,
+    files: files.map((file) => normalizeCliPath(file))
+  };
+}
+
 export function registerInitCommand(program: Command): void {
   program
     .command('init')
@@ -2005,6 +2078,8 @@ export function registerInitCommand(program: Command): void {
     .option('--yes', 'Accept defaults and overwrite existing files without prompting')
     .option('--workflow <type>', 'Schema workflow: pg_dump, empty, or demo (default: demo)')
     .option('--validator <type>', 'Validator backend: zod or arktype (default: zod)')
+    .option('--dry-run', 'Validate init options and emit the planned scaffold without writing files')
+    .option('--json <payload>', 'Pass init options as a JSON object')
     .option(
       '--local-source-root <path>',
       'Link @rawsql-ts dependencies to a local monorepo root for dogfooding instead of published npm packages'
@@ -2016,39 +2091,61 @@ export function registerInitCommand(program: Command): void {
       workflow?: string;
       validator?: string;
       localSourceRoot?: string;
+      dryRun?: boolean;
+      json?: string;
     }) => {
+      const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+      if (typeof merged.localSourceRoot === 'string') {
+        merged.localSourceRoot = rejectEncodedTraversal(rejectControlChars(merged.localSourceRoot, '--local-source-root'), '--local-source-root');
+      }
       // Validate --workflow value if provided.
-      if (options.workflow && !VALID_WORKFLOWS.includes(options.workflow as InitWorkflow)) {
-        console.error(`Invalid --workflow value: "${options.workflow}". Must be one of: ${VALID_WORKFLOWS.join(', ')}`);
+      if (merged.workflow && !VALID_WORKFLOWS.includes(merged.workflow as InitWorkflow)) {
+        console.error(`Invalid --workflow value: "${merged.workflow}". Must be one of: ${VALID_WORKFLOWS.join(', ')}`);
         process.exit(1);
       }
       // Validate --validator value if provided.
-      if (options.validator && !VALID_VALIDATORS.includes(options.validator as ValidatorBackend)) {
-        console.error(`Invalid --validator value: "${options.validator}". Must be one of: ${VALID_VALIDATORS.join(', ')}`);
+      if (merged.validator && !VALID_VALIDATORS.includes(merged.validator as ValidatorBackend)) {
+        console.error(`Invalid --validator value: "${merged.validator}". Must be one of: ${VALID_VALIDATORS.join(', ')}`);
         process.exit(1);
       }
 
-      const isNonInteractive = options.yes === true || !process.stdin.isTTY;
+      const isNonInteractive = merged.yes === true || !process.stdin.isTTY || merged.dryRun === true;
 
       // When --yes is used, apply defaults for unspecified flags.
-      const workflow = (options.workflow as InitWorkflow | undefined) ?? (isNonInteractive ? 'demo' : undefined);
-      const validator = (options.validator as ValidatorBackend | undefined) ?? (isNonInteractive ? 'zod' : undefined);
+      const workflow = (merged.workflow as InitWorkflow | undefined) ?? (isNonInteractive ? 'demo' : undefined);
+      const validator = (merged.validator as ValidatorBackend | undefined) ?? (isNonInteractive ? 'zod' : undefined);
 
       if (isNonInteractive && workflow === 'pg_dump') {
         console.error('Non-interactive mode does not support the pg_dump workflow (requires connection string prompt).');
         process.exit(1);
       }
 
+      if (merged.dryRun) {
+        const plan = buildInitDryRunPlan(process.cwd(), {
+          withSqlClient: Boolean(merged.withSqlclient),
+          withAppInterface: Boolean(merged.withAppInterface),
+          workflow: workflow ?? 'demo',
+          validator: validator ?? 'zod',
+          localSourceRoot: merged.localSourceRoot
+        });
+        if (isJsonOutput()) {
+          writeCommandEnvelope('init', plan);
+        } else {
+          process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+        }
+        return;
+      }
+
       const prompter = createConsolePrompter();
       try {
         await runInitCommand(prompter, {
-          withSqlClient: options.withSqlclient,
-          withAppInterface: options.withAppInterface,
-          forceOverwrite: options.yes ?? false,
+          withSqlClient: Boolean(merged.withSqlclient),
+          withAppInterface: Boolean(merged.withAppInterface),
+          forceOverwrite: Boolean(merged.yes),
           nonInteractive: isNonInteractive,
           workflow,
           validator,
-          localSourceRoot: options.localSourceRoot
+          localSourceRoot: merged.localSourceRoot
         });
       } finally {
         prompter.close();

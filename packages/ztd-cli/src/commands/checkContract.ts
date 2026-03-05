@@ -8,6 +8,7 @@ import {
   walkSqlCatalogSpecFiles,
   type LoadedSqlCatalogSpec
 } from '../utils/sqlCatalogDiscovery';
+import { getAgentOutputFormat } from '../utils/agentCli';
 
 export type CheckFormat = 'human' | 'json';
 export type ViolationSeverity = 'error' | 'warning';
@@ -80,7 +81,7 @@ export function registerCheckContractCommand(program: Command): void {
     .option('--specs-dir <path>', 'Override specs directory (default: src/catalog/specs)')
     .action(async (options: CheckCommandOptions & { format: string }) => {
       try {
-        const format = normalizeFormat(options.format);
+        const format = normalizeFormat(options.format ?? getAgentOutputFormat());
         const result = runCheckContract({
           strict: Boolean(options.strict),
           rootDir: process.env.ZTD_PROJECT_ROOT,

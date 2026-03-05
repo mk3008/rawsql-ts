@@ -138,6 +138,30 @@ test('top-level help exposes model-gen as a first-class command', () => {
   expect(result.stdout).toContain('model-gen [options] <sql-file>');
 });
 
+test('describe command returns machine-readable metadata with global json output', () => {
+  const result = runCli(['--output', 'json', 'describe', 'command', 'model-gen']);
+  assertCliSuccess(result, 'describe command');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed).toMatchObject({
+    schemaVersion: 1,
+    command: 'describe command',
+    ok: true
+  });
+});
+
+test('init dry-run emits scaffold plan without writing files', () => {
+  const workspace = createTempDir('init-dry-run');
+  const result = runCli(['--output', 'json', 'init', '--dry-run', '--workflow', 'demo', '--validator', 'zod'], {}, workspace);
+  assertCliSuccess(result, 'init dry-run');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    dryRun: true,
+    workflow: 'demo',
+    validator: 'zod'
+  });
+  expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(false);
+});
+
 test('model-gen rejects positional placeholders by default and recommends named params', () => {
   const workspace = createSqlWorkspace('model-gen-positional-error');
   writeFileSync(workspace.sqlFile, 'select * from users where id = $1', 'utf8');
@@ -147,6 +171,25 @@ test('model-gen rejects positional placeholders by default and recommends named 
   expect(result.stderr).toContain('Detected positional placeholders ($1, $2, ...)');
   expect(result.stderr).toContain('must use named parameters (:name) by policy');
   expect(result.stderr).toContain('--allow-positional');
+});
+
+test('model-gen describe-output emits contract metadata without probing', () => {
+  const workspace = createSqlWorkspace('model-gen-describe-output');
+  writeFileSync(workspace.sqlFile, 'select 1 as value', 'utf8');
+
+  const result = runCli(
+    ['--output', 'json', 'model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--describe-output'],
+    {},
+    workspace.rootDir
+  );
+  assertCliSuccess(result, 'model-gen describe-output');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    command: 'model-gen',
+    outputs: {
+      spec: 'TypeScript QuerySpec scaffold'
+    }
+  });
 });
 
 test('model-gen rejects sql files outside the configured sql root', () => {
@@ -212,6 +255,30 @@ pullTest('pull CLI emits schema from Postgres via pg_dump', async () => {
     // Ensure pg_dump SET statements are removed without blocking ALTER ... SET DEFAULT.
     expect(normalizedSchema).not.toMatch(/(^|\n)set\s+/);
     expect(existsSync(path.join(outDir, 'schema.sql'))).toBe(false);
+  } finally {
+    await resetPublicSchema(client);
+    await client.end();
+  }
+}, 60_000);
+
+pullTest('pull CLI dry-run validates dump without writing files', async () => {
+  const connectionString = process.env.TEST_PG_URI!;
+  const client = new Client({ connectionString });
+  await client.connect();
+
+  try {
+    await resetPublicSchema(client);
+    await seedProductsTable(client);
+
+    const outDir = createTempDir('cli-pull-dry-run');
+    const result = runCli(['--output', 'json', 'ddl', 'pull', '--out', outDir, '--dry-run'], { DATABASE_URL: connectionString });
+    assertCliSuccess(result, 'ddl pull dry-run');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed.data).toMatchObject({
+      dryRun: true,
+      files: [expect.objectContaining({ schema: 'public' })]
+    });
+    expect(existsSync(path.join(outDir, 'public.sql'))).toBe(false);
   } finally {
     await resetPublicSchema(client);
     await client.end();

@@ -46,6 +46,16 @@ export function formatQueryUsageReport(report: QueryUsageReport, format: 'text' 
     `unresolved sql files: ${report.summary.unresolvedSqlFiles}`
   ];
 
+  if (report.display) {
+    lines.push(`returned matches: ${report.display.returnedMatches}`);
+    lines.push(`returned warnings: ${report.display.returnedWarnings}`);
+    lines.push(`summary only: ${report.display.summaryOnly}`);
+    if (report.display.limit !== undefined) {
+      lines.push(`limit: ${report.display.limit}`);
+    }
+    lines.push(`truncated: ${report.display.truncated}`);
+  }
+
   if (report.warnings.length > 0) {
     lines.push('', 'Warnings:');
     for (const warning of report.warnings) {
@@ -67,6 +77,39 @@ export function formatQueryUsageReport(report: QueryUsageReport, format: 'text' 
   lines.push('', 'Fallback-derived matches:');
   appendDetailMatches(lines, fallback);
   return `${lines.join('\n')}\n`;
+}
+
+export function applyQueryOutputControls(
+  report: QueryUsageReport,
+  options: { limit?: number; summaryOnly?: boolean }
+): QueryUsageReport {
+  const summaryOnly = Boolean(options.summaryOnly);
+  const limit = options.limit;
+  const totalMatches = report.matches.length;
+  const totalWarnings = report.warnings.length;
+
+  let matches = summaryOnly ? [] : report.matches;
+  let warnings = summaryOnly ? [] : report.warnings;
+
+  if (!summaryOnly && limit !== undefined) {
+    matches = matches.slice(0, limit);
+    warnings = warnings.slice(0, limit);
+  }
+
+  return {
+    ...report,
+    matches,
+    warnings,
+    display: {
+      summaryOnly,
+      limit,
+      totalMatches,
+      returnedMatches: matches.length,
+      totalWarnings,
+      returnedWarnings: warnings.length,
+      truncated: summaryOnly || matches.length < totalMatches || warnings.length < totalWarnings
+    }
+  };
 }
 
 function appendImpactMatches(lines: string[], matches: QueryUsageMatchImpact[]): void {
