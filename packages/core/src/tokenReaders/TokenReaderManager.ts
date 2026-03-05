@@ -36,26 +36,17 @@ export class TokenReaderManager {
     }
 
     /**
-     * Update the position for all readers
-     */
-    private setPosition(position: number): void {
-        this.position = position;
-        for (const reader of this.readers) {
-            reader.setPosition(position);
-        }
-    }
-
-    /**
      * Try to read a token using all registered readers
      * @param position The position to read from
      * @param previous The previous token, if any
      * @returns The lexeme if a reader could read it, null otherwise
      */
     public tryRead(position: number, previous: Lexeme | null): Lexeme | null {
-        this.setPosition(position);
+        this.position = position;
 
-        // Keep only the winning reader position; the next call will re-seed all readers.
+        // Set reader position lazily so we avoid touching readers after the winning parser.
         for (const reader of this.readers) {
+            reader.setPosition(position);
             const lexeme = reader.tryRead(previous);
             if (lexeme) {
                 this.position = reader.getPosition();
