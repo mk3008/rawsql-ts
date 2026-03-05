@@ -149,6 +149,14 @@ export class LinePrinter {
     }
 
     private lineHasTrailingComment(text: string): boolean {
+        if (!text.includes('--')) {
+            return false;
+        }
+
+        if (!text.includes("'") && !text.includes('"')) {
+            return true;
+        }
+
         // Strip simple quoted sections so comment markers inside literals are ignored.
         const withoutStrings = text
             .replace(/'([^']|'')*'/g, '')

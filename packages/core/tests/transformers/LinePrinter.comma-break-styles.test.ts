@@ -59,4 +59,19 @@ describe('LinePrinter - Comma Break Styles', () => {
         // Assert - noneの場合、カンマは移動せず元の位置に残る
         expect(result).toContain('"field1" /* comment */, "field2"');
     });
+    test('should NOT move comma to previous line when previous line has trailing -- comment', () => {
+        const printer = new LinePrinter(' ', 4, '\n', 'after');
+
+        printer.appendText('SELECT');
+        printer.appendNewline(1);
+        printer.appendText('field1 -- keep comment line intact');
+        printer.appendNewline(1);
+        printer.appendText(',');
+        printer.appendText(' field2');
+
+        const result = printer.print();
+
+        expect(result).toContain('field1 -- keep comment line intact\n    , field2');
+        expect(result).not.toContain('field1 -- keep comment line intact,');
+    });
 });
