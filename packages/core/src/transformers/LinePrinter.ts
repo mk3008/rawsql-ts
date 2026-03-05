@@ -117,9 +117,9 @@ export class LinePrinter {
      */
     cleanupLine(): boolean {
         const workLine = this.getCurrentLine();
-        if (workLine.text.trim() === '' && this.lines.length > 1 && (this.commaBreak === 'after' || this.commaBreak === 'none')) {
+        if (this.isAsciiWhitespaceOnly(workLine.text) && this.lines.length > 1 && (this.commaBreak === 'after' || this.commaBreak === 'none')) {
             let previousIndex = this.lines.length - 2;
-            while (previousIndex >= 0 && this.lines[previousIndex].text.trim() === '') {
+            while (previousIndex >= 0 && this.isAsciiWhitespaceOnly(this.lines[previousIndex].text)) {
                 this.lines.splice(previousIndex, 1);
                 previousIndex--;
             }
@@ -135,6 +135,17 @@ export class LinePrinter {
             return true; // Cleanup performed
         }
         return false; // No cleanup needed
+    }
+
+
+    private isAsciiWhitespaceOnly(text: string): boolean {
+        for (let i = 0; i < text.length; i++) {
+            const code = text.charCodeAt(i);
+            if (code !== 32 && code !== 9 && code !== 10 && code !== 13) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private lineHasTrailingComment(text: string): boolean {
@@ -162,7 +173,7 @@ export class LinePrinter {
     isCurrentLineEmpty(): boolean {
         if (this.lines.length > 0) {
             const currentLine = this.lines[this.lines.length - 1];
-            return currentLine.text.trim() === '';
+            return this.isAsciiWhitespaceOnly(currentLine.text);
         }
         return true;
     }
