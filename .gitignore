@@ -197,3 +197,9 @@ CONTINUITY.md
 # Local memo shortcuts for agent work; intentionally untracked.
 prompts/
 playgrounds/ztd-playground/
+
+# Dogfooding run outputs (local-only)
+DOGFOOD_LOG.txt
+DOGFOOD_REPORT.md
+tmp/dogfood-runs/
+

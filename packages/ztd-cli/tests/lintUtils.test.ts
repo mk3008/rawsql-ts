@@ -7,7 +7,13 @@ import {
   extractEnumLabels,
   inferDefaultValue
 } from '../src/utils/sqlLintHelpers';
-import { buildParserFailure } from '../src/commands/lint';
+import {
+  buildLintConnectionError,
+  buildLintContainerStartError,
+  buildLintDefaultBindings,
+  buildParserFailure,
+  detectMaxPositionalParamIndex,
+} from '../src/commands/lint';
 
 function createTempDir(prefix: string): string {
   return mkdtempSync(path.join(os.tmpdir(), `${prefix}-`));
@@ -78,4 +84,40 @@ test('buildParserFailure marks parser kind with parse keyword', () => {
   expect(failure.kind).toBe('parser');
   expect(failure.message.toLowerCase()).toContain('parse');
   expect(failure.details?.code).toBeUndefined();
+});
+
+test('buildLintContainerStartError appends Docker guidance for runtime failures', () => {
+  const error = buildLintContainerStartError(new Error('Could not find a working container runtime strategy'));
+  expect(error.message).toContain('Start Docker Desktop/service');
+  expect(error.message).toContain('ZTD_LINT_DATABASE_URL');
+});
+
+test('buildLintConnectionError explains external connection recovery', () => {
+  const error = buildLintConnectionError(new Error('ECONNREFUSED'), true);
+  expect(error.message).toContain('ZTD_LINT_DATABASE_URL or DATABASE_URL');
+  expect(error.message).toContain('ECONNREFUSED');
+});
+
+test('buildLintConnectionError explains Docker recovery when no external connection is set', () => {
+  const error = buildLintConnectionError(new Error('timeout'), false);
+  expect(error.message).toContain('Docker Desktop/service');
+  expect(error.message).toContain('ZTD_LINT_DATABASE_URL');
+});
+
+
+
+test('detectMaxPositionalParamIndex returns the highest positional slot', () => {
+  expect(detectMaxPositionalParamIndex('select * from t where a = $1 and b = $3')).toBe(3);
+  expect(detectMaxPositionalParamIndex('select 1')).toBe(0);
+});
+
+test('buildLintDefaultBindings creates null-filled arrays for positional placeholders', () => {
+  expect(buildLintDefaultBindings('select * from t where a = $1 and b = $3')).toEqual([null, null, null]);
+});
+
+test('buildLintDefaultBindings creates name-keyed null objects for named placeholders', () => {
+  expect(buildLintDefaultBindings('select * from t where a = :id and b = :status')).toEqual({
+    id: null,
+    status: null,
+  });
 });

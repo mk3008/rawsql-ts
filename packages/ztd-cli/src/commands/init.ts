@@ -219,9 +219,7 @@ const SQL_CONTRACT_DEPENDENCY: Record<string, string> = {
   '@rawsql-ts/sql-contract': '^0.1.0'
 };
 const LOCAL_SOURCE_STACK_PACKAGE_DIRS: Record<string, string> = {
-  '@rawsql-ts/sql-contract': path.join('packages', 'sql-contract'),
-  '@rawsql-ts/adapter-node-pg': path.join('packages', 'adapters', 'adapter-node-pg'),
-  '@rawsql-ts/testkit-postgres': path.join('packages', 'testkit-postgres')
+  '@rawsql-ts/sql-contract': path.join('packages', 'sql-contract')
 };
 const ZOD_DEPENDENCY: Record<string, string> = {
   zod: '^4.3.6'
@@ -2057,3 +2055,4 @@ export function registerInitCommand(program: Command): void {
       }
     });
 }
+

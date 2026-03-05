@@ -75,6 +75,7 @@ npm install rawsql-ts
 ```
 
 See the [Core Package Documentation](./packages/core/README.md) for usage examples and API reference.
+Deterministic dogfooding spec: [docs/dogfooding/DOGFOODING.md](./docs/dogfooding/DOGFOODING.md).
 
 ## Online Demo
 
@@ -83,3 +84,4 @@ See the [Core Package Documentation](./packages/core/README.md) for usage exampl
 ## License
 
 MIT
+

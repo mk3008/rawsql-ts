@@ -53,7 +53,7 @@ export interface PgClientLike {
 }
 
 export interface PgModule {
-  Client: new (options: { connectionString: string }) => PgClientLike;
+  Client: new (options: { connectionString: string; connectionTimeoutMillis?: number }) => PgClientLike;
 }
 
 export interface PostgresContainerLike {
@@ -173,3 +173,4 @@ export async function ensurePostgresContainerModule(): Promise<PostgresContainer
     'pnpm add -D @testcontainers/postgresql'
   );
 }
+

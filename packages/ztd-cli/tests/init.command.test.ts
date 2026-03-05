@@ -528,12 +528,8 @@ test('init local-source mode links direct rawsql-ts dependencies from the monore
   expect(packageJson.devDependencies['@rawsql-ts/sql-contract']).toBe(
     `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'sql-contract')).replace(/\\/g, '/')}`
   );
-  expect(packageJson.devDependencies['@rawsql-ts/adapter-node-pg']).toBe(
-    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'adapters', 'adapter-node-pg')).replace(/\\/g, '/')}`
-  );
-  expect(packageJson.devDependencies['@rawsql-ts/testkit-postgres']).toBe(
-    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'testkit-postgres')).replace(/\\/g, '/')}`
-  );
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/adapter-node-pg');
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
   expect(packageJson.scripts.typecheck).toBe('node ./scripts/local-source-guard.mjs typecheck');
   expect(packageJson.scripts.test).toBe('node ./scripts/local-source-guard.mjs test');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm install --ignore-workspace');
@@ -585,9 +581,9 @@ test('init local-source mode rejects a root that is not a rawsql-ts monorepo', a
   ).rejects.toThrow('The local-source root does not contain packages/sql-contract/package.json');
 });
 
-test('init local-source mode rejects a root that is missing one of the direct rawsql-ts packages', async () => {
-  const workspace = createTempDir('cli-init-local-source-missing-stack');
-  const localSourceRoot = createTempDir('cli-init-local-source-partial-monorepo');
+test('init local-source mode accepts a minimal local-source root with sql-contract only', async () => {
+  const workspace = createTempDir('cli-init-local-source-minimal-stack');
+  const localSourceRoot = createTempDir('cli-init-local-source-minimal-monorepo');
   const prompter = new TestPrompter([]);
 
   mkdirSync(path.join(localSourceRoot, 'packages', 'sql-contract'), { recursive: true });
@@ -597,16 +593,23 @@ test('init local-source mode rejects a root that is missing one of the direct ra
     'utf8'
   );
 
-  await expect(
-    runInitCommand(prompter, {
-      rootDir: workspace,
-      forceOverwrite: true,
-      nonInteractive: true,
-      workflow: 'empty',
-      validator: 'zod',
-      localSourceRoot
-    })
-  ).rejects.toThrow('The local-source root does not contain packages/adapters/adapter-node-pg/package.json');
+  const result = await runInitCommand(prompter, {
+    rootDir: workspace,
+    forceOverwrite: true,
+    nonInteractive: true,
+    workflow: 'empty',
+    validator: 'zod',
+    localSourceRoot
+  });
+
+  const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    devDependencies: Record<string, string>;
+  };
+
+  expect(result.summary).toContain('ZTD project initialized.');
+  expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/sql-contract');
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/adapter-node-pg');
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
 });
 
 test('init rejects non-interactive pg_dump workflow', async () => {
@@ -638,3 +641,4 @@ test('TestPrompter.selectChoice rejects invalid inputs', async () => {
     new TestPrompter(['99']).selectChoice('option?', ['only'])
   ).rejects.toThrow('outside the valid range');
 });
+
