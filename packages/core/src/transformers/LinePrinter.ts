@@ -101,15 +101,39 @@ export class LinePrinter {
         if (this.lines.length < 2) {
             return;
         }
+
         const previousLine = this.lines[this.lines.length - 2];
-        const newlineMatch = previousLine.text.match(/(\r?\n)$/);
-        const trailingNewline = newlineMatch ? newlineMatch[1] : '';
-        const content = trailingNewline
-            ? previousLine.text.slice(0, -trailingNewline.length)
-            : previousLine.text;
-        previousLine.text = content.replace(/[ \t]+$/, '') + trailingNewline;
+        const text = previousLine.text;
+        const lineEnd = this.findLineEndIndex(text);
+        let contentEnd = lineEnd;
+
+        // Trim only trailing spaces/tabs before a preserved newline suffix.
+        while (contentEnd > 0) {
+            const code = text.charCodeAt(contentEnd - 1);
+            if (code !== 32 && code !== 9) {
+                break;
+            }
+            contentEnd--;
+        }
+
+        if (contentEnd === lineEnd) {
+            return;
+        }
+
+        previousLine.text = text.slice(0, contentEnd) + text.slice(lineEnd);
     }
 
+    private findLineEndIndex(text: string): number {
+        if (text.endsWith('\r\n')) {
+            return text.length - 2;
+        }
+
+        if (text.endsWith('\n')) {
+            return text.length - 1;
+        }
+
+        return text.length;
+    }
     /**
      * Cleans up the current line for comma formatting.
      * For 'after' and 'none' comma styles, removes empty line when a comma is being added.

@@ -62,3 +62,16 @@ describe('LinePrinter - Trailing comma aligned', () => {
         );
     });
 });
+
+describe('LinePrinter - trimTrailingWhitespaceFromPreviousLine', () => {
+    it('should trim trailing spaces and tabs while preserving newline', () => {
+        const printer = new LinePrinter(' ', 2, '\n');
+        printer.appendText('SELECT');
+        printer.appendText('   ');
+        printer.appendNewline(0);
+
+        printer.trimTrailingWhitespaceFromPreviousLine();
+
+        expect(printer.lines[0].text).toBe('SELECT\n');
+    });
+});
