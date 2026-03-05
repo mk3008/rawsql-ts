@@ -53,6 +53,8 @@ Designed to complement, not replace, your SQL expertise.
 |---------|---------|-------------|
 | [@rawsql-ts/ztd-cli](./packages/ztd-cli) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/ztd-cli) | DB-agnostic scaffolding and DDL helpers for Zero Table Dependency projects. |
 
+For the machine-readable CLI surface, see [ztd-cli Agent Interface](./docs/guide/ztd-cli-agent-interface.md) and [ztd-cli Describe Schema](./docs/guide/ztd-cli-describe-schema.md).
+
 ## Architecture
 
 ```text
