@@ -144,7 +144,7 @@ Query requirements (fixed):
 - Filter: date range on `payment.paid_at`
 
 Rule: For Scenario 2 runs, use a fresh Postgres container / fresh database to apply the updated schema, to avoid noisy "relation already exists" output and keep logs comparable.
-OPTIONAL (destructive): If you must reuse a DB, reset schema first: `drop schema public cascade; create schema public;`.
+OPTIONAL (destructive): If you must reuse a DB, reset schema first: `drop schema public cascade; create schema public;`. CAUTION: LOCAL/DISPOSABLE DB ONLY — DO NOT RUN IN PRODUCTION OR ON SHARED DATABASES.
 
 ### 4.2 Pass criteria
 
@@ -157,7 +157,7 @@ OPTIONAL (destructive): If you must reuse a DB, reset schema first: `drop schema
 All runs must include a log in this exact structure:
 
 ```text
-[YYYY-MM-DD HH:MM:SS] STEP <n> ACTION "<short title>"
+[YYYY-MM-DDTHH:MM:SSZ] STEP <n> ACTION "<short title>" (UTC recommended)
 CMD:
 <command line>
 RESULT:
