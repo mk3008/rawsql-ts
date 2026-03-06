@@ -90,6 +90,22 @@ export class SqlParser {
         const mode = options.mode ?? 'single';
         const tokenizer = new SqlTokenizer(sql);
 
+        // Fast path for the common single-statement parse used by benchmarks and most callers.
+        if (mode === 'single' && skipEmpty) {
+            const first = this.readNextMeaningfulStatement(tokenizer, 0);
+            if (!first) {
+                throw new Error('[SqlParser] No SQL statements found in input.');
+            }
+
+            const parsed = this.dispatchParse(first, 1);
+            const remainder = this.readNextMeaningfulStatement(tokenizer, first.nextPosition);
+            if (remainder) {
+                throw new Error('[SqlParser] Unexpected additional statement detected at index 2. Use parseMany or set mode to "multiple" to allow multiple statements.');
+            }
+
+            return parsed;
+        }
+
         // Acquire the first meaningful statement so future dispatching can inspect its leading keyword.
         const first = this.consumeNextStatement(tokenizer, 0, skipEmpty);
         if (!first) {
@@ -668,6 +684,29 @@ export class SqlParser {
             return next?.value.toLowerCase() ?? null;
         } catch {
             return null;
+        }
+    }
+
+    private static readNextMeaningfulStatement(tokenizer: SqlTokenizer, cursor: number): StatementLexemeResult | null {
+        let localCursor = cursor;
+        let carry: string[] | null = null;
+
+        while (true) {
+            const segment = tokenizer.readNextStatement(localCursor, carry);
+            carry = null;
+
+            if (!segment) {
+                return null;
+            }
+
+            if (segment.lexemes.length > 0) {
+                return segment;
+            }
+
+            localCursor = segment.nextPosition;
+            if (segment.leadingComments && segment.leadingComments.length > 0) {
+                carry = segment.leadingComments;
+            }
         }
     }
 
