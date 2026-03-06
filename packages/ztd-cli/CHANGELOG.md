@@ -1,5 +1,73 @@
 # @rawsql-ts/ztd-cli
 
+## 0.18.0
+
+### Minor Changes
+
+- [#451](https://github.com/mk3008/rawsql-ts/pull/451) [`40c4d82`](https://github.com/mk3008/rawsql-ts/commit/40c4d8259b8808a25dc77b61fa3fd324856a80b8) Thanks [@mk3008](https://github.com/mk3008)! - Keep deterministic test-evidence semantic transforms in @rawsql-ts/test-evidence-core and add a pure buildSpecificationModel intermediate model API with schemaVersion validation and typed deterministic errors.
+
+  Add @rawsql-ts/test-evidence-renderer-md for markdown projection only, then update @rawsql-ts/ztd-cli to consume core semantics and renderer projections via explicit boundaries.
+
+- [#505](https://github.com/mk3008/rawsql-ts/pull/505) [`8127f60`](https://github.com/mk3008/rawsql-ts/commit/8127f60b55cb0f1d2691a01fffdaf6d0feeb5ef3) Thanks [@mk3008](https://github.com/mk3008)! - Add agent-first CLI improvements to `ztd-cli`, including a global `--output json` mode, a new `describe` command, dry-run support for write-capable commands, JSON payload input paths, and stricter input hardening for file paths and identifiers.
+
+- [#505](https://github.com/mk3008/rawsql-ts/pull/505) [`4fb22e3`](https://github.com/mk3008/rawsql-ts/commit/4fb22e3262f7e00bfddc65ba82b2ff1a2e3e0e86) Thanks [@mk3008](https://github.com/mk3008)! - Change `ztd init` to write managed internal agent guidance under `.ztd/agents/` by default, add `ztd agents install` and `ztd agents status`, and stop auto-creating visible `AGENTS.md` files unless explicitly installed.
+
+- [#446](https://github.com/mk3008/rawsql-ts/pull/446) [`06cd070`](https://github.com/mk3008/rawsql-ts/commit/06cd07084a50884d54613561ba760b3a10e37284) Thanks [@mk3008](https://github.com/mk3008)! - Add a new `ztd evidence --mode specification` command that exports deterministic JSON and Markdown artifacts derived from SQL catalog specs and test case definitions.
+
+- [#487](https://github.com/mk3008/rawsql-ts/pull/487) [`9e5db08`](https://github.com/mk3008/rawsql-ts/commit/9e5db08fd0a7fe7a43f980d6684b879550712f0f) Thanks [@mk3008](https://github.com/mk3008)! - Add `impact` and `detail` views to `ztd query uses`, improve clause-aware detail locations, and show a friendly hint when no catalog specs are discoverable.
+
+- [#488](https://github.com/mk3008/rawsql-ts/pull/488) [`8ecca4b`](https://github.com/mk3008/rawsql-ts/commit/8ecca4b349331b7c4a8f2a5a40f760531cf413d9) Thanks [@mk3008](https://github.com/mk3008)! - Add a local-source dogfooding mode to `ztd init` via `--local-source-root`.
+
+  The new mode links `@rawsql-ts/sql-contract` from a local monorepo path, emits `src/local/sql-contract.ts`, and switches the scaffold runtime coercion import to the local shim so a fresh project under `tmp/` can reach `pnpm install`, `pnpm typecheck`, and the template smoke tests without published rawsql-ts packages.
+
+- [#486](https://github.com/mk3008/rawsql-ts/pull/486) [`4c905f7`](https://github.com/mk3008/rawsql-ts/commit/4c905f7f345682c3f4bd6a514a244232e02d07e4) Thanks [@mk3008](https://github.com/mk3008)! - Add `ztd model-gen` to generate names-first QuerySpec scaffolds from live PostgreSQL metadata.
+
+- [#487](https://github.com/mk3008/rawsql-ts/pull/487) [`9cd9068`](https://github.com/mk3008/rawsql-ts/commit/9cd90682ce65d9e0f04730f18795013bfa7c5d2f) Thanks [@mk3008](https://github.com/mk3008)! - Add strict-first `ztd query uses` commands for table and column impact investigation with deterministic output, explicit uncertainty labels, shared SQL catalog discovery, and stable statement fingerprints.
+
+### Patch Changes
+
+- [#488](https://github.com/mk3008/rawsql-ts/pull/488) [`9d9b8aa`](https://github.com/mk3008/rawsql-ts/commit/9d9b8aae1e36b1ac4a08dcad59a9eba05315ac6b) Thanks [@mk3008](https://github.com/mk3008)! - Default `ztd query uses` to the impact view in docs/help and add `--exclude-generated` to skip `src/catalog/specs/generated` during impact scans when those specs are review-only noise.
+
+- [#506](https://github.com/mk3008/rawsql-ts/pull/506) [`1cb9aef`](https://github.com/mk3008/rawsql-ts/commit/1cb9aef7402d00f19a8bebe416f845b9efd36a88) Thanks [@mk3008](https://github.com/mk3008)! - Clarify published vs local-source dogfooding, ensure fresh `ztd init` installs scaffold dependencies, inline scaffold timestamp coercions so generated smoke tests run against the published sql-contract package, make `serial8` DDL mapping generate stable numeric types, align release verification with `pnpm pack/publish` so workspace dependencies are rewritten consistently, and add a repository-root published-package smoke check that packs internal tarballs and reuses them via local overrides before release. Publish `@rawsql-ts/shared-binder`, `@rawsql-ts/test-evidence-core`, and `@rawsql-ts/test-evidence-renderer-md` so released packages can resolve their runtime evidence and binder dependencies.
+
+- [#451](https://github.com/mk3008/rawsql-ts/pull/451) [`77ba0be`](https://github.com/mk3008/rawsql-ts/commit/77ba0be9506a547f2ac397c82ac69957b76c8fa9) Thanks [@mk3008](https://github.com/mk3008)! - Fix markdown definition/file links to be resolved relative to each markdown output location in local path mode.
+
+  When GitHub Actions metadata is not present, renderer links now compute relative paths from the markdown directory to the source definition path, preventing broken links in generated artifacts.
+
+- [#451](https://github.com/mk3008/rawsql-ts/pull/451) [`ea03f55`](https://github.com/mk3008/rawsql-ts/commit/ea03f55a6dad7e61f737da453256bde64454442e) Thanks [@mk3008](https://github.com/mk3008)! - Refine unit test specification markdown for review readability with flattened headings, strict two-axis tags, consistent focus phrasing, and catalog/case-level refs. Enforce throws error block rendering and deterministic metadata ordering.
+
+- [#460](https://github.com/mk3008/rawsql-ts/pull/460) [`8b7535c`](https://github.com/mk3008/rawsql-ts/commit/8b7535c61a9dd11c239116387df40986371a48c9) Thanks [@mk3008](https://github.com/mk3008)! - Fix the ztd-cli build pipeline so it builds the test-evidence workspace dependencies before compiling the CLI package.
+
+- [#474](https://github.com/mk3008/rawsql-ts/pull/474) [`606c99a`](https://github.com/mk3008/rawsql-ts/commit/606c99a49fb384197afb3d8a00511c1737a0dea6) Thanks [@mk3008](https://github.com/mk3008)! - Onboarding & discoverability improvements (Epic #463):
+  - Add copy-pasteable "Happy Path Quickstart" to README
+  - Document DDL/schema change workflow with common patterns
+  - Add `--workflow` and `--validator` flags for non-interactive `ztd init --yes`
+  - Improve `ztd --help` with "Getting started" and "Common workflow" guidance
+  - Print next-step hints after `ztd-config` (suppress with `--quiet`)
+  - Include `fromPg()` SqlClient conversion helper in scaffolded templates
+  - Add docs for rowMapping/coerce vs validator pipeline order
+  - Add Postgres pitfalls guide, spec-change scenarios digest, and feature index
+
+- [#488](https://github.com/mk3008/rawsql-ts/pull/488) [`3d27115`](https://github.com/mk3008/rawsql-ts/commit/3d27115d8497c3c8046c5d1e2b8acc363c1d6a7d) Thanks [@mk3008](https://github.com/mk3008)! - Teach `ztd query uses` to resolve existing `spec.sqlFile` values against a project SQL root such as `src/sql` before falling back to legacy spec-relative lookup, and improve unresolved-file guidance.
+
+- [#488](https://github.com/mk3008/rawsql-ts/pull/488) [`fd9d1b2`](https://github.com/mk3008/rawsql-ts/commit/fd9d1b25c152ce039ff4ab20f8163fb889d3c5a2) Thanks [@mk3008](https://github.com/mk3008)! - Improve ZTD-first dogfooding and scaffold feedback.
+  - make `ztd init` detect parent pnpm workspaces and use `--ignore-workspace` for its own install step
+  - add local-source dogfooding guidance for nested workspaces and generated import overrides
+  - let `ztd model-gen` generate local-friendly `sql-contract` imports via `--import-style` and `--import-from`
+  - strengthen the default scaffold smoke tests and placeholder diagnostics so wiring mistakes fail with clearer messages
+
+- [#487](https://github.com/mk3008/rawsql-ts/pull/487) [`a9d2129`](https://github.com/mk3008/rawsql-ts/commit/a9d21291c7734683f9a5cb07a4d8abac6a880345) Thanks [@mk3008](https://github.com/mk3008)! - Improve `ztd query uses` stability by keeping usage-kind summaries deterministic, bounding statement-location cache growth, and isolating spec-load failures so one bad spec file does not abort the full report.
+
+- [#488](https://github.com/mk3008/rawsql-ts/pull/488) [`89f2fd5`](https://github.com/mk3008/rawsql-ts/commit/89f2fd5fd27576a514309024a2bf7b4d25b6ec20) Thanks [@mk3008](https://github.com/mk3008)! - Align `ztd query uses table --view detail` snippets and locations to the matched table reference token so impact scans point at the actual table node instead of a nearby clause token.
+
+- [#442](https://github.com/mk3008/rawsql-ts/pull/442) [`7f62025`](https://github.com/mk3008/rawsql-ts/commit/7f62025f9f97449375a3d549d1cc13cb210cc319) Thanks [@mk3008](https://github.com/mk3008)! - Add deterministic `ztd check contract` validation with stable exit semantics, root-level AST wildcard safety checks, and CLI/unit coverage for contract diagnostics.
+
+- Updated dependencies [[`40c4d82`](https://github.com/mk3008/rawsql-ts/commit/40c4d8259b8808a25dc77b61fa3fd324856a80b8), [`1cb9aef`](https://github.com/mk3008/rawsql-ts/commit/1cb9aef7402d00f19a8bebe416f845b9efd36a88), [`77ba0be`](https://github.com/mk3008/rawsql-ts/commit/77ba0be9506a547f2ac397c82ac69957b76c8fa9), [`ea03f55`](https://github.com/mk3008/rawsql-ts/commit/ea03f55a6dad7e61f737da453256bde64454442e), [`8acdf88`](https://github.com/mk3008/rawsql-ts/commit/8acdf88ebc743d1ce1ed3c85c9b085c6b8456afc), [`e960404`](https://github.com/mk3008/rawsql-ts/commit/e96040413ce357c0c86fe87f886b9d8cce6cb44e)]:
+  - @rawsql-ts/test-evidence-core@0.2.0
+  - @rawsql-ts/test-evidence-renderer-md@0.2.0
+  - @rawsql-ts/adapter-node-pg@0.15.3
+  - rawsql-ts@0.16.1
+
 ## 0.17.0
 
 ### Minor Changes

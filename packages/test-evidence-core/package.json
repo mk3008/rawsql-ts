@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/test-evidence-core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Deterministic PreviewJson to DiffJson transformation for rawsql-ts test evidence.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/shared-binder",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Shared named-parameter binder utilities for rawsql-ts packages.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

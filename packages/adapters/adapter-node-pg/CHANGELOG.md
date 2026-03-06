@@ -1,5 +1,17 @@
 # @rawsql-ts/adapter-node-pg
 
+## 0.15.3
+
+### Patch Changes
+
+- [#439](https://github.com/mk3008/rawsql-ts/pull/439) [`8acdf88`](https://github.com/mk3008/rawsql-ts/commit/8acdf88ebc743d1ce1ed3c85c9b085c6b8456afc) Thanks [@mk3008](https://github.com/mk3008)! - Rename the internal binder dependency to `@rawsql-ts/shared-binder` so npm publish accepts the package metadata.
+
+- Updated dependencies [[`1cb9aef`](https://github.com/mk3008/rawsql-ts/commit/1cb9aef7402d00f19a8bebe416f845b9efd36a88), [`ad95b97`](https://github.com/mk3008/rawsql-ts/commit/ad95b971e77101f4cdfc37aa28e2817b0a6903bf), [`e960404`](https://github.com/mk3008/rawsql-ts/commit/e96040413ce357c0c86fe87f886b9d8cce6cb44e)]:
+  - @rawsql-ts/shared-binder@0.0.1
+  - @rawsql-ts/testkit-core@0.16.0
+  - rawsql-ts@0.16.1
+  - @rawsql-ts/testkit-postgres@0.15.2
+
 ## 0.15.2
 
 ### Patch Changes
