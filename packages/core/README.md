@@ -104,18 +104,19 @@ This section reports **parse-only** benchmark results for the SQL parser. It mea
 
 For readability, workloads are described by approximate SQL line counts, with token counts included in parentheses for technical precision. Parser cost is driven more directly by token volume than by formatting style.
 
-Across these workloads, parsing remains fast and stable, and no performance cliff was observed up to the very large case.
+Across these workloads, parsing remains fast and stable, performance remains practical, and no performance cliff was observed up to the very large case.
 
-![Parser Benchmark Results](https://quickchart.io/chart?c={type:'bar',data:{labels:\['Small%208%20lines','Medium%2012%20lines','Large%2020%20lines','Very%20large%201000%2B%20lines'],datasets:\[{label:'rawsql-ts',data:\[0.045,0.141,0.138,8.72],backgroundColor:'rgba\(54,162,235,0.8\)',borderColor:'rgba\(54,162,235,1\)',borderWidth:1},{label:'node-sql-parser',data:\[0.448,0.868,1.66,92.965],backgroundColor:'rgba\(255,206,86,0.8\)',borderColor:'rgba\(255,206,86,1\)',borderWidth:1}]},options:{plugins:{legend:{labels:{color:'black'}}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}}\&width=760\&height=420)
+![Parser Scaling Chart](https://quickchart.io/chart?c={type:'line',data:{labels:['Small%208%20lines','Medium%2012%20lines','Large%2020%20lines','Mid-large%20400-500%20lines','Very%20large%201,000%2B%20lines'],datasets:[{label:'rawsql-ts',data:[0.082,0.086,0.148,3.995,7.746],borderColor:'rgba(54,162,235,1)',backgroundColor:'rgba(54,162,235,0.15)',fill:false,tension:0.2},{label:'node-sql-parser',data:[0.634,0.742,2.505,23.49,67.917],borderColor:'rgba(255,206,86,1)',backgroundColor:'rgba(255,206,86,0.15)',fill:false,tension:0.2}]},options:{plugins:{legend:{labels:{color:'black'}}},elements:{point:{radius:3}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}}&width=760&height=420)
 
-| Workload                                              | rawsql-ts |   node-sql-parser |
-| ----------------------------------------------------- | --------: | ----------------: |
-| Small query, about 8 lines (70 tokens)                |  0.045 ms |   0.448 ms (9.9x) |
-| Medium query, about 12 lines (140 tokens)             |  0.141 ms |   0.868 ms (6.1x) |
-| Large query, about 20 lines (230 tokens)              |  0.138 ms |  1.660 ms (12.0x) |
-| Very large query, about 1,000+ lines (~12,000 tokens) |  8.720 ms | 92.965 ms (10.7x) |
+| Workload | rawsql-ts | node-sql-parser |
+|----------|----------:|----------------:|
+| Small query, about 8 lines (70 tokens) | 0.082 ms | 0.634 ms (7.8x) |
+| Medium query, about 12 lines (140 tokens) | 0.086 ms | 0.742 ms (8.6x) |
+| Large query, about 20 lines (230 tokens) | 0.148 ms | 2.505 ms (17.0x) |
+| Mid-large query, about 400-500 lines (5,000 tokens) | 3.995 ms | 23.490 ms (5.9x) |
+| Very large query, about 1,000+ lines (~12,000 tokens) | 7.746 ms | 67.917 ms (8.8x) |
 
-> Benchmarked on AMD Ryzen 7 7800X3D / Node.js v22.14.0 (2026-03-05). The very large case uses a benchmark-only analytics-style SQL workload of about 1,200 lines and 11,500 tokens, represented here as the ~12,000-token / 1,000+ line class. See [benchmark details](../../docs/bench/parse-benchmark.md) for full results.
+> Benchmarked on AMD Ryzen 7 7800X3D / Node.js v22.14.0 / node-sql-parser 5.3.12 (2026-03-06). The mid-large and very large cases use benchmark-only analytics-style SQL workloads that represent practical long-query classes rather than formatter scenarios. See [benchmark details](../../docs/bench/parse-benchmark.md) for full results.
 
 ## Online Demo
 

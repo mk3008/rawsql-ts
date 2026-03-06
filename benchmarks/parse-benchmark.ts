@@ -23,11 +23,20 @@ interface SystemInfo {
     nodeVersion: string;
 }
 
+interface ComparedLibraryVersion {
+    label: string;
+    version: string;
+}
+
 interface ChartDataset {
     labels: string[];
     datasets: Array<{
         label: string;
         data: Array<number | null>;
+        borderColor?: string;
+        backgroundColor?: string;
+        fill?: boolean;
+        tension?: number;
     }>;
 }
 
@@ -51,6 +60,13 @@ const BENCHMARK_RUN_CONFIG: BenchmarkRunConfig = {
     heavyMinSamples: 6,
     heavyMaxTimeSec: 0.12,
 };
+
+const COMPARED_LIBRARY_VERSIONS: ComparedLibraryVersion[] = [
+    {
+        label: 'node-sql-parser',
+        version: require('node-sql-parser/package.json').version,
+    },
+];
 
 function createLargeAnalyticsSql(sectionCount: number): string {
     const lines: string[] = [
@@ -172,7 +188,7 @@ function createLargeAnalyticsSql(sectionCount: number): string {
 const queries: QueryBenchmarkCase[] = [
     {
         key: 'Tokens70',
-        chartLabel: 'Small',
+        chartLabel: 'Small 8 lines',
         readerLabel: 'Small query, about 8 lines (70 tokens)',
         sql: `SELECT
                 u.id, u.name, u.email, u.age, u.status, u.role,
@@ -184,7 +200,7 @@ const queries: QueryBenchmarkCase[] = [
     },
     {
         key: 'Tokens140',
-        chartLabel: 'Medium',
+        chartLabel: 'Medium 12 lines',
         readerLabel: 'Medium query, about 12 lines (140 tokens)',
         sql: `WITH recent_orders AS (
                 SELECT user_id, MAX(order_date) AS last_order
@@ -204,7 +220,7 @@ const queries: QueryBenchmarkCase[] = [
     },
     {
         key: 'Tokens230',
-        chartLabel: 'Large',
+        chartLabel: 'Large 20 lines',
         readerLabel: 'Large query, about 20 lines (230 tokens)',
         sql: `WITH
                 detail AS (
@@ -271,9 +287,15 @@ const queries: QueryBenchmarkCase[] = [
                     line_id;`
     },
     {
+        key: 'Tokens5000',
+        chartLabel: 'Mid-large 400-500 lines',
+        readerLabel: 'Mid-large query, about 400-500 lines (5,000 tokens)',
+        sql: createLargeAnalyticsSql(10)
+    },
+    {
         key: 'Tokens12000',
-        chartLabel: 'Very large',
-        readerLabel: 'Very large query, about 1,000 lines (12,000 tokens)',
+        chartLabel: 'Very large 1,000+ lines',
+        readerLabel: 'Very large query, about 1,000+ lines (~12,000 tokens)',
         sql: createLargeAnalyticsSql(24)
     }
 ];
@@ -319,6 +341,9 @@ function printHeader() {
     const info = getSystemInfo();
     const currentDate = new Date().toISOString().split('T')[0];
     const benchmarkVersion = require('benchmark/package.json').version;
+    const comparedVersions = COMPARED_LIBRARY_VERSIONS
+        .map(item => `${item.label} ${item.version}`)
+        .join(', ');
 
     logLine('```');
     logLine(`benchmark.js v${benchmarkVersion}, ${info.osName}`);
@@ -326,6 +351,7 @@ function printHeader() {
     logLine(`Node.js ${info.nodeVersion}`);
     logLine(`Date ${currentDate}`);
     logLine(`Benchmark config: default minSamples=${BENCHMARK_RUN_CONFIG.defaultMinSamples}, maxTime=${BENCHMARK_RUN_CONFIG.defaultMaxTimeSec}s; heavy minSamples=${BENCHMARK_RUN_CONFIG.heavyMinSamples}, maxTime=${BENCHMARK_RUN_CONFIG.heavyMaxTimeSec}s`);
+    logLine(`Compared libraries: ${comparedVersions}`);
     logLine('```');
     logLine('');
 }
@@ -377,11 +403,22 @@ function printResults(results: BenchmarkResult[]) {
 
 function buildChartDataset(results: BenchmarkResult[]): ChartDataset {
     const labels = queries.map(query => query.chartLabel);
-    const methods = ['rawsql-ts', 'node-sql-parser'];
+    const methods = [
+        {
+            label: 'rawsql-ts',
+            borderColor: 'rgba(54,162,235,1)',
+            backgroundColor: 'rgba(54,162,235,0.15)',
+        },
+        {
+            label: 'node-sql-parser',
+            borderColor: 'rgba(255,206,86,1)',
+            backgroundColor: 'rgba(255,206,86,0.15)',
+        }
+    ];
 
-    const datasets = methods.map(label => {
+    const datasets = methods.map(method => {
         const data = queries.map(query => {
-            const match = results.find(result => result.name.startsWith(label) && result.name.endsWith(query.key));
+            const match = results.find(result => result.name.startsWith(method.label) && result.name.endsWith(query.key));
             if (!match) {
                 return null;
             }
@@ -391,8 +428,12 @@ function buildChartDataset(results: BenchmarkResult[]): ChartDataset {
         });
 
         return {
-            label,
-            data
+            label: method.label,
+            data,
+            borderColor: method.borderColor,
+            backgroundColor: method.backgroundColor,
+            fill: false,
+            tension: 0.2
         };
     });
 
@@ -423,7 +464,7 @@ function writeReportFile(lines: string[]): string {
 }
 
 function getBenchmarkOptions(queryKey: string): Benchmark.Options {
-    const isHeavy = queryKey === 'Tokens12000';
+    const isHeavy = queryKey === 'Tokens5000' || queryKey === 'Tokens12000';
     return {
         minSamples: isHeavy ? BENCHMARK_RUN_CONFIG.heavyMinSamples : BENCHMARK_RUN_CONFIG.defaultMinSamples,
         maxTime: isHeavy ? BENCHMARK_RUN_CONFIG.heavyMaxTimeSec : BENCHMARK_RUN_CONFIG.defaultMaxTimeSec,
