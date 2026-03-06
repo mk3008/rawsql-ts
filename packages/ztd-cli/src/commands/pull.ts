@@ -63,11 +63,13 @@ export function runPullSchema(options: PullSchemaOptions): PullSchemaResult {
   }
 
   const outDir = path.resolve(options.out);
-  const files = Array.from(normalizedMap.entries()).map(([schema, statements]) => ({
-    schema,
-    filePath: path.join(outDir, `${sanitizeSchemaFileName(schema)}.sql`),
-    contents: buildSchemaFile(statements)
-  }));
+  const files = Array.from(normalizedMap.entries())
+    .sort(([schemaA], [schemaB]) => schemaA.localeCompare(schemaB))
+    .map(([schema, statements]) => ({
+      schema,
+      filePath: path.join(outDir, `${sanitizeSchemaFileName(schema)}.sql`),
+      contents: buildSchemaFile(statements)
+    }));
 
   if (!options.dryRun) {
     ensureDirectory(outDir);

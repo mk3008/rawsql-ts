@@ -66,6 +66,10 @@ export function registerZtdConfigCommand(program: Command): void {
     .option('--json <payload>', 'Pass command options as a JSON object')
     .action(async (options) => {
       const merged = options.json ? resolveZtdConfigCommandOptions(options as Record<string, unknown>) : options;
+      if (merged.watch && merged.dryRun) {
+        throw new Error('--watch cannot be combined with --dry-run.');
+      }
+
       const projectConfig = loadZtdProjectConfig();
       const directories = normalizeDirectoryList(merged.ddlDir as string[], projectConfig.ddlDir ?? DEFAULT_DDL_DIRECTORY);
       const extensions = resolveExtensions(merged.extensions as string[], DEFAULT_EXTENSIONS);
@@ -90,8 +94,8 @@ export function registerZtdConfigCommand(program: Command): void {
         shouldUpdateConfig = true;
       }
 
-       const validatedOutput = validateProjectPath(output, '--out');
-       const validatedLayoutOut = validateProjectPath(layoutOut, 'generated layout output');
+      const validatedOutput = validateProjectPath(output, '--out');
+      const validatedLayoutOut = validateProjectPath(layoutOut, 'generated layout output');
 
       if (shouldUpdateConfig && !merged.dryRun) {
         writeZtdProjectConfig(process.cwd(), { ddl: ddlOverrides });
@@ -118,7 +122,7 @@ export function registerZtdConfigCommand(program: Command): void {
         writeCommandEnvelope('ztd-config', {
           schemaVersion: 1,
           dryRun: Boolean(merged.dryRun),
-          configUpdated: shouldUpdateConfig,
+          configUpdated: shouldUpdateConfig && !merged.dryRun,
           outputs: [
             { path: validatedOutput, bytes: generation.rendered.length, written: !merged.dryRun },
             { path: validatedLayoutOut, written: !merged.dryRun }
@@ -128,9 +132,6 @@ export function registerZtdConfigCommand(program: Command): void {
       }
 
       if (merged.watch) {
-        if (merged.dryRun) {
-          throw new Error('--watch cannot be combined with --dry-run.');
-        }
         console.log(`[watch] Initial generation complete: ${generationOptions.out}`);
         await watchZtdConfig(generationOptions, validatedLayoutOut, layoutConfig);
       } else if (!merged.quiet) {

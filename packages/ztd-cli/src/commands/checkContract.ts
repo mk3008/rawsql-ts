@@ -62,7 +62,7 @@ export class CheckContractRuntimeError extends Error {
 }
 
 interface CheckCommandOptions {
-  format?: 'json';
+  format?: string;
   out?: string;
   strict?: boolean;
   specsDir?: string;
@@ -76,15 +76,15 @@ export function registerCheckContractCommand(program: Command): void {
   check
     .command('contract')
     .description('Check SQL contract specs deterministically')
-    .option('--format <format>', 'Output format (json)', 'human')
+    .option('--format <format>', 'Output format (human|json)')
     .option('--out <path>', 'Write output to file')
     .option('--strict', 'Treat safety warnings as violations')
     .option('--specs-dir <path>', 'Override specs directory (default: src/catalog/specs)')
     .option('--json <payload>', 'Pass command options as a JSON object')
-    .action(async (options: CheckCommandOptions & { format: string }) => {
+    .action(async (options: CheckCommandOptions) => {
       try {
         const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
-        const format = normalizeFormat(normalizeStringOption(merged.format) ?? getAgentOutputFormat());
+        const format = resolveCheckOutputFormat(merged.format);
         const result = runCheckContract({
           strict: normalizeBooleanOption(merged.strict),
           rootDir: process.env.ZTD_PROJECT_ROOT,
@@ -117,6 +117,16 @@ function normalizeFormat(format: string): CheckFormat {
     return 'json';
   }
   throw new CheckContractRuntimeError(`Unsupported format: ${format}`);
+}
+
+function resolveCheckOutputFormat(value: unknown): CheckFormat {
+  const explicitFormat = normalizeStringOption(value);
+  if (explicitFormat) {
+    return normalizeFormat(explicitFormat);
+  }
+
+  // Map the global CLI output mode onto the contract command's local format names.
+  return getAgentOutputFormat() === 'json' ? 'json' : 'human';
 }
 
 function normalizeStringOption(value: unknown): string | undefined {

@@ -205,6 +205,37 @@ test(
 );
 
 test(
+  'check contract honors global json output without a local --format override',
+  () => {
+    const workspace = createTempDir('check-contract-global-json');
+    mkdirSync(path.join(workspace, 'src', 'catalog', 'specs'), { recursive: true });
+    mkdirSync(path.join(workspace, 'src', 'sql'), { recursive: true });
+    writeFileSync(
+      path.join(workspace, 'src', 'catalog', 'specs', 'ok.spec.json'),
+      JSON.stringify({
+        id: 'users.list',
+        sqlFile: '../../sql/users.list.sql',
+        params: { shape: 'named', example: { status: 'active' } }
+      }, null, 2),
+      'utf8'
+    );
+    writeFileSync(
+      path.join(workspace, 'src', 'sql', 'users.list.sql'),
+      'select user_id from users where status = :status',
+      'utf8'
+    );
+
+    const result = runCli(['--output', 'json', 'check', 'contract'], { ZTD_PROJECT_ROOT: workspace }, workspace);
+
+    assertCliSuccess(result, 'check contract global json');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.violations).toEqual([]);
+  },
+  30000,
+);
+
+test(
   'lint CLI accepts --json payload and emits a JSON envelope in global json mode',
   () => {
     const workspace = createSqlWorkspace('lint-json-cli');

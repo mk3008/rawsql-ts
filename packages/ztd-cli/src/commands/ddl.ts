@@ -113,7 +113,7 @@ export function registerDdlCommands(program: Command): void {
       .option('--ddl-dir <directory>', 'DDL directory to scan (repeatable)', collectDirectories, [])
       .option('--extensions <list>', 'Comma-separated extensions to include', parseExtensions, DEFAULT_EXTENSIONS)
       .option('--url <databaseUrl>', 'Connection string to use for pg_dump (optional; fallback to env/config)')
-      .requiredOption('--out <file>', 'Output path for the generated plan file')
+      .option('--out <file>', 'Output path for the generated plan file')
       .option('--db-host <host>', 'Database host to use instead of DATABASE_URL')
       .option('--db-port <port>', 'Database port (defaults to 5432)')
       .option('--db-user <user>', 'Database user to connect as')
@@ -124,6 +124,7 @@ export function registerDdlCommands(program: Command): void {
       .option('--json <payload>', 'Pass diff options as a JSON object')
       .action(async (options: DiffCommandOptions) => {
         const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+        const outPath = resolveRequiredProjectPath(merged.out, '--out');
         const directories = normalizeDirectoryList(merged.ddlDir ?? [], DEFAULT_DDL_DIRECTORY);
         const extensions = resolveExtensions(merged.extensions, DEFAULT_EXTENSIONS);
         const connection = resolveCliConnection(merged);
@@ -131,7 +132,7 @@ export function registerDdlCommands(program: Command): void {
           directories,
           extensions,
           url: connection.url,
-          out: validateProjectPath(String(merged.out), '--out'),
+          out: outPath,
           pgDumpPath: merged.pgDumpPath,
           connectionContext: connection.context,
           dryRun: Boolean(merged.dryRun)
@@ -149,3 +150,11 @@ export function registerDdlCommands(program: Command): void {
 }
 
 export { collectDirectories, parseExtensions, DEFAULT_EXTENSIONS, DEFAULT_DDL_DIRECTORY } from './options';
+
+function resolveRequiredProjectPath(value: unknown, label: string): string {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new Error(`${label} is required (either via ${label} or --json {"${label.slice(2)}":"..."}).`);
+  }
+
+  return validateProjectPath(value, label);
+}

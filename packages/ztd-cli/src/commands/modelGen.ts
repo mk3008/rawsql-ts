@@ -264,7 +264,7 @@ function normalizeImportStyle(value?: string): ModelGenImportStyle {
 
 function validateImportFrom(value: string): string {
   const trimmed = validateResourceIdentifier(value, '--import-from');
-  return trimmed.startsWith('@') ? trimmed : value;
+  return trimmed;
 }
 
 function normalizeRealPath(targetPath: string): string {
