@@ -9,12 +9,12 @@ import {
   buildPackageManagerArgs,
   findAncestorPnpmWorkspaceRoot,
   normalizeSchemaName,
+  resolveInitInstallStrategy,
   resolvePnpmWorkspaceGuard,
   sanitizeSchemaFileName,
   type ZtdConfigWriterDependencies,
   type Prompter
 } from '../src/commands/init';
-
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const tmpRoot = path.join(repoRoot, 'tmp');
 
@@ -361,6 +361,31 @@ test('pnpm nested under a parent workspace uses --ignore-workspace for manual in
   ]);
 });
 
+test('resolveInitInstallStrategy defers auto-install for Windows pnpm exec', () => {
+  const workspace = path.join(repoRoot, 'tmp', 'init-install-strategy');
+
+  expect(
+    resolveInitInstallStrategy(workspace, 'pnpm', {
+      platform: 'win32',
+      npmCommand: 'exec'
+    })
+  ).toMatchObject({
+    installCommand: 'pnpm install --ignore-workspace',
+    shouldDeferAutoInstall: true,
+    workspaceGuard: {
+      workspaceRoot: repoRoot,
+      shouldIgnoreWorkspace: true,
+    },
+  });
+
+  expect(
+    resolveInitInstallStrategy(workspace, 'pnpm', {
+      platform: 'win32',
+      npmCommand: 'install'
+    }).shouldDeferAutoInstall
+  ).toBe(false);
+});
+
 test('init generates ArkType spec when ArkType backend is selected', async () => {
   const workspace = createTempDir('cli-init-arktype');
   const prompter = new TestPrompter(['2', '2']);
@@ -549,10 +574,7 @@ test('init local-source mode links direct rawsql-ts dependencies from the monore
     cwd: workspace,
     encoding: 'utf8'
   });
-  expect(guardResult.status).toBe(1);
-  expect(guardResult.stderr).toContain('[local-source guard] pnpm typecheck cannot run against this scaffold yet.');
-  expect(guardResult.stderr).toContain('pnpm install --ignore-workspace');
-  expect(guardResult.stderr).toContain('npx tsc --noEmit');
+  expect(guardResult.status).toBe(0);
 });
 
 test('init local-source mode uses npm script commands when package-lock.json selects npm', async () => {
@@ -674,4 +696,3 @@ test('TestPrompter.selectChoice rejects invalid inputs', async () => {
     new TestPrompter(['99']).selectChoice('option?', ['only'])
   ).rejects.toThrow('outside the valid range');
 });
-
