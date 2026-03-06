@@ -197,7 +197,7 @@ test('init wizard bootstraps an empty scaffold', async () => {
     "normalizeTimestamp(value.createdAt, 'createdAt')",
   );
   expect(readNormalizedFile(path.join(workspace, 'src', 'catalog', 'runtime', '_coercions.ts'))).toContain(
-    'timestampFromDriver as normalizeTimestamp',
+    'export function normalizeTimestamp',
   );
   expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.validation.test.ts'))).toContain(
     'normalizes valid timestamp strings',
@@ -534,7 +534,7 @@ test('init local-source mode links direct rawsql-ts dependencies from the monore
   expect(existsSync(localShimPath)).toBe(true);
   expect(existsSync(localSourceGuardPath)).toBe(true);
   expect(readNormalizedFile(localShimPath)).toContain("export * from '@rawsql-ts/sql-contract'");
-  expect(readNormalizedFile(coercionsPath)).toContain("../../local/sql-contract.js");
+  expect(readNormalizedFile(coercionsPath)).toContain('export function normalizeTimestamp');
   expect(packageJson.devDependencies['@rawsql-ts/sql-contract']).toBe(
     `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'sql-contract')).replace(/\\/g, '/')}`
   );
@@ -674,3 +674,4 @@ test('TestPrompter.selectChoice rejects invalid inputs', async () => {
     new TestPrompter(['99']).selectChoice('option?', ['only'])
   ).rejects.toThrow('outside the valid range');
 });
+
