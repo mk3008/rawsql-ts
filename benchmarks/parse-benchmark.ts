@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { createRequire } from 'module';
 import Benchmark = require('benchmark');
 type BenchmarkCase = Benchmark;
 import * as os from 'os';
-import { Parser as NodeSqlParser } from 'node-sql-parser';
 import { SqlParser } from '../packages/core/src/parsers/SqlParser';
 
 interface BenchmarkResult {
@@ -61,10 +61,13 @@ const BENCHMARK_RUN_CONFIG: BenchmarkRunConfig = {
     heavyMaxTimeSec: 0.12,
 };
 
+const corePackageRequire = createRequire(path.resolve(__dirname, '../packages/core/package.json'));
+const NodeSqlParser = corePackageRequire('node-sql-parser').Parser as typeof import('node-sql-parser').Parser;
+
 const COMPARED_LIBRARY_VERSIONS: ComparedLibraryVersion[] = [
     {
         label: 'node-sql-parser',
-        version: require('node-sql-parser/package.json').version,
+        version: corePackageRequire('node-sql-parser/package.json').version,
     },
 ];
 
