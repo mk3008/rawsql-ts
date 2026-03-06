@@ -16,6 +16,7 @@ Follow this file exactly and do not substitute ad-hoc scenarios.
 - PostgreSQL version: **18**
 - DBMS runtime: **Docker**
 - `rawsql-ts` packages: use **local source code**, not npm releases
+  - This spec validates developer-mode dogfooding before publication. It does not claim to fully reproduce the published npm consumer path.
 - Work location: a **git-untracked standalone folder outside any pnpm workspace/monorepo**
   - This is the default mode because real-world usage is `@rawsql-ts/ztd-cli` as an npm package in a standalone repo.
   - Windows-friendly example: `C:\Users\<you>\tmp\rawsql-ts-dogfood\run-XX\` (must NOT be under the `rawsql-ts` repository tree)
@@ -32,7 +33,7 @@ Before starting Scenario 1, capture these versions in the report:
 - Docker Engine
 - PostgreSQL image tag used for execution
 
-### 1.2 Local-source invocation (recommended)
+### 1.2 Local-source invocation (recommended developer mode)
 
 Use this canonical local-source invocation form from `<RUN_DIR>`:
 
@@ -49,6 +50,12 @@ pnpm -C "<LOCAL_SOURCE_ROOT>" --filter @rawsql-ts/ztd-cli build
 ```
 
 Note: model-gen (probe-mode ztd) requires DATABASE_URL. Also, model-gen is currently SELECT-oriented; INSERT/UPDATE/DELETE SQL may fail with parser errors and is out of scope for model-gen in this dogfooding scenario.
+
+Note on modes:
+
+- `Developer mode` means local-source execution from a repo checkout without publishing first.
+- `Published package mode` means installing released packages from npm in a standalone repo.
+- This spec is intentionally about `Developer mode` so backend dogfooding does not depend on package publication.
 
 ## 2) Fixed DDL baseline
 
@@ -273,4 +280,3 @@ Use this order unless a hard blocker appears.
 7. Regenerate affected artifacts and tests.
 8. Run verification commands.
 9. Produce LOG and REPORT files.
-

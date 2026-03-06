@@ -29,7 +29,16 @@ CLI tool for scaffolding **Zero Table Dependency (ZTD)** projects and keeping DD
 npm install -D @rawsql-ts/ztd-cli
 ```
 
-## Happy Path Quickstart
+## Choose The Right Happy Path
+
+`ztd-cli` has two valid happy paths, and they answer different questions:
+
+- `Published package mode` validates what a normal npm consumer sees in a standalone project.
+- `Local-source developer mode` validates unreleased changes from a local `rawsql-ts` checkout without publishing first.
+
+Use `Published package mode` when you want to check the real package-consumer experience. Use `Local-source developer mode` when you want to dogfood unpublished changes. A published-package failure does not automatically mean the local-source developer path is broken, and a local-source-only workaround should not be presented as the default npm user flow.
+
+## Happy Path Quickstart (Published Package Mode)
 
 A complete copy-paste sequence to reach a green test run. Choose the **demo** workflow during `ztd init` to get a working example immediately.
 
@@ -94,6 +103,43 @@ All smoke tests should pass. You now have a working ZTD project.
 - Write domain tests against generated `TestRowMap` types
 
 > **Tip:** For a non-interactive setup (CI, scripts), use `npx ztd init --yes` with explicit flags. See [Commands](#commands) for details.
+
+
+## Happy Path Quickstart (Local-Source Developer Mode)
+
+Use this mode when you need to dogfood unreleased `rawsql-ts` changes from a local checkout. This is the supported path for validating new CLI behavior before package publication.
+
+### Prerequisites
+
+- A local `rawsql-ts` checkout
+- Node.js 20+
+- `pnpm`
+- A throwaway project outside any `pnpm` workspace
+
+### Steps
+
+```bash
+# 1. Build the CLI from the local checkout
+pnpm -C "<LOCAL_SOURCE_ROOT>" --filter @rawsql-ts/ztd-cli build
+
+# 2. Create a standalone throwaway app outside the monorepo
+mkdir /tmp/my-ztd-dogfood && cd /tmp/my-ztd-dogfood
+
+# 3. Scaffold from local source
+node "<LOCAL_SOURCE_ROOT>/packages/ztd-cli/dist/index.js" init \
+  --workflow empty \
+  --validator zod \
+  --local-source-root "<LOCAL_SOURCE_ROOT>"
+
+# 4. Install the scaffolded dependencies
+pnpm install
+
+# 5. Continue the normal loop
+pnpm typecheck
+pnpm test
+```
+
+Use this path for pre-release dogfooding and unpublished dependency combinations. Use the published-package quickstart above when validating the end-user npm experience.
 
 ## Quick Reference
 
