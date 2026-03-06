@@ -1682,7 +1682,7 @@ function buildNextSteps(
   nextSteps.push('Run npx ztd ztd-config');
   nextSteps.push('Provide a SqlClient implementation (adapter or mock)');
   nextSteps.push('Run tests (pnpm test or npx vitest run)');
-  if (installStrategy.workspaceGuard.shouldIgnoreWorkspace) {
+  if (installStrategy.workspaceGuard.shouldIgnoreWorkspace && !installStrategy.shouldDeferAutoInstall) {
     nextSteps.push('This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs.');
   }
   return nextSteps.map((step, index) => ` ${index + 1}. ${step}`);
