@@ -1,5 +1,14 @@
 # @rawsql-ts/sql-contract-zod
 
+## 0.1.2
+
+### Patch Changes
+
+- [#451](https://github.com/mk3008/rawsql-ts/pull/451) [`ea03f55`](https://github.com/mk3008/rawsql-ts/commit/ea03f55a6dad7e61f737da453256bde64454442e) Thanks [@mk3008](https://github.com/mk3008)! - Refine unit test specification markdown for review readability with flattened headings, strict two-axis tags, consistent focus phrasing, and catalog/case-level refs. Enforce throws error block rendering and deterministic metadata ordering.
+
+- Updated dependencies [[`1241035`](https://github.com/mk3008/rawsql-ts/commit/12410350c4026239ba11521ecf61581f54335c79)]:
+  - @rawsql-ts/sql-contract@0.3.0
+
 ## 0.1.1
 
 ### Patch Changes

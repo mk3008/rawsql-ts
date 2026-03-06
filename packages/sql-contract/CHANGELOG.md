@@ -1,5 +1,11 @@
 # @rawsql-ts/sql-contract
 
+## 0.3.0
+
+### Minor Changes
+
+- [#489](https://github.com/mk3008/rawsql-ts/pull/489) [`1241035`](https://github.com/mk3008/rawsql-ts/commit/12410350c4026239ba11521ecf61581f54335c79) Thanks [@mk3008](https://github.com/mk3008)! - Add Phase 1 mutation-aware catalog execution for UPDATE and DELETE specs, including mandatory WHERE checks, safe assignment subtraction, strict delete affected-row guards, and documentation for mutation-safe rewriter usage.
+
 ## 0.2.0
 
 ### Minor Changes
