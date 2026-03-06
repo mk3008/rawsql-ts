@@ -53,8 +53,8 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 
 | Guide | Path | When to read |
 |-------|------|-------------|
-| Happy Path Quickstart | [ztd-cli README](../../packages/ztd-cli/README.md#happy-path-quickstart) | First-time setup |
-| After DDL Changes | [ztd-cli README](../../packages/ztd-cli/README.md#after-ddlschema-changes) | Schema evolution workflow |
+| Happy Path Quickstart | [ztd-cli README](https://github.com/mk3008/rawsql-ts/blob/main/packages/ztd-cli/README.md#happy-path-quickstart) | First-time setup |
+| After DDL Changes | [ztd-cli README](https://github.com/mk3008/rawsql-ts/blob/main/packages/ztd-cli/README.md#after-ddlschema-changes) | Schema evolution workflow |
 | Mapping vs Validation pipeline | [recipes/mapping-vs-validation](../recipes/mapping-vs-validation.md) | Avoid coerce/validator conflicts |
 | Postgres Pitfalls | [guide/postgres-pitfalls](./postgres-pitfalls.md) | Postgres-specific quirks |
 | Spec-Change Scenarios | [guide/spec-change-scenarios](./spec-change-scenarios.md) | Quick reference for common changes |

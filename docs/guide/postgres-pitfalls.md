@@ -80,6 +80,6 @@ PostgreSQL uses `search_path` to resolve unqualified table names. ZTD's `ztd.con
 
 ## Further reading
 
-- [sql-contract README](../../packages/sql-contract/README.md) — DBMS differences section
+- [sql-contract README](https://github.com/mk3008/rawsql-ts/blob/main/packages/sql-contract/README.md) — DBMS differences section
 - [Mapping vs validation pipeline](../recipes/mapping-vs-validation.md) — how coercions and validators interact
-- [Happy Path Quickstart](../../packages/ztd-cli/README.md#happy-path-quickstart) — end-to-end setup guide
+- [Happy Path Quickstart](https://github.com/mk3008/rawsql-ts/blob/main/packages/ztd-cli/README.md#happy-path-quickstart) — end-to-end setup guide
