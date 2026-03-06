@@ -1,6 +1,6 @@
 # Parse Benchmark Report
 
-This report tracks the parser-only comparison shown in `packages/core/README.md`.
+This report tracks the parse-only SQL parser benchmark referenced from `packages/core/README.md`.
 
 ## Command
 
@@ -18,48 +18,52 @@ Date 2026-03-05
 Benchmark config: default minSamples=10, maxTime=0.2s; heavy minSamples=6, maxTime=0.12s
 ```
 
-#### Tokens70
-| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |
-|---------------------------------- |-----------:|----------:|----------:|--------------------------:|
-| rawsql-ts                      |    0.092 |  0.0301 |  0.0154 |                - |
-| node-sql-parser                |    0.604 |  0.6503 |  0.3318 |             6.6x |
+Line counts are included for readability, while token counts remain the more exact technical reference. Parser cost is driven more directly by token volume than by formatting style.
 
-#### Tokens140
-| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |
-|---------------------------------- |-----------:|----------:|----------:|--------------------------:|
-| rawsql-ts                      |    0.152 |  0.0506 |  0.0258 |                - |
-| node-sql-parser                |    1.212 |  0.6133 |  0.3129 |             8.0x |
+The very large case uses a benchmark-only analytics-style SQL workload of about 1,200 lines and 11,500 tokens, presented in the README as the reader-friendly `~12,000 token / 1,000+ line` class.
 
-#### Tokens230
+#### Small query, about 8 lines (70 tokens)
 | Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |
 |---------------------------------- |-----------:|----------:|----------:|--------------------------:|
-| rawsql-ts                      |    0.282 |  0.2075 |  0.1059 |                - |
-| node-sql-parser                |    1.628 |  0.4091 |  0.2087 |             5.8x |
+| rawsql-ts                      |    0.045 |  0.0140 |  0.0071 |                - |
+| node-sql-parser                |    0.448 |  0.2268 |  0.1157 |             9.9x |
 
-#### Tokens12000
+#### Medium query, about 12 lines (140 tokens)
 | Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |
 |---------------------------------- |-----------:|----------:|----------:|--------------------------:|
-| rawsql-ts                      |   15.969 |  1.2389 |  0.6321 |                - |
-| node-sql-parser                |   52.814 |  4.6718 |  2.3836 |             3.3x |
+| rawsql-ts                      |    0.141 |  0.0635 |  0.0324 |                - |
+| node-sql-parser                |    0.868 |  0.7486 |  0.3819 |             6.1x |
+
+#### Large query, about 20 lines (230 tokens)
+| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |
+|---------------------------------- |-----------:|----------:|----------:|--------------------------:|
+| rawsql-ts                      |    0.138 |  0.0207 |  0.0105 |                - |
+| node-sql-parser                |    1.660 |  0.4995 |  0.2548 |            12.0x |
+
+#### Very large query, about 1,000+ lines (~12,000 tokens)
+| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |
+|---------------------------------- |-----------:|----------:|----------:|--------------------------:|
+| rawsql-ts                      |    8.720 |  1.7075 |  0.8712 |                - |
+| node-sql-parser                |   92.965 | 51.0052 | 26.0230 |            10.7x |
 
 ## Chart Dataset
 
 ```json
 {
   "labels": [
-    "Tokens70",
-    "Tokens140",
-    "Tokens230",
-    "Tokens12000"
+    "Small",
+    "Medium",
+    "Large",
+    "Very large"
   ],
   "datasets": [
     {
       "label": "rawsql-ts",
-      "data": [0.092, 0.152, 0.282, 15.969]
+      "data": [0.045, 0.141, 0.138, 8.72]
     },
     {
       "label": "node-sql-parser",
-      "data": [0.604, 1.212, 1.628, 52.814]
+      "data": [0.448, 0.868, 1.66, 92.965]
     }
   ]
 }
@@ -67,4 +71,4 @@ Benchmark config: default minSamples=10, maxTime=0.2s; heavy minSamples=6, maxTi
 
 ## Raw Artifacts
 
-- Latest report: `tmp/parse-benchmark-report-2026-03-05T13-37-11.015Z.md`
+- Latest report: `tmp/parse-benchmark-report-2026-03-05T23-49-00.686Z.md`
