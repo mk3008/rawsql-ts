@@ -8,6 +8,7 @@ import {
   walkSqlCatalogSpecFiles,
   type LoadedSqlCatalogSpec
 } from '../utils/sqlCatalogDiscovery';
+import { getAgentOutputFormat, parseJsonPayload } from '../utils/agentCli';
 
 export type CheckFormat = 'human' | 'json';
 export type ViolationSeverity = 'error' | 'warning';
@@ -61,10 +62,11 @@ export class CheckContractRuntimeError extends Error {
 }
 
 interface CheckCommandOptions {
-  format?: 'json';
+  format?: string;
   out?: string;
   strict?: boolean;
   specsDir?: string;
+  json?: string;
 }
 
 /** Register `ztd check contract` command on the CLI root program. */
@@ -74,21 +76,24 @@ export function registerCheckContractCommand(program: Command): void {
   check
     .command('contract')
     .description('Check SQL contract specs deterministically')
-    .option('--format <format>', 'Output format (json)', 'human')
+    .option('--format <format>', 'Output format (human|json)')
     .option('--out <path>', 'Write output to file')
     .option('--strict', 'Treat safety warnings as violations')
     .option('--specs-dir <path>', 'Override specs directory (default: src/catalog/specs)')
-    .action(async (options: CheckCommandOptions & { format: string }) => {
+    .option('--json <payload>', 'Pass command options as a JSON object')
+    .action(async (options: CheckCommandOptions) => {
       try {
-        const format = normalizeFormat(options.format);
+        const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+        const format = resolveCheckOutputFormat(merged.format);
         const result = runCheckContract({
-          strict: Boolean(options.strict),
+          strict: normalizeBooleanOption(merged.strict),
           rootDir: process.env.ZTD_PROJECT_ROOT,
-          specsDir: options.specsDir
+          specsDir: normalizeStringOption(merged.specsDir)
         });
         const text = formatOutput(result, format);
-        if (options.out) {
-          const absolute = path.resolve(process.cwd(), options.out);
+        const outPath = normalizeStringOption(merged.out);
+        if (outPath) {
+          const absolute = path.resolve(process.cwd(), outPath);
           mkdirSync(path.dirname(absolute), { recursive: true });
           writeFileSync(absolute, text, 'utf8');
         } else {
@@ -112,6 +117,36 @@ function normalizeFormat(format: string): CheckFormat {
     return 'json';
   }
   throw new CheckContractRuntimeError(`Unsupported format: ${format}`);
+}
+
+function resolveCheckOutputFormat(value: unknown): CheckFormat {
+  const explicitFormat = normalizeStringOption(value);
+  if (explicitFormat) {
+    return normalizeFormat(explicitFormat);
+  }
+
+  // Map the global CLI output mode onto the contract command's local format names.
+  return getAgentOutputFormat() === 'json' ? 'json' : 'human';
+}
+
+function normalizeStringOption(value: unknown): string | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    throw new CheckContractRuntimeError(`Expected a string option but received ${typeof value}.`);
+  }
+  return value;
+}
+
+function normalizeBooleanOption(value: unknown): boolean {
+  if (value === undefined) {
+    return false;
+  }
+  if (typeof value !== 'boolean') {
+    throw new CheckContractRuntimeError(`Expected a boolean option but received ${typeof value}.`);
+  }
+  return value;
 }
 
 /**

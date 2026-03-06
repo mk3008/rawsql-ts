@@ -5,10 +5,12 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 
 import { ensureDirectory } from '../utils/fs';
-import { copyAgentsTemplate } from '../utils/agents';
+import { copyAgentsTemplate, writeInternalAgentsArtifacts } from '../utils/agents';
 import { DEFAULT_ZTD_CONFIG, writeZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConfig';
 import { runPullSchema, type PullSchemaOptions } from './pull';
+import { isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
+import { rejectControlChars, rejectEncodedTraversal } from '../utils/agentSafety';
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn';
 type PackageInstallKind = 'devDependencies' | 'install';
@@ -114,34 +116,25 @@ type FileKey =
   | 'localSqlContractShim'
   | 'localSourceGuardScript'
   | 'smokeValidationTest'
-  | 'testsAgents'
-  | 'testsSupportAgents'
-  | 'testsGeneratedAgents'
   | 'testsSmoke'
   | 'testkitClient'
   | 'globalSetup'
   | 'vitestConfig'
   | 'tsconfig'
   | 'readme'
-  | 'ztdDocsAgent'
+  | 'context'
+  | 'internalAgentsManifest'
+  | 'internalAgentsRoot'
+  | 'internalAgentsSrc'
+  | 'internalAgentsTests'
+  | 'internalAgentsZtd'
   | 'ztdDocsReadme'
-  | 'ztdDdlAgents'
-  | 'srcAgents'
-  | 'srcCatalogAgents'
-  | 'srcCatalogRuntimeAgents'
-  | 'srcCatalogSpecsAgents'
-  | 'srcSqlAgents'
-  | 'srcReposAgents'
-  | 'viewsRepoAgents'
-  | 'tablesRepoAgents'
-  | 'jobsAgents'
   | 'sqlReadme'
   | 'viewsRepoReadme'
   | 'tablesRepoReadme'
   | 'jobsReadme'
   | 'sqlClient'
   | 'sqlClientAdapters'
-  | 'agents'
   | 'gitignore'
   | 'editorconfig'
   | 'prettierignore'
@@ -171,8 +164,8 @@ export interface ZtdConfigWriterDependencies {
   ensureDirectory: (directory: string) => void;
   writeFile: (filePath: string, contents: string) => void;
   fileExists: (filePath: string) => boolean;
-  runPullSchema: (options: PullSchemaOptions) => Promise<void> | void;
-  runGenerateZtdConfig: (options: ZtdConfigGenerationOptions) => Promise<void> | void;
+  runPullSchema: (options: PullSchemaOptions) => Promise<unknown> | unknown;
+  runGenerateZtdConfig: (options: ZtdConfigGenerationOptions) => Promise<unknown> | unknown;
   checkPgDump: () => boolean;
   log: (message: string) => void;
   copyAgentsTemplate: (rootDir: string) => string | null;
@@ -197,6 +190,7 @@ export interface InitCommandOptions {
   workflow?: InitWorkflow;
   validator?: ValidatorBackend;
   localSourceRoot?: string;
+  dryRun?: boolean;
 }
 
 type ValidatorBackend = 'zod' | 'arktype';
@@ -247,9 +241,7 @@ async function gatherOptionalFeatures(
 type InitWorkflow = 'pg_dump' | 'empty' | 'demo';
 
 const README_TEMPLATE = 'README.md';
-const TESTS_AGENTS_TEMPLATE = 'tests/AGENTS.md';
-const TESTS_SUPPORT_AGENTS_TEMPLATE = 'tests/support/AGENTS.md';
-const TESTS_GENERATED_AGENTS_TEMPLATE = 'tests/generated/AGENTS.md';
+const CONTEXT_TEMPLATE = 'CONTEXT.md';
 const SMOKE_SPEC_ZOD_TEMPLATE = 'src/catalog/specs/_smoke.spec.zod.ts';
 const SMOKE_SPEC_ARKTYPE_TEMPLATE = 'src/catalog/specs/_smoke.spec.arktype.ts';
 const SMOKE_COERCIONS_TEMPLATE = 'src/catalog/runtime/_coercions.ts';
@@ -269,18 +261,7 @@ const SQL_README_TEMPLATE = 'src/sql/README.md';
 const VIEWS_REPO_README_TEMPLATE = 'src/repositories/views/README.md';
 const TABLES_REPO_README_TEMPLATE = 'src/repositories/tables/README.md';
 const JOBS_README_TEMPLATE = 'src/jobs/README.md';
-const SRC_AGENTS_TEMPLATE = 'src/AGENTS.md';
-const SRC_CATALOG_AGENTS_TEMPLATE = 'src/catalog/AGENTS.md';
-const SRC_CATALOG_RUNTIME_AGENTS_TEMPLATE = 'src/catalog/runtime/AGENTS.md';
-const SRC_CATALOG_SPECS_AGENTS_TEMPLATE = 'src/catalog/specs/AGENTS.md';
-const SRC_SQL_AGENTS_TEMPLATE = 'src/sql/AGENTS.md';
-const SRC_REPOS_AGENTS_TEMPLATE = 'src/repositories/AGENTS.md';
-const VIEWS_REPO_AGENTS_TEMPLATE = 'src/repositories/views/AGENTS.md';
-const TABLES_REPO_AGENTS_TEMPLATE = 'src/repositories/tables/AGENTS.md';
-const JOBS_AGENTS_TEMPLATE = 'src/jobs/AGENTS.md';
-const ZTD_AGENTS_TEMPLATE = 'ztd/AGENTS.md';
 const ZTD_README_TEMPLATE = 'ztd/README.md';
-const ZTD_DDL_AGENTS_TEMPLATE = 'ztd/ddl/AGENTS.md';
 const ZTD_DDL_DEMO_TEMPLATE = 'ztd/ddl/demo.sql';
 
 const EMPTY_SCHEMA_COMMENT = (schemaName: string): string =>
@@ -451,34 +432,25 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     localSqlContractShim: path.join(rootDir, 'src', 'local', 'sql-contract.ts'),
     localSourceGuardScript: path.join(rootDir, 'scripts', 'local-source-guard.mjs'),
     smokeValidationTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'smoke.validation.test.ts'),
-    testsAgents: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'AGENTS.md'),
-    testsSupportAgents: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'AGENTS.md'),
-    testsGeneratedAgents: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'AGENTS.md'),
     testsSmoke: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'smoke.test.ts'),
     readme: path.join(rootDir, 'README.md'),
+    context: path.join(rootDir, 'CONTEXT.md'),
+    internalAgentsManifest: path.join(rootDir, '.ztd', 'agents', 'manifest.json'),
+    internalAgentsRoot: path.join(rootDir, '.ztd', 'agents', 'root.md'),
+    internalAgentsSrc: path.join(rootDir, '.ztd', 'agents', 'src.md'),
+    internalAgentsTests: path.join(rootDir, '.ztd', 'agents', 'tests.md'),
+    internalAgentsZtd: path.join(rootDir, '.ztd', 'agents', 'ztd.md'),
     sqlReadme: path.join(rootDir, 'src', 'sql', 'README.md'),
     viewsRepoReadme: path.join(rootDir, 'src', 'repositories', 'views', 'README.md'),
     tablesRepoReadme: path.join(rootDir, 'src', 'repositories', 'tables', 'README.md'),
     jobsReadme: path.join(rootDir, 'src', 'jobs', 'README.md'),
-    srcAgents: path.join(rootDir, 'src', 'AGENTS.md'),
-    srcCatalogAgents: path.join(rootDir, 'src', 'catalog', 'AGENTS.md'),
-    srcCatalogRuntimeAgents: path.join(rootDir, 'src', 'catalog', 'runtime', 'AGENTS.md'),
-    srcCatalogSpecsAgents: path.join(rootDir, 'src', 'catalog', 'specs', 'AGENTS.md'),
-    srcSqlAgents: path.join(rootDir, 'src', 'sql', 'AGENTS.md'),
-    srcReposAgents: path.join(rootDir, 'src', 'repositories', 'AGENTS.md'),
-    viewsRepoAgents: path.join(rootDir, 'src', 'repositories', 'views', 'AGENTS.md'),
-    tablesRepoAgents: path.join(rootDir, 'src', 'repositories', 'tables', 'AGENTS.md'),
-    jobsAgents: path.join(rootDir, 'src', 'jobs', 'AGENTS.md'),
     sqlClient: path.join(rootDir, 'src', 'db', 'sql-client.ts'),
     sqlClientAdapters: path.join(rootDir, 'src', 'db', 'sql-client-adapters.ts'),
     testkitClient: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'testkit-client.ts'),
     globalSetup: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
     vitestConfig: path.join(rootDir, 'vitest.config.ts'),
     tsconfig: path.join(rootDir, 'tsconfig.json'),
-    ztdDocsAgent: path.join(rootDir, 'ztd', 'AGENTS.md'),
     ztdDocsReadme: path.join(rootDir, 'ztd', 'README.md'),
-    ztdDdlAgents: path.join(rootDir, 'ztd', 'ddl', 'AGENTS.md'),
-    agents: path.join(rootDir, 'AGENTS.md'),
     gitignore: path.join(rootDir, '.gitignore'),
     editorconfig: path.join(rootDir, '.editorconfig'),
     prettierignore: path.join(rootDir, '.prettierignore'),
@@ -587,17 +559,32 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.readme = readmeSummary;
   }
 
-  const ztdDocsAgentSummary = await writeTemplateFile(
+  const contextSummary = await writeTemplateFile(
     rootDir,
-    absolutePaths.ztdDocsAgent,
-    relativePath('ztdDocsAgent'),
-    ZTD_AGENTS_TEMPLATE,
+    absolutePaths.context,
+    relativePath('context'),
+    CONTEXT_TEMPLATE,
     dependencies,
     prompter,
-    overwritePolicy
+    overwritePolicy,
+    true
   );
-  if (ztdDocsAgentSummary) {
-    summaries.ztdDocsAgent = ztdDocsAgentSummary;
+  if (contextSummary) {
+    summaries.context = contextSummary;
+  }
+
+  for (const summary of writeInternalAgentsArtifacts(rootDir)) {
+    if (summary.relativePath === relativePath('internalAgentsManifest')) {
+      summaries.internalAgentsManifest = summary;
+    } else if (summary.relativePath === relativePath('internalAgentsRoot')) {
+      summaries.internalAgentsRoot = summary;
+    } else if (summary.relativePath === relativePath('internalAgentsSrc')) {
+      summaries.internalAgentsSrc = summary;
+    } else if (summary.relativePath === relativePath('internalAgentsTests')) {
+      summaries.internalAgentsTests = summary;
+    } else if (summary.relativePath === relativePath('internalAgentsZtd')) {
+      summaries.internalAgentsZtd = summary;
+    }
   }
 
   const ztdDocsReadmeSummary = await writeTemplateFile(
@@ -611,136 +598,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (ztdDocsReadmeSummary) {
     summaries.ztdDocsReadme = ztdDocsReadmeSummary;
-  }
-
-  const ztdDdlAgentsSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.ztdDdlAgents,
-    relativePath('ztdDdlAgents'),
-    ZTD_DDL_AGENTS_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (ztdDdlAgentsSummary) {
-    summaries.ztdDdlAgents = ztdDdlAgentsSummary;
-  }
-
-  const srcAgentsSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.srcAgents,
-    relativePath('srcAgents'),
-    SRC_AGENTS_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (srcAgentsSummary) {
-    summaries.srcAgents = srcAgentsSummary;
-  }
-
-  const srcCatalogAgentsSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.srcCatalogAgents,
-    relativePath('srcCatalogAgents'),
-    SRC_CATALOG_AGENTS_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (srcCatalogAgentsSummary) {
-    summaries.srcCatalogAgents = srcCatalogAgentsSummary;
-  }
-
-  const srcCatalogRuntimeAgentsSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.srcCatalogRuntimeAgents,
-    relativePath('srcCatalogRuntimeAgents'),
-    SRC_CATALOG_RUNTIME_AGENTS_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (srcCatalogRuntimeAgentsSummary) {
-    summaries.srcCatalogRuntimeAgents = srcCatalogRuntimeAgentsSummary;
-  }
-
-  const srcCatalogSpecsAgentsSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.srcCatalogSpecsAgents,
-    relativePath('srcCatalogSpecsAgents'),
-    SRC_CATALOG_SPECS_AGENTS_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (srcCatalogSpecsAgentsSummary) {
-    summaries.srcCatalogSpecsAgents = srcCatalogSpecsAgentsSummary;
-  }
-
-  const srcSqlAgentsSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.srcSqlAgents,
-    relativePath('srcSqlAgents'),
-    SRC_SQL_AGENTS_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (srcSqlAgentsSummary) {
-    summaries.srcSqlAgents = srcSqlAgentsSummary;
-  }
-
-  const srcReposAgentsSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.srcReposAgents,
-    relativePath('srcReposAgents'),
-    SRC_REPOS_AGENTS_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (srcReposAgentsSummary) {
-    summaries.srcReposAgents = srcReposAgentsSummary;
-  }
-
-  const viewsRepoAgentsSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.viewsRepoAgents,
-    relativePath('viewsRepoAgents'),
-    VIEWS_REPO_AGENTS_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (viewsRepoAgentsSummary) {
-    summaries.viewsRepoAgents = viewsRepoAgentsSummary;
-  }
-
-  const tablesRepoAgentsSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.tablesRepoAgents,
-    relativePath('tablesRepoAgents'),
-    TABLES_REPO_AGENTS_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (tablesRepoAgentsSummary) {
-    summaries.tablesRepoAgents = tablesRepoAgentsSummary;
-  }
-
-  const jobsAgentsSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.jobsAgents,
-    relativePath('jobsAgents'),
-    JOBS_AGENTS_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (jobsAgentsSummary) {
-    summaries.jobsAgents = jobsAgentsSummary;
   }
 
   const sqlReadmeSummary = await writeTemplateFile(
@@ -900,45 +757,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     }
   }
 
-  const testsAgentsSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.testsAgents,
-    relativePath('testsAgents'),
-    TESTS_AGENTS_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (testsAgentsSummary) {
-    summaries.testsAgents = testsAgentsSummary;
-  }
-
-  const testsSupportAgentsSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.testsSupportAgents,
-    relativePath('testsSupportAgents'),
-    TESTS_SUPPORT_AGENTS_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (testsSupportAgentsSummary) {
-    summaries.testsSupportAgents = testsSupportAgentsSummary;
-  }
-
-  const testsGeneratedAgentsSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.testsGeneratedAgents,
-    relativePath('testsGeneratedAgents'),
-    TESTS_GENERATED_AGENTS_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (testsGeneratedAgentsSummary) {
-    summaries.testsGeneratedAgents = testsGeneratedAgentsSummary;
-  }
-
   const testsSmokeSummary = await writeTemplateFile(
     rootDir,
     absolutePaths.testsSmoke,
@@ -1055,12 +873,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.package = packageSummary;
   }
 
-  // Copy the AGENTS template so every project ships the same AI guardrails.
-  const agentsRelative = await ensureAgentsFile(rootDir, relativePath('agents'), dependencies);
-  if (agentsRelative) {
-    summaries.agents = agentsRelative;
-  }
-
   await ensureTemplateDependenciesInstalled(rootDir, absolutePaths, summaries, dependencies);
 
   const nextSteps = buildNextSteps(
@@ -1080,22 +892,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   return {
     summary: summaryLines.join('\n'),
     files: Object.values(summaries) as FileSummary[]
-  };
-}
-
-async function ensureAgentsFile(
-  rootDir: string,
-  fallbackRelative: string,
-  dependencies: ZtdConfigWriterDependencies
-): Promise<FileSummary | null> {
-  const resolution = resolveOrCreateAgentsFile(rootDir, dependencies);
-  if (!resolution) {
-    return null;
-  }
-  const relative = normalizeRelative(rootDir, resolution.absolutePath);
-  return {
-    relativePath: relative || fallbackRelative,
-    outcome: resolution.created ? 'created' : 'unchanged'
   };
 }
 
@@ -1924,18 +1720,13 @@ function buildSummaryLines(
     'schema',
     'config',
     'readme',
-    'ztdDocsAgent',
+    'context',
+    'internalAgentsManifest',
+    'internalAgentsRoot',
+    'internalAgentsSrc',
+    'internalAgentsTests',
+    'internalAgentsZtd',
     'ztdDocsReadme',
-    'ztdDdlAgents',
-    'srcAgents',
-    'srcCatalogAgents',
-    'srcCatalogRuntimeAgents',
-    'srcCatalogSpecsAgents',
-    'srcSqlAgents',
-    'srcReposAgents',
-    'viewsRepoAgents',
-    'tablesRepoAgents',
-    'jobsAgents',
     'sqlReadme',
     'viewsRepoReadme',
     'tablesRepoReadme',
@@ -1946,9 +1737,6 @@ function buildSummaryLines(
     'localSqlContractShim',
     'localSourceGuardScript',
     'smokeValidationTest',
-    'testsAgents',
-    'testsSupportAgents',
-    'testsGeneratedAgents',
     'testsSmoke',
     'sqlClient',
     'sqlClientAdapters',
@@ -1956,7 +1744,6 @@ function buildSummaryLines(
     'globalSetup',
     'vitestConfig',
     'tsconfig',
-    'agents',
     'gitignore',
     'editorconfig',
     'prettierignore',
@@ -1989,12 +1776,72 @@ function buildSummaryLines(
       ? 'Zod (zod, docs/recipes/validation-zod.md)'
       : 'ArkType (arktype, docs/recipes/validation-arktype.md)';
   lines.push(` - Validator backend: ${validatorLabel}`);
+  lines.push('', 'AI guidance:');
+  lines.push(' - Internal guidance is managed under .ztd/agents/.');
+  lines.push(' - Visible AGENTS.md files are disabled by default. Enable with: ztd agents install');
   lines.push('', 'Next steps:', ...nextSteps);
   return lines;
 }
 
 const VALID_WORKFLOWS: readonly InitWorkflow[] = ['pg_dump', 'empty', 'demo'] as const;
 const VALID_VALIDATORS: readonly ValidatorBackend[] = ['zod', 'arktype'] as const;
+
+interface InitDryRunPlan {
+  schemaVersion: 1;
+  workflow: InitWorkflow;
+  validator: ValidatorBackend;
+  dryRun: true;
+  files: string[];
+}
+
+function buildInitDryRunPlan(rootDir: string, options: {
+  withSqlClient?: boolean;
+  withAppInterface?: boolean;
+  workflow: InitWorkflow;
+  validator: ValidatorBackend;
+  localSourceRoot?: string;
+}): InitDryRunPlan {
+  const schemaName = normalizeSchemaName(DEFAULT_ZTD_CONFIG.ddl.defaultSchema);
+  const schemaFileName = `${sanitizeSchemaFileName(schemaName)}.sql`;
+  const files = [
+    'ztd.config.json',
+    path.join(DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
+    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'smoke.test.ts'),
+    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'smoke.validation.test.ts'),
+    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'testkit-client.ts'),
+    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
+    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-row-map.generated.ts'),
+    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-layout.generated.ts'),
+    'README.md',
+    '.ztd/agents/manifest.json',
+    '.ztd/agents/root.md',
+    '.ztd/agents/src.md',
+    '.ztd/agents/tests.md',
+    '.ztd/agents/ztd.md',
+    'CONTEXT.md',
+    'vitest.config.ts',
+    'tsconfig.json'
+  ];
+
+  if (options.withSqlClient) {
+    files.push(path.join('src', 'db', 'sql-client.ts'));
+    files.push(path.join('src', 'db', 'sql-client-adapters.ts'));
+  }
+  if (options.withAppInterface) {
+    files.splice(0, files.length, 'AGENTS.md');
+  }
+  if (options.localSourceRoot) {
+    resolveInitScaffoldProfile(rootDir, options.localSourceRoot);
+  }
+
+  return {
+    schemaVersion: 1,
+    workflow: options.workflow,
+    validator: options.validator,
+    dryRun: true,
+    files: files.map((file) => normalizeCliPath(file))
+  };
+}
 
 export function registerInitCommand(program: Command): void {
   program
@@ -2005,6 +1852,8 @@ export function registerInitCommand(program: Command): void {
     .option('--yes', 'Accept defaults and overwrite existing files without prompting')
     .option('--workflow <type>', 'Schema workflow: pg_dump, empty, or demo (default: demo)')
     .option('--validator <type>', 'Validator backend: zod or arktype (default: zod)')
+    .option('--dry-run', 'Validate init options and emit the planned scaffold without writing files')
+    .option('--json <payload>', 'Pass init options as a JSON object')
     .option(
       '--local-source-root <path>',
       'Link @rawsql-ts dependencies to a local monorepo root for dogfooding instead of published npm packages'
@@ -2016,39 +1865,61 @@ export function registerInitCommand(program: Command): void {
       workflow?: string;
       validator?: string;
       localSourceRoot?: string;
+      dryRun?: boolean;
+      json?: string;
     }) => {
+      const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+      if (typeof merged.localSourceRoot === 'string') {
+        merged.localSourceRoot = rejectEncodedTraversal(rejectControlChars(merged.localSourceRoot, '--local-source-root'), '--local-source-root');
+      }
       // Validate --workflow value if provided.
-      if (options.workflow && !VALID_WORKFLOWS.includes(options.workflow as InitWorkflow)) {
-        console.error(`Invalid --workflow value: "${options.workflow}". Must be one of: ${VALID_WORKFLOWS.join(', ')}`);
+      if (merged.workflow && !VALID_WORKFLOWS.includes(merged.workflow as InitWorkflow)) {
+        console.error(`Invalid --workflow value: "${merged.workflow}". Must be one of: ${VALID_WORKFLOWS.join(', ')}`);
         process.exit(1);
       }
       // Validate --validator value if provided.
-      if (options.validator && !VALID_VALIDATORS.includes(options.validator as ValidatorBackend)) {
-        console.error(`Invalid --validator value: "${options.validator}". Must be one of: ${VALID_VALIDATORS.join(', ')}`);
+      if (merged.validator && !VALID_VALIDATORS.includes(merged.validator as ValidatorBackend)) {
+        console.error(`Invalid --validator value: "${merged.validator}". Must be one of: ${VALID_VALIDATORS.join(', ')}`);
         process.exit(1);
       }
 
-      const isNonInteractive = options.yes === true || !process.stdin.isTTY;
+      const isNonInteractive = merged.yes === true || !process.stdin.isTTY || merged.dryRun === true;
 
       // When --yes is used, apply defaults for unspecified flags.
-      const workflow = (options.workflow as InitWorkflow | undefined) ?? (isNonInteractive ? 'demo' : undefined);
-      const validator = (options.validator as ValidatorBackend | undefined) ?? (isNonInteractive ? 'zod' : undefined);
+      const workflow = (merged.workflow as InitWorkflow | undefined) ?? (isNonInteractive ? 'demo' : undefined);
+      const validator = (merged.validator as ValidatorBackend | undefined) ?? (isNonInteractive ? 'zod' : undefined);
 
       if (isNonInteractive && workflow === 'pg_dump') {
         console.error('Non-interactive mode does not support the pg_dump workflow (requires connection string prompt).');
         process.exit(1);
       }
 
+      if (merged.dryRun) {
+        const plan = buildInitDryRunPlan(process.cwd(), {
+          withSqlClient: Boolean(merged.withSqlclient),
+          withAppInterface: Boolean(merged.withAppInterface),
+          workflow: workflow ?? 'demo',
+          validator: validator ?? 'zod',
+          localSourceRoot: merged.localSourceRoot
+        });
+        if (isJsonOutput()) {
+          writeCommandEnvelope('init', plan);
+        } else {
+          process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+        }
+        return;
+      }
+
       const prompter = createConsolePrompter();
       try {
         await runInitCommand(prompter, {
-          withSqlClient: options.withSqlclient,
-          withAppInterface: options.withAppInterface,
-          forceOverwrite: options.yes ?? false,
+          withSqlClient: Boolean(merged.withSqlclient),
+          withAppInterface: Boolean(merged.withAppInterface),
+          forceOverwrite: Boolean(merged.yes),
           nonInteractive: isNonInteractive,
           workflow,
           validator,
-          localSourceRoot: options.localSourceRoot
+          localSourceRoot: merged.localSourceRoot
         });
       } finally {
         prompter.close();

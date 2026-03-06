@@ -1,19 +1,54 @@
 #!/bin/sh
-# Run tests, build, and lint before commit
 set -e
 
 echo "[pre-commit] Running checks..."
 
-echo "[pre-commit] Running typecheck..."
-pnpm typecheck
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
 
-echo "[pre-commit] Running tests..."
-pnpm test
+if [ -z "$STAGED_FILES" ]; then
+  echo "[pre-commit] No staged files detected."
+  exit 0
+fi
 
-echo "[pre-commit] Building project..."
-pnpm build
+ZTD_ONLY=true
+for file in $STAGED_FILES
+do
+  case "$file" in
+    .husky/pre-commit|packages/ztd-cli/*|docs/guide/ztd-cli-*|.changeset/*|README.md)
+      ;;
+    *)
+      ZTD_ONLY=false
+      break
+      ;;
+  esac
+done
 
-echo "[pre-commit] Running lint..."
-pnpm lint
+if [ "$ZTD_ONLY" = true ]; then
+  echo "[pre-commit] Detected ztd-cli scoped changes."
+
+  echo "[pre-commit] Running ztd-cli typecheck..."
+  pnpm --filter @rawsql-ts/ztd-cli exec tsc --noEmit -p tsconfig.json
+
+  echo "[pre-commit] Running ztd-cli tests..."
+  pnpm --filter @rawsql-ts/ztd-cli test
+
+  echo "[pre-commit] Building ztd-cli..."
+  pnpm --filter @rawsql-ts/ztd-cli build
+
+  echo "[pre-commit] Running ztd-cli lint..."
+  pnpm --filter @rawsql-ts/ztd-cli lint
+else
+  echo "[pre-commit] Running workspace typecheck..."
+  pnpm typecheck
+
+  echo "[pre-commit] Running workspace tests..."
+  pnpm test
+
+  echo "[pre-commit] Building workspace..."
+  pnpm build
+
+  echo "[pre-commit] Running workspace lint..."
+  pnpm lint
+fi
 
 echo "[pre-commit] All checks passed."

@@ -1,6 +1,7 @@
 import { Command } from 'commander';
-import { formatQueryUsageReport } from '../query/format';
+import { applyQueryOutputControls, formatQueryUsageReport } from '../query/format';
 import { buildQueryUsageReport, writeQueryUsageOutput } from '../query/report';
+import { getAgentOutputFormat, parseJsonPayload } from '../utils/agentCli';
 
 interface QueryUsesOptions {
   format?: string;
@@ -11,6 +12,10 @@ interface QueryUsesOptions {
   view?: string;
   anySchema?: boolean;
   anyTable?: boolean;
+  summaryOnly?: boolean;
+  limit?: string;
+  json?: string;
+  target?: string;
 }
 
 /**
@@ -42,7 +47,7 @@ Notes:
   const uses = query.command('uses').description('Find where catalog SQL uses a table or column target');
 
   uses
-    .command('table <target>')
+    .command('table [target]')
     .description('Find statements that use a table target')
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--view <view>', 'Investigation view (impact|detail)', 'impact')
@@ -50,14 +55,17 @@ Notes:
     .option('--sql-root <path>', 'Resolve sqlFile paths relative to the project SQL root first (default: src/sql)')
     .option('--exclude-generated', 'Exclude specs under src/catalog/specs/generated from scan targets')
     .option('--out <path>', 'Write output to file')
+    .option('--summary-only', 'Emit summary counts without per-match details')
+    .option('--limit <count>', 'Limit returned matches and warnings in the output')
+    .option('--json <payload>', 'Pass command options as a JSON object')
     .option('--any-schema', 'Allow <table> lookup across schemas')
     .option('--any-table', 'Unsupported for table usage')
-    .action((target: string, options: QueryUsesOptions) => {
+    .action((target: string | undefined, options: QueryUsesOptions) => {
       runQueryUsesCommand('table', target, options);
     });
 
   uses
-    .command('column <target>')
+    .command('column [target]')
     .description('Find statements that use a column target')
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--view <view>', 'Investigation view (impact|detail)', 'impact')
@@ -65,6 +73,9 @@ Notes:
     .option('--sql-root <path>', 'Resolve sqlFile paths relative to the project SQL root first (default: src/sql)')
     .option('--exclude-generated', 'Exclude specs under src/catalog/specs/generated from scan targets')
     .option('--out <path>', 'Write output to file')
+    .option('--summary-only', 'Emit summary counts without per-match details')
+    .option('--limit <count>', 'Limit returned matches and warnings in the output')
+    .option('--json <payload>', 'Pass command options as a JSON object')
     .option('--any-schema', 'Allow <table.column> or <column> lookup across schemas')
     .option('--any-table', 'Allow <column> lookup across tables (requires --any-schema)')
     .addHelpText(
@@ -76,31 +87,75 @@ Notes:
   - exprHints: best-effort only. Absence of exprHints does not imply the feature is not present.
 `
     )
-    .action((target: string, options: QueryUsesOptions) => {
+    .action((target: string | undefined, options: QueryUsesOptions) => {
       runQueryUsesCommand('column', target, options);
     });
 }
 
-function runQueryUsesCommand(kind: 'table' | 'column', target: string, options: QueryUsesOptions): void {
-  const format = normalizeFormat(options.format ?? 'text');
-  const view = normalizeView(options.view ?? 'impact');
+function runQueryUsesCommand(kind: 'table' | 'column', target: string | undefined, options: QueryUsesOptions): void {
+  const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+  const format = normalizeFormat(normalizeStringOption(merged.format) ?? getAgentOutputFormat());
+  const view = normalizeView(normalizeStringOption(merged.view) ?? 'impact');
+  const resolvedTarget = normalizeStringOption(merged.target) ?? target;
+  if (!resolvedTarget) {
+    throw new Error('A target must be provided either as a positional argument or via --json {"target": "..."}');
+  }
   const report = buildQueryUsageReport({
     kind,
-    rawTarget: target,
+    rawTarget: resolvedTarget,
     rootDir: process.env.ZTD_PROJECT_ROOT,
-    specsDir: options.specsDir,
-    sqlRoot: options.sqlRoot,
-    excludeGenerated: Boolean(options.excludeGenerated),
+    specsDir: normalizeStringOption(merged.specsDir),
+    sqlRoot: normalizeStringOption(merged.sqlRoot),
+    excludeGenerated: normalizeBooleanOption(merged.excludeGenerated),
     view,
-    anySchema: Boolean(options.anySchema),
-    anyTable: Boolean(options.anyTable)
+    anySchema: normalizeBooleanOption(merged.anySchema),
+    anyTable: normalizeBooleanOption(merged.anyTable)
   });
-  const contents = formatQueryUsageReport(report, format);
-  if (options.out) {
-    writeQueryUsageOutput(options.out, contents);
+  const limitedReport = applyQueryOutputControls(report, {
+    summaryOnly: normalizeBooleanOption(merged.summaryOnly),
+    limit: normalizeLimit(merged.limit)
+  });
+  const contents = formatQueryUsageReport(limitedReport, format);
+  const outPath = normalizeStringOption(merged.out);
+  if (outPath) {
+    writeQueryUsageOutput(outPath, contents);
     return;
   }
   console.log(contents.trimEnd());
+}
+
+function normalizeLimit(value: unknown): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== 'string' && typeof value !== 'number') {
+    throw new Error(`Unsupported limit type: ${typeof value}. Use a positive integer.`);
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Unsupported limit: ${value}. Use a positive integer.`);
+  }
+  return parsed;
+}
+
+function normalizeStringOption(value: unknown): string | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    throw new Error(`Expected a string option but received ${typeof value}.`);
+  }
+  return value;
+}
+
+function normalizeBooleanOption(value: unknown): boolean {
+  if (value === undefined) {
+    return false;
+  }
+  if (typeof value !== 'boolean') {
+    throw new Error(`Expected a boolean option but received ${typeof value}.`);
+  }
+  return value;
 }
 
 function normalizeFormat(format: string): 'text' | 'json' {

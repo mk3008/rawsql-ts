@@ -40,6 +40,8 @@ function readNormalizedFile(filePath: string): string {
 }
 
 const requiredDirectories = [
+  '.ztd',
+  '.ztd/agents',
   'ztd',
   'ztd/ddl',
   'src',
@@ -52,25 +54,15 @@ const requiredDirectories = [
   'src/repositories/views',
   'src/jobs',
   'tests',
-  'tests/support',
-  'tests/generated'
+  'tests/support'
 ];
 
-const requiredAgents = [
-  'ztd/AGENTS.md',
-  'ztd/ddl/AGENTS.md',
-  'src/AGENTS.md',
-  'src/catalog/AGENTS.md',
-  'src/catalog/runtime/AGENTS.md',
-  'src/catalog/specs/AGENTS.md',
-  'src/sql/AGENTS.md',
-  'src/repositories/AGENTS.md',
-  'src/repositories/tables/AGENTS.md',
-  'src/repositories/views/AGENTS.md',
-  'src/jobs/AGENTS.md',
-  'tests/AGENTS.md',
-  'tests/support/AGENTS.md',
-  'tests/generated/AGENTS.md'
+const requiredInternalAgents = [
+  '.ztd/agents/manifest.json',
+  '.ztd/agents/root.md',
+  '.ztd/agents/src.md',
+  '.ztd/agents/tests.md',
+  '.ztd/agents/ztd.md'
 ];
 
 const requiredInvariantFiles = [
@@ -137,7 +129,6 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(readNormalizedFile(schemaPath)).toContain('-- DDL for schema');
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'smoke.test.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toBe(true);
   expect(existsSync(testkitClientPath)).toBe(true);
@@ -153,10 +144,9 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(existsSync(path.join(workspace, 'src', 'repositories', 'tables', 'user-accounts.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'jobs', 'refresh-user-accounts.ts'))).toBe(false);
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
-  expect(
-    existsSync(path.join(workspace, 'AGENTS.md')) || existsSync(path.join(workspace, 'AGENTS_ztd.md'))
-  ).toBe(true);
-  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toContain('"managed_by": "ztd:agents"');
   expect(existsSync(path.join(workspace, 'ztd', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'ddl'))).toBe(true);
   expect(readdirSync(path.join(workspace, 'ztd', 'ddl'))).toEqual(
@@ -167,7 +157,7 @@ test('init wizard bootstraps an empty scaffold', async () => {
     expect(existsSync(path.join(workspace, dir))).toBe(true);
   }
 
-  for (const agentPath of requiredAgents) {
+  for (const agentPath of requiredInternalAgents) {
     expect(existsSync(path.join(workspace, agentPath))).toBe(true);
   }
 
@@ -401,16 +391,14 @@ test('init wizard pulls schema if pg_dump is available', async () => {
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'smoke.test.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'smoke.validation.test.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toBe(true);
   expect(existsSync(testkitClientPath)).toBe(true);
   expect(existsSync(path.join(workspace, 'vitest.config.ts'))).toBe(true);
-  expect(
-    existsSync(path.join(workspace, 'AGENTS.md')) || existsSync(path.join(workspace, 'AGENTS_ztd.md'))
-  ).toBe(true);
-  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'README.md'))).toBe(true);
   expect(readdirSync(path.join(workspace, 'ztd', 'ddl'))).toEqual(
     expect.arrayContaining([schemaFileName(defaultSchemaName)]),
@@ -624,6 +612,24 @@ test('init rejects non-interactive pg_dump workflow', async () => {
       workflow: 'pg_dump'
     })
   ).rejects.toThrow('Non-interactive mode does not support the pg_dump workflow');
+});
+
+test('with-app-interface appends to AGENTS.md when both root files exist', async () => {
+  const workspace = createTempDir('cli-init-app-interface-both');
+  writeFileSync(path.join(workspace, 'AGENTS.md'), '# root\n', 'utf8');
+  writeFileSync(path.join(workspace, 'AGENTS_ztd.md'), '# ztd root\n', 'utf8');
+  const prompter = new TestPrompter([]);
+
+  const result = await runInitCommand(prompter, {
+    rootDir: workspace,
+    withAppInterface: true,
+    nonInteractive: true,
+    forceOverwrite: true
+  });
+
+  expect(result.summary).toContain('AGENTS.md');
+  expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toContain('## Application Interface Guidance');
+  expect(readNormalizedFile(path.join(workspace, 'AGENTS_ztd.md'))).not.toContain('## Application Interface Guidance');
 });
 
 test('TestPrompter.confirm maps yes and no variants', async () => {

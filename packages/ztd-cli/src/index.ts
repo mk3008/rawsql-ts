@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import { registerAgentsCommand } from './commands/agents';
 import { CheckContractRuntimeError, registerCheckContractCommand } from './commands/checkContract';
+import { registerDescribeCommand } from './commands/describe';
 import { registerDdlCommands } from './commands/ddl';
 import { registerInitCommand } from './commands/init';
 import { registerLintCommand } from './commands/lint';
@@ -9,12 +11,19 @@ import { registerModelGenCommand } from './commands/modelGen';
 import { registerQueryCommands } from './commands/query';
 import { TestEvidenceRuntimeError, registerTestEvidenceCommand } from './commands/testEvidence';
 import { registerZtdConfigCommand } from './commands/ztdConfigCommand';
+import { setAgentOutputFormat } from './utils/agentCli';
 
 async function main(): Promise<void> {
   const program = new Command();
   program.name('ztd').description('Zero Table Dependency scaffolding and DDL helpers');
+  program.option('--output <format>', 'Global output format (text|json)', 'text');
+  program.hook('preAction', (rootCommand) => {
+    const options = rootCommand.optsWithGlobals() as { output?: string };
+    setAgentOutputFormat(options.output);
+  });
 
   registerInitCommand(program);
+  registerAgentsCommand(program);
   registerLintCommand(program);
   registerModelGenCommand(program);
   registerQueryCommands(program);
@@ -22,11 +31,13 @@ async function main(): Promise<void> {
   registerTestEvidenceCommand(program);
   registerZtdConfigCommand(program);
   registerDdlCommands(program);
+  registerDescribeCommand(program);
 
   program.addHelpText('after', `
 Getting started:
   $ ztd init                   Create a new ZTD project (interactive)
   $ ztd init --yes             Create a new ZTD project (non-interactive, demo + Zod defaults)
+  $ ztd agents install         Materialize visible AGENTS.md files on demand
   $ ztd ztd-config             Generate TestRowMap types from DDL
   $ ztd lint <path>            Lint SQL files against the schema
   $ ztd query uses table public.users

@@ -8,11 +8,13 @@ import {
   inferDefaultValue
 } from '../src/utils/sqlLintHelpers';
 import {
+  buildLintCommandFailureData,
   buildLintConnectionError,
   buildLintContainerStartError,
   buildLintDefaultBindings,
   buildParserFailure,
   detectMaxPositionalParamIndex,
+  resolveLintCommandInput,
 } from '../src/commands/lint';
 
 function createTempDir(prefix: string): string {
@@ -104,6 +106,14 @@ test('buildLintConnectionError explains Docker recovery when no external connect
   expect(error.message).toContain('ZTD_LINT_DATABASE_URL');
 });
 
+test('buildLintCommandFailureData returns a stable JSON envelope payload for command failures', () => {
+  expect(buildLintCommandFailureData(new Error('lint exploded'))).toEqual({
+    schemaVersion: 1,
+    filesChecked: 0,
+    failures: [],
+    error: 'lint exploded'
+  });
+});
 
 
 test('detectMaxPositionalParamIndex returns the highest positional slot', () => {
@@ -120,4 +130,14 @@ test('buildLintDefaultBindings creates name-keyed null objects for named placeho
     id: null,
     status: null,
   });
+});
+
+test('resolveLintCommandInput accepts a path from --json payload', () => {
+  expect(
+    resolveLintCommandInput(undefined, { json: JSON.stringify({ path: 'src/sql/**/*.sql' }) })
+  ).toEqual({ path: 'src/sql/**/*.sql' });
+});
+
+test('resolveLintCommandInput rejects missing path across positional and json inputs', () => {
+  expect(() => resolveLintCommandInput(undefined, {})).toThrow(/must be provided/);
 });
