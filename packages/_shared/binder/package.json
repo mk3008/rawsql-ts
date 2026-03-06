@@ -1,11 +1,28 @@
 {
   "name": "@rawsql-ts/shared-binder",
   "version": "0.0.0",
-  "private": true,
+  "description": "Shared named-parameter binder utilities for rawsql-ts packages.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "license": "MIT",
+  "author": "msugiura",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mk3008/rawsql-ts.git",
+    "directory": "packages/_shared/binder"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "lint": "eslint src --ext .ts",
+    "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const npm=process.platform==='win32'?'npm.cmd':'npm';if(!fs.existsSync('dist/index.js')){process.exit(cp.spawnSync(npm,['run','build'],{stdio:'inherit'}).status??1)}\"",
+    "release": "npm run lint && npm run test && npm run build && node -e \"require('fs').mkdirSync('../../../tmp', { recursive: true })\" && pnpm pack --out ../../../tmp/rawsql-ts-shared-binder.tgz && pnpm publish --access public"
   },
   "files": [
     "dist"

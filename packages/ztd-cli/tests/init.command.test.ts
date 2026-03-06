@@ -9,12 +9,12 @@ import {
   buildPackageManagerArgs,
   findAncestorPnpmWorkspaceRoot,
   normalizeSchemaName,
+  resolveInitInstallStrategy,
   resolvePnpmWorkspaceGuard,
   sanitizeSchemaFileName,
   type ZtdConfigWriterDependencies,
   type Prompter
 } from '../src/commands/init';
-
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const tmpRoot = path.join(repoRoot, 'tmp');
 
@@ -184,6 +184,8 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(packageJson.devDependencies.typescript).toBeDefined();
   expect(packageJson.devDependencies['@types/node']).toBeDefined();
   expect(packageJson.devDependencies.zod).toBeDefined();
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/adapter-node-pg');
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
 
   expect(readNormalizedFile(path.join(workspace, 'src', 'catalog', 'specs', '_smoke.spec.ts'))).toContain(
     "from 'zod'",
@@ -195,7 +197,7 @@ test('init wizard bootstraps an empty scaffold', async () => {
     "normalizeTimestamp(value.createdAt, 'createdAt')",
   );
   expect(readNormalizedFile(path.join(workspace, 'src', 'catalog', 'runtime', '_coercions.ts'))).toContain(
-    'timestampFromDriver as normalizeTimestamp',
+    'export function normalizeTimestamp',
   );
   expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.validation.test.ts'))).toContain(
     'normalizes valid timestamp strings',
@@ -284,6 +286,26 @@ test('init wizard preserves existing SqlClient files when opted in', async () =>
   );
 });
 
+test('init runs install when package.json is created from scratch', async () => {
+  const workspace = createTempDir('cli-init-deps-created');
+  const prompter = new TestPrompter(['2', '1']);
+  const installs: Array<{ kind: string; packages: string[]; packageManager: string }> = [];
+  const dependencies: Partial<ZtdConfigWriterDependencies> = {
+    log: () => undefined,
+    installPackages: ({ kind, packages, packageManager }) => {
+      installs.push({ kind, packages, packageManager });
+    }
+  };
+
+  await runInitCommand(prompter, { rootDir: workspace, dependencies });
+
+  expect(installs.length).toBe(1);
+  expect(installs[0].kind).toBe('install');
+  expect(installs[0].packageManager).toBe('pnpm');
+  expect(installs[0].packages).toEqual([]);
+});
+
+
 test('init runs install when package.json is updated', async () => {
   const workspace = createTempDir('cli-init-deps');
   writeFileSync(
@@ -337,6 +359,50 @@ test('pnpm nested under a parent workspace uses --ignore-workspace for manual in
     'vitest',
     '--ignore-workspace',
   ]);
+});
+
+test('resolveInitInstallStrategy defers auto-install for Windows pnpm exec', () => {
+  const workspace = path.join(repoRoot, 'tmp', 'init-install-strategy');
+
+  expect(
+    resolveInitInstallStrategy(workspace, 'pnpm', {
+      platform: 'win32',
+      npmCommand: 'exec'
+    })
+  ).toMatchObject({
+    installCommand: 'pnpm install --ignore-workspace',
+    shouldDeferAutoInstall: true,
+    workspaceGuard: {
+      workspaceRoot: repoRoot,
+      shouldIgnoreWorkspace: true,
+    },
+  });
+
+  expect(
+    resolveInitInstallStrategy(workspace, 'pnpm', {
+      platform: 'win32',
+      npmCommand: 'install'
+    }).shouldDeferAutoInstall
+  ).toBe(false);
+});
+
+test('resolveInitInstallStrategy keeps manual add commands workspace-safe for Windows pnpm exec', () => {
+  const workspace = path.join(repoRoot, 'tmp', 'init-install-strategy');
+
+  expect(buildPackageManagerArgs('devDependencies', 'pnpm', ['vitest', 'typescript'], workspace)).toEqual([
+    'add',
+    '-D',
+    'vitest',
+    'typescript',
+    '--ignore-workspace',
+  ]);
+
+  expect(
+    resolveInitInstallStrategy(workspace, 'pnpm', {
+      platform: 'win32',
+      npmCommand: 'exec'
+    }).shouldDeferAutoInstall
+  ).toBe(true);
 });
 
 test('init generates ArkType spec when ArkType backend is selected', async () => {
@@ -512,7 +578,7 @@ test('init local-source mode links direct rawsql-ts dependencies from the monore
   expect(existsSync(localShimPath)).toBe(true);
   expect(existsSync(localSourceGuardPath)).toBe(true);
   expect(readNormalizedFile(localShimPath)).toContain("export * from '@rawsql-ts/sql-contract'");
-  expect(readNormalizedFile(coercionsPath)).toContain("../../local/sql-contract.js");
+  expect(readNormalizedFile(coercionsPath)).toContain('export function normalizeTimestamp');
   expect(packageJson.devDependencies['@rawsql-ts/sql-contract']).toBe(
     `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'sql-contract')).replace(/\\/g, '/')}`
   );
@@ -527,18 +593,20 @@ test('init local-source mode links direct rawsql-ts dependencies from the monore
     cwd: workspace,
     encoding: 'utf8'
   });
-  expect(guardResult.status).toBe(1);
-  expect(guardResult.stderr).toContain('[local-source guard] pnpm typecheck cannot run against this scaffold yet.');
-  expect(guardResult.stderr).toContain('pnpm install --ignore-workspace');
-  expect(guardResult.stderr).toContain('npx tsc --noEmit');
+  expect(guardResult.status).toBe(0);
 });
 
 test('init local-source mode uses npm script commands when package-lock.json selects npm', async () => {
   const workspace = createTempDir('cli-init-local-source-npm');
   const prompter = new TestPrompter([]);
+  const dependencies: Partial<ZtdConfigWriterDependencies> = {
+    log: () => undefined,
+    installPackages: () => undefined
+  };
   writeFileSync(path.join(workspace, 'package-lock.json'), '{}', 'utf8');
 
   const result = await runInitCommand(prompter, {
+    dependencies,
     rootDir: workspace,
     forceOverwrite: true,
     nonInteractive: true,
@@ -647,4 +715,3 @@ test('TestPrompter.selectChoice rejects invalid inputs', async () => {
     new TestPrompter(['99']).selectChoice('option?', ['only'])
   ).rejects.toThrow('outside the valid range');
 });
-

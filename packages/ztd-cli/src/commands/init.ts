@@ -205,10 +205,6 @@ interface InitScaffoldProfile {
   localSourceRoot: string | null;
 }
 
-const MANDATORY_TESTKIT_DEPENDENCIES: Record<string, string> = {
-  '@rawsql-ts/adapter-node-pg': '^0.15.1',
-  '@rawsql-ts/testkit-postgres': '^0.15.1'
-};
 const SQL_CONTRACT_DEPENDENCY: Record<string, string> = {
   '@rawsql-ts/sql-contract': '^0.1.0'
 };
@@ -354,7 +350,7 @@ const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
       // Retry with cmd.exe only on Windows so .cmd shims resolve reliably.
       result = spawnSync(executable, args, shellSpawnOptions);
     }
-    if (result.error && executable !== packageManager) {
+    if ((result.error || result.status !== 0) && executable !== packageManager) {
       // Retry with the bare command name in case a resolved path is rejected.
       result = spawnSync(packageManager, args, baseSpawnOptions);
       if (result.error && isWin32) {
@@ -1005,6 +1001,42 @@ export function resolvePnpmWorkspaceGuard(
   };
 }
 
+export interface InitInstallStrategy {
+  installCommand: string;
+  workspaceGuard: PnpmWorkspaceGuard;
+  shouldDeferAutoInstall: boolean;
+}
+
+function buildManualInstallCommand(
+  kind: PackageInstallKind,
+  packageManager: PackageManager,
+  packages: string[],
+  rootDir: string
+): string {
+  return [packageManager, ...buildPackageManagerArgs(kind, packageManager, packages, rootDir)].join(' ');
+}
+
+export function resolveInitInstallStrategy(
+  rootDir: string,
+  packageManager: PackageManager,
+  environment?: { platform?: NodeJS.Platform; npmCommand?: string }
+): InitInstallStrategy {
+  const workspaceGuard = resolvePnpmWorkspaceGuard(rootDir, packageManager);
+  const installCommand =
+    packageManager === 'pnpm' && workspaceGuard.shouldIgnoreWorkspace
+      ? 'pnpm install --ignore-workspace'
+      : `${packageManager} install`;
+  const platform = environment?.platform ?? process.platform;
+  // npm_command is provided by npm/pnpm for lifecycle and exec invocations, which we use as a fallback in real CLI runs.
+  const npmCommand = environment?.npmCommand ?? process.env.npm_command;
+
+  return {
+    installCommand,
+    workspaceGuard,
+    shouldDeferAutoInstall: platform === 'win32' && packageManager === 'pnpm' && npmCommand === 'exec'
+  };
+}
+
 export function buildPackageManagerArgs(
   kind: PackageInstallKind,
   packageManager: PackageManager,
@@ -1166,10 +1198,10 @@ async function ensureTemplateDependenciesInstalled(
   }
 
   const packageManager = detectPackageManager(rootDir);
-  const workspaceGuard = resolvePnpmWorkspaceGuard(rootDir, packageManager);
-  if (workspaceGuard.shouldIgnoreWorkspace) {
+  const installStrategy = resolveInitInstallStrategy(rootDir, packageManager);
+  if (installStrategy.workspaceGuard.shouldIgnoreWorkspace) {
     dependencies.log(
-      `Detected parent pnpm workspace at ${workspaceGuard.workspaceRoot}. Running pnpm with --ignore-workspace so this initialized project keeps isolated installs.`
+      `Detected parent pnpm workspace at ${installStrategy.workspaceGuard.workspaceRoot}. Running pnpm with --ignore-workspace so this initialized project keeps isolated installs.`
     );
   }
   const referencedPackages = listTemplateReferencedPackages(absolutePaths, summaries);
@@ -1178,6 +1210,14 @@ async function ensureTemplateDependenciesInstalled(
   // Install only packages that are not declared yet to avoid unintentionally bumping pinned versions.
   const missingPackages = referencedPackages.filter((name) => !declaredPackages.has(name));
   if (missingPackages.length > 0) {
+    if (installStrategy.shouldDeferAutoInstall) {
+      const manualAddCommand = buildManualInstallCommand('devDependencies', packageManager, missingPackages, rootDir);
+      dependencies.log(
+        `Skipping automatic ${manualAddCommand} because Windows pnpm exec can break the current ztd process after package.json changes. Next: run ${manualAddCommand} manually.`
+      );
+      return;
+    }
+
     dependencies.log(`Installing devDependencies referenced by templates (${packageManager}): ${missingPackages.join(', ')}`);
     await dependencies.installPackages({
       rootDir,
@@ -1187,10 +1227,16 @@ async function ensureTemplateDependenciesInstalled(
     });
     return;
   }
+  // Avoid mutating the current pnpm exec shim on Windows while it is still executing this command.
+  if (summaries.package?.outcome === 'created' || summaries.package?.outcome === 'overwritten') {
+    if (installStrategy.shouldDeferAutoInstall) {
+      dependencies.log(
+        `Skipping automatic ${installStrategy.installCommand} because Windows pnpm exec can break the current ztd process after package.json changes. Next: run ${installStrategy.installCommand} manually.`
+      );
+      return;
+    }
 
-  // If package.json was updated earlier in the init run, run install so the new entries resolve in node_modules.
-  if (summaries.package?.outcome === 'overwritten') {
-    dependencies.log(`Running ${packageManager} install to sync dependencies.`);
+    dependencies.log(`Running ${installStrategy.installCommand} to sync dependencies.`);
     await dependencies.installPackages({ rootDir, kind: 'install', packages: [], packageManager });
   }
 }
@@ -1329,7 +1375,6 @@ function ensurePackageJsonFormatting(
     scaffoldProfile.dependencyProfile === 'local-source'
       ? buildLocalSourceStackDependencies(rootDir, scaffoldProfile)
       : {
-          ...MANDATORY_TESTKIT_DEPENDENCIES,
           ...SQL_CONTRACT_DEPENDENCY
         };
   if (optionalFeatures.validator === 'zod') {
@@ -1623,11 +1668,8 @@ function buildNextSteps(
   scaffoldProfile: InitScaffoldProfile
 ): string[] {
   const packageManager = detectPackageManager(rootDir);
-  const workspaceGuard = resolvePnpmWorkspaceGuard(rootDir, packageManager);
-  const installCommand =
-    packageManager === 'pnpm' && workspaceGuard.shouldIgnoreWorkspace
-      ? 'pnpm install --ignore-workspace'
-      : `${packageManager} install`;
+  const installStrategy = resolveInitInstallStrategy(rootDir, packageManager);
+  const installCommand = installStrategy.installCommand;
   const runScriptCommand = (script: 'typecheck' | 'test'): string =>
     packageManager === 'npm' ? `npm run ${script}` : `${packageManager} ${script}`;
 
@@ -1649,12 +1691,16 @@ function buildNextSteps(
   const nextSteps = [
     workflow === 'pg_dump'
       ? `Review the dumped DDL in ${schemaRelativePath}`
-      : `If the schema file is empty, edit ${schemaRelativePath}`,
-    'Run npx ztd ztd-config'
+      : `If the schema file is empty, edit ${schemaRelativePath}`
   ];
+  if (installStrategy.shouldDeferAutoInstall) {
+    nextSteps.push(`Run ${installCommand}`);
+  }
+  nextSteps.push('Run npx ztd ztd-config');
   nextSteps.push('Provide a SqlClient implementation (adapter or mock)');
   nextSteps.push('Run tests (pnpm test or npx vitest run)');
-  if (workspaceGuard.shouldIgnoreWorkspace) {
+  // Avoid repeating the same install hint when the deferred-install path already emitted it explicitly.
+  if (installStrategy.workspaceGuard.shouldIgnoreWorkspace && !installStrategy.shouldDeferAutoInstall) {
     nextSteps.push('This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs.');
   }
   return nextSteps.map((step, index) => ` ${index + 1}. ${step}`);
@@ -1690,7 +1736,6 @@ function buildLocalSourceStackDependencies(
 ): Record<string, string> {
   if (scaffoldProfile.dependencyProfile !== 'local-source' || !scaffoldProfile.localSourceRoot) {
     return {
-      ...MANDATORY_TESTKIT_DEPENDENCIES,
       ...SQL_CONTRACT_DEPENDENCY
     };
   }
@@ -1926,4 +1971,3 @@ export function registerInitCommand(program: Command): void {
       }
     });
 }
-

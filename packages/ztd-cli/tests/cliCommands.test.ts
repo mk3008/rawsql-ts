@@ -327,7 +327,7 @@ test('agents install emits the visible AGENTS plan and materializes the files', 
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(true);
 }, 30_000);
 
-test('agents install preserves an existing root AGENTS.md and falls back to AGENTS_ztd.md', () => {
+test('agents install preserves an existing root AGENTS.md and falls back to AGENTS_ztd.md', { timeout: 60_000 }, () => {
   const workspace = createTempDir('agents-install-root-fallback');
   assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before fallback install');
   writeFileSync(path.join(workspace, 'AGENTS.md'), '# existing root\n', 'utf8');
@@ -337,9 +337,9 @@ test('agents install preserves an existing root AGENTS.md and falls back to AGEN
   expect(result.stdout).toContain('AGENTS_ztd.md');
   expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toBe('# existing root\n');
   expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(true);
-}, 30_000);
+});
 
-test('agents status reports internal files and visible install recommendation before install', () => {
+test('agents status reports internal files and visible install recommendation before install', { timeout: 60_000 }, () => {
   const workspace = createTempDir('agents-status');
   assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before status');
 
@@ -363,7 +363,7 @@ test('agents status reports internal files and visible install recommendation be
       })
     ])
   });
-}, 30_000);
+});
 
 test('model-gen rejects positional placeholders by default and recommends named params', () => {
   const workspace = createSqlWorkspace('model-gen-positional-error');

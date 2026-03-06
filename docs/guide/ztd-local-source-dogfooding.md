@@ -2,10 +2,12 @@
 
 Use this guide when you dogfood `ztd-cli` from a throwaway project under `tmp/` while pointing every `rawsql-ts` dependency at local source instead of published npm packages.
 
+This guide describes the developer-mode happy path. Use it when you need to validate unpublished changes before release. It is intentionally different from the published-package happy path used by normal npm consumers.
+
 ## Recommended shape
 
 1. Create the throwaway app under `tmp/` so it stays outside normal git tracking.
-2. Scaffold with `ztd init --local-source-root <monorepo-root>` so the first install links `@rawsql-ts/sql-contract` from local source instead of npm.
+2. Scaffold with `ztd init --local-source-root <monorepo-root>` so the first install links local-source dependencies instead of waiting for npm publication.
 3. Keep your DDL under `ztd/ddl/*.sql` and prefer `ztd model-gen --probe-mode ztd` during the inner loop.
 4. For generated QuerySpecs, prefer `--import-style relative` or `--import-from src/local/sql-contract.ts`.
 
@@ -20,6 +22,8 @@ pnpm test
 ```
 
 The local-source profile rewrites `test` and `typecheck` through a guard script. If the scaffold is still resolving tools from a parent workspace, the guard prints the exact recovery commands instead of failing with a generic module-resolution error.
+
+Use this mode to answer: `can we dogfood the unreleased CLI from source?` Do not use it to claim that the published npm consumer flow is already healthy, because that must still be validated against released packages. For the pre-release packaging check, use [Published-Package Verification Before Release](./published-package-verification.md).
 
 ## pnpm workspace guard
 
@@ -55,6 +59,8 @@ ztd model-gen src/sql/users/list_users.sql \
 
 ## Common failure modes
 
+- The local-source flow succeeds, but the published-package flow is still blocked.
+  - Treat that as a release/distribution problem, not as a failure of developer-mode dogfooding.
 - `pnpm install` links the app into a parent workspace unexpectedly.
   - Re-run with `pnpm install --ignore-workspace`.
 - `model-gen --probe-mode ztd` says the DDL directory is missing.
@@ -63,3 +69,5 @@ ztd model-gen src/sql/users/list_users.sql \
   - Use `--import-from` or `--import-style relative`.
 - `model-gen --probe-mode live` succeeds but `--probe-mode ztd` fails.
   - Local DDL is not yet the source of truth for that query shape; either update `ztd/ddl/*.sql` or treat it as a live-schema concern.
+
+
