@@ -50,6 +50,7 @@ test('renderTableMarkdown marks extended serial aliases as sequence columns', ()
 
   const markdown = renderTableMarkdown(table, { columnCommentSql: [], foreignKeySql: [] });
   const serialLine = markdown.split('\n').find((line) => line.includes('serial8'));
+  expect(serialLine).toBeDefined();
   expect(serialLine).toContain('YES');
   expect(serialLine).toContain('usages');
 });

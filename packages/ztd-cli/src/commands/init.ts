@@ -1007,6 +1007,15 @@ export interface InitInstallStrategy {
   shouldDeferAutoInstall: boolean;
 }
 
+function buildManualInstallCommand(
+  kind: PackageInstallKind,
+  packageManager: PackageManager,
+  packages: string[],
+  rootDir: string
+): string {
+  return [packageManager, ...buildPackageManagerArgs(kind, packageManager, packages, rootDir)].join(' ');
+}
+
 export function resolveInitInstallStrategy(
   rootDir: string,
   packageManager: PackageManager,
@@ -1201,6 +1210,14 @@ async function ensureTemplateDependenciesInstalled(
   // Install only packages that are not declared yet to avoid unintentionally bumping pinned versions.
   const missingPackages = referencedPackages.filter((name) => !declaredPackages.has(name));
   if (missingPackages.length > 0) {
+    if (installStrategy.shouldDeferAutoInstall) {
+      const manualAddCommand = buildManualInstallCommand('devDependencies', packageManager, missingPackages, rootDir);
+      dependencies.log(
+        `Skipping automatic ${manualAddCommand} because Windows pnpm exec can break the current ztd process after package.json changes. Next: run ${manualAddCommand} manually.`
+      );
+      return;
+    }
+
     dependencies.log(`Installing devDependencies referenced by templates (${packageManager}): ${missingPackages.join(', ')}`);
     await dependencies.installPackages({
       rootDir,
@@ -1210,7 +1227,6 @@ async function ensureTemplateDependenciesInstalled(
     });
     return;
   }
-
   // Avoid mutating the current pnpm exec shim on Windows while it is still executing this command.
   if (summaries.package?.outcome === 'created' || summaries.package?.outcome === 'overwritten') {
     if (installStrategy.shouldDeferAutoInstall) {

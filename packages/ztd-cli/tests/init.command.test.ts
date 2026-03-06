@@ -386,6 +386,25 @@ test('resolveInitInstallStrategy defers auto-install for Windows pnpm exec', () 
   ).toBe(false);
 });
 
+test('resolveInitInstallStrategy keeps manual add commands workspace-safe for Windows pnpm exec', () => {
+  const workspace = path.join(repoRoot, 'tmp', 'init-install-strategy');
+
+  expect(buildPackageManagerArgs('devDependencies', 'pnpm', ['vitest', 'typescript'], workspace)).toEqual([
+    'add',
+    '-D',
+    'vitest',
+    'typescript',
+    '--ignore-workspace',
+  ]);
+
+  expect(
+    resolveInitInstallStrategy(workspace, 'pnpm', {
+      platform: 'win32',
+      npmCommand: 'exec'
+    }).shouldDeferAutoInstall
+  ).toBe(true);
+});
+
 test('init generates ArkType spec when ArkType backend is selected', async () => {
   const workspace = createTempDir('cli-init-arktype');
   const prompter = new TestPrompter(['2', '2']);
