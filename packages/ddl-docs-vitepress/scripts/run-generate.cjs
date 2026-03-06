@@ -3,7 +3,7 @@ const { resolve } = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const ddlDir = resolve("ddl");
-const cliEntry = resolve("..", "ddl-docs-cli", "dist", "index.js");
+const cliEntry = resolve("..", "ddl-docs-cli", "dist", "src", "index.js");
 
 const hasSqlInputs =
   existsSync(ddlDir) &&
@@ -34,3 +34,4 @@ const args = [
 
 const result = spawnSync(process.execPath, args, { stdio: "inherit" });
 process.exit(result.status ?? 1);
+
