@@ -18,9 +18,9 @@ This is not a perfect substitute for a real registry publish. It is a local veri
 
 ## What this check does not prove
 
-- It does **not** fully emulate npm registry resolution for every unpublished transitive dependency.
-- It does **not** replace a real post-publish smoke check.
-- It should not be used to claim that every package combination is already registry-valid.
+- This check does **not** fully emulate npm registry resolution for every unpublished transitive dependency.
+- A real post-publish smoke check is still required.
+- Do not use this to claim that every package combination is already registry-valid.
 
 ## Canonical command
 

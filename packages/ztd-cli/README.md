@@ -36,7 +36,9 @@ npm install -D @rawsql-ts/ztd-cli
 - `Published package mode` validates what a normal npm consumer sees in a standalone project.
 - `Local-source developer mode` validates unreleased changes from a local `rawsql-ts` checkout without publishing first.
 
-Use `Published package mode` when you want to check the real package-consumer experience. Use `Local-source developer mode` when you want to dogfood unpublished changes. A published-package failure does not automatically mean the local-source developer path is broken, and a local-source-only workaround should not be presented as the default npm user flow.`r`n`r`nFor pre-release work inside this monorepo, use the repository-root verification command `pnpm verify:published-package-mode` to pack artifacts and smoke-test the standalone `ztd-cli` flow before publishing. See [Published-Package Verification Before Release](../../docs/guide/published-package-verification.md).
+Use `Published package mode` when you want to check the real package-consumer experience. Use `Local-source developer mode` when you want to dogfood unpublished changes. A published-package failure does not automatically mean the local-source developer path is broken, and a local-source-only workaround should not be presented as the default npm user flow.
+
+For pre-release work inside this monorepo, use the repository-root verification command `pnpm verify:published-package-mode` to pack artifacts and smoke-test the standalone `ztd-cli` flow before publishing. See [Published-Package Verification Before Release](../../docs/guide/published-package-verification.md).
 
 ## Happy Path Quickstart (Published Package Mode)
 
@@ -132,9 +134,12 @@ node "<LOCAL_SOURCE_ROOT>/packages/ztd-cli/dist/index.js" init \
   --local-source-root "<LOCAL_SOURCE_ROOT>"
 
 # 4. Install the scaffolded dependencies
-pnpm install
+pnpm install --ignore-workspace
 
-# 5. Continue the normal loop
+# 5. Generate test types from the DDL
+npx ztd ztd-config
+
+# 6. Continue the normal loop
 pnpm typecheck
 pnpm test
 ```

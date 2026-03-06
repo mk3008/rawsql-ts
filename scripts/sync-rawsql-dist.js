@@ -4,6 +4,8 @@ const path = require("path");
 const workspaceRoot = path.resolve(__dirname, "..");
 const coreDist = path.join(workspaceRoot, "packages", "core", "dist");
 const lockDir = path.join(workspaceRoot, "tmp", "sync-rawsql-dist.lock");
+const lockMetaPath = path.join(lockDir, "owner.json");
+const STALE_LOCK_MS = 60_000;
 
 if (!fs.existsSync(coreDist)) {
     console.warn("[sync-rawsql-dist] packages/core/dist is not available; skipping sync.");
@@ -37,6 +39,7 @@ function withLock(run) {
     for (let attempt = 0; attempt < 200; attempt += 1) {
         try {
             fs.mkdirSync(lockDir);
+            fs.writeFileSync(lockMetaPath, JSON.stringify({ pid: process.pid, createdAt: Date.now() }));
             try {
                 return run();
             } finally {
@@ -44,6 +47,7 @@ function withLock(run) {
             }
         } catch (error) {
             if (error && error.code === "EEXIST") {
+                releaseStaleLock();
                 sleep(50);
                 continue;
             }
@@ -53,6 +57,35 @@ function withLock(run) {
     }
 
     throw new Error("[sync-rawsql-dist] Timed out waiting for sync lock.");
+}
+
+function releaseStaleLock() {
+    try {
+        const meta = JSON.parse(fs.readFileSync(lockMetaPath, "utf8"));
+        const createdAt = typeof meta.createdAt === "number" ? meta.createdAt : 0;
+        const pid = typeof meta.pid === "number" ? meta.pid : null;
+        const isExpired = Date.now() - createdAt > STALE_LOCK_MS;
+        const ownerMissing = pid === null || !processExists(pid);
+
+        if (isExpired || ownerMissing) {
+            fs.rmSync(lockDir, { recursive: true, force: true });
+        }
+    } catch {
+        fs.rmSync(lockDir, { recursive: true, force: true });
+    }
+}
+
+function processExists(pid) {
+    if (process.platform === "win32") {
+        return true;
+    }
+
+    try {
+        process.kill(pid, 0);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 withLock(() => {

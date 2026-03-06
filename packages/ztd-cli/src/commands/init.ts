@@ -1018,6 +1018,7 @@ export function resolveInitInstallStrategy(
       ? 'pnpm install --ignore-workspace'
       : `${packageManager} install`;
   const platform = environment?.platform ?? process.platform;
+  // npm_command is provided by npm/pnpm for lifecycle and exec invocations, which we use as a fallback in real CLI runs.
   const npmCommand = environment?.npmCommand ?? process.env.npm_command;
 
   return {
@@ -1682,6 +1683,7 @@ function buildNextSteps(
   nextSteps.push('Run npx ztd ztd-config');
   nextSteps.push('Provide a SqlClient implementation (adapter or mock)');
   nextSteps.push('Run tests (pnpm test or npx vitest run)');
+  // Avoid repeating the same install hint when the deferred-install path already emitted it explicitly.
   if (installStrategy.workspaceGuard.shouldIgnoreWorkspace && !installStrategy.shouldDeferAutoInstall) {
     nextSteps.push('This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs.');
   }
