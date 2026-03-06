@@ -55,7 +55,7 @@ Note on modes:
 
 - `Developer mode` means local-source execution from a repo checkout without publishing first.
 - `Published package mode` means installing released packages from npm in a standalone repo.
-- This spec is intentionally about `Developer mode` so backend dogfooding does not depend on package publication.
+- This spec is intentionally about `Developer mode` so backend dogfooding does not depend on package publication.`r`n- When you need a pre-release check for the npm consumer path, run the separate repository-root workflow in [Published-Package Verification Before Release](../guide/published-package-verification.md).
 
 ## 2) Fixed DDL baseline
 
@@ -280,3 +280,4 @@ Use this order unless a hard blocker appears.
 7. Regenerate affected artifacts and tests.
 8. Run verification commands.
 9. Produce LOG and REPORT files.
+

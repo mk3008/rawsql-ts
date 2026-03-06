@@ -23,7 +23,7 @@ pnpm test
 
 The local-source profile rewrites `test` and `typecheck` through a guard script. If the scaffold is still resolving tools from a parent workspace, the guard prints the exact recovery commands instead of failing with a generic module-resolution error.
 
-Use this mode to answer: `can we dogfood the unreleased CLI from source?` Do not use it to claim that the published npm consumer flow is already healthy, because that must still be validated against released packages.
+Use this mode to answer: `can we dogfood the unreleased CLI from source?` Do not use it to claim that the published npm consumer flow is already healthy, because that must still be validated against released packages. For the pre-release packaging check, use [Published-Package Verification Before Release](./published-package-verification.md).
 
 ## pnpm workspace guard
 
@@ -69,4 +69,5 @@ ztd model-gen src/sql/users/list_users.sql \
   - Use `--import-from` or `--import-style relative`.
 - `model-gen --probe-mode live` succeeds but `--probe-mode ztd` fails.
   - Local DDL is not yet the source of truth for that query shape; either update `ztd/ddl/*.sql` or treat it as a live-schema concern.
+
 
