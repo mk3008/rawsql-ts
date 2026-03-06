@@ -14,6 +14,8 @@ permissions:
 jobs:
   publish_oidc:
     runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.guard.outputs.should_publish }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,25 +56,32 @@ jobs:
           npm install -g "npm@^11.5.1"
           npm --version
 
-      # Safety guard: fail if changesets haven't been versioned yet.
-      - name: Fail if there are unapplied changesets
+      # Safety guard: do not attempt a publish while a release PR is still pending.
+      - name: Check for unapplied changesets
+        id: guard
         shell: bash
         run: |
           if find .changeset -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | grep -q .; then
-            echo "Unapplied changesets exist. Run Release PR first."
-            exit 1
+            echo "::notice::Unapplied changesets exist. Run the Release PR workflow and merge that PR before publishing."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
+          echo "should_publish=true" >> "$GITHUB_OUTPUT"
+
       - name: Build publish artifacts (dist/)
+        if: ${{ steps.guard.outputs.should_publish == 'true' }}
         run: pnpm build:publish
 
       - name: Configure git identity for tags
+        if: ${{ steps.guard.outputs.should_publish == 'true' }}
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: OIDC diagnostics
+        if: ${{ steps.guard.outputs.should_publish == 'true' }}
         shell: bash
         run: |
           echo "RAWSQL_PUBLISH_AUTH=oidc"
@@ -87,6 +96,7 @@ jobs:
           env -u NODE_AUTH_TOKEN npm whoami && echo "npm auth: token/session is active (unexpected for pure OIDC)" || echo "npm auth: no token/session (expected for OIDC)"
 
       - name: Publish to npm (OIDC-compatible), tag, and create GitHub Releases
+        if: ${{ steps.guard.outputs.should_publish == 'true' }}
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
