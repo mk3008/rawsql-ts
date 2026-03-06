@@ -205,10 +205,6 @@ interface InitScaffoldProfile {
   localSourceRoot: string | null;
 }
 
-const MANDATORY_TESTKIT_DEPENDENCIES: Record<string, string> = {
-  '@rawsql-ts/adapter-node-pg': '^0.15.1',
-  '@rawsql-ts/testkit-postgres': '^0.15.1'
-};
 const SQL_CONTRACT_DEPENDENCY: Record<string, string> = {
   '@rawsql-ts/sql-contract': '^0.1.0'
 };
@@ -354,7 +350,7 @@ const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
       // Retry with cmd.exe only on Windows so .cmd shims resolve reliably.
       result = spawnSync(executable, args, shellSpawnOptions);
     }
-    if (result.error && executable !== packageManager) {
+    if ((result.error || result.status !== 0) && executable !== packageManager) {
       // Retry with the bare command name in case a resolved path is rejected.
       result = spawnSync(packageManager, args, baseSpawnOptions);
       if (result.error && isWin32) {
@@ -1189,7 +1185,7 @@ async function ensureTemplateDependenciesInstalled(
   }
 
   // If package.json was updated earlier in the init run, run install so the new entries resolve in node_modules.
-  if (summaries.package?.outcome === 'overwritten') {
+  if (summaries.package?.outcome === 'created' || summaries.package?.outcome === 'overwritten') {
     dependencies.log(`Running ${packageManager} install to sync dependencies.`);
     await dependencies.installPackages({ rootDir, kind: 'install', packages: [], packageManager });
   }
@@ -1329,7 +1325,6 @@ function ensurePackageJsonFormatting(
     scaffoldProfile.dependencyProfile === 'local-source'
       ? buildLocalSourceStackDependencies(rootDir, scaffoldProfile)
       : {
-          ...MANDATORY_TESTKIT_DEPENDENCIES,
           ...SQL_CONTRACT_DEPENDENCY
         };
   if (optionalFeatures.validator === 'zod') {
@@ -1690,7 +1685,6 @@ function buildLocalSourceStackDependencies(
 ): Record<string, string> {
   if (scaffoldProfile.dependencyProfile !== 'local-source' || !scaffoldProfile.localSourceRoot) {
     return {
-      ...MANDATORY_TESTKIT_DEPENDENCIES,
       ...SQL_CONTRACT_DEPENDENCY
     };
   }
@@ -1926,4 +1920,3 @@ export function registerInitCommand(program: Command): void {
       }
     });
 }
-

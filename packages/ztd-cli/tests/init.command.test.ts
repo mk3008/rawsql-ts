@@ -184,6 +184,8 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(packageJson.devDependencies.typescript).toBeDefined();
   expect(packageJson.devDependencies['@types/node']).toBeDefined();
   expect(packageJson.devDependencies.zod).toBeDefined();
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/adapter-node-pg');
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
 
   expect(readNormalizedFile(path.join(workspace, 'src', 'catalog', 'specs', '_smoke.spec.ts'))).toContain(
     "from 'zod'",
@@ -283,6 +285,26 @@ test('init wizard preserves existing SqlClient files when opted in', async () =>
     true
   );
 });
+
+test('init runs install when package.json is created from scratch', async () => {
+  const workspace = createTempDir('cli-init-deps-created');
+  const prompter = new TestPrompter(['2', '1']);
+  const installs: Array<{ kind: string; packages: string[]; packageManager: string }> = [];
+  const dependencies: Partial<ZtdConfigWriterDependencies> = {
+    log: () => undefined,
+    installPackages: ({ kind, packages, packageManager }) => {
+      installs.push({ kind, packages, packageManager });
+    }
+  };
+
+  await runInitCommand(prompter, { rootDir: workspace, dependencies });
+
+  expect(installs.length).toBe(1);
+  expect(installs[0].kind).toBe('install');
+  expect(installs[0].packageManager).toBe('pnpm');
+  expect(installs[0].packages).toEqual([]);
+});
+
 
 test('init runs install when package.json is updated', async () => {
   const workspace = createTempDir('cli-init-deps');
@@ -536,9 +558,14 @@ test('init local-source mode links direct rawsql-ts dependencies from the monore
 test('init local-source mode uses npm script commands when package-lock.json selects npm', async () => {
   const workspace = createTempDir('cli-init-local-source-npm');
   const prompter = new TestPrompter([]);
+  const dependencies: Partial<ZtdConfigWriterDependencies> = {
+    log: () => undefined,
+    installPackages: () => undefined
+  };
   writeFileSync(path.join(workspace, 'package-lock.json'), '{}', 'utf8');
 
   const result = await runInitCommand(prompter, {
+    dependencies,
     rootDir: workspace,
     forceOverwrite: true,
     nonInteractive: true,
@@ -647,4 +674,3 @@ test('TestPrompter.selectChoice rejects invalid inputs', async () => {
     new TestPrompter(['99']).selectChoice('option?', ['only'])
   ).rejects.toThrow('outside the valid range');
 });
-
