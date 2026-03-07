@@ -1,5 +1,16 @@
 # @rawsql-ts/ddl-docs-vitepress
 
+## 0.2.1
+
+### Patch Changes
+
+- [#513](https://github.com/mk3008/rawsql-ts/pull/513) [`f0c1c32`](https://github.com/mk3008/rawsql-ts/commit/f0c1c327fe8e0f4cc917d0c2d8013391bdd9185d) Thanks [@mk3008](https://github.com/mk3008)! - Fix the published CLI entrypoint metadata so the package points at the generated dist/src/index.js output.
+
+  This keeps local pack and publish flows from failing in prepack after a successful build.
+
+- Updated dependencies [[`f0c1c32`](https://github.com/mk3008/rawsql-ts/commit/f0c1c327fe8e0f4cc917d0c2d8013391bdd9185d)]:
+  - @rawsql-ts/ddl-docs-cli@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes
