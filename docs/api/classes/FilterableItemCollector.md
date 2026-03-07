@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: FilterableItemCollector
 
-Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:46](https://github.com/mk3008/rawsql-ts/blob/4d44840a3808dd234f12722e65a0fa67ea8f9577/packages/core/src/transformers/FilterableItemCollector.ts#L46)
+Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:46](https://github.com/mk3008/rawsql-ts/blob/fffd661d21a357a361d2a4534bd85e1192a0bdcf/packages/core/src/transformers/FilterableItemCollector.ts#L46)
 
 Collects filterable items (columns and parameters) from SQL queries
 for use in DynamicQueryBuilder filtering functionality.
@@ -24,7 +24,7 @@ and fixed parameters defined in the SQL with full JOIN table support.
 
 > **new FilterableItemCollector**(`tableColumnResolver?`, `options?`): `FilterableItemCollector`
 
-Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:57](https://github.com/mk3008/rawsql-ts/blob/4d44840a3808dd234f12722e65a0fa67ea8f9577/packages/core/src/transformers/FilterableItemCollector.ts#L57)
+Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:57](https://github.com/mk3008/rawsql-ts/blob/fffd661d21a357a361d2a4534bd85e1192a0bdcf/packages/core/src/transformers/FilterableItemCollector.ts#L57)
 
 Creates a new FilterableItemCollector
 
@@ -54,7 +54,7 @@ Optional configuration options
 
 > **collect**(`query`): [`FilterableItem`](FilterableItem.md)[]
 
-Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:67](https://github.com/mk3008/rawsql-ts/blob/4d44840a3808dd234f12722e65a0fa67ea8f9577/packages/core/src/transformers/FilterableItemCollector.ts#L67)
+Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:67](https://github.com/mk3008/rawsql-ts/blob/fffd661d21a357a361d2a4534bd85e1192a0bdcf/packages/core/src/transformers/FilterableItemCollector.ts#L67)
 
 Collects all filterable items (columns and parameters) from a SQL query
 

@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: LineColumn
 
-Defined in: [packages/core/src/utils/LexemeCursor.ts:7](https://github.com/mk3008/rawsql-ts/blob/4d44840a3808dd234f12722e65a0fa67ea8f9577/packages/core/src/utils/LexemeCursor.ts#L7)
+Defined in: [packages/core/src/utils/LexemeCursor.ts:7](https://github.com/mk3008/rawsql-ts/blob/fffd661d21a357a361d2a4534bd85e1192a0bdcf/packages/core/src/utils/LexemeCursor.ts#L7)
 
 Line and column position (1-based indexing for editor integration)
 
@@ -11,7 +11,7 @@ Line and column position (1-based indexing for editor integration)
 
 > **line**: `number`
 
-Defined in: [packages/core/src/utils/LexemeCursor.ts:8](https://github.com/mk3008/rawsql-ts/blob/4d44840a3808dd234f12722e65a0fa67ea8f9577/packages/core/src/utils/LexemeCursor.ts#L8)
+Defined in: [packages/core/src/utils/LexemeCursor.ts:8](https://github.com/mk3008/rawsql-ts/blob/fffd661d21a357a361d2a4534bd85e1192a0bdcf/packages/core/src/utils/LexemeCursor.ts#L8)
 
 ***
 
@@ -19,5 +19,5 @@ Defined in: [packages/core/src/utils/LexemeCursor.ts:8](https://github.com/mk300
 
 > **column**: `number`
 
-Defined in: [packages/core/src/utils/LexemeCursor.ts:9](https://github.com/mk3008/rawsql-ts/blob/4d44840a3808dd234f12722e65a0fa67ea8f9577/packages/core/src/utils/LexemeCursor.ts#L9)
+Defined in: [packages/core/src/utils/LexemeCursor.ts:9](https://github.com/mk3008/rawsql-ts/blob/fffd661d21a357a361d2a4534bd85e1192a0bdcf/packages/core/src/utils/LexemeCursor.ts#L9)
 </div>

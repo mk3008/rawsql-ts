@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: PositionedComment
 
-Defined in: [packages/core/src/models/SqlComponent.ts:6](https://github.com/mk3008/rawsql-ts/blob/4d44840a3808dd234f12722e65a0fa67ea8f9577/packages/core/src/models/SqlComponent.ts#L6)
+Defined in: [packages/core/src/models/SqlComponent.ts:6](https://github.com/mk3008/rawsql-ts/blob/fffd661d21a357a361d2a4534bd85e1192a0bdcf/packages/core/src/models/SqlComponent.ts#L6)
 
 Represents a comment with its position relative to a token or component
 
@@ -11,7 +11,7 @@ Represents a comment with its position relative to a token or component
 
 > **position**: `"before"` \| `"after"`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:7](https://github.com/mk3008/rawsql-ts/blob/4d44840a3808dd234f12722e65a0fa67ea8f9577/packages/core/src/models/SqlComponent.ts#L7)
+Defined in: [packages/core/src/models/SqlComponent.ts:7](https://github.com/mk3008/rawsql-ts/blob/fffd661d21a357a361d2a4534bd85e1192a0bdcf/packages/core/src/models/SqlComponent.ts#L7)
 
 ***
 
@@ -19,5 +19,5 @@ Defined in: [packages/core/src/models/SqlComponent.ts:7](https://github.com/mk30
 
 > **comments**: `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:8](https://github.com/mk3008/rawsql-ts/blob/4d44840a3808dd234f12722e65a0fa67ea8f9577/packages/core/src/models/SqlComponent.ts#L8)
+Defined in: [packages/core/src/models/SqlComponent.ts:8](https://github.com/mk3008/rawsql-ts/blob/fffd661d21a357a361d2a4534bd85e1192a0bdcf/packages/core/src/models/SqlComponent.ts#L8)
 </div>

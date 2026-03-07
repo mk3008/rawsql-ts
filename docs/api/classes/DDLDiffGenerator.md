@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: DDLDiffGenerator
 
-Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:47](https://github.com/mk3008/rawsql-ts/blob/4d44840a3808dd234f12722e65a0fa67ea8f9577/packages/core/src/transformers/DDLDiffGenerator.ts#L47)
+Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:47](https://github.com/mk3008/rawsql-ts/blob/fffd661d21a357a361d2a4534bd85e1192a0bdcf/packages/core/src/transformers/DDLDiffGenerator.ts#L47)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:47](https://gith
 
 > `static` **generateDiff**(`currentSql`, `expectedSql`, `options`): `string`[]
 
-Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:48](https://github.com/mk3008/rawsql-ts/blob/4d44840a3808dd234f12722e65a0fa67ea8f9577/packages/core/src/transformers/DDLDiffGenerator.ts#L48)
+Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:48](https://github.com/mk3008/rawsql-ts/blob/fffd661d21a357a361d2a4534bd85e1192a0bdcf/packages/core/src/transformers/DDLDiffGenerator.ts#L48)
 
 #### Parameters
 

@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: ExistsSubqueryDefinition
 
-Defined in: [packages/core/src/transformers/ExistsPredicateInjector.ts:40](https://github.com/mk3008/rawsql-ts/blob/4d44840a3808dd234f12722e65a0fa67ea8f9577/packages/core/src/transformers/ExistsPredicateInjector.ts#L40)
+Defined in: [packages/core/src/transformers/ExistsPredicateInjector.ts:40](https://github.com/mk3008/rawsql-ts/blob/fffd661d21a357a361d2a4534bd85e1192a0bdcf/packages/core/src/transformers/ExistsPredicateInjector.ts#L40)
 
 Describes a correlated subquery that renders an EXISTS/NOT EXISTS predicate.
 
@@ -15,7 +15,7 @@ Describes a correlated subquery that renders an EXISTS/NOT EXISTS predicate.
 
 > **sql**: `string`
 
-Defined in: [packages/core/src/transformers/ExistsPredicateInjector.ts:42](https://github.com/mk3008/rawsql-ts/blob/4d44840a3808dd234f12722e65a0fa67ea8f9577/packages/core/src/transformers/ExistsPredicateInjector.ts#L42)
+Defined in: [packages/core/src/transformers/ExistsPredicateInjector.ts:42](https://github.com/mk3008/rawsql-ts/blob/fffd661d21a357a361d2a4534bd85e1192a0bdcf/packages/core/src/transformers/ExistsPredicateInjector.ts#L42)
 
 SQL that references the `$c#` placeholders for the anchor columns.
 
@@ -25,7 +25,7 @@ SQL that references the `$c#` placeholders for the anchor columns.
 
 > `optional` **params**: `Record`&lt;`string`, [`SqlParameterValue`](../type-aliases/SqlParameterValue.md)\&gt;
 
-Defined in: [packages/core/src/transformers/ExistsPredicateInjector.ts:44](https://github.com/mk3008/rawsql-ts/blob/4d44840a3808dd234f12722e65a0fa67ea8f9577/packages/core/src/transformers/ExistsPredicateInjector.ts#L44)
+Defined in: [packages/core/src/transformers/ExistsPredicateInjector.ts:44](https://github.com/mk3008/rawsql-ts/blob/fffd661d21a357a361d2a4534bd85e1192a0bdcf/packages/core/src/transformers/ExistsPredicateInjector.ts#L44)
 
 Optional named parameters that the subquery requires.
 </div>
