@@ -23,9 +23,12 @@ type Customer = {
 }
 
 const pgp = pgPromise()
+const expectedShutdownErrorCode = '57P01'
 
 let container: StartedPostgreSqlContainer | undefined
 let db: pgPromise.IDatabase<unknown> | undefined
+let shuttingDown = false
+let unexpectedPoolError: Error | undefined
 
 const ensureDb = (): pgPromise.IDatabase<unknown> => {
   if (!db) {
@@ -34,12 +37,25 @@ const ensureDb = (): pgPromise.IDatabase<unknown> => {
   return db
 }
 
+const handlePoolError = (error: Error & { code?: string }): void => {
+  // Container shutdown can terminate idle pg clients after the assertions have already passed.
+  if (shuttingDown && error.code === expectedShutdownErrorCode) {
+    return
+  }
+
+  unexpectedPoolError ??= error
+}
+
 driverDescribe('reader driver named-parameter integration (pg-promise)', () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:18-alpine').start()
     db = pgp({
       connectionString: container.getConnectionUri(),
     })
+
+    // pg-promise exposes the underlying pg pool, so attach a listener before the test opens connections.
+    db.$pool.on('error', handlePoolError)
+
     await ensureDb().none(`
       CREATE TABLE customers_named_params (
         customer_id integer PRIMARY KEY,
@@ -56,8 +72,14 @@ driverDescribe('reader driver named-parameter integration (pg-promise)', () => {
   }, 120000)
 
   afterAll(async () => {
+    shuttingDown = true
     await db?.$pool.end()
     await container?.stop()
+    db?.$pool.removeListener('error', handlePoolError)
+
+    if (unexpectedPoolError) {
+      throw unexpectedPoolError
+    }
   })
 
   it('passes named SQL and object params untouched to the executor', async () => {
@@ -77,7 +99,7 @@ driverDescribe('reader driver named-parameter integration (pg-promise)', () => {
       },
       mapperPresets.safe()
     )
-    
+
     const namedSql = `
       select
         customer_id,
@@ -88,7 +110,7 @@ driverDescribe('reader driver named-parameter integration (pg-promise)', () => {
     `
     const namedParams = { customerId: 42 }
 
-    const rows = await reader.query(namedSql, namedParams)
+    const rows = await reader.query<Customer>(namedSql, namedParams)
 
     expect(rows.length).toBeGreaterThan(0)
     const row = rows[0]
