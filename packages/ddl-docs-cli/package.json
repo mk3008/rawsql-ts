@@ -2,12 +2,12 @@
   "name": "@rawsql-ts/ddl-docs-cli",
   "version": "0.2.0",
   "description": "CLI tool that generates Markdown table definition docs from DDL files using rawsql-ts",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "bin": {
-    "ddl-docs": "dist/index.js"
+    "ddl-docs": "dist/src/index.js"
   },
   "scripts": {
-    "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const npm=process.platform==='win32'?'npm.cmd':'npm';if(!fs.existsSync('dist/index.js')){process.exit(cp.spawnSync(npm,['run','build'],{stdio:'inherit'}).status??1)}\"",
+    "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const npm=process.platform==='win32'?'npm.cmd':'npm';if(!fs.existsSync('dist/src/index.js')){process.exit(cp.spawnSync(npm,['run','build'],{stdio:'inherit'}).status??1)}\"",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "lint": "eslint src --ext .ts"
@@ -41,3 +41,4 @@
     "AGENTS.md"
   ]
 }
+
