@@ -1069,3 +1069,93 @@ pullTest('model-gen allows legacy positional placeholders only behind --allow-po
     await client.end();
   }
 }, 60_000);
+
+test('query patch apply previews a targeted CTE replacement without writing', () => {
+  const workspace = createSqlWorkspace('query-patch-preview', path.join('src', 'sql', 'reports', 'sales.sql'));
+  const editedFile = path.join(workspace.rootDir, 'edited.sql');
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with users_base as (
+        select id, region_id from public.users
+      ),
+      purchase_summary as (
+        select id from users_base
+      )
+      select * from purchase_summary
+    `,
+    'utf8'
+  );
+  writeFileSync(
+    editedFile,
+    `
+      with users_base as (
+        select id, region_id from public.users
+      ),
+      purchase_summary as (
+        select id from users_base where region_id = 1
+      )
+      select * from purchase_summary
+    `,
+    'utf8'
+  );
+  const before = readNormalizedFile(workspace.sqlFile);
+
+  const result = runCli(
+    ['query', 'patch', 'apply', workspace.sqlFile, '--cte', 'purchase_summary', '--from', editedFile, '--preview'],
+    {},
+    workspace.rootDir
+  );
+
+  assertCliSuccess(result, 'query patch preview');
+  expect(result.stdout).toContain('--- ');
+  expect(result.stdout).toContain('+++ ');
+  expect(result.stdout).toContain('"region_id" = 1');
+  expect(readNormalizedFile(workspace.sqlFile)).toBe(before);
+});
+
+test('query patch apply writes the patched SQL to --out and supports global json output', () => {
+  const workspace = createSqlWorkspace('query-patch-json', path.join('src', 'sql', 'reports', 'sales.sql'));
+  const editedFile = path.join(workspace.rootDir, 'edited.sql');
+  const outputFile = path.join(workspace.rootDir, 'patched.sql');
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with purchase_summary as (
+        select id from public.users
+      )
+      select * from purchase_summary
+    `,
+    'utf8'
+  );
+  writeFileSync(
+    editedFile,
+    'purchase_summary (user_id) as materialized (select id as user_id from public.users)',
+    'utf8'
+  );
+
+  const result = runCli(
+    ['--output', 'json', 'query', 'patch', 'apply', workspace.sqlFile, '--cte', 'purchase_summary', '--from', editedFile, '--out', outputFile],
+    {},
+    workspace.rootDir
+  );
+
+  assertCliSuccess(result, 'query patch json');
+  const payload = JSON.parse(result.stdout);
+  expect(payload).toMatchObject({
+    command: 'query patch apply',
+    ok: true,
+    data: {
+      file: workspace.sqlFile,
+      edited_file: editedFile,
+      target_cte: 'purchase_summary',
+      written: true,
+      output_file: outputFile,
+      changed: true
+    }
+  });
+  const patched = readNormalizedFile(outputFile);
+  expect(patched).toContain('"purchase_summary"("user_id") as materialized');
+  expect(patched).toContain('from "public"."users"');
+});
+
