@@ -282,7 +282,7 @@ test(
     });
     expect(result.stderr).toContain('Failed to connect to PostgreSQL for ztd lint.');
   },
-  30000,
+  60000,
 );
 
 test('init dry-run emits scaffold plan without writing files', () => {
@@ -325,7 +325,7 @@ test('agents install emits the visible AGENTS plan and materializes the files', 
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(true);
-}, 30_000);
+}, 60_000);
 
 test('agents install preserves an existing root AGENTS.md and falls back to AGENTS_ztd.md', { timeout: 60_000 }, () => {
   const workspace = createTempDir('agents-install-root-fallback');

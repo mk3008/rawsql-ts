@@ -8,6 +8,7 @@ import type {
   ObservabilitySink,
   QueryStartEvent,
   QuerySpec,
+  QuerySpecMetadata,
   Rewriter,
 } from '../src'
 import {
@@ -432,6 +433,10 @@ describe('catalog read execution', () => {
       id: 'demo.rewriter',
       sqlFile: 'meta.sql',
       params: { shape: 'positional', example: [] },
+      metadata: {
+        material: ['active_customer_ids'],
+        scalarMaterial: ['active_customer_count'],
+      },
       zsg: { allow: ['demo'], optionsExample: { demo: true } },
       output: {
         example: { id: 1 },
@@ -440,6 +445,10 @@ describe('catalog read execution', () => {
     const rewriteSpy = vi.fn((input: Parameters<Rewriter['rewrite']>[0]) => {
       const { spec: receivedSpec, sql, params } = input
       expect(receivedSpec).toBe(spec)
+      expect(receivedSpec.metadata).toEqual({
+        material: ['active_customer_ids'],
+        scalarMaterial: ['active_customer_count'],
+      })
       expect(receivedSpec.zsg?.allow).toEqual(['demo'])
       return { sql: `${sql} -- ok`, params }
     })
@@ -466,6 +475,141 @@ describe('catalog read execution', () => {
     )
   })
 
+  it('passes cloned QuerySpec metadata to extensions across execution methods', async () => {
+    const extensionSnapshots: QuerySpecMetadata[] = []
+    const extensionRefs: Array<QuerySpecMetadata | undefined> = []
+    const extensionSpy = vi.fn()
+    const specMetadata = {
+      material: ['active_customer_ids'],
+      scalarMaterial: ['active_customer_count'],
+    }
+    const baseSpec: QuerySpec<[], { id: number }> = {
+      id: 'demo.extension.metadata',
+      sqlFile: 'meta-extension.sql',
+      params: { shape: 'positional', example: [] },
+      metadata: specMetadata,
+      output: {
+        example: { id: 1 },
+      },
+    }
+
+    const catalog = createCatalogExecutor({
+      loader: {
+        load: vi.fn((sqlFile: string) =>
+          Promise.resolve(
+            sqlFile === 'scalar-extension.sql'
+              ? 'select 1 as value from demo'
+              : 'select id from demo'
+          )
+        ),
+      },
+      executor: vi.fn((sql: string) => {
+        if (sql.includes('value')) {
+          return Promise.resolve([{ value: 1 }])
+        }
+        return Promise.resolve([{ id: 1 }])
+      }),
+      extensions: [
+        {
+          name: 'metadata-probe',
+          wrap(next) {
+            return async (input) => {
+              extensionRefs.push(input.metadata)
+              extensionSnapshots.push({
+                material: [...(input.metadata?.material ?? [])],
+                scalarMaterial: [...(input.metadata?.scalarMaterial ?? [])],
+              })
+              extensionSpy(input.metadata)
+              input.metadata?.material?.push('mutated-material')
+              input.metadata?.scalarMaterial?.push('mutated-scalar')
+              return next(input)
+            }
+          },
+        },
+      ],
+    })
+
+    const scalarSpec: QuerySpec<[], number> = {
+      ...baseSpec,
+      sqlFile: 'scalar-extension.sql',
+      output: { example: 1 },
+    }
+
+    const cases = [
+      {
+        label: 'list',
+        run: () => catalog.list(baseSpec, []),
+      },
+      {
+        label: 'one',
+        run: () => catalog.one(baseSpec, []),
+      },
+      {
+        label: 'scalar',
+        run: () => catalog.scalar(scalarSpec, []),
+      },
+    ]
+
+    for (const testCase of cases) {
+      extensionSpy.mockClear()
+      extensionRefs.length = 0
+      extensionSnapshots.length = 0
+      await testCase.run()
+      expect(extensionSpy, testCase.label).toHaveBeenCalledTimes(1)
+      expect(extensionSnapshots).toEqual([{
+        material: ['active_customer_ids'],
+        scalarMaterial: ['active_customer_count'],
+      }])
+      expect(extensionRefs[0]).not.toBe(baseSpec.metadata)
+      expect(extensionRefs[0]?.material).not.toBe(baseSpec.metadata?.material)
+      expect(extensionRefs[0]?.scalarMaterial).not.toBe(baseSpec.metadata?.scalarMaterial)
+      expect(baseSpec.metadata).toBe(specMetadata)
+      expect(baseSpec.metadata?.material).toBe(specMetadata.material)
+      expect(baseSpec.metadata?.scalarMaterial).toBe(specMetadata.scalarMaterial)
+      expect(baseSpec.metadata).toEqual({
+        material: ['active_customer_ids'],
+        scalarMaterial: ['active_customer_count'],
+      })
+    }
+  })
+
+  it('rejects unsafe metadata identifiers before extensions run', async () => {
+    const extensionSpy = vi.fn()
+    const catalog = createCatalogExecutor({
+      loader: { load: vi.fn(() => Promise.resolve('select id from demo')) },
+      executor: vi.fn(() => Promise.resolve([{ id: 1 }])),
+      extensions: [
+        {
+          name: 'metadata-probe',
+          wrap(next) {
+            return async (input) => {
+              extensionSpy(input.metadata)
+              return next(input)
+            }
+          },
+        },
+      ],
+    })
+
+    const spec: QuerySpec<[], { id: number }> = {
+      id: 'demo.extension.metadata.invalid',
+      sqlFile: 'meta-invalid.sql',
+      params: { shape: 'positional', example: [] },
+      metadata: {
+        material: ['safe_name', 'bad-name'],
+      },
+      output: {
+        example: { id: 1 },
+      },
+    }
+
+    await expect(catalog.list(spec, [])).rejects.toBeInstanceOf(ContractViolationError)
+    await expect(catalog.list(spec, [])).rejects.toMatchObject({
+      specId: spec.id,
+      message: expect.stringContaining('unsafe metadata.material identifier'),
+    })
+    expect(extensionSpy).not.toHaveBeenCalled()
+  })
   it('fails when a binder returns non-array params', async () => {
     const loader = { load: vi.fn(() => Promise.resolve('select id from demo')) }
     const executor = vi.fn(() => Promise.resolve([{ id: 1 }]))
