@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { applyQueryOutputControls, formatQueryUsageReport } from '../query/format';
+import { applyQueryPatch } from '../query/patch';
 import { buildQueryUsageReport, writeQueryUsageOutput } from '../query/report';
 import { buildQuerySliceReport } from '../query/slice';
 import {
@@ -7,7 +8,7 @@ import {
   formatQueryStructureReport,
   type QueryStructureFormat
 } from '../query/structure';
-import { getAgentOutputFormat, parseJsonPayload } from '../utils/agentCli';
+import { getAgentOutputFormat, isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
 import { withSpanSync } from '../utils/telemetry';
 
 interface QueryUsesOptions {
@@ -37,6 +38,13 @@ interface QuerySliceOptions {
   limit?: string;
 }
 
+interface QueryPatchApplyOptions {
+  cte?: string;
+  from?: string;
+  out?: string;
+  preview?: boolean;
+}
+
 export const QUERY_USES_COMMAND_SPANS = {
   resolveOptions: 'resolve-query-options',
   renderOutput: 'render-query-usage-output',
@@ -59,6 +67,7 @@ Examples:
   $ ztd query outline large_query.sql
   $ ztd query graph large_query.sql --format dot
   $ ztd query slice large_query.sql --cte purchase_summary
+  $ ztd query patch apply large_query.sql --cte purchase_summary --from edited_slice.sql --preview
 
 Notes:
   - Strict mode is the default. Relaxed modes are explicit opt-in only.
@@ -149,6 +158,19 @@ Notes:
     .action((sqlFile: string, options: QuerySliceOptions) => {
       runQuerySliceCommand(sqlFile, options);
     });
+
+  query
+    .command('patch')
+    .description('Apply AI-edited SQL fragments back onto the original query safely')
+    .command('apply <sqlFile>')
+    .description('Replace one CTE in the original SQL with the matching definition from an edited SQL file')
+    .option('--cte <name>', 'Target CTE name to replace in the original query')
+    .option('--from <path>', 'Edited SQL file that contains the replacement CTE definition')
+    .option('--preview', 'Emit a unified diff without writing files')
+    .option('--out <path>', 'Write the patched SQL to a new file instead of overwriting the original')
+    .action((sqlFile: string, options: QueryPatchApplyOptions) => {
+      runQueryPatchApplyCommand(sqlFile, options);
+    });
 }
 
 function runQueryUsesCommand(kind: 'table' | 'column', target: string | undefined, options: QueryUsesOptions): void {
@@ -232,6 +254,49 @@ function runQuerySliceCommand(sqlFile: string, options: QuerySliceOptions): void
   console.log(report.sql.trimEnd());
 }
 
+function runQueryPatchApplyCommand(sqlFile: string, options: QueryPatchApplyOptions): void {
+  const cte = normalizeRequiredStringOption(options.cte, '--cte');
+  const from = normalizeRequiredStringOption(options.from, '--from');
+  const report = applyQueryPatch(sqlFile, {
+    cte,
+    from,
+    out: normalizeStringOption(options.out),
+    preview: normalizeBooleanOption(options.preview)
+  });
+
+  if (isJsonOutput()) {
+    writeCommandEnvelope('query patch apply', {
+      schemaVersion: 1,
+      file: report.file,
+      edited_file: report.edited_file,
+      target_cte: report.target_cte,
+      preview: report.preview,
+      changed: report.changed,
+      written: report.written,
+      output_file: report.output_file,
+      diff: report.diff,
+      updated_sql: report.updated_sql
+    });
+    return;
+  }
+
+  if (report.preview) {
+    process.stdout.write(report.diff);
+    if (!report.diff.endsWith('\n')) {
+      process.stdout.write('\n');
+    }
+    return;
+  }
+
+  process.stdout.write([
+    `Patched CTE: ${report.target_cte}`,
+    `Edited SQL: ${report.edited_file}`,
+    `Output file: ${report.output_file}`,
+    `Changed: ${report.changed ? 'yes' : 'no'}`
+  ].join('\n'));
+  process.stdout.write('\n');
+}
+
 function normalizeLimit(value: unknown): number | undefined {
   if (value === undefined) {
     return undefined;
@@ -254,6 +319,14 @@ function normalizeStringOption(value: unknown): string | undefined {
     throw new Error(`Expected a string option but received ${typeof value}.`);
   }
   return value;
+}
+
+function normalizeRequiredStringOption(value: unknown, label: string): string {
+  const normalized = normalizeStringOption(value);
+  if (!normalized) {
+    throw new Error(`${label} is required.`);
+  }
+  return normalized;
 }
 
 function normalizeBooleanOption(value: unknown): boolean {
