@@ -34,6 +34,7 @@ export interface QuerySliceOptions {
   cte?: string;
   final?: boolean;
   limit?: number;
+  excludeCtes?: string[];
 }
 
 export interface QuerySliceReport {
@@ -54,16 +55,25 @@ export function buildQuerySliceReport(sqlFile: string, options: QuerySliceOption
   const sql = readFileSync(absolutePath, 'utf8');
   const statement = assertSupportedStatement(SqlParser.parse(sql), 'ztd query slice');
   const analysis = analyzeStatement(statement);
+  const excludedSet = new Set(options.excludeCtes ?? []);
 
   if (analysis.ctes.length === 0) {
     throw new Error('ztd query slice requires a query with at least one CTE.');
   }
 
   if (options.cte) {
-    return buildTargetSliceReport(absolutePath, statement, analysis.ctes, analysis.dependencyMap, options.cte, options.limit);
+    return buildTargetSliceReport(
+      absolutePath,
+      statement,
+      analysis.ctes,
+      analysis.dependencyMap,
+      options.cte,
+      options.limit,
+      excludedSet
+    );
   }
 
-  return buildFinalSliceReport(absolutePath, sql, options.limit);
+  return buildFinalSliceReport(absolutePath, sql, options.limit, excludedSet);
 }
 
 function buildTargetSliceReport(
@@ -72,9 +82,13 @@ function buildTargetSliceReport(
   ctes: CommonTable[],
   dependencyMap: Map<string, string[]>,
   targetName: string,
-  limit: number | undefined
+  limit: number | undefined,
+  excludedSet: Set<string>
 ): QuerySliceReport {
-  const includedNames = collectDependencyClosure(targetName, dependencyMap);
+  const stopSet = new Set([...excludedSet].filter((name) => name !== targetName));
+  const includedNames = collectDependencyClosure(targetName, dependencyMap, stopSet).filter(
+    (name) => name === targetName || !excludedSet.has(name)
+  );
   if (!includedNames.includes(targetName)) {
     throw new Error(`CTE not found in query: ${targetName}`);
   }
@@ -98,19 +112,25 @@ function buildTargetSliceReport(
     mode: 'cte',
     target: targetName,
     included_ctes: includedCtes.map((cte) => cte.aliasExpression.table.name),
-    sql: `${sql}\n`
+    sql: `${sql}
+`
   };
 }
 
 function buildFinalSliceReport(
   absolutePath: string,
   sql: string,
-  limit: number | undefined
+  limit: number | undefined,
+  excludedSet: Set<string>
 ): QuerySliceReport {
   const parsed = assertSupportedStatement(SqlParser.parse(sql), 'ztd query slice');
   const analysis = analyzeStatement(parsed);
-  const includedSet = collectReachableCtes(analysis.rootDependencies, analysis.dependencyMap);
-  const includedCtes = filterCtesByOrder(analysis.ctes, [...includedSet]);
+  const includedSet = collectReachableCtes(analysis.rootDependencies, analysis.dependencyMap, excludedSet);
+
+  const includedCtes = filterCtesByOrder(
+    analysis.ctes,
+    [...includedSet].filter((name) => !excludedSet.has(name))
+  );
 
   // Retain only the transitive closure needed by the final statement.
   applyMinimalWithClause(parsed, includedCtes);
@@ -127,7 +147,8 @@ function buildFinalSliceReport(
         mode: 'final',
         target: 'FINAL_QUERY',
         included_ctes: includedCtes.map((cte) => cte.aliasExpression.table.name),
-        sql: `${formatter.format(wrapped).formattedSql}\n`
+        sql: `${formatter.format(wrapped).formattedSql}
+`
       };
     } else {
       throw new Error('--limit is only supported for SELECT final slices or --cte slices.');
@@ -140,7 +161,8 @@ function buildFinalSliceReport(
     mode: 'final',
     target: 'FINAL_QUERY',
     included_ctes: includedCtes.map((cte) => cte.aliasExpression.table.name),
-    sql: `${formatter.format(parsed).formattedSql}\n`
+    sql: `${formatter.format(parsed).formattedSql}
+`
   };
 }
 

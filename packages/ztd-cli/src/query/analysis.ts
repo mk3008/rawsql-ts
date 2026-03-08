@@ -114,7 +114,11 @@ export function collectRootDependencies(statement: SupportedStatement, cteNames:
   return collectReferencedCteNames(cteNameSet, statement.deleteClause.source, statement.usingClause, statement.whereClause);
 }
 
-export function collectReachableCtes(rootDependencies: string[], dependencyMap: Map<string, string[]>): Set<string> {
+export function collectReachableCtes(
+  rootDependencies: string[],
+  dependencyMap: Map<string, string[]>,
+  stopSet: ReadonlySet<string> = new Set<string>()
+): Set<string> {
   const visited = new Set<string>();
   const queue = [...rootDependencies];
 
@@ -125,6 +129,12 @@ export function collectReachableCtes(rootDependencies: string[], dependencyMap: 
     }
 
     visited.add(current);
+
+    // Treat already-satisfied CTEs as traversal stops so downstream slices stay minimal.
+    if (stopSet.has(current)) {
+      continue;
+    }
+
     for (const dependency of dependencyMap.get(current) ?? []) {
       if (!visited.has(dependency)) {
         queue.push(dependency);
@@ -135,7 +145,11 @@ export function collectReachableCtes(rootDependencies: string[], dependencyMap: 
   return visited;
 }
 
-export function collectDependencyClosure(targetName: string, dependencyMap: Map<string, string[]>): string[] {
+export function collectDependencyClosure(
+  targetName: string,
+  dependencyMap: Map<string, string[]>,
+  stopSet: ReadonlySet<string> = new Set<string>()
+): string[] {
   const ordered: string[] = [];
   const visiting = new Set<string>();
   const visited = new Set<string>();
@@ -146,9 +160,14 @@ export function collectDependencyClosure(targetName: string, dependencyMap: Map<
     }
 
     visiting.add(name);
-    for (const dependency of dependencyMap.get(name) ?? []) {
-      visit(dependency);
+
+    // Preserve the stop node itself, but do not recurse into its upstream dependencies.
+    if (!stopSet.has(name)) {
+      for (const dependency of dependencyMap.get(name) ?? []) {
+        visit(dependency);
+      }
     }
+
     visiting.delete(name);
     visited.add(name);
     ordered.push(name);
