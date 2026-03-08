@@ -505,6 +505,108 @@ test('query graph preserves multiple direct roots in final_query', () => {
   expect(payload.final_query).toBe('left_data, right_data');
 });
 
+
+test('query plan emits deterministic text steps from metadata flags', () => {
+  const workspace = createSqlWorkspace('query-plan-text', path.join('src', 'sql', 'plan.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    [
+      'with base_users as (',
+      '  select id, region_id from public.users',
+      '),',
+      'filtered_users as (',
+      '  select id from base_users where region_id is not null',
+      '),',
+      'summary_total as (',
+      '  select count(*) as total_count from filtered_users',
+      '),',
+      'ranked_users as (',
+      '  select fu.id, st.total_count',
+      '  from filtered_users fu',
+      '  cross join summary_total st',
+      ')',
+      'select * from ranked_users'
+    ].join('\n'),
+    'utf8'
+  );
+
+  const result = runCli([
+    'query',
+    'plan',
+    workspace.sqlFile,
+    '--material',
+    'ranked_users,filtered_users',
+    '--scalar-material',
+    'summary_total'
+  ], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query plan text');
+  expect(result.stdout).toContain('Query type: SELECT');
+  expect(result.stdout).toContain('Material CTEs: ranked_users, filtered_users');
+  expect(result.stdout).toContain('Scalar material CTEs: summary_total');
+  expect(result.stdout).toContain('1. materialize filtered_users');
+  expect(result.stdout).toContain('2. scalar materialize summary_total');
+  expect(result.stdout).toContain('3. materialize ranked_users');
+  expect(result.stdout).toContain('4. run final query');
+});
+
+test('query plan accepts JSON metadata and emits machine-readable JSON', () => {
+  const workspace = createSqlWorkspace('query-plan-json', path.join('src', 'sql', 'plan.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    [
+      'with base_users as (',
+      '  select id from public.users',
+      '),',
+      'filtered_users as (',
+      '  select id from base_users',
+      '),',
+      'summary_total as (',
+      '  select count(*) as total_count from filtered_users',
+      ')',
+      'select * from filtered_users'
+    ].join('\n'),
+    'utf8'
+  );
+
+  const result = runCli([
+    'query',
+    'plan',
+    workspace.sqlFile,
+    '--json',
+    JSON.stringify({
+      format: 'json',
+      material: ['filtered_users'],
+      scalarMaterial: ['summary_total']
+    })
+  ], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query plan json');
+  const payload = JSON.parse(result.stdout);
+  expect(payload.query_type).toBe('SELECT');
+  expect(payload.metadata).toEqual({
+    material: ['filtered_users'],
+    scalarMaterial: ['summary_total']
+  });
+  expect(payload.steps).toEqual([
+    {
+      step: 1,
+      kind: 'materialize',
+      target: 'filtered_users',
+      depends_on: ['base_users']
+    },
+    {
+      step: 2,
+      kind: 'scalar-materialize',
+      target: 'summary_total',
+      depends_on: ['filtered_users']
+    },
+    {
+      step: 3,
+      kind: 'final-query',
+      target: 'FINAL_QUERY',
+      depends_on: ['filtered_users']
+    }
+  ]);
+});
 test('query outline supports DML statements with CTE analysis', () => {
   const workspace = createSqlWorkspace('query-outline-insert', path.join('src', 'sql', 'insert_report.sql'));
   writeFileSync(
