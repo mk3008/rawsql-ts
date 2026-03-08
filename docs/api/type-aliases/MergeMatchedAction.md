@@ -3,5 +3,5 @@
 
 > **MergeMatchedAction** = `"update"` \| `"delete"` \| `"doNothing"`
 
-Defined in: [packages/core/src/models/SelectQuery.ts:62](https://github.com/mk3008/rawsql-ts/blob/c806394179a44299deb73d3295756815d95eb53b/packages/core/src/models/SelectQuery.ts#L62)
+Defined in: [packages/core/src/models/SelectQuery.ts:62](https://github.com/mk3008/rawsql-ts/blob/d0f163554c861b2dd282c2088d010eb950ef4180/packages/core/src/models/SelectQuery.ts#L62)
 </div>
