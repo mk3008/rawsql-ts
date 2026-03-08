@@ -6,6 +6,7 @@ import {
   type QueryPipelinePlanFormat
 } from '../query/planner';
 import { buildQueryUsageReport, writeQueryUsageOutput } from '../query/report';
+import { buildQuerySliceReport } from '../query/slice';
 import {
   buildQueryStructureReport,
   formatQueryStructureReport,
@@ -42,6 +43,13 @@ interface QueryPlanOptions {
   json?: string;
 }
 
+interface QuerySliceOptions {
+  cte?: string;
+  final?: boolean;
+  out?: string;
+  limit?: string;
+}
+
 export const QUERY_USES_COMMAND_SPANS = {
   resolveOptions: 'resolve-query-options',
   renderOutput: 'render-query-usage-output',
@@ -63,6 +71,7 @@ Examples:
   $ ztd query uses column email --any-schema --any-table --format json
   $ ztd query outline large_query.sql
   $ ztd query graph large_query.sql --format dot
+  $ ztd query slice large_query.sql --cte purchase_summary
   $ ztd query plan large_query.sql --material base_cte --scalar-material total_cte --format json
 
 Notes:
@@ -76,7 +85,7 @@ Notes:
 `
   );
 
-  // Keep outline/graph/plan aligned with the existing query surface from main.
+  // Keep outline/graph/slice/plan aligned with the existing query surface from main.
   // Issue #518 intentionally limits telemetry instrumentation in this file to query uses
   // so conflict resolution does not narrow the established query command surface.
   const uses = query.command('uses').description('Find where catalog SQL uses a table or column target');
@@ -132,7 +141,7 @@ Notes:
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--out <path>', 'Write output to file')
     .action((sqlFile: string, options: QueryStructureOptions) => {
-      runQueryStructureCommand(sqlFile, options, false);
+      runQueryStructureCommand(sqlFile, options, false, 'ztd query outline');
     });
 
   query
@@ -141,7 +150,18 @@ Notes:
     .option('--format <format>', 'Output format (text|json|dot)', 'text')
     .option('--out <path>', 'Write output to file')
     .action((sqlFile: string, options: QueryStructureOptions) => {
-      runQueryStructureCommand(sqlFile, options, true);
+      runQueryStructureCommand(sqlFile, options, true, 'ztd query graph');
+    });
+
+  query
+    .command('slice <sqlFile>')
+    .description('Generate a minimal executable SQL slice for a target CTE or the final query')
+    .option('--cte <name>', 'Slice a specific CTE into a standalone debug query')
+    .option('--final', 'Slice the final query while removing unused CTEs')
+    .option('--limit <count>', 'Add LIMIT to the emitted debug query when supported')
+    .option('--out <path>', 'Write output to file')
+    .action((sqlFile: string, options: QuerySliceOptions) => {
+      runQuerySliceCommand(sqlFile, options);
     });
 
   query
@@ -209,15 +229,33 @@ function runQueryUsesCommand(kind: 'table' | 'column', target: string | undefine
   });
 }
 
-function runQueryStructureCommand(sqlFile: string, options: QueryStructureOptions, allowDot: boolean): void {
+function runQueryStructureCommand(
+  sqlFile: string,
+  options: QueryStructureOptions,
+  allowDot: boolean,
+  commandName: string
+): void {
   const format = normalizeStructureFormat(options.format ?? 'text', allowDot);
-  const report = buildQueryStructureReport(sqlFile);
+  const report = buildQueryStructureReport(sqlFile, commandName);
   const contents = formatQueryStructureReport(report, format);
   if (options.out) {
     writeQueryUsageOutput(options.out, contents);
     return;
   }
   console.log(contents.trimEnd());
+}
+
+function runQuerySliceCommand(sqlFile: string, options: QuerySliceOptions): void {
+  const report = buildQuerySliceReport(sqlFile, {
+    cte: normalizeStringOption(options.cte),
+    final: normalizeBooleanOption(options.final),
+    limit: normalizeLimit(options.limit)
+  });
+  if (options.out) {
+    writeQueryUsageOutput(options.out, report.sql);
+    return;
+  }
+  console.log(report.sql.trimEnd());
 }
 
 function runQueryPlanCommand(sqlFile: string, options: QueryPlanOptions): void {

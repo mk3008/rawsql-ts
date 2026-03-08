@@ -143,3 +143,12 @@ test('formatQueryStructureReport renders json for agents and text for humans', (
   expect(textOutput).toContain('Referenced tables:');
   expect(textOutput).toContain('public.users');
 });
+
+test('buildQueryStructureReport reports the caller command name on unsupported input', () => {
+  const workspace = createSqlWorkspace('query-graph-unsupported');
+  writeFileSync(workspace.sqlFile, 'create table public.users (id integer primary key)', 'utf8');
+
+  expect(() => buildQueryStructureReport(workspace.sqlFile, 'ztd query graph')).toThrow(
+    'ztd query graph supports SELECT/INSERT/UPDATE/DELETE statements only.'
+  );
+});

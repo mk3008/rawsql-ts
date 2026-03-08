@@ -1,23 +1,17 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { SqlParser, TableSourceCollector, normalizeTableName } from 'rawsql-ts';
+import { TableSource } from 'rawsql-ts';
 import {
-  BinarySelectQuery,
-  CTECollector,
-  CTEDependencyAnalyzer,
-  CTETableReferenceCollector,
-  DeleteQuery,
-  InsertQuery,
-  SimpleSelectQuery,
-  SqlParser,
-  TableSource,
-  TableSourceCollector,
-  UpdateQuery,
-  ValuesQuery,
-  normalizeTableName
-} from 'rawsql-ts';
-import { FromClause, SourceExpression } from 'rawsql-ts';
+  analyzeStatement,
+  assertSupportedStatement,
+  collectDirectSources,
+  collectReachableCtes,
+  detectQueryType,
+  type SupportedStatement,
+  uniquePreservingOrder
+} from './analysis';
 
-type SupportedStatement = SimpleSelectQuery | BinarySelectQuery | ValuesQuery | InsertQuery | UpdateQuery | DeleteQuery;
 export type QueryStructureFormat = 'text' | 'json' | 'dot';
 
 export interface QueryStructureNode {
@@ -40,18 +34,14 @@ export interface QueryStructureReport {
 /**
  * Parse a SQL file and summarize its CTE graph and referenced base tables.
  */
-export function buildQueryStructureReport(sqlFile: string): QueryStructureReport {
+export function buildQueryStructureReport(sqlFile: string, commandName: string = 'ztd query outline'): QueryStructureReport {
   const absolutePath = path.resolve(sqlFile);
   const sql = readFileSync(absolutePath, 'utf8');
   const parsed = SqlParser.parse(sql);
-  const statement = assertSupportedStatement(parsed);
-  const cteCollector = new CTECollector();
-  const ctes = cteCollector.collect(statement);
-  const cteNames = ctes.map((cte) => cte.aliasExpression.table.name);
-  const dependencyMap = buildDependencyMap(statement, ctes);
-  const rootDependencies = collectRootDependencies(statement, cteNames);
-  const usedCtes = collectReachableCtes(rootDependencies, dependencyMap);
-  const unusedCtes = cteNames.filter((name) => !usedCtes.has(name)).sort();
+  const statement = assertSupportedStatement(parsed, commandName);
+  const analysis = analyzeStatement(statement);
+  const usedCtes = collectReachableCtes(analysis.rootDependencies, analysis.dependencyMap);
+  const unusedCtes = analysis.cteNames.filter((name) => !usedCtes.has(name)).sort();
   const referencedTables = Array.from(
     new Set(new TableSourceCollector(false).collect(statement).map((source) => normalizeCollectedTableName(source)))
   ).sort();
@@ -59,14 +49,14 @@ export function buildQueryStructureReport(sqlFile: string): QueryStructureReport
   return {
     query_type: detectQueryType(statement),
     file: absolutePath,
-    cte_count: ctes.length,
-    ctes: cteNames.map((name) => ({
+    cte_count: analysis.ctes.length,
+    ctes: analysis.cteNames.map((name) => ({
       name,
-      depends_on: [...(dependencyMap.get(name) ?? [])].sort(),
+      depends_on: [...(analysis.dependencyMap.get(name) ?? [])].sort(),
       used_by_final_query: usedCtes.has(name),
       unused: !usedCtes.has(name)
     })),
-    final_query: resolveFinalQuery(statement, cteNames, rootDependencies),
+    final_query: resolveFinalQuery(statement, analysis.cteNames, analysis.rootDependencies),
     referenced_tables: referencedTables,
     unused_ctes: unusedCtes
   };
@@ -145,80 +135,6 @@ function formatQueryStructureDot(report: QueryStructureReport): string {
   return lines.join('\n');
 }
 
-function assertSupportedStatement(parsed: ReturnType<typeof SqlParser.parse>): SupportedStatement {
-  if (
-    parsed instanceof SimpleSelectQuery ||
-    parsed instanceof BinarySelectQuery ||
-    parsed instanceof ValuesQuery ||
-    parsed instanceof InsertQuery ||
-    parsed instanceof UpdateQuery ||
-    parsed instanceof DeleteQuery
-  ) {
-    return parsed;
-  }
-
-  throw new Error('ztd query outline supports SELECT/INSERT/UPDATE/DELETE statements only.');
-}
-
-function detectQueryType(statement: SupportedStatement): QueryStructureReport['query_type'] {
-  if (statement instanceof InsertQuery) {
-    return 'INSERT';
-  }
-  if (statement instanceof UpdateQuery) {
-    return 'UPDATE';
-  }
-  if (statement instanceof DeleteQuery) {
-    return 'DELETE';
-  }
-  return 'SELECT';
-}
-
-function buildDependencyMap(
-  statement: SupportedStatement,
-  ctes: ReturnType<CTECollector['collect']>
-): Map<string, string[]> {
-  const cteNames = ctes.map((cte) => cte.aliasExpression.table.name);
-
-  if (isSelectStatement(statement)) {
-    const analyzer = new CTEDependencyAnalyzer();
-    analyzer.analyzeDependencies(statement as SimpleSelectQuery);
-    return new Map(cteNames.map((name) => [name, analyzer.getDependencies(name).filter((dependency) => cteNames.includes(dependency))]));
-  }
-
-  const collector = new CTETableReferenceCollector();
-  const cteNameSet = new Set(cteNames);
-  return new Map(
-    ctes.map((cte) => {
-      const references = collector.collect(cte.query).map((source) => source.table.name);
-      const dependencies = Array.from(new Set(references.filter((reference) => cteNameSet.has(reference) && reference !== cte.aliasExpression.table.name)));
-      return [cte.aliasExpression.table.name, dependencies];
-    })
-  );
-}
-
-function collectRootDependencies(statement: SupportedStatement, cteNames: string[]): string[] {
-  const cteNameSet = new Set(cteNames);
-
-  if (isSelectStatement(statement)) {
-    const collector = new CTETableReferenceCollector();
-    return uniquePreservingOrder(
-      collector.collect(statement).map((source) => source.table.name).filter((name) => cteNameSet.has(name))
-    );
-  }
-
-  if (statement instanceof InsertQuery && statement.selectQuery) {
-    return collectRootDependencies(assertSupportedStatement(statement.selectQuery as ReturnType<typeof SqlParser.parse>), cteNames);
-  }
-
-  return uniquePreservingOrder(
-    collectDirectSources(statement)
-      .map((source) => source.datasource)
-      .filter((source): source is TableSource => source instanceof TableSource)
-      .map((source) => source.table.name)
-      .filter((name) => cteNameSet.has(name))
-  );
-}
-
 function resolveFinalQuery(statement: SupportedStatement, cteNames: string[], rootDependencies: string[]): string | null {
   if (rootDependencies.length > 0) {
     return rootDependencies.join(', ');
@@ -239,73 +155,6 @@ function resolveFinalQuery(statement: SupportedStatement, cteNames: string[], ro
   return directSources.join(', ');
 }
 
-function collectReachableCtes(rootDependencies: string[], dependencyMap: Map<string, string[]>): Set<string> {
-  const visited = new Set<string>();
-  const queue = [...rootDependencies];
-
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current || visited.has(current)) {
-      continue;
-    }
-    visited.add(current);
-    for (const dependency of dependencyMap.get(current) ?? []) {
-      if (!visited.has(dependency)) {
-        queue.push(dependency);
-      }
-    }
-  }
-
-  return visited;
-}
-
-function collectDirectSources(statement: SupportedStatement): SourceExpression[] {
-  if (isSelectStatement(statement)) {
-    return collectSelectSources(statement);
-  }
-  if (statement instanceof InsertQuery) {
-    return statement.selectQuery
-      ? collectDirectSources(assertSupportedStatement(statement.selectQuery as ReturnType<typeof SqlParser.parse>))
-      : [statement.insertClause.source];
-  }
-  if (statement instanceof UpdateQuery) {
-    return [statement.updateClause.source, ...collectSourcesFromFromClause(statement.fromClause)];
-  }
-  return [statement.deleteClause.source, ...(statement.usingClause?.getSources() ?? [])];
-}
-
-function collectSelectSources(statement: SimpleSelectQuery | BinarySelectQuery | ValuesQuery): SourceExpression[] {
-  if (statement instanceof BinarySelectQuery) {
-    return [
-      ...collectSelectSources(assertSelectStatement(statement.left)),
-      ...collectSelectSources(assertSelectStatement(statement.right))
-    ];
-  }
-  if (statement instanceof ValuesQuery) {
-    return [];
-  }
-  return collectSourcesFromFromClause(statement.fromClause);
-}
-
-function assertSelectStatement(statement: unknown): SimpleSelectQuery | BinarySelectQuery | ValuesQuery {
-  if (
-    statement instanceof SimpleSelectQuery ||
-    statement instanceof BinarySelectQuery ||
-    statement instanceof ValuesQuery
-  ) {
-    return statement;
-  }
-
-  throw new Error('Expected a SELECT-compatible statement.');
-}
-
-function collectSourcesFromFromClause(fromClause: FromClause | null | undefined): SourceExpression[] {
-  if (!fromClause) {
-    return [];
-  }
-  return fromClause.getSources();
-}
-
 function normalizeCollectedTableName(source: TableSource): string {
   const namespaces = source.qualifiedName.namespaces?.map((namespace) => namespace.name) ?? [];
   return normalizeTableName([...namespaces, source.table.name].join('.'));
@@ -316,21 +165,4 @@ function normalizeFinalSourceName(source: TableSource, cteNameSet: Set<string>):
     return source.table.name;
   }
   return normalizeCollectedTableName(source);
-}
-
-function uniquePreservingOrder(values: string[]): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const value of values) {
-    if (seen.has(value)) {
-      continue;
-    }
-    seen.add(value);
-    result.push(value);
-  }
-  return result;
-}
-
-function isSelectStatement(statement: SupportedStatement): statement is SimpleSelectQuery | BinarySelectQuery | ValuesQuery {
-  return statement instanceof SimpleSelectQuery || statement instanceof BinarySelectQuery || statement instanceof ValuesQuery;
 }
