@@ -1,6 +1,11 @@
 import { Command } from 'commander';
 import { formatQueryUsageReport } from '../query/format';
 import { buildQueryUsageReport, writeQueryUsageOutput } from '../query/report';
+import {
+  buildQueryStructureReport,
+  formatQueryStructureReport,
+  type QueryStructureFormat
+} from '../query/structure';
 
 interface QueryUsesOptions {
   format?: string;
@@ -11,6 +16,11 @@ interface QueryUsesOptions {
   view?: string;
   anySchema?: boolean;
   anyTable?: boolean;
+}
+
+interface QueryStructureOptions {
+  format?: string;
+  out?: string;
 }
 
 /**
@@ -27,6 +37,8 @@ Examples:
   $ ztd query uses column public.users.email --view detail
   $ ztd query uses column users.email --any-schema --format json
   $ ztd query uses column email --any-schema --any-table --format json
+  $ ztd query outline large_query.sql
+  $ ztd query graph large_query.sql --format dot
 
 Notes:
   - Strict mode is the default. Relaxed modes are explicit opt-in only.
@@ -79,6 +91,24 @@ Notes:
     .action((target: string, options: QueryUsesOptions) => {
       runQueryUsesCommand('column', target, options);
     });
+
+  query
+    .command('outline <sqlFile>')
+    .description('Summarize query structure, CTE dependencies, and base table usage')
+    .option('--format <format>', 'Output format (text|json)', 'text')
+    .option('--out <path>', 'Write output to file')
+    .action((sqlFile: string, options: QueryStructureOptions) => {
+      runQueryStructureCommand(sqlFile, options, false);
+    });
+
+  query
+    .command('graph <sqlFile>')
+    .description('Emit the query dependency graph in JSON or DOT form')
+    .option('--format <format>', 'Output format (json|dot|text)', 'json')
+    .option('--out <path>', 'Write output to file')
+    .action((sqlFile: string, options: QueryStructureOptions) => {
+      runQueryStructureCommand(sqlFile, options, true);
+    });
 }
 
 function runQueryUsesCommand(kind: 'table' | 'column', target: string, options: QueryUsesOptions): void {
@@ -103,9 +133,31 @@ function runQueryUsesCommand(kind: 'table' | 'column', target: string, options: 
   console.log(contents.trimEnd());
 }
 
+function runQueryStructureCommand(sqlFile: string, options: QueryStructureOptions, allowDot: boolean): void {
+  const format = normalizeStructureFormat(options.format ?? (allowDot ? 'json' : 'text'), allowDot);
+  const report = buildQueryStructureReport(sqlFile);
+  const contents = formatQueryStructureReport(report, format);
+  if (options.out) {
+    writeQueryUsageOutput(options.out, contents);
+    return;
+  }
+  console.log(contents.trimEnd());
+}
+
 function normalizeFormat(format: string): 'text' | 'json' {
   const normalized = format.trim().toLowerCase();
   if (normalized === 'text' || normalized === 'json') {
+    return normalized;
+  }
+  throw new Error(`Unsupported format: ${format}`);
+}
+
+function normalizeStructureFormat(format: string, allowDot: boolean): QueryStructureFormat {
+  const normalized = format.trim().toLowerCase();
+  if (normalized === 'text' || normalized === 'json') {
+    return normalized;
+  }
+  if (allowDot && normalized === 'dot') {
     return normalized;
   }
   throw new Error(`Unsupported format: ${format}`);

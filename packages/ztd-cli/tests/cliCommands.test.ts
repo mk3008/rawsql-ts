@@ -136,8 +136,113 @@ test('top-level help exposes model-gen as a first-class command', () => {
   const result = runCli(['--help']);
   assertCliSuccess(result, '--help');
   expect(result.stdout).toContain('model-gen [options] <sql-file>');
+  expect(result.stdout).toContain('query');
 });
 
+test('query outline summarizes CTE dependencies and unused CTEs', () => {
+  const workspace = createSqlWorkspace('query-outline', path.join('src', 'sql', 'reports', 'ranked_users.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with users_base as (
+        select id, region_id from public.users
+      ),
+      filtered_users as (
+        select id from users_base where region_id in (
+          select id from public.regions where active = true
+        )
+      ),
+      purchase_summary as (
+        select o.user_id, count(*) as order_count
+        from public.orders o
+        join filtered_users fu on fu.id = o.user_id
+        group by o.user_id
+      ),
+      ranked_users as (
+        select ps.user_id, ps.order_count
+        from purchase_summary ps
+      ),
+      unused_cte as (
+        select * from public.audit_log
+      )
+      select * from ranked_users
+    `,
+    'utf8'
+  );
+
+  const result = runCli(['query', 'outline', workspace.sqlFile], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query outline');
+  expect(result.stdout).toContain('Query type: SELECT');
+  expect(result.stdout).toContain('CTE count: 5');
+  expect(result.stdout).toContain('4. ranked_users');
+  expect(result.stdout).toContain('5. unused_cte [unused]');
+  expect(result.stdout).toContain('depends_on: purchase_summary');
+  expect(result.stdout).toContain('Final query target:');
+  expect(result.stdout).toContain('ranked_users');
+  expect(result.stdout).toContain('public.audit_log');
+  expect(result.stdout).toContain('Unused CTEs:');
+  expect(result.stdout).toContain('unused_cte');
+});
+
+test('query graph emits machine-readable JSON by default', () => {
+  const workspace = createSqlWorkspace('query-graph-json', path.join('src', 'sql', 'graph.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with base_data as (
+        select id from public.users
+      ),
+      filtered_data as (
+        select id from base_data
+      )
+      select * from filtered_data
+    `,
+    'utf8'
+  );
+
+  const result = runCli(['query', 'graph', workspace.sqlFile], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query graph json');
+  const payload = JSON.parse(result.stdout);
+  expect(payload.query_type).toBe('SELECT');
+  expect(payload.final_query).toBe('filtered_data');
+  expect(payload.ctes).toEqual([
+    {
+      name: 'base_data',
+      depends_on: [],
+      used_by_final_query: true,
+      unused: false
+    },
+    {
+      name: 'filtered_data',
+      depends_on: ['base_data'],
+      used_by_final_query: true,
+      unused: false
+    }
+  ]);
+});
+
+test('query graph emits DOT when requested', () => {
+  const workspace = createSqlWorkspace('query-graph-dot', path.join('src', 'sql', 'graph.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with base_data as (
+        select id from public.users
+      ),
+      final_data as (
+        select id from base_data
+      )
+      select * from final_data
+    `,
+    'utf8'
+  );
+
+  const result = runCli(['query', 'graph', workspace.sqlFile, '--format', 'dot'], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query graph dot');
+  expect(result.stdout).toContain('digraph query_structure {');
+  expect(result.stdout).toContain('"FINAL_QUERY" -> "final_data";');
+  expect(result.stdout).toContain('"final_data" -> "base_data";');
+});
 test('model-gen rejects positional placeholders by default and recommends named params', () => {
   const workspace = createSqlWorkspace('model-gen-positional-error');
   writeFileSync(workspace.sqlFile, 'select * from users where id = $1', 'utf8');
@@ -526,3 +631,4 @@ pullTest('model-gen allows legacy positional placeholders only behind --allow-po
     await client.end();
   }
 }, 60_000);
+
