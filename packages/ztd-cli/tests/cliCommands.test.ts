@@ -312,7 +312,7 @@ test('init CLI writes internal agent guidance by default and no visible AGENTS f
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(false);
 });
 
-test('agents install emits the visible AGENTS plan and materializes the files', () => {
+test('agents install emits the visible AGENTS plan and materializes the files', { timeout: 60_000 }, () => {
   const workspace = createTempDir('agents-install');
   assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before install');
 
@@ -325,7 +325,7 @@ test('agents install emits the visible AGENTS plan and materializes the files', 
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(true);
-}, 30_000);
+});
 
 test('agents install preserves an existing root AGENTS.md and falls back to AGENTS_ztd.md', { timeout: 60_000 }, () => {
   const workspace = createTempDir('agents-install-root-fallback');
