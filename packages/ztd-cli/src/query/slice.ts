@@ -5,7 +5,6 @@ import {
   CommonTable,
   DeleteQuery,
   FromClause,
-  IdentifierString,
   InsertQuery,
   LimitClause,
   LiteralValue,
@@ -164,14 +163,10 @@ function composeSliceSql(recursive: boolean, ctes: CommonTable[], mainQuery: str
     return mainQuery;
   }
 
-  const withKeyword = recursive ? 'with recursive' : 'with';
-  const cteDefinitions = ctes.map((cte) => {
-    const cteName = formatter.format(new IdentifierString(cte.aliasExpression.table.name)).formattedSql;
-    const cteQuery = formatter.format(cte.query).formattedSql;
-    return `${cteName} as (${cteQuery})`;
-  });
-
-  return `${withKeyword} ${cteDefinitions.join(', ')} ${mainQuery}`;
+  // Format the WithClause directly so CommonTable metadata such as materialization hints
+  // and alias column lists survive the slice output intact.
+  const withClause = formatter.format(new WithClause(recursive, ctes)).formattedSql;
+  return `${withClause} ${mainQuery}`;
 }
 
 function buildSelectFromTargetQuery(targetName: string, limit: number | undefined): SimpleSelectQuery {

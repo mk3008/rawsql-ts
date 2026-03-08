@@ -8,6 +8,7 @@ import {
   type QueryStructureFormat
 } from '../query/structure';
 import { getAgentOutputFormat, parseJsonPayload } from '../utils/agentCli';
+import { withSpanSync } from '../utils/telemetry';
 
 interface QueryUsesOptions {
   format?: string;
@@ -35,6 +36,11 @@ interface QuerySliceOptions {
   out?: string;
   limit?: string;
 }
+
+export const QUERY_USES_COMMAND_SPANS = {
+  resolveOptions: 'resolve-query-options',
+  renderOutput: 'render-query-usage-output',
+} as const;
 
 /**
  * Register strict-first impact investigation commands on the CLI root.
@@ -65,6 +71,9 @@ Notes:
 `
   );
 
+  // Keep outline/graph aligned with the existing query surface from main.
+  // Issue #518 intentionally limits telemetry instrumentation in this file to query uses
+  // so conflict resolution does not narrow the established query command surface.
   const uses = query.command('uses').description('Find where catalog SQL uses a table or column target');
 
   uses
@@ -118,7 +127,7 @@ Notes:
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--out <path>', 'Write output to file')
     .action((sqlFile: string, options: QueryStructureOptions) => {
-      runQueryStructureCommand(sqlFile, options, false);
+      runQueryStructureCommand(sqlFile, options, false, 'ztd query outline');
     });
 
   query
@@ -127,7 +136,7 @@ Notes:
     .option('--format <format>', 'Output format (text|json|dot)', 'text')
     .option('--out <path>', 'Write output to file')
     .action((sqlFile: string, options: QueryStructureOptions) => {
-      runQueryStructureCommand(sqlFile, options, true);
+      runQueryStructureCommand(sqlFile, options, true, 'ztd query graph');
     });
 
   query
@@ -143,40 +152,65 @@ Notes:
 }
 
 function runQueryUsesCommand(kind: 'table' | 'column', target: string | undefined, options: QueryUsesOptions): void {
-  const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
-  const format = normalizeFormat(normalizeStringOption(merged.format) ?? getAgentOutputFormat());
-  const view = normalizeView(normalizeStringOption(merged.view) ?? 'impact');
-  const resolvedTarget = normalizeStringOption(merged.target) ?? target;
-  if (!resolvedTarget) {
-    throw new Error('A target must be provided either as a positional argument or via --json {"target": "..."}');
-  }
+  const resolved = withSpanSync(QUERY_USES_COMMAND_SPANS.resolveOptions, () => {
+    const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+    const format = normalizeFormat(normalizeStringOption(merged.format) ?? getAgentOutputFormat());
+    const view = normalizeView(normalizeStringOption(merged.view) ?? 'impact');
+    const resolvedTarget = normalizeStringOption(merged.target) ?? target;
+    if (!resolvedTarget) {
+      throw new Error('A target must be provided either as a positional argument or via --json {"target": "..."}');
+    }
+
+    return {
+      merged,
+      format,
+      view,
+      resolvedTarget,
+    };
+  }, {
+    kind,
+    targetProvided: Boolean(target),
+    jsonPayload: Boolean(options.json),
+  });
+
   const report = buildQueryUsageReport({
     kind,
-    rawTarget: resolvedTarget,
+    rawTarget: resolved.resolvedTarget,
     rootDir: process.env.ZTD_PROJECT_ROOT,
-    specsDir: normalizeStringOption(merged.specsDir),
-    sqlRoot: normalizeStringOption(merged.sqlRoot),
-    excludeGenerated: normalizeBooleanOption(merged.excludeGenerated),
-    view,
-    anySchema: normalizeBooleanOption(merged.anySchema),
-    anyTable: normalizeBooleanOption(merged.anyTable)
+    specsDir: normalizeStringOption(resolved.merged.specsDir),
+    sqlRoot: normalizeStringOption(resolved.merged.sqlRoot),
+    excludeGenerated: normalizeBooleanOption(resolved.merged.excludeGenerated),
+    view: resolved.view,
+    anySchema: normalizeBooleanOption(resolved.merged.anySchema),
+    anyTable: normalizeBooleanOption(resolved.merged.anyTable)
   });
-  const limitedReport = applyQueryOutputControls(report, {
-    summaryOnly: normalizeBooleanOption(merged.summaryOnly),
-    limit: normalizeLimit(merged.limit)
+
+  withSpanSync(QUERY_USES_COMMAND_SPANS.renderOutput, () => {
+    const limitedReport = applyQueryOutputControls(report, {
+      summaryOnly: normalizeBooleanOption(resolved.merged.summaryOnly),
+      limit: normalizeLimit(resolved.merged.limit)
+    });
+    const contents = formatQueryUsageReport(limitedReport, resolved.format);
+    const outPath = normalizeStringOption(resolved.merged.out);
+    if (outPath) {
+      writeQueryUsageOutput(outPath, contents);
+      return;
+    }
+    console.log(contents.trimEnd());
+  }, {
+    format: resolved.format,
+    writesFile: Boolean(resolved.merged.out),
   });
-  const contents = formatQueryUsageReport(limitedReport, format);
-  const outPath = normalizeStringOption(merged.out);
-  if (outPath) {
-    writeQueryUsageOutput(outPath, contents);
-    return;
-  }
-  console.log(contents.trimEnd());
 }
 
-function runQueryStructureCommand(sqlFile: string, options: QueryStructureOptions, allowDot: boolean): void {
+function runQueryStructureCommand(
+  sqlFile: string,
+  options: QueryStructureOptions,
+  allowDot: boolean,
+  commandName: string
+): void {
   const format = normalizeStructureFormat(options.format ?? 'text', allowDot);
-  const report = buildQueryStructureReport(sqlFile);
+  const report = buildQueryStructureReport(sqlFile, commandName);
   const contents = formatQueryStructureReport(report, format);
   if (options.out) {
     writeQueryUsageOutput(options.out, contents);

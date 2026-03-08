@@ -66,15 +66,16 @@ export function detectQueryType(statement: SupportedStatement): 'SELECT' | 'INSE
   }
   return 'SELECT';
 }
+
 export function buildDependencyMap(
   statement: SupportedStatement,
   ctes: ReturnType<CTECollector['collect']>
 ): Map<string, string[]> {
   const cteNames = ctes.map((cte) => cte.aliasExpression.table.name);
 
-  if (isSelectStatement(statement)) {
+  if (statement instanceof SimpleSelectQuery) {
     const analyzer = new CTEDependencyAnalyzer();
-    analyzer.analyzeDependencies(statement as SimpleSelectQuery);
+    analyzer.analyzeDependencies(statement);
     return new Map(
       cteNames.map((name) => [name, analyzer.getDependencies(name).filter((dependency) => cteNames.includes(dependency))])
     );
@@ -104,10 +105,7 @@ export function collectRootDependencies(statement: SupportedStatement, cteNames:
   }
 
   if (statement instanceof InsertQuery && statement.selectQuery) {
-    return collectRootDependencies(
-      assertSupportedStatement(statement.selectQuery as ReturnType<typeof SqlParser.parse>, 'ztd query slice'),
-      cteNames
-    );
+    return collectRootDependencies(assertSelectStatement(statement.selectQuery), cteNames);
   }
 
   return uniquePreservingOrder(

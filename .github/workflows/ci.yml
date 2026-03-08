@@ -9,108 +9,77 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         node-version: [20.x, 22.x, 24.x]
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
       with:
         run_install: false
-      
+
     - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'pnpm'
-        
+
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
-      
-    - name: Lint check
+
+    # Keep the compatibility matrix focused on the core package so Node 20/22/24 validate the same fast path.
+    - name: Lint core package
       run: pnpm --filter "./packages/core" run lint
-      
-    - name: TypeScript compilation check
+
+    - name: Build core package
       run: pnpm --filter "./packages/core" run build
 
+    - name: Test core package
+      run: pnpm --filter "./packages/core" run test
+
+    # Coverage is expensive and does not need to run on every compatibility lane.
+    - name: Run coverage tests
+      if: matrix.node-version == '20.x'
+      run: pnpm --filter "./packages/core" run coverage
+      continue-on-error: true
+
+    # Heavy dist-shape and consumer validation is limited to the main Node 20 lane to avoid triplicating CI cost.
     - name: Validate test-evidence boundaries and consumers
+      if: matrix.node-version == '20.x'
       run: |
         pnpm -r --if-present --filter @rawsql-ts/test-evidence-core --filter @rawsql-ts/test-evidence-renderer-md --filter @rawsql-ts/shared-binder --filter @rawsql-ts/testkit-core --filter @rawsql-ts/testkit-postgres --filter @rawsql-ts/testkit-sqlite --filter @rawsql-ts/adapter-node-pg --filter @rawsql-ts/ztd-cli --filter @rawsql-ts/sql-contract --filter @rawsql-ts/sql-contract-zod run build
         pnpm -r --if-present --filter @rawsql-ts/test-evidence-core --filter @rawsql-ts/test-evidence-renderer-md --filter @rawsql-ts/shared-binder --filter @rawsql-ts/testkit-core --filter @rawsql-ts/testkit-postgres --filter @rawsql-ts/testkit-sqlite --filter @rawsql-ts/adapter-node-pg --filter @rawsql-ts/ztd-cli --filter @rawsql-ts/sql-contract --filter @rawsql-ts/sql-contract-zod run test
-      
-    - name: Run unit tests (excluding Docker-dependent tests)
-      run: pnpm --filter "./packages/core" run test
-      
-    - name: Run coverage tests
-      run: pnpm --filter "./packages/core" run coverage
-      if: matrix.node-version == '20.x'
-      continue-on-error: true
-      
-  package-tests:
-    runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        package: [core]
-        node-version: [20.x]
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v4
-      with:
-        run_install: false
-      
-    - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'pnpm'
-        
-    - name: Install dependencies
-      run: pnpm install --frozen-lockfile
-      
-    - name: Build ${{ matrix.package }} package
-      run: pnpm --filter "./packages/${{ matrix.package }}" run build
-      
-    - name: Test ${{ matrix.package }} package
-      run: pnpm --filter "./packages/${{ matrix.package }}" run test
-      
-    - name: Lint ${{ matrix.package }} package
-      run: pnpm --filter "./packages/${{ matrix.package }}" run lint
 
   benchmark:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
       with:
         run_install: false
-      
+
     - name: Setup Node.js 20.x
       uses: actions/setup-node@v4
       with:
         node-version: 20.x
         cache: 'pnpm'
-        
+
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
-      
+
     - name: Build core package
       run: pnpm --filter "./packages/core" run build
-      
+
     - name: Run benchmarks
       run: pnpm --filter "./packages/core" run benchmark
       continue-on-error: true

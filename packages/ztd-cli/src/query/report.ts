@@ -9,6 +9,7 @@ import { analyzeColumnUsage } from './analyzeColumnUsage';
 import { analyzeTableUsage } from './analyzeTableUsage';
 import { sortQueryUsageMatches, sortQueryUsageWarnings } from './format';
 import { clearStatementCache, locateUsageText } from './location';
+import { withSpanSync } from '../utils/telemetry';
 import { parseQueryTarget } from './targets';
 import type {
   QueryUsageConfidence,
@@ -20,6 +21,12 @@ import type {
   QueryUsageTargetKind,
   QueryUsageView
 } from './types';
+
+export const QUERY_USES_REPORT_SPANS = {
+  specDiscovery: 'spec-discovery',
+  reportBuild: 'build-query-usage-report',
+  impactAggregation: 'impact-aggregation',
+} as const;
 
 /**
  * Build a deterministic impact or detail investigation report from catalog specs.
@@ -47,128 +54,144 @@ export function buildQueryUsageReport(params: {
     anyTable: params.anyTable
   });
 
-  const specFiles = existsSync(specsDir)
-    ? walkSqlCatalogSpecFiles(specsDir, { excludeGenerated: params.excludeGenerated })
-    : [];
-  const warnings: QueryUsageReport['warnings'] = [];
-  const loadedSpecs = specFiles.flatMap((filePath) => {
-    try {
-      return loadSqlCatalogSpecsFromFile(filePath, (message) => new Error(message));
-    } catch (error) {
-      warnings.push({
-        sql_file: normalizePath(path.relative(rootDir, filePath)),
-        code: 'spec-load-failed',
-        message: error instanceof Error ? error.message : String(error)
+  return withSpanSync(QUERY_USES_REPORT_SPANS.reportBuild, () => {
+    const warnings: QueryUsageReport['warnings'] = [];
+    const discovery = withSpanSync(QUERY_USES_REPORT_SPANS.specDiscovery, () => {
+      const specFiles = existsSync(specsDir)
+        ? walkSqlCatalogSpecFiles(specsDir, { excludeGenerated: params.excludeGenerated })
+        : [];
+      const loadedSpecs = specFiles.flatMap((filePath) => {
+        try {
+          return loadSqlCatalogSpecsFromFile(filePath, (message) => new Error(message));
+        } catch (error) {
+          warnings.push({
+            sql_file: normalizePath(path.relative(rootDir, filePath)),
+            code: 'spec-load-failed',
+            message: error instanceof Error ? error.message : String(error)
+          });
+          return [];
+        }
       });
-      return [];
-    }
-  });
-  const detailMatches: QueryUsageMatchDetail[] = [];
-  let statementsScanned = 0;
-  let unresolvedSqlFiles = 0;
-  let parseWarnings = 0;
-  let fallbackMatches = 0;
 
-  if (loadedSpecs.length === 0) {
-    warnings.push({
-      code: 'no-catalog-specs-found',
-      message: `No catalog specs found under ${normalizePath(path.relative(rootDir, specsDir) || '.')}.\nHint: run "ztd init" or pass "--specs-dir".`
+      return { loadedSpecs };
+    }, {
+      excludeGenerated: Boolean(params.excludeGenerated),
+      kind: params.kind,
     });
-  }
 
-  // Bound location cache lifetime to this batch so repeated runs do not accumulate statement entries.
-  clearStatementCache();
+    const detailMatches: QueryUsageMatchDetail[] = [];
+    let statementsScanned = 0;
+    let unresolvedSqlFiles = 0;
+    let parseWarnings = 0;
+    let fallbackMatches = 0;
 
-  for (const loaded of loadedSpecs) {
-    const catalogId = typeof loaded.spec.id === 'string' && loaded.spec.id.trim().length > 0
-      ? loaded.spec.id.trim()
-      : `<missing-id:${path.basename(loaded.filePath)}>`;
-    const sqlFile = typeof loaded.spec.sqlFile === 'string' && loaded.spec.sqlFile.trim().length > 0
-      ? loaded.spec.sqlFile.trim()
-      : null;
-    if (!sqlFile) {
-      unresolvedSqlFiles += 1;
+    if (discovery.loadedSpecs.length === 0) {
       warnings.push({
-        catalog_id: catalogId,
-        sql_file: normalizePath(path.relative(rootDir, loaded.filePath)),
-        code: 'unresolved-sql-file',
-        message: 'spec.sqlFile must be a non-empty string.'
+        code: 'no-catalog-specs-found',
+        message: `No catalog specs found under ${normalizePath(path.relative(rootDir, specsDir) || '.')}.
+Hint: run "ztd init" or pass "--specs-dir".`
       });
-      continue;
     }
 
-    const resolvedSqlFile = resolveCatalogSqlFile({
-      sqlRoot,
-      specFilePath: loaded.filePath,
-      sqlFile
-    });
-    if (!resolvedSqlFile) {
-      unresolvedSqlFiles += 1;
-      const projectRootCandidate = normalizePath(path.relative(rootDir, path.resolve(sqlRoot, sqlFile)));
-      const specRelativeCandidate = normalizePath(path.relative(rootDir, path.resolve(path.dirname(loaded.filePath), sqlFile)));
-      warnings.push({
-        catalog_id: catalogId,
-        sql_file: projectRootCandidate,
-        code: 'unresolved-sql-file',
-        message: [
-          `SQL file does not exist: ${sqlFile}`,
-          `Tried project SQL root (${normalizedSqlRoot}): ${projectRootCandidate}`,
-          `Tried spec-relative fallback: ${specRelativeCandidate}`,
-          `Hint: keep existing sqlFile values unchanged and re-run with --sql-root ${normalizedSqlRoot} if your project stores SQL under a shared root.`
-        ].join('\n')
+    // Bound location cache lifetime to this batch so repeated runs do not accumulate statement entries.
+    clearStatementCache();
+
+    for (const loaded of discovery.loadedSpecs) {
+      const catalogId = typeof loaded.spec.id === 'string' && loaded.spec.id.trim().length > 0
+        ? loaded.spec.id.trim()
+        : `<missing-id:${path.basename(loaded.filePath)}>`;
+      const sqlFile = typeof loaded.spec.sqlFile === 'string' && loaded.spec.sqlFile.trim().length > 0
+        ? loaded.spec.sqlFile.trim()
+        : null;
+      if (!sqlFile) {
+        unresolvedSqlFiles += 1;
+        warnings.push({
+          catalog_id: catalogId,
+          sql_file: normalizePath(path.relative(rootDir, loaded.filePath)),
+          code: 'unresolved-sql-file',
+          message: 'spec.sqlFile must be a non-empty string.'
+        });
+        continue;
+      }
+
+      const resolvedSqlFile = resolveCatalogSqlFile({
+        sqlRoot,
+        specFilePath: loaded.filePath,
+        sqlFile
       });
-      continue;
-    }
+      if (!resolvedSqlFile) {
+        unresolvedSqlFiles += 1;
+        const projectRootCandidate = normalizePath(path.relative(rootDir, path.resolve(sqlRoot, sqlFile)));
+        const specRelativeCandidate = normalizePath(path.relative(rootDir, path.resolve(path.dirname(loaded.filePath), sqlFile)));
+        warnings.push({
+          catalog_id: catalogId,
+          sql_file: projectRootCandidate,
+          code: 'unresolved-sql-file',
+          message: [
+            `SQL file does not exist: ${sqlFile}`,
+            `Tried project SQL root (${normalizedSqlRoot}): ${projectRootCandidate}`,
+            `Tried spec-relative fallback: ${specRelativeCandidate}`,
+            `Hint: keep existing sqlFile values unchanged and re-run with --sql-root ${normalizedSqlRoot} if your project stores SQL under a shared root.`
+          ].join('\n')
+        });
+        continue;
+      }
 
-    const normalizedSqlFile = normalizePath(path.relative(rootDir, resolvedSqlFile));
-    const sqlText = readFileSync(resolvedSqlFile, 'utf8');
-    const statements = buildCatalogStatements({
-      catalogId,
-      sqlFile: normalizedSqlFile,
-      sqlText
-    });
-    statementsScanned += statements.length;
+      const normalizedSqlFile = normalizePath(path.relative(rootDir, resolvedSqlFile));
+      const sqlText = readFileSync(resolvedSqlFile, 'utf8');
+      const statements = buildCatalogStatements({
+        catalogId,
+        sqlFile: normalizedSqlFile,
+        sqlText
+      });
+      statementsScanned += statements.length;
 
-    for (const statement of statements) {
-      const result = params.kind === 'table'
-        ? analyzeTableUsage({ statement, target: parsedTarget.target, mode: parsedTarget.mode })
-        : analyzeColumnUsage({ statement, target: parsedTarget.target, mode: parsedTarget.mode });
-      detailMatches.push(...result.matches);
-      warnings.push(...result.warnings);
+      for (const statement of statements) {
+        const result = params.kind === 'table'
+          ? analyzeTableUsage({ statement, target: parsedTarget.target, mode: parsedTarget.mode })
+          : analyzeColumnUsage({ statement, target: parsedTarget.target, mode: parsedTarget.mode });
+        detailMatches.push(...result.matches);
+        warnings.push(...result.warnings);
 
-      const statementParseWarnings = result.warnings.filter((warning) => warning.code === 'parse-failed').length;
-      parseWarnings += statementParseWarnings;
+        const statementParseWarnings = result.warnings.filter((warning) => warning.code === 'parse-failed').length;
+        parseWarnings += statementParseWarnings;
 
-      if (params.kind === 'table' && statementParseWarnings > 0) {
-        const fallback = buildTableFallbackMatch(statement, parsedTarget.target, parsedTarget.mode);
-        if (fallback) {
-          detailMatches.push(fallback);
-          fallbackMatches += 1;
+        if (params.kind === 'table' && statementParseWarnings > 0) {
+          const fallback = buildTableFallbackMatch(statement, parsedTarget.target, parsedTarget.mode);
+          if (fallback) {
+            detailMatches.push(fallback);
+            fallbackMatches += 1;
+          }
         }
       }
     }
-  }
 
-  const matches: QueryUsageMatch[] = view === 'detail'
-    ? detailMatches
-    : aggregateImpactMatches(detailMatches);
+    const matches: QueryUsageMatch[] = view === 'detail'
+      ? detailMatches
+      : withSpanSync(QUERY_USES_REPORT_SPANS.impactAggregation, () => aggregateImpactMatches(detailMatches), {
+        detailMatchCount: detailMatches.length,
+      });
 
-  return {
-    schemaVersion: 2,
-    mode: parsedTarget.mode,
+    return {
+      schemaVersion: 2,
+      mode: parsedTarget.mode,
+      view,
+      target: parsedTarget.target,
+      summary: {
+        catalogsScanned: discovery.loadedSpecs.length,
+        statementsScanned,
+        matches: matches.length,
+        fallbackMatches,
+        unresolvedSqlFiles,
+        parseWarnings
+      },
+      matches: sortQueryUsageMatches(matches),
+      warnings: sortQueryUsageWarnings(warnings)
+    };
+  }, {
+    kind: params.kind,
     view,
-    target: parsedTarget.target,
-    summary: {
-      catalogsScanned: loadedSpecs.length,
-      statementsScanned,
-      matches: matches.length,
-      fallbackMatches,
-      unresolvedSqlFiles,
-      parseWarnings
-    },
-    matches: sortQueryUsageMatches(matches),
-    warnings: sortQueryUsageWarnings(warnings)
-  };
+  });
 }
 
 /**

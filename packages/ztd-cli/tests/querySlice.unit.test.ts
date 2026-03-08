@@ -49,6 +49,26 @@ test('buildQuerySliceReport emits the minimal dependency chain for a target CTE'
   expect(result.sql).not.toContain('unused_cte');
 });
 
+test('buildQuerySliceReport preserves CommonTable formatting metadata', () => {
+  const sqlFile = createSqlFile(
+    'query-slice-metadata',
+    `
+      with named_rows (user_id) as materialized (
+        select id from public.users
+      ),
+      final_rows as (
+        select user_id from named_rows
+      )
+      select * from final_rows
+    `
+  );
+
+  const result = buildQuerySliceReport(sqlFile, { cte: 'named_rows' });
+
+  expect(result.sql).toContain('"named_rows"("user_id")');
+  expect(result.sql).toContain('materialized');
+});
+
 test('buildQuerySliceReport preserves the minimized final query', () => {
   const sqlFile = createSqlFile(
     'query-slice-final',

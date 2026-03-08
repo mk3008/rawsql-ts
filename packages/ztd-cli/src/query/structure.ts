@@ -34,11 +34,11 @@ export interface QueryStructureReport {
 /**
  * Parse a SQL file and summarize its CTE graph and referenced base tables.
  */
-export function buildQueryStructureReport(sqlFile: string): QueryStructureReport {
+export function buildQueryStructureReport(sqlFile: string, commandName: string = 'ztd query outline'): QueryStructureReport {
   const absolutePath = path.resolve(sqlFile);
   const sql = readFileSync(absolutePath, 'utf8');
   const parsed = SqlParser.parse(sql);
-  const statement = assertSupportedStatement(parsed, 'ztd query outline');
+  const statement = assertSupportedStatement(parsed, commandName);
   const analysis = analyzeStatement(statement);
   const usedCtes = collectReachableCtes(analysis.rootDependencies, analysis.dependencyMap);
   const unusedCtes = analysis.cteNames.filter((name) => !usedCtes.has(name)).sort();
