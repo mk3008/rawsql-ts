@@ -136,3 +136,151 @@ test('applyQueryPatch fails when the edited SQL does not contain the requested C
   })).toThrow(`CTE "target_cte" was not found in ${editedFile}.`);
 });
 
+
+test('applyQueryPatch matches the requested CTE name case-insensitively', () => {
+  const workspace = createTempDir('query-patch-case-insensitive');
+  const originalFile = createSqlFile(
+    workspace,
+    'original.sql',
+    `
+      with purchase_summary as (
+        select id from public.users
+      )
+      select * from purchase_summary
+    `
+  );
+  const editedFile = createSqlFile(
+    workspace,
+    'edited.sql',
+    'purchase_summary as (select id from public.users where active = true)'
+  );
+
+  const report = applyQueryPatch(originalFile, {
+    cte: 'PURCHASE_SUMMARY',
+    from: editedFile,
+    preview: true
+  });
+
+  expect(report.preview).toBe(true);
+  expect(report.diff).toContain('"active" = true');
+});
+
+test('applyQueryPatch fails when the original SQL does not contain the requested CTE', () => {
+  const workspace = createTempDir('query-patch-missing-original');
+  const originalFile = createSqlFile(
+    workspace,
+    'original.sql',
+    `
+      with other_cte as (
+        select id from public.users
+      )
+      select * from other_cte
+    `
+  );
+  const editedFile = createSqlFile(
+    workspace,
+    'edited.sql',
+    'target_cte as (select id from public.users)'
+  );
+
+  expect(() => applyQueryPatch(originalFile, {
+    cte: 'target_cte',
+    from: editedFile
+  })).toThrow(`CTE "target_cte" was not found in ${originalFile}.`);
+});
+
+test('applyQueryPatch fails when the original SQL contains duplicate target CTE names', () => {
+  const workspace = createTempDir('query-patch-duplicate-original');
+  const originalFile = createSqlFile(
+    workspace,
+    'original.sql',
+    `
+      with target_cte as (
+        select id from public.users
+      ),
+      target_cte as (
+        select id from public.orders
+      )
+      select * from target_cte
+    `
+  );
+  const editedFile = createSqlFile(
+    workspace,
+    'edited.sql',
+    'target_cte as (select id from public.users where active = true)'
+  );
+
+  expect(() => applyQueryPatch(originalFile, {
+    cte: 'target_cte',
+    from: editedFile
+  })).toThrow(`CTE "target_cte" appears multiple times in ${originalFile}; patch apply requires a unique target.`);
+});
+
+test('applyQueryPatch fails when the edited SQL contains duplicate target CTE names', () => {
+  const workspace = createTempDir('query-patch-duplicate-edited');
+  const originalFile = createSqlFile(
+    workspace,
+    'original.sql',
+    `
+      with target_cte as (
+        select id from public.users
+      )
+      select * from target_cte
+    `
+  );
+  const editedFile = createSqlFile(
+    workspace,
+    'edited.sql',
+    `
+      with target_cte as (
+        select id from public.users
+      ),
+      target_cte as (
+        select id from public.orders
+      )
+      select * from target_cte
+    `
+  );
+
+  expect(() => applyQueryPatch(originalFile, {
+    cte: 'target_cte',
+    from: editedFile
+  })).toThrow(`CTE "target_cte" appears multiple times in ${editedFile}; patch apply requires a unique target.`);
+});
+
+test('applyQueryPatch preserves the surrounding DML statement while replacing the target CTE', () => {
+  const workspace = createTempDir('query-patch-dml');
+  const originalFile = createSqlFile(
+    workspace,
+    'original.sql',
+    `
+      with source_rows as (
+        select id from public.users
+      ),
+      audit_rows as (
+        select id from public.audit_log
+      )
+      insert into public.user_report (user_id)
+      select id from source_rows
+    `
+  );
+  const editedFile = createSqlFile(
+    workspace,
+    'edited.sql',
+    'source_rows as (select id from public.users where active = true)'
+  );
+  const outputFile = path.join(workspace, 'patched.sql');
+
+  const report = applyQueryPatch(originalFile, {
+    cte: 'source_rows',
+    from: editedFile,
+    out: outputFile
+  });
+
+  expect(report.written).toBe(true);
+  const patched = readNormalizedFile(outputFile);
+  expect(patched).toContain('insert into');
+  expect(patched).toContain('"user_report"');
+  expect(patched).toContain('"active" = true');
+  expect(patched).toContain('"audit_rows" as');
+});

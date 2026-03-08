@@ -266,7 +266,6 @@ function runQueryPatchApplyCommand(sqlFile: string, options: QueryPatchApplyOpti
 
   if (isJsonOutput()) {
     writeCommandEnvelope('query patch apply', {
-      schemaVersion: 1,
       file: report.file,
       edited_file: report.edited_file,
       target_cte: report.target_cte,
@@ -365,3 +364,5 @@ function normalizeView(view: string): 'impact' | 'detail' {
   }
   throw new Error(`Unsupported view: ${view}`);
 }
+
+

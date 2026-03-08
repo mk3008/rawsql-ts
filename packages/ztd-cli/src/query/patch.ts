@@ -131,7 +131,7 @@ function requireWithClause(statement: SupportedStatement, sourceFile: string): W
 function findExactlyOneCteIndex(withClause: WithClause, targetCte: string, sourceFile: string): number {
   const matches = withClause.tables
     .map((cte: CommonTable, index: number) => ({ cte, index }))
-    .filter((entry) => entry.cte.aliasExpression.table.name === targetCte);
+    .filter((entry) => entry.cte.aliasExpression.table.name.toLowerCase() === targetCte.toLowerCase());
 
   if (matches.length === 0) {
     throw new Error(`CTE "${targetCte}" was not found in ${sourceFile}.`);
@@ -213,3 +213,4 @@ function assertSelectStatement(statement: unknown): SimpleSelectQuery | BinarySe
 
   throw new Error('Expected a SELECT-compatible statement.');
 }
+
