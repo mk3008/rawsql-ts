@@ -194,6 +194,9 @@ test('query graph emits machine-readable JSON by default', () => {
       ),
       filtered_data as (
         select id from base_data
+      ),
+      unused_data as (
+        select id from public.audit_log
       )
       select * from filtered_data
     `,
@@ -205,6 +208,7 @@ test('query graph emits machine-readable JSON by default', () => {
   const payload = JSON.parse(result.stdout);
   expect(payload.query_type).toBe('SELECT');
   expect(payload.final_query).toBe('filtered_data');
+  expect(payload.unused_ctes).toEqual(['unused_data']);
   expect(payload.ctes).toEqual([
     {
       name: 'base_data',
@@ -217,6 +221,12 @@ test('query graph emits machine-readable JSON by default', () => {
       depends_on: ['base_data'],
       used_by_final_query: true,
       unused: false
+    },
+    {
+      name: 'unused_data',
+      depends_on: [],
+      used_by_final_query: false,
+      unused: true
     }
   ]);
 });

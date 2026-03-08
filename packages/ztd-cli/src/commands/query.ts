@@ -103,7 +103,7 @@ Notes:
 
   query
     .command('graph <sqlFile>')
-    .description('Emit the query dependency graph in JSON or DOT form')
+    .description('Emit the query dependency graph in text, JSON, or DOT form')
     .option('--format <format>', 'Output format (json|dot|text)', 'json')
     .option('--out <path>', 'Write output to file')
     .action((sqlFile: string, options: QueryStructureOptions) => {
@@ -170,3 +170,4 @@ function normalizeView(view: string): 'impact' | 'detail' {
   }
   throw new Error(`Unsupported view: ${view}`);
 }
+
