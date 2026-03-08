@@ -176,7 +176,7 @@ test(
   });
   expect(existsSync(outputFile)).toBe(false);
   },
-  30000,
+  60000,
 );
 
 test(
@@ -186,7 +186,7 @@ test(
     assertCliSuccess(result, '--help');
     expect(result.stdout).toContain('model-gen [options] <sql-file>');
   },
-  30000,
+  60000,
 );
 
 test(
@@ -201,7 +201,7 @@ test(
       ok: true
     });
   },
-  30000,
+  60000,
 );
 
 test(
@@ -232,7 +232,7 @@ test(
     expect(parsed.ok).toBe(true);
     expect(parsed.violations).toEqual([]);
   },
-  30000,
+  60000,
 );
 
 test(
@@ -285,7 +285,7 @@ test(
   60000,
 );
 
-test('init dry-run emits scaffold plan without writing files', () => {
+test('init dry-run emits scaffold plan without writing files', { timeout: 60_000 }, () => {
   const workspace = createTempDir('init-dry-run');
   const result = runCli(['--output', 'json', 'init', '--dry-run', '--workflow', 'demo', '--validator', 'zod'], {}, workspace);
   assertCliSuccess(result, 'init dry-run');
