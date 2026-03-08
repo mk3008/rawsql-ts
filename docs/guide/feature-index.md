@@ -63,9 +63,9 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | ztd-cli Agent Interface | [guide/ztd-cli-agent-interface](./ztd-cli-agent-interface.md) | Machine-readable CLI usage for automation and AI agents |
 | ztd describe schema | [guide/ztd-cli-describe-schema](./ztd-cli-describe-schema.md) | Contract details for `ztd describe` JSON payloads |
 | ztd-cli measurement inventory | [guide/ztd-cli-measurement-inventory](./ztd-cli-measurement-inventory.md) | Audit current timing/profiling surfaces before adding OpenTelemetry |
+| ztd-cli telemetry policy | [guide/ztd-cli-telemetry-policy](./ztd-cli-telemetry-policy.md) | Event schema, redaction rules, and safe export boundaries for CLI telemetry |
 | Validation (Zod) | [recipes/validation-zod](../recipes/validation-zod.md) | Wire Zod schemas |
 | Validation (ArkType) | [recipes/validation-arktype](../recipes/validation-arktype.md) | Wire ArkType schemas |
 | SQL catalog recipe | [recipes/sql-contract](../recipes/sql-contract.md) | Catalog executor patterns |
 | Execution scope | [guide/execution-scope](./execution-scope.md) | Transaction and connection control |
 | ZTD Theory | [guide/ztd-theory](./ztd-theory.md) | Conceptual foundation |
-
