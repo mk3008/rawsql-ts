@@ -1,5 +1,10 @@
 import { Command } from 'commander';
 import { applyQueryOutputControls, formatQueryUsageReport } from '../query/format';
+import {
+  buildQueryPipelinePlan,
+  formatQueryPipelinePlan,
+  type QueryPipelinePlanFormat
+} from '../query/planner';
 import { buildQueryUsageReport, writeQueryUsageOutput } from '../query/report';
 import { buildQuerySliceReport } from '../query/slice';
 import {
@@ -28,6 +33,14 @@ interface QueryUsesOptions {
 interface QueryStructureOptions {
   format?: string;
   out?: string;
+}
+
+interface QueryPlanOptions {
+  format?: string;
+  out?: string;
+  material?: unknown;
+  scalarMaterial?: unknown;
+  json?: string;
 }
 
 interface QuerySliceOptions {
@@ -59,6 +72,7 @@ Examples:
   $ ztd query outline large_query.sql
   $ ztd query graph large_query.sql --format dot
   $ ztd query slice large_query.sql --cte purchase_summary
+  $ ztd query plan large_query.sql --material base_cte --scalar-material total_cte --format json
 
 Notes:
   - Strict mode is the default. Relaxed modes are explicit opt-in only.
@@ -71,7 +85,7 @@ Notes:
 `
   );
 
-  // Keep outline/graph aligned with the existing query surface from main.
+  // Keep outline/graph/slice/plan aligned with the existing query surface from main.
   // Issue #518 intentionally limits telemetry instrumentation in this file to query uses
   // so conflict resolution does not narrow the established query command surface.
   const uses = query.command('uses').description('Find where catalog SQL uses a table or column target');
@@ -148,6 +162,18 @@ Notes:
     .option('--out <path>', 'Write output to file')
     .action((sqlFile: string, options: QuerySliceOptions) => {
       runQuerySliceCommand(sqlFile, options);
+    });
+
+  query
+    .command('plan <sqlFile>')
+    .description('Emit deterministic execution steps from CTE metadata')
+    .option('--format <format>', 'Output format (text|json)', 'text')
+    .option('--material <names>', 'Comma-separated CTE names to materialize')
+    .option('--scalar-material <names>', 'Comma-separated CTE names to scalar materialize')
+    .option('--json <payload>', 'Pass command options as a JSON object')
+    .option('--out <path>', 'Write output to file')
+    .action((sqlFile: string, options: QueryPlanOptions) => {
+      runQueryPlanCommand(sqlFile, options);
     });
 }
 
@@ -232,6 +258,22 @@ function runQuerySliceCommand(sqlFile: string, options: QuerySliceOptions): void
   console.log(report.sql.trimEnd());
 }
 
+function runQueryPlanCommand(sqlFile: string, options: QueryPlanOptions): void {
+  const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+  const format = normalizePlanFormat(normalizeStringOption(merged.format) ?? getAgentOutputFormat());
+  const plan = buildQueryPipelinePlan(sqlFile, {
+    material: normalizeListOption(merged.material, '--material'),
+    scalarMaterial: normalizeListOption(merged.scalarMaterial, '--scalar-material')
+  });
+  const contents = formatQueryPipelinePlan(plan, format);
+  const outPath = normalizeStringOption(merged.out);
+  if (outPath) {
+    writeQueryUsageOutput(outPath, contents);
+    return;
+  }
+  console.log(contents.trimEnd());
+}
+
 function normalizeLimit(value: unknown): number | undefined {
   if (value === undefined) {
     return undefined;
@@ -266,12 +308,41 @@ function normalizeBooleanOption(value: unknown): boolean {
   return value;
 }
 
+function normalizeListOption(value: unknown, label: string): string[] | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  const rawValues = Array.isArray(value) ? value : [value];
+  const normalized: string[] = [];
+
+  for (const rawValue of rawValues) {
+    if (typeof rawValue !== 'string') {
+      throw new Error(`Expected ${label} to be a string or string[] but received ${typeof rawValue}.`);
+    }
+
+    // Accept comma-separated CLI input and JSON arrays with one item per entry.
+    for (const item of rawValue.split(',')) {
+      const trimmed = item.trim();
+      if (trimmed.length > 0) {
+        normalized.push(trimmed);
+      }
+    }
+  }
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
 function normalizeFormat(format: string): 'text' | 'json' {
   const normalized = format.trim().toLowerCase();
   if (normalized === 'text' || normalized === 'json') {
     return normalized;
   }
   throw new Error(`Unsupported format: ${format}`);
+}
+
+function normalizePlanFormat(format: string): QueryPipelinePlanFormat {
+  return normalizeFormat(format);
 }
 
 function normalizeStructureFormat(format: string, allowDot: boolean): QueryStructureFormat {

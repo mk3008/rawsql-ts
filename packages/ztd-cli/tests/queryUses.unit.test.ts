@@ -39,7 +39,7 @@ test('query commands keep outline and graph subcommands registered', () => {
   const queryCommand = program.commands.find((command) => command.name() === 'query');
 
   expect(queryCommand?.commands.map((command) => command.name())).toEqual(
-    expect.arrayContaining(['uses', 'outline', 'graph'])
+    expect.arrayContaining(['uses', 'outline', 'graph', 'plan'])
   );
 });
 test('parseQueryTarget enforces strict defaults and explicit relaxed modes', () => {
