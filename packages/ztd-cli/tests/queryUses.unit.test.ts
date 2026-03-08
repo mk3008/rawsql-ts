@@ -32,6 +32,16 @@ function createProgram(capture: { stdout: string[]; stderr: string[] }): Command
   return program;
 }
 
+
+test('query commands keep outline and graph subcommands registered', () => {
+  const capture = { stdout: [] as string[], stderr: [] as string[] };
+  const program = createProgram(capture);
+  const queryCommand = program.commands.find((command) => command.name() === 'query');
+
+  expect(queryCommand?.commands.map((command) => command.name())).toEqual(
+    expect.arrayContaining(['uses', 'outline', 'graph'])
+  );
+});
 test('parseQueryTarget enforces strict defaults and explicit relaxed modes', () => {
   expect(() => parseQueryTarget({ kind: 'table', raw: 'users' })).toThrow(/schema\.table/);
   expect(() => parseQueryTarget({ kind: 'table', raw: 'public.users', anySchema: true, anyTable: true })).toThrow(/not supported for table usage/);
