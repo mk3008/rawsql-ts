@@ -475,7 +475,7 @@ describe('catalog read execution', () => {
     )
   })
 
-  it('passes cloned QuerySpec metadata to extensions across execution methods', async () => {
+  it('passes cloned QuerySpec metadata to extensions across list, one, and scalar paths', async () => {
     const extensionSnapshots: QuerySpecMetadata[] = []
     const extensionRefs: Array<QuerySpecMetadata | undefined> = []
     const extensionSpy = vi.fn()

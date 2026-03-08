@@ -791,6 +791,27 @@ export function createCatalogExecutor(
     return value as R
   }
 
+  function createExecInput<P extends QueryParams, R>(
+    spec: QuerySpec<P, R>,
+    params: P,
+    options: unknown,
+    execId: string,
+    attempt: number
+  ): ExecInput<P> {
+    // Extensions must never observe a shared QuerySpec metadata reference.
+    const metadata = cloneQuerySpecMetadata(spec.id, spec.metadata)
+
+    return {
+      specId: spec.id,
+      sqlFile: spec.sqlFile,
+      metadata,
+      params,
+      options,
+      execId,
+      attempt,
+    }
+  }
+
   return {
     async list<P extends QueryParams, R>(
       spec: QuerySpec<P, R>,
@@ -802,15 +823,9 @@ export function createCatalogExecutor(
       )
       const execId = createExecId()
       const attempt = 1
-      const result = await exec({
-        specId: spec.id,
-        sqlFile: spec.sqlFile,
-        metadata: cloneQuerySpecMetadata(spec.id, spec.metadata),
-        params,
-        options,
-        execId,
-        attempt,
-      })
+      const result = await exec(
+        createExecInput(spec, params, options, execId, attempt)
+      )
       return result.value
     },
     async one<P extends QueryParams, R>(
@@ -830,15 +845,9 @@ export function createCatalogExecutor(
       )
       const execId = createExecId()
       const attempt = 1
-      const result = await exec({
-        specId: spec.id,
-        sqlFile: spec.sqlFile,
-        metadata: cloneQuerySpecMetadata(spec.id, spec.metadata),
-        params,
-        options,
-        execId,
-        attempt,
-      })
+      const result = await exec(
+        createExecInput(spec, params, options, execId, attempt)
+      )
       return result.value
     },
     async scalar<P extends QueryParams, R>(
@@ -854,15 +863,9 @@ export function createCatalogExecutor(
       )
       const execId = createExecId()
       const attempt = 1
-      const result = await exec({
-        specId: spec.id,
-        sqlFile: spec.sqlFile,
-        metadata: cloneQuerySpecMetadata(spec.id, spec.metadata),
-        params,
-        options,
-        execId,
-        attempt,
-      })
+      const result = await exec(
+        createExecInput(spec, params, options, execId, attempt)
+      )
       return result.value
     },
   }
