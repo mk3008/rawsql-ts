@@ -187,6 +187,28 @@ export async function withSpan<T>(name: string, fn: () => Promise<T> | T, attrib
   }
 }
 
+export function withSpanSync<T>(name: string, fn: () => T, attributes: TelemetryAttributes = {}): T {
+  if (!telemetryEnabled) {
+    return fn();
+  }
+
+  const parentSpanId = getCurrentSpan()?.id;
+  const span = telemetrySink.startSpan(name, parentSpanId, attributes);
+  spanStack.push(span);
+
+  try {
+    const result = fn();
+    span.end('ok');
+    return result;
+  } catch (error) {
+    span.recordException(error);
+    span.end('error');
+    throw error;
+  } finally {
+    removeSpan(span.id);
+  }
+}
+
 export function emitDecisionEvent(name: string, attributes: TelemetryAttributes = {}): void {
   if (!telemetryEnabled) {
     return;
