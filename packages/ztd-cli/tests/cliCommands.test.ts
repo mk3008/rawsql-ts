@@ -312,7 +312,7 @@ test('init CLI writes internal agent guidance by default and no visible AGENTS f
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(false);
 });
 
-test('agents install emits the visible AGENTS plan and materializes the files', () => {
+test('agents install emits the visible AGENTS plan and materializes the files', { timeout: 60_000 }, () => {
   const workspace = createTempDir('agents-install');
   assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before install');
 
@@ -325,7 +325,7 @@ test('agents install emits the visible AGENTS plan and materializes the files', 
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(true);
-}, 30_000);
+});
 
 test('agents install preserves an existing root AGENTS.md and falls back to AGENTS_ztd.md', { timeout: 60_000 }, () => {
   const workspace = createTempDir('agents-install-root-fallback');
@@ -363,6 +363,175 @@ test('agents status reports internal files and visible install recommendation be
       })
     ])
   });
+});
+
+
+test('query outline summarizes CTE dependencies and unused CTEs', () => {
+  const workspace = createSqlWorkspace('query-outline', path.join('src', 'sql', 'reports', 'ranked_users.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with users_base as (
+        select id, region_id from public.users
+      ),
+      filtered_users as (
+        select id from users_base where region_id in (
+          select id from public.regions where active = true
+        )
+      ),
+      purchase_summary as (
+        select o.user_id, count(*) as order_count
+        from public.orders o
+        join filtered_users fu on fu.id = o.user_id
+        group by o.user_id
+      ),
+      ranked_users as (
+        select ps.user_id, ps.order_count
+        from purchase_summary ps
+      ),
+      unused_cte as (
+        select * from public.audit_log
+      )
+      select * from ranked_users
+    `,
+    'utf8'
+  );
+
+  const result = runCli(['query', 'outline', workspace.sqlFile], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query outline');
+  expect(result.stdout).toContain('Query type: SELECT');
+  expect(result.stdout).toContain('CTE count: 5');
+  expect(result.stdout).toContain('4. ranked_users');
+  expect(result.stdout).toContain('5. unused_cte [unused]');
+  expect(result.stdout).toContain('depends_on: purchase_summary');
+  expect(result.stdout).toContain('Final query target:');
+  expect(result.stdout).toContain('ranked_users');
+  expect(result.stdout).toContain('public.audit_log');
+  expect(result.stdout).toContain('Unused CTEs:');
+  expect(result.stdout).toContain('unused_cte');
+});
+
+test('query graph defaults to text output', () => {
+  const workspace = createSqlWorkspace('query-graph-text', path.join('src', 'sql', 'graph.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with base_data as (
+        select id from public.users
+      ),
+      final_data as (
+        select id from base_data
+      )
+      select * from final_data
+    `,
+    'utf8'
+  );
+
+  const result = runCli(['query', 'graph', workspace.sqlFile], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query graph text');
+  expect(result.stdout).toContain('Query type: SELECT');
+  expect(result.stdout).toContain('Final query target:');
+  expect(result.stdout).toContain('final_data');
+});
+
+test('query graph emits machine-readable JSON when requested', () => {
+  const workspace = createSqlWorkspace('query-graph-json', path.join('src', 'sql', 'graph.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with base_data as (
+        select id from public.users
+      ),
+      filtered_data as (
+        select id from base_data
+      ),
+      unused_data as (
+        select id from public.audit_log
+      )
+      select * from filtered_data
+    `,
+    'utf8'
+  );
+
+  const result = runCli(['query', 'graph', workspace.sqlFile, '--format', 'json'], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query graph json');
+  const payload = JSON.parse(result.stdout);
+  expect(payload.query_type).toBe('SELECT');
+  expect(payload.final_query).toBe('filtered_data');
+  expect(payload.unused_ctes).toEqual(['unused_data']);
+  expect(payload.ctes).toEqual([
+    {
+      name: 'base_data',
+      depends_on: [],
+      used_by_final_query: true,
+      unused: false
+    },
+    {
+      name: 'filtered_data',
+      depends_on: ['base_data'],
+      used_by_final_query: true,
+      unused: false
+    },
+    {
+      name: 'unused_data',
+      depends_on: [],
+      used_by_final_query: false,
+      unused: true
+    }
+  ]);
+});
+
+test('query graph preserves multiple direct roots in final_query', () => {
+  const workspace = createSqlWorkspace('query-graph-multi-root', path.join('src', 'sql', 'graph.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with left_data as (
+        select id from public.users
+      ),
+      right_data as (
+        select id from public.orders
+      )
+      select ld.id, rd.id
+      from left_data ld
+      join right_data rd on rd.id = ld.id
+    `,
+    'utf8'
+  );
+
+  const result = runCli(['query', 'graph', workspace.sqlFile, '--format', 'json'], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query graph multi-root');
+  const payload = JSON.parse(result.stdout);
+  expect(payload.final_query).toBe('left_data, right_data');
+});
+
+test('query outline supports DML statements with CTE analysis', () => {
+  const workspace = createSqlWorkspace('query-outline-insert', path.join('src', 'sql', 'insert_report.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with source_rows as (
+        select id from public.users
+      ),
+      unused_rows as (
+        select id from public.audit_log
+      )
+      insert into public.user_report (user_id)
+      select id from source_rows
+    `,
+    'utf8'
+  );
+
+  const result = runCli(['query', 'outline', workspace.sqlFile], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query outline insert');
+  expect(result.stdout).toContain('Query type: INSERT');
+  expect(result.stdout).toContain('CTE count: 2');
+  expect(result.stdout).toContain('1. source_rows');
+  expect(result.stdout).toContain('2. unused_rows [unused]');
+  expect(result.stdout).toContain('Final query target:');
+  expect(result.stdout).toContain('source_rows');
+  expect(result.stdout).toContain('public.audit_log');
+  expect(result.stdout).toContain('unused_rows');
 });
 
 test('model-gen rejects positional placeholders by default and recommends named params', () => {
