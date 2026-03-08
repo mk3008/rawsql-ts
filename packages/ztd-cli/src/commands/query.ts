@@ -62,6 +62,9 @@ Notes:
 `
   );
 
+  // Keep outline/graph aligned with the existing query surface from main.
+  // Issue #518 intentionally limits telemetry instrumentation in this file to query uses
+  // so conflict resolution does not narrow the established query command surface.
   const uses = query.command('uses').description('Find where catalog SQL uses a table or column target');
 
   uses
@@ -128,11 +131,7 @@ Notes:
     });
 }
 
-/**
- * Keep outline/graph aligned with the existing query surface from main.
- * Telemetry instrumentation in this file is intentionally limited to query uses so conflict resolution
- * does not regress the established outline/graph commands while issue #518 focuses on the uses workflow.
- */function runQueryUsesCommand(kind: 'table' | 'column', target: string | undefined, options: QueryUsesOptions): void {
+function runQueryUsesCommand(kind: 'table' | 'column', target: string | undefined, options: QueryUsesOptions): void {
   const resolved = withSpanSync(QUERY_USES_COMMAND_SPANS.resolveOptions, () => {
     const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
     const format = normalizeFormat(normalizeStringOption(merged.format) ?? getAgentOutputFormat());
