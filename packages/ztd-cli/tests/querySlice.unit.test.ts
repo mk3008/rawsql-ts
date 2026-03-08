@@ -141,3 +141,30 @@ test('buildQuerySliceReport supports DML final slices while removing unused CTEs
   expect(result.sql).toContain('"user_report"');
   expect(result.sql).not.toContain('audit_rows');
 });
+test('buildQuerySliceReport preserves CTEs referenced from DML predicate subqueries', () => {
+  const sqlFile = createSqlFile(
+    'query-slice-update-exists',
+    `
+      with target_rows as (
+        select id from public.users where active = true
+      ),
+      audit_rows as (
+        select id from public.audit_log
+      )
+      update public.users u
+      set status = 'verified'
+      where exists (
+        select 1 from target_rows tr where tr.id = u.id
+      )
+    `
+  );
+
+  const result = buildQuerySliceReport(sqlFile, { final: true });
+
+  expect(result.mode).toBe('final');
+  expect(result.included_ctes).toEqual(['target_rows']);
+  expect(result.sql).toContain('"target_rows" as');
+  expect(result.sql).toContain('update');
+  expect(result.sql).toContain('exists');
+  expect(result.sql).not.toContain('audit_rows');
+});

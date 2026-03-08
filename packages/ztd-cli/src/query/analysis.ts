@@ -98,23 +98,20 @@ export function collectRootDependencies(statement: SupportedStatement, cteNames:
   const cteNameSet = new Set(cteNames);
 
   if (isSelectStatement(statement)) {
-    const collector = new CTETableReferenceCollector();
-    return uniquePreservingOrder(
-      collector.collect(statement).map((source) => source.table.name).filter((name) => cteNameSet.has(name))
-    );
+    return collectReferencedCteNames(cteNameSet, statement);
   }
 
-  if (statement instanceof InsertQuery && statement.selectQuery) {
-    return collectRootDependencies(assertSelectStatement(statement.selectQuery), cteNames);
+  if (statement instanceof InsertQuery) {
+    return statement.selectQuery
+      ? collectReferencedCteNames(cteNameSet, assertSelectStatement(statement.selectQuery))
+      : [];
   }
 
-  return uniquePreservingOrder(
-    collectDirectSources(statement)
-      .map((source) => source.datasource)
-      .filter((source): source is TableSource => source instanceof TableSource)
-      .map((source) => source.table.name)
-      .filter((name) => cteNameSet.has(name))
-  );
+  if (statement instanceof UpdateQuery) {
+    return collectReferencedCteNames(cteNameSet, statement.updateClause.source, statement.fromClause, statement.whereClause);
+  }
+
+  return collectReferencedCteNames(cteNameSet, statement.deleteClause.source, statement.usingClause, statement.whereClause);
 }
 
 export function collectReachableCtes(rootDependencies: string[], dependencyMap: Map<string, string[]>): Set<string> {
@@ -178,6 +175,19 @@ export function collectDirectSources(statement: SupportedStatement): SourceExpre
 
 export function isSelectStatement(statement: SupportedStatement): statement is SimpleSelectQuery | BinarySelectQuery | ValuesQuery {
   return statement instanceof SimpleSelectQuery || statement instanceof BinarySelectQuery || statement instanceof ValuesQuery;
+}
+
+function collectReferencedCteNames(cteNameSet: Set<string>, ...components: Array<Parameters<CTETableReferenceCollector['collect']>[0] | null | undefined>): string[] {
+  const collector = new CTETableReferenceCollector();
+  const names = components.flatMap((component) => {
+    if (!component) {
+      return [];
+    }
+
+    return collector.collect(component).map((source) => source.table.name);
+  });
+
+  return uniquePreservingOrder(names.filter((name) => cteNameSet.has(name)));
 }
 
 export function uniquePreservingOrder(values: string[]): string[] {
