@@ -83,10 +83,8 @@ export async function runModelGen(sqlFilePath: string, options: ModelGenCommandO
     ensureSpecIdAvailable(path.resolve(process.cwd(), 'src', 'catalog', 'specs'), derivedNames.specId, sqlFile);
 
     const probeMode = normalizeProbeMode(options.probeMode);
-    const connection = resolveCliConnectionWithProbeGuidance(options, probeMode);
 
     return {
-      connection,
       derivedNames,
       format,
       probeMode,
@@ -128,7 +126,8 @@ export async function runModelGen(sqlFilePath: string, options: ModelGenCommandO
   });
 
   const probeClient = await withSpan(MODEL_GEN_SPAN_NAMES.probeClientConnect, async () => {
-    return createProbeClient(resolved.probeMode, resolved.connection.url, options);
+    const connection = resolveCliConnectionWithProbeGuidance(options, resolved.probeMode);
+    return createProbeClient(resolved.probeMode, connection.url, options);
   }, {
     probeMode: resolved.probeMode,
   });
@@ -186,6 +185,7 @@ export async function runModelGen(sqlFilePath: string, options: ModelGenCommandO
         outFile: normalizeCliPath(outFile),
       });
     }
+
     return rendered;
   } finally {
     await probeClient.close();
