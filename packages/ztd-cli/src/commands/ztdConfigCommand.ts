@@ -17,8 +17,51 @@ import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConf
 import { ensureDirectory } from '../utils/fs';
 import { emitDiagnostic, isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
 import { validateProjectPath, validateResourceIdentifier } from '../utils/agentSafety';
+import { emitDecisionEvent, withSpan } from '../utils/telemetry';
 
 const WATCH_DEBOUNCE_MS = 150;
+
+type ZtdConfigCommandOptions = {
+  ddlDir: string[];
+  extensions: string[];
+  out?: string;
+  defaultSchema?: string;
+  searchPath?: string[];
+  watch: boolean;
+  quiet: boolean;
+  dryRun: boolean;
+  json?: string;
+};
+
+function normalizeZtdConfigCommandOptions(options: Record<string, unknown>): ZtdConfigCommandOptions {
+  const ddlDir = typeof options.ddlDir === 'string'
+    ? collectDirectories(options.ddlDir, [])
+    : Array.isArray(options.ddlDir)
+      ? options.ddlDir.filter((entry): entry is string => typeof entry === 'string')
+      : [];
+  const extensions = typeof options.extensions === 'string'
+    ? parseExtensions(options.extensions)
+    : Array.isArray(options.extensions)
+      ? options.extensions.filter((entry): entry is string => typeof entry === 'string')
+      : DEFAULT_EXTENSIONS;
+  const searchPath = typeof options.searchPath === 'string'
+    ? parseCsvList(options.searchPath)
+    : Array.isArray(options.searchPath)
+      ? options.searchPath.filter((entry): entry is string => typeof entry === 'string')
+      : undefined;
+
+  return {
+    ddlDir,
+    extensions,
+    out: typeof options.out === 'string' ? options.out : undefined,
+    defaultSchema: typeof options.defaultSchema === 'string' ? options.defaultSchema : undefined,
+    searchPath,
+    watch: Boolean(options.watch),
+    quiet: Boolean(options.quiet),
+    dryRun: Boolean(options.dryRun),
+    json: typeof options.json === 'string' ? options.json : undefined,
+  };
+}
 
 function renderZtdLayoutGeneratedFile(config: ZtdProjectConfig): string {
   // Derive the canonical ztd root directory from the configured DDL path.
@@ -64,104 +107,133 @@ export function registerZtdConfigCommand(program: Command): void {
     .option('--quiet', 'Suppress next-step hints after generation', false)
     .option('--dry-run', 'Validate inputs and render outputs without writing files', false)
     .option('--json <payload>', 'Pass command options as a JSON object')
-    .action(async (options) => {
-      const merged = options.json ? resolveZtdConfigCommandOptions(options as Record<string, unknown>) : options;
-      if (merged.watch && merged.dryRun) {
-        throw new Error('--watch cannot be combined with --dry-run.');
-      }
+    .action(async (options: Record<string, unknown>) => {
+      const commandState = await withSpan('resolve-command-state', async () => {
+        const merged = options.json ? resolveZtdConfigCommandOptions(options) : normalizeZtdConfigCommandOptions(options);
+        if (merged.watch && merged.dryRun) {
+          emitDecisionEvent('watch.invalid-with-dry-run');
+          throw new Error('--watch cannot be combined with --dry-run.');
+        }
 
-      const projectConfig = loadZtdProjectConfig();
-      const directories = normalizeDirectoryList(merged.ddlDir as string[], projectConfig.ddlDir ?? DEFAULT_DDL_DIRECTORY);
-      const extensions = resolveExtensions(merged.extensions as string[], DEFAULT_EXTENSIONS);
-      const defaultOut = path.join(
-        projectConfig.testsDir ?? DEFAULT_TESTS_DIRECTORY,
-        'generated',
-        'ztd-row-map.generated.ts'
-      );
-      const output = merged.out ?? defaultOut;
-      const layoutOut = path.join(path.dirname(output), 'ztd-layout.generated.ts');
+        const projectConfig = loadZtdProjectConfig();
+        const directories = normalizeDirectoryList(merged.ddlDir, projectConfig.ddlDir ?? DEFAULT_DDL_DIRECTORY);
+        const extensions = resolveExtensions(merged.extensions, DEFAULT_EXTENSIONS);
+        const defaultOut = path.join(
+          projectConfig.testsDir ?? DEFAULT_TESTS_DIRECTORY,
+          'generated',
+          'ztd-row-map.generated.ts'
+        );
+        const output = merged.out ?? defaultOut;
+        const layoutOut = path.join(path.dirname(output), 'ztd-layout.generated.ts');
 
-      const ddlOverrides: ZtdProjectConfig['ddl'] = { ...projectConfig.ddl };
-      let shouldUpdateConfig = false;
+        const ddlOverrides: ZtdProjectConfig['ddl'] = { ...projectConfig.ddl };
+        let shouldUpdateConfig = false;
 
-      if (merged.defaultSchema) {
-        ddlOverrides.defaultSchema = validateResourceIdentifier(merged.defaultSchema, '--default-schema');
-        shouldUpdateConfig = true;
-      }
+        if (merged.defaultSchema) {
+          ddlOverrides.defaultSchema = validateResourceIdentifier(merged.defaultSchema, '--default-schema');
+          shouldUpdateConfig = true;
+        }
 
-      if (merged.searchPath && merged.searchPath.length > 0) {
-        ddlOverrides.searchPath = merged.searchPath.map((entry: string) => validateResourceIdentifier(entry, '--search-path'));
-        shouldUpdateConfig = true;
-      }
+        if (merged.searchPath && merged.searchPath.length > 0) {
+          ddlOverrides.searchPath = merged.searchPath.map((entry) => validateResourceIdentifier(entry, '--search-path'));
+          shouldUpdateConfig = true;
+        }
 
-      const validatedOutput = validateProjectPath(output, '--out');
-      const validatedLayoutOut = validateProjectPath(layoutOut, 'generated layout output');
+        const validatedOutput = validateProjectPath(output, '--out');
+        const validatedLayoutOut = validateProjectPath(layoutOut, 'generated layout output');
+        const generationOptions: ZtdConfigGenerationOptions = {
+          directories,
+          extensions,
+          out: validatedOutput,
+          defaultSchema: ddlOverrides.defaultSchema,
+          searchPath: ddlOverrides.searchPath,
+          ddlLint: projectConfig.ddlLint,
+          dryRun: merged.dryRun
+        };
+        const layoutConfig: ZtdProjectConfig = { ...projectConfig, ddl: ddlOverrides };
 
-      if (shouldUpdateConfig && !merged.dryRun) {
-        writeZtdProjectConfig(process.cwd(), { ddl: ddlOverrides });
-        emitDiagnostic({ code: 'ztd-config.config-updated', message: 'ztd.config.json ddl schema settings updated.' });
-      }
+        emitDecisionEvent('command.options.resolved', {
+          dryRun: merged.dryRun,
+          watch: merged.watch,
+          quiet: merged.quiet,
+          shouldUpdateConfig,
+          jsonPayload: Boolean(options.json),
+        });
 
-      const generationOptions: ZtdConfigGenerationOptions = {
-        directories,
-        extensions,
-        out: validatedOutput,
-        defaultSchema: ddlOverrides.defaultSchema,
-        searchPath: ddlOverrides.searchPath,
-        ddlLint: projectConfig.ddlLint,
-        dryRun: Boolean(merged.dryRun)
-      };
+        return {
+          merged,
+          shouldUpdateConfig,
+          ddlOverrides,
+          validatedOutput,
+          validatedLayoutOut,
+          generationOptions,
+          layoutConfig,
+        };
+      }, {
+        command: 'ztd-config',
+      });
 
-      const generation = await runGenerateZtdConfig(generationOptions);
-      const layoutConfig: ZtdProjectConfig = { ...projectConfig, ddl: ddlOverrides };
-      if (!merged.dryRun) {
-        writeZtdLayoutFile(validatedLayoutOut, layoutConfig);
-      }
-
-      if (isJsonOutput()) {
-        writeCommandEnvelope('ztd-config', {
-          schemaVersion: 1,
-          dryRun: Boolean(merged.dryRun),
-          configUpdated: shouldUpdateConfig && !merged.dryRun,
-          outputs: [
-            { path: validatedOutput, bytes: generation.rendered.length, written: !merged.dryRun },
-            { path: validatedLayoutOut, written: !merged.dryRun }
-          ],
-          tables: generation.tables.map((table) => ({ name: table.name, columns: table.columns.length }))
+      if (commandState.shouldUpdateConfig && !commandState.merged.dryRun) {
+        await withSpan('persist-project-config', async () => {
+          writeZtdProjectConfig(process.cwd(), { ddl: commandState.ddlOverrides });
+          emitDiagnostic({ code: 'ztd-config.config-updated', message: 'ztd.config.json ddl schema settings updated.' });
+          emitDecisionEvent('config.updated');
         });
       }
 
-      if (merged.watch) {
-        console.log(`[watch] Initial generation complete: ${generationOptions.out}`);
-        await watchZtdConfig(generationOptions, validatedLayoutOut, layoutConfig);
-      } else if (!merged.quiet) {
-        if (merged.dryRun) {
-          emitDiagnostic({
-            code: 'ztd-config.dry-run',
-            message: `Dry-run validated generation for ${validatedOutput} and ${validatedLayoutOut}.`
-          });
-        } else {
-          emitDiagnostic({ code: 'ztd-config.next-steps', message: 'Next: run vitest, ztd lint, and ztd check-contract.' });
-        }
+      const generation = await withSpan('generate-ztd-config', async () => {
+        return await runGenerateZtdConfig(commandState.generationOptions);
+      }, {
+        dryRun: commandState.merged.dryRun,
+        directoryCount: commandState.generationOptions.directories.length,
+      });
+
+      if (!commandState.merged.dryRun) {
+        await withSpan('write-layout-file', async () => {
+          writeZtdLayoutFile(commandState.validatedLayoutOut, commandState.layoutConfig);
+        });
       }
+
+      await withSpan('emit-command-output', async () => {
+        if (isJsonOutput()) {
+          writeCommandEnvelope('ztd-config', {
+            schemaVersion: 1,
+            dryRun: commandState.merged.dryRun,
+            configUpdated: commandState.shouldUpdateConfig && !commandState.merged.dryRun,
+            outputs: [
+              { path: commandState.validatedOutput, bytes: generation.rendered.length, written: !commandState.merged.dryRun },
+              { path: commandState.validatedLayoutOut, written: !commandState.merged.dryRun }
+            ],
+            tables: generation.tables.map((table) => ({ name: table.name, columns: table.columns.length }))
+          });
+          emitDecisionEvent('output.json-envelope');
+        }
+
+        if (commandState.merged.watch) {
+          console.log(`[watch] Initial generation complete: ${commandState.generationOptions.out}`);
+          emitDecisionEvent('watch.enabled');
+          await watchZtdConfig(commandState.generationOptions, commandState.validatedLayoutOut, commandState.layoutConfig);
+        } else if (!commandState.merged.quiet) {
+          if (commandState.merged.dryRun) {
+            emitDiagnostic({
+              code: 'ztd-config.dry-run',
+              message: `Dry-run validated generation for ${commandState.validatedOutput} and ${commandState.validatedLayoutOut}.`
+            });
+            emitDecisionEvent('output.dry-run-diagnostic');
+          } else {
+            emitDiagnostic({ code: 'ztd-config.next-steps', message: 'Next: run vitest, ztd lint, and ztd check-contract.' });
+            emitDecisionEvent('output.next-steps-diagnostic');
+          }
+        } else {
+          emitDecisionEvent('output.quiet-suppressed');
+        }
+      });
     });
 }
 
-export function resolveZtdConfigCommandOptions(options: Record<string, unknown>): Record<string, unknown> {
+export function resolveZtdConfigCommandOptions(options: Record<string, unknown>): ZtdConfigCommandOptions {
   const payload = parseJsonPayload<Record<string, unknown>>(String(options.json), '--json');
-  const merged = { ...options, ...payload };
-
-  if (typeof merged.ddlDir === 'string') {
-    merged.ddlDir = collectDirectories(merged.ddlDir, []);
-  }
-  if (typeof merged.extensions === 'string') {
-    merged.extensions = parseExtensions(merged.extensions);
-  }
-  if (typeof merged.searchPath === 'string') {
-    merged.searchPath = parseCsvList(merged.searchPath);
-  }
-
-  return merged;
+  return normalizeZtdConfigCommandOptions({ ...options, ...payload });
 }
 
 async function watchZtdConfig(

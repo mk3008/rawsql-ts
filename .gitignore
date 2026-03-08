@@ -202,4 +202,5 @@ playgrounds/ztd-playground/
 DOGFOOD_LOG.txt
 DOGFOOD_REPORT.md
 tmp/dogfood-runs/
+.codex/CONTINUITY.md
 
