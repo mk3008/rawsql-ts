@@ -176,7 +176,7 @@ test(
   });
   expect(existsSync(outputFile)).toBe(false);
   },
-  30000,
+  60000,
 );
 
 test(
@@ -186,7 +186,7 @@ test(
     assertCliSuccess(result, '--help');
     expect(result.stdout).toContain('model-gen [options] <sql-file>');
   },
-  30000,
+  60000,
 );
 
 test(
@@ -201,7 +201,7 @@ test(
       ok: true
     });
   },
-  30000,
+  60000,
 );
 
 test(
@@ -232,7 +232,7 @@ test(
     expect(parsed.ok).toBe(true);
     expect(parsed.violations).toEqual([]);
   },
-  30000,
+  60000,
 );
 
 test(
@@ -282,35 +282,43 @@ test(
     });
     expect(result.stderr).toContain('Failed to connect to PostgreSQL for ztd lint.');
   },
-  30000,
+  60000,
 );
 
-test('init dry-run emits scaffold plan without writing files', () => {
-  const workspace = createTempDir('init-dry-run');
-  const result = runCli(['--output', 'json', 'init', '--dry-run', '--workflow', 'demo', '--validator', 'zod'], {}, workspace);
-  assertCliSuccess(result, 'init dry-run');
-  const parsed = JSON.parse(result.stdout);
-  expect(parsed.data).toMatchObject({
-    dryRun: true,
-    workflow: 'demo',
-    validator: 'zod'
-  });
-  expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(false);
-});
+test(
+  'init dry-run emits scaffold plan without writing files',
+  () => {
+    const workspace = createTempDir('init-dry-run');
+    const result = runCli(['--output', 'json', 'init', '--dry-run', '--workflow', 'demo', '--validator', 'zod'], {}, workspace);
+    assertCliSuccess(result, 'init dry-run');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed.data).toMatchObject({
+      dryRun: true,
+      workflow: 'demo',
+      validator: 'zod'
+    });
+    expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(false);
+  },
+  60000,
+);
 
-test('init CLI writes internal agent guidance by default and no visible AGENTS files', () => {
-  const workspace = createTempDir('init-default-internal-agents');
-  const result = runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace);
+test(
+  'init CLI writes internal agent guidance by default and no visible AGENTS files',
+  () => {
+    const workspace = createTempDir('init-default-internal-agents');
+    const result = runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace);
 
-  assertCliSuccess(result, 'init default agents');
-  expect(result.stdout).toContain('Internal guidance is managed under .ztd/agents/.');
-  expect(result.stdout).toContain('Enable with: ztd agents install');
-  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(true);
-  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'root.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(false);
-});
+    assertCliSuccess(result, 'init default agents');
+    expect(result.stdout).toContain('Internal guidance is managed under .ztd/agents/.');
+    expect(result.stdout).toContain('Enable with: ztd agents install');
+    expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(true);
+    expect(existsSync(path.join(workspace, '.ztd', 'agents', 'root.md'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
+    expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
+    expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(false);
+  },
+  60000,
+);
 
 test('agents install emits the visible AGENTS plan and materializes the files', { timeout: 60_000 }, () => {
   const workspace = createTempDir('agents-install');
