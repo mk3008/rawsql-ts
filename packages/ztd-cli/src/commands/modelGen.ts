@@ -22,6 +22,7 @@ import { resolveCliConnection, type ConnectionCliOptions } from './connectionOpt
 import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
 import { validateProjectPath, validateResourceIdentifier } from '../utils/agentSafety';
+import { emitDecisionEvent, withSpan, withSpanSync } from '../utils/telemetry';
 
 interface ModelGenCommandOptions extends ConnectionCliOptions {
   out?: string;
@@ -55,68 +56,134 @@ interface ModelGenZtdFixtureState {
   }>;
 }
 
+export const MODEL_GEN_SPAN_NAMES = {
+  resolveInputs: 'resolve-model-gen-inputs',
+  placeholderScan: 'placeholder-scan',
+  probeClientConnect: 'probe-client-connect',
+  probeQueryColumns: 'probe-query-columns',
+  typeInference: 'type-inference',
+  renderOutput: 'render-generated-output',
+  fileEmit: 'file-emit',
+} as const;
+
 interface ModelGenZtdProbeInput {
   ddlDir?: string;
   rootDir?: string;
 }
 
 export async function runModelGen(sqlFilePath: string, options: ModelGenCommandOptions): Promise<string> {
-  const format = normalizeFormat(options.format);
-  const sqlRoot = normalizeRealPath(options.sqlRoot ?? path.join('src', 'sql'));
-  const sqlFile = normalizeRealPath(sqlFilePath);
-  assertWithinSqlRoot(sqlRoot, sqlFile);
+  const resolved = withSpanSync(MODEL_GEN_SPAN_NAMES.resolveInputs, () => {
+    const format = normalizeFormat(options.format);
+    const sqlRoot = normalizeRealPath(options.sqlRoot ?? path.join('src', 'sql'));
+    const sqlFile = normalizeRealPath(sqlFilePath);
+    assertWithinSqlRoot(sqlRoot, sqlFile);
 
-  const relativeSqlFile = normalizeGeneratedSqlFile(path.relative(sqlRoot, sqlFile));
-  const sqlSource = readFileSync(sqlFile, 'utf8');
-  const scan = scanOrThrow(sqlSource, sqlFile, Boolean(options.allowPositional));
-  const derivedNames = deriveModelGenNames(relativeSqlFile);
-  ensureSpecIdAvailable(path.resolve(process.cwd(), 'src', 'catalog', 'specs'), derivedNames.specId, sqlFile);
-  const probeMode = normalizeProbeMode(options.probeMode);
+    const relativeSqlFile = normalizeGeneratedSqlFile(path.relative(sqlRoot, sqlFile));
+    const derivedNames = deriveModelGenNames(relativeSqlFile);
+    ensureSpecIdAvailable(path.resolve(process.cwd(), 'src', 'catalog', 'specs'), derivedNames.specId, sqlFile);
 
-  const connection = resolveCliConnectionWithProbeGuidance(options, probeMode);
-  const probeClient = await createProbeClient(probeMode, connection.url, options);
+    const probeMode = normalizeProbeMode(options.probeMode);
 
-  try {
+    return {
+      derivedNames,
+      format,
+      probeMode,
+      relativeSqlFile,
+      sqlFile,
+    };
+  }, {
+    format: options.format ?? 'spec',
+    hasOut: Boolean(options.out),
+  });
+
+  emitDecisionEvent('model-gen.probe-mode', {
+    probeMode: resolved.probeMode,
+  });
+
+  const placeholderPlan = withSpanSync(MODEL_GEN_SPAN_NAMES.placeholderScan, () => {
+    const sqlSource = readFileSync(resolved.sqlFile, 'utf8');
+    const scan = scanOrThrow(sqlSource, resolved.sqlFile, Boolean(options.allowPositional));
     const bound = bindProbeSql(sqlSource, scan, Boolean(options.allowPositional));
+
     if (options.debugProbe) {
       printProbeDebug(
-        sqlFile,
+        resolved.sqlFile,
         scan.mode,
         bound.boundSql,
         bound.orderedParamNames,
         Boolean(options.allowPositional),
-        probeMode,
+        resolved.probeMode,
         options.ddlDir
       );
     }
 
-    const columns = await probeQueryColumns(probeClient.queryable, bound.boundSql, bound.orderedParamNames.map(() => null))
-      .then((probed) => probed.map((column) => ({
+    return {
+      bound,
+      scan,
+    };
+  }, {
+    allowPositional: Boolean(options.allowPositional),
+  });
+
+  const probeClient = await withSpan(MODEL_GEN_SPAN_NAMES.probeClientConnect, async () => {
+    const connection = resolveCliConnectionWithProbeGuidance(options, resolved.probeMode);
+    return createProbeClient(resolved.probeMode, connection.url, options);
+  }, {
+    probeMode: resolved.probeMode,
+  });
+
+  try {
+    const probedColumns = await withSpan(MODEL_GEN_SPAN_NAMES.probeQueryColumns, async () => {
+      return probeQueryColumns(
+        probeClient.queryable,
+        placeholderPlan.bound.boundSql,
+        placeholderPlan.bound.orderedParamNames.map(() => null)
+      );
+    }, {
+      paramCount: placeholderPlan.bound.orderedParamNames.length,
+      probeMode: resolved.probeMode,
+    });
+
+    const columns = withSpanSync(MODEL_GEN_SPAN_NAMES.typeInference, () => {
+      const inferredColumns = probedColumns.map((column) => ({
         columnName: column.columnName,
         propertyName: toModelPropertyName(column.columnName),
         tsType: column.tsType
-      })));
-    assertUniqueProperties(columns.map((column) => column.propertyName));
+      }));
+      assertUniqueProperties(inferredColumns.map((column) => column.propertyName));
+      return inferredColumns;
+    }, {
+      columnCount: probedColumns.length,
+    });
 
-    const rendered = renderModelGenFile({
-      command: buildCommandText(sqlFilePath, options),
-      format,
-      sqlContractImport: resolveSqlContractImportSpecifier(options),
-      sqlFile: relativeSqlFile,
-      specId: derivedNames.specId,
-      interfaceName: derivedNames.interfaceName,
-      mappingName: derivedNames.mappingName,
-      specName: derivedNames.specName,
-      placeholderMode: scan.mode,
-      allowPositional: Boolean(options.allowPositional),
-      orderedParamNames: bound.orderedParamNames,
-      columns
+    const rendered = withSpanSync(MODEL_GEN_SPAN_NAMES.renderOutput, () => {
+      return renderModelGenFile({
+        command: buildCommandText(sqlFilePath, options),
+        format: resolved.format,
+        sqlContractImport: resolveSqlContractImportSpecifier(options),
+        sqlFile: resolved.relativeSqlFile,
+        specId: resolved.derivedNames.specId,
+        interfaceName: resolved.derivedNames.interfaceName,
+        mappingName: resolved.derivedNames.mappingName,
+        specName: resolved.derivedNames.specName,
+        placeholderMode: placeholderPlan.scan.mode,
+        allowPositional: Boolean(options.allowPositional),
+        orderedParamNames: placeholderPlan.bound.orderedParamNames,
+        columns
+      });
+    }, {
+      format: resolved.format,
     });
 
     if (options.out && !options.dryRun) {
-      const absoluteOut = validateProjectPath(options.out, '--out');
-      mkdirSync(path.dirname(absoluteOut), { recursive: true });
-      writeFileSync(absoluteOut, rendered, 'utf8');
+      const outFile = options.out;
+      withSpanSync(MODEL_GEN_SPAN_NAMES.fileEmit, () => {
+        const absoluteOut = validateProjectPath(outFile, '--out');
+        mkdirSync(path.dirname(absoluteOut), { recursive: true });
+        writeFileSync(absoluteOut, rendered, 'utf8');
+      }, {
+        outFile: normalizeCliPath(outFile),
+      });
     }
 
     return rendered;
