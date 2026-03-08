@@ -285,28 +285,22 @@ test(
   60000,
 );
 
-test(
-  'init dry-run emits scaffold plan without writing files',
-  () => {
-    const workspace = createTempDir('init-dry-run');
-    const result = runCli(['--output', 'json', 'init', '--dry-run', '--workflow', 'demo', '--validator', 'zod'], {}, workspace);
-    assertCliSuccess(result, 'init dry-run');
-    const parsed = JSON.parse(result.stdout);
-    expect(parsed.data).toMatchObject({
-      dryRun: true,
-      workflow: 'demo',
-      validator: 'zod'
-    });
-    expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(false);
-  },
-  60000,
-);
+test('init dry-run emits scaffold plan without writing files', { timeout: 60_000 }, () => {
+  const workspace = createTempDir('init-dry-run');
+  const result = runCli(['--output', 'json', 'init', '--dry-run', '--workflow', 'demo', '--validator', 'zod'], {}, workspace);
+  assertCliSuccess(result, 'init dry-run');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    dryRun: true,
+    workflow: 'demo',
+    validator: 'zod'
+  });
+  expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(false);
+});
 
-test(
-  'init CLI writes internal agent guidance by default and no visible AGENTS files',
-  () => {
-    const workspace = createTempDir('init-default-internal-agents');
-    const result = runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace);
+test('init CLI writes internal agent guidance by default and no visible AGENTS files', { timeout: 60_000 }, () => {
+  const workspace = createTempDir('init-default-internal-agents');
+  const result = runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace);
 
     assertCliSuccess(result, 'init default agents');
     expect(result.stdout).toContain('Internal guidance is managed under .ztd/agents/.');
@@ -973,4 +967,3 @@ pullTest('model-gen allows legacy positional placeholders only behind --allow-po
     await client.end();
   }
 }, 60_000);
-

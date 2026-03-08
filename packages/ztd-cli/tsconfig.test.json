@@ -3,7 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "rawsql-ts": ["../core/src/index.ts"],
+      "rawsql-ts": ["../core/src"],
       "rawsql-ts/*": ["../core/src/*"],
       "@rawsql-ts/testkit-core": ["../testkit-core/src"],
       "@rawsql-ts/testkit-core/*": ["../testkit-core/src/*"],
