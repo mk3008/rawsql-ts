@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { applyQueryOutputControls, formatQueryUsageReport } from '../query/format';
 import { buildQueryUsageReport, writeQueryUsageOutput } from '../query/report';
+import { buildQuerySliceReport } from '../query/slice';
 import {
   buildQueryStructureReport,
   formatQueryStructureReport,
@@ -28,6 +29,13 @@ interface QueryStructureOptions {
   out?: string;
 }
 
+interface QuerySliceOptions {
+  cte?: string;
+  final?: boolean;
+  out?: string;
+  limit?: string;
+}
+
 /**
  * Register strict-first impact investigation commands on the CLI root.
  */
@@ -44,6 +52,7 @@ Examples:
   $ ztd query uses column email --any-schema --any-table --format json
   $ ztd query outline large_query.sql
   $ ztd query graph large_query.sql --format dot
+  $ ztd query slice large_query.sql --cte purchase_summary
 
 Notes:
   - Strict mode is the default. Relaxed modes are explicit opt-in only.
@@ -120,6 +129,17 @@ Notes:
     .action((sqlFile: string, options: QueryStructureOptions) => {
       runQueryStructureCommand(sqlFile, options, true);
     });
+
+  query
+    .command('slice <sqlFile>')
+    .description('Generate a minimal executable SQL slice for a target CTE or the final query')
+    .option('--cte <name>', 'Slice a specific CTE into a standalone debug query')
+    .option('--final', 'Slice the final query while removing unused CTEs')
+    .option('--limit <count>', 'Add LIMIT to the emitted debug query when supported')
+    .option('--out <path>', 'Write output to file')
+    .action((sqlFile: string, options: QuerySliceOptions) => {
+      runQuerySliceCommand(sqlFile, options);
+    });
 }
 
 function runQueryUsesCommand(kind: 'table' | 'column', target: string | undefined, options: QueryUsesOptions): void {
@@ -163,6 +183,19 @@ function runQueryStructureCommand(sqlFile: string, options: QueryStructureOption
     return;
   }
   console.log(contents.trimEnd());
+}
+
+function runQuerySliceCommand(sqlFile: string, options: QuerySliceOptions): void {
+  const report = buildQuerySliceReport(sqlFile, {
+    cte: normalizeStringOption(options.cte),
+    final: normalizeBooleanOption(options.final),
+    limit: normalizeLimit(options.limit)
+  });
+  if (options.out) {
+    writeQueryUsageOutput(options.out, report.sql);
+    return;
+  }
+  console.log(report.sql.trimEnd());
 }
 
 function normalizeLimit(value: unknown): number | undefined {
