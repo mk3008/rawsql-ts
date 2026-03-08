@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: DuplicateCTEError
 
-Defined in: [packages/core/src/models/CTEError.ts:4](https://github.com/mk3008/rawsql-ts/blob/d05c323631d1c06a7d31e973b82bbb5e6eed5b3a/packages/core/src/models/CTEError.ts#L4)
+Defined in: [packages/core/src/models/CTEError.ts:4](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/models/CTEError.ts#L4)
 
 Error thrown when a CTE with the same name already exists
 
@@ -15,7 +15,7 @@ Error thrown when a CTE with the same name already exists
 
 > **new DuplicateCTEError**(`cteName`): `DuplicateCTEError`
 
-Defined in: [packages/core/src/models/CTEError.ts:5](https://github.com/mk3008/rawsql-ts/blob/d05c323631d1c06a7d31e973b82bbb5e6eed5b3a/packages/core/src/models/CTEError.ts#L5)
+Defined in: [packages/core/src/models/CTEError.ts:5](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/models/CTEError.ts#L5)
 
 #### Parameters
 
@@ -59,7 +59,7 @@ not capture any frames.
 
 > **cteName**: `string`
 
-Defined in: [packages/core/src/models/CTEError.ts:5](https://github.com/mk3008/rawsql-ts/blob/d05c323631d1c06a7d31e973b82bbb5e6eed5b3a/packages/core/src/models/CTEError.ts#L5)
+Defined in: [packages/core/src/models/CTEError.ts:5](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/models/CTEError.ts#L5)
 
 ***
 

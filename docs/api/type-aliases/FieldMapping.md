@@ -3,7 +3,7 @@
 
 > **FieldMapping** = `string` \| \{ `column`: `string`; `type?`: [`FieldType`](FieldType.md); \} \| \{ `from`: `string`; `type?`: [`FieldType`](FieldType.md); \}
 
-Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:16](https://github.com/mk3008/rawsql-ts/blob/d05c323631d1c06a7d31e973b82bbb5e6eed5b3a/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L16)
+Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:16](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L16)
 
 Field mapping configuration that can be either a simple column name or enhanced mapping with type control.
 </div>

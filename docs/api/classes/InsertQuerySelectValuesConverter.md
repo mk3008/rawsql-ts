@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: InsertQuerySelectValuesConverter
 
-Defined in: [packages/core/src/transformers/InsertQuerySelectValuesConverter.ts:14](https://github.com/mk3008/rawsql-ts/blob/d05c323631d1c06a7d31e973b82bbb5e6eed5b3a/packages/core/src/transformers/InsertQuerySelectValuesConverter.ts#L14)
+Defined in: [packages/core/src/transformers/InsertQuerySelectValuesConverter.ts:14](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/transformers/InsertQuerySelectValuesConverter.ts#L14)
 
 Utility to convert INSERT ... VALUES statements into INSERT ... SELECT UNION ALL form and vice versa.
 Enables easier column-by-column comparison across multi-row inserts.
@@ -22,7 +22,7 @@ Enables easier column-by-column comparison across multi-row inserts.
 
 > `static` **toSelectUnion**(`insertQuery`): [`InsertQuery`](InsertQuery.md)
 
-Defined in: [packages/core/src/transformers/InsertQuerySelectValuesConverter.ts:19](https://github.com/mk3008/rawsql-ts/blob/d05c323631d1c06a7d31e973b82bbb5e6eed5b3a/packages/core/src/transformers/InsertQuerySelectValuesConverter.ts#L19)
+Defined in: [packages/core/src/transformers/InsertQuerySelectValuesConverter.ts:19](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/transformers/InsertQuerySelectValuesConverter.ts#L19)
 
 Converts an INSERT query that uses VALUES into an equivalent INSERT ... SELECT UNION ALL form.
 The original InsertQuery remains untouched; the returned InsertQuery references cloned structures.
@@ -43,7 +43,7 @@ The original InsertQuery remains untouched; the returned InsertQuery references 
 
 > `static` **toValues**(`insertQuery`): [`InsertQuery`](InsertQuery.md)
 
-Defined in: [packages/core/src/transformers/InsertQuerySelectValuesConverter.ts:69](https://github.com/mk3008/rawsql-ts/blob/d05c323631d1c06a7d31e973b82bbb5e6eed5b3a/packages/core/src/transformers/InsertQuerySelectValuesConverter.ts#L69)
+Defined in: [packages/core/src/transformers/InsertQuerySelectValuesConverter.ts:69](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/transformers/InsertQuerySelectValuesConverter.ts#L69)
 
 Converts an INSERT query that leverages SELECT statements (with optional UNION ALL)
 into an equivalent INSERT ... VALUES representation.

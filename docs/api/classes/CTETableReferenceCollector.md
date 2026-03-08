@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CTETableReferenceCollector
 
-Defined in: [packages/core/src/transformers/CTETableReferenceCollector.ts:26](https://github.com/mk3008/rawsql-ts/blob/d05c323631d1c06a7d31e973b82bbb5e6eed5b3a/packages/core/src/transformers/CTETableReferenceCollector.ts#L26)
+Defined in: [packages/core/src/transformers/CTETableReferenceCollector.ts:26](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/transformers/CTETableReferenceCollector.ts#L26)
 
 A specialized table source collector designed for CTE dependency analysis.
 
@@ -23,7 +23,7 @@ which tables/CTEs are referenced by queries at any nesting level.
 
 > **new CTETableReferenceCollector**(): `CTETableReferenceCollector`
 
-Defined in: [packages/core/src/transformers/CTETableReferenceCollector.ts:33](https://github.com/mk3008/rawsql-ts/blob/d05c323631d1c06a7d31e973b82bbb5e6eed5b3a/packages/core/src/transformers/CTETableReferenceCollector.ts#L33)
+Defined in: [packages/core/src/transformers/CTETableReferenceCollector.ts:33](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/transformers/CTETableReferenceCollector.ts#L33)
 
 #### Returns
 
@@ -35,7 +35,7 @@ Defined in: [packages/core/src/transformers/CTETableReferenceCollector.ts:33](ht
 
 > **collect**(`query`): [`TableSource`](TableSource.md)[]
 
-Defined in: [packages/core/src/transformers/CTETableReferenceCollector.ts:94](https://github.com/mk3008/rawsql-ts/blob/d05c323631d1c06a7d31e973b82bbb5e6eed5b3a/packages/core/src/transformers/CTETableReferenceCollector.ts#L94)
+Defined in: [packages/core/src/transformers/CTETableReferenceCollector.ts:94](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/transformers/CTETableReferenceCollector.ts#L94)
 
 Collects all table references from the given SQL component
 
@@ -59,7 +59,7 @@ Array of TableSource objects representing all table references
 
 > **getTableSources**(): [`TableSource`](TableSource.md)[]
 
-Defined in: [packages/core/src/transformers/CTETableReferenceCollector.ts:102](https://github.com/mk3008/rawsql-ts/blob/d05c323631d1c06a7d31e973b82bbb5e6eed5b3a/packages/core/src/transformers/CTETableReferenceCollector.ts#L102)
+Defined in: [packages/core/src/transformers/CTETableReferenceCollector.ts:102](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/transformers/CTETableReferenceCollector.ts#L102)
 
 Gets all collected table sources
 
@@ -73,7 +73,7 @@ Gets all collected table sources
 
 > **visit**(`arg`): `void`
 
-Defined in: [packages/core/src/transformers/CTETableReferenceCollector.ts:130](https://github.com/mk3008/rawsql-ts/blob/d05c323631d1c06a7d31e973b82bbb5e6eed5b3a/packages/core/src/transformers/CTETableReferenceCollector.ts#L130)
+Defined in: [packages/core/src/transformers/CTETableReferenceCollector.ts:130](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/transformers/CTETableReferenceCollector.ts#L130)
 
 Main entry point for the visitor pattern.
 
