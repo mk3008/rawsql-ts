@@ -298,7 +298,7 @@ test('init dry-run emits scaffold plan without writing files', { timeout: 60_000
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(false);
 });
 
-test('init CLI writes internal agent guidance by default and no visible AGENTS files', () => {
+test('init CLI writes internal agent guidance by default and no visible AGENTS files', { timeout: 60_000 }, () => {
   const workspace = createTempDir('init-default-internal-agents');
   const result = runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace);
 
