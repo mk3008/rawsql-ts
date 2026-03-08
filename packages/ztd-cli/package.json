@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/ztd-cli",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "DB-agnostic scaffolding and DDL helpers for Zero Table Dependency projects",
   "main": "dist/index.js",
   "bin": {
@@ -11,7 +11,7 @@
     "build": "pnpm --filter @rawsql-ts/test-evidence-core run build && pnpm --filter @rawsql-ts/test-evidence-renderer-md run build && pnpm --filter @rawsql-ts/testkit-core run build && tsc -p tsconfig.json",
     "test": "vitest run --config vitest.config.ts",
     "lint": "eslint src --ext .ts",
-    "release": "npm run lint && npm run test && npm run build && npm pack --dry-run && npm publish --access public"
+    "release": "npm run lint && npm run test && npm run build && node -e \"require('fs').mkdirSync('../../tmp', { recursive: true })\" && pnpm pack --out ../../tmp/rawsql-ts-ztd-cli.tgz && pnpm publish --access public"
   },
   "keywords": [
     "rawsql-ts",

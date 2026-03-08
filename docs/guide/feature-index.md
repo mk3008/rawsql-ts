@@ -11,6 +11,9 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Feature | Command / Location | When to use |
 |---------|-------------------|-------------|
 | Non-interactive init | `ztd init --yes --workflow demo --validator zod` | CI/CD pipelines, agent-driven scaffolding |
+| Internal agent guidance | `.ztd/agents/manifest.json` | Default AI/project guidance without repo-visible `AGENTS.md` files |
+| Visible AGENTS install | `ztd agents install` | Materialize repo-visible `AGENTS.md` files only when you want them |
+| AGENTS status | `ztd agents status` | Check managed guidance state and drift |
 | DDL pull from live DB | `ztd ddl pull` | Bootstrap DDL from an existing Postgres database |
 | DDL diff | `ztd ddl diff` | Compare local DDL against a live database after changes |
 | Watch mode | `ztd ztd-config --watch` | Continuous type regeneration while editing DDL |
@@ -42,7 +45,7 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | SqlClient interface | `src/db/sql-client.ts` | Define the app ↔ driver boundary |
 | SqlClient adapter (pg) | `src/db/sql-client-adapters.ts` | Convert `pg` Client/Pool to SqlClient |
 | Runtime coercions | `src/catalog/runtime/_coercions.ts` | Driver-type normalization before validation |
-| AGENTS.md guidance | Every directory | AI-assisted development context |
+| Internal agent manifest | `.ztd/agents/*` | Default AI-assisted development context |
 | Spec files | `src/catalog/specs/` | Define catalog contracts with validators |
 | Global test setup | `tests/support/global-setup.ts` | Test-runner initialization hooks |
 
@@ -50,15 +53,19 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 
 | Guide | Path | When to read |
 |-------|------|-------------|
-| Happy Path Quickstart | [ztd-cli README](../../packages/ztd-cli/README.md#happy-path-quickstart) | First-time setup |
-| After DDL Changes | [ztd-cli README](../../packages/ztd-cli/README.md#after-ddlschema-changes) | Schema evolution workflow |
+| Happy Path Quickstart | [ztd-cli README](https://github.com/mk3008/rawsql-ts/blob/main/packages/ztd-cli/README.md#happy-path-quickstart) | First-time setup |
+| After DDL Changes | [ztd-cli README](https://github.com/mk3008/rawsql-ts/blob/main/packages/ztd-cli/README.md#after-ddlschema-changes) | Schema evolution workflow |
 | Mapping vs Validation pipeline | [recipes/mapping-vs-validation](../recipes/mapping-vs-validation.md) | Avoid coerce/validator conflicts |
 | Postgres Pitfalls | [guide/postgres-pitfalls](./postgres-pitfalls.md) | Postgres-specific quirks |
 | Spec-Change Scenarios | [guide/spec-change-scenarios](./spec-change-scenarios.md) | Quick reference for common changes |
 | Query Uses Overview | [guide/query-uses-overview](./query-uses-overview.md) | Why static analysis beats grep, human vs machine output |
 | Query Uses Impact Checks | [guide/query-uses-impact-checks](./query-uses-impact-checks.md) | Full option reference, scenario playbook, troubleshooting |
+| ztd-cli Agent Interface | [guide/ztd-cli-agent-interface](./ztd-cli-agent-interface.md) | Machine-readable CLI usage for automation and AI agents |
+| ztd describe schema | [guide/ztd-cli-describe-schema](./ztd-cli-describe-schema.md) | Contract details for `ztd describe` JSON payloads |
+| ztd-cli measurement inventory | [guide/ztd-cli-measurement-inventory](./ztd-cli-measurement-inventory.md) | Audit current timing/profiling surfaces before adding OpenTelemetry |
 | Validation (Zod) | [recipes/validation-zod](../recipes/validation-zod.md) | Wire Zod schemas |
 | Validation (ArkType) | [recipes/validation-arktype](../recipes/validation-arktype.md) | Wire ArkType schemas |
 | SQL catalog recipe | [recipes/sql-contract](../recipes/sql-contract.md) | Catalog executor patterns |
 | Execution scope | [guide/execution-scope](./execution-scope.md) | Transaction and connection control |
 | ZTD Theory | [guide/ztd-theory](./ztd-theory.md) | Conceptual foundation |
+

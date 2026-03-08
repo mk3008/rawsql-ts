@@ -12,7 +12,6 @@ import type {
 } from '../src'
 import {
   BinderError,
-  CatalogExecutionError,
   ContractViolationError,
   createCatalogExecutor,
   rowMapping,
@@ -20,7 +19,7 @@ import {
 
 const testDirectory = dirname(fileURLToPath(import.meta.url))
 
-describe('catalog executor', () => {
+describe('catalog read execution', () => {
   it('lets validation read the mapped DTO rather than the raw SQL row', async () => {
     const loader = {
       load: vi.fn(() =>
@@ -129,6 +128,30 @@ describe('catalog executor', () => {
 
     expect(loader.load).toHaveBeenCalledTimes(1)
     expect(executor).toHaveBeenCalledTimes(2)
+    expect(executor).toHaveBeenCalledWith('select id from demo', [])
+  })
+
+  it('accepts executor results shaped as { rows, rowCount } for read paths', async () => {
+    const loader = { load: vi.fn(() => Promise.resolve('select id from demo')) }
+    const executor = vi.fn(() =>
+      Promise.resolve({ rows: [{ id: 1 }], rowCount: 1 })
+    )
+    const catalog = createCatalogExecutor({
+      loader,
+      executor,
+    })
+
+    const spec: QuerySpec<[], { id: number }> = {
+      id: 'demo.list.normalized-result',
+      sqlFile: 'normalized.sql',
+      params: { shape: 'positional', example: [] },
+      output: {
+        example: { id: 1 },
+      },
+    }
+
+    await expect(catalog.list(spec, [])).resolves.toEqual([{ id: 1 }])
+    expect(executor).toHaveBeenCalledTimes(1)
     expect(executor).toHaveBeenCalledWith('select id from demo', [])
   })
 

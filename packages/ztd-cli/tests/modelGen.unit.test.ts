@@ -5,6 +5,8 @@ import {
   normalizeCliPath,
   resolveSqlContractImportSpecifier,
   resolveModelGenZtdProbeOptions,
+  resolveCliConnectionWithProbeGuidance,
+  buildModelGenConnectionFailure,
 } from '../src/commands/modelGen';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -336,4 +338,31 @@ test('loadModelGenZtdFixtureState preserves searchPath precedence so unqualified
       rows: [],
     },
   ]);
+});
+
+
+test('resolveCliConnectionWithProbeGuidance explains ztd probe DB requirement when connection is missing', () => {
+  const previous = process.env.DATABASE_URL;
+  try {
+    delete process.env.DATABASE_URL;
+    expect(() => resolveCliConnectionWithProbeGuidance({}, 'ztd')).toThrow(
+      /still needs a reachable PostgreSQL connection/
+    );
+  } finally {
+    if (previous === undefined) {
+      delete process.env.DATABASE_URL;
+    } else {
+      process.env.DATABASE_URL = previous;
+    }
+  }
+});
+
+test('buildModelGenConnectionFailure includes mode-specific guidance', () => {
+  const ztdError = buildModelGenConnectionFailure(new Error('ECONNREFUSED'), 'ztd');
+  expect(ztdError.message).toContain('before ztd probing');
+  expect(ztdError.message).toContain('ECONNREFUSED');
+
+  const liveError = buildModelGenConnectionFailure(new Error('timeout'), 'live');
+  expect(liveError.message).toContain('Failed to connect to PostgreSQL for model-gen');
+  expect(liveError.message).toContain('timeout');
 });

@@ -9,9 +9,17 @@ export interface GenerateEntitiesOptions {
   directories: string[];
   extensions: string[];
   out: string;
+  dryRun?: boolean;
 }
 
-export function runGenerateEntities(options: GenerateEntitiesOptions): void {
+export interface GenerateEntitiesResult {
+  outFile: string;
+  rendered: string;
+  tables: TableMetadata[];
+  dryRun: boolean;
+}
+
+export function runGenerateEntities(options: GenerateEntitiesOptions): GenerateEntitiesResult {
   const sources = collectSqlFiles(options.directories, options.extensions);
   if (sources.length === 0) {
     throw new Error(`No SQL files were discovered under ${options.directories.join(', ')}`);
@@ -23,9 +31,17 @@ export function runGenerateEntities(options: GenerateEntitiesOptions): void {
   }
 
   const output = renderEntitiesFile(tables);
-  ensureDirectory(path.dirname(options.out));
-  writeFileSync(options.out, output, 'utf8');
-  console.log(`Generated ${tables.length} schema helpers at ${options.out}`);
+  if (!options.dryRun) {
+    ensureDirectory(path.dirname(options.out));
+    writeFileSync(options.out, output, 'utf8');
+    console.log(`Generated ${tables.length} schema helpers at ${options.out}`);
+  }
+  return {
+    outFile: options.out,
+    rendered: output,
+    tables,
+    dryRun: Boolean(options.dryRun)
+  };
 }
 
 function renderEntitiesFile(tables: TableMetadata[]): string {

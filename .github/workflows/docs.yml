@@ -1,4 +1,4 @@
-﻿name: Docs
+name: Docs
 
 on:
   push:
@@ -65,7 +65,7 @@ jobs:
             echo "docs/api is already up to date"
             exit 0
           fi
-          git commit -m "docs: refresh API reference [skip ci]"
+          git commit --no-verify -m "docs: refresh API reference [skip ci]"
           if git push; then
             echo "docs: pushed API reference updates"
           else

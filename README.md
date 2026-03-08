@@ -2,11 +2,11 @@
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-A monorepo for **rawsql-ts** — a toolkit that treats raw SQL as a first-class citizen, enhancing maintainability and reusability through high-performance AST parsing and programmatic manipulation.
+A monorepo for **rawsql-ts**: a toolkit that treats raw SQL as a first-class citizen, enhancing maintainability and reusability through high-performance AST parsing and programmatic manipulation.
 
-By parsing SQL into abstract syntax trees, rawsql-ts enables type-safe query building, static validation, and transparent result mapping — all while preserving the expressiveness and control of handwritten SQL. AST-based rewriting also powers Zero Table Dependency (ZTD) testing, which transforms application queries to run against in-memory fixtures instead of physical tables, enabling deterministic unit tests without database setup overhead.
+By parsing SQL into abstract syntax trees, rawsql-ts enables type-safe query building, static validation, and transparent result mapping, all while preserving the expressiveness and control of handwritten SQL. AST-based rewriting also powers Zero Table Dependency (ZTD) testing, which transforms application queries to run against in-memory fixtures instead of physical tables, enabling deterministic unit tests without database setup overhead.
 
-Designed to complement — not replace — your SQL expertise.
+Designed to complement, not replace, your SQL expertise.
 
 > [!Note]
 > This project is currently in beta. APIs may change until the v1.0 release.
@@ -53,19 +53,21 @@ Designed to complement — not replace — your SQL expertise.
 |---------|---------|-------------|
 | [@rawsql-ts/ztd-cli](./packages/ztd-cli) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/ztd-cli) | DB-agnostic scaffolding and DDL helpers for Zero Table Dependency projects. |
 
+For the machine-readable CLI surface, see [ztd-cli Agent Interface](./docs/guide/ztd-cli-agent-interface.md) and [ztd-cli Describe Schema](./docs/guide/ztd-cli-describe-schema.md).
+
 ## Architecture
 
-```
+```text
 rawsql-ts (core)
-├── @rawsql-ts/sql-contract
-├── @rawsql-ts/executor
-├── @rawsql-ts/testkit-core
-│   ├── @rawsql-ts/testkit-postgres
-│   │   └── @rawsql-ts/adapter-node-pg
-│   └── @rawsql-ts/testkit-sqlite
-├── @rawsql-ts/ddl-docs-cli
-│   └── @rawsql-ts/ddl-docs-vitepress
-└── @rawsql-ts/ztd-cli
+├─ @rawsql-ts/sql-contract
+├─ @rawsql-ts/executor
+├─ @rawsql-ts/testkit-core
+│  ├─ @rawsql-ts/testkit-postgres
+│  │  └─ @rawsql-ts/adapter-node-pg
+│  └─ @rawsql-ts/testkit-sqlite
+├─ @rawsql-ts/ddl-docs-cli
+│  └─ @rawsql-ts/ddl-docs-vitepress
+└─ @rawsql-ts/ztd-cli
 ```
 
 ## Quick Start
@@ -74,7 +76,7 @@ rawsql-ts (core)
 npm install rawsql-ts
 ```
 
-See the [Core Package Documentation](./packages/core/README.md) for usage examples and API reference.
+See the [Core Package Documentation](./packages/core/README.md) for usage examples and API reference. Deterministic dogfooding spec: [docs/dogfooding/DOGFOODING.md](./docs/dogfooding/DOGFOODING.md).
 
 ## Online Demo
 

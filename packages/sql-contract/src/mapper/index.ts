@@ -1,7 +1,12 @@
 import type { QueryParams } from '../query-params'
+import {
+  normalizeExecutionResult,
+  type QueryExecutionResult,
+} from '../normalizeExecutionResult'
 import { normalizeKeyFromRow, normalizeKeyValue } from './internal'
 
 export type { QueryParams } from '../query-params'
+export { normalizeExecutionResult, type QueryExecutionResult } from '../normalizeExecutionResult'
 
 /**
  * A single database row returned by a SQL driver.
@@ -15,7 +20,10 @@ export type Row = Record<string, unknown>
  * The mapper keeps this layer DBMS/driver agnostic; callers inject the concrete
  * executor that speaks to the desired database.
  */
-export type QueryExecutor = (sql: string, params: QueryParams) => Promise<Row[]>
+export type QueryExecutor = (
+  sql: string,
+  params: QueryParams
+) => Promise<QueryExecutionResult>
 
 /**
  * Defines how a column prefix, key, and optional overrides describe a row mapping.
@@ -471,7 +479,25 @@ export class Mapper {
     params: QueryParams = [],
     mappingOrOptions?: RowMapping<T> | MapperOptions
   ): Promise<T[]> {
-    const rows = await this.executor(sql, params)
+    let rows: Row[]
+    let rawResult: QueryExecutionResult | undefined
+
+    rawResult = await this.executor(sql, params)
+
+    try {
+      rows = normalizeExecutionResult(rawResult).rows
+    } catch (cause) {
+      // Include query context to diagnose unsupported driver result shapes quickly.
+      throw new Error(
+        `Mapper executor returned an unsupported result shape. sql=${sql} params=${String(params)} cause=${cause instanceof Error ? cause.message : String(cause)}`
+      )
+    }
+
+    if (!Array.isArray(rows)) {
+      throw new Error(
+        `Mapper executor result must include a rows array. sql=${sql} params=${String(params)} raw=${String(rawResult)}`
+      )
+    }
     if (mappingOrOptions instanceof RowMapping) {
       return mapRows(rows, mappingOrOptions)
     }
@@ -600,20 +626,19 @@ export function toRowsExecutor(
     | ((
         sql: string,
         params: QueryParams
-      ) => Promise<{ rows: Row[] } | { rows: Row[]; rowCount?: number } | Row[]>)
+      ) => Promise<QueryExecutionResult>)
     | { [key: string]: (...args: unknown[]) => Promise<unknown> },
   methodName?: string
 ): QueryExecutor {
   if (typeof executorOrTarget === 'function') {
     return async (sql, params) => {
-      const result = await executorOrTarget(sql, params)
-      if (Array.isArray(result)) {
-        return result
+      const normalizedResult = normalizeExecutionResult(
+        await executorOrTarget(sql, params)
+      )
+      return {
+        rows: normalizedResult.rows,
+        rowCount: normalizedResult.rowCount,
       }
-      if ('rows' in result) {
-        return (result as { rows: Row[] }).rows
-      }
-      return []
     }
   }
 
@@ -626,13 +651,11 @@ export function toRowsExecutor(
       throw new Error(`Method "${methodName}" not found on target`)
     }
     const result = await method.call(executorOrTarget, sql, params)
-    if (Array.isArray(result)) {
-      return result
+    const normalizedResult = normalizeExecutionResult(result as QueryExecutionResult)
+    return {
+      rows: normalizedResult.rows,
+      rowCount: normalizedResult.rowCount,
     }
-    if (result && typeof result === 'object' && 'rows' in result) {
-      return (result as { rows: Row[] }).rows
-    }
-    return []
   }
 
   return executor
@@ -684,7 +707,15 @@ function readScalarValue(
   sql: string,
   params: QueryParams
 ): Promise<unknown> {
-  return executor(sql, params).then((rows) => extractScalar(rows))
+  return executor(sql, params).then((result) => {
+    try {
+      return extractScalar(normalizeExecutionResult(result).rows)
+    } catch (cause) {
+      throw new Error(
+        `Scalar executor returned an unsupported result shape. sql=${sql} params=${String(params)} cause=${cause instanceof Error ? cause.message : String(cause)}`
+      )
+    }
+  })
 }
 
 function extractScalar(rows: Row[]): unknown {
@@ -1473,4 +1504,6 @@ export const __internal = {
   normalizeKeyFromRow,
 }
                   
+
+
 

@@ -66,7 +66,7 @@ export function buildQueryStructureReport(sqlFile: string): QueryStructureReport
       used_by_final_query: usedCtes.has(name),
       unused: !usedCtes.has(name)
     })),
-    final_query: rootDependencies.length === 1 ? rootDependencies[0] : null,
+    final_query: resolveFinalQuery(statement, cteNames, rootDependencies),
     referenced_tables: referencedTables,
     unused_ctes: unusedCtes
   };
@@ -105,7 +105,7 @@ function formatQueryStructureText(report: QueryStructureReport): string {
     });
   }
 
-  lines.push('', 'Final query target:', report.final_query ?? '(multiple or none)');
+  lines.push('', 'Final query target:', report.final_query ?? '(none)');
   lines.push('', 'Referenced tables:');
   if (report.referenced_tables.length === 0) {
     lines.push('(none)');
@@ -125,7 +125,7 @@ function formatQueryStructureText(report: QueryStructureReport): string {
 
 function formatQueryStructureDot(report: QueryStructureReport): string {
   const lines = ['digraph query_structure {', '  rankdir=LR;', '  "FINAL_QUERY" [shape=box];'];
-  const directRoots = new Set(report.final_query ? [report.final_query] : collectDirectRootNodes(report));
+  const directRoots = report.final_query ? report.final_query.split(', ').filter(Boolean) : [];
 
   for (const cte of report.ctes) {
     const attributes = cte.unused ? ' [style=dashed]' : '';
@@ -136,22 +136,13 @@ function formatQueryStructureDot(report: QueryStructureReport): string {
     for (const dependency of cte.depends_on) {
       lines.push(`  "${cte.name}" -> "${dependency}";`);
     }
-    if (directRoots.has(cte.name)) {
+    if (directRoots.includes(cte.name)) {
       lines.push(`  "FINAL_QUERY" -> "${cte.name}";`);
     }
   }
 
   lines.push('}');
   return lines.join('\n');
-}
-
-function collectDirectRootNodes(report: QueryStructureReport): string[] {
-  const usedNames = new Set(report.ctes.filter((cte) => cte.used_by_final_query).map((cte) => cte.name));
-  return report.ctes
-    .filter((cte) => usedNames.has(cte.name))
-    .filter((cte) => !report.ctes.some((candidate) => usedNames.has(candidate.name) && candidate.depends_on.includes(cte.name)))
-    .map((cte) => cte.name)
-    .sort();
 }
 
 function assertSupportedStatement(parsed: ReturnType<typeof SqlParser.parse>): SupportedStatement {
@@ -210,22 +201,42 @@ function collectRootDependencies(statement: SupportedStatement, cteNames: string
 
   if (isSelectStatement(statement)) {
     const collector = new CTETableReferenceCollector();
-    return Array.from(new Set(collector.collect(statement).map((source) => source.table.name).filter((name) => cteNameSet.has(name))));
+    return uniquePreservingOrder(
+      collector.collect(statement).map((source) => source.table.name).filter((name) => cteNameSet.has(name))
+    );
   }
 
   if (statement instanceof InsertQuery && statement.selectQuery) {
     return collectRootDependencies(assertSupportedStatement(statement.selectQuery as ReturnType<typeof SqlParser.parse>), cteNames);
   }
 
-  return Array.from(
-    new Set(
-      collectDirectSources(statement)
-        .map((source) => source.datasource)
-        .filter((source): source is TableSource => source instanceof TableSource)
-        .map((source) => source.table.name)
-        .filter((name) => cteNameSet.has(name))
-    )
+  return uniquePreservingOrder(
+    collectDirectSources(statement)
+      .map((source) => source.datasource)
+      .filter((source): source is TableSource => source instanceof TableSource)
+      .map((source) => source.table.name)
+      .filter((name) => cteNameSet.has(name))
   );
+}
+
+function resolveFinalQuery(statement: SupportedStatement, cteNames: string[], rootDependencies: string[]): string | null {
+  if (rootDependencies.length > 0) {
+    return rootDependencies.join(', ');
+  }
+
+  const cteNameSet = new Set(cteNames);
+  const directSources = uniquePreservingOrder(
+    collectDirectSources(statement)
+      .map((source) => source.datasource)
+      .filter((source): source is TableSource => source instanceof TableSource)
+      .map((source) => normalizeFinalSourceName(source, cteNameSet))
+  );
+
+  if (directSources.length === 0) {
+    return null;
+  }
+
+  return directSources.join(', ');
 }
 
 function collectReachableCtes(rootDependencies: string[], dependencyMap: Map<string, string[]>): Set<string> {
@@ -300,7 +311,26 @@ function normalizeCollectedTableName(source: TableSource): string {
   return normalizeTableName([...namespaces, source.table.name].join('.'));
 }
 
+function normalizeFinalSourceName(source: TableSource, cteNameSet: Set<string>): string {
+  if (cteNameSet.has(source.table.name)) {
+    return source.table.name;
+  }
+  return normalizeCollectedTableName(source);
+}
+
+function uniquePreservingOrder(values: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    if (seen.has(value)) {
+      continue;
+    }
+    seen.add(value);
+    result.push(value);
+  }
+  return result;
+}
+
 function isSelectStatement(statement: SupportedStatement): statement is SimpleSelectQuery | BinarySelectQuery | ValuesQuery {
   return statement instanceof SimpleSelectQuery || statement instanceof BinarySelectQuery || statement instanceof ValuesQuery;
 }
-

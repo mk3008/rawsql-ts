@@ -132,12 +132,239 @@ test(
   60000,
 );
 
-test('top-level help exposes model-gen as a first-class command', () => {
-  const result = runCli(['--help']);
-  assertCliSuccess(result, '--help');
-  expect(result.stdout).toContain('model-gen [options] <sql-file>');
-  expect(result.stdout).toContain('query');
+test(
+  'ztd-config CLI accepts --json payload and emits a JSON envelope in global json mode',
+  () => {
+  const ddlDir = createTempDir('cli-gen-ddl-json');
+  writeFileSync(
+    path.join(ddlDir, 'tables.sql'),
+    `
+      CREATE TABLE public.users (
+        id serial PRIMARY KEY,
+        email text NOT NULL
+      );
+    `,
+    'utf8'
+  );
+
+  const outDir = createTempDir('cli-gen-out-json');
+  const outputFile = path.join(outDir, 'ztd-row-map.generated.ts');
+  const result = runCli([
+    '--output',
+    'json',
+    'ztd-config',
+    '--json',
+    JSON.stringify({
+      ddlDir,
+      extensions: '.sql',
+      out: outputFile,
+      dryRun: true
+    })
+  ]);
+
+  assertCliSuccess(result, 'ztd-config json');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed).toMatchObject({
+    command: 'ztd-config',
+    ok: true,
+    data: {
+      dryRun: true,
+      outputs: expect.arrayContaining([
+        expect.objectContaining({ path: outputFile, written: false })
+      ])
+    }
+  });
+  expect(existsSync(outputFile)).toBe(false);
+  },
+  30000,
+);
+
+test(
+  'top-level help exposes model-gen as a first-class command',
+  () => {
+    const result = runCli(['--help']);
+    assertCliSuccess(result, '--help');
+    expect(result.stdout).toContain('model-gen [options] <sql-file>');
+  },
+  30000,
+);
+
+test(
+  'describe command returns machine-readable metadata with global json output',
+  () => {
+    const result = runCli(['--output', 'json', 'describe', 'command', 'model-gen']);
+    assertCliSuccess(result, 'describe command');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      schemaVersion: 1,
+      command: 'describe command',
+      ok: true
+    });
+  },
+  30000,
+);
+
+test(
+  'check contract honors global json output without a local --format override',
+  () => {
+    const workspace = createTempDir('check-contract-global-json');
+    mkdirSync(path.join(workspace, 'src', 'catalog', 'specs'), { recursive: true });
+    mkdirSync(path.join(workspace, 'src', 'sql'), { recursive: true });
+    writeFileSync(
+      path.join(workspace, 'src', 'catalog', 'specs', 'ok.spec.json'),
+      JSON.stringify({
+        id: 'users.list',
+        sqlFile: '../../sql/users.list.sql',
+        params: { shape: 'named', example: { status: 'active' } }
+      }, null, 2),
+      'utf8'
+    );
+    writeFileSync(
+      path.join(workspace, 'src', 'sql', 'users.list.sql'),
+      'select user_id from users where status = :status',
+      'utf8'
+    );
+
+    const result = runCli(['--output', 'json', 'check', 'contract'], { ZTD_PROJECT_ROOT: workspace }, workspace);
+
+    assertCliSuccess(result, 'check contract global json');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.violations).toEqual([]);
+  },
+  30000,
+);
+
+test(
+  'lint CLI accepts --json payload and emits a JSON envelope in global json mode',
+  () => {
+    const workspace = createSqlWorkspace('lint-json-cli');
+    writeFileSync(workspace.sqlFile, 'select 1 as value', 'utf8');
+    writeFileSync(
+      path.join(workspace.rootDir, 'ztd.config.json'),
+      JSON.stringify({
+        dialect: 'postgres',
+        ddlDir: 'ztd/ddl',
+        testsDir: 'tests',
+        ddl: {
+          defaultSchema: 'public',
+          searchPath: ['public']
+        },
+        ddlLint: 'strict'
+      }, null, 2),
+      'utf8'
+    );
+    mkdirSync(path.join(workspace.rootDir, 'ztd', 'ddl'), { recursive: true });
+    writeFileSync(
+      path.join(workspace.rootDir, 'ztd', 'ddl', 'public.sql'),
+      'CREATE TABLE public.users (id integer PRIMARY KEY);',
+      'utf8'
+    );
+
+    const result = runCli(
+      ['--output', 'json', 'lint', '--json', JSON.stringify({ path: workspace.sqlFile })],
+      {
+        ZTD_LINT_DATABASE_URL: 'postgres://127.0.0.1:1/invalid',
+        DATABASE_URL: ''
+      },
+      workspace.rootDir
+    );
+
+    assertCliFailure(result, 'lint json');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      command: 'lint',
+      ok: false,
+      data: {
+        filesChecked: 0,
+        error: expect.stringContaining('Failed to connect to PostgreSQL for ztd lint.')
+      }
+    });
+    expect(result.stderr).toContain('Failed to connect to PostgreSQL for ztd lint.');
+  },
+  30000,
+);
+
+test('init dry-run emits scaffold plan without writing files', () => {
+  const workspace = createTempDir('init-dry-run');
+  const result = runCli(['--output', 'json', 'init', '--dry-run', '--workflow', 'demo', '--validator', 'zod'], {}, workspace);
+  assertCliSuccess(result, 'init dry-run');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    dryRun: true,
+    workflow: 'demo',
+    validator: 'zod'
+  });
+  expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(false);
 });
+
+test('init CLI writes internal agent guidance by default and no visible AGENTS files', () => {
+  const workspace = createTempDir('init-default-internal-agents');
+  const result = runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace);
+
+  assertCliSuccess(result, 'init default agents');
+  expect(result.stdout).toContain('Internal guidance is managed under .ztd/agents/.');
+  expect(result.stdout).toContain('Enable with: ztd agents install');
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(true);
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'root.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(false);
+});
+
+test('agents install emits the visible AGENTS plan and materializes the files', () => {
+  const workspace = createTempDir('agents-install');
+  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before install');
+
+  const result = runCli(['agents', 'install'], {}, workspace);
+  assertCliSuccess(result, 'agents install');
+  expect(result.stdout).toContain('About to create:');
+  expect(result.stdout).toContain('No files will be overwritten.');
+  expect(result.stdout).toContain('Disable with: skip `ztd agents install`');
+  expect(result.stdout).toContain('AGENTS.md');
+  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(true);
+}, 30_000);
+
+test('agents install preserves an existing root AGENTS.md and falls back to AGENTS_ztd.md', { timeout: 60_000 }, () => {
+  const workspace = createTempDir('agents-install-root-fallback');
+  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before fallback install');
+  writeFileSync(path.join(workspace, 'AGENTS.md'), '# existing root\n', 'utf8');
+
+  const result = runCli(['agents', 'install'], {}, workspace);
+  assertCliSuccess(result, 'agents install fallback');
+  expect(result.stdout).toContain('AGENTS_ztd.md');
+  expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toBe('# existing root\n');
+  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(true);
+});
+
+test('agents status reports internal files and visible install recommendation before install', { timeout: 60_000 }, () => {
+  const workspace = createTempDir('agents-status');
+  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before status');
+
+  const result = runCli(['--output', 'json', 'agents', 'status'], {}, workspace);
+  assertCliSuccess(result, 'agents status');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    recommended_actions: expect.arrayContaining(['install-visible-agents']),
+    targets: expect.arrayContaining([
+      expect.objectContaining({
+        path: '.ztd/agents/manifest.json',
+        installed: true,
+        managed: true,
+        drift: 'none'
+      }),
+      expect.objectContaining({
+        path: 'AGENTS.md',
+        installed: false,
+        managed: false,
+        drift: 'none'
+      })
+    ])
+  });
+});
+
 
 test('query outline summarizes CTE dependencies and unused CTEs', () => {
   const workspace = createSqlWorkspace('query-outline', path.join('src', 'sql', 'reports', 'ranked_users.sql'));
@@ -184,7 +411,30 @@ test('query outline summarizes CTE dependencies and unused CTEs', () => {
   expect(result.stdout).toContain('unused_cte');
 });
 
-test('query graph emits machine-readable JSON by default', () => {
+test('query graph defaults to text output', () => {
+  const workspace = createSqlWorkspace('query-graph-text', path.join('src', 'sql', 'graph.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with base_data as (
+        select id from public.users
+      ),
+      final_data as (
+        select id from base_data
+      )
+      select * from final_data
+    `,
+    'utf8'
+  );
+
+  const result = runCli(['query', 'graph', workspace.sqlFile], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query graph text');
+  expect(result.stdout).toContain('Query type: SELECT');
+  expect(result.stdout).toContain('Final query target:');
+  expect(result.stdout).toContain('final_data');
+});
+
+test('query graph emits machine-readable JSON when requested', () => {
   const workspace = createSqlWorkspace('query-graph-json', path.join('src', 'sql', 'graph.sql'));
   writeFileSync(
     workspace.sqlFile,
@@ -203,7 +453,7 @@ test('query graph emits machine-readable JSON by default', () => {
     'utf8'
   );
 
-  const result = runCli(['query', 'graph', workspace.sqlFile], {}, workspace.rootDir);
+  const result = runCli(['query', 'graph', workspace.sqlFile, '--format', 'json'], {}, workspace.rootDir);
   assertCliSuccess(result, 'query graph json');
   const payload = JSON.parse(result.stdout);
   expect(payload.query_type).toBe('SELECT');
@@ -231,28 +481,59 @@ test('query graph emits machine-readable JSON by default', () => {
   ]);
 });
 
-test('query graph emits DOT when requested', () => {
-  const workspace = createSqlWorkspace('query-graph-dot', path.join('src', 'sql', 'graph.sql'));
+test('query graph preserves multiple direct roots in final_query', () => {
+  const workspace = createSqlWorkspace('query-graph-multi-root', path.join('src', 'sql', 'graph.sql'));
   writeFileSync(
     workspace.sqlFile,
     `
-      with base_data as (
+      with left_data as (
         select id from public.users
       ),
-      final_data as (
-        select id from base_data
+      right_data as (
+        select id from public.orders
       )
-      select * from final_data
+      select ld.id, rd.id
+      from left_data ld
+      join right_data rd on rd.id = ld.id
     `,
     'utf8'
   );
 
-  const result = runCli(['query', 'graph', workspace.sqlFile, '--format', 'dot'], {}, workspace.rootDir);
-  assertCliSuccess(result, 'query graph dot');
-  expect(result.stdout).toContain('digraph query_structure {');
-  expect(result.stdout).toContain('"FINAL_QUERY" -> "final_data";');
-  expect(result.stdout).toContain('"final_data" -> "base_data";');
+  const result = runCli(['query', 'graph', workspace.sqlFile, '--format', 'json'], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query graph multi-root');
+  const payload = JSON.parse(result.stdout);
+  expect(payload.final_query).toBe('left_data, right_data');
 });
+
+test('query outline supports DML statements with CTE analysis', () => {
+  const workspace = createSqlWorkspace('query-outline-insert', path.join('src', 'sql', 'insert_report.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with source_rows as (
+        select id from public.users
+      ),
+      unused_rows as (
+        select id from public.audit_log
+      )
+      insert into public.user_report (user_id)
+      select id from source_rows
+    `,
+    'utf8'
+  );
+
+  const result = runCli(['query', 'outline', workspace.sqlFile], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query outline insert');
+  expect(result.stdout).toContain('Query type: INSERT');
+  expect(result.stdout).toContain('CTE count: 2');
+  expect(result.stdout).toContain('1. source_rows');
+  expect(result.stdout).toContain('2. unused_rows [unused]');
+  expect(result.stdout).toContain('Final query target:');
+  expect(result.stdout).toContain('source_rows');
+  expect(result.stdout).toContain('public.audit_log');
+  expect(result.stdout).toContain('unused_rows');
+});
+
 test('model-gen rejects positional placeholders by default and recommends named params', () => {
   const workspace = createSqlWorkspace('model-gen-positional-error');
   writeFileSync(workspace.sqlFile, 'select * from users where id = $1', 'utf8');
@@ -262,6 +543,25 @@ test('model-gen rejects positional placeholders by default and recommends named 
   expect(result.stderr).toContain('Detected positional placeholders ($1, $2, ...)');
   expect(result.stderr).toContain('must use named parameters (:name) by policy');
   expect(result.stderr).toContain('--allow-positional');
+});
+
+test('model-gen describe-output emits contract metadata without probing', () => {
+  const workspace = createSqlWorkspace('model-gen-describe-output');
+  writeFileSync(workspace.sqlFile, 'select 1 as value', 'utf8');
+
+  const result = runCli(
+    ['--output', 'json', 'model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--describe-output'],
+    {},
+    workspace.rootDir
+  );
+  assertCliSuccess(result, 'model-gen describe-output');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    command: 'model-gen',
+    outputs: {
+      spec: 'TypeScript QuerySpec scaffold'
+    }
+  });
 });
 
 test('model-gen rejects sql files outside the configured sql root', () => {
@@ -327,6 +627,30 @@ pullTest('pull CLI emits schema from Postgres via pg_dump', async () => {
     // Ensure pg_dump SET statements are removed without blocking ALTER ... SET DEFAULT.
     expect(normalizedSchema).not.toMatch(/(^|\n)set\s+/);
     expect(existsSync(path.join(outDir, 'schema.sql'))).toBe(false);
+  } finally {
+    await resetPublicSchema(client);
+    await client.end();
+  }
+}, 60_000);
+
+pullTest('pull CLI dry-run validates dump without writing files', async () => {
+  const connectionString = process.env.TEST_PG_URI!;
+  const client = new Client({ connectionString });
+  await client.connect();
+
+  try {
+    await resetPublicSchema(client);
+    await seedProductsTable(client);
+
+    const outDir = createTempDir('cli-pull-dry-run');
+    const result = runCli(['--output', 'json', 'ddl', 'pull', '--out', outDir, '--dry-run'], { DATABASE_URL: connectionString });
+    assertCliSuccess(result, 'ddl pull dry-run');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed.data).toMatchObject({
+      dryRun: true,
+      files: [expect.objectContaining({ schema: 'public' })]
+    });
+    expect(existsSync(path.join(outDir, 'public.sql'))).toBe(false);
   } finally {
     await resetPublicSchema(client);
     await client.end();
@@ -641,4 +965,3 @@ pullTest('model-gen allows legacy positional placeholders only behind --allow-po
     await client.end();
   }
 }, 60_000);
-

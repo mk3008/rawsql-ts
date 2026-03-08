@@ -24,6 +24,7 @@ import {
   walkSqlCatalogSpecFiles,
   type LoadedSqlCatalogSpec
 } from '../utils/sqlCatalogDiscovery';
+import { parseJsonPayload } from '../utils/agentCli';
 
 /**
  * Supported evidence generation modes for `ztd evidence`.
@@ -79,6 +80,11 @@ export interface TestSpecificationEvidence {
   sqlCaseCatalogs: SqlCaseCatalogEvidence[];
   testCaseCatalogs: TestCaseCatalogEvidence[];
   testCases: TestCaseEvidence[];
+  display?: {
+    summaryOnly: boolean;
+    limit?: number;
+    truncated: boolean;
+  };
 }
 
 /**
@@ -160,6 +166,9 @@ interface TestEvidenceCommandOptions {
   specsDir?: string;
   testsDir?: string;
   specModule?: string;
+  json?: string;
+  summaryOnly?: boolean;
+  limit?: string;
 }
 
 interface TestEvidencePrCommandOptions {
@@ -172,6 +181,9 @@ interface TestEvidencePrCommandOptions {
   specsDir?: string;
   testsDir?: string;
   specModule?: string;
+  json?: string;
+  summaryOnly?: boolean;
+  limit?: string;
 }
 
 interface TestCaseCatalogDocumentLike {
@@ -242,22 +254,32 @@ export function registerTestEvidenceCommand(program: Command): void {
     .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
     .option('--tests-dir <path>', 'Override tests directory (default: tests)')
     .option('--spec-module <path>', 'Explicit evidence module path (default: tests/specs/index)')
+    .option('--json <payload>', 'Pass evidence options as a JSON object')
+    .option('--summary-only', 'Write only summary counts without catalog or case detail payloads')
+    .option('--limit <count>', 'Limit returned catalogs and cases in generated artifacts')
     .action((options: TestEvidenceCommandOptions) => {
       try {
-        const mode = normalizeMode(options.mode);
-        const format = normalizeFormat(options.format);
-        const report = runTestEvidenceSpecification({
+        const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+        const mode = normalizeMode(String(merged.mode));
+        const format = normalizeFormat(String(merged.format));
+        const report = applyEvidenceOutputControls(
+          runTestEvidenceSpecification({
           mode,
           rootDir: process.env.ZTD_PROJECT_ROOT,
-          specsDir: options.specsDir,
-          testsDir: options.testsDir,
-          specModule: options.specModule
-        });
+          specsDir: merged.specsDir as string | undefined,
+          testsDir: merged.testsDir as string | undefined,
+          specModule: merged.specModule as string | undefined
+          }),
+          {
+            summaryOnly: Boolean(merged.summaryOnly),
+            limit: normalizeEvidenceLimit(merged.limit as string | undefined)
+          }
+        );
         const sourceRootDir = path.resolve(process.env.ZTD_PROJECT_ROOT ?? process.cwd());
         writeArtifacts({
           report,
           format,
-          outDir: path.resolve(process.cwd(), options.outDir),
+          outDir: path.resolve(process.cwd(), String(merged.outDir)),
           sourceRootDir
         });
         process.exitCode = resolveTestEvidenceExitCode({ result: report });
@@ -279,19 +301,25 @@ export function registerTestEvidenceCommand(program: Command): void {
     .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
     .option('--tests-dir <path>', 'Override tests directory (default: tests)')
     .option('--spec-module <path>', 'Explicit evidence module path (default: tests/specs/index)')
+    .option('--json <payload>', 'Pass PR evidence options as a JSON object')
+    .option('--summary-only', 'Write PR evidence with summary-only base/head projections')
+    .option('--limit <count>', 'Limit returned catalogs and cases in base/head projections')
     .action((options: TestEvidencePrCommandOptions) => {
       try {
+        const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
         const output = runTestEvidencePr({
-          baseRef: options.base ?? 'main',
-          headRef: options.head ?? 'HEAD',
-          baseMode: normalizeBaseMode(options.baseMode ?? 'merge-base'),
-          allowEmptyBase: Boolean(options.allowEmptyBase),
-          removedDetail: normalizeRemovedDetail(options.removedDetail ?? 'input'),
-          outDir: options.outDir ?? 'artifacts/test-evidence',
+          baseRef: String(merged.base ?? 'main'),
+          headRef: String(merged.head ?? 'HEAD'),
+          baseMode: normalizeBaseMode(String(merged.baseMode ?? 'merge-base')),
+          allowEmptyBase: Boolean(merged.allowEmptyBase),
+          removedDetail: normalizeRemovedDetail(String(merged.removedDetail ?? 'input')),
+          outDir: String(merged.outDir ?? 'artifacts/test-evidence'),
           rootDir: process.env.ZTD_PROJECT_ROOT,
-          specsDir: options.specsDir,
-          testsDir: options.testsDir,
-          specModule: options.specModule
+          specsDir: merged.specsDir as string | undefined,
+          testsDir: merged.testsDir as string | undefined,
+          specModule: merged.specModule as string | undefined,
+          summaryOnly: Boolean(merged.summaryOnly),
+          limit: normalizeEvidenceLimit(merged.limit as string | undefined)
         });
         process.exitCode = resolveTestEvidenceExitCode({ result: output.headReport });
       } catch (error) {
@@ -410,6 +438,23 @@ export function formatTestEvidenceOutput(
     return `${JSON.stringify(report, null, 2)}\n`;
   }
 
+  if (report.display?.summaryOnly) {
+    const lines = [
+      '# Test Specification Summary',
+      '',
+      `- schemaVersion: ${report.schemaVersion}`,
+      `- mode: ${report.mode}`,
+      `- sqlCatalogCount: ${report.summary.sqlCatalogCount}`,
+      `- sqlCaseCatalogCount: ${report.summary.sqlCaseCatalogCount}`,
+      `- testCaseCount: ${report.summary.testCaseCount}`,
+      `- specFilesScanned: ${report.summary.specFilesScanned}`,
+      `- testFilesScanned: ${report.summary.testFilesScanned}`,
+      `- truncated: ${report.display.truncated}`,
+      report.display.limit !== undefined ? `- limit: ${report.display.limit}` : ''
+    ].filter(Boolean);
+    return `${lines.join('\n')}\n`;
+  }
+
   const model = buildSpecificationModel(report as TestEvidencePreviewJson);
   return `${renderSpecificationMarkdown(model, {
     definitionLinks: resolveDefinitionLinkOptions(context)
@@ -501,6 +546,8 @@ export function runTestEvidencePr(options: {
   specsDir?: string;
   testsDir?: string;
   specModule?: string;
+  summaryOnly?: boolean;
+  limit?: number;
 }): {
   baseReport: TestSpecificationEvidence;
   headReport: TestSpecificationEvidence;
@@ -527,7 +574,9 @@ export function runTestEvidencePr(options: {
       createdWorktrees,
       specsDir: options.specsDir,
       testsDir: options.testsDir,
-      specModule: options.specModule
+      specModule: options.specModule,
+      summaryOnly: options.summaryOnly,
+      limit: options.limit
     });
     const baseMaterialized = materializeEvidenceForRef({
       repoRoot: root,
@@ -538,7 +587,9 @@ export function runTestEvidencePr(options: {
       createdWorktrees,
       specsDir: options.specsDir,
       testsDir: options.testsDir,
-      specModule: options.specModule
+      specModule: options.specModule,
+      summaryOnly: options.summaryOnly,
+      limit: options.limit
     });
     console.log(`base preview: ${baseMaterialized.previewJsonPath}`);
     console.log(`head preview: ${headMaterialized.previewJsonPath}`);
@@ -597,13 +648,21 @@ function writeArtifacts(args: {
   }
 
   if (args.format === 'markdown' || args.format === 'both') {
-    const markdownPaths = writeSpecificationMarkdownArtifacts(args.report, args.outDir, args.sourceRootDir);
+    const markdownPaths = args.report.display?.summaryOnly
+      ? writeSpecificationSummaryMarkdown(args.report, args.outDir)
+      : writeSpecificationMarkdownArtifacts(args.report, args.outDir, args.sourceRootDir);
     writtenFiles.push(...markdownPaths);
   }
 
   for (const filePath of writtenFiles.sort((a, b) => a.localeCompare(b))) {
     console.log(`wrote: ${filePath}`);
   }
+}
+
+function writeSpecificationSummaryMarkdown(report: TestSpecificationEvidence, outDir: string): string[] {
+  const summaryPath = path.join(outDir, 'test-specification.summary.md');
+  writeFileSync(summaryPath, formatTestEvidenceOutput(report, 'markdown'), 'utf8');
+  return [summaryPath];
 }
 
 function writeSpecificationMarkdownArtifacts(
@@ -713,6 +772,74 @@ function writeSpecificationMarkdownArtifacts(
   return written;
 }
 
+export function applyEvidenceOutputControls(
+  report: TestSpecificationEvidence,
+  options: { summaryOnly?: boolean; limit?: number }
+): TestSpecificationEvidence {
+  const summaryOnly = Boolean(options.summaryOnly);
+  const limit = options.limit;
+
+  if (summaryOnly) {
+    return {
+      ...report,
+      sqlCatalogs: [],
+      sqlCaseCatalogs: [],
+      testCaseCatalogs: [],
+      testCases: [],
+      display: {
+        summaryOnly: true,
+        limit,
+        truncated:
+          report.sqlCatalogs.length > 0 ||
+          report.sqlCaseCatalogs.length > 0 ||
+          report.testCaseCatalogs.length > 0 ||
+          report.testCases.length > 0
+      }
+    };
+  }
+
+  if (limit === undefined) {
+    return report;
+  }
+
+  const limited = {
+    ...report,
+    sqlCatalogs: report.sqlCatalogs.slice(0, limit),
+    sqlCaseCatalogs: report.sqlCaseCatalogs.slice(0, limit).map((catalog) => ({
+      ...catalog,
+      cases: catalog.cases.slice(0, limit)
+    })),
+    testCaseCatalogs: report.testCaseCatalogs.slice(0, limit).map((catalog) => ({
+      ...catalog,
+      cases: catalog.cases.slice(0, limit)
+    })),
+    testCases: report.testCases.slice(0, limit),
+    display: {
+      summaryOnly: false,
+      limit,
+      truncated:
+        report.sqlCatalogs.length > limit ||
+        report.sqlCaseCatalogs.length > limit ||
+        report.testCaseCatalogs.length > limit ||
+        report.testCases.length > limit ||
+        report.sqlCaseCatalogs.some((catalog) => catalog.cases.length > limit) ||
+        report.testCaseCatalogs.some((catalog) => catalog.cases.length > limit)
+    }
+  };
+  return limited;
+}
+
+function normalizeEvidenceLimit(value?: string): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new TestEvidenceRuntimeError(`Unsupported limit: ${value}. Use a positive integer.`);
+  }
+  return parsed;
+}
+
 function findCatalogDefinitionPath(report: TestSpecificationEvidence, catalogId: string): string | undefined {
   const functionCatalog = report.testCaseCatalogs.find((catalog) => catalog.id === catalogId);
   if (functionCatalog?.definitionPath) {
@@ -779,16 +906,24 @@ function materializeEvidenceForRef(args: {
   specsDir?: string;
   testsDir?: string;
   specModule?: string;
+  summaryOnly?: boolean;
+  limit?: number;
 }): { sha: string; report: TestSpecificationEvidence; previewJsonPath: string } {
   const toReport = (rootDir: string): TestSpecificationEvidence => {
     try {
-      return runTestEvidenceSpecification({
-        mode: 'specification',
-        rootDir,
-        specsDir: args.specsDir,
-        testsDir: args.testsDir,
-        specModule: args.specModule
-      });
+      return applyEvidenceOutputControls(
+        runTestEvidenceSpecification({
+          mode: 'specification',
+          rootDir,
+          specsDir: args.specsDir,
+          testsDir: args.testsDir,
+          specModule: args.specModule
+        }),
+        {
+          summaryOnly: args.summaryOnly,
+          limit: args.limit
+        }
+      );
     } catch (error) {
       if (
         error instanceof TestEvidenceRuntimeError &&

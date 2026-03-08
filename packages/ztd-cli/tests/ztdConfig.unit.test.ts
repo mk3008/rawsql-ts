@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 import { renderZtdConfigFile, snapshotTableMetadata } from '../src/commands/ztdConfig';
+import { resolveZtdConfigCommandOptions } from '../src/commands/ztdConfigCommand';
 import type { SqlSource } from '../src/utils/collectSqlFiles';
 import { normalizeLineEndings } from './utils/normalize';
 
@@ -102,4 +103,22 @@ test('handles multiple sources with composite keys and cross-schema references',
   const output = normalizeLineEndings(renderZtdConfigFile(tables));
 
   expect(output).toMatchSnapshot();
+});
+
+test('resolveZtdConfigCommandOptions expands json payload fields to command option shapes', () => {
+  const resolved = resolveZtdConfigCommandOptions({
+    json: JSON.stringify({
+      ddlDir: 'ztd/ddl',
+      extensions: '.sql,.ddl',
+      searchPath: 'public,app',
+      dryRun: true
+    })
+  });
+
+  expect(resolved).toMatchObject({
+    ddlDir: ['ztd/ddl'],
+    extensions: ['.ddl', '.sql'],
+    searchPath: ['public', 'app'],
+    dryRun: true
+  });
 });

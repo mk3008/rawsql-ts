@@ -1,5 +1,16 @@
 # @rawsql-ts/testkit-core
 
+## 0.16.0
+
+### Minor Changes
+
+- [#477](https://github.com/mk3008/rawsql-ts/pull/477) [`ad95b97`](https://github.com/mk3008/rawsql-ts/commit/ad95b971e77101f4cdfc37aa28e2817b0a6903bf) Thanks [@mk3008](https://github.com/mk3008)! - Add `createCatalogRewriter()` so fixture-backed SELECT rewrites can plug directly into `@rawsql-ts/sql-contract` `CatalogExecutor` pipelines without hand-written adapters.
+
+### Patch Changes
+
+- Updated dependencies [[`e960404`](https://github.com/mk3008/rawsql-ts/commit/e96040413ce357c0c86fe87f886b9d8cce6cb44e)]:
+  - rawsql-ts@0.16.1
+
 ## 0.15.1
 
 ### Patch Changes

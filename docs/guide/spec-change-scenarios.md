@@ -88,5 +88,5 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 ## Further reading
 
-- [After DDL/Schema Changes](../../packages/ztd-cli/README.md#after-ddlschema-changes) — standard workflow steps
+- [After DDL/Schema Changes](https://github.com/mk3008/rawsql-ts/blob/main/packages/ztd-cli/README.md#after-ddlschema-changes) — standard workflow steps
 - [ZTD Theory](./ztd-theory.md) — conceptual foundation

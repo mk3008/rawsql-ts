@@ -8,4 +8,11 @@ export default defineConfig({
     testTimeout: 60000,
     globalSetup: resolve(__dirname, '../../vitest.global-setup.ts'),
   },
+  resolve: {
+    alias: {
+      '@rawsql-ts/sql-contract/mapper': resolve(__dirname, '../sql-contract/src/mapper'),
+      '@rawsql-ts/sql-contract': resolve(__dirname, '../sql-contract/src'),
+    },
+  },
 });
+

@@ -85,6 +85,15 @@ export interface QueryUsageReport {
   };
   matches: QueryUsageMatch[];
   warnings: QueryUsageWarning[];
+  display?: {
+    summaryOnly: boolean;
+    limit?: number;
+    totalMatches: number;
+    returnedMatches: number;
+    totalWarnings: number;
+    returnedWarnings: number;
+    truncated: boolean;
+  };
 }
 
 export interface QueryUsageAnalyzerResult {

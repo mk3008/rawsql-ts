@@ -8,7 +8,10 @@ const numericTypes = new Set([
   'float',
   'serial',
   'bigserial',
-  'smallserial'
+  'smallserial',
+  'serial2',
+  'serial4',
+  'serial8'
 ]);
 
 const arbitraryPrecisionTypes = new Set(['decimal', 'numeric']);
@@ -90,3 +93,4 @@ export function mapSqlTypeToTs(typeName?: string, context?: string): string {
   warnUnknownSqlType(typeName, context);
   return 'unknown';
 }
+

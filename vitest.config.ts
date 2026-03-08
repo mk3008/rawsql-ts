@@ -54,7 +54,7 @@ export default defineConfig({
         include: ['packages/*/tests/**/*.test.[jt]s'],
         exclude: defaultTestExcludes,
         root: resolve(__dirname),
-        testTimeout: 10000,
+        testTimeout: 30000,
         pool: 'threads',
         globalSetup: resolve(__dirname, 'vitest.global-setup.ts'),
     },

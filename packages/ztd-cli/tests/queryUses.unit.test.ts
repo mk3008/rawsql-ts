@@ -1,8 +1,10 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { expect, test } from 'vitest';
-import { formatQueryUsageReport } from '../src/query/format';
+import { Command } from 'commander';
+import { afterEach, expect, test, vi } from 'vitest';
+import { registerQueryCommands } from '../src/commands/query';
+import { applyQueryOutputControls, formatQueryUsageReport } from '../src/query/format';
 import { buildQueryUsageReport } from '../src/query/report';
 import { parseQueryTarget } from '../src/query/targets';
 
@@ -11,6 +13,23 @@ function createWorkspace(prefix: string): string {
   mkdirSync(path.join(root, 'src', 'catalog', 'specs'), { recursive: true });
   mkdirSync(path.join(root, 'src', 'sql'), { recursive: true });
   return root;
+}
+
+const originalProjectRoot = process.env.ZTD_PROJECT_ROOT;
+
+afterEach(() => {
+  process.env.ZTD_PROJECT_ROOT = originalProjectRoot;
+});
+
+function createProgram(capture: { stdout: string[]; stderr: string[] }): Command {
+  const program = new Command();
+  program.exitOverride();
+  program.configureOutput({
+    writeOut: (str) => capture.stdout.push(str),
+    writeErr: (str) => capture.stderr.push(str)
+  });
+  registerQueryCommands(program);
+  return program;
 }
 
 test('parseQueryTarget enforces strict defaults and explicit relaxed modes', () => {
@@ -167,6 +186,49 @@ test('query usage report defaults to impact view unless detail is requested expl
   expect(detailReport.matches.every((match) => match.kind === 'detail')).toBe(true);
 });
 
+test('query usage output controls can emit summary-only and limited reports', () => {
+  const root = createWorkspace('query-uses-output-controls');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
+    JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'users.sql'),
+    [
+      'SELECT email FROM public.users;',
+      'SELECT email FROM public.users WHERE email IS NOT NULL;'
+    ].join('\n'),
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'column',
+    rawTarget: 'public.users.email',
+    rootDir: root,
+    view: 'detail'
+  });
+  const summaryOnly = applyQueryOutputControls(report, { summaryOnly: true });
+  const limited = applyQueryOutputControls(report, { limit: 1 });
+
+  expect(summaryOnly.matches).toEqual([]);
+  expect(summaryOnly.display).toMatchObject({
+    summaryOnly: true,
+    totalMatches: report.matches.length,
+    returnedMatches: 0,
+    truncated: true
+  });
+  expect(formatQueryUsageReport(summaryOnly, 'text')).toContain('summary only: true');
+
+  expect(limited.matches).toHaveLength(1);
+  expect(limited.display).toMatchObject({
+    summaryOnly: false,
+    limit: 1,
+    returnedMatches: 1,
+    truncated: true
+  });
+});
+
 test('query usage report can exclude generated specs while keeping the default scan set unchanged', () => {
   const root = createWorkspace('query-uses-exclude-generated');
   mkdirSync(path.join(root, 'src', 'catalog', 'specs', 'generated'), { recursive: true });
@@ -226,6 +288,64 @@ test('query usage report can exclude generated specs while keeping the default s
     unresolvedSqlFiles: 0
   });
   expect(excludedReport.matches.map((match) => match.catalog_id)).toEqual(['sales.byId']);
+});
+
+test('query uses command accepts --json payload options and target', async () => {
+  const root = createWorkspace('query-uses-json-command');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
+    JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'users.sql'),
+    [
+      'SELECT email FROM public.users;',
+      'SELECT email FROM public.users WHERE email IS NOT NULL;'
+    ].join('\n'),
+    'utf8'
+  );
+  process.env.ZTD_PROJECT_ROOT = root;
+  const capture = { stdout: [] as string[], stderr: [] as string[] };
+  const program = createProgram(capture);
+  const logSpy = vi.spyOn(console, 'log').mockImplementation((value?: unknown) => {
+    capture.stdout.push(String(value ?? ''));
+  });
+
+  await program.parseAsync(
+    [
+      'query',
+      'uses',
+      'column',
+      '--json',
+      JSON.stringify({
+        target: 'public.users.email',
+        format: 'json',
+        view: 'detail',
+        summaryOnly: true
+      })
+    ],
+    { from: 'user' }
+  );
+  logSpy.mockRestore();
+
+  const parsed = JSON.parse(capture.stdout.join(''));
+  expect(parsed).toMatchObject({
+    schemaVersion: 2,
+    view: 'detail',
+    target: {
+      kind: 'column',
+      raw: 'public.users.email'
+    },
+    display: {
+      summaryOnly: true,
+      totalMatches: 3,
+      returnedMatches: 0,
+      truncated: true
+    }
+  });
+  expect(parsed.matches).toEqual([]);
+  expect(capture.stderr).toEqual([]);
 });
 
 test('query usage report excludes generated specs under a custom specsDir', () => {
