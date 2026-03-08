@@ -1159,3 +1159,63 @@ test('query patch apply writes the patched SQL to --out and supports global json
   expect(patched).toContain('from "public"."users"');
 });
 
+
+test('query lint reports structural maintainability issues in text mode', () => {
+  const workspace = createSqlWorkspace('query-lint-text', path.join('src', 'sql', 'reports', 'maintainability.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with base_users as (
+        select u.id
+        from public.users u
+        join public.regions r on r.id = u.id
+      ),
+      duplicate_users as (
+        select u.id
+        from public.users u
+        join public.regions r on r.id = u.id
+      ),
+      unused_stage as (
+        select id from public.audit_log
+      )
+      select format('select %s from users', id)
+      from duplicate_users
+    `,
+    'utf8'
+  );
+
+  const result = runCli(['query', 'lint', workspace.sqlFile], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query lint text');
+  expect(result.stdout).toContain('WARN  unused-cte: unused_stage is defined but never used');
+  expect(result.stdout).toContain('WARN  duplicate-join-block:');
+  expect(result.stdout).toContain('WARN  analysis-risk:');
+});
+
+test('query lint emits machine-readable JSON when requested', () => {
+  const workspace = createSqlWorkspace('query-lint-json', path.join('src', 'sql', 'reports', 'cycle.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with a as (
+        select * from b
+      ),
+      b as (
+        select * from a
+      )
+      select * from a
+    `,
+    'utf8'
+  );
+
+  const result = runCli(['query', 'lint', workspace.sqlFile, '--format', 'json'], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query lint json');
+  const payload = JSON.parse(result.stdout);
+  expect(payload.query_type).toBe('SELECT');
+  expect(payload.issues).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      type: 'dependency-cycle',
+      severity: 'error',
+      cycle: ['a', 'b', 'a']
+    })
+  ]));
+});

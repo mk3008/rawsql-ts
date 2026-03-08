@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { applyQueryOutputControls, formatQueryUsageReport } from '../query/format';
 import { applyQueryPatch } from '../query/patch';
+import { buildQueryLintReport, formatQueryLintReport, type QueryLintFormat } from '../query/lint';
 import {
   buildQueryPipelinePlan,
   formatQueryPipelinePlan,
@@ -58,6 +59,11 @@ interface QueryPatchApplyOptions {
   preview?: boolean;
 }
 
+interface QueryLintOptions {
+  format?: string;
+  out?: string;
+}
+
 export const QUERY_USES_COMMAND_SPANS = {
   resolveOptions: 'resolve-query-options',
   renderOutput: 'render-query-usage-output',
@@ -82,6 +88,7 @@ Examples:
   $ ztd query slice large_query.sql --cte purchase_summary
   $ ztd query plan large_query.sql --material base_cte --scalar-material total_cte --format json
   $ ztd query patch apply large_query.sql --cte purchase_summary --from edited_slice.sql --preview
+  $ ztd query lint large_query.sql --format json
 
 Notes:
   - Strict mode is the default. Relaxed modes are explicit opt-in only.
@@ -183,6 +190,15 @@ Notes:
     .option('--out <path>', 'Write output to file')
     .action((sqlFile: string, options: QueryPlanOptions) => {
       runQueryPlanCommand(sqlFile, options);
+    });
+
+  query
+    .command('lint <sqlFile>')
+    .description('Report structural maintainability and analysis-safety issues in a SQL query')
+    .option('--format <format>', 'Output format (text|json)', 'text')
+    .option('--out <path>', 'Write output to file')
+    .action((sqlFile: string, options: QueryLintOptions) => {
+      runQueryLintCommand(sqlFile, options);
     });
 
   query
@@ -291,6 +307,17 @@ function runQueryPlanCommand(sqlFile: string, options: QueryPlanOptions): void {
   const outPath = normalizeStringOption(merged.out);
   if (outPath) {
     writeQueryUsageOutput(outPath, contents);
+    return;
+  }
+  console.log(contents.trimEnd());
+}
+
+function runQueryLintCommand(sqlFile: string, options: QueryLintOptions): void {
+  const format = normalizeLintFormat(normalizeStringOption(options.format) ?? getAgentOutputFormat());
+  const report = buildQueryLintReport(sqlFile);
+  const contents = formatQueryLintReport(report, format);
+  if (options.out) {
+    writeQueryUsageOutput(options.out, contents);
     return;
   }
   console.log(contents.trimEnd());
@@ -417,6 +444,10 @@ function normalizePlanFormat(format: string): QueryPipelinePlanFormat {
   return normalizeFormat(format);
 }
 
+function normalizeLintFormat(format: string): QueryLintFormat {
+  return normalizeFormat(format);
+}
+
 function normalizeStructureFormat(format: string, allowDot: boolean): QueryStructureFormat {
   const normalized = format.trim().toLowerCase();
   if (normalized === 'text' || normalized === 'json') {
@@ -435,3 +466,4 @@ function normalizeView(view: string): 'impact' | 'detail' {
   }
   throw new Error(`Unsupported view: ${view}`);
 }
+
