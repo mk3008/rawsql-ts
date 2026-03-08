@@ -13,6 +13,14 @@ import {
 } from './mutation'
 
 /**
+ * Describes execution hints that runtime adapters can inspect without modifying SQL assets.
+ */
+export interface QuerySpecMetadata {
+  material?: string[]
+  scalarMaterial?: string[]
+}
+
+/**
  * Describes the contract that couples a SQL file, its parameters, and its output shape.
  */
 export type QuerySpec<P extends QueryParams = QueryParams, R = Row> = {
@@ -33,6 +41,7 @@ export type QuerySpec<P extends QueryParams = QueryParams, R = Row> = {
   }
   notes?: string
   tags?: Record<string, string>
+  metadata?: QuerySpecMetadata
   zsg?: {
     allow?: unknown
     optionsExample?: unknown
@@ -75,10 +84,64 @@ export type ParamsShape = 'positional' | 'named' | 'unknown'
 export interface ExecInput<P extends QueryParams = QueryParams> {
   specId: string
   sqlFile: string
+  metadata?: QuerySpecMetadata
   params: P
   options?: unknown
   execId: string
   attempt: number
+}
+
+const metadataIdentifierPattern = /^[A-Za-z_][A-Za-z0-9_]*$/
+const metadataIdentifierControlPattern = /[\u0000-\u001F\u007F]/
+
+function cloneMetadataIdentifierList(
+  specId: string,
+  kind: 'material' | 'scalarMaterial',
+  identifiers?: string[]
+): string[] | undefined {
+  if (!identifiers) {
+    return undefined
+  }
+
+  return identifiers.map((identifier) => {
+    if (identifier.length === 0) {
+      throw new ContractViolationError(
+        `Spec "${specId}" declares an empty metadata.${kind} identifier.` ,
+        specId
+      )
+    }
+    if (metadataIdentifierControlPattern.test(identifier)) {
+      throw new ContractViolationError(
+        `Spec "${specId}" declares unsafe metadata.${kind} identifier "${identifier}" containing control characters.` ,
+        specId
+      )
+    }
+    if (!metadataIdentifierPattern.test(identifier)) {
+      throw new ContractViolationError(
+        `Spec "${specId}" declares unsafe metadata.${kind} identifier "${identifier}"; expected ${metadataIdentifierPattern}.` ,
+        specId
+      )
+    }
+    return identifier
+  })
+}
+
+function cloneQuerySpecMetadata(
+  specId: string,
+  metadata?: QuerySpecMetadata
+): QuerySpecMetadata | undefined {
+  if (!metadata) {
+    return undefined
+  }
+
+  return {
+    material: cloneMetadataIdentifierList(specId, 'material', metadata.material),
+    scalarMaterial: cloneMetadataIdentifierList(
+      specId,
+      'scalarMaterial',
+      metadata.scalarMaterial
+    ),
+  }
 }
 
 export interface ExecOutput<R> {
@@ -742,6 +805,7 @@ export function createCatalogExecutor(
       const result = await exec({
         specId: spec.id,
         sqlFile: spec.sqlFile,
+        metadata: cloneQuerySpecMetadata(spec.id, spec.metadata),
         params,
         options,
         execId,
@@ -769,6 +833,7 @@ export function createCatalogExecutor(
       const result = await exec({
         specId: spec.id,
         sqlFile: spec.sqlFile,
+        metadata: cloneQuerySpecMetadata(spec.id, spec.metadata),
         params,
         options,
         execId,
@@ -792,6 +857,7 @@ export function createCatalogExecutor(
       const result = await exec({
         specId: spec.id,
         sqlFile: spec.sqlFile,
+        metadata: cloneQuerySpecMetadata(spec.id, spec.metadata),
         params,
         options,
         execId,
