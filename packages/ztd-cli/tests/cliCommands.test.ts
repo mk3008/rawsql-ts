@@ -368,6 +368,139 @@ test('agents status reports internal files and visible install recommendation be
 });
 
 
+
+
+test('top-level help exposes perf init as an opt-in sandbox workflow', () => {
+  const result = runCli(['--help']);
+
+  assertCliSuccess(result, '--help perf');
+  expect(result.stdout).toContain('perf init');
+  expect(result.stdout).toContain('opt-in perf sandbox');
+});
+
+test('describe command reports perf init metadata in global json mode', () => {
+  const result = runCli(['--output', 'json', 'describe', 'command', 'perf init']);
+
+  assertCliSuccess(result, 'describe perf init');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed).toMatchObject({
+    command: 'describe command',
+    ok: true,
+    data: {
+      command: {
+        name: 'perf init',
+        supportsDryRun: true,
+        supportsJsonPayload: true,
+        writesFiles: true
+      }
+    }
+  });
+});
+test('perf init dry-run emits the planned sandbox scaffold in global json mode', () => {
+  const workspace = createTempDir('perf-init-dry-run');
+  const result = runCli(['--output', 'json', 'perf', 'init', '--dry-run'], {}, workspace);
+
+  assertCliSuccess(result, 'perf init dry-run');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed).toMatchObject({
+    command: 'perf init',
+    ok: true,
+    data: {
+      dryRun: true,
+      files: expect.arrayContaining([
+        'perf/sandbox.json',
+        'perf/seed.yml',
+        'perf/docker-compose.yml'
+      ])
+    }
+  });
+  expect(existsSync(path.join(workspace, 'perf', 'sandbox.json'))).toBe(false);
+});
+
+test('perf init writes the sandbox scaffold files', () => {
+  const workspace = createTempDir('perf-init-write');
+  const result = runCli(['perf', 'init'], {}, workspace);
+
+  assertCliSuccess(result, 'perf init');
+  expect(result.stdout).toContain('Perf sandbox initialized.');
+  expect(existsSync(path.join(workspace, 'perf', 'sandbox.json'))).toBe(true);
+  expect(readNormalizedFile(path.join(workspace, 'perf', 'seed.yml'))).toContain('seed: 496');
+  expect(readNormalizedFile(path.join(workspace, 'perf', 'docker-compose.yml'))).toContain('perf-db');
+});
+
+test('perf db reset dry-run lists DDL files without touching Docker', () => {
+  const workspace = createTempDir('perf-reset-dry-run');
+  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+  writeFileSync(
+    path.join(workspace, 'ztd.config.json'),
+    JSON.stringify({
+      dialect: 'postgres',
+      ddlDir: 'ztd/ddl',
+      testsDir: 'tests',
+      ddl: { defaultSchema: 'public', searchPath: ['public'] },
+      ddlLint: 'strict'
+    }, null, 2),
+    'utf8'
+  );
+  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), 'create table public.users (id integer primary key);', 'utf8');
+
+  const result = runCli(['--output', 'json', 'perf', 'db', 'reset', '--dry-run'], {}, workspace);
+
+  assertCliSuccess(result, 'perf db reset dry-run');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    dryRun: true,
+    ddl_file_count: 1,
+    ddl_files: ['ztd/ddl/public.sql']
+  });
+});
+
+test('perf seed dry-run reports deterministic row counts from perf seed config', () => {
+  const workspace = createTempDir('perf-seed-dry-run');
+  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+  mkdirSync(path.join(workspace, 'perf'), { recursive: true });
+  writeFileSync(
+    path.join(workspace, 'ztd.config.json'),
+    JSON.stringify({
+      dialect: 'postgres',
+      ddlDir: 'ztd/ddl',
+      testsDir: 'tests',
+      ddl: { defaultSchema: 'public', searchPath: ['public'] },
+      ddlLint: 'strict'
+    }, null, 2),
+    'utf8'
+  );
+  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), [
+    'create table public.users (',
+    '  id integer primary key,',
+    '  status text not null,',
+    '  score numeric',
+    ');'
+  ].join('\n'), 'utf8');
+  writeFileSync(path.join(workspace, 'perf', 'seed.yml'), [
+    'seed: 999',
+    'tables:',
+    '  users:',
+    '    rows: 3',
+    'columns:',
+    '  public.users.status:',
+    '    values: [active, inactive]',
+    '    skew: 0.8',
+    ''
+  ].join('\n'), 'utf8');
+
+  const result = runCli(['--output', 'json', 'perf', 'seed', '--dry-run'], {}, workspace);
+
+  assertCliSuccess(result, 'perf seed dry-run');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    dryRun: true,
+    seed: 999,
+    tables: {
+      'public.users': 3
+    }
+  });
+});
 test('query outline summarizes CTE dependencies and unused CTEs', () => {
   const workspace = createSqlWorkspace('query-outline', path.join('src', 'sql', 'reports', 'ranked_users.sql'));
   writeFileSync(
@@ -1219,3 +1352,9 @@ test('query lint emits machine-readable JSON when requested', () => {
     })
   ]));
 });
+
+
+
+
+
+

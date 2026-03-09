@@ -192,6 +192,61 @@ const COMMANDS: CommandDescriptor[] = [
     ]
   },
   {
+    name: 'perf init',
+    summary: 'Scaffold the opt-in perf sandbox configuration and Docker assets.',
+    writesFiles: true,
+    supportsDryRun: true,
+    supportsJsonPayload: true,
+    output: {
+      stdout: 'Human scaffold summary or JSON envelope.',
+      files: ['perf/sandbox.json', 'perf/seed.yml', 'perf/params.yml', 'perf/docker-compose.yml', 'perf/README.md', 'perf/.gitignore']
+    },
+    exitCodes: {
+      '0': 'Scaffold completed or dry-run plan emitted.',
+      '1': 'Validation or filesystem error.'
+    },
+    flags: [
+      { name: '--dry-run', description: 'Emit the planned perf sandbox scaffold without writing files.' },
+      { name: '--json', description: 'Pass perf init options as a JSON object.' }
+    ]
+  },
+  {
+    name: 'perf db reset',
+    summary: 'Recreate the perf sandbox schema from local DDL.',
+    writesFiles: false,
+    supportsDryRun: true,
+    supportsJsonPayload: true,
+    output: {
+      stdout: 'Human reset summary or JSON envelope.'
+    },
+    exitCodes: {
+      '0': 'Reset completed or dry-run plan emitted.',
+      '1': 'Docker, connection, or DDL replay failed.'
+    },
+    flags: [
+      { name: '--dry-run', description: 'Emit the DDL replay plan without touching Docker or PostgreSQL.' },
+      { name: '--json', description: 'Pass perf db reset options as a JSON object.' }
+    ]
+  },
+  {
+    name: 'perf seed',
+    summary: 'Generate deterministic synthetic data from perf/seed.yml.',
+    writesFiles: false,
+    supportsDryRun: true,
+    supportsJsonPayload: true,
+    output: {
+      stdout: 'Human seed summary or JSON envelope.'
+    },
+    exitCodes: {
+      '0': 'Seed completed or dry-run plan emitted.',
+      '1': 'Connection, DDL parsing, or insert generation failed.'
+    },
+    flags: [
+      { name: '--dry-run', description: 'Emit the seed plan without touching PostgreSQL.' },
+      { name: '--json', description: 'Pass perf seed options as a JSON object.' }
+    ]
+  },
+  {
     name: 'query uses',
     summary: 'Inspect catalog SQL usage of tables or columns.',
     writesFiles: true,
@@ -318,3 +373,5 @@ export function registerDescribeCommand(program: Command): void {
       process.stdout.write(`${lines.join('\n')}\n`);
     });
 }
+
+
