@@ -13,6 +13,7 @@ import {
   LiteralValue,
   ParameterExpression,
   RawString,
+  IdentifierString,
   SelectClause,
   SelectItem,
   SimpleSelectQuery,
@@ -331,7 +332,7 @@ async function bindScalarFilterPredicatesInCtes(
 ): Promise<QueryPipelineExecutionStepResult[]> {
   const steps: QueryPipelineExecutionStepResult[] = [];
   for (const cte of ctes) {
-    steps.push(...await bindScalarFilterPredicatesInSelect(cte.query, context, session));
+    steps.push(...await bindScalarFilterPredicates(assertSelectQuery(cte.query), context, session));
   }
   return steps;
 }
@@ -350,8 +351,8 @@ async function bindScalarFilterPredicates(
 
   if (statement instanceof BinarySelectQuery) {
     const steps: QueryPipelineExecutionStepResult[] = [];
-    steps.push(...await bindScalarFilterPredicatesInSelectBranch(statement.left, context, session));
-    steps.push(...await bindScalarFilterPredicatesInSelectBranch(statement.right, context, session));
+    steps.push(...await bindScalarFilterPredicatesInSelectBranch(assertSelectQuery(statement.left), context, session));
+    steps.push(...await bindScalarFilterPredicatesInSelectBranch(assertSelectQuery(statement.right), context, session));
     return steps;
   }
 
@@ -382,8 +383,8 @@ async function bindScalarFilterPredicatesInSelectBranch(
   }
   if (statement instanceof BinarySelectQuery) {
     const steps: QueryPipelineExecutionStepResult[] = [];
-    steps.push(...await bindScalarFilterPredicatesInSelectBranch(statement.left, context, session));
-    steps.push(...await bindScalarFilterPredicatesInSelectBranch(statement.right, context, session));
+    steps.push(...await bindScalarFilterPredicatesInSelectBranch(assertSelectQuery(statement.left), context, session));
+    steps.push(...await bindScalarFilterPredicatesInSelectBranch(assertSelectQuery(statement.right), context, session));
     return steps;
   }
   return [];
@@ -535,7 +536,7 @@ function dependsOnStageCtes(
       return false;
     }
 
-    const sourceName = source.datasource.qualifiedName.name.name;
+    const sourceName = extractQualifiedNameLeaf(source.datasource.qualifiedName.name);
     return stageCteNames.has(sourceName) && !materializedCtes.has(sourceName);
   });
 }
@@ -566,7 +567,7 @@ function collectLocalRelationNames(selectQuery: SimpleSelectQuery): Set<string> 
     }
 
     if (source.datasource instanceof TableSource) {
-      localNames.add(source.datasource.qualifiedName.name.name);
+      localNames.add(extractQualifiedNameLeaf(source.datasource.qualifiedName.name));
     }
   }
 
@@ -590,7 +591,7 @@ function containsTargetColumn(node: unknown, scalarFilterColumns: ReadonlySet<st
       return;
     }
 
-    const columnName = current.qualifiedName.name.name;
+    const columnName = extractQualifiedNameLeaf(current.qualifiedName.name);
     if (scalarFilterColumns.has(columnName)) {
       matched = columnName;
     }
@@ -632,6 +633,10 @@ function extractOperator(operator: RawString | unknown): string {
     return operator.value.trim();
   }
   return '';
+}
+
+function extractQualifiedNameLeaf(name: RawString | IdentifierString): string {
+  return name instanceof RawString ? name.value : name.name;
 }
 
 function preparePipelineSource(sqlFile: string): PreparedPipelineSource {
