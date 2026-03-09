@@ -37,24 +37,23 @@ test('buildQueryPipelinePlan emits deterministic ordered steps from metadata', (
         from base_users
         where region_id is not null
       ),
-      summary_total as (
-        select count(*) as total_count
-        from filtered_users
-      ),
       ranked_users as (
-        select fu.id, st.total_count
-        from filtered_users fu
-        cross join summary_total st
+        select id
+        from filtered_users
       )
       select *
       from ranked_users
+      where sale_date > (
+        select p.closed_year_month
+        from public.parameters p
+      )
     `,
     'utf8'
   );
 
   const plan = buildQueryPipelinePlan(workspace.sqlFile, {
     material: ['ranked_users', 'filtered_users'],
-    scalarMaterial: ['summary_total']
+    scalarFilterColumns: ['sale_date']
   });
 
   expect(plan).toMatchObject({
@@ -63,7 +62,7 @@ test('buildQueryPipelinePlan emits deterministic ordered steps from metadata', (
     final_query: 'ranked_users',
     metadata: {
       material: ['ranked_users', 'filtered_users'],
-      scalarMaterial: ['summary_total']
+      scalarFilterColumns: ['sale_date']
     }
   });
   expect(plan.steps).toEqual([
@@ -75,18 +74,12 @@ test('buildQueryPipelinePlan emits deterministic ordered steps from metadata', (
     },
     {
       step: 2,
-      kind: 'scalar-materialize',
-      target: 'summary_total',
+      kind: 'materialize',
+      target: 'ranked_users',
       depends_on: ['filtered_users']
     },
     {
       step: 3,
-      kind: 'materialize',
-      target: 'ranked_users',
-      depends_on: ['filtered_users', 'summary_total']
-    },
-    {
-      step: 4,
       kind: 'final-query',
       target: 'FINAL_QUERY',
       depends_on: ['ranked_users']
@@ -114,7 +107,8 @@ test('formatQueryPipelinePlan renders json for agents and text for humans', () =
   );
 
   const plan = buildQueryPipelinePlan(workspace.sqlFile, {
-    material: ['final_data']
+    material: ['final_data'],
+    scalarFilterColumns: ['sale_date']
   });
 
   const jsonOutput = formatQueryPipelinePlan(plan, 'json');
@@ -123,7 +117,7 @@ test('formatQueryPipelinePlan renders json for agents and text for humans', () =
   const textOutput = formatQueryPipelinePlan(plan, 'text');
   expect(textOutput).toContain('Query type: SELECT');
   expect(textOutput).toContain('Material CTEs: final_data');
-  expect(textOutput).toContain('Scalar material CTEs: (none)');
+  expect(textOutput).toContain('Scalar filter columns: sale_date');
   expect(textOutput).toContain('1. materialize final_data');
   expect(textOutput).toContain('2. run final query');
 });

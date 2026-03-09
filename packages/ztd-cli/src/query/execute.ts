@@ -1,10 +1,13 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
+  BinaryExpression,
   BinarySelectQuery,
+  ColumnReference,
   CommonTable,
   DeleteQuery,
   FromClause,
+  InlineQuery,
   InsertQuery,
   LimitClause,
   LiteralValue,
@@ -21,8 +24,7 @@ import {
   TableSource,
   UpdateQuery,
   ValuesQuery,
-  WithClause,
-  type SqlParameterValue
+  WithClause
 } from 'rawsql-ts';
 import {
   analyzeStatement,
@@ -60,17 +62,15 @@ export interface ExecuteQueryPipelineOptions {
 }
 
 export interface QueryPipelineExecutionStepResult {
-  kind: 'materialize' | 'scalar-materialize' | 'final-query';
+  kind: 'materialize' | 'scalar-filter-bind' | 'final-query';
   target: string;
   sql: string;
   params?: unknown[] | Record<string, unknown>;
   rowCount?: number;
-  scalarValue?: unknown;
 }
 
 export interface QueryPipelineExecutionResult {
   plan: QueryPipelinePlan;
-  scalarMaterials: Record<string, unknown>;
   final: {
     rows: PipelineRow[];
     rowCount?: number;
@@ -80,24 +80,47 @@ export interface QueryPipelineExecutionResult {
   steps: QueryPipelineExecutionStepResult[];
 }
 
-interface ScalarMaterialBinding {
-  target: string;
-  columnName: string;
-  value: SqlParameterValue;
-  paramName: string;
-}
-
 interface PipelineStageQuery {
   sql: string;
   params?: unknown[] | Record<string, unknown>;
+  scalarSteps: QueryPipelineExecutionStepResult[];
 }
 
 interface PreparedPipelineSource {
   absolutePath: string;
   sql: string;
-  analysis: QueryAnalysis;
-  recursive: boolean;
 }
+
+interface BuildPipelineStageQueryOptions {
+  cte?: string;
+  final?: boolean;
+  runtimeParams?: unknown[] | Record<string, unknown>;
+  materializedCtes: string[];
+  limit?: number;
+  scalarFilterColumns: string[];
+}
+
+interface ScalarBindingContext {
+  runtimeParams?: unknown[] | Record<string, unknown>;
+  scalarFilterColumns: Set<string>;
+  stageCteNames: Set<string>;
+  materializedCtes: Set<string>;
+  nextOrdinal: number;
+}
+
+interface ScalarBindingCandidate {
+  columnName: string;
+  inlineQuery: InlineQuery;
+  replace: (expression: ParameterExpression) => void;
+}
+
+interface ScalarExecutionResult {
+  paramName: string;
+  value: unknown;
+  step: QueryPipelineExecutionStepResult;
+}
+
+const SUPPORTED_COMPARISON_OPERATORS = new Set(['=', '!=', '<>', '>', '>=', '<', '<=']);
 
 /**
  * Execute a decomposed query pipeline inside one DB session and reuse prior stage outputs.
@@ -111,20 +134,20 @@ export async function executeQueryPipeline(
   const session = await sessionFactory.openSession();
   const materializedCtes: string[] = [];
   const createdTempTables: string[] = [];
-  const scalarBindings = new Map<string, ScalarMaterialBinding>();
   const steps: QueryPipelineExecutionStepResult[] = [];
-  const scalarMaterials: Record<string, unknown> = {};
   let executionError: unknown;
 
   try {
     for (const step of plan.steps) {
       if (step.kind === 'materialize') {
-        const stage = buildPipelineStageQuery(source, {
+        const stage = await buildPipelineStageQuery(source, session, {
           cte: step.target,
           runtimeParams: options.params,
           materializedCtes,
-          scalarBindings
+          scalarFilterColumns: plan.metadata.scalarFilterColumns
         });
+        steps.push(...stage.scalarSteps);
+
         const sql = `create temp table ${quoteIdentifier(step.target)} as ${stage.sql.trim()}`;
         const result = normalizePipelineQueryResult(await session.query(sql, stage.params));
         materializedCtes.push(step.target);
@@ -139,34 +162,14 @@ export async function executeQueryPipeline(
         continue;
       }
 
-      if (step.kind === 'scalar-materialize') {
-        const stage = buildPipelineStageQuery(source, {
-          cte: step.target,
-          runtimeParams: options.params,
-          materializedCtes,
-          scalarBindings
-        });
-        const result = normalizePipelineQueryResult(await session.query(stage.sql, stage.params));
-        const scalarBinding = extractScalarBinding(result.rows, step.target, scalarBindings.size + 1);
-        scalarBindings.set(step.target, scalarBinding);
-        scalarMaterials[step.target] = scalarBinding.value;
-        steps.push({
-          kind: step.kind,
-          target: step.target,
-          sql: stage.sql,
-          params: stage.params,
-          rowCount: result.rowCount,
-          scalarValue: scalarBinding.value
-        });
-        continue;
-      }
-
-      const finalStage = buildPipelineStageQuery(source, {
+      const finalStage = await buildPipelineStageQuery(source, session, {
         final: true,
         runtimeParams: options.params,
         materializedCtes,
-        scalarBindings
+        scalarFilterColumns: plan.metadata.scalarFilterColumns
       });
+      steps.push(...finalStage.scalarSteps);
+
       const result = normalizePipelineQueryResult(await session.query(finalStage.sql, finalStage.params));
       steps.push({
         kind: step.kind,
@@ -177,7 +180,6 @@ export async function executeQueryPipeline(
       });
       return {
         plan,
-        scalarMaterials,
         final: {
           rows: result.rows,
           rowCount: result.rowCount,
@@ -197,61 +199,44 @@ export async function executeQueryPipeline(
   }
 }
 
-interface BuildPipelineStageQueryOptions {
-  cte?: string;
-  final?: boolean;
-  runtimeParams?: unknown[] | Record<string, unknown>;
-  materializedCtes: string[];
-  scalarBindings: Map<string, ScalarMaterialBinding>;
-  limit?: number;
-}
-
-function buildPipelineStageQuery(source: PreparedPipelineSource, options: BuildPipelineStageQueryOptions): PipelineStageQuery {
-  validateStageOptions(options);
-
-  if (source.analysis.ctes.length === 0) {
-    throw new Error('executeQueryPipeline requires a query with at least one CTE.');
-  }
-
-  if (options.cte) {
-    return buildTargetStageQuery(source, options);
-  }
-
-  return buildFinalStageQuery(source, options);
-}
-
-function buildTargetStageQuery(
+async function buildPipelineStageQuery(
   source: PreparedPipelineSource,
+  session: QueryPipelineSession,
   options: BuildPipelineStageQueryOptions
-): PipelineStageQuery {
+): Promise<PipelineStageQuery> {
+  validateStageOptions(options);
+  return options.cte
+    ? buildTargetStageQuery(source, session, options)
+    : buildFinalStageQuery(source, session, options);
+}
+
+async function buildTargetStageQuery(
+  source: PreparedPipelineSource,
+  session: QueryPipelineSession,
+  options: BuildPipelineStageQueryOptions
+): Promise<PipelineStageQuery> {
+  const parsed = assertSupportedStatement(SqlParser.parse(source.sql), 'executeQueryPipeline');
+  const analysis = analyzeStatement(parsed);
   const targetName = options.cte as string;
   const materializedStopSet = new Set(options.materializedCtes.filter((name) => name !== targetName));
-  const scalarStopSet = new Set([...options.scalarBindings.keys()].filter((name) => name !== targetName));
-  const stopSet = new Set([...materializedStopSet, ...scalarStopSet]);
-  const includedNames = collectDependencyClosure(targetName, source.analysis.dependencyMap, stopSet);
+  const includedNames = collectDependencyClosure(targetName, analysis.dependencyMap, materializedStopSet);
   if (!includedNames.includes(targetName)) {
     throw new Error(`CTE not found in query: ${targetName}`);
   }
 
-  const includedCtes = buildStageCtes(
-    source.analysis.ctes,
-    includedNames,
-    targetName,
-    options.materializedCtes,
-    options.scalarBindings
-  );
-  if (!includedCtes.some((cte) => cte.aliasExpression.table.name === targetName)) {
+  const includedCtes = buildStageCtes(analysis.ctes, includedNames, targetName, options.materializedCtes);
+  const targetCte = includedCtes.find((cte) => cte.aliasExpression.table.name === targetName);
+  if (!targetCte) {
     throw new Error(`CTE not found in query: ${targetName}`);
   }
 
+  const bindingContext = createScalarBindingContext(options, includedNames);
+  const scalarSteps = await bindScalarFilterPredicatesInCtes(includedCtes, bindingContext, session);
   const formatter = createPipelineFormatter(options.runtimeParams);
   const mainQuery = buildSelectFromTargetQuery(targetName, options.limit);
-  const sqlComponent = includedCtes.length > 0
-    ? new WithClause(source.recursive, includedCtes)
-    : null;
-
-  const withResult = sqlComponent
-    ? formatter.format(sqlComponent)
+  const withComponent = includedCtes.length > 0 ? new WithClause(getWithClause(parsed)?.recursive ?? false, includedCtes) : null;
+  const withResult = withComponent
+    ? formatter.format(withComponent)
     : { formattedSql: '', params: emptyFormatterParams(options.runtimeParams) };
   const mainResult = formatter.format(mainQuery);
   const mergedParams = mergeFormatterParams([withResult.params, mainResult.params], options.runtimeParams);
@@ -259,27 +244,29 @@ function buildTargetStageQuery(
 
   return {
     sql: `${sql}\n`,
-    params: mergedParams
+    params: mergedParams,
+    scalarSteps
   };
 }
 
-function buildFinalStageQuery(
+async function buildFinalStageQuery(
   source: PreparedPipelineSource,
+  session: QueryPipelineSession,
   options: BuildPipelineStageQueryOptions
-): PipelineStageQuery {
+): Promise<PipelineStageQuery> {
   const parsed = assertSupportedStatement(SqlParser.parse(source.sql), 'executeQueryPipeline');
-  const stopSet = new Set([...options.materializedCtes, ...options.scalarBindings.keys()]);
-  const includedNames = [...collectReachableCtes(source.analysis.rootDependencies, source.analysis.dependencyMap, stopSet)];
-  const includedCtes = buildStageCtes(
-    source.analysis.ctes,
-    includedNames,
-    null,
-    options.materializedCtes,
-    options.scalarBindings
-  );
-  const formatter = createPipelineFormatter(options.runtimeParams);
+  const analysis = analyzeStatement(parsed);
+  const stopSet = new Set(options.materializedCtes);
+  const includedNames = [...collectReachableCtes(analysis.rootDependencies, analysis.dependencyMap, stopSet)];
+  const includedCtes = buildStageCtes(analysis.ctes, includedNames, null, options.materializedCtes);
+  const bindingContext = createScalarBindingContext(options, includedNames);
 
-  applyMinimalWithClause(parsed, includedCtes, source.recursive);
+  applyMinimalWithClause(parsed, includedCtes, getWithClause(parsed)?.recursive ?? false);
+  const scalarSteps = [
+    ...(await bindScalarFilterPredicatesInCtes(includedCtes, bindingContext, session)),
+    ...(await bindScalarFilterPredicates(parsed, bindingContext, session))
+  ];
+  const formatter = createPipelineFormatter(options.runtimeParams);
 
   if (options.limit !== undefined) {
     if (parsed instanceof SimpleSelectQuery) {
@@ -289,7 +276,8 @@ function buildFinalStageQuery(
       const { formattedSql, params } = formatter.format(wrapped);
       return {
         sql: `${formattedSql}\n`,
-        params: mergeFormatterParams(params, options.runtimeParams)
+        params: mergeFormatterParams(params, options.runtimeParams),
+        scalarSteps
       };
     } else {
       throw new Error('--limit is only supported for SELECT final slices or --cte slices.');
@@ -299,7 +287,21 @@ function buildFinalStageQuery(
   const { formattedSql, params } = formatter.format(parsed);
   return {
     sql: `${formattedSql}\n`,
-    params: mergeFormatterParams(params, options.runtimeParams)
+    params: mergeFormatterParams(params, options.runtimeParams),
+    scalarSteps
+  };
+}
+
+function createScalarBindingContext(
+  options: BuildPipelineStageQueryOptions,
+  includedNames: string[]
+): ScalarBindingContext {
+  return {
+    runtimeParams: options.runtimeParams,
+    scalarFilterColumns: new Set(options.scalarFilterColumns),
+    stageCteNames: new Set(includedNames),
+    materializedCtes: new Set(options.materializedCtes),
+    nextOrdinal: 1
   };
 }
 
@@ -307,66 +309,338 @@ function buildStageCtes(
   ctes: CommonTable[],
   includedNames: string[],
   currentTarget: string | null,
-  materializedCtes: string[],
-  scalarBindings: Map<string, ScalarMaterialBinding>
+  materializedCtes: string[]
 ): CommonTable[] {
   const includedSet = new Set(includedNames);
   const materializedSet = new Set(materializedCtes);
 
-  const stageCtes: CommonTable[] = [];
-  for (const cte of ctes) {
+  return ctes.filter((cte) => {
     const name = cte.aliasExpression.table.name;
     if (!includedSet.has(name)) {
-      continue;
+      return false;
     }
 
-    if (name !== currentTarget && materializedSet.has(name)) {
-      continue;
-    }
-
-    const scalarBinding = name !== currentTarget ? scalarBindings.get(name) : undefined;
-    if (scalarBinding) {
-      stageCtes.push(buildScalarBindingCte(cte, scalarBinding));
-      continue;
-    }
-
-    stageCtes.push(cte);
-  }
-
-  return stageCtes;
+    return name === currentTarget || !materializedSet.has(name);
+  });
 }
 
-function buildScalarBindingCte(sourceCte: CommonTable, binding: ScalarMaterialBinding): CommonTable {
-  const aliasColumns = sourceCte.aliasExpression.columns?.map((column) => column.name) ?? null;
-  if (aliasColumns && aliasColumns.length > 1) {
-    throw new Error(`Scalar material "${binding.target}" must expose exactly one column.`);
+async function bindScalarFilterPredicatesInCtes(
+  ctes: CommonTable[],
+  context: ScalarBindingContext,
+  session: QueryPipelineSession
+): Promise<QueryPipelineExecutionStepResult[]> {
+  const steps: QueryPipelineExecutionStepResult[] = [];
+  for (const cte of ctes) {
+    steps.push(...await bindScalarFilterPredicatesInSelect(cte.query, context, session));
+  }
+  return steps;
+}
+async function bindScalarFilterPredicates(
+  statement: SupportedStatement | SimpleSelectQuery,
+  context: ScalarBindingContext,
+  session: QueryPipelineSession
+): Promise<QueryPipelineExecutionStepResult[]> {
+  if (context.scalarFilterColumns.size === 0) {
+    return [];
   }
 
-  const columnName = aliasColumns?.[0] ?? binding.columnName;
-  const query = new SimpleSelectQuery({
-    selectClause: new SelectClause([
-      new SelectItem(new ParameterExpression(binding.paramName, binding.value), columnName)
-    ])
-  });
+  if (statement instanceof SimpleSelectQuery) {
+    return bindScalarFilterPredicatesInSelect(statement, context, session);
+  }
 
-  return new CommonTable(
-    query,
-    new SourceAliasExpression(sourceCte.aliasExpression.table.name, aliasColumns),
-    sourceCte.materialized
-  );
+  if (statement instanceof BinarySelectQuery) {
+    const steps: QueryPipelineExecutionStepResult[] = [];
+    steps.push(...await bindScalarFilterPredicatesInSelectBranch(statement.left, context, session));
+    steps.push(...await bindScalarFilterPredicatesInSelectBranch(statement.right, context, session));
+    return steps;
+  }
+
+  if (statement instanceof ValuesQuery) {
+    return [];
+  }
+
+  if (statement instanceof InsertQuery) {
+    return statement.selectQuery
+      ? bindScalarFilterPredicatesInSelectBranch(assertSelectQuery(statement.selectQuery), context, session)
+      : [];
+  }
+
+  if (statement instanceof UpdateQuery || statement instanceof DeleteQuery) {
+    return [];
+  }
+
+  return [];
+}
+
+async function bindScalarFilterPredicatesInSelectBranch(
+  statement: SimpleSelectQuery | BinarySelectQuery | ValuesQuery,
+  context: ScalarBindingContext,
+  session: QueryPipelineSession
+): Promise<QueryPipelineExecutionStepResult[]> {
+  if (statement instanceof SimpleSelectQuery) {
+    return bindScalarFilterPredicatesInSelect(statement, context, session);
+  }
+  if (statement instanceof BinarySelectQuery) {
+    const steps: QueryPipelineExecutionStepResult[] = [];
+    steps.push(...await bindScalarFilterPredicatesInSelectBranch(statement.left, context, session));
+    steps.push(...await bindScalarFilterPredicatesInSelectBranch(statement.right, context, session));
+    return steps;
+  }
+  return [];
+}
+
+async function bindScalarFilterPredicatesInSelect(
+  selectQuery: SimpleSelectQuery,
+  context: ScalarBindingContext,
+  session: QueryPipelineSession
+): Promise<QueryPipelineExecutionStepResult[]> {
+  if (!selectQuery.whereClause) {
+    return [];
+  }
+
+  return rewritePredicateExpression(selectQuery.whereClause.condition, context, session);
+}
+
+async function rewritePredicateExpression(
+  expression: unknown,
+  context: ScalarBindingContext,
+  session: QueryPipelineSession
+): Promise<QueryPipelineExecutionStepResult[]> {
+  if (!(expression instanceof BinaryExpression)) {
+    return [];
+  }
+
+  const binaryExpression = expression;
+  const candidate = findScalarBindingCandidate(binaryExpression, context.scalarFilterColumns);
+  if (candidate) {
+    const execution = await executeScalarFilterBinding(candidate, context, session);
+    if (execution) {
+      candidate.replace(new ParameterExpression(execution.paramName, execution.value as never));
+      return [execution.step];
+    }
+  }
+
+  const steps: QueryPipelineExecutionStepResult[] = [];
+  steps.push(...await rewritePredicateExpression(binaryExpression.left, context, session));
+  steps.push(...await rewritePredicateExpression(binaryExpression.right, context, session));
+  return steps;
+}
+function findScalarBindingCandidate(
+  expression: BinaryExpression,
+  scalarFilterColumns: ReadonlySet<string>
+): ScalarBindingCandidate | null {
+  const operator = extractOperator(expression.operator);
+  if (!SUPPORTED_COMPARISON_OPERATORS.has(operator)) {
+    return null;
+  }
+
+  const leftMatches = containsTargetColumn(expression.left, scalarFilterColumns);
+  const rightMatches = containsTargetColumn(expression.right, scalarFilterColumns);
+  const leftInline = unwrapInlineQuery(expression.left);
+  const rightInline = unwrapInlineQuery(expression.right);
+
+  if (leftMatches && rightInline) {
+    return {
+      columnName: leftMatches,
+      inlineQuery: rightInline,
+      replace: (parameter) => {
+        expression.right = parameter;
+      }
+    };
+  }
+
+  if (rightMatches && leftInline) {
+    return {
+      columnName: rightMatches,
+      inlineQuery: leftInline,
+      replace: (parameter) => {
+        expression.left = parameter;
+      }
+    };
+  }
+
+  return null;
+}
+
+async function executeScalarFilterBinding(
+  candidate: ScalarBindingCandidate,
+  context: ScalarBindingContext,
+  session: QueryPipelineSession
+): Promise<ScalarExecutionResult | null> {
+  const selectQuery = candidate.inlineQuery.selectQuery;
+  if (!(selectQuery instanceof SimpleSelectQuery)) {
+    throw new Error(`Scalar filter binding for column "${candidate.columnName}" requires a simple SELECT subquery.`);
+  }
+
+  if (isCorrelatedScalarSubquery(selectQuery)) {
+    return null;
+  }
+
+  if (dependsOnStageCtes(selectQuery, context.stageCteNames, context.materializedCtes)) {
+    return null;
+  }
+
+  assertSingleColumnScalarSelect(selectQuery, candidate.columnName);
+  const paramName = `__scalar_filter_${candidate.columnName}_${context.nextOrdinal}`;
+  const formatter = createPipelineFormatter(context.runtimeParams);
+  const { formattedSql, params } = formatter.format(selectQuery);
+  const queryParams = mergeFormatterParams(params, context.runtimeParams);
+  const sql = `${formattedSql}\n`;
+  const result = normalizePipelineQueryResult(await session.query(sql, queryParams));
+  const value = extractScalarFilterValue(result.rows, candidate.columnName);
+  const step: QueryPipelineExecutionStepResult = {
+    kind: 'scalar-filter-bind',
+    target: candidate.columnName,
+    sql,
+    params: queryParams,
+    rowCount: result.rowCount
+  };
+
+  context.nextOrdinal += 1;
+  return { paramName, value, step };
+}
+function assertSingleColumnScalarSelect(selectQuery: SimpleSelectQuery, columnName: string): void {
+  if (selectQuery.selectClause.items.length !== 1) {
+    throw new Error(`Scalar filter binding for column "${columnName}" requires a subquery that statically exposes exactly one column.`);
+  }
+
+  const [item] = selectQuery.selectClause.items;
+  if (item?.value instanceof RawString && item.value.value.trim() === '*') {
+    throw new Error(`Scalar filter binding for column "${columnName}" requires a subquery that statically exposes exactly one column.`);
+  }
+}
+
+function extractScalarFilterValue(rows: PipelineRow[], columnName: string): unknown {
+  if (rows.length !== 1) {
+    throw new Error(`Scalar filter binding for column "${columnName}" must return exactly one row.`);
+  }
+
+  const row = rows[0] ?? {};
+  const columns = Object.keys(row);
+  if (columns.length !== 1) {
+    throw new Error(`Scalar filter binding for column "${columnName}" must return exactly one column.`);
+  }
+
+  return row[columns[0]];
+}
+
+function dependsOnStageCtes(
+  selectQuery: SimpleSelectQuery,
+  stageCteNames: ReadonlySet<string>,
+  materializedCtes: ReadonlySet<string>
+): boolean {
+  const sources = selectQuery.fromClause?.getSources() ?? [];
+  return sources.some((source) => {
+    if (!(source.datasource instanceof TableSource)) {
+      return false;
+    }
+
+    const sourceName = source.datasource.qualifiedName.name.name;
+    return stageCteNames.has(sourceName) && !materializedCtes.has(sourceName);
+  });
+}
+
+function isCorrelatedScalarSubquery(selectQuery: SimpleSelectQuery): boolean {
+  const localNames = collectLocalRelationNames(selectQuery);
+  const columnReferences = collectColumnReferences(selectQuery);
+
+  return columnReferences.some((reference) => {
+    const qualifierParts = reference.qualifiedName.namespaces?.map((namespace) => namespace.name) ?? [];
+    if (qualifierParts.length === 0) {
+      return false;
+    }
+
+    const qualifier = qualifierParts[qualifierParts.length - 1];
+    return !localNames.has(qualifier);
+  });
+}
+
+function collectLocalRelationNames(selectQuery: SimpleSelectQuery): Set<string> {
+  const localNames = new Set<string>();
+  const sources = selectQuery.fromClause?.getSources() ?? [];
+
+  for (const source of sources) {
+    const aliasName = source.aliasExpression?.table?.name;
+    if (aliasName) {
+      localNames.add(aliasName);
+    }
+
+    if (source.datasource instanceof TableSource) {
+      localNames.add(source.datasource.qualifiedName.name.name);
+    }
+  }
+
+  return localNames;
+}
+
+function collectColumnReferences(node: unknown): ColumnReference[] {
+  const matches: ColumnReference[] = [];
+  walkAst(node, (current) => {
+    if (current instanceof ColumnReference) {
+      matches.push(current);
+    }
+  });
+  return matches;
+}
+
+function containsTargetColumn(node: unknown, scalarFilterColumns: ReadonlySet<string>): string | null {
+  let matched: string | null = null;
+  walkAst(node, (current) => {
+    if (matched || !(current instanceof ColumnReference)) {
+      return;
+    }
+
+    const columnName = current.qualifiedName.name.name;
+    if (scalarFilterColumns.has(columnName)) {
+      matched = columnName;
+    }
+  });
+  return matched;
+}
+
+function walkAst(node: unknown, visit: (current: unknown) => void): void {
+  if (!node || typeof node !== 'object') {
+    return;
+  }
+
+  visit(node);
+
+  for (const value of Object.values(node as Record<string, unknown>)) {
+    if (!value) {
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        walkAst(item, visit);
+      }
+      continue;
+    }
+
+    if (typeof value === 'object') {
+      walkAst(value, visit);
+    }
+  }
+}
+
+function unwrapInlineQuery(expression: unknown): InlineQuery | null {
+  return expression instanceof InlineQuery ? expression : null;
+}
+
+function extractOperator(operator: RawString | unknown): string {
+  if (operator instanceof RawString) {
+    return operator.value.trim();
+  }
+  return '';
 }
 
 function preparePipelineSource(sqlFile: string): PreparedPipelineSource {
   const absolutePath = path.resolve(sqlFile);
   const sql = readFileSync(absolutePath, 'utf8');
-  const statement = assertSupportedStatement(SqlParser.parse(sql), 'executeQueryPipeline');
-  const analysis = analyzeStatement(statement);
 
   return {
     absolutePath,
-    sql,
-    analysis,
-    recursive: getWithClause(statement)?.recursive ?? false
+    sql
   };
 }
 
@@ -397,20 +671,13 @@ function mergeFormatterParams(
   if ((runtimeParams && !Array.isArray(runtimeParams)) || parts.some((part) => isPlainObject(part))) {
     const merged: Record<string, unknown> = isPlainObject(runtimeParams) ? { ...runtimeParams } : {};
 
-    // Prefer formatter-produced scalar bindings while still filling in original runtime params.
+    // Preserve original runtime params while layering formatter-generated named values on top.
     for (const part of parts) {
       if (!isPlainObject(part)) {
         continue;
       }
 
       for (const [key, value] of Object.entries(part)) {
-        if (value === null || value === undefined) {
-          if (!(key in merged)) {
-            merged[key] = value;
-          }
-          continue;
-        }
-
         merged[key] = value;
       }
     }
@@ -418,17 +685,10 @@ function mergeFormatterParams(
     return Object.keys(merged).length > 0 ? merged : undefined;
   }
 
-  const runtimeArray = Array.isArray(runtimeParams) ? runtimeParams : [];
-  const merged: unknown[] = [];
-
+  const merged: unknown[] = Array.isArray(runtimeParams) ? [...runtimeParams] : [];
   for (const part of parts) {
-    if (!Array.isArray(part)) {
-      continue;
-    }
-
-    for (let index = 0; index < part.length; index += 1) {
-      const value = part[index];
-      merged.push(value === null || value === undefined ? runtimeArray[index] : value);
+    if (Array.isArray(part)) {
+      merged.push(...part);
     }
   }
 
@@ -447,25 +707,6 @@ function normalizePipelineQueryResult(result: PipelineQueryResult): { rows: Pipe
   return {
     rows: result.rows,
     rowCount: result.rowCount
-  };
-}
-
-function extractScalarBinding(rows: PipelineRow[], target: string, ordinal: number): ScalarMaterialBinding {
-  if (rows.length !== 1) {
-    throw new Error(`Scalar material "${target}" must return exactly one row.`);
-  }
-
-  const row = rows[0];
-  const columns = Object.keys(row);
-  if (columns.length !== 1) {
-    throw new Error(`Scalar material "${target}" must return exactly one column.`);
-  }
-
-  return {
-    target,
-    columnName: columns[0],
-    value: row[columns[0]] as SqlParameterValue,
-    paramName: `__scalar_${target}_${ordinal}`
   };
 }
 
@@ -646,3 +887,4 @@ function getSelectWithClause(statement: SimpleSelectQuery | BinarySelectQuery | 
 
   return null;
 }
+

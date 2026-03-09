@@ -1,11 +1,11 @@
 import { buildQueryStructureReport, type QueryStructureReport } from './structure';
 
 export type QueryPipelinePlanFormat = 'text' | 'json';
-export type QueryPipelineStepKind = 'materialize' | 'scalar-materialize' | 'final-query';
+export type QueryPipelineStepKind = 'materialize' | 'final-query';
 
 export interface QueryPipelineMetadata {
   material?: string[];
-  scalarMaterial?: string[];
+  scalarFilterColumns?: string[];
 }
 
 export interface QueryPipelineStep {
@@ -21,7 +21,7 @@ export interface QueryPipelinePlan {
   final_query: string | null;
   metadata: {
     material: string[];
-    scalarMaterial: string[];
+    scalarFilterColumns: string[];
   };
   steps: QueryPipelineStep[];
 }
@@ -35,26 +35,18 @@ export function buildQueryPipelinePlan(
 ): QueryPipelinePlan {
   const report = buildQueryStructureReport(sqlFile);
   const material = uniquePreservingOrder(metadata.material ?? []);
-  const scalarMaterial = uniquePreservingOrder(metadata.scalarMaterial ?? []);
+  const scalarFilterColumns = uniquePreservingOrder(metadata.scalarFilterColumns ?? []);
   const cteNameSet = new Set(report.ctes.map((cte) => cte.name));
 
-  // Reject ambiguous metadata so the planner has a single execution mode per CTE.
-  for (const name of material) {
-    if (scalarMaterial.includes(name)) {
-      throw new Error(`CTE "${name}" cannot be both material and scalarMaterial.`);
-    }
-  }
-
   validateKnownCtes(material, cteNameSet, 'material');
-  validateKnownCtes(scalarMaterial, cteNameSet, 'scalarMaterial');
 
   const orderedCtes = topologicallySortCtes(report);
-  const plannedCtes = orderedCtes.filter((name) => material.includes(name) || scalarMaterial.includes(name));
+  const plannedCtes = orderedCtes.filter((name) => material.includes(name));
   const cteMap = new Map(report.ctes.map((cte) => [cte.name, cte]));
 
   const steps: QueryPipelineStep[] = plannedCtes.map((name, index) => ({
     step: index + 1,
-    kind: material.includes(name) ? 'materialize' : 'scalar-materialize',
+    kind: 'materialize',
     target: name,
     depends_on: [...(cteMap.get(name)?.depends_on ?? [])]
   }));
@@ -72,7 +64,7 @@ export function buildQueryPipelinePlan(
     final_query: report.final_query,
     metadata: {
       material,
-      scalarMaterial
+      scalarFilterColumns
     },
     steps
   };
@@ -92,7 +84,7 @@ function formatQueryPipelineText(plan: QueryPipelinePlan): string {
   const lines = [
     `Query type: ${plan.query_type}`,
     `Material CTEs: ${plan.metadata.material.length > 0 ? plan.metadata.material.join(', ') : '(none)'}`,
-    `Scalar material CTEs: ${plan.metadata.scalarMaterial.length > 0 ? plan.metadata.scalarMaterial.join(', ') : '(none)'}`,
+    `Scalar filter columns: ${plan.metadata.scalarFilterColumns.length > 0 ? plan.metadata.scalarFilterColumns.join(', ') : '(none)'}`,
     '',
     'Planned steps:'
   ];
@@ -109,15 +101,13 @@ function describeStep(step: QueryPipelineStep): string {
   switch (step.kind) {
     case 'materialize':
       return `materialize ${step.target}`;
-    case 'scalar-materialize':
-      return `scalar materialize ${step.target}`;
     case 'final-query':
     default:
       return 'run final query';
   }
 }
 
-function validateKnownCtes(names: string[], cteNameSet: Set<string>, label: 'material' | 'scalarMaterial'): void {
+function validateKnownCtes(names: string[], cteNameSet: Set<string>, label: 'material'): void {
   for (const name of names) {
     if (!cteNameSet.has(name)) {
       throw new Error(`Unknown ${label} CTE: ${name}`);
