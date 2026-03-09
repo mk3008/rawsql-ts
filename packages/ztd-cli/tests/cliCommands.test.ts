@@ -508,7 +508,7 @@ test('query graph preserves multiple direct roots in final_query', () => {
 });
 
 
-test('query plan emits deterministic text steps from metadata flags', () => {
+test('query plan emits deterministic text steps from material and scalar filter metadata', () => {
   const workspace = createSqlWorkspace('query-plan-text', path.join('src', 'sql', 'plan.sql'));
   writeFileSync(
     workspace.sqlFile,
@@ -519,15 +519,13 @@ test('query plan emits deterministic text steps from metadata flags', () => {
       'filtered_users as (',
       '  select id from base_users where region_id is not null',
       '),',
-      'summary_total as (',
-      '  select count(*) as total_count from filtered_users',
-      '),',
       'ranked_users as (',
-      '  select fu.id, st.total_count',
-      '  from filtered_users fu',
-      '  cross join summary_total st',
+      '  select id from filtered_users',
       ')',
-      'select * from ranked_users'
+      'select * from ranked_users',
+      'where sale_date > (',
+      '  select p.closed_year_month from public.parameters p',
+      ')'
     ].join('\n'),
     'utf8'
   );
@@ -538,17 +536,16 @@ test('query plan emits deterministic text steps from metadata flags', () => {
     workspace.sqlFile,
     '--material',
     'ranked_users,filtered_users',
-    '--scalar-material',
-    'summary_total'
+    '--scalar-filter-column',
+    'sale_date'
   ], {}, workspace.rootDir);
   assertCliSuccess(result, 'query plan text');
   expect(result.stdout).toContain('Query type: SELECT');
   expect(result.stdout).toContain('Material CTEs: ranked_users, filtered_users');
-  expect(result.stdout).toContain('Scalar material CTEs: summary_total');
+  expect(result.stdout).toContain('Scalar filter columns: sale_date');
   expect(result.stdout).toContain('1. materialize filtered_users');
-  expect(result.stdout).toContain('2. scalar materialize summary_total');
-  expect(result.stdout).toContain('3. materialize ranked_users');
-  expect(result.stdout).toContain('4. run final query');
+  expect(result.stdout).toContain('2. materialize ranked_users');
+  expect(result.stdout).toContain('3. run final query');
 });
 
 test('query plan accepts JSON metadata and emits machine-readable JSON', () => {
@@ -561,9 +558,6 @@ test('query plan accepts JSON metadata and emits machine-readable JSON', () => {
       '),',
       'filtered_users as (',
       '  select id from base_users',
-      '),',
-      'summary_total as (',
-      '  select count(*) as total_count from filtered_users',
       ')',
       'select * from filtered_users'
     ].join('\n'),
@@ -578,7 +572,7 @@ test('query plan accepts JSON metadata and emits machine-readable JSON', () => {
     JSON.stringify({
       format: 'json',
       material: ['filtered_users'],
-      scalarMaterial: ['summary_total']
+      scalarFilterColumns: ['sale_date']
     })
   ], {}, workspace.rootDir);
   assertCliSuccess(result, 'query plan json');
@@ -586,7 +580,7 @@ test('query plan accepts JSON metadata and emits machine-readable JSON', () => {
   expect(payload.query_type).toBe('SELECT');
   expect(payload.metadata).toEqual({
     material: ['filtered_users'],
-    scalarMaterial: ['summary_total']
+    scalarFilterColumns: ['sale_date']
   });
   expect(payload.steps).toEqual([
     {
@@ -597,12 +591,6 @@ test('query plan accepts JSON metadata and emits machine-readable JSON', () => {
     },
     {
       step: 2,
-      kind: 'scalar-materialize',
-      target: 'summary_total',
-      depends_on: ['filtered_users']
-    },
-    {
-      step: 3,
       kind: 'final-query',
       target: 'FINAL_QUERY',
       depends_on: ['filtered_users']

@@ -41,10 +41,10 @@ interface QueryPlanOptions {
   format?: string;
   out?: string;
   material?: unknown;
-  scalarMaterial?: unknown;
+  scalarFilterColumns?: unknown;
+  scalarFilterColumn?: unknown;
   json?: string;
 }
-
 interface QuerySliceOptions {
   cte?: string;
   final?: boolean;
@@ -86,7 +86,7 @@ Examples:
   $ ztd query outline large_query.sql
   $ ztd query graph large_query.sql --format dot
   $ ztd query slice large_query.sql --cte purchase_summary
-  $ ztd query plan large_query.sql --material base_cte --scalar-material total_cte --format json
+  $ ztd query plan large_query.sql --material base_cte --scalar-filter-column sale_date --format json
   $ ztd query patch apply large_query.sql --cte purchase_summary --from edited_slice.sql --preview
   $ ztd query lint large_query.sql --format json
 
@@ -185,7 +185,7 @@ Notes:
     .description('Emit deterministic execution steps from CTE metadata')
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--material <names>', 'Comma-separated CTE names to materialize')
-    .option('--scalar-material <names>', 'Comma-separated CTE names to scalar materialize')
+    .option('--scalar-filter-column <names>', 'Comma-separated column names to bind from WHERE scalar filters')
     .option('--json <payload>', 'Pass command options as a JSON object')
     .option('--out <path>', 'Write output to file')
     .action((sqlFile: string, options: QueryPlanOptions) => {
@@ -218,6 +218,7 @@ Notes:
 function runQueryUsesCommand(kind: 'table' | 'column', target: string | undefined, options: QueryUsesOptions): void {
   const resolved = withSpanSync(QUERY_USES_COMMAND_SPANS.resolveOptions, () => {
     const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+
     const format = normalizeFormat(normalizeStringOption(merged.format) ?? getAgentOutputFormat());
     const view = normalizeView(normalizeStringOption(merged.view) ?? 'impact');
     const resolvedTarget = normalizeStringOption(merged.target) ?? target;
@@ -298,10 +299,15 @@ function runQuerySliceCommand(sqlFile: string, options: QuerySliceOptions): void
 
 function runQueryPlanCommand(sqlFile: string, options: QueryPlanOptions): void {
   const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+  const scalarFilterOption = merged.scalarFilterColumns ?? merged.scalarFilterColumn;
+  if (scalarFilterOption === undefined && (merged as Record<string, unknown>).scalarMaterial !== undefined) {
+    throw new Error('Use scalarFilterColumns / --scalar-filter-column instead of scalarMaterial / --scalar-material.');
+  }
+
   const format = normalizePlanFormat(normalizeStringOption(merged.format) ?? getAgentOutputFormat());
   const plan = buildQueryPipelinePlan(sqlFile, {
     material: normalizeListOption(merged.material, '--material'),
-    scalarMaterial: normalizeListOption(merged.scalarMaterial, '--scalar-material')
+    scalarFilterColumns: normalizeListOption(scalarFilterOption, '--scalar-filter-column')
   });
   const contents = formatQueryPipelinePlan(plan, format);
   const outPath = normalizeStringOption(merged.out);

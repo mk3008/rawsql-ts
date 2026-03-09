@@ -96,6 +96,30 @@ test('buildQuerySliceReport preserves the minimized final query', () => {
   expect(result.sql).not.toContain('unused_data');
 });
 
+test('buildQuerySliceReport treats excluded CTEs as traversal stops for final slices', () => {
+  const sqlFile = createSqlFile(
+    'query-slice-final-excluded-stops',
+    `
+      with upstream_seed as (
+        select id from public.users
+      ),
+      materialized_stage as (
+        select id from upstream_seed
+      ),
+      final_rows as (
+        select id from materialized_stage
+      )
+      select * from final_rows
+    `
+  );
+
+  const result = buildQuerySliceReport(sqlFile, { final: true, excludeCtes: ['materialized_stage'] });
+
+  expect(result.included_ctes).toEqual(['final_rows']);
+  expect(result.sql).not.toContain('upstream_seed');
+  expect(result.sql).not.toContain('materialized_stage as (');
+});
+
 test('buildQuerySliceReport applies LIMIT to target CTE slices', () => {
   const sqlFile = createSqlFile(
     'query-slice-limit',
@@ -141,6 +165,7 @@ test('buildQuerySliceReport supports DML final slices while removing unused CTEs
   expect(result.sql).toContain('"user_report"');
   expect(result.sql).not.toContain('audit_rows');
 });
+
 test('buildQuerySliceReport preserves CTEs referenced from DML predicate subqueries', () => {
   const sqlFile = createSqlFile(
     'query-slice-update-exists',
