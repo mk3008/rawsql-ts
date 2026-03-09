@@ -455,6 +455,33 @@ test('perf db reset dry-run lists DDL files without touching Docker', () => {
   });
 });
 
+
+test('perf db reset refuses implicit DATABASE_URL without explicit perf opt-in', () => {
+  const workspace = createTempDir('perf-reset-safety');
+  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+  writeFileSync(
+    path.join(workspace, 'ztd.config.json'),
+    JSON.stringify({
+      dialect: 'postgres',
+      ddlDir: 'ztd/ddl',
+      testsDir: 'tests',
+      ddl: { defaultSchema: 'public', searchPath: ['public'] },
+      ddlLint: 'strict'
+    }, null, 2),
+    'utf8'
+  );
+  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), 'create table public.users (id integer primary key);', 'utf8');
+
+  const result = runCli(
+    ['perf', 'db', 'reset'],
+    { DATABASE_URL: 'postgres://app.example/db', ZTD_PERF_DATABASE_URL: '' },
+    workspace
+  );
+
+  assertCliFailure(result, 'perf db reset safety');
+  expect(result.stderr).toContain('Perf sandbox ignores DATABASE_URL');
+  expect(result.stderr).toContain('ZTD_PERF_DATABASE_URL');
+});
 test('perf seed dry-run reports deterministic row counts from perf seed config', () => {
   const workspace = createTempDir('perf-seed-dry-run');
   mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
@@ -1352,6 +1379,8 @@ test('query lint emits machine-readable JSON when requested', () => {
     })
   ]));
 });
+
+
 
 
 

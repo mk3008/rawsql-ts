@@ -50,6 +50,11 @@ export interface PerfSeedResult {
   usedDocker: boolean;
 }
 
+export function resolvePerfExternalDatabaseUrl(env: NodeJS.ProcessEnv = process.env): string | null {
+  const explicitUrl = (env.ZTD_PERF_DATABASE_URL ?? '').trim();
+  return explicitUrl || null;
+}
+
 const DEFAULT_PERF_SANDBOX: PerfSandboxConfig = {
   dockerImage: 'postgres:16-alpine',
   containerName: 'ztd-perf-sandbox',
@@ -390,17 +395,21 @@ function resolveTableDefinition(
 }
 
 async function ensurePerfConnection(rootDir: string, config: PerfSandboxConfig): Promise<{ connectionUrl: string; usedDocker: boolean }> {
-  const externalUrl = (process.env.ZTD_PERF_DATABASE_URL ?? process.env.DATABASE_URL ?? '').trim();
+  const externalUrl = resolvePerfExternalDatabaseUrl();
   if (externalUrl) {
     return { connectionUrl: externalUrl, usedDocker: false };
   }
 
-  assertDockerReadyForPerf();
+  const ignoredDefaultDatabaseUrl = (process.env.DATABASE_URL ?? '').trim();
   const composeFile = path.join(rootDir, PERF_DIRECTORY, PERF_DOCKER_COMPOSE);
   if (!existsSync(composeFile)) {
-    throw new Error('Perf sandbox is not initialized. Run `ztd perf init` first.');
+    if (ignoredDefaultDatabaseUrl) {
+      throw new Error('Perf sandbox ignores DATABASE_URL for destructive commands. Set ZTD_PERF_DATABASE_URL explicitly or run ztd perf init first.');
+    }
+    throw new Error('Perf sandbox is not initialized. Run ztd perf init first.');
   }
 
+  assertDockerReadyForPerf();
   runDockerCompose(rootDir, composeFile, ['up', '-d']);
   const connectionUrl = buildSandboxConnectionUrl(config);
   await waitForDatabase(connectionUrl);
@@ -510,5 +519,9 @@ function hashString(value: string): number {
 function quoteQualifiedName(name: string): string {
   return name.split('.').map((segment) => `"${segment}"`).join('.');
 }
+
+
+
+
 
 

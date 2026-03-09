@@ -3,6 +3,7 @@ import {
   buildInsertStatementsForTable,
   buildPerfInitPlan,
   parsePerfSeedYaml,
+  resolvePerfExternalDatabaseUrl,
   type PerfSeedConfig
 } from '../src/perf/sandbox';
 import type { TableDefinitionModel } from 'rawsql-ts';
@@ -77,4 +78,18 @@ test('buildInsertStatementsForTable stays deterministic for a fixed seed config'
   expect(firstRun[0]?.values[1]).toBe('active');
   expect(firstRun[1]?.values[0]).toBe(2);
 });
+
+
+test('resolvePerfExternalDatabaseUrl only honors the explicit perf variable', () => {
+  expect(resolvePerfExternalDatabaseUrl({
+    ZTD_PERF_DATABASE_URL: 'postgres://perf.example/db',
+    DATABASE_URL: 'postgres://app.example/db'
+  })).toBe('postgres://perf.example/db');
+
+  expect(resolvePerfExternalDatabaseUrl({
+    DATABASE_URL: 'postgres://app.example/db'
+  })).toBeNull();
+});
+
+
 
