@@ -456,6 +456,41 @@ test('perf db reset dry-run lists DDL files without touching Docker', () => {
 });
 
 
+
+test('perf seed output redacts connection credentials in global json mode', () => {
+  const workspace = createTempDir('perf-seed-redact');
+  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+  mkdirSync(path.join(workspace, 'perf'), { recursive: true });
+  writeFileSync(
+    path.join(workspace, 'ztd.config.json'),
+    JSON.stringify({
+      dialect: 'postgres',
+      ddlDir: 'ztd/ddl',
+      testsDir: 'tests',
+      ddl: { defaultSchema: 'public', searchPath: ['public'] },
+      ddlLint: 'strict'
+    }, null, 2),
+    'utf8'
+  );
+  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), 'create table public.users (id integer primary key);', 'utf8');
+  writeFileSync(path.join(workspace, 'perf', 'seed.yml'), [
+    'seed: 999',
+    'tables:',
+    '  users:',
+    '    rows: 1',
+    'columns:',
+    ''
+  ].join('\n'), 'utf8');
+
+  const result = runCli(
+    ['--output', 'json', 'perf', 'seed'],
+    { ZTD_PERF_DATABASE_URL: 'postgres://perf_user:perf_pass@127.0.0.1:1/ztd_perf' },
+    workspace
+  );
+
+  assertCliFailure(result, 'perf seed redaction');
+  expect(result.stderr).not.toContain('perf_pass');
+});
 test('perf db reset refuses implicit DATABASE_URL without explicit perf opt-in', () => {
   const workspace = createTempDir('perf-reset-safety');
   mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
@@ -481,6 +516,37 @@ test('perf db reset refuses implicit DATABASE_URL without explicit perf opt-in',
   assertCliFailure(result, 'perf db reset safety');
   expect(result.stderr).toContain('Perf sandbox ignores DATABASE_URL');
   expect(result.stderr).toContain('ZTD_PERF_DATABASE_URL');
+});
+
+test('perf seed dry-run rejects unknown tables from perf seed config', () => {
+  const workspace = createTempDir('perf-seed-invalid-table');
+  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+  mkdirSync(path.join(workspace, 'perf'), { recursive: true });
+  writeFileSync(
+    path.join(workspace, 'ztd.config.json'),
+    JSON.stringify({
+      dialect: 'postgres',
+      ddlDir: 'ztd/ddl',
+      testsDir: 'tests',
+      ddl: { defaultSchema: 'public', searchPath: ['public'] },
+      ddlLint: 'strict'
+    }, null, 2),
+    'utf8'
+  );
+  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), 'create table public.users (id integer primary key);', 'utf8');
+  writeFileSync(path.join(workspace, 'perf', 'seed.yml'), [
+    'seed: 999',
+    'tables:',
+    '  missing_table:',
+    '    rows: 3',
+    'columns:',
+    ''
+  ].join('\n'), 'utf8');
+
+  const result = runCli(['perf', 'seed', '--dry-run'], {}, workspace);
+
+  assertCliFailure(result, 'perf seed dry-run invalid table');
+  expect(result.stderr).toContain('No table definition found for perf seed table: missing_table');
 });
 test('perf seed dry-run reports deterministic row counts from perf seed config', () => {
   const workspace = createTempDir('perf-seed-dry-run');
@@ -1379,6 +1445,7 @@ test('query lint emits machine-readable JSON when requested', () => {
     })
   ]));
 });
+
 
 
 

@@ -103,15 +103,16 @@ async function runPerfDbResetCommand(options: PerfResetOptions): Promise<void> {
   }
 
   const result = await resetPerfSandbox(process.cwd());
+  const displayConnectionUrl = toDisplayConnectionUrl(result.connectionUrl);
   emitPerfResult('perf db reset', {
     dryRun: false,
-    connection_url: result.connectionUrl,
+    connection_url: displayConnectionUrl,
     used_docker: result.usedDocker,
     ddl_files: result.appliedFiles,
     ddl_statement_count: result.ddlStatements
   }, [
     `Perf sandbox reset complete.`,
-    `Connection: ${result.connectionUrl}`,
+    `Connection: ${displayConnectionUrl}`,
     `DDL files: ${result.appliedFiles.length}`,
     `DDL statements: ${result.ddlStatements}`
   ]);
@@ -131,15 +132,16 @@ async function runPerfSeedCommand(options: PerfSeedOptions): Promise<void> {
   }
 
   const result = await seedPerfSandbox(process.cwd());
+  const displayConnectionUrl = toDisplayConnectionUrl(result.connectionUrl);
   emitPerfResult('perf seed', {
     dryRun: false,
-    connection_url: result.connectionUrl,
+    connection_url: displayConnectionUrl,
     used_docker: result.usedDocker,
     seed: result.seed,
     inserted_rows: result.insertedRows
   }, [
     `Perf seed complete.`,
-    `Connection: ${result.connectionUrl}`,
+    `Connection: ${displayConnectionUrl}`,
     `Seed: ${result.seed}`,
     ...Object.entries(result.insertedRows).map(([tableName, rows]) => `- ${tableName}: ${rows} rows`)
   ]);
@@ -151,7 +153,7 @@ function buildPerfSeedDryRunPlan(rootDir: string): { seed: number; tables: Recor
   const ddlSources = collectSqlFiles([path.resolve(rootDir, config.ddlDir)], ['.sql']);
   const definitions = ddlSources.flatMap((source) => {
     const split = MultiQuerySplitter.split(source.sql);
-    return split.queries.flatMap((chunk) => {
+    return split.queries.flatMap((chunk: { sql: string }) => {
       const sql = chunk.sql.trim();
       if (!sql) {
         return [];
@@ -168,13 +170,22 @@ function buildPerfSeedDryRunPlan(rootDir: string): { seed: number; tables: Recor
     Object.entries(seedConfig.tables).map(([tableName, tableConfig]) => {
       const definition = definitions.find((candidate) => candidate.name === tableName || candidate.name === `${config.ddl.defaultSchema}.${tableName}`);
       if (!definition) {
-        return [tableName, 0];
+        throw new Error(`No table definition found for perf seed table: ${tableName}`);
       }
       return [definition.name, buildInsertStatementsForTable(definition, tableConfig.rows, seedConfig).length];
     })
   );
 
   return { seed: seedConfig.seed, tables };
+}
+
+function toDisplayConnectionUrl(connectionUrl: string): string {
+  try {
+    const parsed = new URL(connectionUrl);
+    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+  } catch {
+    return '[unavailable]';
+  }
 }
 
 function emitPerfResult(command: string, data: Record<string, unknown>, textLines?: string[]): void {
@@ -204,6 +215,3 @@ function resolvePerfOptions<T extends { json?: string; dryRun?: boolean }>(optio
     dryRun: Boolean(merged.dryRun)
   };
 }
-
-
-

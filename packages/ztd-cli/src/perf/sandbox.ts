@@ -126,22 +126,31 @@ export async function resetPerfSandbox(rootDir: string): Promise<PerfResetResult
 
   const pg = await ensurePgModule();
   const client = new pg.Client({ connectionString: resolvedConnection.connectionUrl, connectionTimeoutMillis: 3000 });
+  let ddlStatements = 0;
 
   try {
     await client.connect();
-    await client.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+    await client.query('BEGIN');
 
-    let ddlStatements = 0;
-    for (const source of ddlSources) {
-      const split = MultiQuerySplitter.split(source.sql);
-      for (const chunk of split.queries) {
-        const sql = chunk.sql.trim();
-        if (!sql) {
-          continue;
+    try {
+      await client.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+
+      for (const source of ddlSources) {
+        const split = MultiQuerySplitter.split(source.sql);
+        for (const chunk of split.queries) {
+          const sql = chunk.sql.trim();
+          if (!sql) {
+            continue;
+          }
+          await client.query(sql);
+          ddlStatements += 1;
         }
-        await client.query(sql);
-        ddlStatements += 1;
       }
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw error;
     }
 
     return {
@@ -264,7 +273,17 @@ export function buildInsertStatementsForTable(
   const insertableColumns = definition.columns.filter((column) => !column.defaultValue);
 
   for (let index = 0; index < rowCount; index += 1) {
-    const values = insertableColumns.map((column) => buildSyntheticValue(definition.name, column.name, column.typeName, index, rng, seedConfig, column.isNotNull ?? false));
+    if (insertableColumns.length === 0) {
+      statements.push({
+        sql: `INSERT INTO ${quoteQualifiedName(definition.name)} DEFAULT VALUES;`,
+        values: []
+      });
+      continue;
+    }
+
+    const values = insertableColumns.map((column) =>
+      buildSyntheticValue(definition.name, column.name, column.typeName, index, rng, seedConfig, column.isNotNull ?? false)
+    );
     const placeholders = values.map((_, valueIndex) => `$${valueIndex + 1}`).join(', ');
     const columnList = insertableColumns.map((column) => `"${column.name}"`).join(', ');
     statements.push({
@@ -404,9 +423,9 @@ async function ensurePerfConnection(rootDir: string, config: PerfSandboxConfig):
   const composeFile = path.join(rootDir, PERF_DIRECTORY, PERF_DOCKER_COMPOSE);
   if (!existsSync(composeFile)) {
     if (ignoredDefaultDatabaseUrl) {
-      throw new Error('Perf sandbox ignores DATABASE_URL for destructive commands. Set ZTD_PERF_DATABASE_URL explicitly or run ztd perf init first.');
+      throw new Error('Perf sandbox ignores DATABASE_URL for destructive commands. Set ZTD_PERF_DATABASE_URL explicitly or run `ztd perf init` first.');
     }
-    throw new Error('Perf sandbox is not initialized. Run ztd perf init first.');
+    throw new Error('Perf sandbox is not initialized. Run `ztd perf init` first.');
   }
 
   assertDockerReadyForPerf();
@@ -519,9 +538,3 @@ function hashString(value: string): number {
 function quoteQualifiedName(name: string): string {
   return name.split('.').map((segment) => `"${segment}"`).join('.');
 }
-
-
-
-
-
-
