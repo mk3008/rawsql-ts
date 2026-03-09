@@ -3,6 +3,7 @@ import path from 'node:path';
 import {
   BinarySelectQuery,
   CommonTable,
+  CTETableReferenceCollector,
   DeleteQuery,
   FromClause,
   HavingClause,
@@ -117,12 +118,13 @@ export function buildQueryLintReport(sqlFile: string): QueryLintReport {
     });
   }
 
-  for (const cycle of detectDependencyCycles(analysis.dependencyMap)) {
+  const allowedRecursiveSelfReferences = collectAllowedRecursiveSelfReferences(statement, analysis.ctes);
+  for (const cycle of detectDependencyCycles(analysis.dependencyMap, allowedRecursiveSelfReferences)) {
     issues.push({
       type: 'dependency-cycle',
       severity: 'error',
       cycle,
-      message: `cycle detected (${cycle.join(' -> ')})`
+      message: `invalid dependency cycle detected (${cycle.join(' -> ')})`
     });
   }
 
@@ -195,7 +197,10 @@ function formatSeverity(severity: QueryLintSeverity): string {
   }
 }
 
-function detectDependencyCycles(dependencyMap: Map<string, string[]>): string[][] {
+function detectDependencyCycles(
+  dependencyMap: Map<string, string[]>,
+  allowedRecursiveSelfReferences: Set<string>
+): string[][] {
   const cycles = new Map<string, string[]>();
   const visiting = new Set<string>();
   const visited = new Set<string>();
@@ -221,6 +226,9 @@ function detectDependencyCycles(dependencyMap: Map<string, string[]>): string[][
       }
       const cycle = [...stack.slice(startIndex), dependency];
       const canonical = canonicalizeCycle(cycle);
+      if (isAllowedRecursiveCycle(canonical, allowedRecursiveSelfReferences)) {
+        continue;
+      }
       cycles.set(canonical.join(' -> '), canonical);
     }
 
@@ -234,6 +242,55 @@ function detectDependencyCycles(dependencyMap: Map<string, string[]>): string[][
   }
 
   return Array.from(cycles.values()).sort((left, right) => left.join(' -> ').localeCompare(right.join(' -> ')));
+}
+
+function collectAllowedRecursiveSelfReferences(
+  statement: SupportedStatement,
+  ctes: CommonTable[]
+): Set<string> {
+  const withClause = getStatementWithClause(statement);
+  if (!withClause?.recursive) {
+    return new Set<string>();
+  }
+
+  const collector = new CTETableReferenceCollector();
+  return new Set(
+    ctes
+      .filter((cte) => collector.collect(cte.query).some((source) => source.table.name === cte.aliasExpression.table.name))
+      .map((cte) => cte.aliasExpression.table.name)
+  );
+}
+
+function isAllowedRecursiveCycle(cycle: string[], allowedRecursiveSelfReferences: Set<string>): boolean {
+  const nodes = cycle.slice(0, -1);
+  return nodes.length === 1
+    && cycle[0] === cycle[cycle.length - 1]
+    && allowedRecursiveSelfReferences.has(nodes[0]);
+}
+
+function getStatementWithClause(statement: SupportedStatement): { recursive: boolean } | null {
+  if (statement instanceof InsertQuery) {
+    return statement.selectQuery ? getSelectStatementWithClause(assertSelectStatement(statement.selectQuery)) : null;
+  }
+
+  if (statement instanceof BinarySelectQuery) {
+    return null;
+  }
+
+  return getQueryWithClause(statement);
+}
+
+function getSelectStatementWithClause(statement: SimpleSelectQuery | BinarySelectQuery | ValuesQuery): { recursive: boolean } | null {
+  if (statement instanceof BinarySelectQuery) {
+    return null;
+  }
+
+  return getQueryWithClause(statement);
+}
+
+function getQueryWithClause(statement: SimpleSelectQuery | ValuesQuery | UpdateQuery | DeleteQuery): { recursive: boolean } | null {
+  const candidate = statement as { withClause?: { recursive: boolean } | null };
+  return candidate.withClause ?? null;
 }
 
 function canonicalizeCycle(cycle: string[]): string[] {
@@ -431,6 +488,4 @@ function toSupportedStatement(statement: unknown): SupportedStatement | null {
 
   return null;
 }
-
-
 

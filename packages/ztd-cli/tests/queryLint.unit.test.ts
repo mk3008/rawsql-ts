@@ -72,6 +72,30 @@ ${oversizedProjection}
   ]));
 });
 
+test('buildQueryLintReport does not flag legal recursive CTEs as dependency cycles', () => {
+  const workspace = createSqlWorkspace('query-lint-recursive');
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with recursive walk as (
+        select id, parent_id
+        from public.nodes
+        where parent_id is null
+        union all
+        select n.id, n.parent_id
+        from public.nodes n
+        join walk w on w.id = n.parent_id
+      )
+      select * from walk
+    `,
+    'utf8'
+  );
+
+  const report = buildQueryLintReport(workspace.sqlFile);
+
+  expect(report.issues.filter((issue) => issue.type === 'dependency-cycle')).toEqual([]);
+});
+
 test('buildQueryLintReport detects dependency cycles as errors', () => {
   const workspace = createSqlWorkspace('query-lint-cycle');
   writeFileSync(
@@ -94,7 +118,8 @@ test('buildQueryLintReport detects dependency cycles as errors', () => {
     expect.objectContaining({
       type: 'dependency-cycle',
       severity: 'error',
-      cycle: ['a', 'b', 'a']
+      cycle: ['a', 'b', 'a'],
+      message: 'invalid dependency cycle detected (a -> b -> a)'
     })
   ]));
 });
@@ -119,5 +144,3 @@ test('formatQueryLintReport renders json for agents and compact text for humans'
   const textOutput = formatQueryLintReport(report, 'text');
   expect(textOutput).toContain('WARN  unused-cte: unused_stage is defined but never used');
 });
-
-
