@@ -1,13 +1,24 @@
+import { appendFileSync, mkdirSync } from 'node:fs';
+import { dirname, resolve as resolvePath } from 'node:path';
 import { performance } from 'node:perf_hooks';
+import { randomBytes } from 'node:crypto';
 
 export type TelemetryAttributeValue = string | number | boolean | null;
 export type TelemetryAttributes = Record<string, TelemetryAttributeValue | undefined>;
 export type TelemetryStatus = 'ok' | 'error';
+export type TelemetryExportMode = 'console' | 'debug' | 'file' | 'otlp';
 
 const TELEMETRY_ENABLED_ENV = 'ZTD_CLI_TELEMETRY';
+const TELEMETRY_EXPORT_ENV = 'ZTD_CLI_TELEMETRY_EXPORT';
+const TELEMETRY_FILE_ENV = 'ZTD_CLI_TELEMETRY_FILE';
+const TELEMETRY_OTLP_ENDPOINT_ENV = 'ZTD_CLI_TELEMETRY_OTLP_ENDPOINT';
 const DEFAULT_SCHEMA_VERSION = 1;
+const DEFAULT_OTLP_HTTP_ENDPOINT = 'http://127.0.0.1:4318/v1/traces';
+const DEFAULT_FILE_EXPORT_PATH = 'tmp/telemetry/ztd-cli.telemetry.jsonl';
 const MAX_ATTRIBUTE_STRING_LENGTH = 160;
 const REDACTED_VALUE = '[REDACTED]';
+const OTLP_STATUS_OK = 1;
+const OTLP_STATUS_ERROR = 2;
 
 export const TELEMETRY_DECISION_EVENT_SCHEMA = {
   'command.selected': {
@@ -68,6 +79,31 @@ interface TelemetrySink {
   startSpan(name: string, parentSpanId?: string, attributes?: TelemetryAttributes): TelemetrySpan;
   emitDecisionEvent(name: TelemetryDecisionEventName, spanId?: string, attributes?: TelemetryAttributes): void;
   emitException(error: unknown, spanId?: string, attributes?: TelemetryAttributes): void;
+  flush(): Promise<void>;
+}
+
+interface TelemetryEnvelopeBase {
+  schemaVersion: number;
+  type: 'telemetry';
+  timestamp: string;
+}
+
+type TelemetryEnvelope = TelemetryEnvelopeBase & Record<string, unknown>;
+
+interface OtlpSpanEventRecord {
+  timeUnixNano: string;
+  name: string;
+  attributes: Array<Record<string, unknown>>;
+}
+
+interface ActiveOtlpSpanRecord {
+  traceId: string;
+  spanId: string;
+  parentSpanId?: string;
+  name: string;
+  startTimeUnixNano: string;
+  attributes: Array<Record<string, unknown>>;
+  events: OtlpSpanEventRecord[];
 }
 
 class NoopTelemetrySpan implements TelemetrySpan {
@@ -94,10 +130,16 @@ class NoopTelemetrySink implements TelemetrySink {
   emitException(): void {
     return;
   }
+
+  async flush(): Promise<void> {
+    return;
+  }
 }
 
-class StderrTelemetrySink implements TelemetrySink {
+class JsonLinesTelemetrySink implements TelemetrySink {
   private nextSpanId = 1;
+
+  constructor(private readonly writeLine: (line: string) => void) {}
 
   startSpan(name: string, parentSpanId?: string, attributes?: TelemetryAttributes): TelemetrySpan {
     const spanId = `span-${this.nextSpanId++}`;
@@ -148,15 +190,184 @@ class StderrTelemetrySink implements TelemetrySink {
     });
   }
 
+  async flush(): Promise<void> {
+    return;
+  }
+
   private write(payload: Record<string, unknown>): void {
-    process.stderr.write(
-      `${JSON.stringify({
-        schemaVersion: DEFAULT_SCHEMA_VERSION,
-        type: 'telemetry',
-        timestamp: new Date().toISOString(),
-        ...payload,
-      })}\n`,
-    );
+    this.writeLine(JSON.stringify(buildTelemetryEnvelope(payload)));
+  }
+}
+
+class DebugTelemetrySink implements TelemetrySink {
+  private nextSpanId = 1;
+
+  startSpan(name: string, parentSpanId?: string, attributes?: TelemetryAttributes): TelemetrySpan {
+    const spanId = `span-${this.nextSpanId++}`;
+    const startedAt = performance.now();
+    this.write('span-start', name, spanId, parentSpanId, sanitizeAttributes(attributes));
+
+    return {
+      id: spanId,
+      end: (status: TelemetryStatus) => {
+        this.write('span-end', name, spanId, parentSpanId, {
+          status,
+          durationMs: roundDuration(performance.now() - startedAt),
+        });
+      },
+      recordException: (error: unknown, exceptionAttributes?: TelemetryAttributes) => {
+        this.emitException(error, spanId, exceptionAttributes);
+      },
+    };
+  }
+
+  emitDecisionEvent(name: TelemetryDecisionEventName, spanId?: string, attributes?: TelemetryAttributes): void {
+    const schema = TELEMETRY_DECISION_EVENT_SCHEMA[name];
+    this.write('decision', name, spanId, undefined, sanitizeAttributes(attributes, schema.allowedAttributes));
+  }
+
+  emitException(error: unknown, spanId?: string, attributes?: TelemetryAttributes): void {
+    this.write('exception', normalizeError(error).message as string, spanId, undefined, sanitizeAttributes(attributes));
+  }
+
+  async flush(): Promise<void> {
+    return;
+  }
+
+  private write(kind: string, label: string, spanId?: string, parentSpanId?: string, data: Record<string, unknown> = {}): void {
+    const summary = JSON.stringify(data);
+    const suffix = summary === '{}' ? '' : ` ${summary}`;
+    const parent = parentSpanId ? ` parent=${parentSpanId}` : '';
+    process.stderr.write(`[telemetry] ${kind} ${label} span=${spanId ?? 'none'}${parent}${suffix}\n`);
+  }
+}
+
+class OtlpHttpTelemetrySink implements TelemetrySink {
+  private readonly activeSpans = new Map<string, ActiveOtlpSpanRecord>();
+  private readonly pendingExports = new Set<Promise<void>>();
+
+  constructor(private readonly endpoint: string) {}
+
+  startSpan(name: string, parentSpanId?: string, attributes?: TelemetryAttributes): TelemetrySpan {
+    const parentSpan = parentSpanId ? this.activeSpans.get(parentSpanId) : undefined;
+    const spanId = randomBytes(8).toString('hex');
+    const spanRecord: ActiveOtlpSpanRecord = {
+      traceId: parentSpan?.traceId ?? randomBytes(16).toString('hex'),
+      spanId,
+      parentSpanId,
+      name,
+      startTimeUnixNano: currentTimeUnixNano(),
+      attributes: toOtlpAttributes(sanitizeAttributes(attributes)),
+      events: [],
+    };
+    this.activeSpans.set(spanId, spanRecord);
+
+    return {
+      id: spanId,
+      end: (status: TelemetryStatus) => {
+        this.endSpan(spanId, status);
+      },
+      recordException: (error: unknown, exceptionAttributes?: TelemetryAttributes) => {
+        this.emitException(error, spanId, exceptionAttributes);
+      },
+    };
+  }
+
+  emitDecisionEvent(name: TelemetryDecisionEventName, spanId?: string, attributes?: TelemetryAttributes): void {
+    const spanRecord = spanId ? this.activeSpans.get(spanId) : undefined;
+    if (!spanRecord) {
+      return;
+    }
+
+    const schema = TELEMETRY_DECISION_EVENT_SCHEMA[name];
+    spanRecord.events.push({
+      timeUnixNano: currentTimeUnixNano(),
+      name,
+      attributes: toOtlpAttributes(sanitizeAttributes(attributes, schema.allowedAttributes)),
+    });
+  }
+
+  emitException(error: unknown, spanId?: string, attributes?: TelemetryAttributes): void {
+    const spanRecord = spanId ? this.activeSpans.get(spanId) : undefined;
+    if (!spanRecord) {
+      return;
+    }
+
+    const normalized = normalizeError(error);
+    spanRecord.events.push({
+      timeUnixNano: currentTimeUnixNano(),
+      name: 'exception',
+      attributes: [
+        ...toOtlpAttributes({
+          'exception.type': String(normalized.name ?? 'UnknownError'),
+          'exception.message': String(normalized.message ?? ''),
+        }),
+        ...toOtlpAttributes(sanitizeAttributes(attributes)),
+      ],
+    });
+  }
+
+  async flush(): Promise<void> {
+    await Promise.allSettled([...this.pendingExports]);
+  }
+
+  private endSpan(spanId: string, status: TelemetryStatus): void {
+    const spanRecord = this.activeSpans.get(spanId);
+    if (!spanRecord) {
+      return;
+    }
+    this.activeSpans.delete(spanId);
+
+    const payload = {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: toOtlpAttributes({
+              'service.name': 'ztd-cli',
+              'telemetry.export.mode': 'otlp',
+            }),
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: '@rawsql-ts/ztd-cli',
+              },
+              spans: [
+                {
+                  traceId: spanRecord.traceId,
+                  spanId: spanRecord.spanId,
+                  parentSpanId: spanRecord.parentSpanId,
+                  name: spanRecord.name,
+                  kind: 1,
+                  startTimeUnixNano: spanRecord.startTimeUnixNano,
+                  endTimeUnixNano: currentTimeUnixNano(),
+                  attributes: spanRecord.attributes,
+                  events: spanRecord.events,
+                  status: {
+                    code: status === 'ok' ? OTLP_STATUS_OK : OTLP_STATUS_ERROR,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const exportPromise = fetch(this.endpoint, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+      .then(() => undefined)
+      .catch(() => undefined)
+      .finally(() => {
+        this.pendingExports.delete(exportPromise);
+      });
+
+    this.pendingExports.add(exportPromise);
   }
 }
 
@@ -164,6 +375,7 @@ const NOOP_SINK = new NoopTelemetrySink();
 
 let telemetrySink: TelemetrySink = NOOP_SINK;
 let telemetryEnabled = false;
+let telemetryExportMode: TelemetryExportMode = 'console';
 const spanStack: TelemetrySpan[] = [];
 
 export function resolveTelemetryEnabled(explicit?: boolean | string | undefined): boolean {
@@ -178,18 +390,55 @@ export function resolveTelemetryEnabled(explicit?: boolean | string | undefined)
   return isTruthy(process.env[TELEMETRY_ENABLED_ENV]);
 }
 
+export function resolveTelemetryExportMode(explicit?: TelemetryExportMode | string | undefined): TelemetryExportMode {
+  return normalizeTelemetryExportMode(explicit ?? process.env[TELEMETRY_EXPORT_ENV]);
+}
+
+export function resolveTelemetryFilePath(explicit?: string | undefined): string {
+  return explicit ?? process.env[TELEMETRY_FILE_ENV] ?? DEFAULT_FILE_EXPORT_PATH;
+}
+
+export function resolveTelemetryOtlpEndpoint(explicit?: string | undefined): string {
+  return explicit ?? process.env[TELEMETRY_OTLP_ENDPOINT_ENV] ?? DEFAULT_OTLP_HTTP_ENDPOINT;
+}
+
 export function setTelemetryEnabled(enabled: boolean): void {
   process.env[TELEMETRY_ENABLED_ENV] = enabled ? '1' : '0';
 }
 
-export function configureTelemetry(options: { enabled?: boolean | string } = {}): void {
+export function configureTelemetry(options: {
+  enabled?: boolean | string;
+  exportMode?: TelemetryExportMode | string;
+  filePath?: string;
+  otlpEndpoint?: string;
+} = {}): void {
   telemetryEnabled = resolveTelemetryEnabled(options.enabled);
-  telemetrySink = telemetryEnabled ? new StderrTelemetrySink() : NOOP_SINK;
+  telemetryExportMode = resolveTelemetryExportMode(options.exportMode);
+
+  if (!telemetryEnabled) {
+    telemetrySink = NOOP_SINK;
+    spanStack.length = 0;
+    return;
+  }
+
+  telemetrySink = createTelemetrySink({
+    exportMode: telemetryExportMode,
+    filePath: resolveTelemetryFilePath(options.filePath),
+    otlpEndpoint: resolveTelemetryOtlpEndpoint(options.otlpEndpoint),
+  });
   spanStack.length = 0;
 }
 
 export function isTelemetryEnabled(): boolean {
   return telemetryEnabled;
+}
+
+export function getTelemetryExportMode(): TelemetryExportMode {
+  return telemetryExportMode;
+}
+
+export async function flushTelemetry(): Promise<void> {
+  await telemetrySink.flush();
 }
 
 export function beginCommandSpan(commandName: string, attributes: TelemetryAttributes = {}): void {
@@ -283,6 +532,41 @@ export function recordException(error: unknown, attributes: TelemetryAttributes 
   telemetrySink.emitException(error, undefined, attributes);
 }
 
+function createTelemetrySink(options: {
+  exportMode: TelemetryExportMode;
+  filePath: string;
+  otlpEndpoint: string;
+}): TelemetrySink {
+  switch (options.exportMode) {
+    case 'console':
+      return new JsonLinesTelemetrySink((line) => {
+        process.stderr.write(`${line}\n`);
+      });
+    case 'debug':
+      return new DebugTelemetrySink();
+    case 'file': {
+      const absoluteFile = resolvePath(process.cwd(), options.filePath);
+      mkdirSync(dirname(absoluteFile), { recursive: true });
+      return new JsonLinesTelemetrySink((line) => {
+        appendFileSync(absoluteFile, `${line}\n`, 'utf8');
+      });
+    }
+    case 'otlp':
+      return new OtlpHttpTelemetrySink(options.otlpEndpoint);
+    default:
+      return NOOP_SINK;
+  }
+}
+
+function buildTelemetryEnvelope(payload: Record<string, unknown>): TelemetryEnvelope {
+  return {
+    schemaVersion: DEFAULT_SCHEMA_VERSION,
+    type: 'telemetry',
+    timestamp: new Date().toISOString(),
+    ...payload,
+  };
+}
+
 function getCurrentSpan(): TelemetrySpan | undefined {
   return spanStack[spanStack.length - 1];
 }
@@ -301,6 +585,18 @@ function isTruthy(value: string | undefined): boolean {
 
   const normalized = value.trim().toLowerCase();
   return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
+function normalizeTelemetryExportMode(value: string | undefined): TelemetryExportMode {
+  switch ((value ?? 'console').trim().toLowerCase()) {
+    case 'console':
+    case 'debug':
+    case 'file':
+    case 'otlp':
+      return (value ?? 'console').trim().toLowerCase() as TelemetryExportMode;
+    default:
+      return 'console';
+  }
 }
 
 function sanitizeAttributes(
@@ -379,6 +675,30 @@ function looksSensitive(value: string): boolean {
     /\b(?:bearer|basic)\s+[A-Za-z0-9._~+\/=:-]{8,}\b/iu,
     /\b(?:select|insert|update|delete|create|alter|drop|with)\b[\s\S]{0,120}\b(?:from|into|table|view|where|values|set)\b/iu,
   ].some((pattern) => pattern.test(normalized));
+}
+
+function toOtlpAttributes(attributes: Record<string, TelemetryAttributeValue>): Array<Record<string, unknown>> {
+  return Object.entries(attributes).map(([key, value]) => ({
+    key,
+    value: toOtlpAnyValue(value),
+  }));
+}
+
+function toOtlpAnyValue(value: TelemetryAttributeValue): Record<string, unknown> {
+  if (value === null) {
+    return { stringValue: 'null' };
+  }
+  if (typeof value === 'boolean') {
+    return { boolValue: value };
+  }
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? { intValue: value } : { doubleValue: value };
+  }
+  return { stringValue: value };
+}
+
+function currentTimeUnixNano(): string {
+  return (BigInt(Date.now()) * BigInt(1000000)).toString();
 }
 
 function roundDuration(value: number): number {

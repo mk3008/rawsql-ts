@@ -601,6 +601,11 @@ ztd model-gen src/sql/users/list_users.sql \
 
 Use DDL such as `CREATE TABLE public.users (...)` in `ztd/ddl/public.sql`, keep the SQL unqualified (`select user_id from users`), and set `ddl.defaultSchema` / `ddl.searchPath` in `ztd.config.json` to the schema order you expect.
 
+## Telemetry Philosophy
+
+`ztd-cli` telemetry is opt-in investigation tooling for dogfooding, debugging, and optimization. It is intentionally outside the default happy path, it must not become mandatory for published-package usage, and production embedding/export stays optional and off by default.
+
+Read the full guidance in [ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md), [ztd-cli Telemetry Policy](../../docs/guide/ztd-cli-telemetry-policy.md), and [ztd-cli Telemetry Export Modes](../../docs/guide/ztd-cli-telemetry-export-modes.md).
 ## Further Reading
 
 - Local-source quick start:
@@ -629,4 +634,3 @@ This mode emits `src/local/sql-contract.ts`, links `@rawsql-ts/sql-contract` via
 ## License
 
 MIT
-

@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: InsertQueryParser
 
-Defined in: [packages/core/src/parsers/InsertQueryParser.ts:17](https://github.com/mk3008/rawsql-ts/blob/d0f163554c861b2dd282c2088d010eb950ef4180/packages/core/src/parsers/InsertQueryParser.ts#L17)
+Defined in: [packages/core/src/parsers/InsertQueryParser.ts:17](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/parsers/InsertQueryParser.ts#L17)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/parsers/InsertQueryParser.ts:17](https://github.c
 
 > `static` **parse**(`query`): [`InsertQuery`](InsertQuery.md)
 
-Defined in: [packages/core/src/parsers/InsertQueryParser.ts:22](https://github.com/mk3008/rawsql-ts/blob/d0f163554c861b2dd282c2088d010eb950ef4180/packages/core/src/parsers/InsertQueryParser.ts#L22)
+Defined in: [packages/core/src/parsers/InsertQueryParser.ts:22](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/parsers/InsertQueryParser.ts#L22)
 
 Parse SQL string to InsertQuery AST.
 
@@ -41,7 +41,7 @@ SQL string
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/InsertQueryParser.ts:35](https://github.com/mk3008/rawsql-ts/blob/d0f163554c861b2dd282c2088d010eb950ef4180/packages/core/src/parsers/InsertQueryParser.ts#L35)
+Defined in: [packages/core/src/parsers/InsertQueryParser.ts:35](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/parsers/InsertQueryParser.ts#L35)
 
 Parse from lexeme array (for internal use and tests)
 

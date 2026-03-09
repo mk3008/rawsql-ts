@@ -1,5 +1,7 @@
 import { Command } from 'commander';
 import { applyQueryOutputControls, formatQueryUsageReport } from '../query/format';
+import { applyQueryPatch } from '../query/patch';
+import { buildQueryLintReport, formatQueryLintReport, type QueryLintFormat } from '../query/lint';
 import {
   buildQueryPipelinePlan,
   formatQueryPipelinePlan,
@@ -12,7 +14,7 @@ import {
   formatQueryStructureReport,
   type QueryStructureFormat
 } from '../query/structure';
-import { getAgentOutputFormat, parseJsonPayload } from '../utils/agentCli';
+import { getAgentOutputFormat, isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
 import { withSpanSync } from '../utils/telemetry';
 
 interface QueryUsesOptions {
@@ -50,6 +52,18 @@ interface QuerySliceOptions {
   limit?: string;
 }
 
+interface QueryPatchApplyOptions {
+  cte?: string;
+  from?: string;
+  out?: string;
+  preview?: boolean;
+}
+
+interface QueryLintOptions {
+  format?: string;
+  out?: string;
+}
+
 export const QUERY_USES_COMMAND_SPANS = {
   resolveOptions: 'resolve-query-options',
   renderOutput: 'render-query-usage-output',
@@ -73,6 +87,8 @@ Examples:
   $ ztd query graph large_query.sql --format dot
   $ ztd query slice large_query.sql --cte purchase_summary
   $ ztd query plan large_query.sql --material base_cte --scalar-filter-column sale_date --format json
+  $ ztd query patch apply large_query.sql --cte purchase_summary --from edited_slice.sql --preview
+  $ ztd query lint large_query.sql --format json
 
 Notes:
   - Strict mode is the default. Relaxed modes are explicit opt-in only.
@@ -174,6 +190,28 @@ Notes:
     .option('--out <path>', 'Write output to file')
     .action((sqlFile: string, options: QueryPlanOptions) => {
       runQueryPlanCommand(sqlFile, options);
+    });
+
+  query
+    .command('lint <sqlFile>')
+    .description('Report structural maintainability and analysis-safety issues in a SQL query')
+    .option('--format <format>', 'Output format (text|json)', 'text')
+    .option('--out <path>', 'Write output to file')
+    .action((sqlFile: string, options: QueryLintOptions) => {
+      runQueryLintCommand(sqlFile, options);
+    });
+
+  query
+    .command('patch')
+    .description('Apply AI-edited SQL fragments back onto the original query safely')
+    .command('apply <sqlFile>')
+    .description('Replace one CTE in the original SQL with the matching definition from an edited SQL file')
+    .option('--cte <name>', 'Target CTE name to replace in the original query')
+    .option('--from <path>', 'Edited SQL file that contains the replacement CTE definition')
+    .option('--preview', 'Emit a unified diff without writing files')
+    .option('--out <path>', 'Write the patched SQL to a new file instead of overwriting the original')
+    .action((sqlFile: string, options: QueryPatchApplyOptions) => {
+      runQueryPatchApplyCommand(sqlFile, options);
     });
 }
 
@@ -279,6 +317,60 @@ function runQueryPlanCommand(sqlFile: string, options: QueryPlanOptions): void {
   }
   console.log(contents.trimEnd());
 }
+
+function runQueryLintCommand(sqlFile: string, options: QueryLintOptions): void {
+  const format = normalizeLintFormat(normalizeStringOption(options.format) ?? getAgentOutputFormat());
+  const report = buildQueryLintReport(sqlFile);
+  const contents = formatQueryLintReport(report, format);
+  if (options.out) {
+    writeQueryUsageOutput(options.out, contents);
+    return;
+  }
+  console.log(contents.trimEnd());
+}
+
+function runQueryPatchApplyCommand(sqlFile: string, options: QueryPatchApplyOptions): void {
+  const cte = normalizeRequiredStringOption(options.cte, '--cte');
+  const from = normalizeRequiredStringOption(options.from, '--from');
+  const report = applyQueryPatch(sqlFile, {
+    cte,
+    from,
+    out: normalizeStringOption(options.out),
+    preview: normalizeBooleanOption(options.preview)
+  });
+
+  if (isJsonOutput()) {
+    writeCommandEnvelope('query patch apply', {
+      file: report.file,
+      edited_file: report.edited_file,
+      target_cte: report.target_cte,
+      preview: report.preview,
+      changed: report.changed,
+      written: report.written,
+      output_file: report.output_file,
+      diff: report.diff,
+      updated_sql: report.updated_sql
+    });
+    return;
+  }
+
+  if (report.preview) {
+    process.stdout.write(report.diff);
+    if (!report.diff.endsWith('\n')) {
+      process.stdout.write('\n');
+    }
+    return;
+  }
+
+  process.stdout.write([
+    `Patched CTE: ${report.target_cte}`,
+    `Edited SQL: ${report.edited_file}`,
+    `Output file: ${report.output_file}`,
+    `Changed: ${report.changed ? 'yes' : 'no'}`
+  ].join('\n'));
+  process.stdout.write('\n');
+}
+
 function normalizeLimit(value: unknown): number | undefined {
   if (value === undefined) {
     return undefined;
@@ -301,6 +393,14 @@ function normalizeStringOption(value: unknown): string | undefined {
     throw new Error(`Expected a string option but received ${typeof value}.`);
   }
   return value;
+}
+
+function normalizeRequiredStringOption(value: unknown, label: string): string {
+  const normalized = normalizeStringOption(value);
+  if (!normalized) {
+    throw new Error(`${label} is required.`);
+  }
+  return normalized;
 }
 
 function normalizeBooleanOption(value: unknown): boolean {
@@ -350,6 +450,10 @@ function normalizePlanFormat(format: string): QueryPipelinePlanFormat {
   return normalizeFormat(format);
 }
 
+function normalizeLintFormat(format: string): QueryLintFormat {
+  return normalizeFormat(format);
+}
+
 function normalizeStructureFormat(format: string, allowDot: boolean): QueryStructureFormat {
   const normalized = format.trim().toLowerCase();
   if (normalized === 'text' || normalized === 'json') {
@@ -368,3 +472,4 @@ function normalizeView(view: string): 'impact' | 'detail' {
   }
   throw new Error(`Unsupported view: ${view}`);
 }
+

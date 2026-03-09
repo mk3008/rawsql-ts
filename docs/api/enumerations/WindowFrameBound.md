@@ -1,7 +1,7 @@
 <div v-pre>
 # Enumeration: WindowFrameBound
 
-Defined in: [packages/core/src/models/ValueComponent.ts:136](https://github.com/mk3008/rawsql-ts/blob/d0f163554c861b2dd282c2088d010eb950ef4180/packages/core/src/models/ValueComponent.ts#L136)
+Defined in: [packages/core/src/models/ValueComponent.ts:136](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/models/ValueComponent.ts#L136)
 
 ## Enumeration Members
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/ValueComponent.ts:136](https://github.com/
 
 > **UnboundedPreceding**: `"unbounded preceding"`
 
-Defined in: [packages/core/src/models/ValueComponent.ts:137](https://github.com/mk3008/rawsql-ts/blob/d0f163554c861b2dd282c2088d010eb950ef4180/packages/core/src/models/ValueComponent.ts#L137)
+Defined in: [packages/core/src/models/ValueComponent.ts:137](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/models/ValueComponent.ts#L137)
 
 ***
 
@@ -17,7 +17,7 @@ Defined in: [packages/core/src/models/ValueComponent.ts:137](https://github.com/
 
 > **UnboundedFollowing**: `"unbounded following"`
 
-Defined in: [packages/core/src/models/ValueComponent.ts:138](https://github.com/mk3008/rawsql-ts/blob/d0f163554c861b2dd282c2088d010eb950ef4180/packages/core/src/models/ValueComponent.ts#L138)
+Defined in: [packages/core/src/models/ValueComponent.ts:138](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/models/ValueComponent.ts#L138)
 
 ***
 
@@ -25,5 +25,5 @@ Defined in: [packages/core/src/models/ValueComponent.ts:138](https://github.com/
 
 > **CurrentRow**: `"current row"`
 
-Defined in: [packages/core/src/models/ValueComponent.ts:139](https://github.com/mk3008/rawsql-ts/blob/d0f163554c861b2dd282c2088d010eb950ef4180/packages/core/src/models/ValueComponent.ts#L139)
+Defined in: [packages/core/src/models/ValueComponent.ts:139](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/models/ValueComponent.ts#L139)
 </div>

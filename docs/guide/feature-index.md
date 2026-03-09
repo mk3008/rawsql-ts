@@ -64,6 +64,8 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | ztd describe schema | [guide/ztd-cli-describe-schema](./ztd-cli-describe-schema.md) | Contract details for `ztd describe` JSON payloads |
 | ztd-cli measurement inventory | [guide/ztd-cli-measurement-inventory](./ztd-cli-measurement-inventory.md) | Audit current timing/profiling surfaces before adding OpenTelemetry |
 | ztd-cli telemetry policy | [guide/ztd-cli-telemetry-policy](./ztd-cli-telemetry-policy.md) | Event schema, redaction rules, and safe export boundaries for CLI telemetry |
+| ztd-cli telemetry export modes | [guide/ztd-cli-telemetry-export-modes](./ztd-cli-telemetry-export-modes.md) | Choose local debug, CI artifact, or OTLP export without changing command behavior |
+| ztd-cli telemetry philosophy | [guide/ztd-cli-telemetry-philosophy](./ztd-cli-telemetry-philosophy.md) | Why telemetry exists, why it stays opt-in, and which goals are explicitly out of scope |
 | Validation (Zod) | [recipes/validation-zod](../recipes/validation-zod.md) | Wire Zod schemas |
 | Validation (ArkType) | [recipes/validation-arktype](../recipes/validation-arktype.md) | Wire ArkType schemas |
 | SQL catalog recipe | [recipes/sql-contract](../recipes/sql-contract.md) | Catalog executor patterns |

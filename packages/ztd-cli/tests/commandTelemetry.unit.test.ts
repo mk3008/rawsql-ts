@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
 
@@ -35,6 +35,8 @@ import { configureTelemetry } from '../src/utils/telemetry';
 
 const originalProjectRoot = process.env.ZTD_PROJECT_ROOT;
 const originalTelemetry = process.env.ZTD_CLI_TELEMETRY;
+const originalTelemetryExport = process.env.ZTD_CLI_TELEMETRY_EXPORT;
+const originalTelemetryFile = process.env.ZTD_CLI_TELEMETRY_FILE;
 
 function createWorkspace(prefix: string): string {
   const tmpRoot = path.join(process.cwd(), 'tmp');
@@ -74,6 +76,18 @@ afterEach(() => {
     delete process.env.ZTD_CLI_TELEMETRY;
   } else {
     process.env.ZTD_CLI_TELEMETRY = originalTelemetry;
+  }
+
+  if (originalTelemetryExport === undefined) {
+    delete process.env.ZTD_CLI_TELEMETRY_EXPORT;
+  } else {
+    process.env.ZTD_CLI_TELEMETRY_EXPORT = originalTelemetryExport;
+  }
+
+  if (originalTelemetryFile === undefined) {
+    delete process.env.ZTD_CLI_TELEMETRY_FILE;
+  } else {
+    process.env.ZTD_CLI_TELEMETRY_FILE = originalTelemetryFile;
   }
 
   configureTelemetry({ enabled: false });
@@ -116,6 +130,60 @@ test('query uses emits stable phase spans through the real CLI path', async () =
       expect.objectContaining({ kind: 'span-start', spanName: 'spec-discovery' }),
       expect.objectContaining({ kind: 'span-start', spanName: 'impact-aggregation' }),
       expect.objectContaining({ kind: 'span-start', spanName: 'render-query-usage-output' }),
+      expect.objectContaining({ kind: 'span-end', spanName: 'query uses table', status: 'ok' }),
+    ]),
+  );
+});
+
+test('query uses can export telemetry to a CI-friendly artifact file through the real CLI path', async () => {
+  const workspace = createWorkspace('query-telemetry-file');
+  const specsDir = path.join(workspace, 'src', 'catalog', 'specs');
+  const sqlDir = path.join(workspace, 'src', 'sql');
+  const telemetryFile = path.join(workspace, 'artifacts', 'query-uses.telemetry.jsonl');
+  mkdirSync(specsDir, { recursive: true });
+  mkdirSync(sqlDir, { recursive: true });
+
+  writeFileSync(
+    path.join(specsDir, 'users.spec.json'),
+    JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8',
+  );
+  writeFileSync(path.join(sqlDir, 'users.sql'), 'SELECT email FROM public.users;', 'utf8');
+
+  process.env.ZTD_PROJECT_ROOT = workspace;
+  const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+  const program = buildProgram();
+  program.exitOverride();
+  await program.parseAsync(
+    [
+      'node',
+      'ztd',
+      '--telemetry',
+      '--telemetry-export',
+      'file',
+      '--telemetry-file',
+      telemetryFile,
+      'query',
+      'uses',
+      'table',
+      'public.users',
+      '--format',
+      'json',
+    ],
+    { from: 'node' },
+  );
+
+  logSpy.mockRestore();
+
+  expect(existsSync(telemetryFile)).toBe(true);
+  const payloads = readFileSync(telemetryFile, 'utf8')
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => JSON.parse(line));
+  expect(payloads).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ kind: 'span-start', spanName: 'query uses table' }),
       expect.objectContaining({ kind: 'span-end', spanName: 'query uses table', status: 'ok' }),
     ]),
   );

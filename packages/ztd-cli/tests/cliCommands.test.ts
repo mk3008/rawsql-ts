@@ -1057,3 +1057,153 @@ pullTest('model-gen allows legacy positional placeholders only behind --allow-po
     await client.end();
   }
 }, 60_000);
+
+test('query patch apply previews a targeted CTE replacement without writing', () => {
+  const workspace = createSqlWorkspace('query-patch-preview', path.join('src', 'sql', 'reports', 'sales.sql'));
+  const editedFile = path.join(workspace.rootDir, 'edited.sql');
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with users_base as (
+        select id, region_id from public.users
+      ),
+      purchase_summary as (
+        select id from users_base
+      )
+      select * from purchase_summary
+    `,
+    'utf8'
+  );
+  writeFileSync(
+    editedFile,
+    `
+      with users_base as (
+        select id, region_id from public.users
+      ),
+      purchase_summary as (
+        select id from users_base where region_id = 1
+      )
+      select * from purchase_summary
+    `,
+    'utf8'
+  );
+  const before = readNormalizedFile(workspace.sqlFile);
+
+  const result = runCli(
+    ['query', 'patch', 'apply', workspace.sqlFile, '--cte', 'purchase_summary', '--from', editedFile, '--preview'],
+    {},
+    workspace.rootDir
+  );
+
+  assertCliSuccess(result, 'query patch preview');
+  expect(result.stdout).toContain('--- ');
+  expect(result.stdout).toContain('+++ ');
+  expect(result.stdout).toContain('"region_id" = 1');
+  expect(readNormalizedFile(workspace.sqlFile)).toBe(before);
+});
+
+test('query patch apply writes the patched SQL to --out and supports global json output', () => {
+  const workspace = createSqlWorkspace('query-patch-json', path.join('src', 'sql', 'reports', 'sales.sql'));
+  const editedFile = path.join(workspace.rootDir, 'edited.sql');
+  const outputFile = path.join(workspace.rootDir, 'patched.sql');
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with purchase_summary as (
+        select id from public.users
+      )
+      select * from purchase_summary
+    `,
+    'utf8'
+  );
+  writeFileSync(
+    editedFile,
+    'purchase_summary (user_id) as materialized (select id as user_id from public.users)',
+    'utf8'
+  );
+
+  const result = runCli(
+    ['--output', 'json', 'query', 'patch', 'apply', workspace.sqlFile, '--cte', 'purchase_summary', '--from', editedFile, '--out', outputFile],
+    {},
+    workspace.rootDir
+  );
+
+  assertCliSuccess(result, 'query patch json');
+  const payload = JSON.parse(result.stdout);
+  expect(payload).toMatchObject({
+    command: 'query patch apply',
+    ok: true,
+    data: {
+      file: workspace.sqlFile,
+      edited_file: editedFile,
+      target_cte: 'purchase_summary',
+      written: true,
+      output_file: outputFile,
+      changed: true
+    }
+  });
+  const patched = readNormalizedFile(outputFile);
+  expect(patched).toContain('"purchase_summary"("user_id") as materialized');
+  expect(patched).toContain('from "public"."users"');
+});
+
+
+test('query lint reports structural maintainability issues in text mode', () => {
+  const workspace = createSqlWorkspace('query-lint-text', path.join('src', 'sql', 'reports', 'maintainability.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with base_users as (
+        select u.id
+        from public.users u
+        join public.regions r on r.id = u.id
+      ),
+      duplicate_users as (
+        select u.id
+        from public.users u
+        join public.regions r on r.id = u.id
+      ),
+      unused_stage as (
+        select id from public.audit_log
+      )
+      select format('select %s from users', id)
+      from duplicate_users
+    `,
+    'utf8'
+  );
+
+  const result = runCli(['query', 'lint', workspace.sqlFile], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query lint text');
+  expect(result.stdout).toContain('WARN  unused-cte: unused_stage is defined but never used');
+  expect(result.stdout).toContain('WARN  duplicate-join-block:');
+  expect(result.stdout).toContain('WARN  analysis-risk:');
+});
+
+test('query lint emits machine-readable JSON when requested', () => {
+  const workspace = createSqlWorkspace('query-lint-json', path.join('src', 'sql', 'reports', 'cycle.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with a as (
+        select * from b
+      ),
+      b as (
+        select * from a
+      )
+      select * from a
+    `,
+    'utf8'
+  );
+
+  const result = runCli(['query', 'lint', workspace.sqlFile, '--format', 'json'], {}, workspace.rootDir);
+  assertCliSuccess(result, 'query lint json');
+  const payload = JSON.parse(result.stdout);
+  expect(payload.query_type).toBe('SELECT');
+  expect(payload.issues).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      type: 'dependency-cycle',
+      severity: 'error',
+      cycle: ['a', 'b', 'a']
+    })
+  ]));
+});
