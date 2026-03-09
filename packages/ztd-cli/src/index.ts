@@ -8,6 +8,7 @@ import { registerDdlCommands } from './commands/ddl';
 import { registerInitCommand } from './commands/init';
 import { registerLintCommand } from './commands/lint';
 import { registerModelGenCommand } from './commands/modelGen';
+import { registerPerfCommands } from './commands/perf';
 import { registerQueryCommands } from './commands/query';
 import { TestEvidenceRuntimeError, registerTestEvidenceCommand } from './commands/testEvidence';
 import { registerZtdConfigCommand } from './commands/ztdConfigCommand';
@@ -85,6 +86,7 @@ export function buildProgram(): Command {
   registerAgentsCommand(program);
   registerLintCommand(program);
   registerModelGenCommand(program);
+  registerPerfCommands(program);
   registerQueryCommands(program);
   registerCheckContractCommand(program);
   registerTestEvidenceCommand(program);
@@ -99,6 +101,7 @@ Getting started:
   $ ztd agents install         Materialize visible AGENTS.md files on demand
   $ ztd ztd-config             Generate TestRowMap types from DDL
   $ ztd lint <path>            Lint SQL files against the schema
+  $ ztd perf init             Scaffold the opt-in perf sandbox
   $ ztd query uses table public.users
   $ ztd query uses column public.users.email --format json
   $ ztd --telemetry --telemetry-export debug query uses table public.users
@@ -140,3 +143,4 @@ async function handleFatalError(error: unknown): Promise<never> {
 if (require.main === module) {
   void main().catch(handleFatalError);
 }
+

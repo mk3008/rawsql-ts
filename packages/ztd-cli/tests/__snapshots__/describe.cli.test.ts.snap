@@ -329,6 +329,30 @@ exports[`describe command snapshots the top-level command catalog and every deta
         "writesFiles": true,
       },
       {
+        "name": "perf init",
+        "summary": "Scaffold the opt-in perf sandbox configuration and Docker assets.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": true,
+        "supportsJsonPayload": true,
+        "writesFiles": true,
+      },
+      {
+        "name": "perf db reset",
+        "summary": "Recreate the perf sandbox schema from local DDL.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": true,
+        "supportsJsonPayload": true,
+        "writesFiles": false,
+      },
+      {
+        "name": "perf seed",
+        "summary": "Generate deterministic synthetic data from perf/seed.yml.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": true,
+        "supportsJsonPayload": true,
+        "writesFiles": false,
+      },
+      {
         "name": "query uses",
         "summary": "Inspect catalog SQL usage of tables or columns.",
         "supportsDescribeOutput": false,
@@ -507,6 +531,119 @@ exports[`describe command snapshots the top-level command catalog and every deta
       "supportsDryRun": true,
       "supportsJsonPayload": true,
       "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > perf db reset 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Reset completed or dry-run plan emitted.",
+        "1": "Docker, connection, or DDL replay failed.",
+      },
+      "flags": [
+        {
+          "description": "Emit the DDL replay plan without touching Docker or PostgreSQL.",
+          "name": "--dry-run",
+        },
+        {
+          "description": "Pass perf db reset options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "perf db reset",
+      "output": {
+        "stdout": "Human reset summary or JSON envelope.",
+      },
+      "summary": "Recreate the perf sandbox schema from local DDL.",
+      "supportsDryRun": true,
+      "supportsJsonPayload": true,
+      "writesFiles": false,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > perf init 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Scaffold completed or dry-run plan emitted.",
+        "1": "Validation or filesystem error.",
+      },
+      "flags": [
+        {
+          "description": "Emit the planned perf sandbox scaffold without writing files.",
+          "name": "--dry-run",
+        },
+        {
+          "description": "Pass perf init options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "perf init",
+      "output": {
+        "files": [
+          "perf/sandbox.json",
+          "perf/seed.yml",
+          "perf/params.yml",
+          "perf/docker-compose.yml",
+          "perf/README.md",
+          "perf/.gitignore",
+        ],
+        "stdout": "Human scaffold summary or JSON envelope.",
+      },
+      "summary": "Scaffold the opt-in perf sandbox configuration and Docker assets.",
+      "supportsDryRun": true,
+      "supportsJsonPayload": true,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > perf seed 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Seed completed or dry-run plan emitted.",
+        "1": "Connection, DDL parsing, or insert generation failed.",
+      },
+      "flags": [
+        {
+          "description": "Emit the seed plan without touching PostgreSQL.",
+          "name": "--dry-run",
+        },
+        {
+          "description": "Pass perf seed options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "perf seed",
+      "output": {
+        "stdout": "Human seed summary or JSON envelope.",
+      },
+      "summary": "Generate deterministic synthetic data from perf/seed.yml.",
+      "supportsDryRun": true,
+      "supportsJsonPayload": true,
+      "writesFiles": false,
     },
     "schemaVersion": 1,
   },
