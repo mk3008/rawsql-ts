@@ -10,6 +10,11 @@ export type PerfBenchmarkMode = 'auto' | 'latency' | 'completion';
 export type PerfSelectedBenchmarkMode = 'latency' | 'completion';
 export type PerfBenchmarkFormat = 'text' | 'json';
 export type PerfExecutionStrategy = 'direct';
+export type PerfRecommendedActionName =
+  | 'consider-pipeline-materialization'
+  | 'review-index-coverage'
+  | 'inspect-join-strategy'
+  | 'stabilize-completion-run';
 
 export interface PerfRunOptions {
   rootDir: string;
@@ -30,6 +35,7 @@ export interface PerfStatementReport {
   role: 'final-query';
   sql: string;
   bindings: unknown[] | Record<string, unknown> | undefined;
+  resolved_sql_preview?: string;
   row_count?: number;
   elapsed_ms?: number;
   timed_out?: boolean;
@@ -57,6 +63,12 @@ export interface PerfPipelineAnalysis {
   should_consider_pipeline: boolean;
   candidate_ctes: PerfPipelineCandidate[];
   notes: string[];
+}
+
+export interface PerfRecommendedAction {
+  action: PerfRecommendedActionName;
+  priority: 'high' | 'medium';
+  rationale: string;
 }
 
 export interface PerfBenchmarkReport {
@@ -99,6 +111,8 @@ export interface PerfBenchmarkReport {
   };
   executed_statements: PerfStatementReport[];
   plan_summary?: PerfPlanSummary | null;
+  plan_observations: string[];
+  recommended_actions: PerfRecommendedAction[];
   pipeline_analysis: PerfPipelineAnalysis;
   seed?: Pick<PerfSeedConfig, 'seed'>;
 }
@@ -169,6 +183,16 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       };
 
   if (options.dryRun) {
+    const dryRunStatements: PerfStatementReport[] = [
+      {
+        seq: 1,
+        role: 'final-query',
+        sql: prepared.boundSql,
+        bindings: prepared.bindings,
+        resolved_sql_preview: renderResolvedSqlPreview(prepared.boundSql, prepared.bindings)
+      }
+    ];
+
     return {
       schema_version: 1,
       command: 'perf run',
@@ -189,14 +213,9 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       timeout_ms: timeoutMs,
       dry_run: true,
       saved: false,
-      executed_statements: [
-        {
-          seq: 1,
-          role: 'final-query',
-          sql: prepared.boundSql,
-          bindings: prepared.bindings
-        }
-      ],
+      executed_statements: dryRunStatements,
+      plan_observations: [],
+      recommended_actions: buildPerfRecommendedActions(selection.selectedMode, true, pipelineAnalysis, []),
       pipeline_analysis: pipelineAnalysis,
       seed: { seed: seedConfig.seed }
     };
@@ -237,12 +256,15 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       role: 'final-query',
       sql: prepared.boundSql,
       bindings: prepared.bindings,
+      resolved_sql_preview: renderResolvedSqlPreview(prepared.boundSql, prepared.bindings),
       row_count: representativeExecution?.rowCount,
       elapsed_ms: representativeExecution?.elapsedMs,
       timed_out: representativeExecution?.timedOut,
       plan_summary: summarizePlanJson(representativePlan)
     }
   ];
+
+  const planObservations = buildPlanObservations(representativePlan);
 
   const report: PerfBenchmarkReport = {
     schema_version: 1,
@@ -279,6 +301,13 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       : undefined,
     executed_statements: executedStatements,
     plan_summary: summarizePlanJson(representativePlan),
+    plan_observations: planObservations,
+    recommended_actions: buildPerfRecommendedActions(
+      selection.selectedMode,
+      !representativeExecution?.timedOut,
+      pipelineAnalysis,
+      planObservations
+    ),
     pipeline_analysis: pipelineAnalysis,
     seed: { seed: seedConfig.seed }
   };
@@ -332,7 +361,10 @@ export function diffPerfBenchmarkReports(baselineDir: string, candidateDir: stri
   if (baseline.pipeline_analysis.should_consider_pipeline || candidate.pipeline_analysis.should_consider_pipeline) {
     notes.push('Pipeline candidacy is present in at least one run; inspect candidate_ctes before rewriting SQL.');
   }
-
+  const candidateActions = candidate.recommended_actions ?? [];
+  if (candidateActions.length > 0) {
+    notes.push('Candidate recommended actions: ' + candidateActions.map((action) => action.action).join(', '));
+  }
   return {
     schema_version: 1,
     command: 'perf report diff',
@@ -390,6 +422,9 @@ export function formatPerfBenchmarkReport(report: PerfBenchmarkReport, format: P
     lines.push(`${statement.seq}. ${statement.role}`);
     lines.push(`   elapsed_ms: ${statement.elapsed_ms !== undefined ? statement.elapsed_ms.toFixed(2) : '(n/a)'}`);
     lines.push(`   row_count: ${statement.row_count ?? '(n/a)'}`);
+    if (statement.resolved_sql_preview) {
+      lines.push(`   resolved_sql_preview: ${truncateSingleLine(statement.resolved_sql_preview, 120)}`);
+    }
     lines.push(`   sql: ${truncateSingleLine(statement.sql, 120)}`);
   }
 
@@ -401,6 +436,22 @@ export function formatPerfBenchmarkReport(report: PerfBenchmarkReport, format: P
   } else {
     for (const candidate of report.pipeline_analysis.candidate_ctes) {
       lines.push(`  - ${candidate.name}: downstream references=${candidate.downstream_references}`);
+    }
+  }
+
+  if (report.plan_observations.length > 0) {
+    lines.push('');
+    lines.push('Plan observations:');
+    for (const observation of report.plan_observations) {
+      lines.push(`- ${observation}`);
+    }
+  }
+
+  if (report.recommended_actions.length > 0) {
+    lines.push('');
+    lines.push('Recommended actions:');
+    for (const action of report.recommended_actions) {
+      lines.push(`- [${action.priority}] ${action.action}: ${action.rationale}`);
     }
   }
 
@@ -493,6 +544,137 @@ export function buildPerfPipelineAnalysis(sqlFile: string): PerfPipelineAnalysis
 /**
  * Load a saved benchmark report from summary.json.
  */
+function buildPerfRecommendedActions(
+  selectedMode: PerfSelectedBenchmarkMode,
+  completed: boolean,
+  pipelineAnalysis: PerfPipelineAnalysis,
+  planObservations: string[]
+): PerfRecommendedAction[] {
+  const actions: PerfRecommendedAction[] = [];
+
+  if (selectedMode === 'completion' && !completed) {
+    actions.push({
+      action: 'stabilize-completion-run',
+      priority: 'high',
+      rationale: 'The benchmark timed out in completion mode, so the next loop should focus on finishing the query before comparing latency percentiles.'
+    });
+  }
+  if (pipelineAnalysis.should_consider_pipeline) {
+    actions.push({
+      action: 'consider-pipeline-materialization',
+      priority: 'medium',
+      rationale: `Pipeline candidates detected: ${pipelineAnalysis.candidate_ctes.map((candidate) => candidate.name).join(', ')}.`
+    });
+  }
+  if (planObservations.some((observation) => observation.includes('Seq Scan'))) {
+    actions.push({
+      action: 'review-index-coverage',
+      priority: 'medium',
+      rationale: 'The captured plan includes a sequential scan, so index coverage is a likely tuning branch.'
+    });
+  }
+  if (planObservations.some((observation) => observation.includes('Join'))) {
+    actions.push({
+      action: 'inspect-join-strategy',
+      priority: 'medium',
+      rationale: 'The captured plan includes a join operator, so rewriting join shape or supporting it with indexes may help.'
+    });
+  }
+
+  return uniqueRecommendedActions(actions);
+}
+
+function uniqueRecommendedActions(actions: PerfRecommendedAction[]): PerfRecommendedAction[] {
+  const deduped = new Map<PerfRecommendedActionName, PerfRecommendedAction>();
+  for (const action of actions) {
+    deduped.set(action.action, action);
+  }
+  return Array.from(deduped.values());
+}
+
+function buildPlanObservations(planJson: unknown): string[] {
+  const observations: string[] = [];
+  walkPlanNodes(planJson, (node) => {
+    const nodeType = normalizeString(node['Node Type']);
+    const relationName = normalizeString(node['Relation Name']);
+    const joinType = normalizeString(node['Join Type']);
+    const cteName = normalizeString(node['CTE Name']);
+    const filter = normalizeString(node.Filter ?? node['Index Cond']);
+
+    if (nodeType === 'Seq Scan' && relationName) {
+      observations.push(
+        filter
+          ? `Seq Scan on ${relationName} with filter ${truncateSingleLine(filter, 90)}`
+          : `Seq Scan on ${relationName}`
+      );
+    }
+    if (joinType && nodeType) {
+      observations.push(`${joinType} ${nodeType} present in the captured plan`);
+    }
+    if (nodeType === 'CTE Scan' && cteName) {
+      observations.push(`CTE Scan reads ${cteName}`);
+    }
+  });
+  return Array.from(new Set(observations));
+}
+
+function walkPlanNodes(planJson: unknown, visit: (node: Record<string, unknown>) => void): void {
+  if (!Array.isArray(planJson)) {
+    return;
+  }
+  for (const entry of planJson) {
+    if (typeof entry !== 'object' || entry === null) {
+      continue;
+    }
+    const plan = (entry as Record<string, unknown>).Plan;
+    if (typeof plan === 'object' && plan !== null) {
+      walkSinglePlanNode(plan as Record<string, unknown>, visit);
+    }
+  }
+}
+
+function walkSinglePlanNode(node: Record<string, unknown>, visit: (node: Record<string, unknown>) => void): void {
+  visit(node);
+  const plans = node.Plans;
+  if (!Array.isArray(plans)) {
+    return;
+  }
+  for (const child of plans) {
+    if (typeof child === 'object' && child !== null) {
+      walkSinglePlanNode(child as Record<string, unknown>, visit);
+    }
+  }
+}
+
+function renderResolvedSqlPreview(
+  sql: string,
+  bindings: unknown[] | Record<string, unknown> | undefined
+): string | undefined {
+  if (!Array.isArray(bindings) || bindings.length === 0) {
+    return undefined;
+  }
+
+  return sql.replace(/\$(\d+)/g, (token, rawIndex) => {
+    const binding = bindings[Number(rawIndex) - 1];
+    return binding === undefined ? token : renderSqlLiteral(binding);
+  });
+}
+
+function renderSqlLiteral(value: unknown): string {
+  if (value === null) {
+    return 'null';
+  }
+  if (typeof value === 'number' || typeof value === 'bigint') {
+    return String(value);
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false';
+  }
+  if (value instanceof Date) {
+    return `'${value.toISOString()}'`;
+  }
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
 export function loadPerfBenchmarkReport(evidenceDir: string): PerfBenchmarkReport {
   const summaryFile = path.join(path.resolve(evidenceDir), 'summary.json');
   return JSON.parse(readFileSync(summaryFile, 'utf8')) as PerfBenchmarkReport;
@@ -776,6 +958,16 @@ function sanitizeLabel(label: string): string {
   return label.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
+function normalizeFinalQueryRoots(finalQuery: string | string[] | null | undefined): string[] {
+  if (Array.isArray(finalQuery)) {
+    return finalQuery.map((value) => value.trim()).filter(Boolean);
+  }
+  if (typeof finalQuery === 'string') {
+    return finalQuery.split(',').map((value) => value.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 function calculateImprovementPercent(baseline: number, candidate: number): number {
   if (baseline === 0) {
     return 0;
@@ -813,4 +1005,23 @@ function truncateSingleLine(value: string, limit: number): string {
   }
   return `${normalized.slice(0, limit - 3)}...`;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

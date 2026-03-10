@@ -74,11 +74,15 @@ test('runPerfBenchmark dry-run binds named params and surfaces pipeline analysis
       sql: expect.stringContaining('$1')
     })
   ]);
+  expect(report.executed_statements[0]?.resolved_sql_preview).toContain('region_id = 10');
+  expect(report.plan_observations).toEqual([]);
+  expect(report.recommended_actions).toEqual([]);
   expect(report.pipeline_analysis.should_consider_pipeline).toBe(false);
 
   const text = formatPerfBenchmarkReport(report, 'text');
   expect(text).toContain('Mode: latency');
   expect(text).toContain('Executed statements:');
+  expect(text).toContain('resolved_sql_preview:');
 });
 
 test('buildPerfPipelineAnalysis flags reusable fan-out CTEs as pipeline candidates', () => {
@@ -215,3 +219,73 @@ test('runPerfBenchmark dry-run in auto mode defers live classification without t
   expect(report.selected_mode).toBe('completion');
   expect(report.selection_reason).toContain('dry-run skips live auto classification');
 });
+
+
+test('formatPerfBenchmarkReport surfaces recommended actions for AI follow-up', () => {
+  const report: PerfBenchmarkReport = {
+    schema_version: 1,
+    command: 'perf run',
+    query_file: 'candidate.sql',
+    query_type: 'SELECT',
+    params_shape: 'none',
+    ordered_param_names: [],
+    source_sql_file: 'candidate.sql',
+    source_sql: 'select * from users',
+    bound_sql: 'select * from users',
+    bindings: undefined,
+    strategy: 'direct',
+    requested_mode: 'completion',
+    selected_mode: 'completion',
+    selection_reason: 'classification probe exceeded 60000 ms',
+    classify_threshold_ms: 60000,
+    timeout_ms: 300000,
+    dry_run: false,
+    saved: false,
+    total_elapsed_ms: 300000,
+    completion_metrics: {
+      completed: false,
+      timed_out: true,
+      wall_time_ms: 300000
+    },
+    executed_statements: [
+      {
+        seq: 1,
+        role: 'final-query',
+        sql: 'select * from users',
+        bindings: undefined,
+        elapsed_ms: 300000,
+        timed_out: true
+      }
+    ],
+    plan_summary: {
+      node_type: 'Seq Scan'
+    },
+    plan_observations: ['Seq Scan on users'],
+    recommended_actions: [
+      {
+        action: 'stabilize-completion-run',
+        priority: 'high',
+        rationale: 'timeout first'
+      },
+      {
+        action: 'review-index-coverage',
+        priority: 'medium',
+        rationale: 'seq scan present'
+      }
+    ],
+    pipeline_analysis: {
+      query_type: 'SELECT',
+      cte_count: 0,
+      should_consider_pipeline: false,
+      candidate_ctes: [],
+      notes: []
+    }
+  };
+
+  const text = formatPerfBenchmarkReport(report, 'text');
+  expect(text).toContain('Recommended actions:');
+  expect(text).toContain('[high] stabilize-completion-run: timeout first');
+  expect(text).toContain('Plan observations:');
+  expect(text).toContain('Seq Scan on users');
+});
+
