@@ -5,6 +5,7 @@ import {
   buildPerfPipelineAnalysis,
   diffPerfBenchmarkReports,
   formatPerfBenchmarkReport,
+  formatPerfDiffReport,
   runPerfBenchmark,
   type PerfBenchmarkReport
 } from '../src/perf/benchmark';
@@ -149,6 +150,7 @@ test('diffPerfBenchmarkReports compares saved latency runs by p95', () => {
     selection_reason: 'forced',
     classify_threshold_ms: 60000,
     timeout_ms: 300000,
+    database_version: '16.2',
     dry_run: false,
     saved: true,
     total_elapsed_ms: 330,
@@ -161,7 +163,8 @@ test('diffPerfBenchmarkReports compares saved latency runs by p95', () => {
       median_ms: 110,
       p95_ms: 120
     },
-    executed_statements: [{ seq: 1, role: 'final-query', sql: 'select 1', bindings: undefined, elapsed_ms: 110 }],
+    executed_statements: [{ seq: 1, role: 'final-query', sql: 'select 1', bindings: undefined, elapsed_ms: 110, plan_summary: { node_type: 'Seq Scan' } }],
+    plan_observations: ['Seq Scan on public.users'],
     pipeline_analysis: {
       query_type: 'SELECT',
       cte_count: 0,
@@ -174,6 +177,7 @@ test('diffPerfBenchmarkReports compares saved latency runs by p95', () => {
   const candidate: PerfBenchmarkReport = {
     ...baseline,
     run_id: 'run_002',
+    database_version: '16.3',
     total_elapsed_ms: 240,
     latency_metrics: {
       measured_runs: 3,
@@ -183,7 +187,9 @@ test('diffPerfBenchmarkReports compares saved latency runs by p95', () => {
       avg_ms: 80,
       median_ms: 80,
       p95_ms: 90
-    }
+    },
+    executed_statements: [{ seq: 1, role: 'final-query', sql: 'select 1', bindings: undefined, elapsed_ms: 80, plan_summary: { node_type: 'Nested Loop', join_type: 'Inner' } }],
+    plan_observations: ['Inner Nested Loop present in the captured plan']
   };
 
   writeFileSync(path.join(baselineDir, 'summary.json'), JSON.stringify(baseline, null, 2), 'utf8');
@@ -195,6 +201,66 @@ test('diffPerfBenchmarkReports compares saved latency runs by p95', () => {
   expect(diff.primary_metric.baseline).toBe(120);
   expect(diff.primary_metric.candidate).toBe(90);
   expect(diff.primary_metric.improvement_percent).toBeCloseTo(25, 3);
+  expect(diff.plan_deltas).toEqual([
+    expect.objectContaining({ statement_id: '1:final-query', changed: true })
+  ]);
+  expect(diff.notes).toContain('Database version changed from 16.2 to 16.3.');
+});
+
+test('runPerfBenchmark rejects invalid perf options before touching the sandbox', async () => {
+  await expect(runPerfBenchmark({
+    rootDir: repoRoot,
+    queryFile: 'missing.sql',
+    mode: 'latency',
+    repeat: 0,
+    warmup: 0,
+    classifyThresholdSeconds: 60,
+    timeoutMinutes: 5,
+    save: false,
+    dryRun: true,
+  })).rejects.toThrow('invalid perf options: repeat must be a positive integer');
+});
+
+test('runPerfBenchmark wraps YAML parse failures with the absolute params path', async () => {
+  const workspace = createSqlWorkspace('perf-benchmark-yaml-invalid', path.join('src', 'sql', 'reports', 'broken.yml.sql'));
+  const paramsFile = path.join(workspace.rootDir, 'perf', 'params.yml');
+  mkdirSync(path.dirname(paramsFile), { recursive: true });
+  writeFileSync(workspace.sqlFile, 'select * from public.sales where status = :status', 'utf8');
+  writeFileSync(paramsFile, ['params: [unterminated', ''].join('\\n'), 'utf8');
+  await expect(runPerfBenchmark({
+    rootDir: workspace.rootDir,
+    queryFile: workspace.sqlFile,
+    paramsFile,
+    mode: 'latency',
+    repeat: 1,
+    warmup: 0,
+    classifyThresholdSeconds: 60,
+    timeoutMinutes: 5,
+    save: false,
+    dryRun: true,
+  })).rejects.toThrow(`Failed to parse perf params file ${path.resolve(paramsFile)}`);
+});
+test('runPerfBenchmark dry-run preserves quoted YAML string params', async () => {
+  const workspace = createSqlWorkspace('perf-benchmark-yaml-quoted', path.join('src', 'sql', 'reports', 'status.sql'));
+  const paramsFile = path.join(workspace.rootDir, 'perf', 'params.yml');
+  mkdirSync(path.dirname(paramsFile), { recursive: true });
+  writeFileSync(workspace.sqlFile, 'select * from public.sales where status = :status', 'utf8');
+  writeFileSync(paramsFile, ['params:', '  status: "value # still data"', ''].join('\n'), 'utf8');
+
+  const report = await runPerfBenchmark({
+    rootDir: workspace.rootDir,
+    queryFile: workspace.sqlFile,
+    paramsFile,
+    mode: 'latency',
+    repeat: 1,
+    warmup: 0,
+    classifyThresholdSeconds: 60,
+    timeoutMinutes: 5,
+    save: false,
+    dryRun: true,
+  });
+
+  expect(report.bindings).toEqual(['value # still data']);
 });
 
 test('runPerfBenchmark dry-run in auto mode defers live classification without touching PostgreSQL', async () => {
@@ -222,6 +288,38 @@ test('runPerfBenchmark dry-run in auto mode defers live classification without t
 });
 
 
+test('formatPerfDiffReport surfaces structural plan deltas for AI review', () => {
+  const diff = {
+    schema_version: 1,
+    command: 'perf report diff' as const,
+    baseline_mode: 'latency' as const,
+    candidate_mode: 'latency' as const,
+    baseline_strategy: 'direct' as const,
+    candidate_strategy: 'direct' as const,
+    primary_metric: {
+      name: 'p95_ms' as const,
+      baseline: 120,
+      candidate: 90,
+      improvement_percent: 25
+    },
+    mode_changed: false,
+    statements_delta: 0,
+    plan_deltas: [
+      {
+        statement_id: '1:final-query',
+        baseline_plan: 'Seq Scan',
+        candidate_plan: 'Inner Nested Loop',
+        changed: true
+      }
+    ],
+    notes: ['Compared latency-mode p95 because both runs are repeat benchmarks.']
+  };
+  const text = formatPerfDiffReport(diff, 'text');
+  expect(text).toContain('Plan deltas:');
+  expect(text).toContain('1:final-query: Seq Scan -> Inner Nested Loop');
+  const json = formatPerfDiffReport(diff, 'json');
+  expect(JSON.parse(json).plan_deltas).toEqual(diff.plan_deltas);
+});
 test('formatPerfBenchmarkReport surfaces recommended actions for AI follow-up', () => {
   const report: PerfBenchmarkReport = {
     schema_version: 1,
@@ -292,6 +390,71 @@ test('formatPerfBenchmarkReport surfaces recommended actions for AI follow-up', 
   expect(text).toContain('Seq Scan on users');
   expect(text).toContain('sql_file: executed-sql/001-final-query.bound.sql');
   expect(text).toContain('resolved_sql_preview_file: executed-sql/001-final-query.resolved-preview.sql');
+});
+
+test('formatPerfBenchmarkReport recommends join review for nested loop plans', () => {
+  const report: PerfBenchmarkReport = {
+    schema_version: 1,
+    command: 'perf run',
+    query_file: 'nested-loop.sql',
+    query_type: 'SELECT',
+    params_shape: 'none',
+    ordered_param_names: [],
+    source_sql_file: 'nested-loop.sql',
+    source_sql: 'select 1',
+    bound_sql: 'select 1',
+    bindings: undefined,
+    strategy: 'direct',
+    requested_mode: 'latency',
+    selected_mode: 'latency',
+    selection_reason: 'forced',
+    classify_threshold_ms: 60000,
+    timeout_ms: 300000,
+    dry_run: false,
+    saved: false,
+    total_elapsed_ms: 10,
+    latency_metrics: {
+      measured_runs: 3,
+      warmup_runs: 1,
+      min_ms: 3,
+      max_ms: 4,
+      avg_ms: 3.5,
+      median_ms: 3.5,
+      p95_ms: 4
+    },
+    executed_statements: [
+      {
+        seq: 1,
+        role: 'final-query',
+        sql: 'select 1',
+        bindings: undefined,
+        elapsed_ms: 4,
+        plan_summary: { node_type: 'Nested Loop', join_type: 'Inner' }
+      }
+    ],
+    plan_summary: {
+      node_type: 'Nested Loop',
+      join_type: 'Inner'
+    },
+    plan_observations: ['Inner Nested Loop present in the captured plan'],
+    recommended_actions: [
+      {
+        action: 'inspect-join-strategy',
+        priority: 'medium',
+        rationale: 'The captured plan includes a join operator, so rewriting join shape or supporting it with indexes may help.'
+      }
+    ],
+    pipeline_analysis: {
+      query_type: 'SELECT',
+      cte_count: 0,
+      should_consider_pipeline: false,
+      candidate_ctes: [],
+      notes: []
+    }
+  };
+  const text = formatPerfBenchmarkReport(report, 'text');
+  expect(text).toContain('inspect-join-strategy');
+  expect(text).toContain('Inner Nested Loop present in the captured plan');
 });
 
 

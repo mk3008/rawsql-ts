@@ -1,5 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { parse as parseYaml } from 'yaml';
 import { ensurePgModule } from '../utils/optionalDependencies';
 import { bindModelGenNamedSql } from '../utils/modelGenBinder';
 import { scanModelGenSql, type PlaceholderMode } from '../utils/modelGenScanner';
@@ -47,6 +48,7 @@ export interface PerfStatementReport {
 
 export interface PerfPlanSummary {
   node_type?: string;
+  join_type?: string;
   total_cost?: number;
   plan_rows?: number;
   actual_rows?: number;
@@ -73,6 +75,20 @@ export interface PerfRecommendedAction {
   rationale: string;
 }
 
+export interface PerfPlanDelta {
+  statement_id: string;
+  baseline_plan: string;
+  candidate_plan: string;
+  changed: boolean;
+}
+
+interface PerfPlanFacts {
+  observations: string[];
+  statement_summary: string;
+  hasSequentialScan: boolean;
+  hasJoin: boolean;
+}
+
 export interface PerfBenchmarkReport {
   schema_version: 1;
   command: 'perf run';
@@ -93,6 +109,7 @@ export interface PerfBenchmarkReport {
   selection_reason: string;
   classify_threshold_ms: number;
   timeout_ms: number;
+  database_version?: string;
   dry_run: boolean;
   saved: boolean;
   evidence_dir?: string;
@@ -136,6 +153,7 @@ export interface PerfDiffReport {
   };
   mode_changed: boolean;
   statements_delta: number;
+  plan_deltas: PerfPlanDelta[];
   notes: string[];
 }
 
@@ -160,15 +178,39 @@ const DEFAULT_WARMUP = 3;
 const DEFAULT_CLASSIFY_THRESHOLD_SECONDS = 60;
 const DEFAULT_TIMEOUT_MINUTES = 5;
 
+function assertValidPerfRunOptions(options: PerfRunOptions): void {
+  const issues: string[] = [];
+
+  if (!Number.isInteger(options.repeat) || options.repeat <= 0) {
+    issues.push('repeat must be a positive integer');
+  }
+  if (!Number.isInteger(options.warmup) || options.warmup < 0) {
+    issues.push('warmup must be a non-negative integer');
+  }
+  if (!Number.isFinite(options.timeoutMinutes) || options.timeoutMinutes <= 0) {
+    issues.push('timeoutMinutes must be greater than 0');
+  }
+  if (!Number.isFinite(options.classifyThresholdSeconds) || options.classifyThresholdSeconds <= 0) {
+    issues.push('classifyThresholdSeconds must be greater than 0');
+  }
+
+  if (issues.length > 0) {
+    throw new Error('invalid perf options: ' + issues.join('; '));
+  }
+}
+
 /**
  * Execute or plan a direct SQL benchmark against the perf sandbox.
  */
 export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBenchmarkReport> {
+  assertValidPerfRunOptions(options);
+
   const prepared = prepareBenchmarkQuery(options.rootDir, options.queryFile, options.paramsFile);
   const pipelineAnalysis = buildPerfPipelineAnalysis(prepared.absolutePath);
   const classifyThresholdMs = options.classifyThresholdSeconds * 1000;
   const timeoutMs = options.timeoutMinutes * 60 * 1000;
   const seedConfig = loadPerfSeedConfig(options.rootDir);
+  const databaseVersion = options.dryRun ? undefined : await fetchPerfDatabaseVersion(options.rootDir);
 
   const selection = options.dryRun
     ? {
@@ -213,11 +255,17 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       selection_reason: selection.reason,
       classify_threshold_ms: classifyThresholdMs,
       timeout_ms: timeoutMs,
+      database_version: databaseVersion,
       dry_run: true,
       saved: false,
       executed_statements: dryRunStatements,
       plan_observations: [],
-      recommended_actions: buildPerfRecommendedActions(selection.selectedMode, true, pipelineAnalysis, []),
+      recommended_actions: buildPerfRecommendedActions(selection.selectedMode, true, pipelineAnalysis, {
+        observations: [],
+        statement_summary: '(no plan captured)',
+        hasSequentialScan: false,
+        hasJoin: false
+      }),
       pipeline_analysis: pipelineAnalysis,
       seed: { seed: seedConfig.seed }
     };
@@ -266,7 +314,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
     }
   ];
 
-  const planObservations = buildPlanObservations(representativePlan);
+  const planFacts = buildPerfPlanFacts(representativePlan);
 
   const report: PerfBenchmarkReport = {
     schema_version: 1,
@@ -286,6 +334,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
     selection_reason: selection.reason,
     classify_threshold_ms: classifyThresholdMs,
     timeout_ms: timeoutMs,
+    database_version: databaseVersion,
     dry_run: false,
     saved: false,
     total_elapsed_ms: selection.selectedMode === 'latency'
@@ -303,12 +352,12 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       : undefined,
     executed_statements: executedStatements,
     plan_summary: summarizePlanJson(representativePlan),
-    plan_observations: planObservations,
+    plan_observations: planFacts.observations,
     recommended_actions: buildPerfRecommendedActions(
       selection.selectedMode,
       !representativeExecution?.timedOut,
       pipelineAnalysis,
-      planObservations
+      planFacts
     ),
     pipeline_analysis: pipelineAnalysis,
     seed: { seed: seedConfig.seed }
@@ -339,6 +388,7 @@ export function diffPerfBenchmarkReports(baselineDir: string, candidateDir: stri
   const notes: string[] = [];
   const modeChanged = baseline.selected_mode !== candidate.selected_mode;
   const statementsDelta = candidate.executed_statements.length - baseline.executed_statements.length;
+  const planDeltas = buildPerfPlanDeltas(baseline, candidate);
 
   let metricName: 'p95_ms' | 'wall_time_ms' | 'total_elapsed_ms' = 'total_elapsed_ms';
   let baselineMetric = baseline.total_elapsed_ms ?? 0;
@@ -365,6 +415,9 @@ export function diffPerfBenchmarkReports(baselineDir: string, candidateDir: stri
   if (baseline.pipeline_analysis.should_consider_pipeline || candidate.pipeline_analysis.should_consider_pipeline) {
     notes.push('Pipeline candidacy is present in at least one run; inspect candidate_ctes before rewriting SQL.');
   }
+  if (baseline.database_version && candidate.database_version && baseline.database_version !== candidate.database_version) {
+    notes.push(`Database version changed from ${baseline.database_version} to ${candidate.database_version}.`);
+  }
   const candidateActions = candidate.recommended_actions ?? [];
   if (candidateActions.length > 0) {
     notes.push('Candidate recommended actions: ' + candidateActions.map((action) => action.action).join(', '));
@@ -386,6 +439,7 @@ export function diffPerfBenchmarkReports(baselineDir: string, candidateDir: stri
     },
     mode_changed: modeChanged,
     statements_delta: statementsDelta,
+    plan_deltas: planDeltas,
     notes
   };
 }
@@ -491,6 +545,14 @@ export function formatPerfDiffReport(report: PerfDiffReport, format: PerfBenchma
     `Statements delta: ${report.statements_delta}`,
   ];
 
+  if (report.plan_deltas.some((delta) => delta.changed)) {
+    lines.push('');
+    lines.push('Plan deltas:');
+    for (const delta of report.plan_deltas.filter((entry) => entry.changed)) {
+      lines.push(`- ${delta.statement_id}: ${delta.baseline_plan} -> ${delta.candidate_plan}`);
+    }
+  }
+
   if (report.notes.length > 0) {
     lines.push('');
     lines.push('Notes:');
@@ -558,7 +620,7 @@ function buildPerfRecommendedActions(
   selectedMode: PerfSelectedBenchmarkMode,
   completed: boolean,
   pipelineAnalysis: PerfPipelineAnalysis,
-  planObservations: string[]
+  planFacts: PerfPlanFacts
 ): PerfRecommendedAction[] {
   const actions: PerfRecommendedAction[] = [];
 
@@ -576,14 +638,14 @@ function buildPerfRecommendedActions(
       rationale: `Pipeline candidates detected: ${pipelineAnalysis.candidate_ctes.map((candidate) => candidate.name).join(', ')}.`
     });
   }
-  if (planObservations.some((observation) => observation.includes('Seq Scan'))) {
+  if (planFacts.hasSequentialScan) {
     actions.push({
       action: 'review-index-coverage',
       priority: 'medium',
       rationale: 'The captured plan includes a sequential scan, so index coverage is a likely tuning branch.'
     });
   }
-  if (planObservations.some((observation) => observation.includes('Join'))) {
+  if (planFacts.hasJoin) {
     actions.push({
       action: 'inspect-join-strategy',
       priority: 'medium',
@@ -602,8 +664,12 @@ function uniqueRecommendedActions(actions: PerfRecommendedAction[]): PerfRecomme
   return Array.from(deduped.values());
 }
 
-function buildPlanObservations(planJson: unknown): string[] {
+function buildPerfPlanFacts(planJson: unknown): PerfPlanFacts {
   const observations: string[] = [];
+  const statementSummaryParts: string[] = [];
+  let hasSequentialScan = false;
+  let hasJoin = false;
+
   walkPlanNodes(planJson, (node) => {
     const nodeType = normalizeString(node['Node Type']);
     const relationName = normalizeString(node['Relation Name']);
@@ -611,21 +677,87 @@ function buildPlanObservations(planJson: unknown): string[] {
     const cteName = normalizeString(node['CTE Name']);
     const filter = normalizeString(node.Filter ?? node['Index Cond']);
 
+    if (!nodeType) {
+      return;
+    }
+
+    statementSummaryParts.push(joinType ? `${joinType} ${nodeType}` : nodeType);
+
     if (nodeType === 'Seq Scan' && relationName) {
+      hasSequentialScan = true;
       observations.push(
         filter
           ? `Seq Scan on ${relationName} with filter ${truncateSingleLine(filter, 90)}`
           : `Seq Scan on ${relationName}`
       );
     }
-    if (joinType && nodeType) {
+    if (nodeType === 'Nested Loop' || nodeType.includes('Join') || Boolean(joinType)) {
+      hasJoin = true;
+    }
+    if (joinType) {
       observations.push(`${joinType} ${nodeType} present in the captured plan`);
     }
     if (nodeType === 'CTE Scan' && cteName) {
       observations.push(`CTE Scan reads ${cteName}`);
     }
   });
-  return Array.from(new Set(observations));
+
+  return {
+    observations: Array.from(new Set(observations)),
+    statement_summary: Array.from(new Set(statementSummaryParts)).join(' -> ') || '(no plan captured)',
+    hasSequentialScan,
+    hasJoin
+  };
+}
+
+function buildPerfPlanDeltas(baseline: PerfBenchmarkReport, candidate: PerfBenchmarkReport): PerfPlanDelta[] {
+  const maxStatements = Math.max(baseline.executed_statements.length, candidate.executed_statements.length);
+  const deltas: PerfPlanDelta[] = [];
+
+  for (let index = 0; index < maxStatements; index += 1) {
+    const baselineStatement = baseline.executed_statements[index];
+    const candidateStatement = candidate.executed_statements[index];
+    const statementId = formatPlanDeltaStatementId(candidateStatement ?? baselineStatement, index);
+    const baselinePlan = summarizeStatementPlan(baselineStatement, baseline.plan_observations, index === 0);
+    const candidatePlan = summarizeStatementPlan(candidateStatement, candidate.plan_observations, index === 0);
+    deltas.push({
+      statement_id: statementId,
+      baseline_plan: baselinePlan,
+      candidate_plan: candidatePlan,
+      changed: baselinePlan !== candidatePlan
+    });
+  }
+
+  return deltas;
+}
+
+function formatPlanDeltaStatementId(statement: PerfStatementReport | undefined, index: number): string {
+  if (!statement) {
+    return `statement-${index + 1}`;
+  }
+  return `${statement.seq}:${statement.role}`;
+}
+
+function summarizeStatementPlan(
+  statement: PerfStatementReport | undefined,
+  planObservations: string[],
+  includeObservations: boolean
+): string {
+  if (!statement) {
+    return '(missing statement)';
+  }
+
+  const parts: string[] = [];
+  const summary = statement.plan_summary;
+  if (summary?.join_type && summary.node_type) {
+    parts.push(`${summary.join_type} ${summary.node_type}`);
+  } else if (summary?.node_type) {
+    parts.push(summary.node_type);
+  }
+  if (includeObservations && planObservations.length > 0) {
+    parts.push(planObservations.join(' | '));
+  }
+  return parts.join(' :: ') || '(no plan captured)';
 }
 
 function walkPlanNodes(planJson: unknown, visit: (node: Record<string, unknown>) => void): void {
@@ -763,175 +895,43 @@ function prepareBenchmarkQuery(rootDir: string, queryFile: string, paramsFile?: 
 function loadPerfBindings(rootDir: string, paramsFile: string): unknown {
   const absolutePath = path.resolve(rootDir, paramsFile);
   const rawContents = readFileSync(absolutePath, 'utf8');
-  const extension = path.extname(absolutePath).toLowerCase();
 
-  if (extension === '.yaml' || extension === '.yml') {
-    const parsed = parsePerfParamsYaml(rawContents);
+  try {
+    if (path.extname(absolutePath).toLowerCase() === '.json') {
+      return JSON.parse(rawContents);
+    }
+
+    const parsed = parseYaml(rawContents);
     if (isPerfParamsEnvelope(parsed)) {
       return parsed.params;
     }
-    return parsed;
+    return parsed ?? {};
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to parse perf params file ${absolutePath}: ${message}`);
   }
-
-  return JSON.parse(rawContents);
-}
-
-function parsePerfParamsYaml(contents: string): unknown {
-  const root = parseYamlNode(contents.replace(/\r\n/g, '\n').split('\n'), 0, 0).value;
-  return root ?? {};
-}
-
-function parseYamlNode(lines: string[], startIndex: number, indent: number): { value: unknown; nextIndex: number } {
-  let index = startIndex;
-  while (index < lines.length && shouldSkipYamlLine(lines[index] ?? '')) {
-    index += 1;
-  }
-
-  if (index >= lines.length) {
-    return { value: {}, nextIndex: index };
-  }
-
-  const firstLine = lines[index] ?? '';
-  const trimmed = stripYamlComments(firstLine).trim();
-  if (trimmed.startsWith('- ')) {
-    return parseYamlArray(lines, index, indent);
-  }
-  return parseYamlObject(lines, index, indent);
-}
-
-function parseYamlObject(lines: string[], startIndex: number, indent: number): { value: Record<string, unknown>; nextIndex: number } {
-  const value: Record<string, unknown> = {};
-  let index = startIndex;
-
-  while (index < lines.length) {
-    const rawLine = lines[index] ?? '';
-    if (shouldSkipYamlLine(rawLine)) {
-      index += 1;
-      continue;
-    }
-
-    const currentIndent = countLeadingSpaces(rawLine);
-    if (currentIndent < indent) {
-      break;
-    }
-    if (currentIndent > indent) {
-      throw new Error('Invalid YAML indentation at line ' + (index + 1) + '.');
-    }
-
-    const sanitizedLine = stripYamlComments(rawLine).trim();
-    if (sanitizedLine.startsWith('- ')) {
-      break;
-    }
-
-    const separatorIndex = sanitizedLine.indexOf(':');
-    if (separatorIndex === -1) {
-      throw new Error('Invalid YAML mapping entry at line ' + (index + 1) + '.');
-    }
-
-    const key = sanitizedLine.slice(0, separatorIndex).trim();
-    const remainder = sanitizedLine.slice(separatorIndex + 1).trim();
-    if (!key) {
-      throw new Error('Invalid YAML key at line ' + (index + 1) + '.');
-    }
-
-    if (remainder === '') {
-      const nested = parseYamlNode(lines, index + 1, indent + 2);
-      value[key] = nested.value;
-      index = nested.nextIndex;
-      continue;
-    }
-
-    value[key] = parseYamlScalar(remainder);
-    index += 1;
-  }
-
-  return { value, nextIndex: index };
-}
-
-function parseYamlArray(lines: string[], startIndex: number, indent: number): { value: unknown[]; nextIndex: number } {
-  const value: unknown[] = [];
-  let index = startIndex;
-
-  while (index < lines.length) {
-    const rawLine = lines[index] ?? '';
-    if (shouldSkipYamlLine(rawLine)) {
-      index += 1;
-      continue;
-    }
-
-    const currentIndent = countLeadingSpaces(rawLine);
-    if (currentIndent < indent) {
-      break;
-    }
-    if (currentIndent !== indent) {
-      throw new Error('Invalid YAML indentation at line ' + (index + 1) + '.');
-    }
-
-    const sanitizedLine = stripYamlComments(rawLine).trim();
-    if (!sanitizedLine.startsWith('- ')) {
-      break;
-    }
-
-    const remainder = sanitizedLine.slice(2).trim();
-    if (remainder === '') {
-      const nested = parseYamlNode(lines, index + 1, indent + 2);
-      value.push(nested.value);
-      index = nested.nextIndex;
-      continue;
-    }
-
-    value.push(parseYamlScalar(remainder));
-    index += 1;
-  }
-
-  return { value, nextIndex: index };
-}
-
-function parseYamlScalar(value: string): unknown {
-  if (value === '{}') {
-    return {};
-  }
-  if (value === '[]') {
-    return [];
-  }
-  if (value.startsWith('[') && value.endsWith(']')) {
-    const inner = value.slice(1, -1).trim();
-    if (!inner) {
-      return [];
-    }
-    return inner.split(',').map((entry) => parseYamlScalar(entry.trim()));
-  }
-  if (value === 'true') {
-    return true;
-  }
-  if (value === 'false') {
-    return false;
-  }
-  if (value === 'null') {
-    return null;
-  }
-  if (/^-?\d+(?:\.\d+)?$/.test(value)) {
-    return Number(value);
-  }
-  return value;
-}
-
-function stripYamlComments(line: string): string {
-  const hashIndex = line.indexOf('#');
-  return hashIndex === -1 ? line : line.slice(0, hashIndex);
-}
-
-function shouldSkipYamlLine(line: string): boolean {
-  const trimmed = stripYamlComments(line).trim();
-  return trimmed.length === 0;
-}
-
-function countLeadingSpaces(line: string): number {
-  return line.length - line.trimStart().length;
 }
 
 function isPerfParamsEnvelope(value: unknown): value is { params: unknown } {
   return typeof value === 'object' && value !== null && !Array.isArray(value) && 'params' in value;
+}
+
+async function fetchPerfDatabaseVersion(rootDir: string): Promise<string | undefined> {
+  const pg = await ensurePgModule();
+  const sandboxConfig = loadPerfSandboxConfig(rootDir);
+  const resolvedConnection = await ensurePerfConnection(rootDir, sandboxConfig);
+  const client = new pg.Client({
+    connectionString: resolvedConnection.connectionUrl,
+    connectionTimeoutMillis: 3000
+  });
+
+  try {
+    await client.connect();
+    const result = await client.query<{ server_version?: string }>('SHOW server_version');
+    return result.rows?.[0]?.server_version;
+  } finally {
+    await client.end().catch(() => undefined);
+  }
 }
 
 async function classifyPerfBenchmarkMode(
@@ -1060,6 +1060,7 @@ function summarizePlanJson(planJson: unknown): PerfPlanSummary | null {
 
   return {
     node_type: normalizeString(plan['Node Type']),
+    join_type: normalizeString(plan['Join Type']),
     total_cost: normalizeNumber(plan['Total Cost']),
     plan_rows: normalizeNumber(plan['Plan Rows']),
     actual_rows: normalizeNumber(plan['Actual Rows']),

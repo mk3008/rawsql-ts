@@ -262,10 +262,15 @@ const COMMANDS: CommandDescriptor[] = [
     },
     flags: [
       { name: '--query', description: 'SQL file to benchmark inside the perf sandbox.' },
-      { name: '--params', description: 'JSON file with named or positional parameters.' },
+      { name: '--params', description: 'JSON or YAML file with named or positional parameters.' },
       { name: '--mode', description: 'Benchmark mode (auto|latency|completion).', defaultValue: 'auto' },
+      { name: '--repeat', description: 'Measured repetitions for latency mode.', defaultValue: '10' },
+      { name: '--warmup', description: 'Warmup repetitions for latency mode.', defaultValue: '3' },
+      { name: '--classify-threshold-seconds', description: 'Threshold for auto mode classification.', defaultValue: '60' },
+      { name: '--timeout-minutes', description: 'Timeout for measured runs.', defaultValue: '5' },
       { name: '--save', description: 'Persist benchmark evidence under perf/evidence/run_xxx.' },
       { name: '--dry-run', description: 'Resolve benchmark mode and evidence shape without touching PostgreSQL.' },
+      { name: '--label', description: 'Attach a short label to the saved run directory.' },
       { name: '--json', description: 'Pass perf run options as a JSON object.' }
     ]
   },

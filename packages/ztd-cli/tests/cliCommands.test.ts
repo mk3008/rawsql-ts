@@ -1463,7 +1463,18 @@ test('describe command reports perf run metadata in global json mode', () => {
         name: 'perf run',
         supportsDryRun: true,
         supportsJsonPayload: true,
-        writesFiles: true
+        writesFiles: true,
+        flags: expect.arrayContaining([
+          expect.objectContaining({ name: '--repeat' }),
+          expect.objectContaining({ name: '--warmup' }),
+          expect.objectContaining({ name: '--classify-threshold-seconds' }),
+          expect.objectContaining({ name: '--timeout-minutes' }),
+          expect.objectContaining({ name: '--label' }),
+          expect.objectContaining({
+            name: '--params',
+            description: 'JSON or YAML file with named or positional parameters.'
+          })
+        ])
       }
     }
   });
@@ -1537,6 +1548,7 @@ test('perf report diff emits machine-readable JSON from saved evidence summaries
       selection_reason: 'forced',
       classify_threshold_ms: 60000,
       timeout_ms: 300000,
+      database_version: '16.2',
       dry_run: false,
       saved: true,
       total_elapsed_ms: 300,
@@ -1549,7 +1561,8 @@ test('perf report diff emits machine-readable JSON from saved evidence summaries
         median_ms: 95,
         p95_ms: 120
       },
-      executed_statements: [{ seq: 1, role: 'final-query', sql: 'select 1' }],
+      executed_statements: [{ seq: 1, role: 'final-query', sql: 'select 1', plan_summary: { node_type: 'Seq Scan' } }],
+      plan_observations: ['Seq Scan on public.users'],
       pipeline_analysis: {
         query_type: 'SELECT',
         cte_count: 0,
@@ -1579,6 +1592,7 @@ test('perf report diff emits machine-readable JSON from saved evidence summaries
       selection_reason: 'forced',
       classify_threshold_ms: 60000,
       timeout_ms: 300000,
+      database_version: '16.3',
       dry_run: false,
       saved: true,
       total_elapsed_ms: 240,
@@ -1591,7 +1605,8 @@ test('perf report diff emits machine-readable JSON from saved evidence summaries
         median_ms: 80,
         p95_ms: 90
       },
-      executed_statements: [{ seq: 1, role: 'final-query', sql: 'select 1' }],
+      executed_statements: [{ seq: 1, role: 'final-query', sql: 'select 1', plan_summary: { node_type: 'Nested Loop', join_type: 'Inner' } }],
+      plan_observations: ['Inner Nested Loop present in the captured plan'],
       pipeline_analysis: {
         query_type: 'SELECT',
         cte_count: 0,
@@ -1615,7 +1630,12 @@ test('perf report diff emits machine-readable JSON from saved evidence summaries
         name: 'p95_ms',
         baseline: 120,
         candidate: 90
-      }
+      },
+      plan_deltas: [
+        expect.objectContaining({
+          statement_id: '1:final-query'
+        })
+      ]
     }
   });
 });

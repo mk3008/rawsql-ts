@@ -684,7 +684,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
           "name": "--query",
         },
         {
-          "description": "JSON file with named or positional parameters.",
+          "description": "JSON or YAML file with named or positional parameters.",
           "name": "--params",
         },
         {
@@ -693,12 +693,36 @@ exports[`describe command snapshots the top-level command catalog and every deta
           "name": "--mode",
         },
         {
+          "defaultValue": "10",
+          "description": "Measured repetitions for latency mode.",
+          "name": "--repeat",
+        },
+        {
+          "defaultValue": "3",
+          "description": "Warmup repetitions for latency mode.",
+          "name": "--warmup",
+        },
+        {
+          "defaultValue": "60",
+          "description": "Threshold for auto mode classification.",
+          "name": "--classify-threshold-seconds",
+        },
+        {
+          "defaultValue": "5",
+          "description": "Timeout for measured runs.",
+          "name": "--timeout-minutes",
+        },
+        {
           "description": "Persist benchmark evidence under perf/evidence/run_xxx.",
           "name": "--save",
         },
         {
           "description": "Resolve benchmark mode and evidence shape without touching PostgreSQL.",
           "name": "--dry-run",
+        },
+        {
+          "description": "Attach a short label to the saved run directory.",
+          "name": "--label",
         },
         {
           "description": "Pass perf run options as a JSON object.",
