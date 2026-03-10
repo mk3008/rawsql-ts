@@ -254,7 +254,9 @@ test('formatPerfBenchmarkReport surfaces recommended actions for AI follow-up', 
         sql: 'select * from users',
         bindings: undefined,
         elapsed_ms: 300000,
-        timed_out: true
+        timed_out: true,
+        sql_file: 'executed-sql/001-final-query.bound.sql',
+        resolved_sql_preview_file: 'executed-sql/001-final-query.resolved-preview.sql'
       }
     ],
     plan_summary: {
@@ -287,5 +289,8 @@ test('formatPerfBenchmarkReport surfaces recommended actions for AI follow-up', 
   expect(text).toContain('[high] stabilize-completion-run: timeout first');
   expect(text).toContain('Plan observations:');
   expect(text).toContain('Seq Scan on users');
+  expect(text).toContain('sql_file: executed-sql/001-final-query.bound.sql');
+  expect(text).toContain('resolved_sql_preview_file: executed-sql/001-final-query.resolved-preview.sql');
 });
+
 

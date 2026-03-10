@@ -40,6 +40,8 @@ export interface PerfStatementReport {
   elapsed_ms?: number;
   timed_out?: boolean;
   plan_summary?: PerfPlanSummary | null;
+  sql_file?: string;
+  resolved_sql_preview_file?: string;
   plan_file?: string;
 }
 
@@ -319,6 +321,8 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
     report.saved = true;
     report.executed_statements = report.executed_statements.map((statement, index) => ({
       ...statement,
+      sql_file: persisted.sqlFiles[index] || undefined,
+      resolved_sql_preview_file: persisted.resolvedSqlPreviewFiles[index] || undefined,
       plan_file: persisted.planFiles[index] || undefined
     }));
   }
@@ -426,6 +430,12 @@ export function formatPerfBenchmarkReport(report: PerfBenchmarkReport, format: P
       lines.push(`   resolved_sql_preview: ${truncateSingleLine(statement.resolved_sql_preview, 120)}`);
     }
     lines.push(`   sql: ${truncateSingleLine(statement.sql, 120)}`);
+    if (statement.sql_file) {
+      lines.push(`   sql_file: ${statement.sql_file}`);
+    }
+    if (statement.resolved_sql_preview_file) {
+      lines.push(`   resolved_sql_preview_file: ${statement.resolved_sql_preview_file}`);
+    }
   }
 
   lines.push('');
@@ -890,7 +900,7 @@ function savePerfBenchmarkEvidence(
   rootDir: string,
   report: PerfBenchmarkReport,
   planJson: unknown
-): { runId: string; evidenceDir: string; planFiles: string[] } {
+): { runId: string; evidenceDir: string; planFiles: string[]; sqlFiles: string[]; resolvedSqlPreviewFiles: string[] } {
   const evidenceRoot = path.join(rootDir, 'perf', 'evidence');
   mkdirSync(evidenceRoot, { recursive: true });
   const runId = allocatePerfRunId(evidenceRoot, report.label);
@@ -907,12 +917,26 @@ function savePerfBenchmarkEvidence(
   }
 
   const planFiles: string[] = [];
+  const sqlFiles: string[] = [];
+  const resolvedSqlPreviewFiles: string[] = [];
   for (const statement of report.executed_statements) {
-    const sqlFileName = `${String(statement.seq).padStart(3, '0')}-${statement.role}.sql`;
+    const baseName = `${String(statement.seq).padStart(3, '0')}-${statement.role}`;
+    const sqlFileName = `${baseName}.bound.sql`;
+    const relativeSqlPath = path.join('executed-sql', sqlFileName).replace(/\\/g, '/');
     writeFileSync(path.join(sqlDir, sqlFileName), `${statement.sql.trimEnd()}\n`, 'utf8');
+    sqlFiles.push(relativeSqlPath);
+
+    if (statement.resolved_sql_preview) {
+      const resolvedFileName = `${baseName}.resolved-preview.sql`;
+      const relativeResolvedPath = path.join('executed-sql', resolvedFileName).replace(/\\/g, '/');
+      writeFileSync(path.join(sqlDir, resolvedFileName), `${statement.resolved_sql_preview.trimEnd()}\n`, 'utf8');
+      resolvedSqlPreviewFiles.push(relativeResolvedPath);
+    } else {
+      resolvedSqlPreviewFiles.push('');
+    }
 
     if (planJson !== null) {
-      const planFileName = `${String(statement.seq).padStart(3, '0')}-${statement.role}.plan.json`;
+      const planFileName = `${baseName}.plan.json`;
       const relativePlanPath = path.join('plans', planFileName).replace(/\\/g, '/');
       writeFileSync(path.join(plansDir, planFileName), `${JSON.stringify(planJson, null, 2)}\n`, 'utf8');
       planFiles.push(relativePlanPath);
@@ -928,6 +952,8 @@ function savePerfBenchmarkEvidence(
     saved: true,
     executed_statements: report.executed_statements.map((statement, index) => ({
       ...statement,
+      sql_file: sqlFiles[index] || undefined,
+      resolved_sql_preview_file: resolvedSqlPreviewFiles[index] || undefined,
       plan_file: planFiles[index] || undefined
     }))
   };
@@ -937,7 +963,9 @@ function savePerfBenchmarkEvidence(
   return {
     runId,
     evidenceDir,
-    planFiles
+    planFiles,
+    sqlFiles,
+    resolvedSqlPreviewFiles
   };
 }
 
