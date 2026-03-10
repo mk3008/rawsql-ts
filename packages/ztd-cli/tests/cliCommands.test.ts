@@ -1442,3 +1442,247 @@ test('query lint emits machine-readable JSON when requested', () => {
 
 
 
+
+test('top-level help exposes perf run for benchmark loops', () => {
+  const result = runCli(['--help']);
+
+  assertCliSuccess(result, '--help perf run');
+  expect(result.stdout).toContain('perf run --query src/sql/report.sql --dry-run');
+});
+
+test('describe command reports perf run metadata in global json mode', () => {
+  const result = runCli(['--output', 'json', 'describe', 'command', 'perf run']);
+
+  assertCliSuccess(result, 'describe perf run');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed).toMatchObject({
+    command: 'describe command',
+    ok: true,
+    data: {
+      command: {
+        name: 'perf run',
+        supportsDryRun: true,
+        supportsJsonPayload: true,
+        writesFiles: true,
+        flags: expect.arrayContaining([
+          expect.objectContaining({ name: '--repeat' }),
+          expect.objectContaining({ name: '--warmup' }),
+          expect.objectContaining({ name: '--classify-threshold-seconds' }),
+          expect.objectContaining({ name: '--timeout-minutes' }),
+          expect.objectContaining({ name: '--label' }),
+          expect.objectContaining({
+            name: '--params',
+            description: 'JSON or YAML file with named or positional parameters.'
+          })
+        ])
+      }
+    }
+  });
+});
+
+test('perf run dry-run emits benchmark evidence metadata in global json mode', () => {
+  const workspace = createSqlWorkspace('perf-run-dry-run', path.join('src', 'sql', 'reports', 'sales.sql'));
+  const paramsFile = path.join(workspace.rootDir, 'perf', 'params.yml');
+  mkdirSync(path.dirname(paramsFile), { recursive: true });
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      select *
+      from public.sales
+      where region_id = :region_id
+    `,
+    'utf8'
+  );
+  writeFileSync(paramsFile, ['params:', '  region_id: 99', ''].join('\n'), 'utf8');
+
+  const result = runCli(
+    ['--output', 'json', 'perf', 'run', '--query', workspace.sqlFile, '--params', paramsFile, '--mode', 'latency', '--dry-run'],
+    {},
+    workspace.rootDir
+  );
+
+  assertCliSuccess(result, 'perf run dry-run');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed).toMatchObject({
+    command: 'perf run',
+    ok: true,
+    data: {
+      dry_run: true,
+      requested_mode: 'latency',
+      selected_mode: 'latency',
+      params_shape: 'named',
+      ordered_param_names: ['region_id'],
+      executed_statements: [
+        expect.objectContaining({
+          role: 'final-query',
+          sql: expect.stringContaining('$1')
+        })
+      ]
+    }
+  });
+});
+
+test('perf run accepts --json payload for query resolution in global json mode', () => {
+  const workspace = createSqlWorkspace('perf-run-json-payload', path.join('src', 'sql', 'reports', 'sales.sql'));
+  const paramsFile = path.join(workspace.rootDir, 'perf', 'params.yml');
+  mkdirSync(path.dirname(paramsFile), { recursive: true });
+  writeFileSync(
+    workspace.sqlFile,
+    [
+      'select *',
+      'from public.sales',
+      'where region_id = :region_id'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(paramsFile, ['params:', '  region_id: 77', ''].join('\n'), 'utf8');
+
+  const result = runCli(
+    [
+      '--output',
+      'json',
+      'perf',
+      'run',
+      '--json',
+      JSON.stringify({
+        query: workspace.sqlFile,
+        params: paramsFile,
+        mode: 'latency',
+        dryRun: true
+      })
+    ],
+    {},
+    workspace.rootDir
+  );
+
+  assertCliSuccess(result, 'perf run json payload');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    dry_run: true,
+    requested_mode: 'latency',
+    selected_mode: 'latency',
+    ordered_param_names: ['region_id'],
+    bindings: [77]
+  });
+});
+
+test('perf report diff emits machine-readable JSON from saved evidence summaries', () => {
+  const workspace = createTempDir('perf-report-diff');
+  const baselineDir = path.join(workspace, 'perf', 'evidence', 'run_001');
+  const candidateDir = path.join(workspace, 'perf', 'evidence', 'run_002');
+  mkdirSync(baselineDir, { recursive: true });
+  mkdirSync(candidateDir, { recursive: true });
+
+  writeFileSync(
+    path.join(baselineDir, 'summary.json'),
+    JSON.stringify({
+      schema_version: 1,
+      command: 'perf run',
+      run_id: 'run_001',
+      query_file: 'baseline.sql',
+      query_type: 'SELECT',
+      params_shape: 'none',
+      ordered_param_names: [],
+      source_sql_file: 'baseline.sql',
+      source_sql: 'select 1',
+      bound_sql: 'select 1',
+      strategy: 'direct',
+      requested_mode: 'latency',
+      selected_mode: 'latency',
+      selection_reason: 'forced',
+      classify_threshold_ms: 60000,
+      timeout_ms: 300000,
+      database_version: '16.2',
+      dry_run: false,
+      saved: true,
+      total_elapsed_ms: 300,
+      latency_metrics: {
+        measured_runs: 3,
+        warmup_runs: 1,
+        min_ms: 90,
+        max_ms: 120,
+        avg_ms: 100,
+        median_ms: 95,
+        p95_ms: 120
+      },
+      executed_statements: [{ seq: 1, role: 'final-query', sql: 'select 1', plan_summary: { node_type: 'Seq Scan' } }],
+      plan_observations: ['Seq Scan on public.users'],
+      recommended_actions: [],
+      pipeline_analysis: {
+        query_type: 'SELECT',
+        cte_count: 0,
+        should_consider_pipeline: false,
+        candidate_ctes: [],
+        notes: []
+      }
+    }, null, 2),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(candidateDir, 'summary.json'),
+    JSON.stringify({
+      schema_version: 1,
+      command: 'perf run',
+      run_id: 'run_002',
+      query_file: 'candidate.sql',
+      query_type: 'SELECT',
+      params_shape: 'none',
+      ordered_param_names: [],
+      source_sql_file: 'candidate.sql',
+      source_sql: 'select 1',
+      bound_sql: 'select 1',
+      strategy: 'direct',
+      requested_mode: 'latency',
+      selected_mode: 'latency',
+      selection_reason: 'forced',
+      classify_threshold_ms: 60000,
+      timeout_ms: 300000,
+      database_version: '16.3',
+      dry_run: false,
+      saved: true,
+      total_elapsed_ms: 240,
+      latency_metrics: {
+        measured_runs: 3,
+        warmup_runs: 1,
+        min_ms: 70,
+        max_ms: 90,
+        avg_ms: 80,
+        median_ms: 80,
+        p95_ms: 90
+      },
+      executed_statements: [{ seq: 1, role: 'final-query', sql: 'select 1', plan_summary: { node_type: 'Nested Loop', join_type: 'Inner' } }],
+      plan_observations: ['Inner Nested Loop present in the captured plan'],
+      recommended_actions: [],
+      pipeline_analysis: {
+        query_type: 'SELECT',
+        cte_count: 0,
+        should_consider_pipeline: false,
+        candidate_ctes: [],
+        notes: []
+      }
+    }, null, 2),
+    'utf8'
+  );
+
+  const result = runCli(['--output', 'json', 'perf', 'report', 'diff', baselineDir, candidateDir], {}, workspace);
+
+  assertCliSuccess(result, 'perf report diff');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed).toMatchObject({
+    command: 'perf report diff',
+    ok: true,
+    data: {
+      primary_metric: {
+        name: 'p95_ms',
+        baseline: 120,
+        candidate: 90
+      },
+      plan_deltas: [
+        expect.objectContaining({
+          statement_id: '1:final-query'
+        })
+      ]
+    }
+  });
+});
+

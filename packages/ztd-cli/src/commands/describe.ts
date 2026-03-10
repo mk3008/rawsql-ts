@@ -247,6 +247,51 @@ const COMMANDS: CommandDescriptor[] = [
     ]
   },
   {
+    name: 'perf run',
+    summary: 'Benchmark a SQL query and emit evidence for AI-driven tuning loops.',
+    writesFiles: true,
+    supportsDryRun: true,
+    supportsJsonPayload: true,
+    output: {
+      stdout: 'Human benchmark summary or JSON envelope.',
+      files: ['perf/evidence/run_xxx/* when --save is enabled']
+    },
+    exitCodes: {
+      '0': 'Benchmark completed or dry-run plan emitted.',
+      '1': 'Validation, connection, or execution failed.'
+    },
+    flags: [
+      { name: '--query', description: 'SQL file to benchmark inside the perf sandbox.' },
+      { name: '--params', description: 'JSON or YAML file with named or positional parameters.' },
+      { name: '--mode', description: 'Benchmark mode (auto|latency|completion).', defaultValue: 'auto' },
+      { name: '--repeat', description: 'Measured repetitions for latency mode.', defaultValue: '10' },
+      { name: '--warmup', description: 'Warmup repetitions for latency mode.', defaultValue: '3' },
+      { name: '--classify-threshold-seconds', description: 'Threshold for auto mode classification.', defaultValue: '60' },
+      { name: '--timeout-minutes', description: 'Timeout for measured runs.', defaultValue: '5' },
+      { name: '--save', description: 'Persist benchmark evidence under perf/evidence/run_xxx.' },
+      { name: '--dry-run', description: 'Resolve benchmark mode and evidence shape without touching PostgreSQL.' },
+      { name: '--label', description: 'Attach a short label to the saved run directory.' },
+      { name: '--json', description: 'Pass perf run options as a JSON object.' }
+    ]
+  },
+  {
+    name: 'perf report diff',
+    summary: 'Compare two saved perf benchmark runs and report the primary delta.',
+    writesFiles: false,
+    supportsDryRun: false,
+    supportsJsonPayload: true,
+    output: {
+      stdout: 'Human diff summary or JSON envelope.'
+    },
+    exitCodes: {
+      '0': 'Diff report emitted.',
+      '1': 'Evidence loading or validation failed.'
+    },
+    flags: [
+      { name: '--format', description: 'Output format (text|json).', defaultValue: 'text' },
+      { name: '--json', description: 'Pass perf report diff options as a JSON object.' }
+    ]
+  },  {
     name: 'query uses',
     summary: 'Inspect catalog SQL usage of tables or columns.',
     writesFiles: true,
@@ -373,5 +418,7 @@ export function registerDescribeCommand(program: Command): void {
       process.stdout.write(`${lines.join('\n')}\n`);
     });
 }
+
+
 
 

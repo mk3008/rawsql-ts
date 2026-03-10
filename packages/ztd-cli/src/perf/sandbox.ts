@@ -413,7 +413,7 @@ function resolveTableDefinition(
   return definitions.find((definition) => definition.name === normalized || definition.name === requestedName);
 }
 
-async function ensurePerfConnection(rootDir: string, config: PerfSandboxConfig): Promise<{ connectionUrl: string; usedDocker: boolean }> {
+export async function ensurePerfConnection(rootDir: string, config: PerfSandboxConfig): Promise<{ connectionUrl: string; usedDocker: boolean }> {
   const externalUrl = resolvePerfExternalDatabaseUrl();
   if (externalUrl) {
     return { connectionUrl: externalUrl, usedDocker: false };

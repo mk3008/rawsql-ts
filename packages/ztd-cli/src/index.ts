@@ -102,6 +102,7 @@ Getting started:
   $ ztd ztd-config             Generate TestRowMap types from DDL
   $ ztd lint <path>            Lint SQL files against the schema
   $ ztd perf init             Scaffold the opt-in perf sandbox
+  $ ztd perf run --query src/sql/report.sql --dry-run
   $ ztd query uses table public.users
   $ ztd query uses column public.users.email --format json
   $ ztd --telemetry --telemetry-export debug query uses table public.users
@@ -143,4 +144,8 @@ async function handleFatalError(error: unknown): Promise<never> {
 if (require.main === module) {
   void main().catch(handleFatalError);
 }
+
+
+
+
 
