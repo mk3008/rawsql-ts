@@ -10,6 +10,7 @@ import {
   runPerfBenchmark,
   type PerfBenchmarkReport
 } from '../src/perf/benchmark';
+import { TAX_ALLOCATION_QUERY } from './utils/taxAllocationScenario';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const tmpRoot = path.join(repoRoot, 'tmp');
@@ -126,6 +127,66 @@ test('buildPerfPipelineAnalysis flags reusable fan-out CTEs as pipeline candidat
   );
 });
 
+
+test('buildPerfPipelineAnalysis surfaces tax allocation scalar filter candidates for dogfooding', () => {
+  const workspace = createSqlWorkspace('perf-tax-allocation-analysis', path.join('src', 'sql', 'reports', 'tax_allocation.sql'));
+  writeFileSync(workspace.sqlFile, TAX_ALLOCATION_QUERY, 'utf8');
+
+  const analysis = buildPerfPipelineAnalysis(workspace.sqlFile);
+
+  expect(analysis.should_consider_pipeline).toBe(true);
+  expect(analysis.candidate_ctes).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ name: 'input_lines' }),
+      expect.objectContaining({ name: 'floored_allocations' }),
+      expect.objectContaining({ name: 'ranked_allocations' })
+    ])
+  );
+  expect(analysis.scalar_filter_candidates).toEqual(['allocation_rank']);
+  expect(analysis.notes).toContain('Optimizer-sensitive scalar predicates detected on columns: allocation_rank');
+
+  const report: PerfBenchmarkReport = {
+    schema_version: 1,
+    command: 'perf run',
+    query_file: workspace.sqlFile,
+    query_type: 'SELECT',
+    params_shape: 'none',
+    ordered_param_names: [],
+    source_sql_file: workspace.sqlFile,
+    source_sql: TAX_ALLOCATION_QUERY,
+    bound_sql: TAX_ALLOCATION_QUERY,
+    bindings: undefined,
+    strategy: 'direct',
+    requested_mode: 'latency',
+    selected_mode: 'latency',
+    selection_reason: 'forced',
+    classify_threshold_ms: 60000,
+    timeout_ms: 300000,
+    dry_run: true,
+    saved: false,
+    executed_statements: [],
+    plan_observations: [],
+    recommended_actions: [
+      {
+        action: 'consider-pipeline-materialization',
+        priority: 'medium',
+        rationale: 'Pipeline candidates detected: input_lines, floored_allocations, ranked_allocations.'
+      },
+      {
+        action: 'consider-scalar-filter-binding',
+        priority: 'medium',
+        rationale: 'Scalar filter candidates detected: allocation_rank.'
+      }
+    ],
+    pipeline_analysis: analysis,
+  };
+
+  const text = formatPerfBenchmarkReport(report, 'text');
+  expect(text).toContain('scalar_filter_candidates: allocation_rank');
+  expect(text).toContain('consider-scalar-filter-binding');
+  expect(text).toContain('consider-pipeline-materialization');
+  expect(text).toContain('allocation_rank');
+});
 test('diffPerfBenchmarkReports compares saved latency runs by p95', () => {
   const workspace = createTempDir('perf-benchmark-diff');
   const baselineDir = path.join(workspace, 'run_001');
@@ -172,6 +233,7 @@ test('diffPerfBenchmarkReports compares saved latency runs by p95', () => {
       cte_count: 0,
       should_consider_pipeline: false,
       candidate_ctes: [],
+      scalar_filter_candidates: [],
       notes: []
     }
   };
@@ -442,6 +504,7 @@ test('formatPerfBenchmarkReport surfaces recommended actions for AI follow-up', 
       cte_count: 0,
       should_consider_pipeline: false,
       candidate_ctes: [],
+      scalar_filter_candidates: [],
       notes: []
     }
   };
@@ -513,6 +576,7 @@ test('formatPerfBenchmarkReport recommends join review for nested loop plans', (
       cte_count: 0,
       should_consider_pipeline: false,
       candidate_ctes: [],
+      scalar_filter_candidates: [],
       notes: []
     }
   };
@@ -520,6 +584,8 @@ test('formatPerfBenchmarkReport recommends join review for nested loop plans', (
   expect(text).toContain('inspect-join-strategy');
   expect(text).toContain('Inner Nested Loop present in the captured plan');
 });
+
+
 
 
 

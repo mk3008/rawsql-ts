@@ -5,6 +5,7 @@ import { ensurePgModule } from '../utils/optionalDependencies';
 import { bindModelGenNamedSql } from '../utils/modelGenBinder';
 import { scanModelGenSql, type PlaceholderMode } from '../utils/modelGenScanner';
 import { buildQueryStructureReport } from '../query/structure';
+import { findScalarFilterCandidates } from '../query/scalarFilterAnalysis';
 import { loadPerfSandboxConfig, ensurePerfConnection, type PerfSeedConfig, loadPerfSeedConfig } from './sandbox';
 
 export type PerfBenchmarkMode = 'auto' | 'latency' | 'completion';
@@ -15,7 +16,8 @@ export type PerfRecommendedActionName =
   | 'consider-pipeline-materialization'
   | 'review-index-coverage'
   | 'inspect-join-strategy'
-  | 'stabilize-completion-run';
+  | 'stabilize-completion-run'
+  | 'consider-scalar-filter-binding';
 
 export interface PerfRunOptions {
   rootDir: string;
@@ -66,6 +68,7 @@ export interface PerfPipelineAnalysis {
   cte_count: number;
   should_consider_pipeline: boolean;
   candidate_ctes: PerfPipelineCandidate[];
+  scalar_filter_candidates: string[];
   notes: string[];
 }
 
@@ -467,6 +470,9 @@ export function diffPerfBenchmarkReports(baselineDir: string, candidateDir: stri
   if (baseline.pipeline_analysis.should_consider_pipeline || candidate.pipeline_analysis.should_consider_pipeline) {
     notes.push('Pipeline candidacy is present in at least one run; inspect candidate_ctes before rewriting SQL.');
   }
+  if ((baseline.pipeline_analysis.scalar_filter_candidates?.length ?? 0) > 0 || (candidate.pipeline_analysis.scalar_filter_candidates?.length ?? 0) > 0) {
+    notes.push('Scalar filter binding candidates are present; inspect scalar_filter_candidates before keeping optimizer-sensitive subqueries inline.');
+  }
   if (baseline.database_version && candidate.database_version && baseline.database_version !== candidate.database_version) {
     notes.push(`Database version changed from ${baseline.database_version} to ${candidate.database_version}.`);
   }
@@ -559,6 +565,7 @@ export function formatPerfBenchmarkReport(report: PerfBenchmarkReport, format: P
       lines.push(`  - ${candidate.name}: downstream references=${candidate.downstream_references}`);
     }
   }
+  lines.push(`  scalar_filter_candidates: ${report.pipeline_analysis.scalar_filter_candidates.length > 0 ? report.pipeline_analysis.scalar_filter_candidates.join(', ') : '(none)'}`);
 
   if (report.plan_observations.length > 0) {
     lines.push('');
@@ -636,6 +643,8 @@ export function buildPerfPipelineAnalysis(sqlFile: string): PerfPipelineAnalysis
     referenceCounts.set(root, (referenceCounts.get(root) ?? 0) + 1);
   }
 
+  const scalarFilterCandidates = findScalarFilterCandidates(sqlFile);
+
   const candidateCtes = structure.ctes
     .map((cte) => {
       const downstreamReferences = referenceCounts.get(cte.name) ?? 0;
@@ -657,6 +666,9 @@ export function buildPerfPipelineAnalysis(sqlFile: string): PerfPipelineAnalysis
   const notes = [
     'Pipeline candidacy is heuristic in this MVP and does not yet benchmark SqlSpec runtime materialization directly.'
   ];
+  if (scalarFilterCandidates.length > 0) {
+    notes.push(`Optimizer-sensitive scalar predicates detected on columns: ${scalarFilterCandidates.join(', ')}`);
+  }
   if (structure.unused_ctes.length > 0) {
     notes.push(`Unused CTEs detected: ${structure.unused_ctes.join(', ')}`);
   }
@@ -664,8 +676,9 @@ export function buildPerfPipelineAnalysis(sqlFile: string): PerfPipelineAnalysis
   return {
     query_type: structure.query_type,
     cte_count: structure.cte_count,
-    should_consider_pipeline: candidateCtes.length > 0,
+    should_consider_pipeline: candidateCtes.length > 0 || scalarFilterCandidates.length > 0,
     candidate_ctes: candidateCtes,
+    scalar_filter_candidates: scalarFilterCandidates,
     notes
   };
 }
@@ -688,11 +701,18 @@ function buildPerfRecommendedActions(
       rationale: 'The benchmark timed out in completion mode, so the next loop should focus on finishing the query before comparing latency percentiles.'
     });
   }
-  if (pipelineAnalysis.should_consider_pipeline) {
+  if (pipelineAnalysis.candidate_ctes.length > 0) {
     actions.push({
       action: 'consider-pipeline-materialization',
       priority: 'medium',
       rationale: `Pipeline candidates detected: ${pipelineAnalysis.candidate_ctes.map((candidate) => candidate.name).join(', ')}.`
+    });
+  }
+  if (pipelineAnalysis.scalar_filter_candidates.length > 0) {
+    actions.push({
+      action: 'consider-scalar-filter-binding',
+      priority: 'medium',
+      rationale: `Scalar filter candidates detected: ${pipelineAnalysis.scalar_filter_candidates.join(', ')}.`
     });
   }
   if (planFacts.hasSequentialScan) {
@@ -1325,6 +1345,7 @@ function isPerfPipelineAnalysis(value: unknown): value is PerfPipelineAnalysis {
     && typeof analysis.cte_count === 'number'
     && typeof analysis.should_consider_pipeline === 'boolean'
     && Array.isArray(analysis.candidate_ctes)
+    && Array.isArray(analysis.scalar_filter_candidates)
     && Array.isArray(analysis.notes);
 }
 
@@ -1493,5 +1514,12 @@ function truncateSingleLine(value: string, limit: number): string {
   }
   return `${normalized.slice(0, limit - 3)}...`;
 }
+
+
+
+
+
+
+
 
 

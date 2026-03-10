@@ -12,6 +12,7 @@ import {
   LimitClause,
   LiteralValue,
   ParameterExpression,
+  ParenExpression,
   RawString,
   IdentifierString,
   SelectClause,
@@ -106,6 +107,8 @@ interface ScalarBindingContext {
   scalarFilterColumns: Set<string>;
   stageCteNames: Set<string>;
   materializedCtes: Set<string>;
+  sourceSql: string;
+  recursive: boolean;
   nextOrdinal: number;
 }
 
@@ -150,14 +153,15 @@ export async function executeQueryPipeline(
         steps.push(...stage.scalarSteps);
 
         const sql = `create temp table ${quoteIdentifier(step.target)} as ${stage.sql.trim()}`;
-        const result = normalizePipelineQueryResult(await session.query(sql, stage.params));
+        const stageParams = normalizeParamsForSql(sql, stage.params, options.params);
+        const result = normalizePipelineQueryResult(await session.query(sql, stageParams));
         materializedCtes.push(step.target);
         createdTempTables.push(step.target);
         steps.push({
           kind: step.kind,
           target: step.target,
           sql,
-          params: stage.params,
+          params: stageParams,
           rowCount: result.rowCount
         });
         continue;
@@ -171,12 +175,13 @@ export async function executeQueryPipeline(
       });
       steps.push(...finalStage.scalarSteps);
 
-      const result = normalizePipelineQueryResult(await session.query(finalStage.sql, finalStage.params));
+      const finalParams = normalizeParamsForSql(finalStage.sql, finalStage.params, options.params);
+      const result = normalizePipelineQueryResult(await session.query(finalStage.sql, finalParams));
       steps.push({
         kind: step.kind,
         target: step.target,
         sql: finalStage.sql,
-        params: finalStage.params,
+        params: finalParams,
         rowCount: result.rowCount
       });
       return {
@@ -185,7 +190,7 @@ export async function executeQueryPipeline(
           rows: result.rows,
           rowCount: result.rowCount,
           sql: finalStage.sql,
-          params: finalStage.params
+          params: finalParams
         },
         steps
       };
@@ -231,7 +236,12 @@ async function buildTargetStageQuery(
     throw new Error(`CTE not found in query: ${targetName}`);
   }
 
-  const bindingContext = createScalarBindingContext(options, includedNames);
+  const bindingContext = createScalarBindingContext(
+    options,
+    includedNames,
+    source.sql,
+    getWithClause(parsed)?.recursive ?? false
+  );
   const scalarSteps = await bindScalarFilterPredicatesInCtes(includedCtes, bindingContext, session);
   const formatter = createPipelineFormatter(options.runtimeParams);
   const mainQuery = buildSelectFromTargetQuery(targetName, options.limit);
@@ -245,7 +255,7 @@ async function buildTargetStageQuery(
 
   return {
     sql: `${sql}\n`,
-    params: mergedParams,
+    params: normalizeParamsForSql(sql, mergedParams, options.runtimeParams),
     scalarSteps
   };
 }
@@ -260,7 +270,12 @@ async function buildFinalStageQuery(
   const stopSet = new Set(options.materializedCtes);
   const includedNames = [...collectReachableCtes(analysis.rootDependencies, analysis.dependencyMap, stopSet)];
   const includedCtes = buildStageCtes(analysis.ctes, includedNames, null, options.materializedCtes);
-  const bindingContext = createScalarBindingContext(options, includedNames);
+  const bindingContext = createScalarBindingContext(
+    options,
+    includedNames,
+    source.sql,
+    getWithClause(parsed)?.recursive ?? false
+  );
 
   applyMinimalWithClause(parsed, includedCtes, getWithClause(parsed)?.recursive ?? false);
   const scalarSteps = [
@@ -277,7 +292,7 @@ async function buildFinalStageQuery(
       const { formattedSql, params } = formatter.format(wrapped);
       return {
         sql: `${formattedSql}\n`,
-        params: mergeFormatterParams(params, options.runtimeParams),
+        params: normalizeParamsForSql(formattedSql, mergeFormatterParams(params, options.runtimeParams), options.runtimeParams),
         scalarSteps
       };
     } else {
@@ -288,20 +303,24 @@ async function buildFinalStageQuery(
   const { formattedSql, params } = formatter.format(parsed);
   return {
     sql: `${formattedSql}\n`,
-    params: mergeFormatterParams(params, options.runtimeParams),
+    params: normalizeParamsForSql(formattedSql, mergeFormatterParams(params, options.runtimeParams), options.runtimeParams),
     scalarSteps
   };
 }
 
 function createScalarBindingContext(
   options: BuildPipelineStageQueryOptions,
-  includedNames: string[]
+  includedNames: string[],
+  sourceSql: string,
+  recursive: boolean
 ): ScalarBindingContext {
   return {
     runtimeParams: options.runtimeParams,
     scalarFilterColumns: new Set(options.scalarFilterColumns),
     stageCteNames: new Set(includedNames),
     materializedCtes: new Set(options.materializedCtes),
+    sourceSql,
+    recursive,
     nextOrdinal: 1
   };
 }
@@ -477,29 +496,73 @@ async function executeScalarFilterBinding(
     return null;
   }
 
-  if (dependsOnStageCtes(selectQuery, context.stageCteNames, context.materializedCtes)) {
-    return null;
-  }
-
   assertSingleColumnScalarSelect(selectQuery, candidate.columnName);
   const paramName = `__scalar_filter_${candidate.columnName}_${context.nextOrdinal}`;
-  const formatter = createPipelineFormatter(context.runtimeParams);
-  const { formattedSql, params } = formatter.format(selectQuery);
-  const queryParams = mergeFormatterParams(params, context.runtimeParams);
-  const sql = `${formattedSql}\n`;
-  const result = normalizePipelineQueryResult(await session.query(sql, queryParams));
+  const { sql, params: queryParams } = buildScalarBindingQuery(selectQuery, context);
+  const scalarParams = normalizeParamsForSql(sql, queryParams, context.runtimeParams);
+  const result = normalizePipelineQueryResult(await session.query(sql, scalarParams));
   const value = extractScalarFilterValue(result.rows, candidate.columnName);
   const step: QueryPipelineExecutionStepResult = {
     kind: 'scalar-filter-bind',
     target: candidate.columnName,
     sql,
-    params: queryParams,
+    params: scalarParams,
     rowCount: result.rowCount
   };
 
   context.nextOrdinal += 1;
   return { paramName, value, step };
 }
+function buildScalarBindingQuery(
+  selectQuery: SimpleSelectQuery,
+  context: ScalarBindingContext
+): { sql: string; params?: unknown[] | Record<string, unknown> } {
+  const sourceStatement = assertSupportedStatement(SqlParser.parse(context.sourceSql), 'executeQueryPipeline');
+  const sourceAnalysis = analyzeStatement(sourceStatement);
+  const scalarRoots = collectScalarQueryCteRoots(selectQuery, sourceAnalysis.ctes, context.materializedCtes);
+  const dependencyNames = scalarRoots.length > 0
+    ? [...collectReachableCtes(scalarRoots, sourceAnalysis.dependencyMap, context.materializedCtes)]
+    : [];
+  const scalarCtes = buildStageCtes(sourceAnalysis.ctes, dependencyNames, null, [...context.materializedCtes]);
+  const formatter = createPipelineFormatter(context.runtimeParams);
+  const withComponent = scalarCtes.length > 0 ? new WithClause(context.recursive, scalarCtes) : null;
+  const withResult = withComponent
+    ? formatter.format(withComponent)
+    : { formattedSql: '', params: emptyFormatterParams(context.runtimeParams) };
+  const mainResult = formatter.format(selectQuery);
+  const mergedParams = mergeFormatterParams([withResult.params, mainResult.params], context.runtimeParams);
+  const sql = withResult.formattedSql ? `${withResult.formattedSql} ${mainResult.formattedSql}` : mainResult.formattedSql;
+
+  return {
+    sql: `${sql}
+`,
+    params: normalizeParamsForSql(sql, mergedParams, context.runtimeParams)
+  };
+}
+
+function collectScalarQueryCteRoots(
+  selectQuery: SimpleSelectQuery,
+  ctes: CommonTable[],
+  materializedCtes: ReadonlySet<string>
+): string[] {
+  const cteNames = new Set(ctes.map((cte) => cte.aliasExpression.table.name));
+  const sources = selectQuery.fromClause?.getSources() ?? [];
+  const roots: string[] = [];
+
+  for (const source of sources) {
+    if (!(source.datasource instanceof TableSource)) {
+      continue;
+    }
+
+    const sourceName = extractQualifiedNameLeaf(source.datasource.qualifiedName.name);
+    if (cteNames.has(sourceName) && !materializedCtes.has(sourceName)) {
+      roots.push(sourceName);
+    }
+  }
+
+  return roots;
+}
+
 function assertSingleColumnScalarSelect(selectQuery: SimpleSelectQuery, columnName: string): void {
   if (selectQuery.selectClause.items.length !== 1) {
     throw new Error(`Scalar filter binding for column "${columnName}" requires a subquery that statically exposes exactly one column.`);
@@ -625,7 +688,15 @@ function walkAst(node: unknown, visit: (current: unknown) => void): void {
 }
 
 function unwrapInlineQuery(expression: unknown): InlineQuery | null {
-  return expression instanceof InlineQuery ? expression : null;
+  if (expression instanceof InlineQuery) {
+    return expression;
+  }
+
+  if (expression instanceof ParenExpression) {
+    return unwrapInlineQuery(expression.expression);
+  }
+
+  return null;
 }
 
 function extractOperator(operator: RawString | unknown): string {
@@ -692,9 +763,17 @@ function mergeFormatterParams(
 
   const merged: unknown[] = Array.isArray(runtimeParams) ? [...runtimeParams] : [];
   for (const part of parts) {
-    if (Array.isArray(part)) {
-      merged.push(...part);
+    if (!Array.isArray(part)) {
+      continue;
     }
+
+    // Formatter arrays reuse positional indexes, so keep runtime slots in place and only fill missing/generated entries.
+    part.forEach((value, index) => {
+      if ((value === undefined || value === null) && index < merged.length) {
+        return;
+      }
+      merged[index] = value;
+    });
   }
 
   return merged.length > 0 ? merged : undefined;
@@ -702,6 +781,38 @@ function mergeFormatterParams(
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function normalizeParamsForSql(
+  sql: string,
+  params: unknown[] | Record<string, unknown> | undefined,
+  runtimeParams: unknown[] | Record<string, unknown> | undefined
+): unknown[] | Record<string, unknown> | undefined {
+  if (!Array.isArray(params)) {
+    return params;
+  }
+
+  const maxSlot = findHighestPositionalPlaceholder(sql);
+  if (maxSlot === 0) {
+    return undefined;
+  }
+
+  const finalized = params.slice(0, maxSlot).map((value, index) => {
+    if ((value === undefined || value === null) && Array.isArray(runtimeParams) && index < runtimeParams.length) {
+      return runtimeParams[index];
+    }
+    return value;
+  });
+
+  return finalized;
+}
+
+function findHighestPositionalPlaceholder(sql: string): number {
+  let highest = 0;
+  for (const match of sql.matchAll(/\$(\d+)/g)) {
+    highest = Math.max(highest, Number(match[1]));
+  }
+  return highest;
 }
 
 function normalizePipelineQueryResult(result: PipelineQueryResult): { rows: PipelineRow[]; rowCount?: number } {
@@ -892,4 +1003,9 @@ function getSelectWithClause(statement: SimpleSelectQuery | BinarySelectQuery | 
 
   return null;
 }
+
+
+
+
+
 
