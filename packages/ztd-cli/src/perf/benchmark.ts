@@ -338,7 +338,16 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
 
     representativePlan = await captureDirectPlan(options.rootDir, prepared, timeoutMs, true);
   } else {
-    representativeExecution = await executeDirectBenchmarkOnce(options.rootDir, prepared, timeoutMs);
+    // Reuse the auto-classification probe when it already completed the long-running query.
+    if (selection.probe && !selection.probe.timedOut) {
+      representativeExecution = selection.probe;
+      classificationProbe = {
+        ...toPerfClassificationProbe(selection.probe),
+        reused_as_measured_run: true
+      };
+    } else {
+      representativeExecution = await executeDirectBenchmarkOnce(options.rootDir, prepared, timeoutMs);
+    }
     representativePlan = await captureDirectPlan(options.rootDir, prepared, timeoutMs, !representativeExecution.timedOut);
   }
 
@@ -915,13 +924,23 @@ function prepareBenchmarkQuery(rootDir: string, queryFile: string, paramsFile?: 
     if (!Array.isArray(rawBindings)) {
       throw new Error('Positional SQL placeholders require an array in --params.');
     }
+
+    const orderedParamNames = scan.positionalTokens.map((token) => token.token);
+    const highestRequiredIndex = orderedParamNames.reduce((max, token) => {
+      const parsed = Number(token.slice(1));
+      return Number.isInteger(parsed) ? Math.max(max, parsed) : max;
+    }, 0);
+    if (rawBindings.length < highestRequiredIndex) {
+      throw new Error(`Positional SQL placeholders require at least ${highestRequiredIndex} parameters for $${highestRequiredIndex}.`);
+    }
+
     return {
       absolutePath,
       sourceSql,
       boundSql: sourceSql,
       queryType: 'SELECT',
       paramsShape: scan.mode,
-      orderedParamNames: scan.positionalTokens.map((token) => token.token),
+      orderedParamNames,
       bindings: rawBindings
     };
   }
@@ -1257,13 +1276,16 @@ function isPerfBenchmarkReport(value: unknown): value is PerfBenchmarkReport {
   if (report.query_type !== 'SELECT' || report.strategy !== 'direct') {
     return false;
   }
-  if (!Array.isArray(report.ordered_param_names) || !Array.isArray(report.executed_statements)) {
-    return false;
-  }
   if (!isPerfSelectedMode(report.selected_mode) || !isPerfRequestedMode(report.requested_mode)) {
     return false;
   }
-  if (!isPerfPipelineAnalysis(report.pipeline_analysis)) {
+  if (!isStringArray(report.ordered_param_names) || !isPerfStatementReportArray(report.executed_statements)) {
+    return false;
+  }
+  if (!isStringArray(report.plan_observations) || !isPerfRecommendedActionArray(report.recommended_actions)) {
+    return false;
+  }
+  if (!isPerfPipelineAnalysis(report.pipeline_analysis) || !isOptionalPerfClassificationProbe(report.classification_probe)) {
     return false;
   }
   return typeof report.query_file === 'string'
@@ -1274,7 +1296,16 @@ function isPerfBenchmarkReport(value: unknown): value is PerfBenchmarkReport {
     && typeof report.classify_threshold_ms === 'number'
     && typeof report.timeout_ms === 'number'
     && typeof report.dry_run === 'boolean'
-    && typeof report.saved === 'boolean';
+    && typeof report.saved === 'boolean'
+    && isOptionalString(report.params_file)
+    && isOptionalString(report.run_id)
+    && isOptionalString(report.label)
+    && isOptionalString(report.evidence_dir)
+    && isOptionalString(report.database_version)
+    && isOptionalNumber(report.total_elapsed_ms)
+    && isOptionalPerfPlanSummary(report.plan_summary)
+    && isOptionalLatencyMetrics(report.latency_metrics)
+    && isOptionalCompletionMetrics(report.completion_metrics);
 }
 
 function isPerfSelectedMode(value: unknown): value is PerfSelectedBenchmarkMode {
@@ -1295,6 +1326,124 @@ function isPerfPipelineAnalysis(value: unknown): value is PerfPipelineAnalysis {
     && typeof analysis.should_consider_pipeline === 'boolean'
     && Array.isArray(analysis.candidate_ctes)
     && Array.isArray(analysis.notes);
+}
+
+function isPerfStatementReportArray(value: unknown): value is PerfStatementReport[] {
+  return Array.isArray(value) && value.every((statement) => isPerfStatementReport(statement));
+}
+
+function isPerfStatementReport(value: unknown): value is PerfStatementReport {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const statement = value as Record<string, unknown>;
+  return typeof statement.seq === 'number'
+    && statement.role === 'final-query'
+    && typeof statement.sql === 'string'
+    && isOptionalBindings(statement.bindings)
+    && isOptionalString(statement.resolved_sql_preview)
+    && isOptionalNumber(statement.row_count)
+    && isOptionalNumber(statement.elapsed_ms)
+    && isOptionalBoolean(statement.timed_out)
+    && isOptionalPerfPlanSummary(statement.plan_summary)
+    && isOptionalString(statement.sql_file)
+    && isOptionalString(statement.resolved_sql_preview_file)
+    && isOptionalString(statement.plan_file);
+}
+
+function isPerfRecommendedActionArray(value: unknown): value is PerfRecommendedAction[] {
+  return Array.isArray(value) && value.every((action) => isPerfRecommendedAction(action));
+}
+
+function isPerfRecommendedAction(value: unknown): value is PerfRecommendedAction {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const action = value as Record<string, unknown>;
+  return typeof action.action === 'string'
+    && (action.priority === 'high' || action.priority === 'medium')
+    && typeof action.rationale === 'string';
+}
+
+function isOptionalPerfClassificationProbe(value: unknown): value is PerfClassificationProbe | undefined {
+  if (value === undefined) {
+    return true;
+  }
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const probe = value as Record<string, unknown>;
+  return typeof probe.elapsed_ms === 'number'
+    && typeof probe.timed_out === 'boolean'
+    && isOptionalNumber(probe.row_count)
+    && isOptionalBoolean(probe.reused_as_warmup)
+    && isOptionalBoolean(probe.reused_as_measured_run);
+}
+
+function isOptionalPerfPlanSummary(value: unknown): value is PerfPlanSummary | null | undefined {
+  if (value === undefined || value === null) {
+    return true;
+  }
+  if (typeof value !== 'object') {
+    return false;
+  }
+  const summary = value as Record<string, unknown>;
+  return isOptionalString(summary.node_type)
+    && isOptionalString(summary.join_type)
+    && isOptionalNumber(summary.total_cost)
+    && isOptionalNumber(summary.plan_rows)
+    && isOptionalNumber(summary.actual_rows)
+    && isOptionalNumber(summary.actual_total_time);
+}
+
+function isOptionalLatencyMetrics(value: unknown): boolean {
+  if (value === undefined) {
+    return true;
+  }
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const metrics = value as Record<string, unknown>;
+  return typeof metrics.measured_runs === 'number'
+    && typeof metrics.warmup_runs === 'number'
+    && typeof metrics.min_ms === 'number'
+    && typeof metrics.max_ms === 'number'
+    && typeof metrics.avg_ms === 'number'
+    && typeof metrics.median_ms === 'number'
+    && typeof metrics.p95_ms === 'number';
+}
+
+function isOptionalCompletionMetrics(value: unknown): boolean {
+  if (value === undefined) {
+    return true;
+  }
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const metrics = value as Record<string, unknown>;
+  return typeof metrics.completed === 'boolean'
+    && typeof metrics.timed_out === 'boolean'
+    && typeof metrics.wall_time_ms === 'number';
+}
+
+function isOptionalBindings(value: unknown): boolean {
+  return value === undefined || Array.isArray(value) || (typeof value === 'object' && value !== null);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
+}
+
+function isOptionalString(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === 'string';
+}
+
+function isOptionalNumber(value: unknown): value is number | undefined {
+  return value === undefined || typeof value === 'number';
+}
+
+function isOptionalBoolean(value: unknown): value is boolean | undefined {
+  return value === undefined || typeof value === 'boolean';
 }
 
 function normalizeFinalQueryRoots(finalQuery: string | string[] | null | undefined): string[] {

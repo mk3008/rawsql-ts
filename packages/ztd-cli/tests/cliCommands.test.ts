@@ -1607,6 +1607,7 @@ test('perf report diff emits machine-readable JSON from saved evidence summaries
       },
       executed_statements: [{ seq: 1, role: 'final-query', sql: 'select 1', plan_summary: { node_type: 'Seq Scan' } }],
       plan_observations: ['Seq Scan on public.users'],
+      recommended_actions: [],
       pipeline_analysis: {
         query_type: 'SELECT',
         cte_count: 0,
@@ -1651,6 +1652,7 @@ test('perf report diff emits machine-readable JSON from saved evidence summaries
       },
       executed_statements: [{ seq: 1, role: 'final-query', sql: 'select 1', plan_summary: { node_type: 'Nested Loop', join_type: 'Inner' } }],
       plan_observations: ['Inner Nested Loop present in the captured plan'],
+      recommended_actions: [],
       pipeline_analysis: {
         query_type: 'SELECT',
         cte_count: 0,
@@ -1683,3 +1685,4 @@ test('perf report diff emits machine-readable JSON from saved evidence summaries
     }
   });
 });
+

@@ -166,6 +166,7 @@ test('diffPerfBenchmarkReports compares saved latency runs by p95', () => {
     },
     executed_statements: [{ seq: 1, role: 'final-query', sql: 'select 1', bindings: undefined, elapsed_ms: 110, plan_summary: { node_type: 'Seq Scan' } }],
     plan_observations: ['Seq Scan on public.users'],
+    recommended_actions: [],
     pipeline_analysis: {
       query_type: 'SELECT',
       cte_count: 0,
@@ -241,6 +242,26 @@ test('runPerfBenchmark wraps YAML parse failures with the absolute params path',
     dryRun: true,
   })).rejects.toThrow(`Failed to parse perf params file ${path.resolve(paramsFile)}`);
 });
+test('runPerfBenchmark rejects positional params that do not cover the highest placeholder index', async () => {
+  const workspace = createSqlWorkspace('perf-benchmark-positional-arity', path.join('src', 'sql', 'reports', 'positional.sql'));
+  const paramsFile = path.join(workspace.rootDir, 'perf', 'params.json');
+  mkdirSync(path.dirname(paramsFile), { recursive: true });
+  writeFileSync(workspace.sqlFile, 'select * from public.sales where region_id = $3', 'utf8');
+  writeFileSync(paramsFile, JSON.stringify([10, 20], null, 2), 'utf8');
+
+  await expect(runPerfBenchmark({
+    rootDir: workspace.rootDir,
+    queryFile: workspace.sqlFile,
+    paramsFile,
+    mode: 'latency',
+    repeat: 1,
+    warmup: 0,
+    classifyThresholdSeconds: 60,
+    timeoutMinutes: 5,
+    save: false,
+    dryRun: true,
+  })).rejects.toThrow('Positional SQL placeholders require at least 3 parameters for $3.');
+});
 test('runPerfBenchmark dry-run preserves quoted YAML string params', async () => {
   const workspace = createSqlWorkspace('perf-benchmark-yaml-quoted', path.join('src', 'sql', 'reports', 'status.sql'));
   const paramsFile = path.join(workspace.rootDir, 'perf', 'params.yml');
@@ -293,7 +314,34 @@ test('loadPerfBenchmarkReport rejects malformed summary payloads', () => {
   const workspace = createTempDir('perf-benchmark-invalid-summary');
   writeFileSync(
     path.join(workspace, 'summary.json'),
-    JSON.stringify({ schema_version: 1, command: 'perf run', selected_mode: 'latency' }, null, 2),
+    JSON.stringify({
+      schema_version: 1,
+      command: 'perf run',
+      query_file: 'broken.sql',
+      query_type: 'SELECT',
+      ordered_param_names: [],
+      source_sql_file: 'broken.sql',
+      source_sql: 'select 1',
+      bound_sql: 'select 1',
+      strategy: 'direct',
+      requested_mode: 'latency',
+      selected_mode: 'latency',
+      selection_reason: 'forced',
+      classify_threshold_ms: 60000,
+      timeout_ms: 300000,
+      dry_run: false,
+      saved: true,
+      executed_statements: [{}],
+      plan_observations: ['ok'],
+      recommended_actions: [],
+      pipeline_analysis: {
+        query_type: 'SELECT',
+        cte_count: 0,
+        should_consider_pipeline: false,
+        candidate_ctes: [],
+        notes: []
+      }
+    }, null, 2),
     'utf8'
   );
 
@@ -472,5 +520,4 @@ test('formatPerfBenchmarkReport recommends join review for nested loop plans', (
   expect(text).toContain('inspect-join-strategy');
   expect(text).toContain('Inner Nested Loop present in the captured plan');
 });
-
 
