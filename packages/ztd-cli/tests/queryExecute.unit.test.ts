@@ -203,7 +203,7 @@ test('executeQueryPipeline runs multi-stage materialized pipelines without recom
   const finalSql = normalizeSql(query.mock.calls[2]?.[0] as string);
 
   expect(stage1Sql).toContain('create temp table "filtered_sales" as with');
-  expect(stage2Sql).toContain('create temp table "ranked_sales" as with');
+  expect(stage2Sql).toContain('create temp table "ranked_sales" as select');
   expect(stage2Sql).not.toContain('filtered_sales as (');
   expect(stage2Sql).toContain('from "filtered_sales"');
   expect(finalSql).not.toContain('filtered_sales as (');
@@ -211,6 +211,38 @@ test('executeQueryPipeline runs multi-stage materialized pipelines without recom
   expect(finalSql).toContain('from "ranked_sales"');
   expect(normalizeSql(query.mock.calls[3]?.[0] as string)).toBe('drop table if exists "ranked_sales"');
   expect(normalizeSql(query.mock.calls[4]?.[0] as string)).toBe('drop table if exists "filtered_sales"');
+  expect(release).toHaveBeenCalledTimes(1);
+});
+
+test('executeQueryPipeline materializes root ctes without self-shadowing the temp table name', async () => {
+  const workspace = createSqlWorkspace('query-pipeline-root-material');
+  writeMaterialChainSql(workspace.sqlFile);
+
+  const query = vi.fn()
+    .mockResolvedValueOnce({ rows: [], rowCount: 2 })
+    .mockResolvedValueOnce({ rows: [{ id: 1, sale_date: '2024-12-15' }], rowCount: 1 })
+    .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+  const release = vi.fn();
+  const openSession = vi.fn(async () => ({ query, release }));
+
+  const result = await executeQueryPipeline(
+    { openSession },
+    {
+      sqlFile: workspace.sqlFile,
+      metadata: {
+        material: ['base_sales']
+      }
+    }
+  );
+
+  expect(result.steps.map((step) => step.kind)).toEqual(['materialize', 'final-query']);
+  const stageSql = normalizeSql(query.mock.calls[0]?.[0] as string);
+  const finalSql = normalizeSql(query.mock.calls[1]?.[0] as string);
+
+  expect(stageSql).toContain('create temp table "base_sales" as select "id", "sale_date", "region_id" from "sales"');
+  expect(stageSql).not.toContain('with base_sales as (');
+  expect(finalSql).toContain('from "base_sales"');
+  expect(normalizeSql(query.mock.calls[2]?.[0] as string)).toBe('drop table if exists "base_sales"');
   expect(release).toHaveBeenCalledTimes(1);
 });
 

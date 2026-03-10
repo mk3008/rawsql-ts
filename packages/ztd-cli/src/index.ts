@@ -103,6 +103,7 @@ Getting started:
   $ ztd lint <path>            Lint SQL files against the schema
   $ ztd perf init             Scaffold the opt-in perf sandbox
   $ ztd perf run --query src/sql/report.sql --dry-run
+  $ ztd --telemetry --telemetry-export file --telemetry-file tmp/telemetry/perf-run.jsonl perf run --query src/sql/report.sql --dry-run
   $ ztd query uses table public.users
   $ ztd query uses column public.users.email --format json
   $ ztd --telemetry --telemetry-export debug query uses table public.users

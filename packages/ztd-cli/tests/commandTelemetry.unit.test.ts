@@ -287,3 +287,64 @@ test('ddl diff emits stable phase spans through the real CLI path', async () => 
     ]),
   );
 });
+
+test('perf run emits benchmark phase spans through the real CLI path', async () => {
+  const workspace = createWorkspace('perf-run-telemetry');
+  const sqlDir = path.join(workspace, 'src', 'sql');
+  const perfDir = path.join(workspace, 'perf');
+  mkdirSync(sqlDir, { recursive: true });
+  mkdirSync(perfDir, { recursive: true });
+
+  const sqlFile = path.join(sqlDir, 'sales.sql');
+  const paramsFile = path.join(perfDir, 'params.yml');
+  writeFileSync(
+    sqlFile,
+    [
+      'select *',
+      'from public.sales',
+      'where region_id = :region_id'
+    ].join('\n'),
+    'utf8',
+  );
+  writeFileSync(paramsFile, ['params:', '  region_id: 77', ''].join('\n'), 'utf8');
+
+  const telemetry = captureTelemetry();
+  const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+    void chunk;
+    return true;
+  }) as typeof process.stdout.write);
+
+  const program = buildProgram();
+  program.exitOverride();
+  await program.parseAsync(
+    [
+      'node',
+      'ztd',
+      '--telemetry',
+      'perf',
+      'run',
+      '--query',
+      sqlFile,
+      '--params',
+      paramsFile,
+      '--mode',
+      'latency',
+      '--dry-run',
+    ],
+    { from: 'node' },
+  );
+
+  telemetry.restore();
+  stdoutSpy.mockRestore();
+
+  const payloads = parseTelemetryPayloads(telemetry.lines);
+  expect(payloads).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ kind: 'span-start', spanName: 'perf run' }),
+      expect.objectContaining({ kind: 'span-start', spanName: 'resolve-perf-run-options' }),
+      expect.objectContaining({ kind: 'span-start', spanName: 'execute-perf-benchmark' }),
+      expect.objectContaining({ kind: 'span-start', spanName: 'render-perf-report' }),
+      expect.objectContaining({ kind: 'span-end', spanName: 'perf run', status: 'ok' }),
+    ]),
+  );
+});

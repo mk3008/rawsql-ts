@@ -1686,3 +1686,62 @@ test('perf report diff emits machine-readable JSON from saved evidence summaries
   });
 });
 
+
+test('perf run dry-run exposes decomposed multi-statement strategy metadata in global json mode', () => {
+  const workspace = createSqlWorkspace('perf-run-decomposed', path.join('src', 'sql', 'reports', 'sales.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with base_sales as (
+        select id, region_id from public.sales
+      ),
+      filtered_sales as (
+        select id from base_sales where region_id = 99
+      ),
+      final_sales as (
+        select id from filtered_sales
+      )
+      select * from final_sales
+    `,
+    'utf8'
+  );
+
+  const result = runCli(
+    [
+      '--output',
+      'json',
+      'perf',
+      'run',
+      '--query',
+      workspace.sqlFile,
+      '--strategy',
+      'decomposed',
+      '--material',
+      'base_sales,filtered_sales',
+      '--mode',
+      'latency',
+      '--dry-run'
+    ],
+    {},
+    workspace.rootDir
+  );
+
+  assertCliSuccess(result, 'perf run decomposed dry-run');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    strategy: 'decomposed',
+    strategy_metadata: {
+      materialized_ctes: ['base_sales', 'filtered_sales'],
+      planned_steps: [
+        expect.objectContaining({ step: 1, kind: 'materialize', target: 'base_sales' }),
+        expect.objectContaining({ step: 2, kind: 'materialize', target: 'filtered_sales' }),
+        expect.objectContaining({ step: 3, kind: 'final-query', target: 'FINAL_QUERY' }),
+      ]
+    },
+    executed_statements: [
+      expect.objectContaining({ seq: 1, role: 'materialize', target: 'base_sales' }),
+      expect.objectContaining({ seq: 2, role: 'materialize', target: 'filtered_sales' }),
+      expect.objectContaining({ seq: 3, role: 'final-query', target: 'FINAL_QUERY' }),
+    ]
+  });
+});
