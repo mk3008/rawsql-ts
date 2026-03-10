@@ -521,3 +521,5 @@ test('formatPerfBenchmarkReport recommends join review for nested loop plans', (
   expect(text).toContain('Inner Nested Loop present in the captured plan');
 });
 
+
+

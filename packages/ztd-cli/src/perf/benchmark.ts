@@ -632,7 +632,7 @@ export function buildPerfPipelineAnalysis(sqlFile: string): PerfPipelineAnalysis
       referenceCounts.set(dependency, (referenceCounts.get(dependency) ?? 0) + 1);
     }
   }
-  for (const root of (structure.final_query ?? '').split(',').map((value) => value.trim()).filter(Boolean)) {
+  for (const root of normalizeFinalQueryRoots(structure.final_query)) {
     referenceCounts.set(root, (referenceCounts.get(root) ?? 0) + 1);
   }
 
@@ -1493,4 +1493,5 @@ function truncateSingleLine(value: string, limit: number): string {
   }
   return `${normalized.slice(0, limit - 3)}...`;
 }
+
 
