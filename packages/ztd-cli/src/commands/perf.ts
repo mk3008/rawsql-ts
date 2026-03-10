@@ -8,7 +8,16 @@ import {
   resetPerfSandbox,
   seedPerfSandbox
 } from '../perf/sandbox';
-import { isJsonOutput, parseJsonPayload, writeCommandResultEnvelope } from '../utils/agentCli';
+import {
+  PERF_BENCHMARK_DEFAULTS,
+  diffPerfBenchmarkReports,
+  formatPerfBenchmarkReport,
+  formatPerfDiffReport,
+  runPerfBenchmark,
+  type PerfBenchmarkFormat,
+  type PerfBenchmarkMode
+} from '../perf/benchmark';
+import { isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
 import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { CreateTableQuery, MultiQuerySplitter, SqlParser, createTableDefinitionFromCreateTableQuery } from 'rawsql-ts';
 import { collectSqlFiles } from '../utils/collectSqlFiles';
@@ -28,6 +37,25 @@ interface PerfResetOptions {
   json?: string;
 }
 
+interface PerfRunOptions {
+  query?: string;
+  params?: string;
+  mode?: string;
+  repeat?: string;
+  warmup?: string;
+  classifyThresholdSeconds?: string;
+  timeoutMinutes?: string;
+  save?: boolean;
+  dryRun?: boolean;
+  label?: string;
+  json?: string;
+}
+
+interface PerfReportDiffOptions {
+  format?: string;
+  json?: string;
+}
+
 export function registerPerfCommands(program: Command): void {
   const perf = program.command('perf').description('Opt-in perf sandbox workflows for reproducible SQL experiments');
   perf.addHelpText(
@@ -37,6 +65,8 @@ Examples:
   $ ztd perf init
   $ ztd perf db reset --dry-run
   $ ztd perf seed --dry-run
+  $ ztd perf run --query src/sql/report.sql --dry-run
+  $ ztd perf report diff perf/evidence/run_001 perf/evidence/run_002
 `
   );
 
@@ -66,6 +96,34 @@ Examples:
     .option('--json <payload>', 'Pass perf seed options as a JSON object')
     .action(async (options: PerfSeedOptions) => {
       await runPerfSeedCommand(options);
+    });
+
+  perf
+    .command('run')
+    .description('Benchmark one SQL query and capture evidence for AI-driven tuning loops')
+    .requiredOption('--query <sqlFile>', 'SQL file to benchmark inside the perf sandbox')
+    .option('--params <path>', 'JSON file with query parameters (object for named placeholders, array for positional)')
+    .option('--mode <mode>', 'Benchmark mode (auto|latency|completion)', 'auto')
+    .option('--repeat <count>', `Measured repetitions for latency mode (default: ${PERF_BENCHMARK_DEFAULTS.repeat})`)
+    .option('--warmup <count>', `Warmup repetitions for latency mode (default: ${PERF_BENCHMARK_DEFAULTS.warmup})`)
+    .option('--classify-threshold-seconds <seconds>', `Threshold for auto mode classification (default: ${PERF_BENCHMARK_DEFAULTS.classifyThresholdSeconds})`)
+    .option('--timeout-minutes <minutes>', `Timeout for measured runs (default: ${PERF_BENCHMARK_DEFAULTS.timeoutMinutes})`)
+    .option('--save', 'Persist benchmark evidence under perf/evidence/run_xxx')
+    .option('--dry-run', 'Resolve mode, params, and evidence shape without touching PostgreSQL')
+    .option('--label <name>', 'Attach a short label to the saved run directory')
+    .option('--json <payload>', 'Pass perf run options as a JSON object')
+    .action(async (options: PerfRunOptions) => {
+      await runPerfRunCommand(options);
+    });
+
+  const report = perf.command('report').description('Compare saved perf benchmark evidence');
+  report
+    .command('diff <baselineDir> <candidateDir>')
+    .description('Compare two saved perf benchmark runs and highlight the primary metric delta')
+    .option('--format <format>', 'Output format (text|json)', 'text')
+    .option('--json <payload>', 'Pass perf report diff options as a JSON object')
+    .action((baselineDir: string, candidateDir: string, options: PerfReportDiffOptions) => {
+      runPerfReportDiffCommand(baselineDir, candidateDir, options);
     });
 }
 
@@ -147,6 +205,44 @@ async function runPerfSeedCommand(options: PerfSeedOptions): Promise<void> {
   ]);
 }
 
+async function runPerfRunCommand(options: PerfRunOptions): Promise<void> {
+  const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+  const queryFile = normalizeRequiredStringOption(merged.query, '--query');
+  const report = await runPerfBenchmark({
+    rootDir: process.cwd(),
+    queryFile,
+    paramsFile: normalizeOptionalStringOption(merged.params),
+    mode: normalizeBenchmarkMode(normalizeOptionalStringOption(merged.mode) ?? 'auto'),
+    repeat: normalizePositiveIntegerOption(merged.repeat, '--repeat', PERF_BENCHMARK_DEFAULTS.repeat),
+    warmup: normalizeNonNegativeIntegerOption(merged.warmup, '--warmup', PERF_BENCHMARK_DEFAULTS.warmup),
+    classifyThresholdSeconds: normalizePositiveIntegerOption(
+      merged.classifyThresholdSeconds,
+      '--classify-threshold-seconds',
+      PERF_BENCHMARK_DEFAULTS.classifyThresholdSeconds
+    ),
+    timeoutMinutes: normalizePositiveIntegerOption(merged.timeoutMinutes, '--timeout-minutes', PERF_BENCHMARK_DEFAULTS.timeoutMinutes),
+    save: normalizeBooleanOption(merged.save),
+    dryRun: normalizeBooleanOption(merged.dryRun),
+    label: normalizeOptionalStringOption(merged.label)
+  });
+
+  emitPerfReport('perf run', report);
+}
+
+function runPerfReportDiffCommand(baselineDir: string, candidateDir: string, options: PerfReportDiffOptions): void {
+  const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+  const format = normalizePerfFormat(normalizeOptionalStringOption(merged.format));
+  const report = diffPerfBenchmarkReports(path.resolve(process.cwd(), baselineDir), path.resolve(process.cwd(), candidateDir));
+  const contents = formatPerfDiffReport(report, format);
+
+  if (isJsonOutput()) {
+    writeCommandEnvelope('perf report diff', report);
+    return;
+  }
+
+  process.stdout.write(contents);
+}
+
 function buildPerfSeedDryRunPlan(rootDir: string): { seed: number; tables: Record<string, number> } {
   const config = loadZtdProjectConfig(rootDir);
   const seedConfig = loadPerfSeedConfig(rootDir);
@@ -190,7 +286,7 @@ function toDisplayConnectionUrl(connectionUrl: string): string {
 
 function emitPerfResult(command: string, data: Record<string, unknown>, textLines?: string[]): void {
   if (isJsonOutput()) {
-    writeCommandResultEnvelope(command, true, data);
+    writeCommandEnvelope(command, data);
     return;
   }
 
@@ -200,6 +296,15 @@ function emitPerfResult(command: string, data: Record<string, unknown>, textLine
   }
 
   process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
+}
+
+function emitPerfReport(command: 'perf run', report: Awaited<ReturnType<typeof runPerfBenchmark>>): void {
+  if (isJsonOutput()) {
+    writeCommandEnvelope(command, report);
+    return;
+  }
+
+  process.stdout.write(formatPerfBenchmarkReport(report, 'text'));
 }
 
 function resolvePerfOptions<T extends { json?: string; dryRun?: boolean }>(options: T): { dryRun: boolean } {
@@ -215,3 +320,70 @@ function resolvePerfOptions<T extends { json?: string; dryRun?: boolean }>(optio
     dryRun: Boolean(merged.dryRun)
   };
 }
+
+function normalizeOptionalStringOption(value: unknown): string | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    throw new Error(`Expected a string option but received ${typeof value}.`);
+  }
+  return value;
+}
+
+function normalizeRequiredStringOption(value: unknown, label: string): string {
+  const normalized = normalizeOptionalStringOption(value);
+  if (!normalized) {
+    throw new Error(`${label} is required.`);
+  }
+  return normalized;
+}
+
+function normalizeBooleanOption(value: unknown): boolean {
+  if (value === undefined) {
+    return false;
+  }
+  if (typeof value !== 'boolean') {
+    throw new Error(`Expected a boolean option but received ${typeof value}.`);
+  }
+  return value;
+}
+
+function normalizePositiveIntegerOption(value: unknown, label: string, fallback: number): number {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${label} must be a positive integer.`);
+  }
+  return parsed;
+}
+
+function normalizeNonNegativeIntegerOption(value: unknown, label: string, fallback: number): number {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`${label} must be a non-negative integer.`);
+  }
+  return parsed;
+}
+
+function normalizeBenchmarkMode(value: string): PerfBenchmarkMode {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'auto' || normalized === 'latency' || normalized === 'completion') {
+    return normalized;
+  }
+  throw new Error(`Unsupported perf benchmark mode: ${value}`);
+}
+
+function normalizePerfFormat(value: string | undefined): PerfBenchmarkFormat {
+  const normalized = (value ?? 'text').trim().toLowerCase();
+  if (normalized === 'text' || normalized === 'json') {
+    return normalized;
+  }
+  throw new Error(`Unsupported format: ${value}`);
+}
+
