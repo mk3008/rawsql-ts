@@ -69,15 +69,16 @@ Use it when you need:
 
 Telemetry is intentionally not the default happy path for normal SQL dogfooding.
 
+Saved telemetry regression scenarios live in [Telemetry Dogfooding Scenarios](../dogfooding/telemetry-dogfooding.md).
+
 ## Dogfooding gaps that still need scenario coverage
 
-The current routing is strongest for pipeline planning and perf recommendation loops.
+The current routing is strongest for pipeline planning, perf recommendation loops, and schema impact analysis with `query uses`.
 The following areas still need more dedicated dogfooding scenarios:
 
 | Tool area | Why the current scenarios are weak | Recommended future scenario |
 |-----------|------------------------------------|-----------------------------|
-| Telemetry | Existing scenarios prove that telemetry exists, but they do not force it to be the natural next step in an investigation. | Trace a flaky multi-step command, export telemetry, and verify that timing/error attribution changes the diagnosis. |
+| Telemetry | Phase wiring and export behavior are covered, but only a few scenarios currently make telemetry the obvious next step in an investigation. | Add more failure-oriented or slowdown-oriented command scenarios where the saved telemetry timeline is the fastest way to find the broken phase. |
 | SQL/debug flow | Many investigations still fall back to ad-hoc test assertions instead of a repeatable command-level workflow. | Compare direct SQL vs rewritten SQL for one pipeline query and verify params, temp-table stages, and final predicate shape. |
-| `query uses` / SQL grep | Optimizer-oriented scenarios do not exercise impact analysis. | Run a column rename or table split scenario and require `query uses` to identify all affected SQL assets before edits. |
 
 When a tool keeps existing but does not become the natural first step in dogfooding, add a scenario that makes its happy path unavoidable.
