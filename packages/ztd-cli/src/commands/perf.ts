@@ -101,7 +101,7 @@ Examples:
   perf
     .command('run')
     .description('Benchmark one SQL query and capture evidence for AI-driven tuning loops')
-    .requiredOption('--query <sqlFile>', 'SQL file to benchmark inside the perf sandbox')
+    .option('--query <sqlFile>', 'SQL file to benchmark inside the perf sandbox')
     .option('--params <path>', 'JSON or YAML file with query parameters (object for named placeholders, array for positional)')
     .option('--mode <mode>', 'Benchmark mode (auto|latency|completion)', 'auto')
     .option('--repeat <count>', `Measured repetitions for latency mode (default: ${PERF_BENCHMARK_DEFAULTS.repeat})`)

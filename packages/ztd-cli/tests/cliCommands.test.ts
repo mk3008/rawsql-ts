@@ -1522,6 +1522,50 @@ test('perf run dry-run emits benchmark evidence metadata in global json mode', (
   });
 });
 
+test('perf run accepts --json payload for query resolution in global json mode', () => {
+  const workspace = createSqlWorkspace('perf-run-json-payload', path.join('src', 'sql', 'reports', 'sales.sql'));
+  const paramsFile = path.join(workspace.rootDir, 'perf', 'params.yml');
+  mkdirSync(path.dirname(paramsFile), { recursive: true });
+  writeFileSync(
+    workspace.sqlFile,
+    [
+      'select *',
+      'from public.sales',
+      'where region_id = :region_id'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(paramsFile, ['params:', '  region_id: 77', ''].join('\n'), 'utf8');
+
+  const result = runCli(
+    [
+      '--output',
+      'json',
+      'perf',
+      'run',
+      '--json',
+      JSON.stringify({
+        query: workspace.sqlFile,
+        params: paramsFile,
+        mode: 'latency',
+        dryRun: true
+      })
+    ],
+    {},
+    workspace.rootDir
+  );
+
+  assertCliSuccess(result, 'perf run json payload');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    dry_run: true,
+    requested_mode: 'latency',
+    selected_mode: 'latency',
+    ordered_param_names: ['region_id'],
+    bindings: [77]
+  });
+});
+
 test('perf report diff emits machine-readable JSON from saved evidence summaries', () => {
   const workspace = createTempDir('perf-report-diff');
   const baselineDir = path.join(workspace, 'perf', 'evidence', 'run_001');

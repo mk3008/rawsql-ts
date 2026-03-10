@@ -75,6 +75,14 @@ export interface PerfRecommendedAction {
   rationale: string;
 }
 
+export interface PerfClassificationProbe {
+  elapsed_ms: number;
+  timed_out: boolean;
+  row_count?: number;
+  reused_as_warmup?: boolean;
+  reused_as_measured_run?: boolean;
+}
+
 export interface PerfPlanDelta {
   statement_id: string;
   baseline_plan: string;
@@ -113,6 +121,7 @@ export interface PerfBenchmarkReport {
   dry_run: boolean;
   saved: boolean;
   evidence_dir?: string;
+  classification_probe?: PerfClassificationProbe;
   total_elapsed_ms?: number;
   latency_metrics?: {
     measured_runs: number;
@@ -173,6 +182,12 @@ interface DirectExecutionResult {
   timedOut: boolean;
 }
 
+interface PerfSelectionResult {
+  selectedMode: PerfSelectedBenchmarkMode;
+  reason: string;
+  probe?: DirectExecutionResult;
+}
+
 const DEFAULT_REPEAT = 10;
 const DEFAULT_WARMUP = 3;
 const DEFAULT_CLASSIFY_THRESHOLD_SECONDS = 60;
@@ -212,7 +227,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
   const seedConfig = loadPerfSeedConfig(options.rootDir);
   const databaseVersion = options.dryRun ? undefined : await fetchPerfDatabaseVersion(options.rootDir);
 
-  const selection = options.dryRun
+  const selection: PerfSelectionResult = options.dryRun
     ? {
         selectedMode: options.mode === 'auto' ? 'completion' : options.mode,
         reason: options.mode === 'auto'
@@ -258,6 +273,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       database_version: databaseVersion,
       dry_run: true,
       saved: false,
+      classification_probe: selection.probe ? toPerfClassificationProbe(selection.probe) : undefined,
       executed_statements: dryRunStatements,
       plan_observations: [],
       recommended_actions: buildPerfRecommendedActions(selection.selectedMode, true, pipelineAnalysis, {
@@ -274,16 +290,42 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
   const latencyRuns: number[] = [];
   let representativeExecution: DirectExecutionResult | undefined;
   let representativePlan: unknown = null;
+  let classificationProbe = selection.probe ? toPerfClassificationProbe(selection.probe) : undefined;
 
   if (selection.selectedMode === 'latency') {
-    for (let index = 0; index < options.warmup; index += 1) {
+    let remainingWarmups = options.warmup;
+    let remainingMeasuredRuns = options.repeat;
+
+    // Reuse the auto-classification probe so the benchmark does not hide an extra live query.
+    if (selection.probe) {
+      if (selection.probe.timedOut) {
+        throw new Error('Latency benchmark classification probe timed out unexpectedly. Re-run with --mode completion or a larger timeout.');
+      }
+      if (remainingWarmups > 0) {
+        remainingWarmups -= 1;
+        classificationProbe = {
+          ...toPerfClassificationProbe(selection.probe),
+          reused_as_warmup: true
+        };
+      } else if (remainingMeasuredRuns > 0) {
+        remainingMeasuredRuns -= 1;
+        latencyRuns.push(selection.probe.elapsedMs);
+        representativeExecution = selection.probe;
+        classificationProbe = {
+          ...toPerfClassificationProbe(selection.probe),
+          reused_as_measured_run: true
+        };
+      }
+    }
+
+    for (let index = 0; index < remainingWarmups; index += 1) {
       const warmupExecution = await executeDirectBenchmarkOnce(options.rootDir, prepared, timeoutMs);
       if (warmupExecution.timedOut) {
         throw new Error('Latency benchmark timed out during warmup. Re-run with --mode completion or a larger timeout.');
       }
     }
 
-    for (let index = 0; index < options.repeat; index += 1) {
+    for (let index = 0; index < remainingMeasuredRuns; index += 1) {
       const execution = await executeDirectBenchmarkOnce(options.rootDir, prepared, timeoutMs);
       if (execution.timedOut) {
         throw new Error('Latency benchmark timed out during a measured run. Re-run with --mode completion or a larger timeout.');
@@ -337,6 +379,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
     database_version: databaseVersion,
     dry_run: false,
     saved: false,
+    classification_probe: classificationProbe,
     total_elapsed_ms: selection.selectedMode === 'latency'
       ? latencyRuns.reduce((sum, value) => sum + value, 0)
       : representativeExecution?.elapsedMs,
@@ -472,6 +515,11 @@ export function formatPerfBenchmarkReport(report: PerfBenchmarkReport, format: P
     lines.push(`completed: ${report.completion_metrics.completed ? 'yes' : 'no'}`);
     lines.push(`timed_out: ${report.completion_metrics.timed_out ? 'yes' : 'no'}`);
     lines.push(`wall_time: ${report.completion_metrics.wall_time_ms.toFixed(2)} ms`);
+  }
+
+  if (report.classification_probe) {
+    const probeSuffix = report.classification_probe.timed_out ? ' (timed out)' : '';
+    lines.push(`Classification probe: ${report.classification_probe.elapsed_ms.toFixed(2)} ms${probeSuffix}`);
   }
 
   lines.push('');
@@ -819,7 +867,8 @@ function renderSqlLiteral(value: unknown): string {
 }
 export function loadPerfBenchmarkReport(evidenceDir: string): PerfBenchmarkReport {
   const summaryFile = path.join(path.resolve(evidenceDir), 'summary.json');
-  return JSON.parse(readFileSync(summaryFile, 'utf8')) as PerfBenchmarkReport;
+  const parsed = JSON.parse(readFileSync(summaryFile, 'utf8')) as unknown;
+  return validatePerfBenchmarkReport(summaryFile, parsed);
 }
 
 export const PERF_BENCHMARK_DEFAULTS = {
@@ -938,18 +987,20 @@ async function classifyPerfBenchmarkMode(
   rootDir: string,
   prepared: PreparedBenchmarkQuery,
   classifyThresholdMs: number
-): Promise<{ selectedMode: PerfSelectedBenchmarkMode; reason: string }> {
+): Promise<PerfSelectionResult> {
   const probe = await executeDirectBenchmarkOnce(rootDir, prepared, classifyThresholdMs);
   if (probe.timedOut || probe.elapsedMs >= classifyThresholdMs) {
     return {
       selectedMode: 'completion',
-      reason: `classification probe exceeded ${classifyThresholdMs} ms`
+      reason: `classification probe exceeded ${classifyThresholdMs} ms`,
+      probe
     };
   }
 
   return {
     selectedMode: 'latency',
-    reason: `classification probe completed within ${classifyThresholdMs} ms`
+    reason: `classification probe completed within ${classifyThresholdMs} ms`,
+    probe
   };
 }
 
@@ -1075,17 +1126,15 @@ function savePerfBenchmarkEvidence(
 ): { runId: string; evidenceDir: string; planFiles: string[]; sqlFiles: string[]; resolvedSqlPreviewFiles: string[] } {
   const evidenceRoot = path.join(rootDir, 'perf', 'evidence');
   mkdirSync(evidenceRoot, { recursive: true });
-  const runId = allocatePerfRunId(evidenceRoot, report.label);
-  const evidenceDir = path.join(evidenceRoot, runId);
-  const plansDir = path.join(evidenceDir, 'plans');
-  const sqlDir = path.join(evidenceDir, 'executed-sql');
-  mkdirSync(evidenceDir, { recursive: true });
+  const reserved = reservePerfEvidenceDir(evidenceRoot, report.label);
+  const plansDir = path.join(reserved.evidenceDir, 'plans');
+  const sqlDir = path.join(reserved.evidenceDir, 'executed-sql');
   mkdirSync(plansDir, { recursive: true });
   mkdirSync(sqlDir, { recursive: true });
 
-  copyFileSync(report.source_sql_file, path.join(evidenceDir, 'source.sql'));
+  copyFileSync(report.source_sql_file, path.join(reserved.evidenceDir, 'source.sql'));
   if (report.params_file && existsSync(report.params_file)) {
-    copyFileSync(report.params_file, path.join(evidenceDir, path.basename(report.params_file)));
+    copyFileSync(report.params_file, path.join(reserved.evidenceDir, path.basename(report.params_file)));
   }
 
   const planFiles: string[] = [];
@@ -1119,8 +1168,8 @@ function savePerfBenchmarkEvidence(
 
   const summary: PerfBenchmarkReport = {
     ...report,
-    run_id: runId,
-    evidence_dir: evidenceDir,
+    run_id: reserved.runId,
+    evidence_dir: reserved.evidenceDir,
     saved: true,
     executed_statements: report.executed_statements.map((statement, index) => ({
       ...statement,
@@ -1129,33 +1178,123 @@ function savePerfBenchmarkEvidence(
       plan_file: planFiles[index] || undefined
     }))
   };
-  writeFileSync(path.join(evidenceDir, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
-  writeFileSync(path.join(evidenceDir, 'executed-statements.json'), `${JSON.stringify(summary.executed_statements, null, 2)}\n`, 'utf8');
+  writeFileSync(path.join(reserved.evidenceDir, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+  writeFileSync(path.join(reserved.evidenceDir, 'executed-statements.json'), `${JSON.stringify(summary.executed_statements, null, 2)}\n`, 'utf8');
 
   return {
-    runId,
-    evidenceDir,
+    runId: reserved.runId,
+    evidenceDir: reserved.evidenceDir,
     planFiles,
     sqlFiles,
     resolvedSqlPreviewFiles
   };
 }
 
-function allocatePerfRunId(evidenceRoot: string, label: string | undefined): string {
+function reservePerfEvidenceDir(evidenceRoot: string, label: string | undefined): { runId: string; evidenceDir: string } {
+  const suffix = label ? `_${sanitizeLabel(label)}` : '';
+  let nextRun = readHighestPerfRunIndex(evidenceRoot) + 1;
+
+  // Reserve the run directory atomically so concurrent perf runs cannot collide.
+  for (let attempts = 0; attempts < 1024; attempts += 1) {
+    const runId = `run_${String(nextRun).padStart(3, '0')}${suffix}`;
+    const evidenceDir = path.join(evidenceRoot, runId);
+    try {
+      mkdirSync(evidenceDir);
+      return { runId, evidenceDir };
+    } catch (error) {
+      if (isAlreadyExistsError(error)) {
+        nextRun += 1;
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error('Unable to allocate a perf evidence directory after repeated collisions.');
+}
+
+function readHighestPerfRunIndex(evidenceRoot: string): number {
   const existing = readdirSync(evidenceRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
-  const maxRun = existing.reduce((max, name) => {
+  return existing.reduce((max, name) => {
     const match = /^run_(\d+)/.exec(name);
     return match ? Math.max(max, Number(match[1])) : max;
   }, 0);
-  const next = String(maxRun + 1).padStart(3, '0');
-  const suffix = label ? `_${sanitizeLabel(label)}` : '';
-  return `run_${next}${suffix}`;
 }
 
 function sanitizeLabel(label: string): string {
   return label.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function isAlreadyExistsError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'EEXIST';
+}
+
+function toPerfClassificationProbe(result: DirectExecutionResult): PerfClassificationProbe {
+  return {
+    elapsed_ms: result.elapsedMs,
+    timed_out: result.timedOut,
+    row_count: result.rowCount
+  };
+}
+
+function validatePerfBenchmarkReport(summaryFile: string, value: unknown): PerfBenchmarkReport {
+  if (!isPerfBenchmarkReport(value)) {
+    throw new Error(`Invalid perf benchmark summary: ${summaryFile}`);
+  }
+  return value;
+}
+
+function isPerfBenchmarkReport(value: unknown): value is PerfBenchmarkReport {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const report = value as Record<string, unknown>;
+  if (report.schema_version !== 1 || report.command !== 'perf run') {
+    return false;
+  }
+  if (report.query_type !== 'SELECT' || report.strategy !== 'direct') {
+    return false;
+  }
+  if (!Array.isArray(report.ordered_param_names) || !Array.isArray(report.executed_statements)) {
+    return false;
+  }
+  if (!isPerfSelectedMode(report.selected_mode) || !isPerfRequestedMode(report.requested_mode)) {
+    return false;
+  }
+  if (!isPerfPipelineAnalysis(report.pipeline_analysis)) {
+    return false;
+  }
+  return typeof report.query_file === 'string'
+    && typeof report.source_sql_file === 'string'
+    && typeof report.source_sql === 'string'
+    && typeof report.bound_sql === 'string'
+    && typeof report.selection_reason === 'string'
+    && typeof report.classify_threshold_ms === 'number'
+    && typeof report.timeout_ms === 'number'
+    && typeof report.dry_run === 'boolean'
+    && typeof report.saved === 'boolean';
+}
+
+function isPerfSelectedMode(value: unknown): value is PerfSelectedBenchmarkMode {
+  return value === 'latency' || value === 'completion';
+}
+
+function isPerfRequestedMode(value: unknown): value is PerfBenchmarkMode {
+  return value === 'auto' || value === 'latency' || value === 'completion';
+}
+
+function isPerfPipelineAnalysis(value: unknown): value is PerfPipelineAnalysis {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const analysis = value as Record<string, unknown>;
+  return typeof analysis.query_type === 'string'
+    && typeof analysis.cte_count === 'number'
+    && typeof analysis.should_consider_pipeline === 'boolean'
+    && Array.isArray(analysis.candidate_ctes)
+    && Array.isArray(analysis.notes);
 }
 
 function normalizeFinalQueryRoots(finalQuery: string | string[] | null | undefined): string[] {
@@ -1205,24 +1344,4 @@ function truncateSingleLine(value: string, limit: number): string {
   }
   return `${normalized.slice(0, limit - 3)}...`;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

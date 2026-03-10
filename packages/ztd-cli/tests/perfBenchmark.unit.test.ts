@@ -6,6 +6,7 @@ import {
   diffPerfBenchmarkReports,
   formatPerfBenchmarkReport,
   formatPerfDiffReport,
+  loadPerfBenchmarkReport,
   runPerfBenchmark,
   type PerfBenchmarkReport
 } from '../src/perf/benchmark';
@@ -288,6 +289,16 @@ test('runPerfBenchmark dry-run in auto mode defers live classification without t
 });
 
 
+test('loadPerfBenchmarkReport rejects malformed summary payloads', () => {
+  const workspace = createTempDir('perf-benchmark-invalid-summary');
+  writeFileSync(
+    path.join(workspace, 'summary.json'),
+    JSON.stringify({ schema_version: 1, command: 'perf run', selected_mode: 'latency' }, null, 2),
+    'utf8'
+  );
+
+  expect(() => loadPerfBenchmarkReport(workspace)).toThrow(`Invalid perf benchmark summary: ${path.join(workspace, 'summary.json')}`);
+});
 test('formatPerfDiffReport surfaces structural plan deltas for AI review', () => {
   const diff = {
     schema_version: 1,
@@ -346,6 +357,10 @@ test('formatPerfBenchmarkReport surfaces recommended actions for AI follow-up', 
       timed_out: true,
       wall_time_ms: 300000
     },
+    classification_probe: {
+      elapsed_ms: 60000,
+      timed_out: true
+    },
     executed_statements: [
       {
         seq: 1,
@@ -384,6 +399,7 @@ test('formatPerfBenchmarkReport surfaces recommended actions for AI follow-up', 
   };
 
   const text = formatPerfBenchmarkReport(report, 'text');
+  expect(text).toContain('Classification probe: 60000.00 ms (timed out)');
   expect(text).toContain('Recommended actions:');
   expect(text).toContain('[high] stabilize-completion-run: timeout first');
   expect(text).toContain('Plan observations:');
