@@ -22,6 +22,7 @@ CLI tool for scaffolding **Zero Table Dependency (ZTD)** projects and keeping DD
 - Runtime command introspection via `ztd describe`
 - Dry-run support for write-capable commands such as `init`, `ztd-config`, `model-gen`, and `ddl *`
 - Optional raw JSON request payloads for automation on selected commands
+- `query uses` powered by the reusable `@rawsql-ts/sql-grep-core` engine
 
 ## Installation
 
@@ -634,3 +635,4 @@ This mode emits `src/local/sql-contract.ts`, links `@rawsql-ts/sql-contract` via
 ## License
 
 MIT
+

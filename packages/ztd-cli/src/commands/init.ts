@@ -679,11 +679,10 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   }
 
   if (scaffoldProfile.dependencyProfile === 'local-source') {
-    const localSqlContractSummary = await writeTemplateFile(
-      rootDir,
+    const localSqlContractSummary = await writeDocFile(
       absolutePaths.localSqlContractShim,
       relativePath('localSqlContractShim'),
-      LOCAL_SQL_CONTRACT_TEMPLATE,
+      buildLocalSqlContractShimContents(absolutePaths.localSqlContractShim, scaffoldProfile),
       dependencies,
       prompter,
       overwritePolicy
@@ -805,15 +804,25 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.vitestConfig = vitestConfigSummary;
   }
 
-  const tsconfigSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.tsconfig,
-    relativePath('tsconfig'),
-    TSCONFIG_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
+  const tsconfigSummary =
+    scaffoldProfile.dependencyProfile === 'local-source'
+      ? await writeDocFile(
+          absolutePaths.tsconfig,
+          relativePath('tsconfig'),
+          buildLocalSourceTsconfigContents(),
+          dependencies,
+          prompter,
+          overwritePolicy
+        )
+      : await writeTemplateFile(
+          rootDir,
+          absolutePaths.tsconfig,
+          relativePath('tsconfig'),
+          TSCONFIG_TEMPLATE,
+          dependencies,
+          prompter,
+          overwritePolicy
+        );
   if (tsconfigSummary) {
     summaries.tsconfig = tsconfigSummary;
   }
@@ -1661,6 +1670,42 @@ function loadTemplate(templateName: string): string {
   return readFileSync(templatePath, 'utf8');
 }
 
+function buildLocalSqlContractShimContents(
+  absolutePath: string,
+  scaffoldProfile: InitScaffoldProfile
+): string {
+  if (scaffoldProfile.dependencyProfile !== 'local-source' || !scaffoldProfile.localSourceRoot) {
+    return `${loadTemplate(LOCAL_SQL_CONTRACT_TEMPLATE).trimEnd()}\n`;
+  }
+
+  // Point the shim at the local package source so scaffolds do not require a prebuilt dist/ folder.
+  const sourceEntry = path.join(
+    scaffoldProfile.localSourceRoot,
+    LOCAL_SOURCE_STACK_PACKAGE_DIRS['@rawsql-ts/sql-contract'],
+    'src',
+    'index.ts'
+  );
+  const relativeImport = normalizeCliPath(path.relative(path.dirname(absolutePath), sourceEntry));
+  const importPath =
+    relativeImport.startsWith('.') || relativeImport.startsWith('/') ? relativeImport : `./${relativeImport}`;
+  return [
+    "// export * from '@rawsql-ts/sql-contract';",
+    `export * from '${importPath}';`,
+    ''
+  ].join('\n');
+}
+function buildLocalSourceTsconfigContents(): string {
+  const parsed = JSON.parse(loadTemplate(TSCONFIG_TEMPLATE)) as {
+    compilerOptions?: Record<string, unknown>;
+  };
+  const compilerOptions = parsed.compilerOptions ?? {};
+
+  // Local-source shims target TypeScript source files directly, so the scaffold must allow that import style.
+  compilerOptions.allowImportingTsExtensions = true;
+  parsed.compilerOptions = compilerOptions;
+  return `${JSON.stringify(parsed, null, 2)}\n`;
+}
+
 function buildNextSteps(
   schemaRelativePath: string,
   workflow: InitWorkflow,
@@ -1971,3 +2016,6 @@ export function registerInitCommand(program: Command): void {
       }
     });
 }
+
+
+

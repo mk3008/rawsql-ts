@@ -25,8 +25,8 @@ const binaryName = process.platform === 'win32'
 const binaryArgs = command === 'test' ? ['run'] : ['--noEmit'];
 const binaryPath = path.join(projectRoot, 'node_modules', '.bin', binaryName);
 const packageChecks = command === 'test'
-  ? ['vitest/package.json', 'zod/package.json', '@rawsql-ts/sql-contract']
-  : ['typescript/package.json', 'zod/package.json', '@rawsql-ts/sql-contract'];
+  ? ['vitest/package.json', 'zod/package.json', '@rawsql-ts/sql-contract/package.json']
+  : ['typescript/package.json', 'zod/package.json', '@rawsql-ts/sql-contract/package.json'];
 
 const resolutionIssues = inspectResolution(packageChecks);
 if (!existsSync(binaryPath) || resolutionIssues.length > 0) {
@@ -55,7 +55,9 @@ function inspectResolution(specifiers) {
 
   for (const specifier of specifiers) {
     try {
-      const resolvedPath = projectRequire.resolve(specifier);
+      const resolvedPath = specifier.endsWith('/package.json')
+        ? resolveInstalledPackageManifest(specifier)
+        : projectRequire.resolve(specifier);
       if (!isInsideProject(resolvedPath)) {
         issues.push(`${specifier} resolved outside this scaffold: ${normalizePath(resolvedPath)}`);
       }
@@ -65,6 +67,15 @@ function inspectResolution(specifiers) {
   }
 
   return issues;
+}
+
+function resolveInstalledPackageManifest(specifier) {
+  const manifestRelativePath = path.join('node_modules', ...specifier.split('/'));
+  const manifestPath = path.join(projectRoot, manifestRelativePath);
+  if (!existsSync(manifestPath)) {
+    throw new Error(`${specifier} manifest is missing`);
+  }
+  return manifestPath;
 }
 
 function isInsideProject(filePath) {

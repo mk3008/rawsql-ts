@@ -12,6 +12,8 @@ Use `ztd query uses` when you need to answer a schema-change question before edi
 
 This page covers the `table` and `column` impact checks with examples based on a sample sales project.
 
+Implementation note: the CLI command is provided by `@rawsql-ts/ztd-cli`, while the reusable analysis engine now lives in `@rawsql-ts/sql-grep-core`.
+
 ## Quick start
 
 The default view is `impact`, which is the fastest first pass for "used or not, and by which queries?".

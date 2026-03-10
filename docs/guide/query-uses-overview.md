@@ -4,7 +4,9 @@ title: Query Uses — Schema Impact Analysis
 
 # Query Uses — Schema Impact Analysis
 
-`ztd query uses` is a static analysis command that answers "which SQL queries are affected by this schema change?" — without running a database.
+`ztd query uses` is a static analysis command that answers "which SQL queries are affected by this schema change?" without running a database.
+
+The command-line UX is provided by `@rawsql-ts/ztd-cli`, and the reusable analysis engine behind it now lives in `@rawsql-ts/sql-grep-core`.
 
 ## Prerequisites
 
@@ -26,7 +28,7 @@ project-root/
 - **Spec files are required.** Plain `.sql` files without a spec are not scanned. If you have not run `ztd init` yet, start there.
 - **Subdirectories are scanned recursively.** All specs under the specs directory (including nested folders) are discovered automatically.
 - **Default paths are convention-based.** Specs default to `src/catalog/specs`, SQL root defaults to `src/sql`. Both can be overridden with `--specs-dir` and `--sql-root`.
-- **No database connection is needed.** The analysis is purely static — it parses SQL text, not a live schema.
+- **No database connection is needed.** The analysis is purely static. It parses SQL text, not a live schema.
 
 ## Why not grep?
 
@@ -36,7 +38,7 @@ A naive `grep "sale_items"` on your SQL files will match table names, but it can
 - A column used in a `JOIN` condition vs. an unrelated alias
 - Which specific statements (out of many in a project) actually depend on the target
 
-`ztd query uses` parses each SQL statement into an AST and resolves table/column references with schema awareness. It tells you **how** each query uses the target — not just that the name appears somewhere in the file.
+`ztd query uses` parses each SQL statement into an AST and resolves table/column references with schema awareness. It tells you **how** each query uses the target, not just that the name appears somewhere in the file.
 
 | Approach | Finds references | Schema-aware | Shows usage kind | Filters noise |
 |----------|:---:|:---:|:---:|:---:|
@@ -85,7 +87,9 @@ Affected queries:
 npx ztd query uses table public.sale_lines --exclude-generated --format json
 ```
 
-Use `--out <path>` to write the result to a file instead of stdout — useful for piping into downstream tools or archiving evidence.
+Use `--out <path>` to write the result to a file instead of stdout, which is useful for piping into downstream tools or archiving evidence.
+
+If you need the same AST-based impact analysis in your own tooling, import `@rawsql-ts/sql-grep-core` directly and call the report builder without the rest of the CLI.
 
 ## When to use it
 
@@ -119,7 +123,7 @@ npx ztd query uses column public.products.name --exclude-generated
 npx ztd query uses column public.sale_items.quantity --exclude-generated
 ```
 
-The command does not judge type compatibility — it tells you every statement that still references the column so you can inspect each one.
+The command does not judge type compatibility. It tells you every statement that still references the column so you can inspect each one.
 
 ### Checking a new table/column is not yet referenced
 
