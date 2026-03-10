@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: MultiQuerySplitter
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:81](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/utils/MultiQuerySplitter.ts#L81)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:81](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/utils/MultiQuerySplitter.ts#L81)
 
 Splits SQL text containing multiple queries separated by semicolons
 
@@ -49,7 +49,7 @@ console.log(active?.sql); // Query containing position 150
 
 > `static` **split**(`text`): [`QueryCollection`](../interfaces/QueryCollection.md)
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:88](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/utils/MultiQuerySplitter.ts#L88)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:88](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/utils/MultiQuerySplitter.ts#L88)
 
 Split multi-query SQL text into individual queries
 

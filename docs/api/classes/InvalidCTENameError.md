@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: InvalidCTENameError
 
-Defined in: [packages/core/src/models/CTEError.ts:14](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/models/CTEError.ts#L14)
+Defined in: [packages/core/src/models/CTEError.ts:14](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/models/CTEError.ts#L14)
 
 Error thrown when a CTE name is invalid
 
@@ -15,7 +15,7 @@ Error thrown when a CTE name is invalid
 
 > **new InvalidCTENameError**(`cteName`, `reason`): `InvalidCTENameError`
 
-Defined in: [packages/core/src/models/CTEError.ts:15](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/models/CTEError.ts#L15)
+Defined in: [packages/core/src/models/CTEError.ts:15](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/models/CTEError.ts#L15)
 
 #### Parameters
 
@@ -63,7 +63,7 @@ not capture any frames.
 
 > **cteName**: `string`
 
-Defined in: [packages/core/src/models/CTEError.ts:15](https://github.com/mk3008/rawsql-ts/blob/e47de32e313adcf06c69ad7b1df066cc7b33c2d2/packages/core/src/models/CTEError.ts#L15)
+Defined in: [packages/core/src/models/CTEError.ts:15](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/models/CTEError.ts#L15)
 
 ***
 
