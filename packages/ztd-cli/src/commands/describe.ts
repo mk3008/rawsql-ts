@@ -420,8 +420,3 @@ export function registerDescribeCommand(program: Command): void {
       process.stdout.write(`${lines.join('\n')}\n`);
     });
 }
-
-
-
-
-

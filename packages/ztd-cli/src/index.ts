@@ -145,8 +145,3 @@ async function handleFatalError(error: unknown): Promise<never> {
 if (require.main === module) {
   void main().catch(handleFatalError);
 }
-
-
-
-
-

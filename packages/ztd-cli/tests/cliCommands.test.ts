@@ -1745,3 +1745,52 @@ test('perf run dry-run exposes decomposed multi-statement strategy metadata in g
     ]
   });
 });
+
+test('perf run accepts material arrays in --json payloads', () => {
+  const workspace = createSqlWorkspace('perf-run-json-material-array', path.join('src', 'sql', 'reports', 'sales.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with base_sales as (
+        select id, region_id from public.sales
+      ),
+      filtered_sales as (
+        select id from base_sales where region_id = 99
+      )
+      select * from filtered_sales
+    `,
+    'utf8'
+  );
+
+  const result = runCli(
+    [
+      '--output',
+      'json',
+      'perf',
+      'run',
+      '--json',
+      JSON.stringify({
+        query: workspace.sqlFile,
+        strategy: 'decomposed',
+        material: ['base_sales'],
+        mode: 'latency',
+        dryRun: true
+      })
+    ],
+    {},
+    workspace.rootDir
+  );
+
+  assertCliSuccess(result, 'perf run json material array');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    strategy: 'decomposed',
+    strategy_metadata: {
+      materialized_ctes: ['base_sales']
+    },
+    executed_statements: [
+      expect.objectContaining({ seq: 1, role: 'materialize', target: 'base_sales' }),
+      expect.objectContaining({ seq: 2, role: 'final-query', target: 'FINAL_QUERY' })
+    ]
+  });
+});

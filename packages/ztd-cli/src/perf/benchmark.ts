@@ -726,10 +726,7 @@ async function executeDecomposedBenchmarkOnce(
       metadata: { material },
       params: prepared.runtimeBindings
     });
-    const statements = mapPipelineStatements(
-      rawStatements,
-      pipelineResult.steps.map((step) => ({ kind: step.kind as PerfStatementRole, target: step.target }))
-    );
+    const statements = mapPipelineStatements(rawStatements, toPerfPlannedSteps(pipelineResult.steps));
     const finalStatement = statements.find((statement) => statement.role === 'final-query');
     return {
       elapsedMs: totalElapsedMs,
@@ -743,7 +740,7 @@ async function executeDecomposedBenchmarkOnce(
     if (!isQueryTimeout(error)) {
       throw error;
     }
-    const statements = mapPipelineStatements(rawStatements);
+    const statements = mapPipelineStatements(rawStatements, toPerfPlannedSteps(plan.steps.slice(0, rawStatements.length)));
     const finalStatement = [...statements].reverse().find((statement) => statement.role === 'final-query');
     return {
       elapsedMs: totalElapsedMs,
@@ -780,7 +777,13 @@ async function capturePlanWithConnectedClient(
   }
 }
 
-function mapPipelineStatements(
+export function toPerfPlannedSteps(
+  steps: Array<{ kind: PerfStatementRole | QueryPipelineStep['kind']; target: string }>
+): Array<{ kind: PerfStatementRole; target: string }> {
+  return steps.map((step) => ({ kind: step.kind === 'scalar-filter-bind' ? 'scalar-filter-bind' : mapPipelineStepKindToRole(step.kind), target: step.target }));
+}
+
+export function mapPipelineStatements(
   statements: Array<{
     sql: string;
     bindings: unknown[] | Record<string, unknown> | undefined;

@@ -420,6 +420,15 @@ function normalizeNonNegativeIntegerOption(value: unknown, label: string, fallba
 }
 
 function normalizeCsvListOption(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((entry) => {
+      if (typeof entry !== 'string') {
+        throw new Error(`Expected material entries to be strings but received ${typeof entry}.`);
+      }
+      return entry.trim();
+    }).filter(Boolean);
+  }
+
   const normalized = normalizeOptionalStringOption(value);
   if (!normalized) {
     return [];

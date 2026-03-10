@@ -7,7 +7,9 @@ import {
   formatPerfBenchmarkReport,
   formatPerfDiffReport,
   loadPerfBenchmarkReport,
+  mapPipelineStatements,
   runPerfBenchmark,
+  toPerfPlannedSteps,
   type PerfBenchmarkReport
 } from '../src/perf/benchmark';
 
@@ -786,3 +788,27 @@ test('diffPerfBenchmarkReports aligns final-query deltas across direct and decom
   ]));
 });
 
+
+test('mapPipelineStatements keeps materialize roles for captured timeout steps before the final query', () => {
+  const mapped = mapPipelineStatements(
+    [
+      {
+        sql: 'create temp table "base_sales" as select 1',
+        bindings: undefined,
+        elapsedMs: 300000,
+        timedOut: true,
+      }
+    ],
+    toPerfPlannedSteps([
+      { kind: 'materialize', target: 'base_sales' }
+    ])
+  );
+
+  expect(mapped).toEqual([
+    expect.objectContaining({
+      role: 'materialize',
+      target: 'base_sales',
+      timedOut: true,
+    })
+  ]);
+});

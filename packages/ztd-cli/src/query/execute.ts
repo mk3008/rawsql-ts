@@ -909,6 +909,3 @@ function getSelectWithClause(statement: SimpleSelectQuery | BinarySelectQuery | 
 
   return null;
 }
-
-
-
