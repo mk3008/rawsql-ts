@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import path from 'node:path';
 import { Client } from 'pg';
 import { expect, test } from 'vitest';
+import { TAX_ALLOCATION_QUERY } from './utils/taxAllocationScenario';
 
 const nodeExecutable = process.execPath;
 const tsNodeRegister = require.resolve('ts-node/register');
@@ -823,6 +824,29 @@ test('query plan accepts JSON metadata and emits machine-readable JSON', () => {
     }
   ]);
 });
+test('query plan exposes the tax allocation dogfood pipeline in text mode', () => {
+  const workspace = createSqlWorkspace('query-plan-tax-allocation', path.join('src', 'sql', 'reports', 'tax_allocation.sql'));
+  writeFileSync(workspace.sqlFile, TAX_ALLOCATION_QUERY, 'utf8');
+
+  const result = runCli([
+    'query',
+    'plan',
+    workspace.sqlFile,
+    '--material',
+    'input_lines,floored_allocations,ranked_allocations',
+    '--scalar-filter-column',
+    'allocation_rank'
+  ], {}, workspace.rootDir);
+
+  assertCliSuccess(result, 'query plan tax allocation');
+  expect(result.stdout).toContain('Material CTEs: input_lines, floored_allocations, ranked_allocations');
+  expect(result.stdout).toContain('Scalar filter columns: allocation_rank');
+  expect(result.stdout).toContain('1. materialize input_lines');
+  expect(result.stdout).toContain('2. materialize floored_allocations');
+  expect(result.stdout).toContain('3. materialize ranked_allocations');
+  expect(result.stdout).toContain('4. run final query');
+});
+
 test('query outline supports DML statements with CTE analysis', () => {
   const workspace = createSqlWorkspace('query-outline-insert', path.join('src', 'sql', 'insert_report.sql'));
   writeFileSync(
@@ -1522,6 +1546,37 @@ test('perf run dry-run emits benchmark evidence metadata in global json mode', (
   });
 });
 
+test('perf run dry-run highlights tax allocation pipeline recommendations in global json mode', () => {
+  const workspace = createSqlWorkspace('perf-run-tax-allocation', path.join('src', 'sql', 'reports', 'tax_allocation.sql'));
+  const paramsFile = path.join(workspace.rootDir, 'perf', 'params.json');
+  mkdirSync(path.dirname(paramsFile), { recursive: true });
+  writeFileSync(workspace.sqlFile, TAX_ALLOCATION_QUERY, 'utf8');
+  writeFileSync(paramsFile, JSON.stringify([2], null, 2), 'utf8');
+
+  const result = runCli(
+    ['--output', 'json', 'perf', 'run', '--query', workspace.sqlFile, '--params', paramsFile, '--mode', 'latency', '--dry-run'],
+    {},
+    workspace.rootDir
+  );
+
+  assertCliSuccess(result, 'perf run tax allocation');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    dry_run: true,
+    params_shape: 'positional',
+    pipeline_analysis: expect.objectContaining({
+      should_consider_pipeline: true,
+      scalar_filter_candidates: ['allocation_rank']
+    })
+  });
+  expect(parsed.data.recommended_actions).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ action: 'consider-pipeline-materialization' }),
+      expect.objectContaining({ action: 'consider-scalar-filter-binding' })
+    ])
+  );
+});
+
 test('perf run accepts --json payload for query resolution in global json mode', () => {
   const workspace = createSqlWorkspace('perf-run-json-payload', path.join('src', 'sql', 'reports', 'sales.sql'));
   const paramsFile = path.join(workspace.rootDir, 'perf', 'params.yml');
@@ -1685,4 +1740,3 @@ test('perf report diff emits machine-readable JSON from saved evidence summaries
     }
   });
 });
-

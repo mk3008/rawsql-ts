@@ -60,6 +60,7 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Spec-Change Scenarios | [guide/spec-change-scenarios](./spec-change-scenarios.md) | Quick reference for common changes |
 | Query Uses Overview | [guide/query-uses-overview](./query-uses-overview.md) | Why static analysis beats grep, human vs machine output |
 | Query Uses Impact Checks | [guide/query-uses-impact-checks](./query-uses-impact-checks.md) | Full option reference, scenario playbook, troubleshooting |
+| SQL Tool Happy Paths | [guide/sql-tool-happy-paths](./sql-tool-happy-paths.md) | Decide whether to start with query plan, perf, query uses, or telemetry |
 | ztd-cli Agent Interface | [guide/ztd-cli-agent-interface](./ztd-cli-agent-interface.md) | Machine-readable CLI usage for automation and AI agents |
 | ztd describe schema | [guide/ztd-cli-describe-schema](./ztd-cli-describe-schema.md) | Contract details for `ztd describe` JSON payloads |
 | ztd-cli measurement inventory | [guide/ztd-cli-measurement-inventory](./ztd-cli-measurement-inventory.md) | Audit current timing/profiling surfaces before adding OpenTelemetry |

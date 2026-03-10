@@ -617,6 +617,7 @@ npx ztd init --workflow empty --validator zod --local-source-root ../../..
 This mode emits `src/local/sql-contract.ts`, links `@rawsql-ts/sql-contract` via `file:`, switches `test` / `typecheck` through a local-source guard, and keeps `model-gen --probe-mode ztd --import-style relative` ready for a nested dogfooding app under `tmp/`.
 
 - [Feature Index](../../docs/guide/feature-index.md) — at-a-glance list of easy-to-miss capabilities
+- [SQL Tool Happy Paths](../../docs/guide/sql-tool-happy-paths.md) — choose between query plan, perf, query uses, and telemetry based on the problem shape
 - [Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md) — avoid nested pnpm workspace drift and generated import mismatches
 - [Postgres Pitfalls](../../docs/guide/postgres-pitfalls.md) — common Postgres-specific surprises
 - [Spec-Change Scenarios](../../docs/guide/spec-change-scenarios.md) — condensed digest of common schema changes

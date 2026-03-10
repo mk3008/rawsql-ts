@@ -78,6 +78,27 @@ npm install rawsql-ts
 
 See the [Core Package Documentation](./packages/core/README.md) for usage examples and API reference. Deterministic dogfooding spec: [docs/dogfooding/DOGFOODING.md](./docs/dogfooding/DOGFOODING.md).
 
+## CLI Tool Routing Happy Paths
+
+When the question is "which CLI should I run first?", start from the problem shape instead of the full command catalog.
+
+| Goal | First command | Follow-up | Why |
+|------|---------------|-----------|-----|
+| Understand how a SQL asset will be split into pipeline steps | `npx ztd query plan <sql-file>` | `npx ztd perf run --dry-run` | Plan shows the intended materialization / scalar filter binding order before you benchmark or execute anything. |
+| Find optimizer-sensitive rewrite candidates in a real query | `npx ztd perf run --dry-run` | `npx ztd query plan <sql-file>` | Perf analysis highlights materialization and scalar-filter candidates so you can decide whether a pipeline rewrite is worth it. |
+| Inspect where a table or column is used before refactoring | `npx ztd query uses <target>` | `npx ztd query lint <path>` | `query uses` is the impact-analysis path; it is not a performance debugging tool. |
+| Debug generated SQL shape, rewritten predicates, or temp-table flow | `npx ztd query plan <sql-file>` | Scenario-specific SQL/debug workflow from [SQL Tool Happy Paths](./docs/guide/sql-tool-happy-paths.md) | Start with the structural plan, then move to command-specific debugging once you know which stage is suspicious. |
+| Investigate command timings or export machine-readable traces | Telemetry guidance in [SQL Tool Happy Paths](./docs/guide/sql-tool-happy-paths.md) | [ztd-cli telemetry philosophy](./docs/guide/ztd-cli-telemetry-philosophy.md) | Telemetry is an opt-in investigation branch, not the default entry point. |
+
+Recommended shortest loop for SQL pipeline dogfooding:
+
+1. Run `npx ztd query plan <sql-file>` to confirm the proposed stages.
+2. Run `npx ztd perf run --dry-run` to see whether the query exposes materialization or scalar-filter opportunities.
+3. Run the focused SQL/debug or integration check for the suspected stage.
+4. Use `npx ztd query uses <target>` only when the task is impact analysis or refactoring, not pipeline tuning.
+
+For the full routing guide, see [SQL Tool Happy Paths](./docs/guide/sql-tool-happy-paths.md).
+
 ## Online Demo
 
 [Try rawsql-ts in your browser](https://mk3008.github.io/rawsql-ts/)
