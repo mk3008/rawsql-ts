@@ -1471,7 +1471,7 @@ test('describe command reports perf run metadata in global json mode', () => {
 
 test('perf run dry-run emits benchmark evidence metadata in global json mode', () => {
   const workspace = createSqlWorkspace('perf-run-dry-run', path.join('src', 'sql', 'reports', 'sales.sql'));
-  const paramsFile = path.join(workspace.rootDir, 'perf', 'params.json');
+  const paramsFile = path.join(workspace.rootDir, 'perf', 'params.yml');
   mkdirSync(path.dirname(paramsFile), { recursive: true });
   writeFileSync(
     workspace.sqlFile,
@@ -1482,7 +1482,7 @@ test('perf run dry-run emits benchmark evidence metadata in global json mode', (
     `,
     'utf8'
   );
-  writeFileSync(paramsFile, JSON.stringify({ region_id: 99 }, null, 2), 'utf8');
+  writeFileSync(paramsFile, ['params:', '  region_id: 99', ''].join('\n'), 'utf8');
 
   const result = runCli(
     ['--output', 'json', 'perf', 'run', '--query', workspace.sqlFile, '--params', paramsFile, '--mode', 'latency', '--dry-run'],

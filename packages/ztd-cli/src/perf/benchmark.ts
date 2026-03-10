@@ -710,7 +710,7 @@ function prepareBenchmarkQuery(rootDir: string, queryFile: string, paramsFile?: 
 
   if (scan.mode === 'named') {
     if (!rawBindings || typeof rawBindings !== 'object' || Array.isArray(rawBindings)) {
-      throw new Error('Named SQL placeholders require a JSON object in --params.');
+      throw new Error('Named SQL placeholders require an object in --params.');
     }
     const bound = bindModelGenNamedSql(sourceSql);
     const orderedValues = bound.orderedParamNames.map((name) => {
@@ -732,7 +732,7 @@ function prepareBenchmarkQuery(rootDir: string, queryFile: string, paramsFile?: 
 
   if (scan.mode === 'positional') {
     if (!Array.isArray(rawBindings)) {
-      throw new Error('Positional SQL placeholders require a JSON array in --params.');
+      throw new Error('Positional SQL placeholders require an array in --params.');
     }
     return {
       absolutePath,
@@ -762,7 +762,176 @@ function prepareBenchmarkQuery(rootDir: string, queryFile: string, paramsFile?: 
 
 function loadPerfBindings(rootDir: string, paramsFile: string): unknown {
   const absolutePath = path.resolve(rootDir, paramsFile);
-  return JSON.parse(readFileSync(absolutePath, 'utf8'));
+  const rawContents = readFileSync(absolutePath, 'utf8');
+  const extension = path.extname(absolutePath).toLowerCase();
+
+  if (extension === '.yaml' || extension === '.yml') {
+    const parsed = parsePerfParamsYaml(rawContents);
+    if (isPerfParamsEnvelope(parsed)) {
+      return parsed.params;
+    }
+    return parsed;
+  }
+
+  return JSON.parse(rawContents);
+}
+
+function parsePerfParamsYaml(contents: string): unknown {
+  const root = parseYamlNode(contents.replace(/\r\n/g, '\n').split('\n'), 0, 0).value;
+  return root ?? {};
+}
+
+function parseYamlNode(lines: string[], startIndex: number, indent: number): { value: unknown; nextIndex: number } {
+  let index = startIndex;
+  while (index < lines.length && shouldSkipYamlLine(lines[index] ?? '')) {
+    index += 1;
+  }
+
+  if (index >= lines.length) {
+    return { value: {}, nextIndex: index };
+  }
+
+  const firstLine = lines[index] ?? '';
+  const trimmed = stripYamlComments(firstLine).trim();
+  if (trimmed.startsWith('- ')) {
+    return parseYamlArray(lines, index, indent);
+  }
+  return parseYamlObject(lines, index, indent);
+}
+
+function parseYamlObject(lines: string[], startIndex: number, indent: number): { value: Record<string, unknown>; nextIndex: number } {
+  const value: Record<string, unknown> = {};
+  let index = startIndex;
+
+  while (index < lines.length) {
+    const rawLine = lines[index] ?? '';
+    if (shouldSkipYamlLine(rawLine)) {
+      index += 1;
+      continue;
+    }
+
+    const currentIndent = countLeadingSpaces(rawLine);
+    if (currentIndent < indent) {
+      break;
+    }
+    if (currentIndent > indent) {
+      throw new Error('Invalid YAML indentation at line ' + (index + 1) + '.');
+    }
+
+    const sanitizedLine = stripYamlComments(rawLine).trim();
+    if (sanitizedLine.startsWith('- ')) {
+      break;
+    }
+
+    const separatorIndex = sanitizedLine.indexOf(':');
+    if (separatorIndex === -1) {
+      throw new Error('Invalid YAML mapping entry at line ' + (index + 1) + '.');
+    }
+
+    const key = sanitizedLine.slice(0, separatorIndex).trim();
+    const remainder = sanitizedLine.slice(separatorIndex + 1).trim();
+    if (!key) {
+      throw new Error('Invalid YAML key at line ' + (index + 1) + '.');
+    }
+
+    if (remainder === '') {
+      const nested = parseYamlNode(lines, index + 1, indent + 2);
+      value[key] = nested.value;
+      index = nested.nextIndex;
+      continue;
+    }
+
+    value[key] = parseYamlScalar(remainder);
+    index += 1;
+  }
+
+  return { value, nextIndex: index };
+}
+
+function parseYamlArray(lines: string[], startIndex: number, indent: number): { value: unknown[]; nextIndex: number } {
+  const value: unknown[] = [];
+  let index = startIndex;
+
+  while (index < lines.length) {
+    const rawLine = lines[index] ?? '';
+    if (shouldSkipYamlLine(rawLine)) {
+      index += 1;
+      continue;
+    }
+
+    const currentIndent = countLeadingSpaces(rawLine);
+    if (currentIndent < indent) {
+      break;
+    }
+    if (currentIndent !== indent) {
+      throw new Error('Invalid YAML indentation at line ' + (index + 1) + '.');
+    }
+
+    const sanitizedLine = stripYamlComments(rawLine).trim();
+    if (!sanitizedLine.startsWith('- ')) {
+      break;
+    }
+
+    const remainder = sanitizedLine.slice(2).trim();
+    if (remainder === '') {
+      const nested = parseYamlNode(lines, index + 1, indent + 2);
+      value.push(nested.value);
+      index = nested.nextIndex;
+      continue;
+    }
+
+    value.push(parseYamlScalar(remainder));
+    index += 1;
+  }
+
+  return { value, nextIndex: index };
+}
+
+function parseYamlScalar(value: string): unknown {
+  if (value === '{}') {
+    return {};
+  }
+  if (value === '[]') {
+    return [];
+  }
+  if (value.startsWith('[') && value.endsWith(']')) {
+    const inner = value.slice(1, -1).trim();
+    if (!inner) {
+      return [];
+    }
+    return inner.split(',').map((entry) => parseYamlScalar(entry.trim()));
+  }
+  if (value === 'true') {
+    return true;
+  }
+  if (value === 'false') {
+    return false;
+  }
+  if (value === 'null') {
+    return null;
+  }
+  if (/^-?\d+(?:\.\d+)?$/.test(value)) {
+    return Number(value);
+  }
+  return value;
+}
+
+function stripYamlComments(line: string): string {
+  const hashIndex = line.indexOf('#');
+  return hashIndex === -1 ? line : line.slice(0, hashIndex);
+}
+
+function shouldSkipYamlLine(line: string): boolean {
+  const trimmed = stripYamlComments(line).trim();
+  return trimmed.length === 0;
+}
+
+function countLeadingSpaces(line: string): number {
+  return line.length - line.trimStart().length;
+}
+
+function isPerfParamsEnvelope(value: unknown): value is { params: unknown } {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && 'params' in value;
 }
 
 async function classifyPerfBenchmarkMode(
@@ -797,10 +966,12 @@ async function executeDirectBenchmarkOnce(
     connectionTimeoutMillis: 3000
   });
 
-  const startedAt = nowMs();
   try {
     await client.connect();
     await client.query(`SET statement_timeout = ${Math.max(1, Math.trunc(timeoutMs))}`);
+
+    // Measure only statement execution so connection setup noise does not pollute SQL tuning latency.
+    const startedAt = nowMs();
     const result = await client.query(prepared.boundSql, prepared.bindings as unknown[] | undefined);
     return {
       elapsedMs: nowMs() - startedAt,
@@ -810,7 +981,7 @@ async function executeDirectBenchmarkOnce(
   } catch (error) {
     if (isQueryTimeout(error)) {
       return {
-        elapsedMs: nowMs() - startedAt,
+        elapsedMs: timeoutMs,
         timedOut: true
       };
     }
@@ -913,7 +1084,7 @@ function savePerfBenchmarkEvidence(
 
   copyFileSync(report.source_sql_file, path.join(evidenceDir, 'source.sql'));
   if (report.params_file && existsSync(report.params_file)) {
-    copyFileSync(report.params_file, path.join(evidenceDir, 'params.json'));
+    copyFileSync(report.params_file, path.join(evidenceDir, path.basename(report.params_file)));
   }
 
   const planFiles: string[] = [];
@@ -1033,6 +1204,7 @@ function truncateSingleLine(value: string, limit: number): string {
   }
   return `${normalized.slice(0, limit - 3)}...`;
 }
+
 
 
 

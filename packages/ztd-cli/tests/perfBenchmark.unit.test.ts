@@ -29,9 +29,9 @@ function createSqlWorkspace(prefix: string, sqlRelativePath: string = path.join(
   return { rootDir, sqlFile };
 }
 
-test('runPerfBenchmark dry-run binds named params and surfaces pipeline analysis', async () => {
+test('runPerfBenchmark dry-run binds named YAML params and surfaces pipeline analysis', async () => {
   const workspace = createSqlWorkspace('perf-benchmark-dry-run', path.join('src', 'sql', 'reports', 'sales.sql'));
-  const paramsFile = path.join(workspace.rootDir, 'perf', 'params.json');
+  const paramsFile = path.join(workspace.rootDir, 'perf', 'params.yml');
   mkdirSync(path.dirname(paramsFile), { recursive: true });
   writeFileSync(
     workspace.sqlFile,
@@ -48,7 +48,7 @@ test('runPerfBenchmark dry-run binds named params and surfaces pipeline analysis
     `,
     'utf8'
   );
-  writeFileSync(paramsFile, JSON.stringify({ region_id: 10 }, null, 2), 'utf8');
+  writeFileSync(paramsFile, ['# named params for perf runs', 'params:', '  region_id: 10', ''].join('\n'), 'utf8');
 
   const report = await runPerfBenchmark({
     rootDir: workspace.rootDir,
@@ -78,6 +78,7 @@ test('runPerfBenchmark dry-run binds named params and surfaces pipeline analysis
   expect(report.plan_observations).toEqual([]);
   expect(report.recommended_actions).toEqual([]);
   expect(report.pipeline_analysis.should_consider_pipeline).toBe(false);
+  expect(report.params_file).toBe(path.resolve(paramsFile));
 
   const text = formatPerfBenchmarkReport(report, 'text');
   expect(text).toContain('Mode: latency');
