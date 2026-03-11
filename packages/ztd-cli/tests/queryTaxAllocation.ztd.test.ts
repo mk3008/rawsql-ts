@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
@@ -128,7 +128,7 @@ async function runDirectAllocation(
 ): Promise<Array<{ id: number; amount_cents: number; allocated_tax_cents: number }>> {
   const client = await createConnectedClient(container);
   try {
-    const sql = TAX_ALLOCATION_QUERY.trimEnd();
+    const sql = readFileSync(sqlFile, 'utf8').trimEnd();
     const result = await client.query(sql, [invoiceId]);
     return normalizeRows(result.rows as Array<Record<string, unknown>>);
   } finally {

@@ -33,7 +33,6 @@ import {
   assertSupportedStatement,
   collectDependencyClosure,
   collectReachableCtes,
-  type QueryAnalysis,
   type SupportedStatement
 } from './analysis';
 import { buildQueryPipelinePlan, type QueryPipelineMetadata, type QueryPipelinePlan } from './planner';
@@ -89,7 +88,6 @@ interface PipelineStageQuery {
 }
 
 interface PreparedPipelineSource {
-  absolutePath: string;
   sql: string;
 }
 
@@ -105,7 +103,6 @@ interface BuildPipelineStageQueryOptions {
 interface ScalarBindingContext {
   runtimeParams?: unknown[] | Record<string, unknown>;
   scalarFilterColumns: Set<string>;
-  stageCteNames: Set<string>;
   materializedCtes: Set<string>;
   sourceSql: string;
   recursive: boolean;
@@ -331,7 +328,6 @@ function createScalarBindingContext(
   return {
     runtimeParams: options.runtimeParams,
     scalarFilterColumns: new Set(options.scalarFilterColumns),
-    stageCteNames: new Set(includedNames),
     materializedCtes: new Set(options.materializedCtes),
     sourceSql,
     recursive,
@@ -560,23 +556,21 @@ function collectScalarQueryCteRoots(
   materializedCtes: ReadonlySet<string>
 ): string[] {
   const cteNames = new Set(ctes.map((cte) => cte.aliasExpression.table.name));
-  const sources = selectQuery.fromClause?.getSources() ?? [];
-  const roots: string[] = [];
+  const roots = new Set<string>();
 
-  for (const source of sources) {
-    if (!(source.datasource instanceof TableSource)) {
-      continue;
+  walkAst(selectQuery, (current) => {
+    if (!(current instanceof TableSource)) {
+      return;
     }
 
-    const sourceName = extractQualifiedNameLeaf(source.datasource.qualifiedName.name);
+    const sourceName = extractQualifiedNameLeaf(current.qualifiedName.name);
     if (cteNames.has(sourceName) && !materializedCtes.has(sourceName)) {
-      roots.push(sourceName);
+      roots.add(sourceName);
     }
-  }
+  });
 
-  return roots;
+  return [...roots];
 }
-
 function assertSingleColumnScalarSelect(selectQuery: SimpleSelectQuery, columnName: string): void {
   if (selectQuery.selectClause.items.length !== 1) {
     throw new Error(`Scalar filter binding for column "${columnName}" requires a subquery that statically exposes exactly one column.`);
@@ -600,22 +594,6 @@ function extractScalarFilterValue(rows: PipelineRow[], columnName: string): unkn
   }
 
   return row[columns[0]];
-}
-
-function dependsOnStageCtes(
-  selectQuery: SimpleSelectQuery,
-  stageCteNames: ReadonlySet<string>,
-  materializedCtes: ReadonlySet<string>
-): boolean {
-  const sources = selectQuery.fromClause?.getSources() ?? [];
-  return sources.some((source) => {
-    if (!(source.datasource instanceof TableSource)) {
-      return false;
-    }
-
-    const sourceName = extractQualifiedNameLeaf(source.datasource.qualifiedName.name);
-    return stageCteNames.has(sourceName) && !materializedCtes.has(sourceName);
-  });
 }
 
 function isCorrelatedScalarSubquery(selectQuery: SimpleSelectQuery): boolean {
@@ -725,11 +703,9 @@ function extractQualifiedNameLeaf(name: RawString | IdentifierString): string {
 }
 
 function preparePipelineSource(sqlFile: string): PreparedPipelineSource {
-  const absolutePath = path.resolve(sqlFile);
-  const sql = readFileSync(absolutePath, 'utf8');
+  const sql = readFileSync(path.resolve(sqlFile), 'utf8');
 
   return {
-    absolutePath,
     sql
   };
 }
@@ -826,12 +802,136 @@ function normalizeParamsForSql(
 
 function findHighestPositionalPlaceholder(sql: string): number {
   let highest = 0;
-  for (const match of sql.matchAll(/\$(\d+)/g)) {
-    highest = Math.max(highest, Number(match[1]));
+  let index = 0;
+  let dollarQuoteTag: string | null = null;
+
+  while (index < sql.length) {
+    const current = sql[index];
+    const next = sql[index + 1];
+
+    if (dollarQuoteTag) {
+      if (sql.startsWith(dollarQuoteTag, index)) {
+        index += dollarQuoteTag.length;
+        dollarQuoteTag = null;
+        continue;
+      }
+
+      index += 1;
+      continue;
+    }
+
+    if (current === "'") {
+      index = skipQuotedString(sql, index, "'");
+      continue;
+    }
+
+    if (current === '"') {
+      index = skipQuotedString(sql, index, '"');
+      continue;
+    }
+
+    if (current === '-' && next === '-') {
+      index = skipLineComment(sql, index + 2);
+      continue;
+    }
+
+    if (current === '/' && next === '*') {
+      index = skipBlockComment(sql, index + 2);
+      continue;
+    }
+
+    const dollarTag = readDollarQuoteTag(sql, index);
+    if (dollarTag) {
+      dollarQuoteTag = dollarTag;
+      index += dollarTag.length;
+      continue;
+    }
+
+    if (current === '$' && isAsciiDigit(next)) {
+      let end = index + 1;
+      while (end < sql.length && isAsciiDigit(sql[end])) {
+        end += 1;
+      }
+
+      highest = Math.max(highest, Number(sql.slice(index + 1, end)));
+      index = end;
+      continue;
+    }
+
+    index += 1;
   }
+
   return highest;
 }
 
+function skipQuotedString(sql: string, start: number, quote: '\'' | '"'): number {
+  let index = start + 1;
+  while (index < sql.length) {
+    if (sql[index] === quote) {
+      if (sql[index + 1] === quote) {
+        index += 2;
+        continue;
+      }
+
+      return index + 1;
+    }
+
+    index += 1;
+  }
+
+  return index;
+}
+
+function skipLineComment(sql: string, start: number): number {
+  let index = start;
+  while (index < sql.length && sql[index] !== '\n') {
+    index += 1;
+  }
+  return index;
+}
+
+function skipBlockComment(sql: string, start: number): number {
+  let index = start;
+  while (index < sql.length - 1) {
+    if (sql[index] === '*' && sql[index + 1] === '/') {
+      return index + 2;
+    }
+
+    index += 1;
+  }
+
+  return sql.length;
+}
+
+function readDollarQuoteTag(sql: string, start: number): string | null {
+  if (sql[start] !== '$') {
+    return null;
+  }
+
+  let index = start + 1;
+  while (index < sql.length && sql[index] !== '$') {
+    const current = sql[index];
+    if (!isDollarQuoteTagChar(current)) {
+      return null;
+    }
+
+    index += 1;
+  }
+
+  if (sql[index] !== '$') {
+    return null;
+  }
+
+  return sql.slice(start, index + 1);
+}
+
+function isDollarQuoteTagChar(char: string | undefined): boolean {
+  return char !== undefined && /[A-Za-z0-9_]/.test(char);
+}
+
+function isAsciiDigit(value: string | undefined): value is string {
+  return value !== undefined && value >= '0' && value <= '9';
+}
 function normalizePipelineQueryResult(result: PipelineQueryResult): { rows: PipelineRow[]; rowCount?: number } {
   if (Array.isArray(result)) {
     return { rows: result };

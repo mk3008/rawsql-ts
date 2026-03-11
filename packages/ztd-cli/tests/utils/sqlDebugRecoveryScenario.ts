@@ -29,7 +29,7 @@ where rollup_rank <= :top_n
 
 export const SQL_DEBUG_RECOVERY_PATCH = `suspicious_rollup as (
   select customer_id, total_amount,
-         dense_rank() over (order by total_amount desc, customer_id) as rollup_rank
+         dense_rank() over (order by total_amount desc) as rollup_rank
   from customer_rollup
 )
 `;

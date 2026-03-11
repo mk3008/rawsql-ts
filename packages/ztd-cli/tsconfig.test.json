@@ -10,7 +10,9 @@
       "@rawsql-ts/test-evidence-core": ["../test-evidence-core/src"],
       "@rawsql-ts/test-evidence-core/*": ["../test-evidence-core/src/*"],
       "@rawsql-ts/test-evidence-renderer-md": ["../test-evidence-renderer-md/src"],
-      "@rawsql-ts/test-evidence-renderer-md/*": ["../test-evidence-renderer-md/src/*"],`r`n      "@rawsql-ts/sql-grep-core": ["../sql-grep-core/src"],`r`n      "@rawsql-ts/sql-grep-core/*": ["../sql-grep-core/src/*"]
+      "@rawsql-ts/test-evidence-renderer-md/*": ["../test-evidence-renderer-md/src/*"],
+      "@rawsql-ts/sql-grep-core": ["../sql-grep-core/src"],
+      "@rawsql-ts/sql-grep-core/*": ["../sql-grep-core/src/*"]
     }
   }
 }

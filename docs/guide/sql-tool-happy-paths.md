@@ -69,7 +69,9 @@ Use it when you need:
 
 Telemetry is intentionally not the default happy path for normal SQL dogfooding.
 
-Saved telemetry regression scenarios live in [Telemetry Dogfooding Scenarios](../dogfooding/telemetry-dogfooding.md).`r`n`r`nSaved SQL debug recovery scenarios live in [SQL Debug Recovery Dogfooding](../dogfooding/sql-debug-recovery.md).
+Saved telemetry regression scenarios live in [Telemetry Dogfooding Scenarios](../dogfooding/telemetry-dogfooding.md).
+
+Saved SQL debug recovery scenarios live in [SQL Debug Recovery Dogfooding](../dogfooding/sql-debug-recovery.md).
 
 ## Current saved dogfooding surfaces
 
