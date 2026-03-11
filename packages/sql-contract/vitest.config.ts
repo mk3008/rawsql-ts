@@ -22,6 +22,7 @@ export default defineConfig({
       '@rawsql-ts/sql-contract/mapper/*': resolve(__dirname, 'src/mapper/*'),
       '@rawsql-ts/sql-contract/writer': resolve(__dirname, 'src/writer'),
       '@rawsql-ts/sql-contract/writer/*': resolve(__dirname, 'src/writer/*'),
+      '@rawsql-ts/testkit-core': resolve(__dirname, '../testkit-core/src'),
       'rawsql-ts': resolve(__dirname, '../core/src'),
     },
   },
