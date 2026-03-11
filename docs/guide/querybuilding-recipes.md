@@ -1,4 +1,4 @@
-﻿---
+---
 title: Querybuilding Recipes
 outline: deep
 ---
