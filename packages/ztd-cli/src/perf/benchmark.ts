@@ -266,11 +266,13 @@ function assertValidPerfRunOptions(options: PerfRunOptions): void {
  * Execute or plan a perf benchmark against the sandbox using either direct or decomposed execution.
  */
 export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBenchmarkReport> {
-  assertValidPerfRunOptions(options);
+  const strategy = options.strategy ?? 'direct';
+  const material = options.material ?? [];
+  assertValidPerfRunOptions({ ...options, strategy, material });
 
   const prepared = prepareBenchmarkQuery(options.rootDir, options.queryFile, options.paramsFile);
   const pipelineAnalysis = buildPerfPipelineAnalysis(prepared.absolutePath);
-  const strategyMetadata = buildRequestedStrategyMetadata(prepared.absolutePath, options.strategy, options.material);
+  const strategyMetadata = buildRequestedStrategyMetadata(prepared.absolutePath, strategy, material);
   const classifyThresholdMs = options.classifyThresholdSeconds * 1000;
   const timeoutMs = options.timeoutMinutes * 60 * 1000;
   const seedConfig = loadPerfSeedConfig(options.rootDir);
@@ -284,7 +286,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
           : 'mode forced by user'
       }
     : options.mode === 'auto'
-    ? await classifyPerfBenchmarkMode(options.rootDir, prepared, options.strategy, options.material, classifyThresholdMs)
+    ? await classifyPerfBenchmarkMode(options.rootDir, prepared, strategy, material, classifyThresholdMs)
     : {
         selectedMode: options.mode,
         reason: 'mode forced by user'
@@ -303,7 +305,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       source_sql: prepared.sourceSql,
       bound_sql: prepared.boundSql,
       bindings: prepared.bindings,
-      strategy: options.strategy,
+      strategy: strategy,
       strategy_metadata: strategyMetadata,
       requested_mode: options.mode,
       selected_mode: selection.selectedMode,
@@ -314,7 +316,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       dry_run: true,
       saved: false,
       classification_probe: selection.probe ? toPerfClassificationProbe(selection.probe) : undefined,
-      executed_statements: buildDryRunStatements(prepared, options.strategy, strategyMetadata),
+      executed_statements: buildDryRunStatements(prepared, strategy, strategyMetadata),
       plan_observations: [],
       recommended_actions: buildPerfRecommendedActions(selection.selectedMode, true, pipelineAnalysis, {
         observations: [],
@@ -358,7 +360,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
     }
 
     for (let index = 0; index < remainingWarmups; index += 1) {
-      const warmupExecution = await executePerfBenchmarkOnce(options.rootDir, prepared, options.strategy, options.material, timeoutMs, false);
+      const warmupExecution = await executePerfBenchmarkOnce(options.rootDir, prepared, strategy, material, timeoutMs, false);
       if (warmupExecution.timedOut) {
         throw new Error('Latency benchmark timed out during warmup. Re-run with --mode completion or a larger timeout.');
       }
@@ -368,8 +370,8 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       const execution = await executePerfBenchmarkOnce(
         options.rootDir,
         prepared,
-        options.strategy,
-        options.material,
+        strategy,
+        material,
         timeoutMs,
         !representativeExecution
       );
@@ -389,7 +391,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
         reused_as_measured_run: true
       };
     } else {
-      representativeExecution = await executePerfBenchmarkOnce(options.rootDir, prepared, options.strategy, options.material, timeoutMs, true);
+      representativeExecution = await executePerfBenchmarkOnce(options.rootDir, prepared, strategy, material, timeoutMs, true);
     }
   }
 
@@ -411,7 +413,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
     source_sql: prepared.sourceSql,
     bound_sql: prepared.boundSql,
     bindings: prepared.bindings,
-    strategy: options.strategy,
+    strategy: strategy,
     strategy_metadata: representativeExecution.strategyMetadata ?? strategyMetadata,
     requested_mode: options.mode,
     selected_mode: selection.selectedMode,
@@ -779,11 +781,13 @@ async function capturePlanWithConnectedClient(
 export function toPerfPlannedSteps(
   steps: Array<{ kind: PerfStatementRole | QueryPipelineStep['kind']; target: string }>
 ): Array<{ kind: PerfStatementRole; target: string }> {
-  return steps.map((step) => ({
+  return steps
     // scalar-filter-bind is emitted by execution tracing, not QueryPipelinePlan metadata.
-    kind: step.kind === 'scalar-filter-bind' ? 'scalar-filter-bind' : mapPipelineStepKindToRole(step.kind),
-    target: step.target
-  }));
+    .filter((step) => step.kind !== 'scalar-filter-bind')
+    .map((step) => ({
+      kind: mapPipelineStepKindToRole(step.kind as QueryPipelineStep['kind']),
+      target: step.target
+    }));
 }
 
 export function mapPipelineStatements(
@@ -2009,4 +2013,3 @@ function truncateSingleLine(value: string, limit: number): string {
   }
   return `${normalized.slice(0, limit - 3)}...`;
 }
-

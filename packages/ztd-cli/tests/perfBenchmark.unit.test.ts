@@ -124,6 +124,8 @@ test('runPerfBenchmark dry-run binds named YAML params and surfaces pipeline ana
   expect(report.recommended_actions).toEqual([]);
   expect(report.pipeline_analysis.should_consider_pipeline).toBe(false);
   expect(report.params_file).toBe(path.resolve(paramsFile));
+  expect(report.strategy).toBe('direct');
+  expect(report.strategy_metadata).toBeUndefined();
 
   const text = formatPerfBenchmarkReport(report, 'text');
   expect(text).toContain('Mode: latency');
@@ -778,5 +780,34 @@ test('mapPipelineStatements keeps materialize roles for captured timeout steps b
       target: 'base_sales',
       timedOut: true,
     })
+  ]);
+});
+
+test('toPerfPlannedSteps drops scalar-filter pseudo-steps before mapping executed statements', () => {
+  const mapped = mapPipelineStatements(
+    [
+      {
+        sql: 'create temp table "base_sales" as select 1',
+        bindings: undefined,
+        elapsedMs: 20,
+        timedOut: false,
+      },
+      {
+        sql: 'select * from "base_sales" where id = $1',
+        bindings: [1],
+        elapsedMs: 30,
+        timedOut: false,
+      }
+    ],
+    toPerfPlannedSteps([
+      { kind: 'scalar-filter-bind', target: 'SCALAR_FILTER' },
+      { kind: 'materialize', target: 'base_sales' },
+      { kind: 'final-query', target: 'FINAL_QUERY' }
+    ])
+  );
+
+  expect(mapped).toEqual([
+    expect.objectContaining({ role: 'materialize', target: 'base_sales' }),
+    expect.objectContaining({ role: 'final-query', target: 'FINAL_QUERY' })
   ]);
 });
