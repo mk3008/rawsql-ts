@@ -1702,6 +1702,7 @@ function buildLocalSourceTsconfigContents(): string {
 
   // Local-source shims target TypeScript source files directly, so the scaffold must allow that import style.
   compilerOptions.allowImportingTsExtensions = true;
+  compilerOptions.noEmit = true;
   parsed.compilerOptions = compilerOptions;
   return `${JSON.stringify(parsed, null, 2)}\n`;
 }
@@ -2016,6 +2017,3 @@ export function registerInitCommand(program: Command): void {
       }
     });
 }
-
-
-

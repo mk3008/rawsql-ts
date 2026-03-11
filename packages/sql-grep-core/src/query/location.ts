@@ -51,7 +51,7 @@ export function locateUsageText(params: {
   }
 
   const clauseWindow = params.clauseAnchor
-    ? findClauseWindow(cache, params.clauseAnchor)
+    ? findClauseWindow(cache, params.clauseAnchor, occurrences)
     : null;
 
   const selected = selectOccurrence(occurrences, clauseWindow);
@@ -83,11 +83,11 @@ function getStatementCache(statementText: string): StatementLocationCache {
     return cached;
   }
 
-  const clauseMarkers = Array.from(statementText.matchAll(/\b(WHERE|ORDER\s+BY|GROUP\s+BY|HAVING|RETURNING|SET|JOIN|ON|USING|FROM|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b/gi))
+  const clauseMarkers = Array.from(statementText.matchAll(/\b(SELECT|WHERE|ORDER\s+BY|GROUP\s+BY|HAVING|RETURNING|SET|JOIN|ON|USING|FROM|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b/gi))
     .map((match) => ({
       start: match.index ?? 0,
       end: (match.index ?? 0) + match[0].length,
-      keyword: match[0].toUpperCase()
+      keyword: match[0].replace(/\s+/g, ' ').trim().toUpperCase()
     }))
     .sort((left, right) => left.start - right.start || left.end - right.end);
 
@@ -151,10 +151,20 @@ function selectOccurrence(
 
 function findClauseWindow(
   cache: StatementLocationCache,
-  clauseAnchor: QueryUsageClauseAnchor
+  clauseAnchor: QueryUsageClauseAnchor,
+  occurrences: OccurrenceRange[]
 ): { anchorStart: number; start: number; end: number } | null {
   const anchorPattern = clauseAnchor.tokens.join(' ').toUpperCase();
-  const anchor = cache.clauseMarkers.find((marker) => marker.keyword === anchorPattern);
+  const matchingClauses = cache.clauseMarkers.filter((marker) => marker.keyword === anchorPattern);
+  const anchor = matchingClauses.length === 0
+    ? undefined
+    : matchingClauses.find((marker) => {
+        const nextClause = cache.clauseMarkers.find((candidate) => candidate.start > marker.end);
+        return occurrences.some((occurrence) =>
+          occurrence.start >= marker.end &&
+          occurrence.start < (nextClause?.start ?? Number.MAX_SAFE_INTEGER)
+        );
+      }) ?? matchingClauses[0];
   if (!anchor) {
     return null;
   }

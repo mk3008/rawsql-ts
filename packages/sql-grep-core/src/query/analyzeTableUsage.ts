@@ -97,6 +97,9 @@ function collectTableOccurrences(
         matches.push(...collectTableOccurrences(table.query, target, mode, { inCte: true }));
       }
     }
+    for (const item of parsed.selectClause.items) {
+      matches.push(...collectExpressionQueryOccurrences(item.value, target, mode, context));
+    }
     if (parsed.fromClause) {
       matches.push(...collectFromClauseOccurrences(parsed.fromClause, target, mode, context));
     }

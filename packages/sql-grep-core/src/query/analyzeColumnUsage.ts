@@ -149,6 +149,9 @@ function collectColumnOccurrences(
     }
 
     const scope = buildScope(parsed.fromClause ?? undefined, target, mode, parsed.updateClause.source);
+    if (parsed.fromClause) {
+      matches.push(...collectNestedSourceQueryMatches(parsed.fromClause.source, target, mode));
+    }
     for (const item of parsed.setClause.items) {
       if (matchesColumnName(item.column.name, target)) {
         matches.push(buildExplicitOccurrence(item.column.name, mode, 'update-set', [], context));
@@ -180,6 +183,11 @@ function collectColumnOccurrences(
     }
 
     const scope = buildScope(undefined, target, mode, parsed.deleteClause.source);
+    if (parsed.usingClause) {
+      for (const source of parsed.usingClause.getSources()) {
+        matches.push(...collectNestedSourceQueryMatches(source, target, mode));
+      }
+    }
     if (parsed.whereClause) {
       matches.push(...collectExpressionMatches(parsed.whereClause.condition, target, mode, scope, context, 'where', []));
     }
@@ -285,16 +293,23 @@ function collectJoinMatches(
   scope: ScopeState,
   context: { inSubquery?: boolean; inCte?: boolean }
 ): ColumnOccurrence[] {
+  const matches = collectNestedSourceQueryMatches(join.source, target, mode);
   if (!join.condition) {
-    return [];
+    return matches;
   }
   if (join.condition instanceof JoinOnClause) {
-    return collectExpressionMatches(join.condition.condition, target, mode, scope, context, 'join-on', []);
+    return [
+      ...matches,
+      ...collectExpressionMatches(join.condition.condition, target, mode, scope, context, 'join-on', [])
+    ];
   }
   if (join.condition instanceof JoinUsingClause) {
-    return collectExpressionMatches(join.condition.condition, target, mode, scope, context, 'join-using', []);
+    return [
+      ...matches,
+      ...collectExpressionMatches(join.condition.condition, target, mode, scope, context, 'join-using', [])
+    ];
   }
-  return [];
+  return matches;
 }
 
 function collectNestedSourceQueryMatches(
@@ -444,7 +459,20 @@ function collectColumnReferenceMatch(
     if (!scope.targetTablePresent) {
       return [];
     }
-    searchTerms = [namespace ? `${namespace}.*` : '*'];
+
+    if (!namespace) {
+      searchTerms = ['*'];
+    } else {
+      const matchesNamespace =
+        mode === 'any-schema-any-table' ||
+        scope.aliases.has(namespace) ||
+        (target.table ? namespace === target.table.toLowerCase() : false) ||
+        (target.schema && target.table ? namespace === `${target.schema}.${target.table}`.toLowerCase() : false);
+      if (!matchesNamespace) {
+        return [];
+      }
+      searchTerms = [`${namespace}.*`];
+    }
   } else {
     if (!matchesColumnName(columnName, target)) {
       return [];
