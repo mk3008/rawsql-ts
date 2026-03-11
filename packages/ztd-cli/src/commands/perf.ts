@@ -18,6 +18,7 @@ import {
   type PerfBenchmarkMode
 } from '../perf/benchmark';
 import { isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
+import { withSpan, withSpanSync } from '../utils/telemetry';
 import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { CreateTableQuery, MultiQuerySplitter, SqlParser, createTableDefinitionFromCreateTableQuery } from 'rawsql-ts';
 import { collectSqlFiles } from '../utils/collectSqlFiles';
@@ -40,6 +41,8 @@ interface PerfResetOptions {
 interface PerfRunOptions {
   query?: string;
   params?: string;
+  strategy?: string;
+  material?: string;
   mode?: string;
   repeat?: string;
   warmup?: string;
@@ -55,6 +58,14 @@ interface PerfReportDiffOptions {
   format?: string;
   json?: string;
 }
+
+export const PERF_COMMAND_SPANS = {
+  resolveRunOptions: 'resolve-perf-run-options',
+  executeBenchmark: 'execute-perf-benchmark',
+  renderBenchmark: 'render-perf-report',
+  loadDiff: 'load-perf-report-diff',
+  renderDiff: 'render-perf-diff-output',
+} as const;
 
 export function registerPerfCommands(program: Command): void {
   const perf = program.command('perf').description('Opt-in perf sandbox workflows for reproducible SQL experiments');
@@ -103,6 +114,8 @@ Examples:
     .description('Benchmark one SQL query and capture evidence for AI-driven tuning loops')
     .option('--query <sqlFile>', 'SQL file to benchmark inside the perf sandbox')
     .option('--params <path>', 'JSON or YAML file with query parameters (object for named placeholders, array for positional)')
+    .option('--strategy <strategy>', 'Execution strategy (direct|decomposed)', 'direct')
+    .option('--material <cteNames>', 'Comma-separated CTEs to materialize when --strategy decomposed is used')
     .option('--mode <mode>', 'Benchmark mode (auto|latency|completion)', 'auto')
     .option('--repeat <count>', `Measured repetitions for latency mode (default: ${PERF_BENCHMARK_DEFAULTS.repeat})`)
     .option('--warmup <count>', `Warmup repetitions for latency mode (default: ${PERF_BENCHMARK_DEFAULTS.warmup})`)
@@ -206,43 +219,78 @@ async function runPerfSeedCommand(options: PerfSeedOptions): Promise<void> {
 }
 
 async function runPerfRunCommand(options: PerfRunOptions): Promise<void> {
-  const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
-  const queryFile = normalizeRequiredStringOption(merged.query, '--query');
-  const report = await runPerfBenchmark({
-    rootDir: process.cwd(),
-    queryFile,
-    paramsFile: normalizeOptionalStringOption(merged.params),
-    mode: normalizeBenchmarkMode(normalizeOptionalStringOption(merged.mode) ?? 'auto'),
-    repeat: normalizePositiveIntegerOption(merged.repeat, '--repeat', PERF_BENCHMARK_DEFAULTS.repeat),
-    warmup: normalizeNonNegativeIntegerOption(merged.warmup, '--warmup', PERF_BENCHMARK_DEFAULTS.warmup),
-    classifyThresholdSeconds: normalizePositiveIntegerOption(
-      merged.classifyThresholdSeconds,
-      '--classify-threshold-seconds',
-      PERF_BENCHMARK_DEFAULTS.classifyThresholdSeconds
-    ),
-    timeoutMinutes: normalizePositiveIntegerOption(merged.timeoutMinutes, '--timeout-minutes', PERF_BENCHMARK_DEFAULTS.timeoutMinutes),
-    save: normalizeBooleanOption(merged.save),
-    dryRun: normalizeBooleanOption(merged.dryRun),
-    label: normalizeOptionalStringOption(merged.label)
+  const resolved = withSpanSync(PERF_COMMAND_SPANS.resolveRunOptions, () => {
+    const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+    const queryFile = normalizeRequiredStringOption(merged.query, '--query');
+
+    return {
+      rootDir: process.cwd(),
+      queryFile,
+      paramsFile: normalizeOptionalStringOption(merged.params),
+      strategy: normalizePerfStrategy(normalizeOptionalStringOption(merged.strategy) ?? 'direct'),
+      material: normalizeCsvListOption(merged.material),
+      mode: normalizeBenchmarkMode(normalizeOptionalStringOption(merged.mode) ?? 'auto'),
+      repeat: normalizePositiveIntegerOption(merged.repeat, '--repeat', PERF_BENCHMARK_DEFAULTS.repeat),
+      warmup: normalizeNonNegativeIntegerOption(merged.warmup, '--warmup', PERF_BENCHMARK_DEFAULTS.warmup),
+      classifyThresholdSeconds: normalizePositiveIntegerOption(
+        merged.classifyThresholdSeconds,
+        '--classify-threshold-seconds',
+        PERF_BENCHMARK_DEFAULTS.classifyThresholdSeconds
+      ),
+      timeoutMinutes: normalizePositiveIntegerOption(merged.timeoutMinutes, '--timeout-minutes', PERF_BENCHMARK_DEFAULTS.timeoutMinutes),
+      save: normalizeBooleanOption(merged.save),
+      dryRun: normalizeBooleanOption(merged.dryRun),
+      label: normalizeOptionalStringOption(merged.label)
+    };
+  }, {
+    jsonPayload: Boolean(options.json),
   });
 
-  emitPerfReport('perf run', report);
+  const report = await withSpan(PERF_COMMAND_SPANS.executeBenchmark, () => {
+    return runPerfBenchmark(resolved);
+  }, {
+    strategy: resolved.strategy,
+    requestedMode: resolved.mode,
+    save: resolved.save,
+    dryRun: resolved.dryRun,
+  });
+
+  withSpanSync(PERF_COMMAND_SPANS.renderBenchmark, () => {
+    emitPerfReport('perf run', report);
+  }, {
+    selectedMode: report.selected_mode,
+    strategy: report.strategy,
+    saved: report.saved,
+    dryRun: report.dry_run,
+  });
 }
 
 function runPerfReportDiffCommand(baselineDir: string, candidateDir: string, options: PerfReportDiffOptions): void {
-  const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
-  const format = normalizePerfFormat(normalizeOptionalStringOption(merged.format));
-  const report = diffPerfBenchmarkReports(path.resolve(process.cwd(), baselineDir), path.resolve(process.cwd(), candidateDir));
-  const contents = formatPerfDiffReport(report, format);
+  const resolved = withSpanSync(PERF_COMMAND_SPANS.loadDiff, () => {
+    const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+    const format = normalizePerfFormat(normalizeOptionalStringOption(merged.format));
+    const report = diffPerfBenchmarkReports(path.resolve(process.cwd(), baselineDir), path.resolve(process.cwd(), candidateDir));
+
+    return { format, report };
+  }, {
+    jsonPayload: Boolean(options.json),
+  });
 
   if (isJsonOutput()) {
-    writeCommandEnvelope('perf report diff', report);
+    withSpanSync(PERF_COMMAND_SPANS.renderDiff, () => {
+      writeCommandEnvelope('perf report diff', resolved.report);
+    }, {
+      format: resolved.format,
+    });
     return;
   }
 
-  process.stdout.write(contents);
+  withSpanSync(PERF_COMMAND_SPANS.renderDiff, () => {
+    process.stdout.write(formatPerfDiffReport(resolved.report, resolved.format));
+  }, {
+    format: resolved.format,
+  });
 }
-
 function buildPerfSeedDryRunPlan(rootDir: string): { seed: number; tables: Record<string, number> } {
   const config = loadZtdProjectConfig(rootDir);
   const seedConfig = loadPerfSeedConfig(rootDir);
@@ -369,6 +417,31 @@ function normalizeNonNegativeIntegerOption(value: unknown, label: string, fallba
     throw new Error(`${label} must be a non-negative integer.`);
   }
   return parsed;
+}
+
+function normalizeCsvListOption(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((entry) => {
+      if (typeof entry !== 'string') {
+        throw new Error(`Expected material entries to be strings but received ${typeof entry}.`);
+      }
+      return entry.trim();
+    }).filter(Boolean);
+  }
+
+  const normalized = normalizeOptionalStringOption(value);
+  if (!normalized) {
+    return [];
+  }
+  return normalized.split(',').map((entry) => entry.trim()).filter(Boolean);
+}
+
+function normalizePerfStrategy(value: string): 'direct' | 'decomposed' {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'direct' || normalized === 'decomposed') {
+    return normalized;
+  }
+  throw new Error(`Unsupported perf execution strategy: ${value}`);
 }
 
 function normalizeBenchmarkMode(value: string): PerfBenchmarkMode {

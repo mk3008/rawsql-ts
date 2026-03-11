@@ -109,10 +109,11 @@ ztdDescribe('tax allocation dogfood scenario', () => {
     const finalSql = normalizeSql(
       [...pipelineResult.history].reverse().find((entry) => !entry.sql.startsWith('drop table if exists'))?.sql ?? ''
     );
-    const scalarSql = normalizeSql(pipelineResult.history.find((entry) => entry.sql.includes('from "floored_allocations"'))?.sql ?? '');
+    const flooredStageSql = normalizeSql(pipelineResult.history.find((entry) => entry.sql.includes('from "input_lines"'))?.sql ?? '');
+    const rankedStageSql = normalizeSql(pipelineResult.history.find((entry) => entry.sql.includes('from "floored_allocations"'))?.sql ?? '');
 
-    expect(scalarSql).toContain('from "floored_allocations"');
-    expect(scalarSql).toContain('from "input_lines"');
+    expect(flooredStageSql).toContain('from "input_lines"');
+    expect(rankedStageSql).toContain('from "floored_allocations"');
     expect(finalSql).toContain('from "ranked_allocations" as "ranked"');
     expect(finalSql).toMatch(/where "allocation_rank" <= \$1/);
     expect(finalSql).not.toContain('from "floored_allocations"');

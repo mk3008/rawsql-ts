@@ -688,6 +688,15 @@ exports[`describe command snapshots the top-level command catalog and every deta
           "name": "--params",
         },
         {
+          "defaultValue": "direct",
+          "description": "Execution strategy (direct|decomposed).",
+          "name": "--strategy",
+        },
+        {
+          "description": "Comma-separated CTEs to materialize when using decomposed execution.",
+          "name": "--material",
+        },
+        {
           "defaultValue": "auto",
           "description": "Benchmark mode (auto|latency|completion).",
           "name": "--mode",

@@ -7,7 +7,9 @@ import {
   formatPerfBenchmarkReport,
   formatPerfDiffReport,
   loadPerfBenchmarkReport,
+  mapPipelineStatements,
   runPerfBenchmark,
+  toPerfPlannedSteps,
   type PerfBenchmarkReport
 } from '../src/perf/benchmark';
 import { TAX_ALLOCATION_QUERY } from './utils/taxAllocationScenario';
@@ -30,6 +32,48 @@ function createSqlWorkspace(prefix: string, sqlRelativePath: string = path.join(
   const sqlFile = path.join(rootDir, sqlRelativePath);
   mkdirSync(path.dirname(sqlFile), { recursive: true });
   return { rootDir, sqlFile };
+}
+
+function makePerfReport(overrides: Partial<PerfBenchmarkReport> = {}): PerfBenchmarkReport {
+  return {
+    schema_version: 1,
+    command: 'perf run',
+    run_id: 'run_001',
+    query_file: 'candidate.sql',
+    query_type: 'SELECT',
+    params_shape: 'none',
+    ordered_param_names: [],
+    source_sql_file: 'candidate.sql',
+    source_sql: 'select 1',
+    bound_sql: 'select 1',
+    bindings: undefined,
+    strategy: 'direct',
+    requested_mode: 'completion',
+    selected_mode: 'completion',
+    selection_reason: 'forced',
+    classify_threshold_ms: 60000,
+    timeout_ms: 300000,
+    dry_run: false,
+    saved: true,
+    total_elapsed_ms: 500,
+    completion_metrics: {
+      completed: true,
+      timed_out: false,
+      wall_time_ms: 500
+    },
+    executed_statements: [],
+    plan_observations: [],
+    recommended_actions: [],
+    pipeline_analysis: {
+      query_type: 'SELECT',
+      cte_count: 0,
+      should_consider_pipeline: false,
+      candidate_ctes: [],
+      scalar_filter_candidates: [],
+      notes: []
+    },
+    ...overrides
+  };
 }
 
 test('runPerfBenchmark dry-run binds named YAML params and surfaces pipeline analysis', async () => {
@@ -82,6 +126,8 @@ test('runPerfBenchmark dry-run binds named YAML params and surfaces pipeline ana
   expect(report.recommended_actions).toEqual([]);
   expect(report.pipeline_analysis.should_consider_pipeline).toBe(false);
   expect(report.params_file).toBe(path.resolve(paramsFile));
+  expect(report.strategy).toBe('direct');
+  expect(report.strategy_metadata).toBeUndefined();
 
   const text = formatPerfBenchmarkReport(report, 'text');
   expect(text).toContain('Mode: latency');
@@ -194,28 +240,13 @@ test('diffPerfBenchmarkReports compares saved latency runs by p95', () => {
   mkdirSync(baselineDir, { recursive: true });
   mkdirSync(candidateDir, { recursive: true });
 
-  const baseline: PerfBenchmarkReport = {
-    schema_version: 1,
-    command: 'perf run',
+  const baseline = makePerfReport({
     run_id: 'run_001',
     query_file: 'baseline.sql',
-    query_type: 'SELECT',
-    params_shape: 'none',
-    ordered_param_names: [],
     source_sql_file: 'baseline.sql',
-    source_sql: 'select 1',
-    bound_sql: 'select 1',
-    bindings: undefined,
-    strategy: 'direct',
-    requested_mode: 'latency',
     selected_mode: 'latency',
-    selection_reason: 'forced',
-    classify_threshold_ms: 60000,
-    timeout_ms: 300000,
-    database_version: '16.2',
-    dry_run: false,
-    saved: true,
-    total_elapsed_ms: 330,
+    requested_mode: 'latency',
+    total_elapsed_ms: 360,
     latency_metrics: {
       measured_runs: 3,
       warmup_runs: 1,
@@ -235,10 +266,11 @@ test('diffPerfBenchmarkReports compares saved latency runs by p95', () => {
       candidate_ctes: [],
       scalar_filter_candidates: [],
       notes: []
-    }
-  };
+    },
+    database_version: '16.2'
+  });
 
-  const candidate: PerfBenchmarkReport = {
+  const candidate = makePerfReport({
     ...baseline,
     run_id: 'run_002',
     database_version: '16.3',
@@ -254,7 +286,7 @@ test('diffPerfBenchmarkReports compares saved latency runs by p95', () => {
     },
     executed_statements: [{ seq: 1, role: 'final-query', sql: 'select 1', bindings: undefined, elapsed_ms: 80, plan_summary: { node_type: 'Nested Loop', join_type: 'Inner' } }],
     plan_observations: ['Inner Nested Loop present in the captured plan']
-  };
+  });
 
   writeFileSync(path.join(baselineDir, 'summary.json'), JSON.stringify(baseline, null, 2), 'utf8');
   writeFileSync(path.join(candidateDir, 'summary.json'), JSON.stringify(candidate, null, 2), 'utf8');
@@ -290,7 +322,7 @@ test('runPerfBenchmark wraps YAML parse failures with the absolute params path',
   const paramsFile = path.join(workspace.rootDir, 'perf', 'params.yml');
   mkdirSync(path.dirname(paramsFile), { recursive: true });
   writeFileSync(workspace.sqlFile, 'select * from public.sales where status = :status', 'utf8');
-  writeFileSync(paramsFile, ['params: [unterminated', ''].join('\\n'), 'utf8');
+  writeFileSync(paramsFile, ['params: [unterminated', ''].join('\n'), 'utf8');
   await expect(runPerfBenchmark({
     rootDir: workspace.rootDir,
     queryFile: workspace.sqlFile,
@@ -588,4 +620,270 @@ test('formatPerfBenchmarkReport recommends join review for nested loop plans', (
 
 
 
+test('runPerfBenchmark dry-run exposes decomposed multi-statement evidence and strategy metadata', async () => {
+  const workspace = createSqlWorkspace('perf-benchmark-decomposed', path.join('src', 'sql', 'reports', 'decomposed.sql'));
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with base_sales as (
+        select id, region_id from public.sales
+      ),
+      filtered_sales as (
+        select id from base_sales where region_id = 10
+      ),
+      final_sales as (
+        select id from filtered_sales
+      )
+      select * from final_sales
+    `,
+    'utf8'
+  );
 
+  const report = await runPerfBenchmark({
+    rootDir: workspace.rootDir,
+    queryFile: workspace.sqlFile,
+    strategy: 'decomposed',
+    material: ['base_sales', 'filtered_sales'],
+    mode: 'latency',
+    repeat: 2,
+    warmup: 0,
+    classifyThresholdSeconds: 60,
+    timeoutMinutes: 5,
+    save: false,
+    dryRun: true,
+  });
+
+  expect(report.strategy).toBe('decomposed');
+  expect(report.strategy_metadata).toMatchObject({
+    materialized_ctes: ['base_sales', 'filtered_sales'],
+    planned_steps: [
+      expect.objectContaining({ step: 1, kind: 'materialize', target: 'base_sales' }),
+      expect.objectContaining({ step: 2, kind: 'materialize', target: 'filtered_sales' }),
+      expect.objectContaining({ step: 3, kind: 'final-query', target: 'FINAL_QUERY' }),
+    ]
+  });
+  expect(report.executed_statements).toEqual([
+    expect.objectContaining({ seq: 1, role: 'materialize', target: 'base_sales' }),
+    expect.objectContaining({ seq: 2, role: 'materialize', target: 'filtered_sales' }),
+    expect.objectContaining({ seq: 3, role: 'final-query', target: 'FINAL_QUERY' }),
+  ]);
+});
+
+test('loadPerfBenchmarkReport accepts decomposed summaries with strategy metadata', () => {
+  const workspace = createTempDir('perf-benchmark-decomposed-summary');
+  const summary = makePerfReport({
+    run_id: 'run_100',
+    strategy: 'decomposed',
+    strategy_metadata: {
+      materialized_ctes: ['base_sales'],
+      scalar_filter_columns: [],
+      planned_steps: [
+        { step: 1, kind: 'materialize', target: 'base_sales', depends_on: [] },
+        { step: 2, kind: 'final-query', target: 'FINAL_QUERY', depends_on: ['base_sales'] },
+      ]
+    },
+    total_elapsed_ms: 400,
+    completion_metrics: {
+      completed: true,
+      timed_out: false,
+      wall_time_ms: 400
+    },
+    executed_statements: [
+      { seq: 1, role: 'materialize', target: 'base_sales', sql: 'create temp table "base_sales" as select 1', bindings: undefined, elapsed_ms: 120 },
+      { seq: 2, role: 'final-query', target: 'FINAL_QUERY', sql: 'select * from "base_sales"', bindings: undefined, elapsed_ms: 280 },
+    ],
+    pipeline_analysis: {
+      query_type: 'SELECT',
+      cte_count: 1,
+      should_consider_pipeline: false,
+      candidate_ctes: [],
+      scalar_filter_candidates: [],
+      notes: []
+    }
+  });
+
+  writeFileSync(path.join(workspace, 'summary.json'), JSON.stringify(summary, null, 2), 'utf8');
+  const loaded = loadPerfBenchmarkReport(workspace);
+  expect(loaded.strategy).toBe('decomposed');
+  expect(loaded.strategy_metadata?.planned_steps).toHaveLength(2);
+  expect(loaded.executed_statements[0]).toMatchObject({ role: 'materialize', target: 'base_sales' });
+});
+
+test('diffPerfBenchmarkReports emits statement deltas for decomposed multi-statement runs', () => {
+  const workspace = createTempDir('perf-benchmark-decomposed-diff');
+  const baselineDir = path.join(workspace, 'run_001');
+  const candidateDir = path.join(workspace, 'run_002');
+  mkdirSync(baselineDir, { recursive: true });
+  mkdirSync(candidateDir, { recursive: true });
+
+  const baseline = makePerfReport({
+    run_id: 'run_001',
+    query_file: 'baseline.sql',
+    source_sql_file: 'baseline.sql',
+    strategy: 'decomposed',
+    strategy_metadata: {
+      materialized_ctes: ['base_sales'],
+      scalar_filter_columns: [],
+      planned_steps: [
+        { step: 1, kind: 'materialize', target: 'base_sales', depends_on: [] },
+        { step: 2, kind: 'final-query', target: 'FINAL_QUERY', depends_on: ['base_sales'] },
+      ]
+    },
+    total_elapsed_ms: 500,
+    completion_metrics: { completed: true, timed_out: false, wall_time_ms: 500 },
+    executed_statements: [
+      { seq: 1, role: 'materialize', target: 'base_sales', sql: 'create temp table "base_sales" as select 1', bindings: undefined, elapsed_ms: 220 },
+      { seq: 2, role: 'final-query', target: 'FINAL_QUERY', sql: 'select * from "base_sales"', bindings: undefined, elapsed_ms: 280, plan_summary: { node_type: 'Seq Scan' } },
+    ],
+    plan_observations: ['Seq Scan on base_sales'],
+    pipeline_analysis: {
+      query_type: 'SELECT',
+      cte_count: 1,
+      should_consider_pipeline: false,
+      candidate_ctes: [],
+      scalar_filter_candidates: [],
+      notes: []
+    }
+  });
+
+  const candidate = {
+    ...baseline,
+    run_id: 'run_002',
+    total_elapsed_ms: 410,
+    completion_metrics: { completed: true, timed_out: false, wall_time_ms: 410 },
+    executed_statements: [
+      { seq: 1, role: 'materialize', target: 'base_sales', sql: 'create temp table "base_sales" as select 1', bindings: undefined, elapsed_ms: 150 },
+      { seq: 2, role: 'final-query', target: 'FINAL_QUERY', sql: 'select * from "base_sales"', bindings: undefined, elapsed_ms: 260, plan_summary: { node_type: 'Index Scan' } },
+    ],
+    plan_observations: ['Index Scan on base_sales'],
+  };
+
+  writeFileSync(path.join(baselineDir, 'summary.json'), JSON.stringify(baseline, null, 2), 'utf8');
+  writeFileSync(path.join(candidateDir, 'summary.json'), JSON.stringify(candidate, null, 2), 'utf8');
+
+  const diff = diffPerfBenchmarkReports(baselineDir, candidateDir);
+  expect(diff.statement_deltas).toEqual(expect.arrayContaining([
+    expect.objectContaining({ statement_id: '1:materialize:base_sales', elapsed_delta_ms: -70 }),
+    expect.objectContaining({ statement_id: '2:final-query:FINAL_QUERY', elapsed_delta_ms: -20 }),
+  ]));
+  const text = formatPerfDiffReport(diff, 'text');
+  expect(text).toContain('Statement deltas:');
+  expect(text).toContain('1:materialize:base_sales');
+});
+
+test('diffPerfBenchmarkReports aligns final-query deltas across direct and decomposed runs', () => {
+  const workspace = createTempDir('perf-benchmark-strategy-diff');
+  const baselineDir = path.join(workspace, 'run_001');
+  const candidateDir = path.join(workspace, 'run_002');
+  mkdirSync(baselineDir, { recursive: true });
+  mkdirSync(candidateDir, { recursive: true });
+
+  const baseline = makePerfReport({
+    run_id: 'run_001',
+    query_file: 'baseline.sql',
+    source_sql_file: 'baseline.sql',
+    strategy: 'direct',
+    total_elapsed_ms: 500,
+    completion_metrics: { completed: true, timed_out: false, wall_time_ms: 500 },
+    executed_statements: [
+      { seq: 1, role: 'final-query', target: 'FINAL_QUERY', sql: 'select * from base_sales', bindings: undefined, elapsed_ms: 500, plan_summary: { node_type: 'Nested Loop' } },
+    ],
+    plan_observations: ['Nested Loop on base_sales'],
+    pipeline_analysis: {
+      query_type: 'SELECT',
+      cte_count: 1,
+      should_consider_pipeline: false,
+      candidate_ctes: [],
+      scalar_filter_candidates: [],
+      notes: []
+    }
+  });
+
+  const candidate = makePerfReport({
+    ...baseline,
+    run_id: 'run_002',
+    strategy: 'decomposed',
+    strategy_metadata: {
+      materialized_ctes: ['base_sales'],
+      scalar_filter_columns: [],
+      planned_steps: [
+        { step: 1, kind: 'materialize', target: 'base_sales', depends_on: [] },
+        { step: 2, kind: 'final-query', target: 'FINAL_QUERY', depends_on: ['base_sales'] },
+      ]
+    },
+    total_elapsed_ms: 410,
+    completion_metrics: { completed: true, timed_out: false, wall_time_ms: 410 },
+    executed_statements: [
+      { seq: 1, role: 'materialize', target: 'base_sales', sql: 'create temp table "base_sales" as select 1', bindings: undefined, elapsed_ms: 150, plan_summary: { node_type: 'Seq Scan' } },
+      { seq: 2, role: 'final-query', target: 'FINAL_QUERY', sql: 'select * from "base_sales"', bindings: undefined, elapsed_ms: 260, plan_summary: { node_type: 'Index Scan' } },
+    ],
+    plan_observations: ['Seq Scan on base_sales', 'Index Scan on base_sales'],
+  });
+
+  writeFileSync(path.join(baselineDir, 'summary.json'), JSON.stringify(baseline, null, 2), 'utf8');
+  writeFileSync(path.join(candidateDir, 'summary.json'), JSON.stringify(candidate, null, 2), 'utf8');
+
+  const diff = diffPerfBenchmarkReports(baselineDir, candidateDir);
+  expect(diff.statement_deltas).toEqual(expect.arrayContaining([
+    expect.objectContaining({ statement_id: '2:final-query:FINAL_QUERY', baseline_elapsed_ms: 500, candidate_elapsed_ms: 260, elapsed_delta_ms: -240 }),
+    expect.objectContaining({ statement_id: '1:materialize:base_sales', baseline_elapsed_ms: undefined, candidate_elapsed_ms: 150 }),
+  ]));
+  expect(diff.plan_deltas).toEqual(expect.arrayContaining([
+    expect.objectContaining({ statement_id: '2:final-query:FINAL_QUERY', changed: true }),
+    expect.objectContaining({ statement_id: '1:materialize:base_sales', baseline_plan: '(missing statement)' }),
+  ]));
+});
+
+
+test('mapPipelineStatements keeps materialize roles for captured timeout steps before the final query', () => {
+  const mapped = mapPipelineStatements(
+    [
+      {
+        sql: 'create temp table "base_sales" as select 1',
+        bindings: undefined,
+        elapsedMs: 300000,
+        timedOut: true,
+      }
+    ],
+    toPerfPlannedSteps([
+      { kind: 'materialize', target: 'base_sales' }
+    ])
+  );
+
+  expect(mapped).toEqual([
+    expect.objectContaining({
+      role: 'materialize',
+      target: 'base_sales',
+      timedOut: true,
+    })
+  ]);
+});
+
+test('toPerfPlannedSteps drops scalar-filter pseudo-steps before mapping executed statements', () => {
+  const mapped = mapPipelineStatements(
+    [
+      {
+        sql: 'create temp table "base_sales" as select 1',
+        bindings: undefined,
+        elapsedMs: 20,
+        timedOut: false,
+      },
+      {
+        sql: 'select * from "base_sales" where id = $1',
+        bindings: [1],
+        elapsedMs: 30,
+        timedOut: false,
+      }
+    ],
+    toPerfPlannedSteps([
+      { kind: 'scalar-filter-bind', target: 'SCALAR_FILTER' },
+      { kind: 'materialize', target: 'base_sales' },
+      { kind: 'final-query', target: 'FINAL_QUERY' }
+    ])
+  );
+
+  expect(mapped).toEqual([
+    expect.objectContaining({ role: 'materialize', target: 'base_sales' }),
+    expect.objectContaining({ role: 'final-query', target: 'FINAL_QUERY' })
+  ]);
+});

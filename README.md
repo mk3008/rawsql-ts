@@ -18,6 +18,7 @@ Designed to complement, not replace, your SQL expertise.
 | Package | Version | Description |
 |---------|---------|-------------|
 | [rawsql-ts](./packages/core) | ![npm](https://img.shields.io/npm/v/rawsql-ts) | SQL parser and AST transformer. Zero dependencies, browser-ready. |
+| [@rawsql-ts/sql-grep-core](./packages/sql-grep-core) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/sql-grep-core) | Low-dependency SQL usage analysis engine for AST-based schema impact checks. |
 
 ### Contract
 
@@ -59,6 +60,7 @@ For the machine-readable CLI surface, see [ztd-cli Agent Interface](./docs/guide
 
 ```text
 rawsql-ts (core)
+├─ @rawsql-ts/sql-grep-core
 ├─ @rawsql-ts/sql-contract
 ├─ @rawsql-ts/executor
 ├─ @rawsql-ts/testkit-core
@@ -68,6 +70,7 @@ rawsql-ts (core)
 ├─ @rawsql-ts/ddl-docs-cli
 │  └─ @rawsql-ts/ddl-docs-vitepress
 └─ @rawsql-ts/ztd-cli
+   └─ uses @rawsql-ts/sql-grep-core for `query uses`
 ```
 
 ## Quick Start
@@ -76,7 +79,7 @@ rawsql-ts (core)
 npm install rawsql-ts
 ```
 
-See the [Core Package Documentation](./packages/core/README.md) for usage examples and API reference. Deterministic dogfooding spec: [docs/dogfooding/DOGFOODING.md](./docs/dogfooding/DOGFOODING.md).
+See the [Core Package Documentation](./packages/core/README.md) for usage examples and API reference. For reusable AST-based impact analysis, see [@rawsql-ts/sql-grep-core](./packages/sql-grep-core). Deterministic dogfooding spec: [docs/dogfooding/DOGFOODING.md](./docs/dogfooding/DOGFOODING.md).
 
 ## CLI Tool Routing Happy Paths
 

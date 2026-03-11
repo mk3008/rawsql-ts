@@ -268,6 +268,13 @@ Note: ztd lint validates SQL via Postgres. When queries contain placeholders ($1
 - If you run under a directory governed by a parent `pnpm-workspace.yaml`, pnpm may absorb installs into the parent workspace.
 - This can introduce unrelated dependency-resolution friction and reduce determinism for dogfooding signals.
 - This mode is intentionally not the default because it does not represent typical npm-package users.
+## Companion scenarios
+
+For SQL debugging and tuning loops, use the companion scenario document instead of expanding this backend-focused harness inline:
+
+- [SQL Debug Recovery Dogfooding](./sql-debug-recovery.md)
+
+That companion scenario covers broken long-CTE SQL recovery, query graph / query slice / query patch apply usage, and direct-vs-decomposed perf evidence loops.
 ## 8) Recommended run skeleton
 
 Use this order unless a hard blocker appears.

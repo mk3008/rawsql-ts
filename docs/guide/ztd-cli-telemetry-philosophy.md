@@ -25,6 +25,7 @@ Enable telemetry when you are:
 - Dogfooding new CLI behavior before release
 - Capturing CI artifacts for command-level trace review
 - Pointing a local collector or Jaeger instance at OTLP output for short-lived inspection
+- Verifying SQL recovery and perf loops such as `perf run` plus `perf report diff` during tuning dogfooding
 
 Leave it off for normal published-package usage, happy-path setup, and standard project scaffolding.
 

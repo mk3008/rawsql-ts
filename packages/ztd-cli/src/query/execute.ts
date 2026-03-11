@@ -236,6 +236,7 @@ async function buildTargetStageQuery(
     throw new Error(`CTE not found in query: ${targetName}`);
   }
 
+  const dependencyCtes = includedCtes.filter((cte) => cte.aliasExpression.table.name !== targetName);
   const bindingContext = createScalarBindingContext(
     options,
     includedNames,
@@ -244,12 +245,24 @@ async function buildTargetStageQuery(
   );
   const scalarSteps = await bindScalarFilterPredicatesInCtes(includedCtes, bindingContext, session);
   const formatter = createPipelineFormatter(options.runtimeParams);
-  const mainQuery = buildSelectFromTargetQuery(targetName, options.limit);
-  const withComponent = includedCtes.length > 0 ? new WithClause(getWithClause(parsed)?.recursive ?? false, includedCtes) : null;
+  const targetQuery = assertSelectQuery(targetCte.query);
+  const withComponent = dependencyCtes.length > 0 ? new WithClause(getWithClause(parsed)?.recursive ?? false, dependencyCtes) : null;
   const withResult = withComponent
     ? formatter.format(withComponent)
     : { formattedSql: '', params: emptyFormatterParams(options.runtimeParams) };
-  const mainResult = formatter.format(mainQuery);
+
+  let mainResult: { formattedSql: string; params: unknown[] | Record<string, unknown> };
+  if (options.limit !== undefined) {
+    if (targetQuery instanceof SimpleSelectQuery) {
+      targetQuery.limitClause = new LimitClause(new LiteralValue(options.limit));
+      mainResult = formatter.format(targetQuery);
+    } else {
+      mainResult = formatter.format(buildWrappedLimitQuery(targetQuery, options.limit));
+    }
+  } else {
+    mainResult = formatter.format(targetQuery);
+  }
+
   const mergedParams = mergeFormatterParams([withResult.params, mainResult.params], options.runtimeParams);
   const sql = withResult.formattedSql ? `${withResult.formattedSql} ${mainResult.formattedSql}` : mainResult.formattedSql;
 
@@ -258,6 +271,7 @@ async function buildTargetStageQuery(
     params: normalizeParamsForSql(sql, mergedParams, options.runtimeParams),
     scalarSteps
   };
+
 }
 
 async function buildFinalStageQuery(
@@ -754,6 +768,9 @@ function mergeFormatterParams(
       }
 
       for (const [key, value] of Object.entries(part)) {
+        if (value === undefined || (value === null && key in merged)) {
+          continue;
+        }
         merged[key] = value;
       }
     }
@@ -1003,9 +1020,3 @@ function getSelectWithClause(statement: SimpleSelectQuery | BinarySelectQuery | 
 
   return null;
 }
-
-
-
-
-
-
