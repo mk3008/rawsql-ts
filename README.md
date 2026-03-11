@@ -37,6 +37,7 @@ These capabilities are important at the repo level even though they are mostly e
 | SQL pipeline planning and dry-run optimization analysis | `ztd query plan`, `ztd perf run --dry-run` | Explains how SQL may be decomposed into stages before execution. |
 | SQL impact analysis before schema changes | `ztd query uses` | Supports rename/type-change investigations using AST-based usage analysis. |
 | SQL debug and recovery for long CTE queries | `ztd query outline`, `ztd query lint`, `ztd query slice`, `ztd query patch apply` | Helps isolate and repair problematic query shapes. |
+| Safe DDL diff and migration-prep workflow | `ztd ddl diff`, `ztd ddl pull` | Supports two safe routes: diff local DDL files directly, or pull live Postgres schema via `pg_dump` and then generate a patch SQL file. Applying that patch is intentionally out of scope. |
 | Machine-readable CLI automation and telemetry | `ztd --output json`, `ztd describe`, telemetry export modes | Supports AI/tooling integration and timing investigation. |
 
 ## Packages
@@ -125,6 +126,7 @@ When the question is "which CLI should I run first?", start from the problem sha
 | Understand how a SQL asset will be split into pipeline steps | `npx ztd query plan <sql-file>` | `npx ztd perf run --dry-run` | Plan shows the intended materialization / scalar filter binding order before you benchmark or execute anything. |
 | Find optimizer-sensitive rewrite candidates in a real query | `npx ztd perf run --dry-run` | `npx ztd query plan <sql-file>` | Perf analysis highlights materialization and scalar-filter candidates so you can decide whether a pipeline rewrite is worth it. |
 | Inspect where a table or column is used before refactoring | `npx ztd query uses <target>` | `npx ztd query lint <path>` | `query uses` is the impact-analysis path; it is not a performance debugging tool. |
+| Prepare a safe schema patch without executing migrations | `npx ztd ddl diff` | `npx ztd ddl pull` when the live schema must be captured first | The supported output is a diff / patch SQL file. Execution against the target database is intentionally left to the caller. |
 | Debug generated SQL shape, rewritten predicates, or temp-table flow | `npx ztd query plan <sql-file>` | Scenario-specific SQL/debug workflow from [SQL Tool Happy Paths](./docs/guide/sql-tool-happy-paths.md) | Start with the structural plan, then move to command-specific debugging once you know which stage is suspicious. |
 | Investigate command timings or export machine-readable traces | Telemetry guidance in [SQL Tool Happy Paths](./docs/guide/sql-tool-happy-paths.md) | [ztd-cli telemetry philosophy](./docs/guide/ztd-cli-telemetry-philosophy.md) | Telemetry is an opt-in investigation branch, not the default entry point. |
 
