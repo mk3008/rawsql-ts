@@ -3,7 +3,7 @@
 
 > **StructureFields** = `object`
 
-Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:36](https://github.com/mk3008/rawsql-ts/blob/e7e8feb36e790d0bdcd09fe2915fd3f87fd0aef4/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L36)
+Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:36](https://github.com/mk3008/rawsql-ts/blob/fc32859e213253213dbd6475b28d3ce035220033/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L36)
 
 Structure fields can contain either field mappings or nested structures.
 

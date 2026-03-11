@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: DDLGeneralizer
 
-Defined in: [packages/core/src/transformers/DDLGeneralizer.ts:6](https://github.com/mk3008/rawsql-ts/blob/e7e8feb36e790d0bdcd09fe2915fd3f87fd0aef4/packages/core/src/transformers/DDLGeneralizer.ts#L6)
+Defined in: [packages/core/src/transformers/DDLGeneralizer.ts:6](https://github.com/mk3008/rawsql-ts/blob/fc32859e213253213dbd6475b28d3ce035220033/packages/core/src/transformers/DDLGeneralizer.ts#L6)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/DDLGeneralizer.ts:6](https://github.
 
 > `static` **generalize**(`ast`): [`SqlComponent`](SqlComponent.md)[]
 
-Defined in: [packages/core/src/transformers/DDLGeneralizer.ts:14](https://github.com/mk3008/rawsql-ts/blob/e7e8feb36e790d0bdcd09fe2915fd3f87fd0aef4/packages/core/src/transformers/DDLGeneralizer.ts#L14)
+Defined in: [packages/core/src/transformers/DDLGeneralizer.ts:14](https://github.com/mk3008/rawsql-ts/blob/fc32859e213253213dbd6475b28d3ce035220033/packages/core/src/transformers/DDLGeneralizer.ts#L14)
 
 Generalizes DDL statements by moving constraints from CREATE TABLE to ALTER TABLE statements.
 This normalizes the DDL for easier comparison.

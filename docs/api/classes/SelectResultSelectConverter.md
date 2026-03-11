@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SelectResultSelectConverter
 
-Defined in: [packages/core/src/transformers/SelectResultSelectConverter.ts:12](https://github.com/mk3008/rawsql-ts/blob/e7e8feb36e790d0bdcd09fe2915fd3f87fd0aef4/packages/core/src/transformers/SelectResultSelectConverter.ts#L12)
+Defined in: [packages/core/src/transformers/SelectResultSelectConverter.ts:12](https://github.com/mk3008/rawsql-ts/blob/fc32859e213253213dbd6475b28d3ce035220033/packages/core/src/transformers/SelectResultSelectConverter.ts#L12)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/SelectResultSelectConverter.ts:12](h
 
 > `static` **toSelectQuery**(`query`, `options?`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/SelectResultSelectConverter.ts:13](https://github.com/mk3008/rawsql-ts/blob/e7e8feb36e790d0bdcd09fe2915fd3f87fd0aef4/packages/core/src/transformers/SelectResultSelectConverter.ts#L13)
+Defined in: [packages/core/src/transformers/SelectResultSelectConverter.ts:13](https://github.com/mk3008/rawsql-ts/blob/fc32859e213253213dbd6475b28d3ce035220033/packages/core/src/transformers/SelectResultSelectConverter.ts#L13)
 
 #### Parameters
 
