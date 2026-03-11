@@ -3,7 +3,7 @@
 
 > **unifyJsonMapping**(`input`): [`JsonMapping`](../interfaces/JsonMapping.md)
 
-Defined in: [packages/core/src/transformers/JsonMappingUnifier.ts:209](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/transformers/JsonMappingUnifier.ts#L209)
+Defined in: [packages/core/src/transformers/JsonMappingUnifier.ts:209](https://github.com/mk3008/rawsql-ts/blob/fa5f6398fbc41a027f88477218c3f4f8e2a48374/packages/core/src/transformers/JsonMappingUnifier.ts#L209)
 
 Convenience function for direct JsonMapping extraction.
 

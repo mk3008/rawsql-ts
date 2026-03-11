@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: VacuumStatementParser
 
-Defined in: [packages/core/src/parsers/VacuumStatementParser.ts:4](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/parsers/VacuumStatementParser.ts#L4)
+Defined in: [packages/core/src/parsers/VacuumStatementParser.ts:4](https://github.com/mk3008/rawsql-ts/blob/fa5f6398fbc41a027f88477218c3f4f8e2a48374/packages/core/src/parsers/VacuumStatementParser.ts#L4)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/parsers/VacuumStatementParser.ts:4](https://githu
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/VacuumStatementParser.ts:5](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/parsers/VacuumStatementParser.ts#L5)
+Defined in: [packages/core/src/parsers/VacuumStatementParser.ts:5](https://github.com/mk3008/rawsql-ts/blob/fa5f6398fbc41a027f88477218c3f4f8e2a48374/packages/core/src/parsers/VacuumStatementParser.ts#L5)
 
 #### Parameters
 

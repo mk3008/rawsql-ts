@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CommentOnParser
 
-Defined in: [packages/core/src/parsers/CommentOnParser.ts:11](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/parsers/CommentOnParser.ts#L11)
+Defined in: [packages/core/src/parsers/CommentOnParser.ts:11](https://github.com/mk3008/rawsql-ts/blob/fa5f6398fbc41a027f88477218c3f4f8e2a48374/packages/core/src/parsers/CommentOnParser.ts#L11)
 
 Parses COMMENT ON TABLE/COLUMN statements.
 
@@ -21,7 +21,7 @@ Parses COMMENT ON TABLE/COLUMN statements.
 
 > `static` **parse**(`sql`): [`CommentOnStatement`](CommentOnStatement.md)
 
-Defined in: [packages/core/src/parsers/CommentOnParser.ts:17](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/parsers/CommentOnParser.ts#L17)
+Defined in: [packages/core/src/parsers/CommentOnParser.ts:17](https://github.com/mk3008/rawsql-ts/blob/fa5f6398fbc41a027f88477218c3f4f8e2a48374/packages/core/src/parsers/CommentOnParser.ts#L17)
 
 Parses a full SQL string containing a single COMMENT ON statement.
 
@@ -45,7 +45,7 @@ Parsed COMMENT ON statement model.
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/CommentOnParser.ts:33](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/parsers/CommentOnParser.ts#L33)
+Defined in: [packages/core/src/parsers/CommentOnParser.ts:33](https://github.com/mk3008/rawsql-ts/blob/fa5f6398fbc41a027f88477218c3f4f8e2a48374/packages/core/src/parsers/CommentOnParser.ts#L33)
 
 Parses COMMENT ON tokens from a lexeme array starting at the specified index.
 

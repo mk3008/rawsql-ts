@@ -1,7 +1,7 @@
 <div v-pre>
 # Enumeration: WindowFrameType
 
-Defined in: [packages/core/src/models/ValueComponent.ts:130](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/models/ValueComponent.ts#L130)
+Defined in: [packages/core/src/models/ValueComponent.ts:130](https://github.com/mk3008/rawsql-ts/blob/fa5f6398fbc41a027f88477218c3f4f8e2a48374/packages/core/src/models/ValueComponent.ts#L130)
 
 ## Enumeration Members
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/ValueComponent.ts:130](https://github.com/
 
 > **Rows**: `"rows"`
 
-Defined in: [packages/core/src/models/ValueComponent.ts:131](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/models/ValueComponent.ts#L131)
+Defined in: [packages/core/src/models/ValueComponent.ts:131](https://github.com/mk3008/rawsql-ts/blob/fa5f6398fbc41a027f88477218c3f4f8e2a48374/packages/core/src/models/ValueComponent.ts#L131)
 
 ***
 
@@ -17,7 +17,7 @@ Defined in: [packages/core/src/models/ValueComponent.ts:131](https://github.com/
 
 > **Range**: `"range"`
 
-Defined in: [packages/core/src/models/ValueComponent.ts:132](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/models/ValueComponent.ts#L132)
+Defined in: [packages/core/src/models/ValueComponent.ts:132](https://github.com/mk3008/rawsql-ts/blob/fa5f6398fbc41a027f88477218c3f4f8e2a48374/packages/core/src/models/ValueComponent.ts#L132)
 
 ***
 
@@ -25,5 +25,5 @@ Defined in: [packages/core/src/models/ValueComponent.ts:132](https://github.com/
 
 > **Groups**: `"groups"`
 
-Defined in: [packages/core/src/models/ValueComponent.ts:133](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/models/ValueComponent.ts#L133)
+Defined in: [packages/core/src/models/ValueComponent.ts:133](https://github.com/mk3008/rawsql-ts/blob/fa5f6398fbc41a027f88477218c3f4f8e2a48374/packages/core/src/models/ValueComponent.ts#L133)
 </div>

@@ -3,5 +3,5 @@
 
 > **SqlParameterValue** = `string` \| `number` \| `boolean` \| `Date` \| `null` \| `undefined` \| (`string` \| `number` \| `Date`)[]
 
-Defined in: [packages/core/src/models/ValueComponent.ts:226](https://github.com/mk3008/rawsql-ts/blob/02bc18be0db9c3e8793dbcf2912c563c0c84e244/packages/core/src/models/ValueComponent.ts#L226)
+Defined in: [packages/core/src/models/ValueComponent.ts:226](https://github.com/mk3008/rawsql-ts/blob/fa5f6398fbc41a027f88477218c3f4f8e2a48374/packages/core/src/models/ValueComponent.ts#L226)
 </div>
