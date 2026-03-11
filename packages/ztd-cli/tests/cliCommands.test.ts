@@ -3,13 +3,14 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import path from 'node:path';
 import { Client } from 'pg';
 import { expect, test } from 'vitest';
+import { TAX_ALLOCATION_QUERY } from './utils/taxAllocationScenario';
 
 const nodeExecutable = process.execPath;
-const tsNodeRegister = require.resolve('ts-node/register');
-const tsConfigPathsRegister = require.resolve('tsconfig-paths/register');
+const packageManagerExecutable = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const cliRoot = path.resolve(__dirname, '..');
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
-const cliEntry = path.join(cliRoot, 'src', 'index.ts');
+const cliEntry = path.join(cliRoot, 'dist', 'index.js');
+let cliBuildPrepared = false;
 const tmpRoot = path.join(repoRoot, 'tmp');
 
 function createTempDir(prefix: string): string {
@@ -22,6 +23,32 @@ function createTempDir(prefix: string): string {
 
 const pgDumpCommand = process.env.PG_DUMP_BIN ?? 'pg_dump';
 
+function ensureBuiltCli(): void {
+  if (cliBuildPrepared) {
+    return;
+  }
+
+  // Run the built CLI in tests so dogfooding follows the packaged command path and avoids ts-node path drift.
+  const buildResult = spawnSync(packageManagerExecutable, ['--filter', '@rawsql-ts/ztd-cli', 'build'], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      NODE_ENV: 'test',
+    },
+    encoding: 'utf8',
+    shell: process.platform === 'win32',
+  });
+
+  if (buildResult.error) {
+    throw buildResult.error;
+  }
+  if (buildResult.status !== 0) {
+    throw new Error(buildResult.stderr || buildResult.stdout || 'Failed to build ztd-cli before running CLI tests.');
+  }
+
+  cliBuildPrepared = true;
+}
+
 function commandExists(command: string): boolean {
   // Run --version to confirm the binary is callable before enabling DB tests.
   const result = spawnSync(command, ['--version'], { stdio: 'ignore' });
@@ -33,17 +60,19 @@ function buildCliEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
     // Copy the current environment so per-test mutations (e.g. DATABASE_URL) propagate to the CLI.
     ...process.env,
     NODE_ENV: 'test',
-    TS_NODE_PROJECT: path.join(cliRoot, 'tsconfig.test.json'),
     ...overrides,
   };
 }
 
 function runCli(args: string[], envOverrides: NodeJS.ProcessEnv = {}, cwd: string = repoRoot): SpawnSyncReturns<string> {
-  // Invoke the CLI entry point through ts-node so the test avoids a prior build.
-  return spawnSync(nodeExecutable, ['-r', tsNodeRegister, '-r', tsConfigPathsRegister, cliEntry, ...args], {
+  ensureBuiltCli();
+
+  // Invoke the built CLI so the command path matches real dogfooding usage and stays stable across TypeScript upgrades.
+  return spawnSync(nodeExecutable, [cliEntry, ...args], {
     cwd,
     env: buildCliEnv(envOverrides),
     encoding: 'utf8',
+
   });
 }
 
@@ -823,6 +852,29 @@ test('query plan accepts JSON metadata and emits machine-readable JSON', () => {
     }
   ]);
 });
+test('query plan exposes the tax allocation dogfood pipeline in text mode', () => {
+  const workspace = createSqlWorkspace('query-plan-tax-allocation', path.join('src', 'sql', 'reports', 'tax_allocation.sql'));
+  writeFileSync(workspace.sqlFile, TAX_ALLOCATION_QUERY, 'utf8');
+
+  const result = runCli([
+    'query',
+    'plan',
+    workspace.sqlFile,
+    '--material',
+    'input_lines,floored_allocations,ranked_allocations',
+    '--scalar-filter-column',
+    'allocation_rank'
+  ], {}, workspace.rootDir);
+
+  assertCliSuccess(result, 'query plan tax allocation');
+  expect(result.stdout).toContain('Material CTEs: input_lines, floored_allocations, ranked_allocations');
+  expect(result.stdout).toContain('Scalar filter columns: allocation_rank');
+  expect(result.stdout).toContain('1. materialize input_lines');
+  expect(result.stdout).toContain('2. materialize floored_allocations');
+  expect(result.stdout).toContain('3. materialize ranked_allocations');
+  expect(result.stdout).toContain('4. run final query');
+});
+
 test('query outline supports DML statements with CTE analysis', () => {
   const workspace = createSqlWorkspace('query-outline-insert', path.join('src', 'sql', 'insert_report.sql'));
   writeFileSync(
@@ -1520,6 +1572,37 @@ test('perf run dry-run emits benchmark evidence metadata in global json mode', (
       ]
     }
   });
+});
+
+test('perf run dry-run highlights tax allocation pipeline recommendations in global json mode', () => {
+  const workspace = createSqlWorkspace('perf-run-tax-allocation', path.join('src', 'sql', 'reports', 'tax_allocation.sql'));
+  const paramsFile = path.join(workspace.rootDir, 'perf', 'params.json');
+  mkdirSync(path.dirname(paramsFile), { recursive: true });
+  writeFileSync(workspace.sqlFile, TAX_ALLOCATION_QUERY, 'utf8');
+  writeFileSync(paramsFile, JSON.stringify([2], null, 2), 'utf8');
+
+  const result = runCli(
+    ['--output', 'json', 'perf', 'run', '--query', workspace.sqlFile, '--params', paramsFile, '--mode', 'latency', '--dry-run'],
+    {},
+    workspace.rootDir
+  );
+
+  assertCliSuccess(result, 'perf run tax allocation');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    dry_run: true,
+    params_shape: 'positional',
+    pipeline_analysis: expect.objectContaining({
+      should_consider_pipeline: true,
+      scalar_filter_candidates: ['allocation_rank']
+    })
+  });
+  expect(parsed.data.recommended_actions).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ action: 'consider-pipeline-materialization' }),
+      expect.objectContaining({ action: 'consider-scalar-filter-binding' })
+    ])
+  );
 });
 
 test('perf run accepts --json payload for query resolution in global json mode', () => {

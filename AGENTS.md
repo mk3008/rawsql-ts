@@ -47,6 +47,19 @@
 - Temporary files under `./tmp` MUST be removed before completion unless converted into tracked tests.
 - `CONTINUITY.md` MUST stay untracked, MUST be listed in `.gitignore`, and MUST NOT be staged or committed.
 
+# AI SQL Tool Happy Paths
+- Start SQL pipeline investigations with pnpm --filter @rawsql-ts/ztd-cli exec node -r ts-node/register -r tsconfig-paths/register packages/ztd-cli/src/index.ts query plan <sql-file>.
+- If the question is optimizer-facing (materialization, scalar filter binding, stage ordering), run query plan before any telemetry or grep-style command.
+- Follow with pnpm --filter @rawsql-ts/ztd-cli exec node -r ts-node/register -r tsconfig-paths/register packages/ztd-cli/src/index.ts perf run --dry-run ... when you need candidate recommendations or before/after evidence.
+- Use query uses only for impact analysis and refactors. It is not the default path for runtime or optimizer debugging.
+- Use telemetry only after the structural path is known and you need timing, export, or trace evidence. Telemetry is opt-in investigation tooling, not the first command.
+- When dogfooding SQL pipeline behavior, prefer this order:
+  1. query plan
+  2. perf run --dry-run
+  3. focused SQL/debug or integration verification
+  4. query uses if the task expands into refactor impact
+- Add or update dogfooding scenarios when a tool remains underused even though it exists. Current priority targets are telemetry and SQL/debug flows; query uses should grow through refactor-impact scenarios rather than optimizer scenarios.
+
 # References
 - Rationale and architecture: [DESIGN.md](./DESIGN.md)
 - Operational procedures and troubleshooting: [DEV_NOTES.md](./DEV_NOTES.md)

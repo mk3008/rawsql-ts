@@ -65,6 +65,27 @@ function parseTelemetryPayloads(lines: string[]): Array<Record<string, unknown>>
     .map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
+function summarizeTelemetryTimeline(payloads: Array<Record<string, unknown>>, rootSpanName: string): string[] {
+  // Keep only the events that matter for dogfooding regressions so phase routing stays stable.
+  return payloads.flatMap((payload) => {
+    const kind = typeof payload.kind === 'string' ? payload.kind : null;
+    const spanName = typeof payload.spanName === 'string' ? payload.spanName : null;
+    const eventName = typeof payload.eventName === 'string' ? payload.eventName : null;
+    const status = typeof payload.status === 'string' ? payload.status : null;
+
+    if (kind === 'span-start' && spanName) {
+      return [`start:${spanName}`];
+    }
+    if (kind === 'decision' && eventName && !eventName.startsWith('command.')) {
+      return [`decision:${eventName}`];
+    }
+    if (kind === 'span-end' && spanName === rootSpanName && status) {
+      return [`end:${spanName}:${status}`];
+    }
+    return [];
+  });
+}
+
 afterEach(() => {
   if (originalProjectRoot === undefined) {
     delete process.env.ZTD_PROJECT_ROOT;
@@ -189,6 +210,62 @@ test('query uses can export telemetry to a CI-friendly artifact file through the
   );
 });
 
+test('query uses telemetry dogfood scenario preserves a stable impact-analysis timeline artifact', async () => {
+  const workspace = createWorkspace('query-telemetry-dogfood');
+  const specsDir = path.join(workspace, 'src', 'catalog', 'specs');
+  const sqlDir = path.join(workspace, 'src', 'sql');
+  const telemetryFile = path.join(workspace, 'artifacts', 'query-uses.timeline.jsonl');
+  mkdirSync(specsDir, { recursive: true });
+  mkdirSync(sqlDir, { recursive: true });
+
+  writeFileSync(
+    path.join(specsDir, 'users.spec.json'),
+    JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8',
+  );
+  writeFileSync(path.join(sqlDir, 'users.sql'), 'SELECT email FROM public.users WHERE email IS NOT NULL;', 'utf8');
+
+  process.env.ZTD_PROJECT_ROOT = workspace;
+  const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+  const program = buildProgram();
+  program.exitOverride();
+  await program.parseAsync(
+    [
+      'node',
+      'ztd',
+      '--telemetry',
+      '--telemetry-export',
+      'file',
+      '--telemetry-file',
+      telemetryFile,
+      'query',
+      'uses',
+      'column',
+      'public.users.email',
+      '--format',
+      'json',
+      '--exclude-generated',
+    ],
+    { from: 'node' },
+  );
+
+  logSpy.mockRestore();
+
+  const payloads = readFileSync(telemetryFile, 'utf8')
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+  expect(summarizeTelemetryTimeline(payloads, 'query uses column')).toEqual([
+    'start:query uses column',
+    'start:resolve-query-options',
+    'start:build-query-usage-report',
+    'start:spec-discovery',
+    'start:impact-aggregation',
+    'start:render-query-usage-output',
+    'end:query uses column:ok'
+  ]);
+});
 test('model-gen emits phase spans and probe decision events through the real CLI path', async () => {
   const workspace = createWorkspace('model-gen-telemetry');
   const sqlDir = path.join(workspace, 'src', 'sql', 'sales');
@@ -251,6 +328,63 @@ test('model-gen emits phase spans and probe decision events through the real CLI
   );
 });
 
+test('model-gen telemetry dogfood scenario preserves the probe diagnosis timeline', async () => {
+  const workspace = createWorkspace('model-gen-telemetry-dogfood');
+  const sqlDir = path.join(workspace, 'src', 'sql', 'sales');
+  const outDir = path.join(workspace, 'src', 'catalog', 'specs', 'generated');
+  mkdirSync(sqlDir, { recursive: true });
+  mkdirSync(outDir, { recursive: true });
+
+  const sqlFile = path.join(sqlDir, 'get_sales.sql');
+  const outFile = path.join(outDir, 'getSales.generated.ts');
+  writeFileSync(sqlFile, 'select :sales_id::int4 as sales_id, now() as created_at;', 'utf8');
+
+  const relativeSqlFile = path.relative(process.cwd(), sqlFile);
+  const relativeSqlRoot = path.relative(process.cwd(), path.join(workspace, 'src', 'sql'));
+  const relativeOutFile = path.relative(process.cwd(), outFile);
+
+  const telemetry = captureTelemetry();
+  const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+    void chunk;
+    return true;
+  }) as typeof process.stdout.write);
+
+  const program = buildProgram();
+  program.exitOverride();
+  await program.parseAsync(
+    [
+      'node',
+      'ztd',
+      '--telemetry',
+      'model-gen',
+      relativeSqlFile,
+      '--sql-root',
+      relativeSqlRoot,
+      '--out',
+      relativeOutFile,
+      '--url',
+      'postgres://demo:secret@localhost:5432/app',
+    ],
+    { from: 'node' },
+  );
+
+  telemetry.restore();
+  stdoutSpy.mockRestore();
+
+  const payloads = parseTelemetryPayloads(telemetry.lines);
+  expect(summarizeTelemetryTimeline(payloads, 'model-gen')).toEqual([
+    'start:model-gen',
+    'start:resolve-model-gen-inputs',
+    'decision:model-gen.probe-mode',
+    'start:placeholder-scan',
+    'start:probe-client-connect',
+    'start:probe-query-columns',
+    'start:type-inference',
+    'start:render-generated-output',
+    'start:file-emit',
+    'end:model-gen:ok'
+  ]);
+});
 test('ddl diff emits stable phase spans through the real CLI path', async () => {
   const workspace = createWorkspace('ddl-diff-telemetry');
   const ddlDir = path.join(workspace, 'ztd', 'ddl');
@@ -347,4 +481,73 @@ test('perf run emits benchmark phase spans through the real CLI path', async () 
       expect.objectContaining({ kind: 'span-end', spanName: 'perf run', status: 'ok' }),
     ]),
   );
+});
+
+test('perf run telemetry dogfood scenario preserves the benchmark investigation timeline', async () => {
+  const workspace = createWorkspace('perf-run-telemetry-dogfood');
+  const sqlDir = path.join(workspace, 'src', 'sql');
+  const perfDir = path.join(workspace, 'perf');
+  const telemetryFile = path.join(workspace, 'artifacts', 'perf-run.timeline.jsonl');
+  mkdirSync(sqlDir, { recursive: true });
+  mkdirSync(perfDir, { recursive: true });
+
+  const sqlFile = path.join(sqlDir, 'sales.sql');
+  const paramsFile = path.join(perfDir, 'params.yml');
+  writeFileSync(
+    sqlFile,
+    [
+      'with base_sales as (',
+      '  select id, region_id',
+      '  from public.sales',
+      ')',
+      'select *',
+      'from base_sales',
+      'where region_id = :region_id'
+    ].join('\n'),
+    'utf8',
+  );
+  writeFileSync(paramsFile, ['params:', '  region_id: 77', ''].join('\n'), 'utf8');
+
+  const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+    void chunk;
+    return true;
+  }) as typeof process.stdout.write);
+
+  const program = buildProgram();
+  program.exitOverride();
+  await program.parseAsync(
+    [
+      'node',
+      'ztd',
+      '--telemetry',
+      '--telemetry-export',
+      'file',
+      '--telemetry-file',
+      telemetryFile,
+      'perf',
+      'run',
+      '--query',
+      sqlFile,
+      '--params',
+      paramsFile,
+      '--mode',
+      'latency',
+      '--dry-run',
+    ],
+    { from: 'node' },
+  );
+
+  stdoutSpy.mockRestore();
+
+  const payloads = readFileSync(telemetryFile, 'utf8')
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+  expect(summarizeTelemetryTimeline(payloads, 'perf run')).toEqual([
+    'start:perf run',
+    'start:resolve-perf-run-options',
+    'start:execute-perf-benchmark',
+    'start:render-perf-report',
+    'end:perf run:ok'
+  ]);
 });
