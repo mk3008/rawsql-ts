@@ -871,3 +871,100 @@ test('query usage report isolates spec load failures per file', () => {
     })
   ]));
 });
+
+test('column usage ignores qualified wildcards from non-target relations', () => {
+  const root = createWorkspace('query-uses-column-qualified-wildcard');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
+    JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'users.sql'),
+    'SELECT orders.* FROM public.users users JOIN public.orders orders ON orders.user_id = users.id;',
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'column',
+    rawTarget: 'public.users.email',
+    rootDir: root,
+    view: 'detail'
+  });
+
+  expect(report.matches).toEqual([]);
+  expect(report.summary.matches).toBe(0);
+});
+
+test('table usage finds scalar subqueries referenced from SELECT projections', () => {
+  const root = createWorkspace('query-uses-table-select-subquery');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'sales.spec.json'),
+    JSON.stringify({ id: 'catalog.sales', sqlFile: '../../sql/sales.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'sales.sql'),
+    [
+      'SELECT (',
+      '  SELECT count(*)',
+      '  FROM public.sale_items si',
+      '  WHERE si.sale_id = s.id',
+      ') AS item_count',
+      'FROM public.sales s;'
+    ].join('\n'),
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.sale_items',
+    rootDir: root,
+    view: 'detail'
+  });
+
+  expect(report.matches).toEqual([
+    expect.objectContaining({
+      kind: 'detail',
+      usage_kind: 'subquery-from',
+      catalog_id: 'catalog.sales'
+    })
+  ]);
+});
+
+test('column usage traverses DELETE USING subqueries', () => {
+  const root = createWorkspace('query-uses-column-delete-using-subquery');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
+    JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'users.sql'),
+    [
+      'DELETE FROM public.users u',
+      'USING (',
+      '  SELECT id',
+      '  FROM public.users_archive',
+      '  WHERE email IS NOT NULL',
+      ') archived',
+      'WHERE archived.id = u.id;'
+    ].join('\n'),
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'column',
+    rawTarget: 'public.users_archive.email',
+    rootDir: root,
+    view: 'detail'
+  });
+
+  expect(report.matches).toEqual([
+    expect.objectContaining({
+      kind: 'detail',
+      usage_kind: 'subquery',
+      catalog_id: 'catalog.users'
+    })
+  ]);
+});

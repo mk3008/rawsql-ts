@@ -11,7 +11,9 @@
       "@rawsql-ts/test-evidence-core": ["packages/test-evidence-core/dist/index.d.ts"],
       "@rawsql-ts/test-evidence-core/*": ["packages/test-evidence-core/dist/*"],
       "@rawsql-ts/test-evidence-renderer-md": ["packages/test-evidence-renderer-md/dist/index.d.ts"],
-      "@rawsql-ts/test-evidence-renderer-md/*": ["packages/test-evidence-renderer-md/dist/*"]
+      "@rawsql-ts/test-evidence-renderer-md/*": ["packages/test-evidence-renderer-md/dist/*"],
+      "@rawsql-ts/sql-grep-core": ["packages/sql-grep-core/dist/index.d.ts"],
+      "@rawsql-ts/sql-grep-core/*": ["packages/sql-grep-core/dist/*"]
     },
     "resolveJsonModule": true,
     "tsBuildInfoFile": "dist/.tsbuildinfo"
@@ -19,3 +21,5 @@
   "include": ["src/**/*.ts"],
   "exclude": ["dist", "node_modules", "src/**/*.js", "src/**/*.d.ts"]
 }
+
+

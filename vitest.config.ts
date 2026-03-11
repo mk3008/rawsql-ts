@@ -40,6 +40,7 @@ export const integrationConfig = defineConfig({
             '@rawsql-ts/sql-contract': resolve(__dirname, 'packages/sql-contract/src'),
             '@rawsql-ts/test-evidence-core': resolve(__dirname, 'packages/test-evidence-core/src'),
             '@rawsql-ts/test-evidence-renderer-md': resolve(__dirname, 'packages/test-evidence-renderer-md/src'),
+            '@rawsql-ts/sql-grep-core': resolve(__dirname, 'packages/sql-grep-core/src'),
             '@rawsql-ts/adapter-node-pg': resolve(__dirname, 'packages/adapters/adapter-node-pg/src'),
             '@rawsql-ts/adapter-node-pg/*': resolve(__dirname, 'packages/adapters/adapter-node-pg/src/*'),
             '@rawsql-ts/shared-binder': resolve(__dirname, 'packages/_shared/binder/src'),
@@ -70,6 +71,7 @@ export default defineConfig({
             '@rawsql-ts/sql-contract': resolve(__dirname, 'packages/sql-contract/src'),
             '@rawsql-ts/test-evidence-core': resolve(__dirname, 'packages/test-evidence-core/src'),
             '@rawsql-ts/test-evidence-renderer-md': resolve(__dirname, 'packages/test-evidence-renderer-md/src'),
+            '@rawsql-ts/sql-grep-core': resolve(__dirname, 'packages/sql-grep-core/src'),
             '@rawsql-ts/adapter-node-pg': resolve(__dirname, 'packages/adapters/adapter-node-pg/src'),
             '@rawsql-ts/adapter-node-pg/*': resolve(__dirname, 'packages/adapters/adapter-node-pg/src/*'),
             '@rawsql-ts/shared-binder': resolve(__dirname, 'packages/_shared/binder/src'),
@@ -77,3 +79,4 @@ export default defineConfig({
         },
     },
 })
+
