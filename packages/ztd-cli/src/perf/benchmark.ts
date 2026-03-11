@@ -659,8 +659,6 @@ async function executeDecomposedBenchmarkOnce(
     connectionString: resolvedConnection.connectionUrl,
     connectionTimeoutMillis: 3000
   });
-  await client.connect();
-
   let totalElapsedMs = 0;
   const sessionFactory: QueryPipelineSessionFactory = {
     openSession: async (): Promise<QueryPipelineSession> => ({
@@ -714,13 +712,12 @@ async function executeDecomposedBenchmarkOnce(
           throw error;
         }
       },
-      end: async () => {
-        await client.end();
-      }
+      end: async () => undefined
     })
   };
 
   try {
+    await client.connect();
     const pipelineResult = await executeQueryPipeline(sessionFactory, {
       sqlFile: prepared.absolutePath,
       metadata: { material },
@@ -750,6 +747,8 @@ async function executeDecomposedBenchmarkOnce(
       finalPlanJson: finalStatement?.planJson ?? null,
       strategyMetadata: toPerfStrategyMetadata(plan)
     };
+  } finally {
+    await client.end().catch(() => undefined);
   }
 }
 
@@ -780,7 +779,11 @@ async function capturePlanWithConnectedClient(
 export function toPerfPlannedSteps(
   steps: Array<{ kind: PerfStatementRole | QueryPipelineStep['kind']; target: string }>
 ): Array<{ kind: PerfStatementRole; target: string }> {
-  return steps.map((step) => ({ kind: step.kind === 'scalar-filter-bind' ? 'scalar-filter-bind' : mapPipelineStepKindToRole(step.kind), target: step.target }));
+  return steps.map((step) => ({
+    // scalar-filter-bind is emitted by execution tracing, not QueryPipelinePlan metadata.
+    kind: step.kind === 'scalar-filter-bind' ? 'scalar-filter-bind' : mapPipelineStepKindToRole(step.kind),
+    target: step.target
+  }));
 }
 
 export function mapPipelineStatements(
@@ -2006,29 +2009,4 @@ function truncateSingleLine(value: string, limit: number): string {
   }
   return `${normalized.slice(0, limit - 3)}...`;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

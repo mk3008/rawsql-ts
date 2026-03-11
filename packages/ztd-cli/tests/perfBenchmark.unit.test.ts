@@ -33,6 +33,47 @@ function createSqlWorkspace(prefix: string, sqlRelativePath: string = path.join(
   return { rootDir, sqlFile };
 }
 
+function makePerfReport(overrides: Partial<PerfBenchmarkReport> = {}): PerfBenchmarkReport {
+  return {
+    schema_version: 1,
+    command: 'perf run',
+    run_id: 'run_001',
+    query_file: 'candidate.sql',
+    query_type: 'SELECT',
+    params_shape: 'none',
+    ordered_param_names: [],
+    source_sql_file: 'candidate.sql',
+    source_sql: 'select 1',
+    bound_sql: 'select 1',
+    bindings: undefined,
+    strategy: 'direct',
+    requested_mode: 'completion',
+    selected_mode: 'completion',
+    selection_reason: 'forced',
+    classify_threshold_ms: 60000,
+    timeout_ms: 300000,
+    dry_run: false,
+    saved: true,
+    total_elapsed_ms: 500,
+    completion_metrics: {
+      completed: true,
+      timed_out: false,
+      wall_time_ms: 500
+    },
+    executed_statements: [],
+    plan_observations: [],
+    recommended_actions: [],
+    pipeline_analysis: {
+      query_type: 'SELECT',
+      cte_count: 0,
+      should_consider_pipeline: false,
+      candidate_ctes: [],
+      notes: []
+    },
+    ...overrides
+  };
+}
+
 test('runPerfBenchmark dry-run binds named YAML params and surfaces pipeline analysis', async () => {
   const workspace = createSqlWorkspace('perf-benchmark-dry-run', path.join('src', 'sql', 'reports', 'sales.sql'));
   const paramsFile = path.join(workspace.rootDir, 'perf', 'params.yml');
@@ -135,28 +176,13 @@ test('diffPerfBenchmarkReports compares saved latency runs by p95', () => {
   mkdirSync(baselineDir, { recursive: true });
   mkdirSync(candidateDir, { recursive: true });
 
-  const baseline: PerfBenchmarkReport = {
-    schema_version: 1,
-    command: 'perf run',
+  const baseline = makePerfReport({
     run_id: 'run_001',
     query_file: 'baseline.sql',
-    query_type: 'SELECT',
-    params_shape: 'none',
-    ordered_param_names: [],
     source_sql_file: 'baseline.sql',
-    source_sql: 'select 1',
-    bound_sql: 'select 1',
-    bindings: undefined,
-    strategy: 'direct',
-    requested_mode: 'latency',
     selected_mode: 'latency',
-    selection_reason: 'forced',
-    classify_threshold_ms: 60000,
-    timeout_ms: 300000,
-    database_version: '16.2',
-    dry_run: false,
-    saved: true,
-    total_elapsed_ms: 330,
+    requested_mode: 'latency',
+    total_elapsed_ms: 360,
     latency_metrics: {
       measured_runs: 3,
       warmup_runs: 1,
@@ -167,18 +193,11 @@ test('diffPerfBenchmarkReports compares saved latency runs by p95', () => {
       p95_ms: 120
     },
     executed_statements: [{ seq: 1, role: 'final-query', sql: 'select 1', bindings: undefined, elapsed_ms: 110, plan_summary: { node_type: 'Seq Scan' } }],
-    plan_observations: ['Seq Scan on public.users'],
-    recommended_actions: [],
-    pipeline_analysis: {
-      query_type: 'SELECT',
-      cte_count: 0,
-      should_consider_pipeline: false,
-      candidate_ctes: [],
-      notes: []
-    }
-  };
+    plan_observations: ['Seq Scan on demo'],
+    database_version: '16.2'
+  });
 
-  const candidate: PerfBenchmarkReport = {
+  const candidate = makePerfReport({
     ...baseline,
     run_id: 'run_002',
     database_version: '16.3',
@@ -194,7 +213,7 @@ test('diffPerfBenchmarkReports compares saved latency runs by p95', () => {
     },
     executed_statements: [{ seq: 1, role: 'final-query', sql: 'select 1', bindings: undefined, elapsed_ms: 80, plan_summary: { node_type: 'Nested Loop', join_type: 'Inner' } }],
     plan_observations: ['Inner Nested Loop present in the captured plan']
-  };
+  });
 
   writeFileSync(path.join(baselineDir, 'summary.json'), JSON.stringify(baseline, null, 2), 'utf8');
   writeFileSync(path.join(candidateDir, 'summary.json'), JSON.stringify(candidate, null, 2), 'utf8');
@@ -577,18 +596,8 @@ test('runPerfBenchmark dry-run exposes decomposed multi-statement evidence and s
 
 test('loadPerfBenchmarkReport accepts decomposed summaries with strategy metadata', () => {
   const workspace = createTempDir('perf-benchmark-decomposed-summary');
-  const summary: PerfBenchmarkReport = {
-    schema_version: 1,
-    command: 'perf run',
+  const summary = makePerfReport({
     run_id: 'run_100',
-    query_file: 'candidate.sql',
-    query_type: 'SELECT',
-    params_shape: 'none',
-    ordered_param_names: [],
-    source_sql_file: 'candidate.sql',
-    source_sql: 'select 1',
-    bound_sql: 'select 1',
-    bindings: undefined,
     strategy: 'decomposed',
     strategy_metadata: {
       materialized_ctes: ['base_sales'],
@@ -598,13 +607,6 @@ test('loadPerfBenchmarkReport accepts decomposed summaries with strategy metadat
         { step: 2, kind: 'final-query', target: 'FINAL_QUERY', depends_on: ['base_sales'] },
       ]
     },
-    requested_mode: 'completion',
-    selected_mode: 'completion',
-    selection_reason: 'forced',
-    classify_threshold_ms: 60000,
-    timeout_ms: 300000,
-    dry_run: false,
-    saved: true,
     total_elapsed_ms: 400,
     completion_metrics: {
       completed: true,
@@ -615,8 +617,6 @@ test('loadPerfBenchmarkReport accepts decomposed summaries with strategy metadat
       { seq: 1, role: 'materialize', target: 'base_sales', sql: 'create temp table "base_sales" as select 1', bindings: undefined, elapsed_ms: 120 },
       { seq: 2, role: 'final-query', target: 'FINAL_QUERY', sql: 'select * from "base_sales"', bindings: undefined, elapsed_ms: 280 },
     ],
-    plan_observations: [],
-    recommended_actions: [],
     pipeline_analysis: {
       query_type: 'SELECT',
       cte_count: 1,
@@ -624,7 +624,7 @@ test('loadPerfBenchmarkReport accepts decomposed summaries with strategy metadat
       candidate_ctes: [],
       notes: []
     }
-  };
+  });
 
   writeFileSync(path.join(workspace, 'summary.json'), JSON.stringify(summary, null, 2), 'utf8');
   const loaded = loadPerfBenchmarkReport(workspace);
@@ -640,18 +640,10 @@ test('diffPerfBenchmarkReports emits statement deltas for decomposed multi-state
   mkdirSync(baselineDir, { recursive: true });
   mkdirSync(candidateDir, { recursive: true });
 
-  const baseline: PerfBenchmarkReport = {
-    schema_version: 1,
-    command: 'perf run',
+  const baseline = makePerfReport({
     run_id: 'run_001',
     query_file: 'baseline.sql',
-    query_type: 'SELECT',
-    params_shape: 'none',
-    ordered_param_names: [],
     source_sql_file: 'baseline.sql',
-    source_sql: 'select 1',
-    bound_sql: 'select 1',
-    bindings: undefined,
     strategy: 'decomposed',
     strategy_metadata: {
       materialized_ctes: ['base_sales'],
@@ -661,13 +653,6 @@ test('diffPerfBenchmarkReports emits statement deltas for decomposed multi-state
         { step: 2, kind: 'final-query', target: 'FINAL_QUERY', depends_on: ['base_sales'] },
       ]
     },
-    requested_mode: 'completion',
-    selected_mode: 'completion',
-    selection_reason: 'forced',
-    classify_threshold_ms: 60000,
-    timeout_ms: 300000,
-    dry_run: false,
-    saved: true,
     total_elapsed_ms: 500,
     completion_metrics: { completed: true, timed_out: false, wall_time_ms: 500 },
     executed_statements: [
@@ -675,7 +660,6 @@ test('diffPerfBenchmarkReports emits statement deltas for decomposed multi-state
       { seq: 2, role: 'final-query', target: 'FINAL_QUERY', sql: 'select * from "base_sales"', bindings: undefined, elapsed_ms: 280, plan_summary: { node_type: 'Seq Scan' } },
     ],
     plan_observations: ['Seq Scan on base_sales'],
-    recommended_actions: [],
     pipeline_analysis: {
       query_type: 'SELECT',
       cte_count: 1,
@@ -683,9 +667,9 @@ test('diffPerfBenchmarkReports emits statement deltas for decomposed multi-state
       candidate_ctes: [],
       notes: []
     }
-  };
+  });
 
-  const candidate: PerfBenchmarkReport = {
+  const candidate = {
     ...baseline,
     run_id: 'run_002',
     total_elapsed_ms: 410,
@@ -717,33 +701,17 @@ test('diffPerfBenchmarkReports aligns final-query deltas across direct and decom
   mkdirSync(baselineDir, { recursive: true });
   mkdirSync(candidateDir, { recursive: true });
 
-  const baseline: PerfBenchmarkReport = {
-    schema_version: 1,
-    command: 'perf run',
+  const baseline = makePerfReport({
     run_id: 'run_001',
     query_file: 'baseline.sql',
-    query_type: 'SELECT',
-    params_shape: 'none',
-    ordered_param_names: [],
     source_sql_file: 'baseline.sql',
-    source_sql: 'select 1',
-    bound_sql: 'select 1',
-    bindings: undefined,
     strategy: 'direct',
-    requested_mode: 'completion',
-    selected_mode: 'completion',
-    selection_reason: 'forced',
-    classify_threshold_ms: 60000,
-    timeout_ms: 300000,
-    dry_run: false,
-    saved: true,
     total_elapsed_ms: 500,
     completion_metrics: { completed: true, timed_out: false, wall_time_ms: 500 },
     executed_statements: [
       { seq: 1, role: 'final-query', target: 'FINAL_QUERY', sql: 'select * from base_sales', bindings: undefined, elapsed_ms: 500, plan_summary: { node_type: 'Nested Loop' } },
     ],
     plan_observations: ['Nested Loop on base_sales'],
-    recommended_actions: [],
     pipeline_analysis: {
       query_type: 'SELECT',
       cte_count: 1,
@@ -751,9 +719,9 @@ test('diffPerfBenchmarkReports aligns final-query deltas across direct and decom
       candidate_ctes: [],
       notes: []
     }
-  };
+  });
 
-  const candidate: PerfBenchmarkReport = {
+  const candidate = makePerfReport({
     ...baseline,
     run_id: 'run_002',
     strategy: 'decomposed',
@@ -772,7 +740,7 @@ test('diffPerfBenchmarkReports aligns final-query deltas across direct and decom
       { seq: 2, role: 'final-query', target: 'FINAL_QUERY', sql: 'select * from "base_sales"', bindings: undefined, elapsed_ms: 260, plan_summary: { node_type: 'Index Scan' } },
     ],
     plan_observations: ['Seq Scan on base_sales', 'Index Scan on base_sales'],
-  };
+  });
 
   writeFileSync(path.join(baselineDir, 'summary.json'), JSON.stringify(baseline, null, 2), 'utf8');
   writeFileSync(path.join(candidateDir, 'summary.json'), JSON.stringify(candidate, null, 2), 'utf8');
