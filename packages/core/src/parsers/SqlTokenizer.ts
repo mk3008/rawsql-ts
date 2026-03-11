@@ -1,4 +1,4 @@
-﻿import { FormattingLexeme } from '../models/FormattingLexeme';
+import { FormattingLexeme } from '../models/FormattingLexeme';
 import { Lexeme, LexemePositionedComment, TokenType } from '../models/Lexeme';
 import { CommandTokenReader } from '../tokenReaders/CommandTokenReader';
 import { EscapedIdentifierTokenReader } from '../tokenReaders/EscapedIdentifierTokenReader';
@@ -630,7 +630,7 @@ export class SqlTokenizer {
         return StringUtils.readWhiteSpaceAndComment(this.input, pos).position;
     }
 
-private getLineColumnInfo(startPos: number, endPos: number) {
+    private getLineColumnInfo(startPos: number, endPos: number) {
         const startInfo = this.getLineColumn(startPos);
         const endInfo = this.getLineColumn(endPos);
         
@@ -683,10 +683,3 @@ private getLineColumnInfo(startPos: number, endPos: number) {
         return starts;
     }
 }
-
-
-
-
-
-
-
