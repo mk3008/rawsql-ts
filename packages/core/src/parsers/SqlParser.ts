@@ -273,7 +273,7 @@ export class SqlParser {
     }
 
     private static parseSelectStatement(segment: StatementLexemeResult, statementIndex: number): SelectQuery {
-        return this.parseStatementWithParser(segment, statementIndex, 'SELECT', SelectQueryParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'SELECT', (lexemes, startIndex) => SelectQueryParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseExplainStatement(segment: StatementLexemeResult, statementIndex: number): ExplainStatement {
@@ -300,83 +300,83 @@ export class SqlParser {
     }
 
     private static parseVacuumStatement(segment: StatementLexemeResult, statementIndex: number): VacuumStatement {
-        return this.parseStatementWithParser(segment, statementIndex, 'VACUUM', VacuumStatementParser.parseFromLexeme, `VACUUM statement ${statementIndex}`);
+        return this.parseStatementWithParser(segment, statementIndex, 'VACUUM', (lexemes, startIndex) => VacuumStatementParser.parseFromLexeme(lexemes, startIndex), `VACUUM statement ${statementIndex}`);
     }
 
     private static parseReindexStatement(segment: StatementLexemeResult, statementIndex: number): ReindexStatement {
-        return this.parseStatementWithParser(segment, statementIndex, 'REINDEX', ReindexStatementParser.parseFromLexeme, `REINDEX statement ${statementIndex}`);
+        return this.parseStatementWithParser(segment, statementIndex, 'REINDEX', (lexemes, startIndex) => ReindexStatementParser.parseFromLexeme(lexemes, startIndex), `REINDEX statement ${statementIndex}`);
     }
 
     private static parseClusterStatement(segment: StatementLexemeResult, statementIndex: number): ClusterStatement {
-        return this.parseStatementWithParser(segment, statementIndex, 'CLUSTER', ClusterStatementParser.parseFromLexeme, `CLUSTER statement ${statementIndex}`);
+        return this.parseStatementWithParser(segment, statementIndex, 'CLUSTER', (lexemes, startIndex) => ClusterStatementParser.parseFromLexeme(lexemes, startIndex), `CLUSTER statement ${statementIndex}`);
     }
 
     private static parseCheckpointStatement(segment: StatementLexemeResult, statementIndex: number): CheckpointStatement {
-        return this.parseStatementWithParser(segment, statementIndex, 'CHECKPOINT', CheckpointStatementParser.parseFromLexeme, `CHECKPOINT statement ${statementIndex}`);
+        return this.parseStatementWithParser(segment, statementIndex, 'CHECKPOINT', (lexemes, startIndex) => CheckpointStatementParser.parseFromLexeme(lexemes, startIndex), `CHECKPOINT statement ${statementIndex}`);
     }
 
     private static parseInsertStatement(segment: StatementLexemeResult, statementIndex: number): InsertQuery {
-        return this.parseStatementWithParser(segment, statementIndex, 'INSERT', InsertQueryParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'INSERT', (lexemes, startIndex) => InsertQueryParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseUpdateStatement(segment: StatementLexemeResult, statementIndex: number): UpdateQuery {
-        return this.parseStatementWithParser(segment, statementIndex, 'UPDATE', UpdateQueryParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'UPDATE', (lexemes, startIndex) => UpdateQueryParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseDeleteStatement(segment: StatementLexemeResult, statementIndex: number): DeleteQuery {
-        return this.parseStatementWithParser(segment, statementIndex, 'DELETE', DeleteQueryParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'DELETE', (lexemes, startIndex) => DeleteQueryParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseCreateTableStatement(segment: StatementLexemeResult, statementIndex: number): CreateTableQuery {
-        return this.parseStatementWithParser(segment, statementIndex, 'CREATE TABLE', CreateTableParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'CREATE TABLE', (lexemes, startIndex) => CreateTableParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseDropTableStatement(segment: StatementLexemeResult, statementIndex: number): DropTableStatement {
-        return this.parseStatementWithParser(segment, statementIndex, 'DROP TABLE', DropTableParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'DROP TABLE', (lexemes, startIndex) => DropTableParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseDropSchemaStatement(segment: StatementLexemeResult, statementIndex: number): DropSchemaStatement {
-        return this.parseStatementWithParser(segment, statementIndex, 'DROP SCHEMA', DropSchemaParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'DROP SCHEMA', (lexemes, startIndex) => DropSchemaParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseDropIndexStatement(segment: StatementLexemeResult, statementIndex: number): DropIndexStatement {
-        return this.parseStatementWithParser(segment, statementIndex, 'DROP INDEX', DropIndexParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'DROP INDEX', (lexemes, startIndex) => DropIndexParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseCreateIndexStatement(segment: StatementLexemeResult, statementIndex: number): CreateIndexStatement {
-        return this.parseStatementWithParser(segment, statementIndex, 'CREATE INDEX', CreateIndexParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'CREATE INDEX', (lexemes, startIndex) => CreateIndexParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseCreateSchemaStatement(segment: StatementLexemeResult, statementIndex: number): CreateSchemaStatement {
-        return this.parseStatementWithParser(segment, statementIndex, 'CREATE SCHEMA', CreateSchemaParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'CREATE SCHEMA', (lexemes, startIndex) => CreateSchemaParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseCreateSequenceStatement(segment: StatementLexemeResult, statementIndex: number): CreateSequenceStatement {
-        return this.parseStatementWithParser(segment, statementIndex, 'CREATE SEQUENCE', CreateSequenceParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'CREATE SEQUENCE', (lexemes, startIndex) => CreateSequenceParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseAlterSequenceStatement(segment: StatementLexemeResult, statementIndex: number): AlterSequenceStatement {
-        return this.parseStatementWithParser(segment, statementIndex, 'ALTER SEQUENCE', AlterSequenceParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'ALTER SEQUENCE', (lexemes, startIndex) => AlterSequenceParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseAlterTableStatement(segment: StatementLexemeResult, statementIndex: number): AlterTableStatement {
-        return this.parseStatementWithParser(segment, statementIndex, 'ALTER TABLE', AlterTableParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'ALTER TABLE', (lexemes, startIndex) => AlterTableParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseDropConstraintStatement(segment: StatementLexemeResult, statementIndex: number): DropConstraintStatement {
-        return this.parseStatementWithParser(segment, statementIndex, 'DROP CONSTRAINT', DropConstraintParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'DROP CONSTRAINT', (lexemes, startIndex) => DropConstraintParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseCommentOnStatement(segment: StatementLexemeResult, statementIndex: number): CommentOnStatement {
-        return this.parseStatementWithParser(segment, statementIndex, 'COMMENT ON', CommentOnParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'COMMENT ON', (lexemes, startIndex) => CommentOnParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseAnalyzeStatement(segment: StatementLexemeResult, statementIndex: number): AnalyzeStatement {
-        return this.parseStatementWithParser(segment, statementIndex, 'ANALYZE', AnalyzeStatementParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'ANALYZE', (lexemes, startIndex) => AnalyzeStatementParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseMergeStatement(segment: StatementLexemeResult, statementIndex: number): MergeQuery {
-        return this.parseStatementWithParser(segment, statementIndex, 'MERGE', MergeQueryParser.parseFromLexeme);
+        return this.parseStatementWithParser(segment, statementIndex, 'MERGE', (lexemes, startIndex) => MergeQueryParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseStatementWithParser<T>(
@@ -499,4 +499,5 @@ export class SqlParser {
         }
     }
 }
+
 
