@@ -54,6 +54,39 @@ function writeCorrelatedScalarPredicateSql(sqlFile: string): void {
   );
 }
 
+function writeNestedScalarDependencySql(sqlFile: string): void {
+  writeFileSync(
+    sqlFile,
+    [
+      'with cutoff_source as (',
+      '  select p.closed_year_month',
+      '  from parameters p',
+      ')',
+      'select s.*',
+      'from sales s',
+      'where s.sale_date > (',
+      '  select p.closed_year_month',
+      '  from parameters p',
+      '  where exists (',
+      '    select 1',
+      '    from cutoff_source cs',
+      '    where cs.closed_year_month = p.closed_year_month',
+      '  )',
+      ')'
+    ].join('\n'),
+    'utf8'
+  );
+}
+
+function writeLiteralPlaceholderSql(sqlFile: string): void {
+  writeFileSync(
+    sqlFile,
+    [
+      "select '$1 is literal' as note"
+    ].join('\n'),
+    'utf8'
+  );
+}
 function writeMaterialChainSql(sqlFile: string): void {
   writeFileSync(
     sqlFile,
@@ -174,6 +207,32 @@ test('executeQueryPipeline leaves correlated scalar predicates unchanged', async
   expect(release).toHaveBeenCalledTimes(1);
 });
 
+
+test('executeQueryPipeline includes nested scalar-subquery cte dependencies in the bind step', async () => {
+  const workspace = createSqlWorkspace('query-pipeline-nested-scalar-dependency');
+  writeNestedScalarDependencySql(workspace.sqlFile);
+
+  const query = vi.fn()
+    .mockResolvedValueOnce({ rows: [{ closed_year_month: '2024-12-01' }], rowCount: 1 })
+    .mockResolvedValueOnce({ rows: [{ id: 1 }], rowCount: 1 });
+  const release = vi.fn();
+  const openSession = vi.fn(async () => ({ query, release }));
+
+  await executeQueryPipeline(
+    { openSession },
+    {
+      sqlFile: workspace.sqlFile,
+      metadata: {
+        scalarFilterColumns: ['sale_date']
+      }
+    }
+  );
+
+  const scalarSql = normalizeSql(query.mock.calls[0]?.[0] as string);
+  expect(scalarSql).toContain('with "cutoff_source" as');
+  expect(scalarSql).toContain('from "cutoff_source" as "cs"');
+  expect(release).toHaveBeenCalledTimes(1);
+});
 test('executeQueryPipeline runs multi-stage materialized pipelines without recomputing prior CTEs', async () => {
   const workspace = createSqlWorkspace('query-pipeline-material-chain');
   writeMaterialChainSql(workspace.sqlFile);
@@ -402,5 +461,25 @@ test.each([
     )
   ).rejects.toThrow(message);
 
+  expect(release).toHaveBeenCalledTimes(1);
+});
+test('executeQueryPipeline does not infer bind params from literal $n text', async () => {
+  const workspace = createSqlWorkspace('query-pipeline-literal-placeholder');
+  writeLiteralPlaceholderSql(workspace.sqlFile);
+
+  const query = vi.fn().mockResolvedValueOnce({ rows: [{ note: '$1 is literal' }], rowCount: 1 });
+  const release = vi.fn();
+  const openSession = vi.fn(async () => ({ query, release }));
+
+  const result = await executeQueryPipeline(
+    { openSession },
+    {
+      sqlFile: workspace.sqlFile,
+      params: [123]
+    }
+  );
+
+  expect(result.steps.map((step) => step.kind)).toEqual(['final-query']);
+  expect(query).toHaveBeenCalledWith(expect.any(String), undefined);
   expect(release).toHaveBeenCalledTimes(1);
 });

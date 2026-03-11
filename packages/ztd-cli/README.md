@@ -606,7 +606,7 @@ Use DDL such as `CREATE TABLE public.users (...)` in `ztd/ddl/public.sql`, keep 
 
 `ztd-cli` telemetry is opt-in investigation tooling for dogfooding, debugging, and optimization. It is intentionally outside the default happy path, it must not become mandatory for published-package usage, and production embedding/export stays optional and off by default.
 
-Read the full guidance in [ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md), [ztd-cli Telemetry Policy](../../docs/guide/ztd-cli-telemetry-policy.md), and [ztd-cli Telemetry Export Modes](../../docs/guide/ztd-cli-telemetry-export-modes.md).
+Read the full guidance in [ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md), [ztd-cli Telemetry Policy](../../docs/guide/ztd-cli-telemetry-policy.md), [ztd-cli Telemetry Export Modes](../../docs/guide/ztd-cli-telemetry-export-modes.md), [Telemetry Dogfooding Scenarios](../../docs/dogfooding/telemetry-dogfooding.md), and [SQL Debug Recovery Dogfooding](../../docs/dogfooding/sql-debug-recovery.md).
 ## Further Reading
 
 - Local-source quick start:
@@ -618,6 +618,7 @@ npx ztd init --workflow empty --validator zod --local-source-root ../../..
 This mode emits `src/local/sql-contract.ts`, links `@rawsql-ts/sql-contract` via `file:`, switches `test` / `typecheck` through a local-source guard, and keeps `model-gen --probe-mode ztd --import-style relative` ready for a nested dogfooding app under `tmp/`.
 
 - [Feature Index](../../docs/guide/feature-index.md) — at-a-glance list of easy-to-miss capabilities
+- [SQL Tool Happy Paths](../../docs/guide/sql-tool-happy-paths.md) — choose between query plan, perf, query uses, and telemetry based on the problem shape
 - [Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md) — avoid nested pnpm workspace drift and generated import mismatches
 - [Postgres Pitfalls](../../docs/guide/postgres-pitfalls.md) — common Postgres-specific surprises
 - [Spec-Change Scenarios](../../docs/guide/spec-change-scenarios.md) — condensed digest of common schema changes
@@ -635,4 +636,3 @@ This mode emits `src/local/sql-contract.ts`, links `@rawsql-ts/sql-contract` via
 ## License
 
 MIT
-

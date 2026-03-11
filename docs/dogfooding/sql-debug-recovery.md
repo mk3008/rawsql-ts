@@ -18,6 +18,12 @@ Use this scenario when all of the following are true:
 - One or more CTE stages are broken, suspicious, or too expensive to inspect inline.
 - You want the next tuning step to come from evidence rather than intuition.
 
+## Regression surface
+
+- Test file: `packages/ztd-cli/tests/sqlDebugDogfooding.cli.test.ts`
+- Test name: `sql debug recovery dogfood scenario preserves the shortest command loop artifact`
+
+This regression surface keeps the command-level recovery path in git so future changes can verify that the saved evidence is still enough for the next action.
 ## Inputs
 
 - A SQL file with a long `WITH` chain.
