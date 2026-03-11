@@ -1,4 +1,9 @@
-import type { PgClientLike } from './optionalDependencies';
+interface PgMetadataQueryClientLike {
+  query<T = unknown>(statement: string, values?: unknown[] | Record<string, unknown>): Promise<{
+    rows?: T[];
+    fields?: unknown[];
+  }>;
+}
 
 export interface ProbedColumn {
   columnName: string;
@@ -46,7 +51,7 @@ const directTypeMap = new Map<string, string>([
 ]);
 
 export async function probeQueryColumns(
-  client: PgClientLike,
+  client: PgMetadataQueryClientLike,
   boundSql: string,
   params: unknown[]
 ): Promise<ProbedColumn[]> {
@@ -89,7 +94,7 @@ function normalizeFields(fields: unknown): ProbeField[] {
     );
 }
 
-async function loadPgTypes(client: PgClientLike, initialOids: number[]): Promise<Map<number, PgTypeRow>> {
+async function loadPgTypes(client: PgMetadataQueryClientLike, initialOids: number[]): Promise<Map<number, PgTypeRow>> {
   const rows = new Map<number, PgTypeRow>();
   const pending = new Set<number>(initialOids.filter((oid) => oid > 0));
 

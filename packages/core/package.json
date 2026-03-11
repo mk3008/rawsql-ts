@@ -1,6 +1,6 @@
 {
     "name": "rawsql-ts",
-    "version": "0.16.0",
+    "version": "0.16.1",
     "description": "High-performance SQL parser and AST analyzer written in TypeScript. Provides fast parsing and advanced transformation capabilities.",
     "main": "dist/index.js",
     "module": "dist/esm/index.js",
@@ -16,7 +16,7 @@
         "build:browser": "tsc --project tsconfig.browser.json",
         "build:minify": "esbuild src/index.ts --bundle --minify-syntax --minify-whitespace --outfile=dist/index.min.js --format=cjs --sourcemap && esbuild src/index.ts --bundle --minify-syntax --minify-whitespace --outfile=dist/esm/index.min.js --format=esm --sourcemap",
         "build:all": "npm run clean && npm run build && npm run build:browser && npm run build:minify",
-        "release": "npm run build:all && npm pack --dry-run && pnpm publish",
+        "release": "npm run build:all && node -e \"require('fs').mkdirSync('../../tmp', { recursive: true })\" && pnpm pack --out ../../tmp/rawsql-ts-core.tgz && pnpm publish",
         "clean": "tsc --build --clean && node -e \"const fs = require('fs'); if (fs.existsSync('dist')) fs.rmSync('dist', {recursive: true, force: true});\"",
         "lint": "eslint . --ext .ts,.tsx --fix",
         "postbuild": "node ../../scripts/sync-rawsql-dist.js",

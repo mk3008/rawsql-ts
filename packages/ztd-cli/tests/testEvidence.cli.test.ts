@@ -165,6 +165,36 @@ test('CLI: evidence writes json and markdown artifacts', async () => {
   expect(markdown).not.toContain('select order_id from orders where active = @active');
 });
 
+test('CLI: evidence summary-only writes compact artifacts', async () => {
+  const root = createWorkspace('evidence-cli-summary');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
+    JSON.stringify({ id: 'orders.active-users.list', sqlFile: '../../sql/orders.active-users.list.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(path.join(root, 'src', 'sql', 'orders.active-users.list.sql'), 'select user_id from users', 'utf8');
+  writeSpecModule(root);
+
+  process.env.ZTD_PROJECT_ROOT = root;
+  const outDir = path.join(root, 'artifacts-summary');
+  const program = createProgram();
+  await program.parseAsync(['evidence', '--mode', 'specification', '--format', 'both', '--out-dir', outDir, '--summary-only'], { from: 'user' });
+
+  expect(process.exitCode).toBe(0);
+  const parsedJson = JSON.parse(readFileSync(path.join(outDir, 'test-specification.json'), 'utf8'));
+  expect(parsedJson).toMatchObject({
+    display: { summaryOnly: true, truncated: true },
+    sqlCatalogs: [],
+    testCases: []
+  });
+  const markdownFiles = readdirSync(outDir)
+    .filter((name) => name.startsWith('test-specification.') && name.endsWith('.md'))
+    .sort();
+  expect(markdownFiles).toEqual(['test-specification.summary.md']);
+  const markdown = readFileSync(path.join(outDir, 'test-specification.summary.md'), 'utf8');
+  expect(markdown).toContain('# Test Specification Summary');
+});
+
 test('CLI: evidence sets exitCode=2 for unsupported mode', async () => {
   const root = createWorkspace('evidence-cli-mode');
   process.env.ZTD_PROJECT_ROOT = root;

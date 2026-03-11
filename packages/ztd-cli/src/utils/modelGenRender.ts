@@ -11,6 +11,7 @@ export interface ModelGenColumn {
 export interface RenderModelGenInput {
   command: string;
   format: ModelGenFormat;
+  sqlContractImport: string;
   sqlFile: string;
   specId: string;
   interfaceName: string;
@@ -36,7 +37,7 @@ export function renderModelGenFile(input: RenderModelGenInput): string {
 
   if (input.format === 'row-mapping' || input.format === 'spec') {
     const importNames = input.format === 'spec' ? 'rowMapping, type QuerySpec' : 'rowMapping';
-    parts.push(`import { ${importNames} } from '@rawsql-ts/sql-contract';`);
+    parts.push(`import { ${importNames} } from ${renderTsStringLiteral(input.sqlContractImport)};`);
     parts.push('');
   }
 

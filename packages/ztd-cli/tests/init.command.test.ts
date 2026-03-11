@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from 'vitest';
@@ -5,12 +6,15 @@ import { expect, test } from 'vitest';
 import { DEFAULT_ZTD_CONFIG } from '../src/utils/ztdProjectConfig';
 import {
   runInitCommand,
+  buildPackageManagerArgs,
+  findAncestorPnpmWorkspaceRoot,
   normalizeSchemaName,
+  resolveInitInstallStrategy,
+  resolvePnpmWorkspaceGuard,
   sanitizeSchemaFileName,
   type ZtdConfigWriterDependencies,
   type Prompter
 } from '../src/commands/init';
-
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const tmpRoot = path.join(repoRoot, 'tmp');
 
@@ -36,6 +40,8 @@ function readNormalizedFile(filePath: string): string {
 }
 
 const requiredDirectories = [
+  '.ztd',
+  '.ztd/agents',
   'ztd',
   'ztd/ddl',
   'src',
@@ -48,25 +54,15 @@ const requiredDirectories = [
   'src/repositories/views',
   'src/jobs',
   'tests',
-  'tests/support',
-  'tests/generated'
+  'tests/support'
 ];
 
-const requiredAgents = [
-  'ztd/AGENTS.md',
-  'ztd/ddl/AGENTS.md',
-  'src/AGENTS.md',
-  'src/catalog/AGENTS.md',
-  'src/catalog/runtime/AGENTS.md',
-  'src/catalog/specs/AGENTS.md',
-  'src/sql/AGENTS.md',
-  'src/repositories/AGENTS.md',
-  'src/repositories/tables/AGENTS.md',
-  'src/repositories/views/AGENTS.md',
-  'src/jobs/AGENTS.md',
-  'tests/AGENTS.md',
-  'tests/support/AGENTS.md',
-  'tests/generated/AGENTS.md'
+const requiredInternalAgents = [
+  '.ztd/agents/manifest.json',
+  '.ztd/agents/root.md',
+  '.ztd/agents/src.md',
+  '.ztd/agents/tests.md',
+  '.ztd/agents/ztd.md'
 ];
 
 const requiredInvariantFiles = [
@@ -133,7 +129,6 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(readNormalizedFile(schemaPath)).toContain('-- DDL for schema');
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'smoke.test.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toBe(true);
   expect(existsSync(testkitClientPath)).toBe(true);
@@ -149,10 +144,9 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(existsSync(path.join(workspace, 'src', 'repositories', 'tables', 'user-accounts.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'jobs', 'refresh-user-accounts.ts'))).toBe(false);
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
-  expect(
-    existsSync(path.join(workspace, 'AGENTS.md')) || existsSync(path.join(workspace, 'AGENTS_ztd.md'))
-  ).toBe(true);
-  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toContain('"managed_by": "ztd:agents"');
   expect(existsSync(path.join(workspace, 'ztd', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'ddl'))).toBe(true);
   expect(readdirSync(path.join(workspace, 'ztd', 'ddl'))).toEqual(
@@ -163,7 +157,7 @@ test('init wizard bootstraps an empty scaffold', async () => {
     expect(existsSync(path.join(workspace, dir))).toBe(true);
   }
 
-  for (const agentPath of requiredAgents) {
+  for (const agentPath of requiredInternalAgents) {
     expect(existsSync(path.join(workspace, agentPath))).toBe(true);
   }
 
@@ -190,6 +184,8 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(packageJson.devDependencies.typescript).toBeDefined();
   expect(packageJson.devDependencies['@types/node']).toBeDefined();
   expect(packageJson.devDependencies.zod).toBeDefined();
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/adapter-node-pg');
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
 
   expect(readNormalizedFile(path.join(workspace, 'src', 'catalog', 'specs', '_smoke.spec.ts'))).toContain(
     "from 'zod'",
@@ -201,15 +197,24 @@ test('init wizard bootstraps an empty scaffold', async () => {
     "normalizeTimestamp(value.createdAt, 'createdAt')",
   );
   expect(readNormalizedFile(path.join(workspace, 'src', 'catalog', 'runtime', '_coercions.ts'))).toContain(
-    'timestampFromDriver as normalizeTimestamp',
+    'export function normalizeTimestamp',
   );
   expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.validation.test.ts'))).toContain(
     'normalizes valid timestamp strings',
+  );
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.test.ts'))).toContain(
+    'runtime contract wiring is usable before SQL-backed tests exist',
+  );
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.test.ts'))).toContain(
+    'SqlClient seam is either wired or fails with an actionable message',
   );
 
   // Ensure the generated testkit client can safely log params with circular references.
   expect(readNormalizedFile(testkitClientPath)).toContain(
     'Provide a SqlClient implementation here',
+  );
+  expect(readNormalizedFile(testkitClientPath)).toContain(
+    '@rawsql-ts/adapter-node-pg',
   );
 });
 
@@ -281,6 +286,26 @@ test('init wizard preserves existing SqlClient files when opted in', async () =>
   );
 });
 
+test('init runs install when package.json is created from scratch', async () => {
+  const workspace = createTempDir('cli-init-deps-created');
+  const prompter = new TestPrompter(['2', '1']);
+  const installs: Array<{ kind: string; packages: string[]; packageManager: string }> = [];
+  const dependencies: Partial<ZtdConfigWriterDependencies> = {
+    log: () => undefined,
+    installPackages: ({ kind, packages, packageManager }) => {
+      installs.push({ kind, packages, packageManager });
+    }
+  };
+
+  await runInitCommand(prompter, { rootDir: workspace, dependencies });
+
+  expect(installs.length).toBe(1);
+  expect(installs[0].kind).toBe('install');
+  expect(installs[0].packageManager).toBe('pnpm');
+  expect(installs[0].packages).toEqual([]);
+});
+
+
 test('init runs install when package.json is updated', async () => {
   const workspace = createTempDir('cli-init-deps');
   writeFileSync(
@@ -314,6 +339,70 @@ test('init runs install when package.json is updated', async () => {
   expect(packageJson.devDependencies.vitest).toBeDefined();
   expect(packageJson.devDependencies.typescript).toBeDefined();
   expect(packageJson.devDependencies['@types/node']).toBeDefined();
+});
+
+test('pnpm nested under a parent workspace uses --ignore-workspace for manual installs', () => {
+  const workspace = createTempDir('cli-init-workspace-guard');
+
+  expect(findAncestorPnpmWorkspaceRoot(workspace)).toBe(repoRoot);
+  expect(resolvePnpmWorkspaceGuard(workspace, 'pnpm')).toEqual({
+    workspaceRoot: repoRoot,
+    shouldIgnoreWorkspace: true,
+  });
+  expect(buildPackageManagerArgs('install', 'pnpm', [], workspace)).toEqual([
+    'install',
+    '--ignore-workspace',
+  ]);
+  expect(buildPackageManagerArgs('devDependencies', 'pnpm', ['vitest'], workspace)).toEqual([
+    'add',
+    '-D',
+    'vitest',
+    '--ignore-workspace',
+  ]);
+});
+
+test('resolveInitInstallStrategy defers auto-install for Windows pnpm exec', () => {
+  const workspace = path.join(repoRoot, 'tmp', 'init-install-strategy');
+
+  expect(
+    resolveInitInstallStrategy(workspace, 'pnpm', {
+      platform: 'win32',
+      npmCommand: 'exec'
+    })
+  ).toMatchObject({
+    installCommand: 'pnpm install --ignore-workspace',
+    shouldDeferAutoInstall: true,
+    workspaceGuard: {
+      workspaceRoot: repoRoot,
+      shouldIgnoreWorkspace: true,
+    },
+  });
+
+  expect(
+    resolveInitInstallStrategy(workspace, 'pnpm', {
+      platform: 'win32',
+      npmCommand: 'install'
+    }).shouldDeferAutoInstall
+  ).toBe(false);
+});
+
+test('resolveInitInstallStrategy keeps manual add commands workspace-safe for Windows pnpm exec', () => {
+  const workspace = path.join(repoRoot, 'tmp', 'init-install-strategy');
+
+  expect(buildPackageManagerArgs('devDependencies', 'pnpm', ['vitest', 'typescript'], workspace)).toEqual([
+    'add',
+    '-D',
+    'vitest',
+    'typescript',
+    '--ignore-workspace',
+  ]);
+
+  expect(
+    resolveInitInstallStrategy(workspace, 'pnpm', {
+      platform: 'win32',
+      npmCommand: 'exec'
+    }).shouldDeferAutoInstall
+  ).toBe(true);
 });
 
 test('init generates ArkType spec when ArkType backend is selected', async () => {
@@ -368,16 +457,14 @@ test('init wizard pulls schema if pg_dump is available', async () => {
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'smoke.test.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'smoke.validation.test.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toBe(true);
   expect(existsSync(testkitClientPath)).toBe(true);
   expect(existsSync(path.join(workspace, 'vitest.config.ts'))).toBe(true);
-  expect(
-    existsSync(path.join(workspace, 'AGENTS.md')) || existsSync(path.join(workspace, 'AGENTS_ztd.md'))
-  ).toBe(true);
-  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'README.md'))).toBe(true);
   expect(readdirSync(path.join(workspace, 'ztd', 'ddl'))).toEqual(
     expect.arrayContaining([schemaFileName(defaultSchemaName)]),
@@ -464,6 +551,123 @@ test('init completes non-interactively with explicit --workflow empty --validato
   expect(specFile).toContain("from 'arktype'");
 });
 
+test('init local-source mode links direct rawsql-ts dependencies from the monorepo and emits a local shim', async () => {
+  const workspace = createTempDir('cli-init-local-source');
+  const prompter = new TestPrompter([]);
+
+  const result = await runInitCommand(prompter, {
+    rootDir: workspace,
+    forceOverwrite: true,
+    nonInteractive: true,
+    workflow: 'empty',
+    validator: 'zod',
+    localSourceRoot: repoRoot
+  });
+
+  const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    devDependencies: Record<string, string>;
+  };
+  const localShimPath = path.join(workspace, 'src', 'local', 'sql-contract.ts');
+  const coercionsPath = path.join(workspace, 'src', 'catalog', 'runtime', '_coercions.ts');
+  const localSourceGuardPath = path.join(workspace, 'scripts', 'local-source-guard.mjs');
+
+  expect(result.summary).toContain('src/local/sql-contract.ts');
+  expect(result.summary).toContain('Run pnpm install --ignore-workspace');
+  expect(result.summary).toContain('Run pnpm typecheck');
+  expect(result.summary).toContain('Run pnpm test');
+  expect(existsSync(localShimPath)).toBe(true);
+  expect(existsSync(localSourceGuardPath)).toBe(true);
+  expect(readNormalizedFile(localShimPath)).toContain("export * from '@rawsql-ts/sql-contract'");
+  expect(readNormalizedFile(coercionsPath)).toContain('export function normalizeTimestamp');
+  expect(packageJson.devDependencies['@rawsql-ts/sql-contract']).toBe(
+    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'sql-contract')).replace(/\\/g, '/')}`
+  );
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/adapter-node-pg');
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
+  expect(packageJson.scripts.typecheck).toBe('node ./scripts/local-source-guard.mjs typecheck');
+  expect(packageJson.scripts.test).toBe('node ./scripts/local-source-guard.mjs test');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm install --ignore-workspace');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('--import-style relative');
+
+  const guardResult = spawnSync(process.execPath, [localSourceGuardPath, 'typecheck'], {
+    cwd: workspace,
+    encoding: 'utf8'
+  });
+  expect(guardResult.status).toBe(0);
+});
+
+test('init local-source mode uses npm script commands when package-lock.json selects npm', async () => {
+  const workspace = createTempDir('cli-init-local-source-npm');
+  const prompter = new TestPrompter([]);
+  const dependencies: Partial<ZtdConfigWriterDependencies> = {
+    log: () => undefined,
+    installPackages: () => undefined
+  };
+  writeFileSync(path.join(workspace, 'package-lock.json'), '{}', 'utf8');
+
+  const result = await runInitCommand(prompter, {
+    dependencies,
+    rootDir: workspace,
+    forceOverwrite: true,
+    nonInteractive: true,
+    workflow: 'empty',
+    validator: 'zod',
+    localSourceRoot: repoRoot
+  });
+
+  expect(result.summary).toContain('Run npm install');
+  expect(result.summary).toContain('Run npm run typecheck');
+  expect(result.summary).toContain('Run npm run test');
+  expect(result.summary).toContain('Run npx ztd ztd-config');
+});
+
+test('init local-source mode rejects a root that is not a rawsql-ts monorepo', async () => {
+  const workspace = createTempDir('cli-init-local-source-invalid');
+  const prompter = new TestPrompter([]);
+
+  await expect(
+    runInitCommand(prompter, {
+      rootDir: workspace,
+      forceOverwrite: true,
+      nonInteractive: true,
+      workflow: 'empty',
+      validator: 'zod',
+      localSourceRoot: path.join(workspace, 'not-a-monorepo')
+    })
+  ).rejects.toThrow('The local-source root does not contain packages/sql-contract/package.json');
+});
+
+test('init local-source mode accepts a minimal local-source root with sql-contract only', async () => {
+  const workspace = createTempDir('cli-init-local-source-minimal-stack');
+  const localSourceRoot = createTempDir('cli-init-local-source-minimal-monorepo');
+  const prompter = new TestPrompter([]);
+
+  mkdirSync(path.join(localSourceRoot, 'packages', 'sql-contract'), { recursive: true });
+  writeFileSync(
+    path.join(localSourceRoot, 'packages', 'sql-contract', 'package.json'),
+    JSON.stringify({ name: '@rawsql-ts/sql-contract', version: '0.0.0' }, null, 2),
+    'utf8'
+  );
+
+  const result = await runInitCommand(prompter, {
+    rootDir: workspace,
+    forceOverwrite: true,
+    nonInteractive: true,
+    workflow: 'empty',
+    validator: 'zod',
+    localSourceRoot
+  });
+
+  const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    devDependencies: Record<string, string>;
+  };
+
+  expect(result.summary).toContain('ZTD project initialized.');
+  expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/sql-contract');
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/adapter-node-pg');
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
+});
+
 test('init rejects non-interactive pg_dump workflow', async () => {
   const workspace = createTempDir('cli-init-noninteractive-pgdump');
   const prompter = new TestPrompter([]);
@@ -476,6 +680,24 @@ test('init rejects non-interactive pg_dump workflow', async () => {
       workflow: 'pg_dump'
     })
   ).rejects.toThrow('Non-interactive mode does not support the pg_dump workflow');
+});
+
+test('with-app-interface appends to AGENTS.md when both root files exist', async () => {
+  const workspace = createTempDir('cli-init-app-interface-both');
+  writeFileSync(path.join(workspace, 'AGENTS.md'), '# root\n', 'utf8');
+  writeFileSync(path.join(workspace, 'AGENTS_ztd.md'), '# ztd root\n', 'utf8');
+  const prompter = new TestPrompter([]);
+
+  const result = await runInitCommand(prompter, {
+    rootDir: workspace,
+    withAppInterface: true,
+    nonInteractive: true,
+    forceOverwrite: true
+  });
+
+  expect(result.summary).toContain('AGENTS.md');
+  expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toContain('## Application Interface Guidance');
+  expect(readNormalizedFile(path.join(workspace, 'AGENTS_ztd.md'))).not.toContain('## Application Interface Guidance');
 });
 
 test('TestPrompter.confirm maps yes and no variants', async () => {

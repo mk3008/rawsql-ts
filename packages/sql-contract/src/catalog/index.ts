@@ -13,6 +13,14 @@ import {
 } from './mutation'
 
 /**
+ * Describes execution hints that runtime adapters can inspect without modifying SQL assets.
+ */
+export interface QuerySpecMetadata {
+  material?: string[]
+  scalarMaterial?: string[]
+}
+
+/**
  * Describes the contract that couples a SQL file, its parameters, and its output shape.
  */
 export type QuerySpec<P extends QueryParams = QueryParams, R = Row> = {
@@ -33,6 +41,7 @@ export type QuerySpec<P extends QueryParams = QueryParams, R = Row> = {
   }
   notes?: string
   tags?: Record<string, string>
+  metadata?: QuerySpecMetadata
   zsg?: {
     allow?: unknown
     optionsExample?: unknown
@@ -75,10 +84,64 @@ export type ParamsShape = 'positional' | 'named' | 'unknown'
 export interface ExecInput<P extends QueryParams = QueryParams> {
   specId: string
   sqlFile: string
+  metadata?: QuerySpecMetadata
   params: P
   options?: unknown
   execId: string
   attempt: number
+}
+
+const metadataIdentifierPattern = /^[A-Za-z_][A-Za-z0-9_]*$/
+const metadataIdentifierControlPattern = /[\u0000-\u001F\u007F]/
+
+function cloneMetadataIdentifierList(
+  specId: string,
+  kind: 'material' | 'scalarMaterial',
+  identifiers?: string[]
+): string[] | undefined {
+  if (!identifiers) {
+    return undefined
+  }
+
+  return identifiers.map((identifier) => {
+    if (identifier.length === 0) {
+      throw new ContractViolationError(
+        `Spec "${specId}" declares an empty metadata.${kind} identifier.`,
+        specId
+      )
+    }
+    if (metadataIdentifierControlPattern.test(identifier)) {
+      throw new ContractViolationError(
+        `Spec "${specId}" declares unsafe metadata.${kind} identifier "${identifier}" containing control characters.`,
+        specId
+      )
+    }
+    if (!metadataIdentifierPattern.test(identifier)) {
+      throw new ContractViolationError(
+        `Spec "${specId}" declares unsafe metadata.${kind} identifier "${identifier}"; expected ${metadataIdentifierPattern}.`,
+        specId
+      )
+    }
+    return identifier
+  })
+}
+
+function cloneQuerySpecMetadata(
+  specId: string,
+  metadata?: QuerySpecMetadata
+): QuerySpecMetadata | undefined {
+  if (!metadata) {
+    return undefined
+  }
+
+  return {
+    material: cloneMetadataIdentifierList(specId, 'material', metadata.material),
+    scalarMaterial: cloneMetadataIdentifierList(
+      specId,
+      'scalarMaterial',
+      metadata.scalarMaterial
+    ),
+  }
 }
 
 export interface ExecOutput<R> {
@@ -728,6 +791,27 @@ export function createCatalogExecutor(
     return value as R
   }
 
+  function createExecInput<P extends QueryParams, R>(
+    spec: QuerySpec<P, R>,
+    params: P,
+    options: unknown,
+    execId: string,
+    attempt: number
+  ): ExecInput<P> {
+    // Extensions must never observe a shared QuerySpec metadata reference.
+    const metadata = cloneQuerySpecMetadata(spec.id, spec.metadata)
+
+    return {
+      specId: spec.id,
+      sqlFile: spec.sqlFile,
+      metadata,
+      params,
+      options,
+      execId,
+      attempt,
+    }
+  }
+
   return {
     async list<P extends QueryParams, R>(
       spec: QuerySpec<P, R>,
@@ -739,14 +823,9 @@ export function createCatalogExecutor(
       )
       const execId = createExecId()
       const attempt = 1
-      const result = await exec({
-        specId: spec.id,
-        sqlFile: spec.sqlFile,
-        params,
-        options,
-        execId,
-        attempt,
-      })
+      const result = await exec(
+        createExecInput(spec, params, options, execId, attempt)
+      )
       return result.value
     },
     async one<P extends QueryParams, R>(
@@ -766,14 +845,9 @@ export function createCatalogExecutor(
       )
       const execId = createExecId()
       const attempt = 1
-      const result = await exec({
-        specId: spec.id,
-        sqlFile: spec.sqlFile,
-        params,
-        options,
-        execId,
-        attempt,
-      })
+      const result = await exec(
+        createExecInput(spec, params, options, execId, attempt)
+      )
       return result.value
     },
     async scalar<P extends QueryParams, R>(
@@ -789,14 +863,9 @@ export function createCatalogExecutor(
       )
       const execId = createExecId()
       const attempt = 1
-      const result = await exec({
-        specId: spec.id,
-        sqlFile: spec.sqlFile,
-        params,
-        options,
-        execId,
-        attempt,
-      })
+      const result = await exec(
+        createExecInput(spec, params, options, execId, attempt)
+      )
       return result.value
     },
   }

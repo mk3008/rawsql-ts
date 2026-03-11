@@ -1,5 +1,19 @@
 # @rawsql-ts/testkit-sqlite
 
+## 1.0.0
+
+### Major Changes
+
+- [#455](https://github.com/mk3008/rawsql-ts/pull/455) [`12adb8f`](https://github.com/mk3008/rawsql-ts/commit/12adb8f2629808046a8efe044ec5a59bf09ca90b) Thanks [@mk3008](https://github.com/mk3008)! - Rename the SQLite testkit package from "@rawsql-ts/sqlite-testkit" to "@rawsql-ts/testkit-sqlite" and move it to `packages/testkit-sqlite` to align with the `testkit-<db>` naming rule.
+
+  This is an intentional breaking change. Update imports, install commands, and workspace paths to use "@rawsql-ts/testkit-sqlite".
+
+### Patch Changes
+
+- Updated dependencies [[`ad95b97`](https://github.com/mk3008/rawsql-ts/commit/ad95b971e77101f4cdfc37aa28e2817b0a6903bf), [`e960404`](https://github.com/mk3008/rawsql-ts/commit/e96040413ce357c0c86fe87f886b9d8cce6cb44e)]:
+  - @rawsql-ts/testkit-core@0.16.0
+  - rawsql-ts@0.16.1
+
 ## 0.15.1
 
 ### Patch Changes

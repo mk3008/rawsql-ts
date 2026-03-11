@@ -161,12 +161,15 @@ test('values clause with massive row count parses within time budget', () => {
     const rows = Array.from({ length: 20000 }, (_, index) => `(${index}, 'value_${index}')`);
     const sql = `values ${rows.join(', ')}`;
 
+    // Keep the local budget strict while allowing slower shared CI runners.
+    const maxDurationMs = process.env.CI ? 3500 : 2000;
+
     // Measure parsing latency so the regression stays detectable.
     const start = performance.now();
     const clause = ValuesQueryParser.parse(sql);
     const durationMs = performance.now() - start;
 
     expect(clause.tuples.length).toBe(20000);
-    expect(durationMs).toBeLessThan(2000);
+    expect(durationMs).toBeLessThan(maxDurationMs);
 });
 

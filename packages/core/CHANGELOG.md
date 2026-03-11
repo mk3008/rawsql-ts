@@ -1,5 +1,15 @@
 # rawsql-ts
 
+## 0.16.1
+
+### Patch Changes
+
+- [#449](https://github.com/mk3008/rawsql-ts/pull/449) [`e960404`](https://github.com/mk3008/rawsql-ts/commit/e96040413ce357c0c86fe87f886b9d8cce6cb44e) Thanks [@mk3008](https://github.com/mk3008)! - Add parser and formatter support for Postgres `COMMENT ON TABLE/COLUMN` statements.
+  - add `CommentOnStatement` and `CommentOnParser`
+  - route `COMMENT ON TABLE/COLUMN` in `SqlParser`
+  - render `CommentOnStatement` via `SqlFormatter` with identifier escaping
+  - add parser and formatter tests for `COMMENT ON` statements
+
 ## 0.16.0
 
 ### Minor Changes

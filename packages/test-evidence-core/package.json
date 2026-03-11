@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/test-evidence-core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Deterministic PreviewJson to DiffJson transformation for rawsql-ts test evidence.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,7 +15,8 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "lint": "eslint src --ext .ts --ignore-pattern \"*.d.ts\""
+    "lint": "eslint src --ext .ts --ignore-pattern \"*.d.ts\"",
+    "release": "npm run lint && npm run test && npm run build && node -e \"require('fs').mkdirSync('../../tmp', { recursive: true })\" && pnpm pack --out ../../tmp/rawsql-ts-test-evidence-core.tgz && pnpm publish --access public"
   },
   "keywords": [
     "rawsql-ts",

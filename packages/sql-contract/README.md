@@ -214,6 +214,10 @@ const activeCustomersSpec: QuerySpec<[], { customerId: number; customerName: str
   id: 'customers.active',
   sqlFile: 'customers/active.sql',
   params: { shape: 'positional', example: [] },
+  metadata: {
+    material: ['active_customer_ids'],
+    scalarMaterial: ['active_customer_count'],
+  },
   output: {
     mapping: rowMapping({
       name: 'Customer',
@@ -240,6 +244,32 @@ const activeCustomersSpec: QuerySpec<[], { customerId: number; customerName: str
 | `output.example` | Example output (for documentation and testing) |
 | `notes` | Optional human-readable description |
 | `tags` | Optional key-value metadata forwarded to observability events |
+| `metadata.material` | Optional CTE names to materialize as temp tables at runtime |
+| `metadata.scalarMaterial` | Optional CTE names to treat as scalar materializations at runtime |
+
+### QuerySpec metadata
+
+Use `metadata` when runtime adapters need execution hints without changing the SQL asset itself:
+
+```ts
+const monthlyReportSpec: QuerySpec<{ tenantId: string }, { value: number }> = {
+  id: 'reports.monthly',
+  sqlFile: 'reports/monthly.sql',
+  params: {
+    shape: 'named',
+    example: { tenantId: 'tenant-1' },
+  },
+  metadata: {
+    material: ['report_base'],
+    scalarMaterial: ['report_total'],
+  },
+  output: {
+    example: { value: 1 },
+  },
+}
+```
+
+The metadata remains available on `spec.metadata` inside rewriters and is also forwarded to runtime extensions through `ExecInput.metadata`.
 
 ### Creating a CatalogExecutor
 
@@ -585,4 +615,3 @@ await executor('SELECT * FROM customers WHERE id = :id', { id: 42 })
 ## License
 
 MIT
-

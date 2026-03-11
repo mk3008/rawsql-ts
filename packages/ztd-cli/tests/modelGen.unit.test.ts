@@ -1,5 +1,16 @@
 import { expect, test } from 'vitest';
-import { bindProbeSql, normalizeCliPath } from '../src/commands/modelGen';
+import {
+  bindProbeSql,
+  loadModelGenZtdFixtureState,
+  normalizeCliPath,
+  resolveSqlContractImportSpecifier,
+  resolveModelGenZtdProbeOptions,
+  resolveCliConnectionWithProbeGuidance,
+  buildModelGenConnectionFailure,
+} from '../src/commands/modelGen';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 import { bindModelGenNamedSql } from '../src/utils/modelGenBinder';
 import { buildProbeSql, probeQueryColumns } from '../src/utils/modelProbe';
 import { deriveModelGenNames, normalizeGeneratedSqlFile, renderModelGenFile, toModelPropertyName } from '../src/utils/modelGenRender';
@@ -82,6 +93,7 @@ test('renderModelGenFile emits names-first spec scaffolds', () => {
   const output = renderModelGenFile({
     command: 'ztd model-gen src/sql/sales/get_sales_header.sql',
     format: 'spec',
+    sqlContractImport: '@rawsql-ts/sql-contract',
     sqlFile: 'sales/get_sales_header.sql',
     specId: 'sales.getSalesHeader',
     interfaceName: 'GetSalesHeaderRow',
@@ -106,6 +118,7 @@ test('renderModelGenFile escapes single quotes and backslashes in generated stri
   const output = renderModelGenFile({
     command: 'ztd model-gen src/sql/demo.sql',
     format: 'spec',
+    sqlContractImport: '@rawsql-ts/sql-contract',
     sqlFile: "sales\\owner's_report.sql",
     specId: "sales.owner'sReport",
     interfaceName: 'OwnerReportRow',
@@ -126,6 +139,7 @@ test('renderModelGenFile marks positional scaffolds as legacy when explicitly al
   const output = renderModelGenFile({
     command: 'ztd model-gen legacy.sql --allow-positional',
     format: 'spec',
+    sqlContractImport: '@rawsql-ts/sql-contract',
     sqlFile: 'legacy.sql',
     specId: 'legacy',
     interfaceName: 'LegacyRow',
@@ -139,6 +153,25 @@ test('renderModelGenFile marks positional scaffolds as legacy when explicitly al
 
   expect(output).toContain('Legacy warning');
   expect(output).toContain("params: { shape: 'positional', example: [null, null] }");
+});
+
+test('renderModelGenFile uses the configured sql-contract import specifier', () => {
+  const output = renderModelGenFile({
+    command: 'ztd model-gen src/sql/demo.sql --import-from src/local/sql-contract.ts',
+    format: 'row-mapping',
+    sqlContractImport: '../../local/sql-contract',
+    sqlFile: 'demo.sql',
+    specId: 'demo',
+    interfaceName: 'DemoRow',
+    mappingName: 'demoMapping',
+    specName: 'demoSpec',
+    placeholderMode: 'none',
+    allowPositional: false,
+    orderedParamNames: [],
+    columns: [{ columnName: 'value', propertyName: 'value', tsType: 'string' }]
+  });
+
+  expect(output).toContain("import { rowMapping } from '../../local/sql-contract';");
 });
 
 test('normalizeCliPath converts windows-style paths to slash-separated paths', () => {
@@ -172,4 +205,164 @@ test('probeQueryColumns maps int8 metadata to string to match pg driver defaults
   await expect(probeQueryColumns(client, 'select count(*) as total', [])).resolves.toEqual([
     { columnName: 'total', typeName: 'int8', tsType: 'string' }
   ]);
+});
+
+test('resolveModelGenZtdProbeOptions preserves defaultSchema and searchPath from ztd.config.json', () => {
+  const workspace = mkdtempSync(path.join(os.tmpdir(), 'model-gen-ztd-config-'));
+  mkdirSync(path.join(workspace, 'schema'), { recursive: true });
+  writeFileSync(
+    path.join(workspace, 'ztd.config.json'),
+    JSON.stringify({
+      dialect: 'postgres',
+      ddlDir: 'schema',
+      testsDir: 'tests',
+      ddl: {
+        defaultSchema: 'app',
+        searchPath: ['app', 'public']
+      },
+      ddlLint: 'strict'
+    }),
+    'utf8'
+  );
+
+  expect(resolveModelGenZtdProbeOptions({ rootDir: workspace })).toEqual({
+    ddlDirectories: [path.join(workspace, 'schema')],
+    defaultSchema: 'app',
+    searchPath: ['app', 'public']
+  });
+});
+
+test('resolveSqlContractImportSpecifier supports a relative style via src/local/sql-contract.ts', () => {
+  const workspace = mkdtempSync(path.join(os.tmpdir(), 'model-gen-import-style-'));
+  const localDir = path.join(workspace, 'src', 'local');
+  mkdirSync(localDir, { recursive: true });
+  writeFileSync(path.join(localDir, 'sql-contract.ts'), "export * from '@rawsql-ts/sql-contract';\n", 'utf8');
+
+  expect(
+    resolveSqlContractImportSpecifier({
+      out: 'src/catalog/specs/generated/example.spec.ts',
+      importStyle: 'relative',
+      rootDir: workspace,
+    })
+  ).toBe('../../../local/sql-contract');
+});
+
+test('resolveSqlContractImportSpecifier resolves filesystem overrides relative to --out', () => {
+  const workspace = mkdtempSync(path.join(os.tmpdir(), 'model-gen-import-from-'));
+  const localDir = path.join(workspace, 'src', 'local');
+  mkdirSync(localDir, { recursive: true });
+  writeFileSync(path.join(localDir, 'sql-contract.ts'), "export * from '@rawsql-ts/sql-contract';\n", 'utf8');
+
+  expect(
+    resolveSqlContractImportSpecifier({
+      out: 'src/catalog/specs/generated/example.spec.ts',
+      importFrom: 'src/local/sql-contract.ts',
+      rootDir: workspace,
+    })
+  ).toBe('../../../local/sql-contract');
+});
+
+test('loadModelGenZtdFixtureState creates empty fixtures for DDL-only tables', async () => {
+  const workspace = mkdtempSync(path.join(os.tmpdir(), 'model-gen-ztd-fixtures-'));
+  const ddlDir = path.join(workspace, 'schema');
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'public.sql'),
+    `
+      CREATE TABLE public.users (
+        user_id integer PRIMARY KEY,
+        email text NOT NULL
+      );
+    `,
+    'utf8'
+  );
+
+  const fixtureState = await loadModelGenZtdFixtureState({
+    ddlDirectories: [ddlDir],
+    defaultSchema: 'public',
+    searchPath: ['public'],
+  });
+
+  expect(fixtureState.tableDefinitions).toHaveLength(1);
+  expect(fixtureState.tableRows).toEqual([
+    {
+      tableName: 'public.users',
+      rows: [],
+    },
+  ]);
+});
+
+test('loadModelGenZtdFixtureState preserves searchPath precedence so unqualified references resolve to the first matching schema', async () => {
+  const workspace = mkdtempSync(path.join(os.tmpdir(), 'model-gen-ztd-search-path-'));
+  const ddlDir = path.join(workspace, 'schema');
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'schemas.sql'),
+    `
+      CREATE SCHEMA app;
+
+      CREATE TABLE app.users (
+        account_id integer PRIMARY KEY
+      );
+
+      CREATE TABLE public.users (
+        user_id integer PRIMARY KEY
+      );
+    `,
+    'utf8'
+  );
+
+  const fixtureState = await loadModelGenZtdFixtureState({
+    ddlDirectories: [ddlDir],
+    defaultSchema: 'app',
+    searchPath: ['app', 'public'],
+  });
+
+  // DdlFixtureLoader keeps both schema-qualified fixtures, and the first entry matches the searchPath
+  // priority that unqualified references (for example `from users`) will follow during ZTD probing.
+  expect(fixtureState.tableDefinitions.map((table) => (table as { name: string }).name)).toEqual([
+    'app.users',
+    'public.users',
+  ]);
+  expect(fixtureState.tableRows.map((fixture) => fixture.tableName)).toEqual([
+    'app.users',
+    'public.users',
+  ]);
+  expect(fixtureState.tableRows).toEqual([
+    {
+      tableName: 'app.users',
+      rows: [],
+    },
+    {
+      tableName: 'public.users',
+      rows: [],
+    },
+  ]);
+});
+
+
+test('resolveCliConnectionWithProbeGuidance explains ztd probe DB requirement when connection is missing', () => {
+  const previous = process.env.DATABASE_URL;
+  try {
+    delete process.env.DATABASE_URL;
+    expect(() => resolveCliConnectionWithProbeGuidance({}, 'ztd')).toThrow(
+      /still needs a reachable PostgreSQL connection/
+    );
+  } finally {
+    if (previous === undefined) {
+      delete process.env.DATABASE_URL;
+    } else {
+      process.env.DATABASE_URL = previous;
+    }
+  }
+});
+
+test('buildModelGenConnectionFailure includes mode-specific guidance', () => {
+  const ztdError = buildModelGenConnectionFailure(new Error('ECONNREFUSED'), 'ztd');
+  expect(ztdError.message).toContain('before ztd probing');
+  expect(ztdError.message).toContain('ECONNREFUSED');
+
+  const liveError = buildModelGenConnectionFailure(new Error('timeout'), 'live');
+  expect(liveError.message).toContain('Failed to connect to PostgreSQL for model-gen');
+  expect(liveError.message).toContain('timeout');
 });

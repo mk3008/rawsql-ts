@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/sql-contract",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Lightweight mapper and writer helpers that keep client SQL authoritative while exposing an explicit contract for data hydration and CUD emitters.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -36,9 +36,10 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run",
+    "test": "vitest run --config vitest.config.ts",
+    "test:consumer-validation": "vitest run --config vitest.config.ts",
     "test:integration": "vitest run --config ../../vitest.integration.config.ts",
-    "test:watch": "vitest",
+    "test:watch": "vitest --config vitest.config.ts",
     "lint": "eslint src --ext .ts"
   },
   "keywords": [

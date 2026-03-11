@@ -15,7 +15,7 @@
     "coverage:workspaces": "pnpm -r --if-present coverage",
     "build": "pnpm -r --if-present build",
     "build:core": "pnpm --filter rawsql-ts build",
-    "build:publish": "pnpm --filter rawsql-ts build:all && pnpm --filter @rawsql-ts/test-evidence-core build && pnpm --filter @rawsql-ts/test-evidence-renderer-md build && pnpm --filter @rawsql-ts/testkit-core build && pnpm --filter @rawsql-ts/testkit-postgres build && pnpm --filter @rawsql-ts/adapter-node-pg build && pnpm --filter @rawsql-ts/testkit-sqlite build && pnpm --filter @rawsql-ts/ztd-cli build",
+    "build:publish": "pnpm -r --workspace-concurrency=1 --filter ./packages/** --if-present run build",
     "changeset": "changeset",
     "changesets:version": "changeset version",
     "changesets:publish": "changeset publish",
@@ -35,7 +35,8 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "pnpm docs:api && vitepress build docs",
     "docs:preview": "vitepress preview docs",
-    "docs:api": "typedoc && node scripts/postprocess-docs.mjs"
+    "docs:api": "typedoc && node scripts/postprocess-docs.mjs",
+    "verify:published-package-mode": "node scripts/verify-published-package-mode.mjs"
   },
   "keywords": [
     "sql",
@@ -114,4 +115,3 @@
     }
   }
 }
-

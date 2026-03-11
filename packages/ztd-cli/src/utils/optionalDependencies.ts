@@ -32,7 +32,10 @@ async function loadOptionalModule<T>(
 export type TestkitCoreModule = typeof import('@rawsql-ts/testkit-core');
 
 export interface PgTestkitClientLike {
-  query(statement: string): Promise<unknown>;
+  query<T = unknown>(statement: string, values?: unknown[] | Record<string, unknown>): Promise<{
+    rows?: T[];
+    fields?: unknown[];
+  }>;
   close(): Promise<unknown>;
 }
 
@@ -50,7 +53,7 @@ export interface PgClientLike {
 }
 
 export interface PgModule {
-  Client: new (options: { connectionString: string }) => PgClientLike;
+  Client: new (options: { connectionString: string; connectionTimeoutMillis?: number }) => PgClientLike;
 }
 
 export interface PostgresContainerLike {
@@ -170,3 +173,4 @@ export async function ensurePostgresContainerModule(): Promise<PostgresContainer
     'pnpm add -D @testcontainers/postgresql'
   );
 }
+

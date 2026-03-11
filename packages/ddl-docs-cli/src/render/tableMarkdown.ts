@@ -190,7 +190,7 @@ function linkFromTablePage(current: TableDocModel, targetSchemaSlug: string, tar
   return `../${targetSchemaSlug}/${targetTableSlug}.md`;
 }
 
-const SERIAL_TYPES = new Set(['serial', 'bigserial', 'smallserial']);
+const SERIAL_TYPES = new Set(['serial', 'serial2', 'serial4', 'serial8', 'bigserial', 'smallserial']);
 
 function isSequenceColumn(column: TableDocModel['columns'][number]): boolean {
   return SERIAL_TYPES.has(column.typeName.toLowerCase()) || column.defaultValue.toLowerCase().includes('nextval(');

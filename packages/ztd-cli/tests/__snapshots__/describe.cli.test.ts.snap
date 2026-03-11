@@ -1,0 +1,880 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`describe command emits JSON envelope when global output is json 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Generation completed, dry-run plan emitted, or output contract described.",
+        "1": "Validation or probing failed.",
+      },
+      "flags": [
+        {
+          "description": "Validate probing and show the planned output file without writing it.",
+          "name": "--dry-run",
+        },
+        {
+          "description": "Pass model-gen options as a JSON object.",
+          "name": "--json",
+        },
+        {
+          "description": "Print the generated artifact contract instead of probing.",
+          "name": "--describe-output",
+        },
+      ],
+      "name": "model-gen",
+      "output": {
+        "files": [
+          "Specified --out file when present",
+        ],
+        "stdout": "Generated TypeScript when --out is omitted; JSON envelope in global json mode.",
+      },
+      "summary": "Probe SQL metadata and generate QuerySpec scaffolding.",
+      "supportsDescribeOutput": true,
+      "supportsDryRun": true,
+      "supportsJsonPayload": true,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > agents install 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Visible AGENTS installation completed or was already up to date.",
+        "1": "Filesystem or validation error.",
+      },
+      "flags": [],
+      "name": "agents install",
+      "output": {
+        "files": [
+          "AGENTS.md or AGENTS_ztd.md",
+          "ztd/AGENTS.md",
+          "src/**/AGENTS.md",
+          "tests/**/AGENTS.md",
+        ],
+        "stdout": "Human install summary in text mode, JSON envelope in global json mode.",
+      },
+      "summary": "Install visible AGENTS.md files from the managed templates.",
+      "supportsDryRun": false,
+      "supportsJsonPayload": false,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > agents status 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Status emitted.",
+        "1": "Filesystem or parsing error.",
+      },
+      "flags": [],
+      "name": "agents status",
+      "output": {
+        "stdout": "Human status report in text mode, JSON envelope in global json mode.",
+      },
+      "summary": "Report managed AGENTS guidance state and drift signals.",
+      "supportsDryRun": false,
+      "supportsJsonPayload": false,
+      "writesFiles": false,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > check contract 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "No violations.",
+        "1": "Violations detected.",
+        "2": "Runtime or config error.",
+      },
+      "flags": [
+        {
+          "description": "Emit the report as deterministic JSON.",
+          "name": "--format json",
+        },
+        {
+          "description": "Pass check options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "check contract",
+      "output": {
+        "stdout": "Human report or deterministic JSON report.",
+      },
+      "summary": "Validate SQL contract specs and emit deterministic findings.",
+      "supportsDryRun": false,
+      "supportsJsonPayload": true,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > ddl diff 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Diff completed or dry-run plan emitted.",
+        "1": "Local discovery or pg_dump failed.",
+      },
+      "flags": [
+        {
+          "description": "Compute the patch without writing the plan file.",
+          "name": "--dry-run",
+        },
+        {
+          "description": "Pass diff options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "ddl diff",
+      "output": {
+        "files": [
+          "Specified --out patch file",
+        ],
+        "stdout": "Status or JSON envelope.",
+      },
+      "summary": "Compare local DDL with a live database and emit a diff plan.",
+      "supportsDryRun": true,
+      "supportsJsonPayload": true,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > ddl gen-entities 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Generation completed or dry-run plan emitted.",
+        "1": "DDL parsing failed.",
+      },
+      "flags": [
+        {
+          "description": "Render entities without writing the output file.",
+          "name": "--dry-run",
+        },
+        {
+          "description": "Pass generation options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "ddl gen-entities",
+      "output": {
+        "files": [
+          "Specified --out entities file",
+        ],
+        "stdout": "Status or JSON envelope.",
+      },
+      "summary": "Generate helper interfaces from DDL metadata.",
+      "supportsDryRun": true,
+      "supportsJsonPayload": true,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > ddl pull 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Pull completed or dry-run plan emitted.",
+        "1": "pg_dump or normalization failed.",
+      },
+      "flags": [
+        {
+          "description": "Run pg_dump and normalization without writing schema files.",
+          "name": "--dry-run",
+        },
+        {
+          "description": "Pass pull options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "ddl pull",
+      "output": {
+        "files": [
+          "<out>/<schema>.sql",
+        ],
+        "stdout": "Status or JSON envelope.",
+      },
+      "summary": "Pull PostgreSQL schema DDL via pg_dump and normalize it into per-schema files.",
+      "supportsDryRun": true,
+      "supportsJsonPayload": true,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > describe-root 1`] = `
+{
+  "command": "describe",
+  "data": {
+    "commands": [
+      {
+        "name": "init",
+        "summary": "Scaffold a ZTD project with templates, config, and optional demo assets.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": true,
+        "supportsJsonPayload": true,
+        "writesFiles": true,
+      },
+      {
+        "name": "agents install",
+        "summary": "Install visible AGENTS.md files from the managed templates.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": false,
+        "supportsJsonPayload": false,
+        "writesFiles": true,
+      },
+      {
+        "name": "agents status",
+        "summary": "Report managed AGENTS guidance state and drift signals.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": false,
+        "supportsJsonPayload": false,
+        "writesFiles": false,
+      },
+      {
+        "name": "ztd-config",
+        "summary": "Generate TestRowMap and layout metadata from local DDL.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": true,
+        "supportsJsonPayload": true,
+        "writesFiles": true,
+      },
+      {
+        "name": "model-gen",
+        "summary": "Probe SQL metadata and generate QuerySpec scaffolding.",
+        "supportsDescribeOutput": true,
+        "supportsDryRun": true,
+        "supportsJsonPayload": true,
+        "writesFiles": true,
+      },
+      {
+        "name": "ddl pull",
+        "summary": "Pull PostgreSQL schema DDL via pg_dump and normalize it into per-schema files.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": true,
+        "supportsJsonPayload": true,
+        "writesFiles": true,
+      },
+      {
+        "name": "ddl diff",
+        "summary": "Compare local DDL with a live database and emit a diff plan.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": true,
+        "supportsJsonPayload": true,
+        "writesFiles": true,
+      },
+      {
+        "name": "ddl gen-entities",
+        "summary": "Generate helper interfaces from DDL metadata.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": true,
+        "supportsJsonPayload": true,
+        "writesFiles": true,
+      },
+      {
+        "name": "check contract",
+        "summary": "Validate SQL contract specs and emit deterministic findings.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": false,
+        "supportsJsonPayload": true,
+        "writesFiles": true,
+      },
+      {
+        "name": "perf init",
+        "summary": "Scaffold the opt-in perf sandbox configuration and Docker assets.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": true,
+        "supportsJsonPayload": true,
+        "writesFiles": true,
+      },
+      {
+        "name": "perf db reset",
+        "summary": "Recreate the perf sandbox schema from local DDL.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": true,
+        "supportsJsonPayload": true,
+        "writesFiles": false,
+      },
+      {
+        "name": "perf seed",
+        "summary": "Generate deterministic synthetic data from perf/seed.yml.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": true,
+        "supportsJsonPayload": true,
+        "writesFiles": false,
+      },
+      {
+        "name": "perf run",
+        "summary": "Benchmark a SQL query and emit evidence for AI-driven tuning loops.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": true,
+        "supportsJsonPayload": true,
+        "writesFiles": true,
+      },
+      {
+        "name": "perf report diff",
+        "summary": "Compare two saved perf benchmark runs and report the primary delta.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": false,
+        "supportsJsonPayload": true,
+        "writesFiles": false,
+      },
+      {
+        "name": "query uses",
+        "summary": "Inspect catalog SQL usage of tables or columns.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": false,
+        "supportsJsonPayload": true,
+        "writesFiles": true,
+      },
+      {
+        "name": "lint",
+        "summary": "Lint SQL files with fixture-backed validation.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": false,
+        "supportsJsonPayload": true,
+        "writesFiles": false,
+      },
+      {
+        "name": "evidence",
+        "summary": "Generate deterministic specification evidence artifacts.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": false,
+        "supportsJsonPayload": true,
+        "writesFiles": true,
+      },
+    ],
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > evidence 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Evidence generated.",
+        "1": "Generation failed.",
+        "2": "Runtime or config error.",
+      },
+      "flags": [
+        {
+          "description": "Pass evidence options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "evidence",
+      "output": {
+        "files": [
+          "<out-dir>/test-specification.json",
+          "<out-dir>/test-specification.md",
+        ],
+      },
+      "summary": "Generate deterministic specification evidence artifacts.",
+      "supportsDryRun": false,
+      "supportsJsonPayload": true,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > init 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Scaffold completed or dry-run plan emitted.",
+        "1": "Validation or filesystem error.",
+      },
+      "flags": [
+        {
+          "description": "Validate inputs and emit the planned scaffold without writing files.",
+          "name": "--dry-run",
+        },
+        {
+          "description": "Pass init options as a JSON object.",
+          "name": "--json",
+        },
+        {
+          "description": "Accept defaults and overwrite existing files.",
+          "name": "--yes",
+        },
+      ],
+      "name": "init",
+      "output": {
+        "files": [
+          "ztd.config.json",
+          "ztd/ddl/*.sql",
+          "tests/generated/*",
+          ".ztd/agents/*",
+          "CONTEXT.md",
+        ],
+        "stdout": "Human summary in text mode, JSON envelope in global json mode.",
+      },
+      "summary": "Scaffold a ZTD project with templates, config, and optional demo assets.",
+      "supportsDryRun": true,
+      "supportsJsonPayload": true,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > lint 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Lint completed without failures.",
+        "1": "Lint failures or runtime error.",
+      },
+      "flags": [
+        {
+          "description": "Pass lint options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "lint",
+      "output": {
+        "stdout": "Silent on success in text mode, JSON envelope in global json mode.",
+      },
+      "summary": "Lint SQL files with fixture-backed validation.",
+      "supportsDryRun": false,
+      "supportsJsonPayload": true,
+      "writesFiles": false,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > model-gen 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Generation completed, dry-run plan emitted, or output contract described.",
+        "1": "Validation or probing failed.",
+      },
+      "flags": [
+        {
+          "description": "Validate probing and show the planned output file without writing it.",
+          "name": "--dry-run",
+        },
+        {
+          "description": "Pass model-gen options as a JSON object.",
+          "name": "--json",
+        },
+        {
+          "description": "Print the generated artifact contract instead of probing.",
+          "name": "--describe-output",
+        },
+      ],
+      "name": "model-gen",
+      "output": {
+        "files": [
+          "Specified --out file when present",
+        ],
+        "stdout": "Generated TypeScript when --out is omitted; JSON envelope in global json mode.",
+      },
+      "summary": "Probe SQL metadata and generate QuerySpec scaffolding.",
+      "supportsDescribeOutput": true,
+      "supportsDryRun": true,
+      "supportsJsonPayload": true,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > perf db reset 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Reset completed or dry-run plan emitted.",
+        "1": "Docker, connection, or DDL replay failed.",
+      },
+      "flags": [
+        {
+          "description": "Emit the DDL replay plan without touching Docker or PostgreSQL.",
+          "name": "--dry-run",
+        },
+        {
+          "description": "Pass perf db reset options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "perf db reset",
+      "output": {
+        "stdout": "Human reset summary or JSON envelope.",
+      },
+      "summary": "Recreate the perf sandbox schema from local DDL.",
+      "supportsDryRun": true,
+      "supportsJsonPayload": true,
+      "writesFiles": false,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > perf init 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Scaffold completed or dry-run plan emitted.",
+        "1": "Validation or filesystem error.",
+      },
+      "flags": [
+        {
+          "description": "Emit the planned perf sandbox scaffold without writing files.",
+          "name": "--dry-run",
+        },
+        {
+          "description": "Pass perf init options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "perf init",
+      "output": {
+        "files": [
+          "perf/sandbox.json",
+          "perf/seed.yml",
+          "perf/params.yml",
+          "perf/docker-compose.yml",
+          "perf/README.md",
+          "perf/.gitignore",
+        ],
+        "stdout": "Human scaffold summary or JSON envelope.",
+      },
+      "summary": "Scaffold the opt-in perf sandbox configuration and Docker assets.",
+      "supportsDryRun": true,
+      "supportsJsonPayload": true,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > perf report diff 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Diff report emitted.",
+        "1": "Evidence loading or validation failed.",
+      },
+      "flags": [
+        {
+          "defaultValue": "text",
+          "description": "Output format (text|json).",
+          "name": "--format",
+        },
+        {
+          "description": "Pass perf report diff options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "perf report diff",
+      "output": {
+        "stdout": "Human diff summary or JSON envelope.",
+      },
+      "summary": "Compare two saved perf benchmark runs and report the primary delta.",
+      "supportsDryRun": false,
+      "supportsJsonPayload": true,
+      "writesFiles": false,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > perf run 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Benchmark completed or dry-run plan emitted.",
+        "1": "Validation, connection, or execution failed.",
+      },
+      "flags": [
+        {
+          "description": "SQL file to benchmark inside the perf sandbox.",
+          "name": "--query",
+        },
+        {
+          "description": "JSON or YAML file with named or positional parameters.",
+          "name": "--params",
+        },
+        {
+          "defaultValue": "direct",
+          "description": "Execution strategy (direct|decomposed).",
+          "name": "--strategy",
+        },
+        {
+          "description": "Comma-separated CTEs to materialize when using decomposed execution.",
+          "name": "--material",
+        },
+        {
+          "defaultValue": "auto",
+          "description": "Benchmark mode (auto|latency|completion).",
+          "name": "--mode",
+        },
+        {
+          "defaultValue": "10",
+          "description": "Measured repetitions for latency mode.",
+          "name": "--repeat",
+        },
+        {
+          "defaultValue": "3",
+          "description": "Warmup repetitions for latency mode.",
+          "name": "--warmup",
+        },
+        {
+          "defaultValue": "60",
+          "description": "Threshold for auto mode classification.",
+          "name": "--classify-threshold-seconds",
+        },
+        {
+          "defaultValue": "5",
+          "description": "Timeout for measured runs.",
+          "name": "--timeout-minutes",
+        },
+        {
+          "description": "Persist benchmark evidence under perf/evidence/run_xxx.",
+          "name": "--save",
+        },
+        {
+          "description": "Resolve benchmark mode and evidence shape without touching PostgreSQL.",
+          "name": "--dry-run",
+        },
+        {
+          "description": "Attach a short label to the saved run directory.",
+          "name": "--label",
+        },
+        {
+          "description": "Pass perf run options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "perf run",
+      "output": {
+        "files": [
+          "perf/evidence/run_xxx/* when --save is enabled",
+        ],
+        "stdout": "Human benchmark summary or JSON envelope.",
+      },
+      "summary": "Benchmark a SQL query and emit evidence for AI-driven tuning loops.",
+      "supportsDryRun": true,
+      "supportsJsonPayload": true,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > perf seed 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Seed completed or dry-run plan emitted.",
+        "1": "Connection, DDL parsing, or insert generation failed.",
+      },
+      "flags": [
+        {
+          "description": "Emit the seed plan without touching PostgreSQL.",
+          "name": "--dry-run",
+        },
+        {
+          "description": "Pass perf seed options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "perf seed",
+      "output": {
+        "stdout": "Human seed summary or JSON envelope.",
+      },
+      "summary": "Generate deterministic synthetic data from perf/seed.yml.",
+      "supportsDryRun": true,
+      "supportsJsonPayload": true,
+      "writesFiles": false,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > query uses 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Report emitted.",
+        "1": "Validation failed.",
+      },
+      "flags": [
+        {
+          "description": "Emit a versioned JSON usage report.",
+          "name": "--format json",
+        },
+        {
+          "description": "Pass target and options as a JSON object.",
+          "name": "--json",
+        },
+        {
+          "description": "Emit only summary counts with display metadata.",
+          "name": "--summary-only",
+        },
+        {
+          "description": "Truncate matches and warnings while preserving summary totals.",
+          "name": "--limit",
+        },
+      ],
+      "name": "query uses",
+      "output": {
+        "stdout": "Text report or versioned JSON report with optional display metadata.",
+      },
+      "summary": "Inspect catalog SQL usage of tables or columns.",
+      "supportsDryRun": false,
+      "supportsJsonPayload": true,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > ztd-config 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Generation completed or dry-run plan emitted.",
+        "1": "Generation failed.",
+      },
+      "flags": [
+        {
+          "description": "Render and validate generation without writing files.",
+          "name": "--dry-run",
+        },
+        {
+          "description": "Pass ztd-config options as a JSON object.",
+          "name": "--json",
+        },
+        {
+          "defaultValue": false,
+          "description": "Watch DDL files and regenerate on change.",
+          "name": "--watch",
+        },
+      ],
+      "name": "ztd-config",
+      "output": {
+        "files": [
+          "tests/generated/ztd-row-map.generated.ts",
+          "tests/generated/ztd-layout.generated.ts",
+        ],
+        "stdout": "Status or JSON envelope.",
+      },
+      "summary": "Generate TestRowMap and layout metadata from local DDL.",
+      "supportsDryRun": true,
+      "supportsJsonPayload": true,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;

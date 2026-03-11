@@ -7,18 +7,13 @@ Created:
  - ztd/ddl/public.sql
  - ztd.config.json
  - README.md
- - ztd/AGENTS.md
+ - CONTEXT.md
+ - .ztd/agents/manifest.json
+ - .ztd/agents/root.md
+ - .ztd/agents/src.md
+ - .ztd/agents/tests.md
+ - .ztd/agents/ztd.md
  - ztd/README.md
- - ztd/ddl/AGENTS.md
- - src/AGENTS.md
- - src/catalog/AGENTS.md
- - src/catalog/runtime/AGENTS.md
- - src/catalog/specs/AGENTS.md
- - src/sql/AGENTS.md
- - src/repositories/AGENTS.md
- - src/repositories/views/AGENTS.md
- - src/repositories/tables/AGENTS.md
- - src/jobs/AGENTS.md
  - src/sql/README.md
  - src/repositories/views/README.md
  - src/repositories/tables/README.md
@@ -27,9 +22,6 @@ Created:
  - src/catalog/runtime/_coercions.ts
  - src/catalog/runtime/_smoke.runtime.ts
  - tests/smoke.validation.test.ts
- - tests/AGENTS.md
- - tests/support/AGENTS.md
- - tests/generated/AGENTS.md
  - tests/smoke.test.ts
  - src/db/sql-client.ts
  - src/db/sql-client-adapters.ts
@@ -37,7 +29,6 @@ Created:
  - tests/support/global-setup.ts
  - vitest.config.ts
  - tsconfig.json
- - AGENTS.md
  - .gitignore
  - .editorconfig
  - .prettierignore
@@ -48,11 +39,16 @@ Validation configuration:
  - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)
  - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
 
+AI guidance:
+ - Internal guidance is managed under .ztd/agents/.
+ - Visible AGENTS.md files are disabled by default. Enable with: ztd agents install
+
 Next steps:
  1. If the schema file is empty, edit ztd/ddl/public.sql
  2. Run npx ztd ztd-config
  3. Provide a SqlClient implementation (adapter or mock)
- 4. Run tests (pnpm test or npx vitest run)"
+ 4. Run tests (pnpm test or npx vitest run)
+ 5. This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs."
 `;
 
 exports[`init wizard bootstraps an empty scaffold 1`] = `
@@ -62,18 +58,13 @@ Created:
  - ztd/ddl/public.sql
  - ztd.config.json
  - README.md
- - ztd/AGENTS.md
+ - CONTEXT.md
+ - .ztd/agents/manifest.json
+ - .ztd/agents/root.md
+ - .ztd/agents/src.md
+ - .ztd/agents/tests.md
+ - .ztd/agents/ztd.md
  - ztd/README.md
- - ztd/ddl/AGENTS.md
- - src/AGENTS.md
- - src/catalog/AGENTS.md
- - src/catalog/runtime/AGENTS.md
- - src/catalog/specs/AGENTS.md
- - src/sql/AGENTS.md
- - src/repositories/AGENTS.md
- - src/repositories/views/AGENTS.md
- - src/repositories/tables/AGENTS.md
- - src/jobs/AGENTS.md
  - src/sql/README.md
  - src/repositories/views/README.md
  - src/repositories/tables/README.md
@@ -82,9 +73,6 @@ Created:
  - src/catalog/runtime/_coercions.ts
  - src/catalog/runtime/_smoke.runtime.ts
  - tests/smoke.validation.test.ts
- - tests/AGENTS.md
- - tests/support/AGENTS.md
- - tests/generated/AGENTS.md
  - tests/smoke.test.ts
  - src/db/sql-client.ts
  - src/db/sql-client-adapters.ts
@@ -92,7 +80,6 @@ Created:
  - tests/support/global-setup.ts
  - vitest.config.ts
  - tsconfig.json
- - AGENTS.md
  - .gitignore
  - .editorconfig
  - .prettierignore
@@ -103,11 +90,16 @@ Validation configuration:
  - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)
  - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
 
+AI guidance:
+ - Internal guidance is managed under .ztd/agents/.
+ - Visible AGENTS.md files are disabled by default. Enable with: ztd agents install
+
 Next steps:
  1. If the schema file is empty, edit ztd/ddl/public.sql
  2. Run npx ztd ztd-config
  3. Provide a SqlClient implementation (adapter or mock)
- 4. Run tests (pnpm test or npx vitest run)"
+ 4. Run tests (pnpm test or npx vitest run)
+ 5. This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs."
 `;
 
 exports[`init wizard pulls schema if pg_dump is available 1`] = `
@@ -117,18 +109,13 @@ Created:
  - ztd/ddl/public.sql
  - ztd.config.json
  - README.md
- - ztd/AGENTS.md
+ - CONTEXT.md
+ - .ztd/agents/manifest.json
+ - .ztd/agents/root.md
+ - .ztd/agents/src.md
+ - .ztd/agents/tests.md
+ - .ztd/agents/ztd.md
  - ztd/README.md
- - ztd/ddl/AGENTS.md
- - src/AGENTS.md
- - src/catalog/AGENTS.md
- - src/catalog/runtime/AGENTS.md
- - src/catalog/specs/AGENTS.md
- - src/sql/AGENTS.md
- - src/repositories/AGENTS.md
- - src/repositories/views/AGENTS.md
- - src/repositories/tables/AGENTS.md
- - src/jobs/AGENTS.md
  - src/sql/README.md
  - src/repositories/views/README.md
  - src/repositories/tables/README.md
@@ -137,9 +124,6 @@ Created:
  - src/catalog/runtime/_coercions.ts
  - src/catalog/runtime/_smoke.runtime.ts
  - tests/smoke.validation.test.ts
- - tests/AGENTS.md
- - tests/support/AGENTS.md
- - tests/generated/AGENTS.md
  - tests/smoke.test.ts
  - src/db/sql-client.ts
  - src/db/sql-client-adapters.ts
@@ -147,7 +131,6 @@ Created:
  - tests/support/global-setup.ts
  - vitest.config.ts
  - tsconfig.json
- - AGENTS.md
  - .gitignore
  - .editorconfig
  - .prettierignore
@@ -158,9 +141,14 @@ Validation configuration:
  - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)
  - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
 
+AI guidance:
+ - Internal guidance is managed under .ztd/agents/.
+ - Visible AGENTS.md files are disabled by default. Enable with: ztd agents install
+
 Next steps:
  1. Review the dumped DDL in ztd/ddl/public.sql
  2. Run npx ztd ztd-config
  3. Provide a SqlClient implementation (adapter or mock)
- 4. Run tests (pnpm test or npx vitest run)"
+ 4. Run tests (pnpm test or npx vitest run)
+ 5. This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs."
 `;

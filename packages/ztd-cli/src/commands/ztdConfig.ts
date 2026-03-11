@@ -19,6 +19,7 @@ export interface ZtdConfigGenerationOptions {
   defaultSchema?: string;
   searchPath?: string[];
   ddlLint?: DdlLintMode;
+  dryRun?: boolean;
 }
 
 export interface ColumnMetadata {
@@ -33,7 +34,14 @@ export interface TableMetadata {
   columns: ColumnMetadata[];
 }
 
-export async function runGenerateZtdConfig(options: ZtdConfigGenerationOptions): Promise<void> {
+export interface ZtdConfigGenerationResult {
+  tables: TableMetadata[];
+  rendered: string;
+  outFile: string;
+  dryRun: boolean;
+}
+
+export async function runGenerateZtdConfig(options: ZtdConfigGenerationOptions): Promise<ZtdConfigGenerationResult> {
   const testkitCore = await ensureTestkitCoreModule();
   const {
     TableNameResolver,
@@ -74,9 +82,17 @@ export async function runGenerateZtdConfig(options: ZtdConfigGenerationOptions):
   }
 
   const output = renderZtdConfigFile(tables);
-  ensureDirectory(path.dirname(options.out));
-  writeFileSync(options.out, output, 'utf8');
-  console.log(`Generated ${tables.length} ZTD test rows at ${options.out}`);
+  if (!options.dryRun) {
+    ensureDirectory(path.dirname(options.out));
+    writeFileSync(options.out, output, 'utf8');
+    console.log(`Generated ${tables.length} ZTD test rows at ${options.out}`);
+  }
+  return {
+    tables,
+    rendered: output,
+    outFile: options.out,
+    dryRun: Boolean(options.dryRun)
+  };
 }
 
 export function snapshotTableMetadata(sources: SqlSource[], resolver?: TableNameResolver): TableMetadata[] {

@@ -53,6 +53,8 @@
         "@rawsql-ts/test-evidence-core/*": ["packages/test-evidence-core/src/*"],
         "@rawsql-ts/test-evidence-renderer-md": ["packages/test-evidence-renderer-md/src"],
         "@rawsql-ts/test-evidence-renderer-md/*": ["packages/test-evidence-renderer-md/src/*"],
+        "@rawsql-ts/sql-grep-core": ["packages/sql-grep-core/src"],
+        "@rawsql-ts/sql-grep-core/*": ["packages/sql-grep-core/src/*"],
         "@rawsql-ts/ztd-cli": ["packages/ztd-cli/src"],
         "@rawsql-ts/testkit-sqlite": ["packages/testkit-sqlite/src"],
         "@rawsql-ts/adapter-node-pg": ["packages/adapters/adapter-node-pg/src"],
@@ -153,6 +155,11 @@
         },
         {
             "path": "./packages/test-evidence-renderer-md"
+        },
+        {
+            "path": "./packages/sql-grep-core"
         }
     ]
 }
+
+

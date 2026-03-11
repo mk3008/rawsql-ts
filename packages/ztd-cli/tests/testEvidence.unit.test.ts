@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { expect, test } from 'vitest';
 import {
+  applyEvidenceOutputControls,
   formatTestEvidenceOutput,
   runTestEvidenceSpecification,
   TestEvidenceRuntimeError
@@ -169,6 +170,30 @@ test('formatTestEvidenceOutput emits deterministic markdown and json text', () =
   });
   const parsed = JSON.parse(readFileSync(path.join(root, 'src', 'catalog', 'specs', 'a.spec.json'), 'utf8'));
   expect(parsed.id).toBe('a');
+});
+
+test('applyEvidenceOutputControls can limit payloads and emit summary-only markdown', () => {
+  const root = createWorkspace('evidence-output-controls');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'a.spec.json'),
+    JSON.stringify({ id: 'a', sqlFile: '../../sql/a.sql', params: { shape: 'positional' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(path.join(root, 'src', 'sql', 'a.sql'), 'select 1', 'utf8');
+  writeSpecModule(root, { testCaseIds: ['works', 'works-again'], includeSqlCase: true });
+
+  const report = runTestEvidenceSpecification({ mode: 'specification', rootDir: root });
+  const limited = applyEvidenceOutputControls(report, { limit: 1 });
+  const summaryOnly = applyEvidenceOutputControls(report, { summaryOnly: true, limit: 1 });
+
+  expect(limited.sqlCatalogs).toHaveLength(1);
+  expect(limited.testCases).toHaveLength(1);
+  expect(limited.display).toMatchObject({ limit: 1, summaryOnly: false, truncated: true });
+
+  expect(summaryOnly.sqlCatalogs).toEqual([]);
+  expect(summaryOnly.testCases).toEqual([]);
+  expect(summaryOnly.display).toMatchObject({ summaryOnly: true, truncated: true });
+  expect(formatTestEvidenceOutput(summaryOnly, 'markdown')).toContain('# Test Specification Summary');
 });
 
 test('formatTestEvidenceOutput uses GitHub HTTPS links when CI metadata exists', () => {

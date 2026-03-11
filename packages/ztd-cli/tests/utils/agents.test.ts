@@ -1,7 +1,14 @@
-import { existsSync, mkdtempSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from 'vitest';
-import { copyAgentsTemplate } from '../../src/utils/agents';
+import {
+  AGENTS_TEMPLATE_VERSION,
+  copyAgentsTemplate,
+  getAgentsStatus,
+  installVisibleAgents,
+  parseMarkdownAgentsMarker,
+  writeInternalAgentsArtifacts
+} from '../../src/utils/agents';
 
 const tmpRoot = path.join(path.resolve(__dirname, '..', '..', '..'), 'tmp');
 
@@ -12,16 +19,104 @@ function createTempDir(prefix: string): string {
   return mkdtempSync(path.join(tmpRoot, `${prefix}-`));
 }
 
-test('copyAgentsTemplate writes AGENTS.md and falls back to AGENTS_ztd.md when needed', () => {
-  const workspace = createTempDir('ztd-agents');
+function readNormalized(filePath: string): string {
+  return readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n');
+}
+
+test('copyAgentsTemplate writes AGENTS.md, falls back to AGENTS_ztd.md, then stops', () => {
+  const workspace = createTempDir('ztd-agents-visible-root');
+
   const first = copyAgentsTemplate(workspace);
   expect(first).toBeTruthy();
-  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
+  expect(path.basename(first!)).toBe('AGENTS.md');
+  expect(readNormalized(path.join(workspace, 'AGENTS.md'))).toContain('<!-- ztd:agents');
+  expect(readNormalized(path.join(workspace, 'AGENTS.md'))).toContain('## Security Notice');
 
   const second = copyAgentsTemplate(workspace);
   expect(second).toBeTruthy();
-  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(true);
+  expect(path.basename(second!)).toBe('AGENTS_ztd.md');
 
   const third = copyAgentsTemplate(workspace);
   expect(third).toBe(null);
+});
+
+test('installVisibleAgents creates nested AGENTS templates without overwriting existing files', () => {
+  const workspace = createTempDir('ztd-agents-visible-install');
+  mkdirSync(path.join(workspace, 'src'), { recursive: true });
+  writeFileSync(path.join(workspace, 'src', 'AGENTS.md'), '# existing\n', 'utf8');
+
+  const written = installVisibleAgents(workspace);
+  expect(written.some((summary) => summary.relativePath === 'AGENTS.md')).toBe(true);
+  expect(written.some((summary) => summary.relativePath === 'ztd/AGENTS.md')).toBe(true);
+  expect(written.some((summary) => summary.relativePath === 'src/AGENTS.md')).toBe(false);
+  expect(readNormalized(path.join(workspace, 'src', 'AGENTS.md'))).toBe('# existing\n');
+});
+
+test('writeInternalAgentsArtifacts creates managed payloads and sidecars unmanaged collisions', () => {
+  const workspace = createTempDir('ztd-agents-internal');
+  const unmanagedRoot = path.join(workspace, '.ztd', 'agents', 'root.md');
+  mkdirSync(path.dirname(unmanagedRoot), { recursive: true });
+  writeFileSync(unmanagedRoot, '# user-owned\n', 'utf8');
+
+  const summaries = writeInternalAgentsArtifacts(workspace);
+  expect(summaries.some((summary) => summary.relativePath === '.ztd/agents/manifest.json')).toBe(true);
+  expect(summaries.some((summary) => summary.relativePath === '.ztd/agents/root.md.ztd.new')).toBe(true);
+  expect(readNormalized(unmanagedRoot)).toBe('# user-owned\n');
+  expect(existsSync(`${unmanagedRoot}.ztd.new`)).toBe(true);
+
+  const manifest = JSON.parse(readNormalized(path.join(workspace, '.ztd', 'agents', 'manifest.json'))) as {
+    managed_by: string;
+    template_version: number;
+    security_notices: string[];
+  };
+  expect(manifest.managed_by).toBe('ztd:agents');
+  expect(manifest.template_version).toBe(AGENTS_TEMPLATE_VERSION);
+  expect(manifest.security_notices).toContain('Never store secrets in instruction files.');
+});
+
+test('parseMarkdownAgentsMarker reads template version and scope', () => {
+  const marker = parseMarkdownAgentsMarker('<!-- ztd:agents template_version=1 scope=root -->\n# Title');
+  expect(marker).toEqual({ templateVersion: 1, scope: 'root' });
+  expect(parseMarkdownAgentsMarker('# no marker')).toBeNull();
+});
+
+test('getAgentsStatus reports none modified and unknown drift states', () => {
+  const workspace = createTempDir('ztd-agents-status');
+  writeInternalAgentsArtifacts(workspace);
+  installVisibleAgents(workspace);
+
+  let report = getAgentsStatus(workspace);
+  const internalRoot = report.targets.find((target) => target.path === '.ztd/agents/root.md');
+  const visibleRoot = report.targets.find((target) => target.path === 'AGENTS.md');
+  expect(internalRoot).toMatchObject({
+    installed: true,
+    installedVersion: AGENTS_TEMPLATE_VERSION,
+    drift: 'none',
+    managed: true
+  });
+  expect(visibleRoot).toMatchObject({
+    installed: true,
+    installedVersion: AGENTS_TEMPLATE_VERSION,
+    drift: 'none',
+    managed: true
+  });
+
+  writeFileSync(path.join(workspace, '.ztd', 'agents', 'src.md'), '# user-owned replacement\n', 'utf8');
+  writeFileSync(path.join(workspace, 'AGENTS.md'), `${readNormalized(path.join(workspace, 'AGENTS.md'))}\nmanual edit\n`, 'utf8');
+
+  report = getAgentsStatus(workspace);
+  expect(report.targets.find((target) => target.path === '.ztd/agents/src.md')).toMatchObject({
+    installed: true,
+    installedVersion: null,
+    drift: 'unknown',
+    managed: false
+  });
+  expect(report.targets.find((target) => target.path === 'AGENTS.md')).toMatchObject({
+    installed: true,
+    installedVersion: AGENTS_TEMPLATE_VERSION,
+    drift: 'modified',
+    managed: true
+  });
+  expect(report.recommendedActions).toContain('inspect-unmanaged-agents-files');
+  expect(report.recommendedActions).toContain('review-visible-agents');
 });

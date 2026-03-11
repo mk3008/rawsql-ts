@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/ztd-cli",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "DB-agnostic scaffolding and DDL helpers for Zero Table Dependency projects",
   "main": "dist/index.js",
   "bin": {
@@ -8,10 +8,11 @@
   },
   "scripts": {
     "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const npm=process.platform==='win32'?'npm.cmd':'npm';if(!fs.existsSync('dist/index.js')){process.exit(cp.spawnSync(npm,['run','build'],{stdio:'inherit'}).status??1)}\"",
-    "build": "pnpm --filter @rawsql-ts/test-evidence-core run build && pnpm --filter @rawsql-ts/test-evidence-renderer-md run build && pnpm --filter @rawsql-ts/testkit-core run build && tsc -p tsconfig.json",
+    "build": "pnpm --filter @rawsql-ts/sql-grep-core run build && pnpm --filter @rawsql-ts/test-evidence-core run build && pnpm --filter @rawsql-ts/test-evidence-renderer-md run build && pnpm --filter @rawsql-ts/testkit-core run build && tsc -p tsconfig.json",
     "test": "vitest run --config vitest.config.ts",
     "lint": "eslint src --ext .ts",
-    "release": "npm run lint && npm run test && npm run build && npm pack --dry-run && npm publish --access public"
+    "release": "npm run lint && npm run test && npm run build && node -e \"require('fs').mkdirSync('../../tmp', { recursive: true })\" && pnpm pack --out ../../tmp/rawsql-ts-ztd-cli.tgz && pnpm publish --access public",
+    "test:consumer-validation": "vitest run --config vitest.config.ts tests/testEvidence.unit.test.ts tests/testEvidence.cli.test.ts tests/sqlCatalog.evidence.test.ts tests/testCaseCatalog.evidence.test.ts"
   },
   "keywords": [
     "rawsql-ts",
@@ -35,7 +36,9 @@
     "commander": "^12.0.0",
     "diff": "^8.0.3",
     "fast-glob": "^3.3.3",
-    "rawsql-ts": "workspace:^"
+    "rawsql-ts": "workspace:^",
+    "yaml": "^2.8.2",
+    "@rawsql-ts/sql-grep-core": "workspace:*"
   },
   "peerDependencies": {
     "@rawsql-ts/adapter-node-pg": "workspace:^"

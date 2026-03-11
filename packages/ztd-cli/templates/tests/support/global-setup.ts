@@ -8,7 +8,7 @@ export default async function globalSetup() {
   const configuredUrl = process.env.DATABASE_URL?.trim();
   if (!configuredUrl) {
     console.warn(
-      'DATABASE_URL is not configured. Install a database adapter or set DATABASE_URL before running SQL-backed tests.',
+      'DATABASE_URL is not configured. SQL-backed tests will need a driver plus a SqlClient implementation in tests/support/testkit-client.ts before they can run.',
     );
   }
   return () => undefined;

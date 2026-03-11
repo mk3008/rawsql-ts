@@ -13,11 +13,17 @@ export function normalizePostgresType(rawTypeName: string): NormalizedType {
     return asRaw('unknown');
   }
 
+  if (lower === 'smallint' || lower === 'int2') {
+    return known('int2', 'int2');
+  }
   if (lower === 'integer' || lower === 'int' || lower === 'int4') {
     return known('int4', 'int4');
   }
   if (lower === 'bigint' || lower === 'int8') {
     return known('int8', 'int8');
+  }
+  if (lower === 'smallserial' || lower === 'serial2') {
+    return known('int2', 'int2{serial}', 'int2');
   }
   if (lower === 'serial' || lower === 'serial4') {
     return known('int4', 'int4{serial}', 'int4');
