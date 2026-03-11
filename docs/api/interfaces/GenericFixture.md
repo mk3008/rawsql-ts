@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: GenericFixture
 
-Defined in: [packages/core/src/types/GenericFixture.ts:13](https://github.com/mk3008/rawsql-ts/blob/fa5f6398fbc41a027f88477218c3f4f8e2a48374/packages/core/src/types/GenericFixture.ts#L13)
+Defined in: [packages/core/src/types/GenericFixture.ts:13](https://github.com/mk3008/rawsql-ts/blob/e7e8feb36e790d0bdcd09fe2915fd3f87fd0aef4/packages/core/src/types/GenericFixture.ts#L13)
 
 Generic fixture definition that can be adapted by driver layers.
 
@@ -11,7 +11,7 @@ Generic fixture definition that can be adapted by driver layers.
 
 > **tableName**: `string`
 
-Defined in: [packages/core/src/types/GenericFixture.ts:14](https://github.com/mk3008/rawsql-ts/blob/fa5f6398fbc41a027f88477218c3f4f8e2a48374/packages/core/src/types/GenericFixture.ts#L14)
+Defined in: [packages/core/src/types/GenericFixture.ts:14](https://github.com/mk3008/rawsql-ts/blob/e7e8feb36e790d0bdcd09fe2915fd3f87fd0aef4/packages/core/src/types/GenericFixture.ts#L14)
 
 ***
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/types/GenericFixture.ts:14](https://github.com/mk
 
 > **columns**: [`GenericFixtureColumn`](GenericFixtureColumn.md)[]
 
-Defined in: [packages/core/src/types/GenericFixture.ts:15](https://github.com/mk3008/rawsql-ts/blob/fa5f6398fbc41a027f88477218c3f4f8e2a48374/packages/core/src/types/GenericFixture.ts#L15)
+Defined in: [packages/core/src/types/GenericFixture.ts:15](https://github.com/mk3008/rawsql-ts/blob/e7e8feb36e790d0bdcd09fe2915fd3f87fd0aef4/packages/core/src/types/GenericFixture.ts#L15)
 
 ***
 
@@ -27,7 +27,7 @@ Defined in: [packages/core/src/types/GenericFixture.ts:15](https://github.com/mk
 
 > `optional` **rows**: `Record`&lt;`string`, `unknown`\&gt;[]
 
-Defined in: [packages/core/src/types/GenericFixture.ts:17](https://github.com/mk3008/rawsql-ts/blob/fa5f6398fbc41a027f88477218c3f4f8e2a48374/packages/core/src/types/GenericFixture.ts#L17)
+Defined in: [packages/core/src/types/GenericFixture.ts:17](https://github.com/mk3008/rawsql-ts/blob/e7e8feb36e790d0bdcd09fe2915fd3f87fd0aef4/packages/core/src/types/GenericFixture.ts#L17)
 
 Optional fixture rows; values are kept untyped to allow driver-specific coercion.
 </div>
