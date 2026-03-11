@@ -243,9 +243,3 @@ export class CommandTokenReader extends BaseTokenReader {
         return null;
     }
 }
-
-
-
-
-
-

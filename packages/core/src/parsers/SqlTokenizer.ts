@@ -719,7 +719,7 @@ export class SqlTokenizer {
         return StringUtils.readWhiteSpaceAndComment(this.input, pos).position;
     }
 
-private getLineColumnInfo(startPos: number, endPos: number) {
+    private getLineColumnInfo(startPos: number, endPos: number) {
         const startInfo = this.getLineColumn(startPos);
         const endInfo = this.getLineColumn(endPos);
         
@@ -789,11 +789,3 @@ private getLineColumnInfo(startPos: number, endPos: number) {
         return starts;
     }
 }
-
-
-
-
-
-
-
-
