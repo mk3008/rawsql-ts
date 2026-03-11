@@ -5,8 +5,8 @@ import {
     InlineQuery,
     LiteralValue,
     ParameterExpression,
-    RawString,
     ParenExpression,
+    RawString,
     UnaryExpression,
     ValueComponent
 } from '../models/ValueComponent';
@@ -185,12 +185,54 @@ const pruneSimpleQueryWhereClause = (
     return true;
 };
 
+const isSelectQueryNode = (value: unknown): value is SelectQuery => {
+    return value instanceof SimpleSelectQuery || value instanceof BinarySelectQuery;
+};
+
+const traverseNestedSelectQueries = (
+    root: SelectQuery,
+    parameterStates: OptionalConditionParameterStates
+): boolean => {
+    let changed = false;
+    const visited = new WeakSet<object>();
+
+    const walk = (value: unknown): void => {
+        if (!value || typeof value !== 'object') {
+            return;
+        }
+
+        if (visited.has(value as object)) {
+            return;
+        }
+        visited.add(value as object);
+
+        if (value !== root && isSelectQueryNode(value)) {
+            changed = traverseSelectQuery(value, parameterStates) || changed;
+            return;
+        }
+
+        if (Array.isArray(value)) {
+            value.forEach(walk);
+            return;
+        }
+
+        for (const child of Object.values(value as Record<string, unknown>)) {
+            walk(child);
+        }
+    };
+
+    walk(root);
+    return changed;
+};
+
 const traverseSelectQuery = (
     query: SelectQuery,
     parameterStates: OptionalConditionParameterStates
 ): boolean => {
     if (query instanceof SimpleSelectQuery) {
-        return pruneSimpleQueryWhereClause(query, parameterStates);
+        const selfChanged = pruneSimpleQueryWhereClause(query, parameterStates);
+        const nestedChanged = traverseNestedSelectQueries(query, parameterStates);
+        return selfChanged || nestedChanged;
     }
 
     if (query instanceof BinarySelectQuery) {

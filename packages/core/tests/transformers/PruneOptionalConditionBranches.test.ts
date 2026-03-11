@@ -86,6 +86,40 @@ describe('pruneOptionalConditionBranches', () => {
         expect(formattedSql).toContain('join "categories" as "c"');
     });
 
+    it('prunes supported branches inside CTE query blocks', () => {
+        const sql = `
+            WITH filtered_products AS (
+                SELECT p.product_id
+                FROM products p
+                WHERE 1 = 1
+                  AND (:brand_name IS NULL OR p.brand_name = :brand_name)
+            )
+            SELECT * FROM filtered_products
+        `;
+
+        const formattedSql = formatSql(sql, { brand_name: 'absent' });
+
+        expect(formattedSql).toContain('with "filtered_products" as (select "p"."product_id" from "products" as "p")');
+        expect(formattedSql).not.toContain(':brand_name');
+    });
+
+    it('prunes supported branches inside derived-table subqueries', () => {
+        const sql = `
+            SELECT derived.product_id
+            FROM (
+                SELECT p.product_id
+                FROM products p
+                WHERE 1 = 1
+                  AND (:brand_name IS NULL OR p.brand_name = :brand_name)
+            ) AS derived
+        `;
+
+        const formattedSql = formatSql(sql, { brand_name: 'absent' });
+
+        expect(formattedSql).toContain('from (select "p"."product_id" from "products" as "p") as "derived"');
+        expect(formattedSql).not.toContain(':brand_name');
+    });
+
     it('is exact no-op when the parameter is known present', () => {
         const sql = `
             SELECT p.product_id
