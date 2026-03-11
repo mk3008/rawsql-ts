@@ -482,3 +482,72 @@ test('perf run emits benchmark phase spans through the real CLI path', async () 
     ]),
   );
 });
+
+test('perf run telemetry dogfood scenario preserves the benchmark investigation timeline', async () => {
+  const workspace = createWorkspace('perf-run-telemetry-dogfood');
+  const sqlDir = path.join(workspace, 'src', 'sql');
+  const perfDir = path.join(workspace, 'perf');
+  const telemetryFile = path.join(workspace, 'artifacts', 'perf-run.timeline.jsonl');
+  mkdirSync(sqlDir, { recursive: true });
+  mkdirSync(perfDir, { recursive: true });
+
+  const sqlFile = path.join(sqlDir, 'sales.sql');
+  const paramsFile = path.join(perfDir, 'params.yml');
+  writeFileSync(
+    sqlFile,
+    [
+      'with base_sales as (',
+      '  select id, region_id',
+      '  from public.sales',
+      ')',
+      'select *',
+      'from base_sales',
+      'where region_id = :region_id'
+    ].join('\n'),
+    'utf8',
+  );
+  writeFileSync(paramsFile, ['params:', '  region_id: 77', ''].join('\n'), 'utf8');
+
+  const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+    void chunk;
+    return true;
+  }) as typeof process.stdout.write);
+
+  const program = buildProgram();
+  program.exitOverride();
+  await program.parseAsync(
+    [
+      'node',
+      'ztd',
+      '--telemetry',
+      '--telemetry-export',
+      'file',
+      '--telemetry-file',
+      telemetryFile,
+      'perf',
+      'run',
+      '--query',
+      sqlFile,
+      '--params',
+      paramsFile,
+      '--mode',
+      'latency',
+      '--dry-run',
+    ],
+    { from: 'node' },
+  );
+
+  stdoutSpy.mockRestore();
+
+  const payloads = readFileSync(telemetryFile, 'utf8')
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+  expect(summarizeTelemetryTimeline(payloads, 'perf run')).toEqual([
+    'start:perf run',
+    'start:resolve-perf-run-options',
+    'start:execute-perf-benchmark',
+    'start:render-perf-report',
+    'end:perf run:ok'
+  ]);
+});

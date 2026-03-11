@@ -69,16 +69,15 @@ Use it when you need:
 
 Telemetry is intentionally not the default happy path for normal SQL dogfooding.
 
-Saved telemetry regression scenarios live in [Telemetry Dogfooding Scenarios](../dogfooding/telemetry-dogfooding.md).
+Saved telemetry regression scenarios live in [Telemetry Dogfooding Scenarios](../dogfooding/telemetry-dogfooding.md).`r`n`r`nSaved SQL debug recovery scenarios live in [SQL Debug Recovery Dogfooding](../dogfooding/sql-debug-recovery.md).
 
-## Dogfooding gaps that still need scenario coverage
+## Current saved dogfooding surfaces
 
-The current routing is strongest for pipeline planning, perf recommendation loops, and schema impact analysis with `query uses`.
-The following areas still need more dedicated dogfooding scenarios:
+The current routing now has saved regression scenarios for the following previously weak areas:
 
-| Tool area | Why the current scenarios are weak | Recommended future scenario |
-|-----------|------------------------------------|-----------------------------|
-| Telemetry | Phase wiring and export behavior are covered, but only a few scenarios currently make telemetry the obvious next step in an investigation. | Add more failure-oriented or slowdown-oriented command scenarios where the saved telemetry timeline is the fastest way to find the broken phase. |
-| SQL/debug flow | Many investigations still fall back to ad-hoc test assertions instead of a repeatable command-level workflow. | Compare direct SQL vs rewritten SQL for one pipeline query and verify params, temp-table stages, and final predicate shape. |
+| Tool area | Saved scenario | Why it matters |
+|-----------|----------------|----------------|
+| Telemetry | `query uses`, `model-gen`, and `perf run --dry-run` timelines | Keeps phase attribution stable when the command result is correct but the boundary between phases is not. |
+| SQL/debug flow | Long-CTE recovery loop with `query outline`, `query lint`, `query slice`, `query patch apply`, and `perf run` | Preserves the shortest command sequence that is enough to decide the next repair or tuning step. |
 
 When a tool keeps existing but does not become the natural first step in dogfooding, add a scenario that makes its happy path unavoidable.

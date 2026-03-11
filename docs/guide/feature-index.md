@@ -67,7 +67,7 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | ztd-cli telemetry policy | [guide/ztd-cli-telemetry-policy](./ztd-cli-telemetry-policy.md) | Event schema, redaction rules, and safe export boundaries for CLI telemetry |
 | ztd-cli telemetry export modes | [guide/ztd-cli-telemetry-export-modes](./ztd-cli-telemetry-export-modes.md) | Choose local debug, CI artifact, or OTLP export without changing command behavior |
 | ztd-cli telemetry philosophy | [guide/ztd-cli-telemetry-philosophy](./ztd-cli-telemetry-philosophy.md) | Why telemetry exists, why it stays opt-in, and which goals are explicitly out of scope |
-| Telemetry Dogfooding Scenarios | [dogfooding/telemetry-dogfooding](../dogfooding/telemetry-dogfooding.md) | Regression-ready telemetry investigation loops for query uses and model-gen |
+| Telemetry Dogfooding Scenarios | [dogfooding/telemetry-dogfooding](../dogfooding/telemetry-dogfooding.md) | Regression-ready telemetry investigation loops for query uses, model-gen, and perf run |
 | SQL debug recovery dogfooding | [dogfooding/sql-debug-recovery](../dogfooding/sql-debug-recovery.md) | End-to-end loop for broken long-CTE recovery, safe patching, and direct-vs-decomposed perf comparison |
 | Validation (Zod) | [recipes/validation-zod](../recipes/validation-zod.md) | Wire Zod schemas |
 | Validation (ArkType) | [recipes/validation-arktype](../recipes/validation-arktype.md) | Wire ArkType schemas |

@@ -70,6 +70,30 @@ start:file-emit
 end:model-gen:ok
 ```
 
+
+## Scenario C: Perf run benchmark-phase attribution timeline
+
+Use this scenario when `perf run --dry-run` still returns a structurally correct report, but you need to know whether a regression belongs to option resolution, benchmark execution, or report rendering.
+
+### Why telemetry is the right tool here
+
+`perf run --dry-run` already explains the chosen strategy and evidence shape.
+Telemetry becomes useful only when the next question is which command phase drifted.
+
+### Regression surface
+
+- Test file: `packages/ztd-cli/tests/commandTelemetry.unit.test.ts`
+- Test name: `perf run telemetry dogfood scenario preserves the benchmark investigation timeline`
+
+### Expected timeline
+
+```text
+start:perf run
+start:resolve-perf-run-options
+start:execute-perf-benchmark
+start:render-perf-report
+end:perf run:ok
+```
 ## What this guide is for
 
 These scenarios are intentionally narrow.
