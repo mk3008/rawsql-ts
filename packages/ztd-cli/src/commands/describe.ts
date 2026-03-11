@@ -263,6 +263,8 @@ const COMMANDS: CommandDescriptor[] = [
     flags: [
       { name: '--query', description: 'SQL file to benchmark inside the perf sandbox.' },
       { name: '--params', description: 'JSON or YAML file with named or positional parameters.' },
+      { name: '--strategy', description: 'Execution strategy (direct|decomposed).', defaultValue: 'direct' },
+      { name: '--material', description: 'Comma-separated CTEs to materialize when using decomposed execution.' },
       { name: '--mode', description: 'Benchmark mode (auto|latency|completion).', defaultValue: 'auto' },
       { name: '--repeat', description: 'Measured repetitions for latency mode.', defaultValue: '10' },
       { name: '--warmup', description: 'Warmup repetitions for latency mode.', defaultValue: '3' },
@@ -418,7 +420,3 @@ export function registerDescribeCommand(program: Command): void {
       process.stdout.write(`${lines.join('\n')}\n`);
     });
 }
-
-
-
-

@@ -5,12 +5,15 @@ import { ensurePgModule } from '../utils/optionalDependencies';
 import { bindModelGenNamedSql } from '../utils/modelGenBinder';
 import { scanModelGenSql, type PlaceholderMode } from '../utils/modelGenScanner';
 import { buildQueryStructureReport } from '../query/structure';
+import { executeQueryPipeline, type QueryPipelineSession, type QueryPipelineSessionFactory } from '../query/execute';
+import { buildQueryPipelinePlan, type QueryPipelineMetadata, type QueryPipelineStep } from '../query/planner';
 import { loadPerfSandboxConfig, ensurePerfConnection, type PerfSeedConfig, loadPerfSeedConfig } from './sandbox';
 
 export type PerfBenchmarkMode = 'auto' | 'latency' | 'completion';
 export type PerfSelectedBenchmarkMode = 'latency' | 'completion';
 export type PerfBenchmarkFormat = 'text' | 'json';
-export type PerfExecutionStrategy = 'direct';
+export type PerfExecutionStrategy = 'direct' | 'decomposed';
+export type PerfStatementRole = 'materialize' | 'scalar-filter-bind' | 'final-query';
 export type PerfRecommendedActionName =
   | 'consider-pipeline-materialization'
   | 'review-index-coverage'
@@ -21,6 +24,8 @@ export interface PerfRunOptions {
   rootDir: string;
   queryFile: string;
   paramsFile?: string;
+  strategy: PerfExecutionStrategy;
+  material: string[];
   mode: PerfBenchmarkMode;
   repeat: number;
   warmup: number;
@@ -33,7 +38,8 @@ export interface PerfRunOptions {
 
 export interface PerfStatementReport {
   seq: number;
-  role: 'final-query';
+  role: PerfStatementRole;
+  target?: string;
   sql: string;
   bindings: unknown[] | Record<string, unknown> | undefined;
   resolved_sql_preview?: string;
@@ -53,6 +59,17 @@ export interface PerfPlanSummary {
   plan_rows?: number;
   actual_rows?: number;
   actual_total_time?: number;
+}
+
+export interface PerfStrategyMetadata {
+  materialized_ctes: string[];
+  scalar_filter_columns: string[];
+  planned_steps: Array<{
+    step: number;
+    kind: QueryPipelineStep['kind'];
+    target: string;
+    depends_on: string[];
+  }>;
 }
 
 export interface PerfPipelineCandidate {
@@ -90,6 +107,18 @@ export interface PerfPlanDelta {
   changed: boolean;
 }
 
+export interface PerfStatementDelta {
+  statement_id: string;
+  role: PerfStatementRole;
+  baseline_elapsed_ms?: number;
+  candidate_elapsed_ms?: number;
+  elapsed_delta_ms?: number;
+  baseline_row_count?: number;
+  candidate_row_count?: number;
+  baseline_timed_out?: boolean;
+  candidate_timed_out?: boolean;
+}
+
 interface PerfPlanFacts {
   observations: string[];
   statement_summary: string;
@@ -112,6 +141,7 @@ export interface PerfBenchmarkReport {
   bound_sql: string;
   bindings: unknown[] | Record<string, unknown> | undefined;
   strategy: PerfExecutionStrategy;
+  strategy_metadata?: PerfStrategyMetadata;
   requested_mode: PerfBenchmarkMode;
   selected_mode: PerfSelectedBenchmarkMode;
   selection_reason: string;
@@ -161,7 +191,9 @@ export interface PerfDiffReport {
     improvement_percent: number;
   };
   mode_changed: boolean;
+  strategy_changed: boolean;
   statements_delta: number;
+  statement_deltas: PerfStatementDelta[];
   plan_deltas: PerfPlanDelta[];
   notes: string[];
 }
@@ -174,18 +206,34 @@ interface PreparedBenchmarkQuery {
   paramsShape: PlaceholderMode;
   orderedParamNames: string[];
   bindings: unknown[] | Record<string, unknown> | undefined;
+  runtimeBindings: unknown[] | Record<string, unknown> | undefined;
 }
 
-interface DirectExecutionResult {
+interface StatementExecutionTrace {
+  role: PerfStatementRole;
+  target: string;
+  sql: string;
+  bindings: unknown[] | Record<string, unknown> | undefined;
+  resolvedSqlPreview?: string;
   elapsedMs: number;
   rowCount?: number;
   timedOut: boolean;
+  planJson?: unknown | null;
+}
+
+interface BenchmarkExecutionResult {
+  elapsedMs: number;
+  rowCount?: number;
+  timedOut: boolean;
+  statements: StatementExecutionTrace[];
+  finalPlanJson?: unknown | null;
+  strategyMetadata?: PerfStrategyMetadata;
 }
 
 interface PerfSelectionResult {
   selectedMode: PerfSelectedBenchmarkMode;
   reason: string;
-  probe?: DirectExecutionResult;
+  probe?: BenchmarkExecutionResult;
 }
 
 const DEFAULT_REPEAT = 10;
@@ -215,13 +263,16 @@ function assertValidPerfRunOptions(options: PerfRunOptions): void {
 }
 
 /**
- * Execute or plan a direct SQL benchmark against the perf sandbox.
+ * Execute or plan a perf benchmark against the sandbox using either direct or decomposed execution.
  */
 export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBenchmarkReport> {
-  assertValidPerfRunOptions(options);
+  const strategy = options.strategy ?? 'direct';
+  const material = options.material ?? [];
+  assertValidPerfRunOptions({ ...options, strategy, material });
 
   const prepared = prepareBenchmarkQuery(options.rootDir, options.queryFile, options.paramsFile);
   const pipelineAnalysis = buildPerfPipelineAnalysis(prepared.absolutePath);
+  const strategyMetadata = buildRequestedStrategyMetadata(prepared.absolutePath, strategy, material);
   const classifyThresholdMs = options.classifyThresholdSeconds * 1000;
   const timeoutMs = options.timeoutMinutes * 60 * 1000;
   const seedConfig = loadPerfSeedConfig(options.rootDir);
@@ -235,23 +286,13 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
           : 'mode forced by user'
       }
     : options.mode === 'auto'
-    ? await classifyPerfBenchmarkMode(options.rootDir, prepared, classifyThresholdMs)
+    ? await classifyPerfBenchmarkMode(options.rootDir, prepared, strategy, material, classifyThresholdMs)
     : {
         selectedMode: options.mode,
         reason: 'mode forced by user'
       };
 
   if (options.dryRun) {
-    const dryRunStatements: PerfStatementReport[] = [
-      {
-        seq: 1,
-        role: 'final-query',
-        sql: prepared.boundSql,
-        bindings: prepared.bindings,
-        resolved_sql_preview: renderResolvedSqlPreview(prepared.boundSql, prepared.bindings)
-      }
-    ];
-
     return {
       schema_version: 1,
       command: 'perf run',
@@ -264,7 +305,8 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       source_sql: prepared.sourceSql,
       bound_sql: prepared.boundSql,
       bindings: prepared.bindings,
-      strategy: 'direct',
+      strategy: strategy,
+      strategy_metadata: strategyMetadata,
       requested_mode: options.mode,
       selected_mode: selection.selectedMode,
       selection_reason: selection.reason,
@@ -274,7 +316,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       dry_run: true,
       saved: false,
       classification_probe: selection.probe ? toPerfClassificationProbe(selection.probe) : undefined,
-      executed_statements: dryRunStatements,
+      executed_statements: buildDryRunStatements(prepared, strategy, strategyMetadata),
       plan_observations: [],
       recommended_actions: buildPerfRecommendedActions(selection.selectedMode, true, pipelineAnalysis, {
         observations: [],
@@ -288,15 +330,14 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
   }
 
   const latencyRuns: number[] = [];
-  let representativeExecution: DirectExecutionResult | undefined;
-  let representativePlan: unknown = null;
+  let representativeExecution: BenchmarkExecutionResult | undefined;
   let classificationProbe = selection.probe ? toPerfClassificationProbe(selection.probe) : undefined;
 
   if (selection.selectedMode === 'latency') {
     let remainingWarmups = options.warmup;
     let remainingMeasuredRuns = options.repeat;
 
-    // Reuse the auto-classification probe so the benchmark does not hide an extra live query.
+    // Reuse the auto-classification probe so the benchmark does not hide an extra live execution.
     if (selection.probe) {
       if (selection.probe.timedOut) {
         throw new Error('Latency benchmark classification probe timed out unexpectedly. Re-run with --mode completion or a larger timeout.');
@@ -319,14 +360,21 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
     }
 
     for (let index = 0; index < remainingWarmups; index += 1) {
-      const warmupExecution = await executeDirectBenchmarkOnce(options.rootDir, prepared, timeoutMs);
+      const warmupExecution = await executePerfBenchmarkOnce(options.rootDir, prepared, strategy, material, timeoutMs, false);
       if (warmupExecution.timedOut) {
         throw new Error('Latency benchmark timed out during warmup. Re-run with --mode completion or a larger timeout.');
       }
     }
 
     for (let index = 0; index < remainingMeasuredRuns; index += 1) {
-      const execution = await executeDirectBenchmarkOnce(options.rootDir, prepared, timeoutMs);
+      const execution = await executePerfBenchmarkOnce(
+        options.rootDir,
+        prepared,
+        strategy,
+        material,
+        timeoutMs,
+        !representativeExecution
+      );
       if (execution.timedOut) {
         throw new Error('Latency benchmark timed out during a measured run. Re-run with --mode completion or a larger timeout.');
       }
@@ -335,10 +383,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
         representativeExecution = execution;
       }
     }
-
-    representativePlan = await captureDirectPlan(options.rootDir, prepared, timeoutMs, true);
   } else {
-    // Reuse the auto-classification probe when it already completed the long-running query.
     if (selection.probe && !selection.probe.timedOut) {
       representativeExecution = selection.probe;
       classificationProbe = {
@@ -346,27 +391,16 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
         reused_as_measured_run: true
       };
     } else {
-      representativeExecution = await executeDirectBenchmarkOnce(options.rootDir, prepared, timeoutMs);
+      representativeExecution = await executePerfBenchmarkOnce(options.rootDir, prepared, strategy, material, timeoutMs, true);
     }
-    representativePlan = await captureDirectPlan(options.rootDir, prepared, timeoutMs, !representativeExecution.timedOut);
   }
 
-  const executedStatements: PerfStatementReport[] = [
-    {
-      seq: 1,
-      role: 'final-query',
-      sql: prepared.boundSql,
-      bindings: prepared.bindings,
-      resolved_sql_preview: renderResolvedSqlPreview(prepared.boundSql, prepared.bindings),
-      row_count: representativeExecution?.rowCount,
-      elapsed_ms: representativeExecution?.elapsedMs,
-      timed_out: representativeExecution?.timedOut,
-      plan_summary: summarizePlanJson(representativePlan)
-    }
-  ];
+  if (!representativeExecution) {
+    throw new Error('Perf benchmark did not produce a representative execution.');
+  }
 
-  const planFacts = buildPerfPlanFacts(representativePlan);
-
+  const executedStatements = toPerfStatementReports(representativeExecution.statements);
+  const planFacts = buildPerfPlanFactsFromStatements(representativeExecution.statements);
   const report: PerfBenchmarkReport = {
     schema_version: 1,
     command: 'perf run',
@@ -379,7 +413,8 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
     source_sql: prepared.sourceSql,
     bound_sql: prepared.boundSql,
     bindings: prepared.bindings,
-    strategy: 'direct',
+    strategy: strategy,
+    strategy_metadata: representativeExecution.strategyMetadata ?? strategyMetadata,
     requested_mode: options.mode,
     selected_mode: selection.selectedMode,
     selection_reason: selection.reason,
@@ -391,11 +426,11 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
     classification_probe: classificationProbe,
     total_elapsed_ms: selection.selectedMode === 'latency'
       ? latencyRuns.reduce((sum, value) => sum + value, 0)
-      : representativeExecution?.elapsedMs,
+      : representativeExecution.elapsedMs,
     latency_metrics: selection.selectedMode === 'latency'
       ? buildLatencyMetrics(latencyRuns, options.warmup)
       : undefined,
-    completion_metrics: selection.selectedMode === 'completion' && representativeExecution
+    completion_metrics: selection.selectedMode === 'completion'
       ? {
           completed: !representativeExecution.timedOut,
           timed_out: representativeExecution.timedOut,
@@ -403,11 +438,11 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
         }
       : undefined,
     executed_statements: executedStatements,
-    plan_summary: summarizePlanJson(representativePlan),
+    plan_summary: summarizePlanJson(representativeExecution.finalPlanJson),
     plan_observations: planFacts.observations,
     recommended_actions: buildPerfRecommendedActions(
       selection.selectedMode,
-      !representativeExecution?.timedOut,
+      !representativeExecution.timedOut,
       pipelineAnalysis,
       planFacts
     ),
@@ -416,7 +451,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
   };
 
   if (options.save) {
-    const persisted = savePerfBenchmarkEvidence(options.rootDir, report, representativePlan);
+    const persisted = savePerfBenchmarkEvidence(options.rootDir, report, representativeExecution.statements);
     report.run_id = persisted.runId;
     report.evidence_dir = persisted.evidenceDir;
     report.saved = true;
@@ -430,7 +465,414 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
 
   return report;
 }
+function buildRequestedStrategyMetadata(
+  sqlFile: string,
+  strategy: PerfExecutionStrategy,
+  material: string[]
+): PerfStrategyMetadata | undefined {
+  if (strategy !== 'decomposed') {
+    return undefined;
+  }
 
+  const plan = buildQueryPipelinePlan(sqlFile, { material });
+  return toPerfStrategyMetadata(plan);
+}
+
+function buildDryRunStatements(
+  prepared: PreparedBenchmarkQuery,
+  strategy: PerfExecutionStrategy,
+  strategyMetadata: PerfStrategyMetadata | undefined
+): PerfStatementReport[] {
+  if (strategy !== 'decomposed' || !strategyMetadata) {
+    return [
+      {
+        seq: 1,
+        role: 'final-query',
+        target: 'FINAL_QUERY',
+        sql: prepared.boundSql,
+        bindings: prepared.bindings,
+        resolved_sql_preview: renderResolvedSqlPreview(prepared.boundSql, prepared.bindings)
+      }
+    ];
+  }
+
+  return strategyMetadata.planned_steps.map((step) => ({
+    seq: step.step,
+    role: mapPipelineStepKindToRole(step.kind),
+    target: step.target,
+    sql: step.kind === 'materialize'
+      ? `create temp table "${step.target.replace(/"/g, '""')}" as -- resolved at runtime`
+      : prepared.boundSql,
+    bindings: prepared.bindings,
+    resolved_sql_preview: step.kind === 'materialize'
+      ? `materialize ${step.target} from ${path.basename(prepared.absolutePath)}`
+      : renderResolvedSqlPreview(prepared.boundSql, prepared.bindings)
+  }));
+}
+
+async function executePerfBenchmarkOnce(
+  rootDir: string,
+  prepared: PreparedBenchmarkQuery,
+  strategy: PerfExecutionStrategy,
+  material: string[],
+  timeoutMs: number,
+  capturePlans: boolean
+): Promise<BenchmarkExecutionResult> {
+  return strategy === 'decomposed'
+    ? executeDecomposedBenchmarkOnce(rootDir, prepared, material, timeoutMs, capturePlans)
+    : executeDirectBenchmarkDetailed(rootDir, prepared, timeoutMs, capturePlans);
+}
+
+function preparePgStatementExecution(
+  sql: string,
+  params?: unknown[] | Record<string, unknown>
+): { sql: string; bindings: unknown[] | undefined; resolvedSqlPreview?: string } {
+  if (!params) {
+    return { sql, bindings: undefined, resolvedSqlPreview: undefined };
+  }
+
+  if (Array.isArray(params)) {
+    return {
+      sql,
+      bindings: params,
+      resolvedSqlPreview: renderResolvedSqlPreview(sql, params)
+    };
+  }
+
+  const scan = scanModelGenSql(sql);
+  if (scan.mode !== 'named') {
+    return { sql, bindings: undefined, resolvedSqlPreview: undefined };
+  }
+
+  const bound = bindModelGenNamedSql(sql);
+  const bindings = bound.orderedParamNames.map((name) => {
+    if (!(name in params)) {
+      throw new Error(`Missing named pipeline param: ${name}`);
+    }
+    return params[name];
+  });
+
+  return {
+    sql: bound.boundSql,
+    bindings,
+    resolvedSqlPreview: renderResolvedSqlPreview(bound.boundSql, bindings)
+  };
+}
+function buildExplainTargetSql(sql: string): string {
+  const match = /^create\s+temp\s+table\s+.+?\s+as\s+([\s\S]+)$/i.exec(sql.trim());
+  return match?.[1]?.trim() || sql;
+}
+
+
+async function executeDirectBenchmarkDetailed(
+  rootDir: string,
+  prepared: PreparedBenchmarkQuery,
+  timeoutMs: number,
+  capturePlans: boolean
+): Promise<BenchmarkExecutionResult> {
+  const pg = await ensurePgModule();
+  const sandboxConfig = loadPerfSandboxConfig(rootDir);
+  const resolvedConnection = await ensurePerfConnection(rootDir, sandboxConfig);
+  const client = new pg.Client({
+    connectionString: resolvedConnection.connectionUrl,
+    connectionTimeoutMillis: 3000
+  });
+
+  let statementTrace: StatementExecutionTrace;
+  let finalPlanJson: unknown | null = null;
+  try {
+    await client.connect();
+    await client.query(`SET statement_timeout = ${Math.max(1, Math.trunc(timeoutMs))}`);
+
+    // Measure only live statement execution so connection/auth and plan capture do not pollute SQL latency.
+    const startedAt = nowMs();
+    const result = await client.query(prepared.boundSql, prepared.bindings as unknown[] | undefined);
+    const elapsedMs = nowMs() - startedAt;
+
+    if (capturePlans) {
+      finalPlanJson = await capturePlanWithConnectedClient(
+        client,
+        prepared.boundSql,
+        Array.isArray(prepared.bindings) ? prepared.bindings : undefined,
+        true,
+        timeoutMs
+      );
+    }
+
+    statementTrace = {
+      role: 'final-query',
+      target: 'FINAL_QUERY',
+      sql: prepared.boundSql,
+      bindings: prepared.bindings,
+      resolvedSqlPreview: renderResolvedSqlPreview(prepared.boundSql, prepared.bindings),
+      elapsedMs,
+      rowCount: extractRowCount(result as { rowCount?: number; rows?: unknown[] }),
+      timedOut: false,
+      planJson: finalPlanJson
+    };
+  } catch (error) {
+    if (!isQueryTimeout(error)) {
+      throw error;
+    }
+    statementTrace = {
+      role: 'final-query',
+      target: 'FINAL_QUERY',
+      sql: prepared.boundSql,
+      bindings: prepared.bindings,
+      resolvedSqlPreview: renderResolvedSqlPreview(prepared.boundSql, prepared.bindings),
+      elapsedMs: timeoutMs,
+      timedOut: true
+    };
+  } finally {
+    await client.end().catch(() => undefined);
+  }
+
+  return {
+    elapsedMs: statementTrace.elapsedMs,
+    rowCount: statementTrace.rowCount,
+    timedOut: statementTrace.timedOut,
+    statements: [statementTrace],
+    finalPlanJson
+  };
+}
+
+async function executeDecomposedBenchmarkOnce(
+  rootDir: string,
+  prepared: PreparedBenchmarkQuery,
+  material: string[],
+  timeoutMs: number,
+  capturePlans: boolean
+): Promise<BenchmarkExecutionResult> {
+  const pg = await ensurePgModule();
+  const sandboxConfig = loadPerfSandboxConfig(rootDir);
+  const resolvedConnection = await ensurePerfConnection(rootDir, sandboxConfig);
+  const plan = buildQueryPipelinePlan(prepared.absolutePath, { material });
+  const rawStatements: Array<{
+    sql: string;
+    bindings: unknown[] | Record<string, unknown> | undefined;
+    resolvedSqlPreview?: string;
+    elapsedMs: number;
+    rowCount?: number;
+    timedOut: boolean;
+    planJson?: unknown | null;
+  }> = [];
+
+  const client = new pg.Client({
+    connectionString: resolvedConnection.connectionUrl,
+    connectionTimeoutMillis: 3000
+  });
+  let totalElapsedMs = 0;
+  const sessionFactory: QueryPipelineSessionFactory = {
+    openSession: async (): Promise<QueryPipelineSession> => ({
+      query: async (sql: string, params?: unknown[] | Record<string, unknown>) => {
+        const execution = preparePgStatementExecution(sql, params);
+        if (shouldSkipPerfStatementCapture(sql)) {
+          return client.query(execution.sql, execution.bindings) as Promise<{ rows: Record<string, unknown>[]; rowCount?: number }>;
+        }
+
+        const remainingMs = Math.max(1, Math.trunc(timeoutMs - totalElapsedMs));
+        await client.query(`SET statement_timeout = ${remainingMs}`);
+
+        // Track total elapsed time across decomposed statements while keeping per-statement timings separate.
+        const startedAt = nowMs();
+        try {
+          const result = await client.query(execution.sql, execution.bindings);
+          const elapsedMs = nowMs() - startedAt;
+          totalElapsedMs += elapsedMs;
+          const planJson = capturePlans
+            ? await capturePlanWithConnectedClient(
+                client,
+                buildExplainTargetSql(execution.sql),
+                execution.bindings,
+                false,
+                remainingMs
+              )
+            : null;
+          rawStatements.push({
+            sql: execution.sql,
+            bindings: execution.bindings,
+            resolvedSqlPreview: execution.resolvedSqlPreview,
+            elapsedMs,
+            rowCount: extractRowCount(result as { rowCount?: number; rows?: unknown[] }),
+            timedOut: false,
+            planJson
+          });
+          return result as { rows: Record<string, unknown>[]; rowCount?: number };
+        } catch (error) {
+          if (!isQueryTimeout(error)) {
+            throw error;
+          }
+          const elapsedMs = Math.min(timeoutMs, Math.max(remainingMs, nowMs() - startedAt));
+          totalElapsedMs += elapsedMs;
+          rawStatements.push({
+            sql: execution.sql,
+            bindings: execution.bindings,
+            resolvedSqlPreview: execution.resolvedSqlPreview,
+            elapsedMs,
+            timedOut: true
+          });
+          throw error;
+        }
+      },
+      end: async () => undefined
+    })
+  };
+
+  try {
+    await client.connect();
+    const pipelineResult = await executeQueryPipeline(sessionFactory, {
+      sqlFile: prepared.absolutePath,
+      metadata: { material },
+      params: prepared.runtimeBindings
+    });
+    const statements = mapPipelineStatements(rawStatements, toPerfPlannedSteps(pipelineResult.steps));
+    const finalStatement = statements.find((statement) => statement.role === 'final-query');
+    return {
+      elapsedMs: totalElapsedMs,
+      rowCount: pipelineResult.final.rowCount,
+      timedOut: false,
+      statements,
+      finalPlanJson: finalStatement?.planJson ?? null,
+      strategyMetadata: toPerfStrategyMetadata(plan)
+    };
+  } catch (error) {
+    if (!isQueryTimeout(error)) {
+      throw error;
+    }
+    const statements = mapPipelineStatements(rawStatements, toPerfPlannedSteps(plan.steps.slice(0, rawStatements.length)));
+    const finalStatement = [...statements].reverse().find((statement) => statement.role === 'final-query');
+    return {
+      elapsedMs: totalElapsedMs,
+      rowCount: finalStatement?.rowCount,
+      timedOut: true,
+      statements,
+      finalPlanJson: finalStatement?.planJson ?? null,
+      strategyMetadata: toPerfStrategyMetadata(plan)
+    };
+  } finally {
+    await client.end().catch(() => undefined);
+  }
+}
+
+async function capturePlanWithConnectedClient(
+  client: { query: (sql: string, params?: unknown[]) => Promise<{ rows?: Record<string, unknown>[] }> },
+  sql: string,
+  params: unknown[] | undefined,
+  analyze: boolean,
+  timeoutMs: number
+): Promise<unknown | null> {
+  const explainPrefix = analyze
+    ? 'EXPLAIN (ANALYZE TRUE, BUFFERS TRUE, FORMAT JSON) '
+    : 'EXPLAIN (FORMAT JSON) ';
+
+  try {
+    await client.query(`SET statement_timeout = ${Math.max(1, Math.trunc(timeoutMs))}`);
+    const result = await client.query(`${explainPrefix}${sql}`, params as unknown[] | undefined);
+    const firstRow = (result.rows?.[0] ?? {}) as Record<string, unknown>;
+    return firstRow['QUERY PLAN'] ?? firstRow['query plan'] ?? null;
+  } catch (error) {
+    if (isQueryTimeout(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export function toPerfPlannedSteps(
+  steps: Array<{ kind: PerfStatementRole | QueryPipelineStep['kind']; target: string }>
+): Array<{ kind: PerfStatementRole; target: string }> {
+  return steps
+    // scalar-filter-bind is emitted by execution tracing, not QueryPipelinePlan metadata.
+    .filter((step) => step.kind !== 'scalar-filter-bind')
+    .map((step) => ({
+      kind: mapPipelineStepKindToRole(step.kind as QueryPipelineStep['kind']),
+      target: step.target
+    }));
+}
+
+export function mapPipelineStatements(
+  statements: Array<{
+    sql: string;
+    bindings: unknown[] | Record<string, unknown> | undefined;
+    resolvedSqlPreview?: string;
+    elapsedMs: number;
+    rowCount?: number;
+    timedOut: boolean;
+    planJson?: unknown | null;
+  }>,
+  plannedSteps?: Array<{ kind: PerfStatementRole; target: string }>
+): StatementExecutionTrace[] {
+  return statements.map((statement, index) => ({
+    role: plannedSteps?.[index]?.kind ?? (index === statements.length - 1 ? 'final-query' : 'materialize'),
+    target: plannedSteps?.[index]?.target ?? (index === statements.length - 1 ? 'FINAL_QUERY' : `stage_${index + 1}`),
+    sql: statement.sql,
+    bindings: statement.bindings,
+    resolvedSqlPreview: statement.resolvedSqlPreview,
+    elapsedMs: statement.elapsedMs,
+    rowCount: statement.rowCount,
+    timedOut: statement.timedOut,
+    planJson: statement.planJson ?? null
+  }));
+}
+
+function mapPipelineStepKindToRole(kind: QueryPipelineStep['kind']): PerfStatementRole {
+  return kind === 'materialize' ? 'materialize' : 'final-query';
+}
+
+function shouldSkipPerfStatementCapture(sql: string): boolean {
+  return /^\s*drop\s+table\s+if\s+exists\b/i.test(sql);
+}
+
+function toPerfStrategyMetadata(plan: ReturnType<typeof buildQueryPipelinePlan>): PerfStrategyMetadata {
+  return {
+    materialized_ctes: [...plan.metadata.material],
+    scalar_filter_columns: [...plan.metadata.scalarFilterColumns],
+    planned_steps: plan.steps.map((step) => ({
+      step: step.step,
+      kind: step.kind,
+      target: step.target,
+      depends_on: [...step.depends_on]
+    }))
+  };
+}
+
+function toPerfStatementReports(statements: StatementExecutionTrace[]): PerfStatementReport[] {
+  return statements.map((statement, index) => ({
+    seq: index + 1,
+    role: statement.role,
+    target: statement.target,
+    sql: statement.sql,
+    bindings: statement.bindings,
+    resolved_sql_preview: statement.resolvedSqlPreview,
+    row_count: statement.rowCount,
+    elapsed_ms: statement.elapsedMs,
+    timed_out: statement.timedOut,
+    plan_summary: summarizePlanJson(statement.planJson)
+  }));
+}
+
+function buildPerfPlanFactsFromStatements(statements: StatementExecutionTrace[]): PerfPlanFacts {
+  const observations: string[] = [];
+  const summaries: string[] = [];
+  let hasSequentialScan = false;
+  let hasJoin = false;
+
+  for (const statement of statements) {
+    const facts = buildPerfPlanFacts(statement.planJson ?? null);
+    const prefix = `${statement.role}(${statement.target})`;
+    summaries.push(`${prefix}: ${facts.statement_summary}`);
+    observations.push(...facts.observations.map((observation) => `${prefix}: ${observation}`));
+    hasSequentialScan = hasSequentialScan || facts.hasSequentialScan;
+    hasJoin = hasJoin || facts.hasJoin;
+  }
+
+  return {
+    observations: Array.from(new Set(observations)),
+    statement_summary: summaries.join(' | ') || '(no plan captured)',
+    hasSequentialScan,
+    hasJoin
+  };
+}
 /**
  * Compare two saved benchmark evidence directories for AI-friendly tuning decisions.
  */
@@ -439,7 +881,9 @@ export function diffPerfBenchmarkReports(baselineDir: string, candidateDir: stri
   const candidate = loadPerfBenchmarkReport(candidateDir);
   const notes: string[] = [];
   const modeChanged = baseline.selected_mode !== candidate.selected_mode;
+  const strategyChanged = baseline.strategy !== candidate.strategy;
   const statementsDelta = candidate.executed_statements.length - baseline.executed_statements.length;
+  const statementDeltas = buildPerfStatementDeltas(baseline, candidate);
   const planDeltas = buildPerfPlanDeltas(baseline, candidate);
 
   let metricName: 'p95_ms' | 'wall_time_ms' | 'total_elapsed_ms' = 'total_elapsed_ms';
@@ -463,7 +907,9 @@ export function diffPerfBenchmarkReports(baselineDir: string, candidateDir: stri
   if (modeChanged) {
     notes.push(`Mode changed from ${baseline.selected_mode} to ${candidate.selected_mode}.`);
   }
-
+  if (strategyChanged) {
+    notes.push(`Strategy changed from ${baseline.strategy} to ${candidate.strategy}.`);
+  }
   if (baseline.pipeline_analysis.should_consider_pipeline || candidate.pipeline_analysis.should_consider_pipeline) {
     notes.push('Pipeline candidacy is present in at least one run; inspect candidate_ctes before rewriting SQL.');
   }
@@ -474,6 +920,7 @@ export function diffPerfBenchmarkReports(baselineDir: string, candidateDir: stri
   if (candidateActions.length > 0) {
     notes.push('Candidate recommended actions: ' + candidateActions.map((action) => action.action).join(', '));
   }
+
   return {
     schema_version: 1,
     command: 'perf report diff',
@@ -490,12 +937,13 @@ export function diffPerfBenchmarkReports(baselineDir: string, candidateDir: stri
       improvement_percent: calculateImprovementPercent(baselineMetric, candidateMetric)
     },
     mode_changed: modeChanged,
+    strategy_changed: strategyChanged,
     statements_delta: statementsDelta,
+    statement_deltas: statementDeltas,
     plan_deltas: planDeltas,
     notes
   };
 }
-
 /**
  * Render a benchmark report in either text or JSON for humans and agents.
  */
@@ -534,7 +982,8 @@ export function formatPerfBenchmarkReport(report: PerfBenchmarkReport, format: P
   lines.push('');
   lines.push('Executed statements:');
   for (const statement of report.executed_statements) {
-    lines.push(`${statement.seq}. ${statement.role}`);
+    const statementLabel = statement.target ? `${statement.seq}. ${statement.role} (${statement.target})` : `${statement.seq}. ${statement.role}`;
+    lines.push(statementLabel);
     lines.push(`   elapsed_ms: ${statement.elapsed_ms !== undefined ? statement.elapsed_ms.toFixed(2) : '(n/a)'}`);
     lines.push(`   row_count: ${statement.row_count ?? '(n/a)'}`);
     if (statement.resolved_sql_preview) {
@@ -547,6 +996,9 @@ export function formatPerfBenchmarkReport(report: PerfBenchmarkReport, format: P
     if (statement.resolved_sql_preview_file) {
       lines.push(`   resolved_sql_preview_file: ${statement.resolved_sql_preview_file}`);
     }
+    if (statement.plan_file) {
+      lines.push(`   plan_file: ${statement.plan_file}`);
+    }
   }
 
   lines.push('');
@@ -557,6 +1009,16 @@ export function formatPerfBenchmarkReport(report: PerfBenchmarkReport, format: P
   } else {
     for (const candidate of report.pipeline_analysis.candidate_ctes) {
       lines.push(`  - ${candidate.name}: downstream references=${candidate.downstream_references}`);
+    }
+  }
+
+  if (report.strategy_metadata) {
+    lines.push('');
+    lines.push('Strategy metadata:');
+    lines.push(`  materialized_ctes: ${report.strategy_metadata.materialized_ctes.length > 0 ? report.strategy_metadata.materialized_ctes.join(', ') : '(none)'}`);
+    lines.push(`  scalar_filter_columns: ${report.strategy_metadata.scalar_filter_columns.length > 0 ? report.strategy_metadata.scalar_filter_columns.join(', ') : '(none)'}`);
+    for (const step of report.strategy_metadata.planned_steps) {
+      lines.push(`  - step ${step.step}: ${step.kind} ${step.target} <= ${step.depends_on.length > 0 ? step.depends_on.join(', ') : '(root)'}`);
     }
   }
 
@@ -584,23 +1046,35 @@ export function formatPerfBenchmarkReport(report: PerfBenchmarkReport, format: P
   return `${lines.join('\n')}\n`;
 }
 
-/**
- * Render the diff summary in either text or JSON.
- */
 export function formatPerfDiffReport(report: PerfDiffReport, format: PerfBenchmarkFormat): string {
   if (format === 'json') {
     return `${JSON.stringify(report, null, 2)}\n`;
   }
 
+  const statementDeltas = report.statement_deltas ?? [];
+
   const lines = [
     `Baseline mode: ${report.baseline_mode}`,
     `Candidate mode: ${report.candidate_mode}`,
+    `Baseline strategy: ${report.baseline_strategy}`,
+    `Candidate strategy: ${report.candidate_strategy}`,
     `Primary metric: ${report.primary_metric.name}`,
     `Baseline: ${report.primary_metric.baseline.toFixed(2)}`,
     `Candidate: ${report.primary_metric.candidate.toFixed(2)}`,
     `Improvement: ${report.primary_metric.improvement_percent.toFixed(2)}%`,
     `Statements delta: ${report.statements_delta}`,
   ];
+
+  if (statementDeltas.some((delta) => delta.elapsed_delta_ms !== undefined || delta.baseline_timed_out !== delta.candidate_timed_out)) {
+    lines.push('');
+    lines.push('Statement deltas:');
+    for (const delta of statementDeltas) {
+      const elapsed = delta.elapsed_delta_ms !== undefined
+        ? `${delta.elapsed_delta_ms >= 0 ? '+' : ''}${delta.elapsed_delta_ms.toFixed(2)} ms`
+        : '(n/a)';
+      lines.push(`- ${delta.statement_id}: baseline=${delta.baseline_elapsed_ms ?? '(n/a)'} candidate=${delta.candidate_elapsed_ms ?? '(n/a)'} delta=${elapsed}`);
+    }
+  }
 
   if (report.plan_deltas.some((delta) => delta.changed)) {
     lines.push('');
@@ -621,9 +1095,6 @@ export function formatPerfDiffReport(report: PerfDiffReport, format: PerfBenchma
   return `${lines.join('\n')}\n`;
 }
 
-/**
- * Surface pipeline candidacy from static SQL structure so agents can consider non-rewrite tuning paths.
- */
 export function buildPerfPipelineAnalysis(sqlFile: string): PerfPipelineAnalysis {
   const structure = buildQueryStructureReport(sqlFile, 'ztd perf run');
   const referenceCounts = new Map<string, number>(structure.ctes.map((cte) => [cte.name, 0]));
@@ -768,15 +1239,17 @@ function buildPerfPlanFacts(planJson: unknown): PerfPlanFacts {
 }
 
 function buildPerfPlanDeltas(baseline: PerfBenchmarkReport, candidate: PerfBenchmarkReport): PerfPlanDelta[] {
-  const maxStatements = Math.max(baseline.executed_statements.length, candidate.executed_statements.length);
+  const keys = collectPerfStatementDiffKeys(baseline.executed_statements, candidate.executed_statements);
+  const baselineLookup = buildPerfStatementDiffLookup(baseline.executed_statements);
+  const candidateLookup = buildPerfStatementDiffLookup(candidate.executed_statements);
   const deltas: PerfPlanDelta[] = [];
 
-  for (let index = 0; index < maxStatements; index += 1) {
-    const baselineStatement = baseline.executed_statements[index];
-    const candidateStatement = candidate.executed_statements[index];
-    const statementId = formatPlanDeltaStatementId(candidateStatement ?? baselineStatement, index);
-    const baselinePlan = summarizeStatementPlan(baselineStatement, baseline.plan_observations, index === 0);
-    const candidatePlan = summarizeStatementPlan(candidateStatement, candidate.plan_observations, index === 0);
+  for (const key of keys) {
+    const baselineStatement = baselineLookup.get(key);
+    const candidateStatement = candidateLookup.get(key);
+    const statementId = formatPlanDeltaStatementId(candidateStatement ?? baselineStatement, key);
+    const baselinePlan = summarizeStatementPlan(baselineStatement, baseline.plan_observations, true);
+    const candidatePlan = summarizeStatementPlan(candidateStatement, candidate.plan_observations, true);
     deltas.push({
       statement_id: statementId,
       baseline_plan: baselinePlan,
@@ -788,11 +1261,75 @@ function buildPerfPlanDeltas(baseline: PerfBenchmarkReport, candidate: PerfBench
   return deltas;
 }
 
-function formatPlanDeltaStatementId(statement: PerfStatementReport | undefined, index: number): string {
-  if (!statement) {
-    return `statement-${index + 1}`;
+function buildPerfStatementDeltas(baseline: PerfBenchmarkReport, candidate: PerfBenchmarkReport): PerfStatementDelta[] {
+  const keys = collectPerfStatementDiffKeys(baseline.executed_statements, candidate.executed_statements);
+  const baselineLookup = buildPerfStatementDiffLookup(baseline.executed_statements);
+  const candidateLookup = buildPerfStatementDiffLookup(candidate.executed_statements);
+  const deltas: PerfStatementDelta[] = [];
+
+  for (const key of keys) {
+    const baselineStatement = baselineLookup.get(key);
+    const candidateStatement = candidateLookup.get(key);
+    const statement = candidateStatement ?? baselineStatement;
+    deltas.push({
+      statement_id: formatPlanDeltaStatementId(statement, key),
+      role: statement?.role ?? 'final-query',
+      baseline_elapsed_ms: baselineStatement?.elapsed_ms,
+      candidate_elapsed_ms: candidateStatement?.elapsed_ms,
+      elapsed_delta_ms:
+        baselineStatement?.elapsed_ms !== undefined && candidateStatement?.elapsed_ms !== undefined
+          ? candidateStatement.elapsed_ms - baselineStatement.elapsed_ms
+          : undefined,
+      baseline_row_count: baselineStatement?.row_count,
+      candidate_row_count: candidateStatement?.row_count,
+      baseline_timed_out: baselineStatement?.timed_out,
+      candidate_timed_out: candidateStatement?.timed_out
+    });
   }
-  return `${statement.seq}:${statement.role}`;
+
+  return deltas;
+}
+
+function buildPerfStatementDiffLookup(statements: PerfStatementReport[]): Map<string, PerfStatementReport> {
+  return new Map(buildPerfStatementDiffEntries(statements).map((entry) => [entry.key, entry.statement]));
+}
+
+function collectPerfStatementDiffKeys(
+  baselineStatements: PerfStatementReport[],
+  candidateStatements: PerfStatementReport[]
+): string[] {
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of [...buildPerfStatementDiffEntries(baselineStatements), ...buildPerfStatementDiffEntries(candidateStatements)]) {
+    if (seen.has(entry.key)) {
+      continue;
+    }
+    seen.add(entry.key);
+    keys.push(entry.key);
+  }
+  return keys;
+}
+
+function buildPerfStatementDiffEntries(
+  statements: PerfStatementReport[]
+): Array<{ key: string; statement: PerfStatementReport }> {
+  const counts = new Map<string, number>();
+  return statements.map((statement) => {
+    const baseKey = statement.target ? `${statement.role}:${statement.target}` : `${statement.role}:statement`;
+    const nextCount = (counts.get(baseKey) ?? 0) + 1;
+    counts.set(baseKey, nextCount);
+    return {
+      key: nextCount === 1 ? baseKey : `${baseKey}#${nextCount}`,
+      statement
+    };
+  });
+}
+
+function formatPlanDeltaStatementId(statement: PerfStatementReport | undefined, fallbackKey: string): string {
+  if (!statement) {
+    return fallbackKey;
+  }
+  return statement.target ? `${statement.seq}:${statement.role}:${statement.target}` : `${statement.seq}:${statement.role}`;
 }
 
 function summarizeStatementPlan(
@@ -812,7 +1349,11 @@ function summarizeStatementPlan(
     parts.push(summary.node_type);
   }
   if (includeObservations && planObservations.length > 0) {
-    parts.push(planObservations.join(' | '));
+    const prefix = `${statement.role}(${statement.target ?? 'statement'})`;
+    const relevantObservations = planObservations.filter((observation) => observation.startsWith(prefix));
+    if (relevantObservations.length > 0) {
+      parts.push(relevantObservations.join(' | '));
+    }
   }
   return parts.join(' :: ') || '(no plan captured)';
 }
@@ -902,12 +1443,13 @@ function prepareBenchmarkQuery(rootDir: string, queryFile: string, paramsFile?: 
     if (!rawBindings || typeof rawBindings !== 'object' || Array.isArray(rawBindings)) {
       throw new Error('Named SQL placeholders require an object in --params.');
     }
+    const namedBindings = rawBindings as Record<string, unknown>;
     const bound = bindModelGenNamedSql(sourceSql);
     const orderedValues = bound.orderedParamNames.map((name) => {
-      if (!(name in rawBindings)) {
+      if (!(name in namedBindings)) {
         throw new Error(`Missing named benchmark param: ${name}`);
       }
-      return (rawBindings as Record<string, unknown>)[name];
+      return namedBindings[name];
     });
     return {
       absolutePath,
@@ -916,10 +1458,10 @@ function prepareBenchmarkQuery(rootDir: string, queryFile: string, paramsFile?: 
       queryType: 'SELECT',
       paramsShape: scan.mode,
       orderedParamNames: bound.orderedParamNames,
-      bindings: orderedValues
+      bindings: orderedValues,
+      runtimeBindings: namedBindings
     };
   }
-
   if (scan.mode === 'positional') {
     if (!Array.isArray(rawBindings)) {
       throw new Error('Positional SQL placeholders require an array in --params.');
@@ -941,7 +1483,8 @@ function prepareBenchmarkQuery(rootDir: string, queryFile: string, paramsFile?: 
       queryType: 'SELECT',
       paramsShape: scan.mode,
       orderedParamNames,
-      bindings: rawBindings
+      bindings: rawBindings,
+      runtimeBindings: rawBindings
     };
   }
 
@@ -956,7 +1499,8 @@ function prepareBenchmarkQuery(rootDir: string, queryFile: string, paramsFile?: 
     queryType: 'SELECT',
     paramsShape: 'none',
     orderedParamNames: [],
-    bindings: undefined
+    bindings: undefined,
+    runtimeBindings: undefined
   };
 }
 
@@ -1005,9 +1549,11 @@ async function fetchPerfDatabaseVersion(rootDir: string): Promise<string | undef
 async function classifyPerfBenchmarkMode(
   rootDir: string,
   prepared: PreparedBenchmarkQuery,
+  strategy: PerfExecutionStrategy,
+  material: string[],
   classifyThresholdMs: number
 ): Promise<PerfSelectionResult> {
-  const probe = await executeDirectBenchmarkOnce(rootDir, prepared, classifyThresholdMs);
+  const probe = await executePerfBenchmarkOnce(rootDir, prepared, strategy, material, classifyThresholdMs, true);
   if (probe.timedOut || probe.elapsedMs >= classifyThresholdMs) {
     return {
       selectedMode: 'completion',
@@ -1021,78 +1567,6 @@ async function classifyPerfBenchmarkMode(
     reason: `classification probe completed within ${classifyThresholdMs} ms`,
     probe
   };
-}
-
-async function executeDirectBenchmarkOnce(
-  rootDir: string,
-  prepared: PreparedBenchmarkQuery,
-  timeoutMs: number
-): Promise<DirectExecutionResult> {
-  const pg = await ensurePgModule();
-  const sandboxConfig = loadPerfSandboxConfig(rootDir);
-  const resolvedConnection = await ensurePerfConnection(rootDir, sandboxConfig);
-  const client = new pg.Client({
-    connectionString: resolvedConnection.connectionUrl,
-    connectionTimeoutMillis: 3000
-  });
-
-  try {
-    await client.connect();
-    await client.query(`SET statement_timeout = ${Math.max(1, Math.trunc(timeoutMs))}`);
-
-    // Measure only statement execution so connection setup noise does not pollute SQL tuning latency.
-    const startedAt = nowMs();
-    const result = await client.query(prepared.boundSql, prepared.bindings as unknown[] | undefined);
-    return {
-      elapsedMs: nowMs() - startedAt,
-      rowCount: extractRowCount(result as { rowCount?: number; rows?: unknown[] }),
-      timedOut: false
-    };
-  } catch (error) {
-    if (isQueryTimeout(error)) {
-      return {
-        elapsedMs: timeoutMs,
-        timedOut: true
-      };
-    }
-    throw error;
-  } finally {
-    await client.end().catch(() => undefined);
-  }
-}
-
-async function captureDirectPlan(
-  rootDir: string,
-  prepared: PreparedBenchmarkQuery,
-  timeoutMs: number,
-  analyze: boolean
-): Promise<unknown | null> {
-  const pg = await ensurePgModule();
-  const sandboxConfig = loadPerfSandboxConfig(rootDir);
-  const resolvedConnection = await ensurePerfConnection(rootDir, sandboxConfig);
-  const client = new pg.Client({
-    connectionString: resolvedConnection.connectionUrl,
-    connectionTimeoutMillis: 3000
-  });
-
-  const explainPrefix = analyze
-    ? 'EXPLAIN (ANALYZE TRUE, BUFFERS TRUE, FORMAT JSON) '
-    : 'EXPLAIN (FORMAT JSON) ';
-
-  try {
-    await client.connect();
-    await client.query(`SET statement_timeout = ${Math.max(1, Math.trunc(timeoutMs))}`);
-    const result = await client.query(`${explainPrefix}${prepared.boundSql}`, prepared.bindings as unknown[] | undefined);
-    const firstRow = (result.rows?.[0] ?? {}) as Record<string, unknown>;
-    return firstRow['QUERY PLAN'] ?? firstRow['query plan'] ?? null;
-  } catch (error) {
-    if (isQueryTimeout(error)) {
-      return null;
-    }
-    throw error;
-  } finally {
-    await client.end().catch(() => undefined);
-  }
 }
 
 function buildLatencyMetrics(runs: number[], warmupRuns: number): PerfBenchmarkReport['latency_metrics'] {
@@ -1141,7 +1615,7 @@ function summarizePlanJson(planJson: unknown): PerfPlanSummary | null {
 function savePerfBenchmarkEvidence(
   rootDir: string,
   report: PerfBenchmarkReport,
-  planJson: unknown
+  statements: StatementExecutionTrace[]
 ): { runId: string; evidenceDir: string; planFiles: string[]; sqlFiles: string[]; resolvedSqlPreviewFiles: string[] } {
   const evidenceRoot = path.join(rootDir, 'perf', 'evidence');
   mkdirSync(evidenceRoot, { recursive: true });
@@ -1159,8 +1633,10 @@ function savePerfBenchmarkEvidence(
   const planFiles: string[] = [];
   const sqlFiles: string[] = [];
   const resolvedSqlPreviewFiles: string[] = [];
-  for (const statement of report.executed_statements) {
-    const baseName = `${String(statement.seq).padStart(3, '0')}-${statement.role}`;
+  for (const [index, statement] of report.executed_statements.entries()) {
+    const trace = statements[index];
+    const targetSuffix = statement.target ? `-${sanitizeLabel(statement.target)}` : '';
+    const baseName = `${String(statement.seq).padStart(3, '0')}-${statement.role}${targetSuffix}`;
     const sqlFileName = `${baseName}.bound.sql`;
     const relativeSqlPath = path.join('executed-sql', sqlFileName).replace(/\\/g, '/');
     writeFileSync(path.join(sqlDir, sqlFileName), `${statement.sql.trimEnd()}\n`, 'utf8');
@@ -1175,10 +1651,10 @@ function savePerfBenchmarkEvidence(
       resolvedSqlPreviewFiles.push('');
     }
 
-    if (planJson !== null) {
+    if (trace?.planJson !== undefined && trace.planJson !== null) {
       const planFileName = `${baseName}.plan.json`;
       const relativePlanPath = path.join('plans', planFileName).replace(/\\/g, '/');
-      writeFileSync(path.join(plansDir, planFileName), `${JSON.stringify(planJson, null, 2)}\n`, 'utf8');
+      writeFileSync(path.join(plansDir, planFileName), `${JSON.stringify(trace.planJson, null, 2)}\n`, 'utf8');
       planFiles.push(relativePlanPath);
     } else {
       planFiles.push('');
@@ -1250,7 +1726,7 @@ function isAlreadyExistsError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'EEXIST';
 }
 
-function toPerfClassificationProbe(result: DirectExecutionResult): PerfClassificationProbe {
+function toPerfClassificationProbe(result: BenchmarkExecutionResult): PerfClassificationProbe {
   return {
     elapsed_ms: result.elapsedMs,
     timed_out: result.timedOut,
@@ -1273,7 +1749,7 @@ function isPerfBenchmarkReport(value: unknown): value is PerfBenchmarkReport {
   if (report.schema_version !== 1 || report.command !== 'perf run') {
     return false;
   }
-  if (report.query_type !== 'SELECT' || report.strategy !== 'direct') {
+  if (report.query_type !== 'SELECT' || !isPerfExecutionStrategy(report.strategy)) {
     return false;
   }
   if (!isPerfSelectedMode(report.selected_mode) || !isPerfRequestedMode(report.requested_mode)) {
@@ -1305,7 +1781,12 @@ function isPerfBenchmarkReport(value: unknown): value is PerfBenchmarkReport {
     && isOptionalNumber(report.total_elapsed_ms)
     && isOptionalPerfPlanSummary(report.plan_summary)
     && isOptionalLatencyMetrics(report.latency_metrics)
-    && isOptionalCompletionMetrics(report.completion_metrics);
+    && isOptionalCompletionMetrics(report.completion_metrics)
+    && isOptionalPerfStrategyMetadata(report.strategy_metadata);
+}
+
+function isPerfExecutionStrategy(value: unknown): value is PerfExecutionStrategy {
+  return value === 'direct' || value === 'decomposed';
 }
 
 function isPerfSelectedMode(value: unknown): value is PerfSelectedBenchmarkMode {
@@ -1324,8 +1805,20 @@ function isPerfPipelineAnalysis(value: unknown): value is PerfPipelineAnalysis {
   return typeof analysis.query_type === 'string'
     && typeof analysis.cte_count === 'number'
     && typeof analysis.should_consider_pipeline === 'boolean'
-    && Array.isArray(analysis.candidate_ctes)
-    && Array.isArray(analysis.notes);
+    && isPerfPipelineCandidateArray(analysis.candidate_ctes)
+    && isStringArray(analysis.notes);
+}
+
+function isPerfPipelineCandidateArray(value: unknown): value is PerfPipelineCandidate[] {
+  return Array.isArray(value) && value.every((candidate) => {
+    if (typeof candidate !== 'object' || candidate === null) {
+      return false;
+    }
+    const record = candidate as Record<string, unknown>;
+    return typeof record.name === 'string'
+      && typeof record.downstream_references === 'number'
+      && isStringArray(record.reasons);
+  });
 }
 
 function isPerfStatementReportArray(value: unknown): value is PerfStatementReport[] {
@@ -1338,8 +1831,9 @@ function isPerfStatementReport(value: unknown): value is PerfStatementReport {
   }
   const statement = value as Record<string, unknown>;
   return typeof statement.seq === 'number'
-    && statement.role === 'final-query'
+    && isPerfStatementRole(statement.role)
     && typeof statement.sql === 'string'
+    && isOptionalString(statement.target)
     && isOptionalBindings(statement.bindings)
     && isOptionalString(statement.resolved_sql_preview)
     && isOptionalNumber(statement.row_count)
@@ -1349,6 +1843,10 @@ function isPerfStatementReport(value: unknown): value is PerfStatementReport {
     && isOptionalString(statement.sql_file)
     && isOptionalString(statement.resolved_sql_preview_file)
     && isOptionalString(statement.plan_file);
+}
+
+function isPerfStatementRole(value: unknown): value is PerfStatementRole {
+  return value === 'materialize' || value === 'scalar-filter-bind' || value === 'final-query';
 }
 
 function isPerfRecommendedActionArray(value: unknown): value is PerfRecommendedAction[] {
@@ -1394,6 +1892,29 @@ function isOptionalPerfPlanSummary(value: unknown): value is PerfPlanSummary | n
     && isOptionalNumber(summary.plan_rows)
     && isOptionalNumber(summary.actual_rows)
     && isOptionalNumber(summary.actual_total_time);
+}
+
+function isOptionalPerfStrategyMetadata(value: unknown): value is PerfStrategyMetadata | undefined {
+  if (value === undefined) {
+    return true;
+  }
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const metadata = value as Record<string, unknown>;
+  return isStringArray(metadata.materialized_ctes)
+    && isStringArray(metadata.scalar_filter_columns)
+    && Array.isArray(metadata.planned_steps)
+    && metadata.planned_steps.every((step) => {
+      if (typeof step !== 'object' || step === null) {
+        return false;
+      }
+      const record = step as Record<string, unknown>;
+      return typeof record.step === 'number'
+        && (record.kind === 'materialize' || record.kind === 'final-query')
+        && typeof record.target === 'string'
+        && isStringArray(record.depends_on);
+    });
 }
 
 function isOptionalLatencyMetrics(value: unknown): boolean {
@@ -1445,7 +1966,6 @@ function isOptionalNumber(value: unknown): value is number | undefined {
 function isOptionalBoolean(value: unknown): value is boolean | undefined {
   return value === undefined || typeof value === 'boolean';
 }
-
 function normalizeFinalQueryRoots(finalQuery: string | string[] | null | undefined): string[] {
   if (Array.isArray(finalQuery)) {
     return finalQuery.map((value) => value.trim()).filter(Boolean);
@@ -1493,5 +2013,3 @@ function truncateSingleLine(value: string, limit: number): string {
   }
   return `${normalized.slice(0, limit - 3)}...`;
 }
-
-
