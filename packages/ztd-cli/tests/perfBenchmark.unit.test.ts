@@ -4,6 +4,7 @@ import { expect, test } from 'vitest';
 import {
   buildPerfPipelineAnalysis,
   buildPerfTuningGuidance,
+  buildPerfTuningSummary,
   diffPerfBenchmarkReports,
   formatPerfBenchmarkReport,
   formatPerfDiffReport,
@@ -1366,11 +1367,17 @@ test('runPerfBenchmark dry-run reports ddl inventory and pipeline-first tuning g
     pipeline_branch: expect.objectContaining({ recommended: true }),
     index_branch: expect.objectContaining({ recommended: false })
   });
+  expect(report.tuning_summary).toMatchObject({
+    headline: 'Start with pipeline tuning.'
+  });
 
   const textReport = formatPerfBenchmarkReport(report, 'text');
+  const jsonReport = JSON.parse(formatPerfBenchmarkReport(report, 'json')) as PerfBenchmarkReport;
+  expect(textReport).toContain('Decision summary: Start with pipeline tuning.');
   expect(textReport).toContain('DDL inventory:');
   expect(textReport).toContain('index_count: 1');
   expect(textReport).toContain('Tuning guidance:');
+  expect(jsonReport.tuning_summary?.headline).toBe('Start with pipeline tuning.');
   expect(textReport).toContain('primary_path: pipeline');
   expect(textReport).toContain('Run `ztd perf db reset` so the perf sandbox recreates both tables and indexes from local DDL.');
 });
@@ -1401,6 +1408,9 @@ test('buildPerfTuningGuidance prefers index remediation when the captured plan s
   expect(guidance.index_branch.recommended).toBe(true);
   expect(guidance.pipeline_branch.recommended).toBe(false);
   expect(guidance.index_branch.next_steps).toContain('Append CREATE INDEX statements to ztd/ddl/*.sql instead of making ad-hoc sandbox-only changes.');
+  expect(buildPerfTuningSummary(guidance)).toMatchObject({
+    headline: 'Start with index tuning.'
+  });
 });
 
 test('summarizePerfDdlInventory keeps index counts visible in saved perf guidance', () => {

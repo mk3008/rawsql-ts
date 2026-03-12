@@ -171,6 +171,12 @@ export interface PerfTuningGuidance {
   pipeline_branch: PerfTuningBranchGuidance;
 }
 
+export interface PerfTuningSummary {
+  headline: string;
+  evidence: string[];
+  next_step: string;
+}
+
 interface DiscoveredPerfQuerySpecMetadata {
   specId: string;
   specFile: string;
@@ -228,6 +234,7 @@ export interface PerfBenchmarkReport {
   spec_guidance?: PerfQuerySpecGuidance;
   ddl_inventory?: PerfDdlInventorySummary;
   tuning_guidance?: PerfTuningGuidance;
+  tuning_summary?: PerfTuningSummary;
   seed?: Pick<PerfSeedConfig, 'seed'>;
 }
 
@@ -747,6 +754,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       hasSequentialScan: false,
       hasJoin: false
     };
+    const tuningGuidance = buildPerfTuningGuidance(pipelineAnalysis, dryRunPlanFacts, specGuidance);
     return {
       schema_version: 1,
       command: 'perf run',
@@ -776,7 +784,8 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       pipeline_analysis: pipelineAnalysis,
       spec_guidance: specGuidance,
       ddl_inventory: ddlInventorySummary,
-      tuning_guidance: buildPerfTuningGuidance(pipelineAnalysis, dryRunPlanFacts, specGuidance),
+      tuning_guidance: tuningGuidance,
+      tuning_summary: buildPerfTuningSummary(tuningGuidance),
       seed: { seed: seedConfig.seed }
     };
   }
@@ -854,6 +863,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
 
   const executedStatements = toPerfStatementReports(representativeExecution.statements);
   const planFacts = buildPerfPlanFactsFromStatements(representativeExecution.statements);
+  const tuningGuidance = buildPerfTuningGuidance(pipelineAnalysis, planFacts, specGuidance);
   const report: PerfBenchmarkReport = {
     schema_version: 1,
     command: 'perf run',
@@ -902,6 +912,9 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
     ),
     pipeline_analysis: pipelineAnalysis,
     spec_guidance: specGuidance,
+    ddl_inventory: ddlInventorySummary,
+    tuning_guidance: tuningGuidance,
+    tuning_summary: buildPerfTuningSummary(tuningGuidance),
     seed: { seed: seedConfig.seed }
   };
 
@@ -1437,6 +1450,14 @@ export function formatPerfBenchmarkReport(report: PerfBenchmarkReport, format: P
     lines.push(`Classification probe: ${report.classification_probe.elapsed_ms.toFixed(2)} ms${probeSuffix}`);
   }
 
+
+  if (report.tuning_summary) {
+    lines.push(`Decision summary: ${report.tuning_summary.headline}`);
+    for (const evidence of report.tuning_summary.evidence) {
+      lines.push(`  evidence: ${evidence}`);
+    }
+    lines.push(`  next: ${report.tuning_summary.next_step}`);
+  }
   lines.push('');
   if (report.spec_guidance) {
     lines.push('');
@@ -1735,6 +1756,33 @@ export function buildPerfTuningGuidance(
     }
   };
 }
+export function buildPerfTuningSummary(guidance: PerfTuningGuidance): PerfTuningSummary {
+  if (guidance.primary_path === 'index') {
+    return {
+      headline: 'Start with index tuning.',
+      evidence: guidance.index_branch.rationale.slice(0, 2),
+      next_step: guidance.index_branch.next_steps[0] ?? 'Review the captured plan before changing indexes.'
+    };
+  }
+
+  if (guidance.primary_path === 'pipeline') {
+    return {
+      headline: 'Start with pipeline tuning.',
+      evidence: guidance.pipeline_branch.rationale.slice(0, 2),
+      next_step: guidance.pipeline_branch.next_steps[0] ?? 'Review candidate_ctes before rewriting the query.'
+    };
+  }
+
+  return {
+    headline: 'Capture a representative plan before choosing index or pipeline work.',
+    evidence: [
+      'No captured plan signal is available yet.',
+      ...guidance.index_branch.rationale.slice(0, 1)
+    ],
+    next_step: guidance.index_branch.next_steps[0] ?? 'Capture EXPLAIN (ANALYZE, BUFFERS) output first.'
+  };
+}
+
 function buildPerfRecommendedActions(
   selectedMode: PerfSelectedBenchmarkMode,
   completed: boolean,
@@ -2378,7 +2426,8 @@ function isPerfBenchmarkReport(value: unknown): value is PerfBenchmarkReport {
     || !isOptionalPerfClassificationProbe(report.classification_probe)
     || !isOptionalPerfQuerySpecGuidance(report.spec_guidance)
     || !isOptionalPerfDdlInventorySummary(report.ddl_inventory)
-    || !isOptionalPerfTuningGuidance(report.tuning_guidance)) {
+    || !isOptionalPerfTuningGuidance(report.tuning_guidance)
+    || !isOptionalPerfTuningSummary(report.tuning_summary)) {
     return false;
   }
   return typeof report.query_file === 'string'
@@ -2452,6 +2501,19 @@ function isOptionalPerfTuningGuidance(value: unknown): value is PerfTuningGuidan
 
 function isPerfTuningPrimaryPath(value: unknown): value is PerfTuningPrimaryPath {
   return value === 'index' || value === 'pipeline' || value === 'capture-plan';
+}
+
+function isOptionalPerfTuningSummary(value: unknown): value is PerfTuningSummary | undefined {
+  if (value === undefined) {
+    return true;
+  }
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const summary = value as Record<string, unknown>;
+  return typeof summary.headline === 'string'
+    && isStringArray(summary.evidence)
+    && typeof summary.next_step === 'string';
 }
 
 function isPerfTuningBranchGuidance(value: unknown): value is PerfTuningBranchGuidance {
