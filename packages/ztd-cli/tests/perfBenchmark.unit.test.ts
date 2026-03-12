@@ -709,6 +709,34 @@ test('loadPerfBenchmarkReport accepts decomposed summaries with strategy metadat
   expect(loaded.executed_statements[0]).toMatchObject({ role: 'materialize', target: 'base_sales' });
 });
 
+test('loadPerfBenchmarkReport accepts legacy summaries without scalar filter candidates', () => {
+  const workspace = createTempDir('perf-benchmark-legacy-summary');
+  const summary = makePerfReport({
+    run_id: 'run_legacy',
+    pipeline_analysis: {
+      query_type: 'SELECT',
+      cte_count: 1,
+      should_consider_pipeline: true,
+      candidate_ctes: [
+        {
+          name: 'base_sales',
+          downstream_references: 2,
+          reasons: ['referenced by multiple downstream consumers']
+        }
+      ],
+      notes: ['legacy summary fixture']
+    } as PerfBenchmarkReport['pipeline_analysis']
+  });
+
+  writeFileSync(path.join(workspace, 'summary.json'), JSON.stringify(summary, null, 2), 'utf8');
+
+  const loaded = loadPerfBenchmarkReport(workspace);
+
+  expect(loaded.run_id).toBe('run_legacy');
+  expect(loaded.pipeline_analysis.candidate_ctes).toHaveLength(1);
+  expect(loaded.pipeline_analysis.notes).toEqual(['legacy summary fixture']);
+});
+
 test('diffPerfBenchmarkReports emits statement deltas for decomposed multi-statement runs', () => {
   const workspace = createTempDir('perf-benchmark-decomposed-diff');
   const baselineDir = path.join(workspace, 'run_001');

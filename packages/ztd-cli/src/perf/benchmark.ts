@@ -1822,11 +1822,13 @@ function isPerfPipelineAnalysis(value: unknown): value is PerfPipelineAnalysis {
     return false;
   }
   const analysis = value as Record<string, unknown>;
+  // Older saved summaries may not include scalar_filter_candidates.
+  // Treat the field as optional so perf diff remains backward-compatible.
   return typeof analysis.query_type === 'string'
     && typeof analysis.cte_count === 'number'
     && typeof analysis.should_consider_pipeline === 'boolean'
     && isPerfPipelineCandidateArray(analysis.candidate_ctes)
-    && isStringArray(analysis.scalar_filter_candidates)
+    && (analysis.scalar_filter_candidates === undefined || isStringArray(analysis.scalar_filter_candidates))
     && isStringArray(analysis.notes);
 }
 
