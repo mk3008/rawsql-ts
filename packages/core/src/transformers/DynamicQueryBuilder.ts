@@ -19,6 +19,11 @@ import {
     optimizeUnusedLeftJoinsToFixedPoint,
     optimizeUnusedCtesToFixedPoint
 } from "./OptimizeUnusedLeftJoins";
+import {
+    OptionalConditionParameterStates,
+    OptionalConditionPruningParameters,
+    pruneOptionalConditionBranches
+} from "./PruneOptionalConditionBranches";
 
 export type { ExistsSubqueryDefinition };
 
@@ -69,12 +74,12 @@ export type FilterConditionValue =
 
 /**
  * Filter conditions for dynamic query building.
- * 
+ *
  * Supports both unqualified and qualified column names:
  * - Unqualified: `{ name: 'Alice' }` - applies to all columns named 'name'
  * - Qualified: `{ 'users.name': 'Bob' }` - applies only to the 'name' column in the 'users' table/alias
  * - Hybrid: `{ name: 'Default', 'users.name': 'Override' }` - qualified names take priority over unqualified
- * 
+ *
  * @example
  * ```typescript
  * // Basic usage (backward compatible)
@@ -82,13 +87,13 @@ export type FilterConditionValue =
  *   name: 'Alice',
  *   status: 'active'
  * };
- * 
+ *
  * // Qualified names for disambiguation in JOINs
  * const filter: FilterConditions = {
  *   'users.name': 'Alice',    // Only applies to users.name
  *   'profiles.name': 'Bob'    // Only applies to profiles.name
  * };
- * 
+ *
  * // Hybrid approach
  * const filter: FilterConditions = {
  *   status: 'active',         // Applies to all 'status' columns
@@ -152,6 +157,16 @@ export interface QueryBuildOptions {
      * Defaults to false to preserve original WITH definitions.
      */
     removeUnusedCtes?: boolean;
+    /**
+     * Explicit opt-in values for truthful optional condition branches in source SQL.
+     * Only listed parameter names are eligible for pruning, and `null`/`undefined` are treated as absent-equivalent.
+     */
+    optionalConditionParameters?: OptionalConditionPruningParameters;
+    /**
+     * Legacy state-map form for optional branch pruning.
+     * Prefer `optionalConditionParameters` for new code so SQL-facing null semantics stay intuitive.
+     */
+    optionalConditionParameterStates?: OptionalConditionParameterStates;
 }
 
 /**
@@ -262,8 +277,8 @@ export class DynamicQueryBuilder {
             // Ensure we have a SimpleSelectQuery for the injector
             const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);
             modifiedQuery = sortInjector.inject(simpleQuery, options.sort);
-        }        
-        
+        }
+
         // 3. Apply pagination third (after filtering and sorting)
         if (options.paging) {
             const { page = 1, pageSize } = options.paging;
@@ -277,18 +292,23 @@ export class DynamicQueryBuilder {
         }
         // 4. Apply column projection filters before any optimizer passes.
         modifiedQuery = this.applyColumnFilters(modifiedQuery, options);
-        // 5. Remove unused LEFT JOINs when asked before serialization.
+        // 5. Prune supported truthful optional branches before structural optimizers.
+        const optionalConditionParameters = this.resolveOptionalConditionPruningParameters(options);
+        if (Object.keys(optionalConditionParameters).length > 0) {
+            modifiedQuery = pruneOptionalConditionBranches(modifiedQuery, optionalConditionParameters);
+        }
+        // 6. Remove unused LEFT JOINs when asked before serialization.
         const effectiveSchemaInfo = options.schemaInfo ?? this.defaultSchemaInfo;
         if (options.removeUnusedLeftJoins && effectiveSchemaInfo?.length) {
             modifiedQuery = optimizeUnusedLeftJoinsToFixedPoint(modifiedQuery, effectiveSchemaInfo);
         }
-        // 6. Remove unused CTEs before serialization when requested.
+        // 7. Remove unused CTEs before serialization when requested.
         if (options.removeUnusedCtes) {
             modifiedQuery = optimizeUnusedCtesToFixedPoint(modifiedQuery);
         }
         // Apply serialization last (transform the final query structure to JSON)
         // Note: boolean values are handled at RawSqlClient level for auto-loading
-        if (options.serialize && typeof options.serialize === 'object') {       
+        if (options.serialize && typeof options.serialize === 'object') {
             const jsonBuilder = new PostgresJsonQueryBuilder();
             // Ensure we have a SimpleSelectQuery for the JSON builder
             const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);
@@ -298,8 +318,28 @@ export class DynamicQueryBuilder {
         return modifiedQuery;
     }
 
+    private resolveOptionalConditionPruningParameters(options: QueryBuildOptions): OptionalConditionPruningParameters {
+        if (options.optionalConditionParameters) {
+            return options.optionalConditionParameters;
+        }
+
+        if (!options.optionalConditionParameterStates) {
+            return {};
+        }
+
+        const legacyParameters: OptionalConditionPruningParameters = {};
+
+        // Preserve backward compatibility for the state-map API while the value-based API becomes the primary entry point.
+        for (const [parameterName, state] of Object.entries(options.optionalConditionParameterStates)) {
+            legacyParameters[parameterName] = state === 'absent'
+                ? null
+                : '__RAWSQL_OPTIONAL_CONDITION_PRESENT__';
+        }
+
+        return legacyParameters;
+    }
     private extractExistsInstructions(filters: Record<string, FilterConditionValue>) {
-        const cleanedFilters: Record<string, StateParameterValue> = {};        
+        const cleanedFilters: Record<string, StateParameterValue> = {};
         const instructions: ExistsInstruction[] = [];
 
         for (const [key, value] of Object.entries(filters)) {
@@ -363,7 +403,7 @@ export class DynamicQueryBuilder {
         return {
             leftover: hasRemaining ? (rest as StateParameterValue) : undefined,
             exists: exists as ExistsSubqueryDefinition | undefined,
-            notExists: notExists as ExistsSubqueryDefinition | undefined        
+            notExists: notExists as ExistsSubqueryDefinition | undefined
         };
     }
 
@@ -515,7 +555,7 @@ export class DynamicQueryBuilder {
     /**
      * Builds a SelectQuery with only filtering applied.
      * Convenience method for when you only need dynamic WHERE conditions.
-     * 
+     *
      * @param sqlContent Raw SQL string to parse and modify
      * @param filter Filter conditions to apply
      * @returns Modified SelectQuery with filter conditions applied
@@ -527,7 +567,7 @@ export class DynamicQueryBuilder {
     /**
      * Builds a SelectQuery with only sorting applied.
      * Convenience method for when you only need dynamic ORDER BY clauses.
-     * 
+     *
      * @param sqlContent Raw SQL string to parse and modify
      * @param sort Sort conditions to apply
      * @returns Modified SelectQuery with sort conditions applied
@@ -537,7 +577,7 @@ export class DynamicQueryBuilder {
     }    /**
      * Builds a SelectQuery with only pagination applied.
      * Convenience method for when you only need LIMIT/OFFSET clauses.
-     * 
+     *
      * @param sqlContent Raw SQL string to parse and modify
      * @param paging Pagination options to apply
      * @returns Modified SelectQuery with pagination applied
@@ -549,7 +589,7 @@ export class DynamicQueryBuilder {
     /**
      * Builds a SelectQuery with only JSON serialization applied.
      * Convenience method for when you only need hierarchical JSON transformation.
-     * 
+     *
      * @param sqlContent Raw SQL string to parse and modify
      * @param serialize JSON mapping configuration to apply
      * @returns Modified SelectQuery with JSON serialization applied
@@ -561,7 +601,7 @@ export class DynamicQueryBuilder {
     /**
      * Validates SQL content by attempting to parse it.
      * Useful for testing SQL validity without applying any modifications.
-     * 
+     *
      * @param sqlContent Raw SQL string to validate
      * @returns true if SQL is valid, throws error if invalid
      * @throws Error if SQL cannot be parsed
@@ -575,6 +615,3 @@ export class DynamicQueryBuilder {
         }
     }
 }
-
-
-
