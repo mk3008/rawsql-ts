@@ -213,8 +213,6 @@ test('attachCommentsToLexeme preserves legacy comments from token readers', () =
 
     expect(lexeme.comments).toEqual([
         'reader legacy comment',
-        'prefix comment',
-        'suffix comment',
     ]);
     expect(lexeme.positionedComments).toEqual([
         {

@@ -479,6 +479,7 @@ export class SqlTokenizer {
     // Attach comments to lexeme directly (no collection then assignment anti-pattern)
     private attachCommentsToLexeme(lexeme: Lexeme, tokenData: { prefixComments: string[] | null; suffixComments: string[] | null }): void {
         const newPositionedComments: { position: 'before' | 'after'; comments: string[] }[] = [];
+        const existingLegacyComments: string[] = [];
         const allLegacyComments: string[] = [];
 
         // Preserve existing positioned comments from token readers (e.g., CommandTokenReader)
@@ -488,6 +489,7 @@ export class SqlTokenizer {
 
         // Preserve legacy comments from token readers so legacy consumers can still collect them.
         if (lexeme.comments && lexeme.comments.length > 0) {
+            existingLegacyComments.push(...lexeme.comments);
             allLegacyComments.push(...lexeme.comments);
         }
 
@@ -512,7 +514,7 @@ export class SqlTokenizer {
         // Apply comments directly to lexeme (positioned comments take priority)
         if (newPositionedComments.length > 0) {
             lexeme.positionedComments = newPositionedComments;
-            lexeme.comments = allLegacyComments.length > 0 ? allLegacyComments : null;
+            lexeme.comments = existingLegacyComments.length > 0 ? existingLegacyComments : null;
         } else if (allLegacyComments.length > 0) {
             // Only set legacy comments if no positioned comments exist
             lexeme.comments = allLegacyComments;
