@@ -1,3 +1,4 @@
-# Keep husky hooks and shell helpers as LF-only so Linux runners can execute them.
+# Keep husky hooks, shell helpers, and snapshots as LF-only so Linux runners and snapshot tests stay stable.
 *.sh text eol=lf
 .husky/* text eol=lf
+*.snap text eol=lf
