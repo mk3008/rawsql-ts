@@ -183,6 +183,7 @@ const keywordTrie = new KeywordTrie([
 ]);
 const keywordParser = new KeywordParser(keywordTrie);
 export const joinkeywordParser = new KeywordParser(joinTrie);
+// Keep canStartJoinKeyword in sync with the first letters used by joinTrie patterns.
 function canStartJoinKeyword(input: string, position: number): boolean {
     const code = input.charCodeAt(position) | 32;
     return code === 106 || // j

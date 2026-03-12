@@ -13,6 +13,13 @@ import { TokenReaderManager } from '../tokenReaders/TokenReaderManager';
 import { TypeTokenReader } from '../tokenReaders/TypeTokenReader';
 import { StringUtils } from '../utils/stringUtils';
 
+const SELECT_LIST_MODIFIER_VALUES = new Set([
+    'all',
+    'distinct',
+    'distinct on',
+    'top',
+]);
+
 /**
  * Options for tokenization behavior
  */
@@ -99,6 +106,26 @@ export class SqlTokenizer {
      */
     private canRead(shift: number = 0): boolean {
         return !this.isEndOfInput(shift);
+    }
+
+    private isSelectListModifier(lexeme: Lexeme): boolean {
+        return SELECT_LIST_MODIFIER_VALUES.has(lexeme.value.toLowerCase());
+    }
+
+    private isMeaningfulSelectItemToken(lexeme: Lexeme): boolean {
+        const isSelectableOperator = (lexeme.type & TokenType.Operator) !== 0 && (lexeme.value === '*' || lexeme.value === 'exists');
+        if ((lexeme.type & TokenType.Identifier) !== 0 ||
+            (lexeme.type & TokenType.Literal) !== 0 ||
+            isSelectableOperator) {
+            return true;
+        }
+
+        if ((lexeme.type & TokenType.Command) !== 0) {
+            return !this.isSelectListModifier(lexeme);
+        }
+
+        return (lexeme.type & TokenType.Comma) === 0 &&
+            (lexeme.type & TokenType.Operator) === 0;
     }
 
     /**
@@ -299,14 +326,8 @@ export class SqlTokenizer {
                     let targetIndex = i + 1;
                     while (targetIndex < tokenData.length) {
                         const target = tokenData[targetIndex];
-                        // Allow SELECT-prefix comments to bind to '*' tokens so they stay with the select list.
-                        const isStarOperator = (target.lexeme.type & TokenType.Operator) && target.lexeme.value === '*';
-                        if ((target.lexeme.type & TokenType.Identifier) ||
-                            (target.lexeme.type & TokenType.Literal) ||
-                            isStarOperator ||
-                            (!(target.lexeme.type & TokenType.Command) &&
-                             !(target.lexeme.type & TokenType.Comma) &&
-                             !(target.lexeme.type & TokenType.Operator))) {
+                        // Skip only SELECT list modifiers so command-started expressions still receive comments.
+                        if (this.isMeaningfulSelectItemToken(target.lexeme)) {
                             if (!target.prefixComments) {
                                 target.prefixComments = [];
                             }
@@ -465,6 +486,11 @@ export class SqlTokenizer {
             newPositionedComments.push(...lexeme.positionedComments);
         }
 
+        // Preserve legacy comments from token readers so legacy consumers can still collect them.
+        if (lexeme.comments && lexeme.comments.length > 0) {
+            allLegacyComments.push(...lexeme.comments);
+        }
+
         // Add prefix comments as "before" positioned comments directly
         if (tokenData.prefixComments && tokenData.prefixComments.length > 0) {
             allLegacyComments.push(...tokenData.prefixComments);
@@ -486,8 +512,7 @@ export class SqlTokenizer {
         // Apply comments directly to lexeme (positioned comments take priority)
         if (newPositionedComments.length > 0) {
             lexeme.positionedComments = newPositionedComments;
-            // Clear legacy comments when positioned comments exist to avoid duplication
-            lexeme.comments = null;
+            lexeme.comments = allLegacyComments.length > 0 ? allLegacyComments : null;
         } else if (allLegacyComments.length > 0) {
             // Only set legacy comments if no positioned comments exist
             lexeme.comments = allLegacyComments;
