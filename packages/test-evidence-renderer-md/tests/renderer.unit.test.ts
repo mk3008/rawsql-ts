@@ -12,7 +12,8 @@ import {
   renderDiffMarkdown,
   renderLegacyDiffMarkdown,
   renderDiffReportMarkdown,
-  renderSpecificationMarkdown
+  renderSpecificationMarkdown,
+  renderTestDocumentationMarkdown
 } from '../src';
 
 function createPreview(args: {
@@ -448,4 +449,55 @@ test('definition link rendering supports path and github modes', () => {
   expect(diffGithub).toContain(
     '[File](https://github.com/mk3008/rawsql-ts/blob/abc123/src/specs/sql/users.catalog.ts)'
   );
+});
+
+test('renderTestDocumentationMarkdown projects case purpose, execution, and coverage summaries', () => {
+  const preview = createPreview({
+    sqlCatalogs: [
+      {
+        id: 'sql.users',
+        title: 'users',
+        definitionPath: 'src/specs/sql/users.catalog.ts',
+        fixtures: ['users', 'orders'],
+        cases: [
+          { id: 'baseline', title: 'baseline', input: { active: 1 }, output: [{ id: 1 }] },
+          { id: 'regression-case', title: 'regression guard', input: { active: 0 }, output: [{ id: 2 }] }
+        ]
+      }
+    ],
+    functionCatalogs: [
+      {
+        id: 'unit.normalize-email',
+        title: 'normalizeEmail',
+        definitionPath: 'tests/specs/testCaseCatalogs.ts',
+        cases: [
+          {
+            id: 'rejects-invalid-input',
+            title: 'throws when @ is missing',
+            input: 'invalid-email',
+            expected: 'throws',
+            error: { name: 'Error', message: 'invalid email', match: 'contains' },
+            tags: ['validation', 'bva'],
+            focus: 'Rejects malformed input before normalization.'
+          }
+        ]
+      }
+    ]
+  });
+  const model = buildSpecificationModel(preview);
+  const markdown = renderTestDocumentationMarkdown(model);
+
+  expect(markdown).toContain('# ZTD Test Documentation');
+  expect(markdown).toContain('## sql.users - users');
+  expect(markdown).toContain('- execution: Execute the SQL catalog with the documented parameters against fixtures: orders, users.');
+  expect(markdown).toContain('- expectedSummary: Returns 1 row(s).');
+  expect(markdown).toContain('- coverage: regression; tags=[]');
+  expect(markdown).toContain('## unit.normalize-email - normalizeEmail');
+  expect(markdown).toContain('- purpose: Rejects malformed input before normalization.');
+  expect(markdown).toContain('- execution: Execute the target unit with the arranged input and capture the thrown error contract.');
+  expect(markdown).toContain('- expectedSummary: Throws Error; message contains "invalid email".');
+  expect(markdown).toContain('- coverage: edge; tags=[validation, bva]');
+  expect(markdown).toContain('#### Input / Setup');
+  expect(markdown).toContain('#### Expected Result');
+  expect(markdown).toContain('#### Notes / Assumptions');
 });

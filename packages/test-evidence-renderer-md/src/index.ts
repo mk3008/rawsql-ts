@@ -6,3 +6,5 @@ export {
   type DiffReportMarkdownMeta
 } from './reportMarkdown';
 export { renderSpecificationMarkdown, type SpecificationMarkdownOptions } from './specificationMarkdown';
+
+export { renderTestDocumentationMarkdown, type TestDocumentationMarkdownOptions } from './testDocumentationMarkdown';

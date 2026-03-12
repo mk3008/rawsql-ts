@@ -4,6 +4,7 @@ import path from 'node:path';
 import { expect, test } from 'vitest';
 import {
   applyEvidenceOutputControls,
+  formatTestDocumentationOutput,
   formatTestEvidenceOutput,
   runTestEvidenceSpecification,
   TestEvidenceRuntimeError
@@ -281,5 +282,28 @@ test('runTestEvidenceSpecification normalizes tags vocabulary and keeps catalog 
   ]);
   expect(report.testCaseCatalogs[0]?.cases[0]?.tags).toEqual(['validation', 'ep']);
   expect(report.testCaseCatalogs[0]?.cases[0]?.focus).toBe('Ensures tags are normalized into two axes.');
+});
+
+
+test('formatTestDocumentationOutput emits human-readable test intent sections', () => {
+  const root = createWorkspace('evidence-test-doc');
+  writeSpecModule(root, { testCaseIds: ['works'], includeSqlCase: true });
+
+  const report = runTestEvidenceSpecification({ mode: 'specification', rootDir: root });
+  const markdown = withoutGitHubEnv(() => formatTestDocumentationOutput(report));
+
+  expect(markdown).toContain('# ZTD Test Documentation');
+  expect(markdown).toContain('## sql.active-orders - active orders');
+  expect(markdown).toContain('- targetType: sql-catalog');
+  expect(markdown).toContain('- execution: Execute the SQL catalog with the documented parameters against fixtures: users.');
+  expect(markdown).toContain('- expectedSummary: Returns 1 row(s).');
+  expect(markdown).toContain('## unit.users - User behavior');
+  expect(markdown).toContain('- targetType: function-unit');
+  expect(markdown).toContain('- purpose: Ensures works behavior remains stable.');
+  expect(markdown).toContain('- coverage: normal; tags=[invariant, state]');
+  expect(markdown).toContain('### Test Case List');
+  expect(markdown).toContain('#### Input / Setup');
+  expect(markdown).toContain('#### Expected Result');
+  expect(markdown).toContain('#### Notes / Assumptions');
 });
 

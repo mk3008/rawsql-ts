@@ -218,3 +218,25 @@ test('resolveTestEvidenceExitCode maps success and runtime failures', () => {
   expect(resolveTestEvidenceExitCode({ error: new TestEvidenceRuntimeError('bad config') })).toBe(2);
 });
 
+
+test('CLI: evidence test-doc writes a human-readable markdown artifact', async () => {
+  const root = createWorkspace('evidence-cli-test-doc');
+  writeSpecModule(root);
+
+  process.env.ZTD_PROJECT_ROOT = root;
+  const outFile = path.join(root, 'artifacts', 'test-documentation.md');
+  const program = createProgram();
+  await program.parseAsync(['evidence', 'test-doc', '--out', outFile], { from: 'user' });
+
+  expect(process.exitCode).toBe(0);
+  const markdown = readFileSync(outFile, 'utf8');
+  expect(markdown).toContain('# ZTD Test Documentation');
+  expect(markdown).toContain('## unit.users - users');
+  expect(markdown).toContain('- purpose: Ensures user listing behavior remains deterministic.');
+  expect(markdown).toContain('## sql.active-orders - active orders');
+  expect(markdown).toContain('- targetType: sql-catalog');
+  expect(markdown).toContain('- execution: Execute the SQL catalog with the documented parameters against fixtures: users.');
+  expectDefinitionLinkPathOrGithub(markdown, 'tests/specs/users.catalog.ts');
+  expectDefinitionLinkPathOrGithub(markdown, 'src/specs/sql/activeOrders.catalog.ts');
+});
+

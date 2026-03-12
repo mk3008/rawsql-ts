@@ -16,6 +16,7 @@ CLI tool for scaffolding **Zero Table Dependency (ZTD)** projects and keeping DD
 - DDL diff against a live database
 - SQL linting with fixture-backed validation
 - Deterministic test specification evidence export (JSON / Markdown)
+- Human-readable test documentation export for ZTD test assets
 - Watch mode for continuous regeneration
 - Validator selection (Zod or ArkType) during init
 - Global machine-readable mode via `--output json`

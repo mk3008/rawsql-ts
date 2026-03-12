@@ -15,6 +15,7 @@ import {
 import {
   renderDiffMarkdown,
   renderSpecificationMarkdown,
+  renderTestDocumentationMarkdown,
   type DefinitionLinkOptions,
   type RemovedDetailLevel
 } from '@rawsql-ts/test-evidence-renderer-md';
@@ -186,6 +187,14 @@ interface TestEvidencePrCommandOptions {
   limit?: string;
 }
 
+interface TestDocCommandOptions {
+  out?: string;
+  specsDir?: string;
+  testsDir?: string;
+  specModule?: string;
+  json?: string;
+}
+
 interface TestCaseCatalogDocumentLike {
   catalogs?: unknown;
 }
@@ -280,6 +289,36 @@ export function registerTestEvidenceCommand(program: Command): void {
           report,
           format,
           outDir: path.resolve(process.cwd(), String(merged.outDir)),
+          sourceRootDir
+        });
+        process.exitCode = resolveTestEvidenceExitCode({ result: report });
+      } catch (error) {
+        process.exitCode = resolveTestEvidenceExitCode({ error });
+        console.error(error instanceof Error ? error.message : String(error));
+      }
+    });
+  evidenceCommand
+    .command('test-doc')
+    .description('Generate human-readable Markdown test documentation from ZTD test assets')
+    .option('--out <path>', 'Output markdown path', '.ztd/test-evidence/test-documentation.md')
+    .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
+    .option('--tests-dir <path>', 'Override tests directory (default: tests)')
+    .option('--spec-module <path>', 'Explicit evidence module path (default: tests/specs/index)')
+    .option('--json <payload>', 'Pass test-doc options as a JSON object')
+    .action((options: TestDocCommandOptions) => {
+      try {
+        const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+        const report = runTestEvidenceSpecification({
+          mode: 'specification',
+          rootDir: process.env.ZTD_PROJECT_ROOT,
+          specsDir: merged.specsDir as string | undefined,
+          testsDir: merged.testsDir as string | undefined,
+          specModule: merged.specModule as string | undefined
+        });
+        const sourceRootDir = path.resolve(process.env.ZTD_PROJECT_ROOT ?? process.cwd());
+        writeTestDocumentationArtifact({
+          report,
+          outPath: path.resolve(process.cwd(), String(merged.out ?? '.ztd/test-evidence/test-documentation.md')),
           sourceRootDir
         });
         process.exitCode = resolveTestEvidenceExitCode({ result: report });
@@ -1592,4 +1631,41 @@ function sortDeep(value: unknown): unknown {
     return Object.fromEntries(entries);
   }
   return value;
+}
+
+
+
+
+
+
+
+
+/**
+ * Render deterministic Markdown focused on human-readable test intent.
+ */
+export function formatTestDocumentationOutput(
+  report: TestSpecificationEvidence,
+  context?: { markdownPath?: string; sourceRootDir?: string }
+): string {
+  const model = buildSpecificationModel(report as TestEvidencePreviewJson);
+  return `${renderTestDocumentationMarkdown(model, {
+    definitionLinks: resolveDefinitionLinkOptions(context)
+  })}\n`;
+}
+
+function writeTestDocumentationArtifact(args: {
+  report: TestSpecificationEvidence;
+  outPath: string;
+  sourceRootDir: string;
+}): void {
+  mkdirSync(path.dirname(args.outPath), { recursive: true });
+  writeFileSync(
+    args.outPath,
+    formatTestDocumentationOutput(args.report, {
+      markdownPath: args.outPath,
+      sourceRootDir: args.sourceRootDir
+    }),
+    'utf8'
+  );
+  console.log(`wrote: ${args.outPath}`);
 }
