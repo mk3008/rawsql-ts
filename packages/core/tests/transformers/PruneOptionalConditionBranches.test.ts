@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DynamicQueryBuilder } from '../../src/transformers/DynamicQueryBuilder';
 import {
-    OptionalConditionParameterStates,
+    OptionalConditionPruningParameters,
     pruneOptionalConditionBranches
 } from '../../src/transformers/PruneOptionalConditionBranches';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
@@ -9,14 +9,14 @@ import { SqlFormatter } from '../../src/transformers/SqlFormatter';
 
 const normalizeSql = (sql: string): string => sql.replace(/\s+/g, ' ').trim().toLowerCase();
 
-const formatSql = (sql: string, states?: OptionalConditionParameterStates): string => {
+const formatSql = (sql: string, pruningParameters?: OptionalConditionPruningParameters): string => {
     const query = SelectQueryParser.parse(sql);
-    const transformed = states ? pruneOptionalConditionBranches(query, states) : query;
+    const transformed = pruningParameters ? pruneOptionalConditionBranches(query, pruningParameters) : query;
     return normalizeSql(new SqlFormatter().format(transformed).formattedSql);
 };
 
 describe('pruneOptionalConditionBranches', () => {
-    it('prunes a top-level optional scalar predicate when the parameter is known absent', () => {
+    it('prunes a top-level optional scalar predicate when the targeted parameter is null', () => {
         const sql = `
             SELECT p.product_id
             FROM products p
@@ -24,14 +24,28 @@ describe('pruneOptionalConditionBranches', () => {
               AND (:brand_name IS NULL OR p.brand_name = :brand_name)
         `;
 
-        const formattedSql = formatSql(sql, { brand_name: 'absent' });
+        const formattedSql = formatSql(sql, { brand_name: null });
 
         expect(formattedSql).toContain('from "products" as "p"');
         expect(formattedSql).not.toContain('where');
         expect(formattedSql).not.toContain(':brand_name');
     });
 
-    it('prunes a top-level optional exists branch when the parameter is known absent', () => {
+    it('prunes a top-level optional scalar predicate without requiring a where 1 = 1 sentinel', () => {
+        const sql = `
+            SELECT p.product_id
+            FROM products p
+            WHERE (:brand_name IS NULL OR p.brand_name = :brand_name)
+        `;
+
+        const formattedSql = formatSql(sql, { brand_name: undefined });
+
+        expect(formattedSql).toBe('select "p"."product_id" from "products" as "p"');
+        expect(formattedSql).not.toContain('where');
+        expect(formattedSql).not.toContain(':brand_name');
+    });
+
+    it('prunes a top-level optional exists branch when the targeted parameter is undefined', () => {
         const sql = `
             SELECT p.product_id
             FROM products p
@@ -49,7 +63,7 @@ describe('pruneOptionalConditionBranches', () => {
               )
         `;
 
-        const formattedSql = formatSql(sql, { category_name: 'absent' });
+        const formattedSql = formatSql(sql, { category_name: undefined });
 
         expect(formattedSql).toContain('from "products" as "p"');
         expect(formattedSql).not.toContain('exists');
@@ -57,7 +71,7 @@ describe('pruneOptionalConditionBranches', () => {
         expect(formattedSql).not.toContain('where');
     });
 
-    it('prunes only the known-absent branch when multiple optional branches are present', () => {
+    it('prunes only the null-targeted branch when multiple optional branches are present', () => {
         const sql = `
             SELECT p.product_id
             FROM products p
@@ -77,8 +91,8 @@ describe('pruneOptionalConditionBranches', () => {
         `;
 
         const formattedSql = formatSql(sql, {
-            brand_name: 'absent',
-            category_name: 'present'
+            brand_name: null,
+            category_name: 'shoes'
         });
 
         expect(formattedSql).not.toContain(':brand_name');
@@ -97,7 +111,7 @@ describe('pruneOptionalConditionBranches', () => {
             SELECT * FROM filtered_products
         `;
 
-        const formattedSql = formatSql(sql, { brand_name: 'absent' });
+        const formattedSql = formatSql(sql, { brand_name: null });
 
         expect(formattedSql).toContain('with "filtered_products" as (select "p"."product_id" from "products" as "p")');
         expect(formattedSql).not.toContain(':brand_name');
@@ -114,13 +128,13 @@ describe('pruneOptionalConditionBranches', () => {
             ) AS derived
         `;
 
-        const formattedSql = formatSql(sql, { brand_name: 'absent' });
+        const formattedSql = formatSql(sql, { brand_name: undefined });
 
         expect(formattedSql).toContain('from (select "p"."product_id" from "products" as "p") as "derived"');
         expect(formattedSql).not.toContain(':brand_name');
     });
 
-    it('is exact no-op when the parameter is known present', () => {
+    it('is exact no-op when the targeted parameter is present', () => {
         const sql = `
             SELECT p.product_id
             FROM products p
@@ -129,7 +143,21 @@ describe('pruneOptionalConditionBranches', () => {
         `;
 
         const beforeSql = formatSql(sql);
-        const afterSql = formatSql(sql, { brand_name: 'present' });
+        const afterSql = formatSql(sql, { brand_name: 'Acme' });
+
+        expect(afterSql).toBe(beforeSql);
+    });
+
+    it('is exact no-op when the branch parameter is not explicitly targeted', () => {
+        const sql = `
+            SELECT p.product_id
+            FROM products p
+            WHERE 1 = 1
+              AND (:brand_name IS NULL OR p.brand_name = :brand_name)
+        `;
+
+        const beforeSql = formatSql(sql);
+        const afterSql = formatSql(sql, { category_name: null });
 
         expect(afterSql).toBe(beforeSql);
     });
@@ -147,7 +175,7 @@ describe('pruneOptionalConditionBranches', () => {
         `;
 
         const beforeSql = formatSql(sql);
-        const afterSql = formatSql(sql, { brand_name: 'absent' });
+        const afterSql = formatSql(sql, { brand_name: null });
 
         expect(afterSql).toBe(beforeSql);
     });
@@ -161,7 +189,7 @@ describe('pruneOptionalConditionBranches', () => {
         `;
 
         const beforeSql = formatSql(sql);
-        const afterSql = formatSql(sql, { brand_name: 'absent' });
+        const afterSql = formatSql(sql, { brand_name: null });
 
         expect(afterSql).toBe(beforeSql);
     });
@@ -186,7 +214,7 @@ describe('pruneOptionalConditionBranches', () => {
               )
         `;
 
-        const formattedSql = formatSql(sql, { category_name: 'present' });
+        const formattedSql = formatSql(sql, { category_name: 'sports' });
 
         expect(formattedSql).toContain('join "brands" as "b"');
         expect(formattedSql).not.toContain('left join "brands"');
@@ -205,7 +233,7 @@ describe('DynamicQueryBuilder optional condition pruning', () => {
         `;
 
         const query = builder.buildQuery(sql, {
-            optionalConditionParameterStates: { brand_name: 'absent' },
+            optionalConditionParameters: { brand_name: null },
             serialize: {
                 rootName: 'product',
                 rootEntity: {

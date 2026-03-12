@@ -21,6 +21,7 @@ import {
 } from "./OptimizeUnusedLeftJoins";
 import {
     OptionalConditionParameterStates,
+    OptionalConditionPruningParameters,
     pruneOptionalConditionBranches
 } from "./PruneOptionalConditionBranches";
 
@@ -157,8 +158,13 @@ export interface QueryBuildOptions {
      */
     removeUnusedCtes?: boolean;
     /**
-     * Compile-time states for truthful optional condition branches in source SQL.
-     * Only parameters marked `absent` are pruned in the MVP; every other state is a no-op.
+     * Explicit opt-in values for truthful optional condition branches in source SQL.
+     * Only listed parameter names are eligible for pruning, and `null`/`undefined` are treated as absent-equivalent.
+     */
+    optionalConditionParameters?: OptionalConditionPruningParameters;
+    /**
+     * Legacy state-map form for optional branch pruning.
+     * Prefer `optionalConditionParameters` for new code so SQL-facing null semantics stay intuitive.
      */
     optionalConditionParameterStates?: OptionalConditionParameterStates;
 }
@@ -287,8 +293,9 @@ export class DynamicQueryBuilder {
         // 4. Apply column projection filters before any optimizer passes.
         modifiedQuery = this.applyColumnFilters(modifiedQuery, options);
         // 5. Prune supported truthful optional branches before structural optimizers.
-        if (options.optionalConditionParameterStates && Object.keys(options.optionalConditionParameterStates).length > 0) {
-            modifiedQuery = pruneOptionalConditionBranches(modifiedQuery, options.optionalConditionParameterStates);
+        const optionalConditionParameters = this.resolveOptionalConditionPruningParameters(options);
+        if (Object.keys(optionalConditionParameters).length > 0) {
+            modifiedQuery = pruneOptionalConditionBranches(modifiedQuery, optionalConditionParameters);
         }
         // 6. Remove unused LEFT JOINs when asked before serialization.
         const effectiveSchemaInfo = options.schemaInfo ?? this.defaultSchemaInfo;
@@ -311,6 +318,26 @@ export class DynamicQueryBuilder {
         return modifiedQuery;
     }
 
+    private resolveOptionalConditionPruningParameters(options: QueryBuildOptions): OptionalConditionPruningParameters {
+        if (options.optionalConditionParameters) {
+            return options.optionalConditionParameters;
+        }
+
+        if (!options.optionalConditionParameterStates) {
+            return {};
+        }
+
+        const legacyParameters: OptionalConditionPruningParameters = {};
+
+        // Preserve backward compatibility for the state-map API while the value-based API becomes the primary entry point.
+        for (const [parameterName, state] of Object.entries(options.optionalConditionParameterStates)) {
+            legacyParameters[parameterName] = state === 'absent'
+                ? null
+                : '__RAWSQL_OPTIONAL_CONDITION_PRESENT__';
+        }
+
+        return legacyParameters;
+    }
     private extractExistsInstructions(filters: Record<string, FilterConditionValue>) {
         const cleanedFilters: Record<string, StateParameterValue> = {};
         const instructions: ExistsInstruction[] = [];

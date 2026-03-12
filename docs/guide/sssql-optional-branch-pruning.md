@@ -35,13 +35,19 @@ The MVP is exact no-op for any branch that is not a direct top-level `AND` term,
 - branches that rely on extra parameters
 - general boolean simplification outside the targeted branch forms
 
+## Opt-in parameter targeting
+
+Pruning is explicit opt-in.
+Only parameter names listed in `optionalConditionParameters` (or passed directly to `pruneOptionalConditionBranches`) are eligible.
+Parameters that are not listed remain exact no-op, even if the SQL shape itself is supported.
+
 ## Known-absent definition
 
-`known-absent` means the compile-time state map marks the parameter as `absent`.
-This MVP does not treat `null` as absent and does not infer absence from SQL values.
+For explicitly targeted parameters, the MVP treats `null` and `undefined` as absent-equivalent.
+Any other value keeps the branch active, and the MVP does not simplify the known-present branch.
 
 ## No-op policy
 
-Only supported branches with a `known-absent` guard are normalized away.
+Only supported branches with an explicitly targeted absent-equivalent parameter are normalized away.
 Known-present branches remain unchanged.
 Unsupported or ambiguous shapes remain byte-for-byte intent no-op at the AST level, aside from formatter normalization when SQL is printed.

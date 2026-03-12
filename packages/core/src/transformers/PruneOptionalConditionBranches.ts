@@ -7,11 +7,13 @@ import {
     ParameterExpression,
     ParenExpression,
     RawString,
+    SqlParameterValue,
     UnaryExpression,
     ValueComponent
 } from '../models/ValueComponent';
 import { ParameterCollector } from './ParameterCollector';
 
+export type OptionalConditionPruningParameters = Record<string, SqlParameterValue>;
 export type OptionalConditionParameterState = 'absent' | 'present' | 'unknown';
 export type OptionalConditionParameterStates = Record<string, OptionalConditionParameterState>;
 
@@ -114,9 +116,28 @@ const isSupportedExistsPredicate = (expression: ValueComponent, parameterName: s
     return parameterNames.size === 1 && parameterNames.has(parameterName);
 };
 
+const isExplicitPruningTarget = (
+    pruningParameters: OptionalConditionPruningParameters,
+    parameterName: string
+): boolean => {
+    return Object.prototype.hasOwnProperty.call(pruningParameters, parameterName);
+};
+
+const isKnownAbsentTarget = (
+    pruningParameters: OptionalConditionPruningParameters,
+    parameterName: string
+): boolean => {
+    if (!isExplicitPruningTarget(pruningParameters, parameterName)) {
+        return false;
+    }
+
+    const parameterValue = pruningParameters[parameterName];
+    return parameterValue === null || parameterValue === undefined;
+};
+
 const shouldPruneOptionalBranch = (
     expression: ValueComponent,
-    parameterStates: OptionalConditionParameterStates
+    pruningParameters: OptionalConditionPruningParameters
 ): boolean => {
     const candidate = unwrapSingleOuterParen(expression);
     if (!isBinaryOperator(candidate, 'or')) {
@@ -136,7 +157,7 @@ const shouldPruneOptionalBranch = (
         return false;
     }
 
-    return parameterStates[parameterName] === 'absent';
+    return isKnownAbsentTarget(pruningParameters, parameterName);
 };
 
 const rebuildAndCondition = (terms: ValueComponent[]): ValueComponent | null => {
@@ -154,7 +175,7 @@ const rebuildAndCondition = (terms: ValueComponent[]): ValueComponent | null => 
 
 const pruneSimpleQueryWhereClause = (
     query: SimpleSelectQuery,
-    parameterStates: OptionalConditionParameterStates
+    pruningParameters: OptionalConditionPruningParameters
 ): boolean => {
     if (!query.whereClause) {
         return false;
@@ -166,7 +187,7 @@ const pruneSimpleQueryWhereClause = (
 
     // Only top-level WHERE ... AND ... terms are eligible for pruning in this MVP.
     for (const term of topLevelTerms) {
-        if (shouldPruneOptionalBranch(term, parameterStates)) {
+        if (shouldPruneOptionalBranch(term, pruningParameters)) {
             prunedAnyBranch = true;
             continue;
         }
@@ -191,7 +212,7 @@ const isSelectQueryNode = (value: unknown): value is SelectQuery => {
 
 const traverseNestedSelectQueries = (
     root: SelectQuery,
-    parameterStates: OptionalConditionParameterStates
+    pruningParameters: OptionalConditionPruningParameters
 ): boolean => {
     let changed = false;
     const visited = new WeakSet<object>();
@@ -207,7 +228,7 @@ const traverseNestedSelectQueries = (
         visited.add(value as object);
 
         if (value !== root && isSelectQueryNode(value)) {
-            changed = traverseSelectQuery(value, parameterStates) || changed;
+            changed = traverseSelectQuery(value, pruningParameters) || changed;
             return;
         }
 
@@ -227,17 +248,17 @@ const traverseNestedSelectQueries = (
 
 const traverseSelectQuery = (
     query: SelectQuery,
-    parameterStates: OptionalConditionParameterStates
+    pruningParameters: OptionalConditionPruningParameters
 ): boolean => {
     if (query instanceof SimpleSelectQuery) {
-        const selfChanged = pruneSimpleQueryWhereClause(query, parameterStates);
-        const nestedChanged = traverseNestedSelectQueries(query, parameterStates);
+        const selfChanged = pruneSimpleQueryWhereClause(query, pruningParameters);
+        const nestedChanged = traverseNestedSelectQueries(query, pruningParameters);
         return selfChanged || nestedChanged;
     }
 
     if (query instanceof BinarySelectQuery) {
-        const leftChanged = traverseSelectQuery(query.left, parameterStates);
-        const rightChanged = traverseSelectQuery(query.right, parameterStates);
+        const leftChanged = traverseSelectQuery(query.left, pruningParameters);
+        const rightChanged = traverseSelectQuery(query.right, pruningParameters);
         return leftChanged || rightChanged;
     }
 
@@ -245,17 +266,17 @@ const traverseSelectQuery = (
 };
 
 /**
- * Prunes supported optional WHERE branches when their guard parameter is known absent.
- * Unsupported or ambiguous shapes remain exact no-op for the MVP.
+ * Prunes supported optional WHERE branches when an explicitly targeted parameter is absent-equivalent.
+ * For the MVP, only `null` and `undefined` are treated as absent and unsupported shapes remain exact no-op.
  */
 export const pruneOptionalConditionBranches = (
     query: SelectQuery,
-    parameterStates: OptionalConditionParameterStates
+    pruningParameters: OptionalConditionPruningParameters
 ): SelectQuery => {
-    if (Object.keys(parameterStates).length === 0) {
+    if (Object.keys(pruningParameters).length === 0) {
         return query;
     }
 
-    traverseSelectQuery(query, parameterStates);
+    traverseSelectQuery(query, pruningParameters);
     return query;
 };
