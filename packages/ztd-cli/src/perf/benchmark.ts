@@ -141,7 +141,7 @@ export interface PerfQuerySpecGuidance {
   expected_output_rows?: number;
   review_policy: PerfReviewPolicy;
   evidence_status: PerfEvidenceStatus;
-  fixture_rows_available: number;
+  fixture_rows_available?: number;
   fixture_rows_status: PerfFixtureRowsStatus;
 }
 
@@ -298,6 +298,12 @@ const PERF_REVIEW_POLICY_BY_SCALE: Record<PerfExpectedScale, PerfReviewPolicy> =
   batch: 'strongly-recommended'
 };
 
+const PERF_REVIEW_POLICY_SEVERITY: Record<PerfReviewPolicy, number> = {
+  none: 0,
+  recommended: 1,
+  'strongly-recommended': 2
+};
+
 const PERF_SPEC_DISCOVERY_ROOTS = [
   path.join('src', 'catalog', 'specs'),
   path.join('src', 'specs'),
@@ -308,7 +314,8 @@ function buildPerfQuerySpecGuidance(
   rootDir: string,
   queryFile: string,
   seedConfig: PerfSeedConfig,
-  saveEvidence: boolean
+  saveEvidence: boolean,
+  dryRun: boolean
 ): PerfQuerySpecGuidance | undefined {
   const discovered = discoverPerfQuerySpecMetadata(rootDir, queryFile);
   if (!discovered) {
@@ -316,9 +323,10 @@ function buildPerfQuerySpecGuidance(
   }
 
   const reviewPolicy = toPerfReviewPolicy(discovered.expectedScale, discovered.expectedInputRows);
-  const fixtureRowsAvailable = countPerfSeedRows(seedConfig);
+  const relationsUsed = buildQueryStructureReport(queryFile, 'ztd perf run').referenced_tables;
+  const fixtureRowsAvailable = countPerfSeedRows(seedConfig, relationsUsed);
   const fixtureRowsStatus = toPerfFixtureRowsStatus(fixtureRowsAvailable, discovered.expectedInputRows);
-  const evidenceStatus = saveEvidence
+  const evidenceStatus = saveEvidence && !dryRun
     ? 'captured'
     : reviewPolicy === 'strongly-recommended' ? 'missing' : 'not-required';
 
@@ -339,33 +347,50 @@ function toPerfReviewPolicy(
   expectedScale: PerfExpectedScale | undefined,
   expectedInputRows: number | undefined
 ): PerfReviewPolicy {
-  if (expectedScale) {
-    return PERF_REVIEW_POLICY_BY_SCALE[expectedScale];
-  }
-  if (expectedInputRows === undefined) {
-    return 'none';
-  }
-  if (expectedInputRows >= 100_000) {
-    return 'strongly-recommended';
-  }
-  if (expectedInputRows >= 10_000) {
-    return 'recommended';
-  }
-  return 'none';
+  const scalePolicy = expectedScale ? PERF_REVIEW_POLICY_BY_SCALE[expectedScale] : 'none';
+  const rowsPolicy = expectedInputRows === undefined
+    ? 'none'
+    : expectedInputRows >= 100_000
+      ? 'strongly-recommended'
+      : expectedInputRows >= 10_000
+        ? 'recommended'
+        : 'none';
+
+  return PERF_REVIEW_POLICY_SEVERITY[scalePolicy] >= PERF_REVIEW_POLICY_SEVERITY[rowsPolicy]
+    ? scalePolicy
+    : rowsPolicy;
 }
 
 function toPerfFixtureRowsStatus(
-  fixtureRowsAvailable: number,
+  fixtureRowsAvailable: number | undefined,
   expectedInputRows: number | undefined
 ): PerfFixtureRowsStatus {
-  if (expectedInputRows === undefined) {
+  if (expectedInputRows === undefined || fixtureRowsAvailable === undefined) {
     return 'unknown';
   }
   return fixtureRowsAvailable >= expectedInputRows ? 'sufficient' : 'undersized';
 }
 
-function countPerfSeedRows(seedConfig: PerfSeedConfig): number {
-  return Object.values(seedConfig.tables).reduce((sum, table) => sum + table.rows, 0);
+function countPerfSeedRows(
+  seedConfig: PerfSeedConfig,
+  relationsUsed?: readonly string[]
+): number | undefined {
+  const normalizedRelations = normalizePerfRelationNames(relationsUsed);
+  if (normalizedRelations.size === 0) {
+    return undefined;
+  }
+
+  let matched = false;
+  let rows = 0;
+  for (const [tableName, tableSeed] of Object.entries(seedConfig.tables)) {
+    if (!matchesPerfSeedRelation(tableName, normalizedRelations)) {
+      continue;
+    }
+    matched = true;
+    rows += tableSeed.rows;
+  }
+
+  return matched ? rows : undefined;
 }
 
 function discoverPerfQuerySpecMetadata(
@@ -373,6 +398,7 @@ function discoverPerfQuerySpecMetadata(
   queryFile: string
 ): DiscoveredPerfQuerySpecMetadata | undefined {
   const queryCandidates = buildPerfQuerySpecSqlCandidates(rootDir, queryFile);
+  const matches: DiscoveredPerfQuerySpecMetadata[] = [];
   for (const relativeRoot of PERF_SPEC_DISCOVERY_ROOTS) {
     const absoluteRoot = path.resolve(rootDir, relativeRoot);
     if (!existsSync(absoluteRoot)) {
@@ -380,14 +406,16 @@ function discoverPerfQuerySpecMetadata(
     }
 
     for (const filePath of walkPerfSpecFiles(absoluteRoot)) {
-      const discovered = loadPerfQuerySpecMetadataFromFile(filePath, queryCandidates);
-      if (discovered) {
-        return discovered;
-      }
+      matches.push(...loadPerfQuerySpecMetadataFromFile(filePath, queryCandidates));
     }
   }
 
-  return undefined;
+  if (matches.length <= 1) {
+    return matches[0];
+  }
+
+  // Fail loudly when multiple specs claim the same SQL file so perf guidance stays deterministic.
+  throw new Error(`Multiple QuerySpecs matched ${path.resolve(queryFile)}: ${matches.map((match) => `${match.specId} (${match.specFile})`).join(', ')}`);
 }
 
 function buildPerfQuerySpecSqlCandidates(rootDir: string, queryFile: string): Set<string> {
@@ -395,8 +423,7 @@ function buildPerfQuerySpecSqlCandidates(rootDir: string, queryFile: string): Se
   const candidates = [
     path.relative(rootDir, absoluteQueryFile),
     path.relative(path.resolve(rootDir, 'src', 'sql'), absoluteQueryFile),
-    path.relative(path.resolve(rootDir, 'sql'), absoluteQueryFile),
-    path.basename(absoluteQueryFile)
+    path.relative(path.resolve(rootDir, 'sql'), absoluteQueryFile)
   ].map((value) => normalizePerfSpecPath(value))
     .filter((value) => value.length > 0 && !value.startsWith('..'));
 
@@ -433,46 +460,50 @@ function walkPerfSpecFiles(rootDir: string): string[] {
 function loadPerfQuerySpecMetadataFromFile(
   filePath: string,
   queryCandidates: Set<string>
-): DiscoveredPerfQuerySpecMetadata | undefined {
+): DiscoveredPerfQuerySpecMetadata[] {
   if (path.extname(filePath).toLowerCase() === '.json') {
     return loadPerfQuerySpecMetadataFromJson(filePath, queryCandidates);
   }
 
   const source = readFileSync(filePath, 'utf8');
+  const discovered: DiscoveredPerfQuerySpecMetadata[] = [];
   for (const block of extractPerfQuerySpecBlocks(source)) {
-    const discovered = parsePerfQuerySpecBlock(block, filePath, queryCandidates);
-    if (discovered) {
-      return discovered;
+    const parsed = parsePerfQuerySpecBlock(block, filePath, queryCandidates);
+    if (parsed) {
+      discovered.push(parsed);
     }
   }
 
-  return undefined;
+  return discovered;
 }
 
 function loadPerfQuerySpecMetadataFromJson(
   filePath: string,
   queryCandidates: Set<string>
-): DiscoveredPerfQuerySpecMetadata | undefined {
+): DiscoveredPerfQuerySpecMetadata[] {
   const parsed = JSON.parse(readFileSync(filePath, 'utf8')) as unknown;
   if (Array.isArray(parsed)) {
+    const matches: DiscoveredPerfQuerySpecMetadata[] = [];
     for (const entry of parsed) {
       const discovered = parsePerfQuerySpecObject(entry, filePath, queryCandidates);
       if (discovered) {
-        return discovered;
+        matches.push(discovered);
       }
     }
-    return undefined;
+    return matches;
   }
   if (typeof parsed === 'object' && parsed !== null && Array.isArray((parsed as { specs?: unknown[] }).specs)) {
+    const matches: DiscoveredPerfQuerySpecMetadata[] = [];
     for (const entry of (parsed as { specs: unknown[] }).specs) {
       const discovered = parsePerfQuerySpecObject(entry, filePath, queryCandidates);
       if (discovered) {
-        return discovered;
+        matches.push(discovered);
       }
     }
-    return undefined;
+    return matches;
   }
-  return parsePerfQuerySpecObject(parsed, filePath, queryCandidates);
+  const discovered = parsePerfQuerySpecObject(parsed, filePath, queryCandidates);
+  return discovered ? [discovered] : [];
 }
 
 function parsePerfQuerySpecObject(
@@ -576,15 +607,7 @@ function parsePerfQuerySpecBlock(
 
 function matchesPerfQuerySpecSqlFile(queryCandidates: Set<string>, sqlFile: string): boolean {
   const normalizedSpecSqlFile = normalizePerfSpecPath(sqlFile);
-  for (const candidate of queryCandidates) {
-    if (candidate === normalizedSpecSqlFile) {
-      return true;
-    }
-    if (candidate.endsWith(`/${normalizedSpecSqlFile}`) || normalizedSpecSqlFile.endsWith(`/${candidate}`)) {
-      return true;
-    }
-  }
-  return false;
+  return queryCandidates.has(normalizedSpecSqlFile);
 }
 
 function parsePerfExpectedScale(block: string): PerfExpectedScale | undefined {
@@ -621,6 +644,41 @@ function normalizePerfMetadataNumber(value: unknown): number | undefined {
   return undefined;
 }
 
+function normalizePerfRelationNames(relationsUsed?: readonly string[]): Set<string> {
+  const normalized = new Set<string>();
+  for (const relation of relationsUsed ?? []) {
+    const relationName = normalizePerfRelationName(relation);
+    if (!relationName) {
+      continue;
+    }
+    normalized.add(relationName);
+
+    const unqualified = relationName.split('.').at(-1);
+    if (unqualified) {
+      normalized.add(unqualified);
+    }
+  }
+  return normalized;
+}
+
+function matchesPerfSeedRelation(tableName: string, relationsUsed: Set<string>): boolean {
+  const normalizedTableName = normalizePerfRelationName(tableName);
+  if (!normalizedTableName) {
+    return false;
+  }
+
+  if (relationsUsed.has(normalizedTableName)) {
+    return true;
+  }
+
+  const unqualified = normalizedTableName.split('.').at(-1);
+  return Boolean(unqualified && relationsUsed.has(unqualified));
+}
+
+function normalizePerfRelationName(value: string): string {
+  return value.trim().replace(/^"+|"+$/g, '').toLowerCase();
+}
+
 /**
  * Execute or plan a perf benchmark against the sandbox using either direct or decomposed execution.
  */
@@ -635,7 +693,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
   const classifyThresholdMs = options.classifyThresholdSeconds * 1000;
   const timeoutMs = options.timeoutMinutes * 60 * 1000;
   const seedConfig = loadPerfSeedConfig(options.rootDir);
-  const specGuidance = buildPerfQuerySpecGuidance(options.rootDir, prepared.absolutePath, seedConfig, options.save);
+  const specGuidance = buildPerfQuerySpecGuidance(options.rootDir, prepared.absolutePath, seedConfig, options.save, options.dryRun);
   const databaseVersion = options.dryRun ? undefined : await fetchPerfDatabaseVersion(options.rootDir);
 
   const selection: PerfSelectionResult = options.dryRun
@@ -1351,7 +1409,7 @@ export function formatPerfBenchmarkReport(report: PerfBenchmarkReport, format: P
     lines.push(`  expected_scale: ${report.spec_guidance.expected_scale ?? '(unspecified)'}`);
     lines.push(`  review_policy: ${report.spec_guidance.review_policy}`);
     lines.push(`  evidence_status: ${report.spec_guidance.evidence_status}`);
-    lines.push(`  fixture_rows_available: ${report.spec_guidance.fixture_rows_available}`);
+    lines.push(`  fixture_rows_available: ${report.spec_guidance.fixture_rows_available ?? '(unknown)'}`);
     lines.push(`  fixture_rows_status: ${report.spec_guidance.fixture_rows_status}`);
     if (report.spec_guidance.expected_input_rows !== undefined) {
       lines.push(`  expected_input_rows: ${report.spec_guidance.expected_input_rows}`);
@@ -2198,7 +2256,7 @@ function isOptionalPerfQuerySpecGuidance(value: unknown): value is PerfQuerySpec
     && isOptionalNumber(guidance.expected_output_rows)
     && isPerfReviewPolicy(guidance.review_policy)
     && isPerfEvidenceStatus(guidance.evidence_status)
-    && typeof guidance.fixture_rows_available === 'number'
+    && isOptionalNumber(guidance.fixture_rows_available)
     && isPerfFixtureRowsStatus(guidance.fixture_rows_status);
 }
 
