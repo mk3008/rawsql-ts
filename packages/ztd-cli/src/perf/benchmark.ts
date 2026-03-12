@@ -8,7 +8,7 @@ import { buildQueryStructureReport } from '../query/structure';
 import { findScalarFilterCandidates } from '../query/scalarFilterAnalysis';
 import { executeQueryPipeline, type QueryPipelineSession, type QueryPipelineSessionFactory } from '../query/execute';
 import { buildQueryPipelinePlan, type QueryPipelineMetadata, type QueryPipelineStep } from '../query/planner';
-import { loadPerfSandboxConfig, ensurePerfConnection, type PerfSeedConfig, loadPerfSeedConfig } from './sandbox';
+import { ensurePerfConnection, inspectPerfDdlInventory, loadPerfSandboxConfig, loadPerfSeedConfig, type PerfDdlInventory, type PerfSeedConfig } from './sandbox';
 
 export type PerfBenchmarkMode = 'auto' | 'latency' | 'completion';
 export type PerfSelectedBenchmarkMode = 'latency' | 'completion';
@@ -148,6 +148,29 @@ export interface PerfQuerySpecGuidance {
   fixture_rows_status: PerfFixtureRowsStatus;
 }
 
+export interface PerfDdlInventorySummary {
+  ddl_files: number;
+  ddl_statement_count: number;
+  table_count: number;
+  index_count: number;
+  index_names: string[];
+}
+
+export type PerfTuningPrimaryPath = 'index' | 'pipeline' | 'capture-plan';
+
+export interface PerfTuningBranchGuidance {
+  recommended: boolean;
+  rationale: string[];
+  next_steps: string[];
+}
+
+export interface PerfTuningGuidance {
+  primary_path: PerfTuningPrimaryPath;
+  requires_captured_plan: boolean;
+  index_branch: PerfTuningBranchGuidance;
+  pipeline_branch: PerfTuningBranchGuidance;
+}
+
 interface DiscoveredPerfQuerySpecMetadata {
   specId: string;
   specFile: string;
@@ -203,6 +226,8 @@ export interface PerfBenchmarkReport {
   recommended_actions: PerfRecommendedAction[];
   pipeline_analysis: PerfPipelineAnalysis;
   spec_guidance?: PerfQuerySpecGuidance;
+  ddl_inventory?: PerfDdlInventorySummary;
+  tuning_guidance?: PerfTuningGuidance;
   seed?: Pick<PerfSeedConfig, 'seed'>;
 }
 
@@ -695,8 +720,10 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
   const strategyMetadata = buildRequestedStrategyMetadata(prepared.absolutePath, strategy, material);
   const classifyThresholdMs = options.classifyThresholdSeconds * 1000;
   const timeoutMs = options.timeoutMinutes * 60 * 1000;
-  const seedConfig = loadPerfSeedConfig(options.rootDir);
+    const seedConfig = loadPerfSeedConfig(options.rootDir);
   const specGuidance = buildPerfQuerySpecGuidance(options.rootDir, prepared.absolutePath, seedConfig, options.save, options.dryRun);
+  const ddlInventory = inspectPerfDdlInventory(options.rootDir);
+  const ddlInventorySummary = summarizePerfDdlInventory(ddlInventory);
   const databaseVersion = options.dryRun ? undefined : await fetchPerfDatabaseVersion(options.rootDir);
 
   const selection: PerfSelectionResult = options.dryRun
@@ -714,6 +741,12 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       };
 
   if (options.dryRun) {
+    const dryRunPlanFacts: PerfPlanFacts = {
+      observations: [],
+      statement_summary: '(no plan captured)',
+      hasSequentialScan: false,
+      hasJoin: false
+    };
     return {
       schema_version: 1,
       command: 'perf run',
@@ -739,17 +772,15 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
       classification_probe: selection.probe ? toPerfClassificationProbe(selection.probe) : undefined,
       executed_statements: buildDryRunStatements(prepared, strategy, strategyMetadata),
       plan_observations: [],
-      recommended_actions: buildPerfRecommendedActions(selection.selectedMode, true, pipelineAnalysis, {
-        observations: [],
-        statement_summary: '(no plan captured)',
-        hasSequentialScan: false,
-        hasJoin: false
-      }, specGuidance),
+      recommended_actions: buildPerfRecommendedActions(selection.selectedMode, true, pipelineAnalysis, dryRunPlanFacts, specGuidance),
       pipeline_analysis: pipelineAnalysis,
       spec_guidance: specGuidance,
+      ddl_inventory: ddlInventorySummary,
+      tuning_guidance: buildPerfTuningGuidance(pipelineAnalysis, dryRunPlanFacts, specGuidance),
       seed: { seed: seedConfig.seed }
     };
   }
+
 
   const latencyRuns: number[] = [];
   let representativeExecution: BenchmarkExecutionResult | undefined;
@@ -1425,6 +1456,35 @@ export function formatPerfBenchmarkReport(report: PerfBenchmarkReport, format: P
     }
     lines.push('');
   }
+  if (report.ddl_inventory) {
+    lines.push('DDL inventory:');
+    lines.push(`  ddl_files: ${report.ddl_inventory.ddl_files}`);
+    lines.push(`  ddl_statement_count: ${report.ddl_inventory.ddl_statement_count}`);
+    lines.push(`  table_count: ${report.ddl_inventory.table_count}`);
+    lines.push(`  index_count: ${report.ddl_inventory.index_count}`);
+    lines.push(`  index_names: ${report.ddl_inventory.index_names.length > 0 ? report.ddl_inventory.index_names.join(', ') : '(none)'}`);
+    lines.push('');
+  }
+  if (report.tuning_guidance) {
+    lines.push('Tuning guidance:');
+    lines.push(`  primary_path: ${report.tuning_guidance.primary_path}`);
+    lines.push(`  requires_captured_plan: ${report.tuning_guidance.requires_captured_plan ? 'yes' : 'no'}`);
+    lines.push(`  index_branch: ${report.tuning_guidance.index_branch.recommended ? 'recommended' : 'secondary'}`);
+    for (const rationale of report.tuning_guidance.index_branch.rationale) {
+      lines.push(`    rationale: ${rationale}`);
+    }
+    for (const step of report.tuning_guidance.index_branch.next_steps) {
+      lines.push(`    next: ${step}`);
+    }
+    lines.push(`  pipeline_branch: ${report.tuning_guidance.pipeline_branch.recommended ? 'recommended' : 'secondary'}`);
+    for (const rationale of report.tuning_guidance.pipeline_branch.rationale) {
+      lines.push(`    rationale: ${rationale}`);
+    }
+    for (const step of report.tuning_guidance.pipeline_branch.next_steps) {
+      lines.push(`    next: ${step}`);
+    }
+    lines.push('');
+  }
   lines.push('Executed statements:');
   for (const statement of report.executed_statements) {
     const statementLabel = statement.target ? `${statement.seq}. ${statement.role} (${statement.target})` : `${statement.seq}. ${statement.role}`;
@@ -1596,6 +1656,85 @@ export function buildPerfPipelineAnalysis(sqlFile: string): PerfPipelineAnalysis
 /**
  * Load a saved benchmark report from summary.json.
  */
+export function summarizePerfDdlInventory(inventory: PerfDdlInventory): PerfDdlInventorySummary {
+  return {
+    ddl_files: inventory.files.length,
+    ddl_statement_count: inventory.ddlStatementCount,
+    table_count: inventory.tableCount,
+    index_count: inventory.indexCount,
+    index_names: [...inventory.indexNames]
+  };
+}
+
+export function buildPerfTuningGuidance(
+  pipelineAnalysis: PerfPipelineAnalysis,
+  planFacts: PerfPlanFacts,
+  specGuidance?: PerfQuerySpecGuidance
+): PerfTuningGuidance {
+  const indexRationale: string[] = [];
+  const indexNextSteps = [
+    'Capture or review EXPLAIN (ANALYZE, BUFFERS) before changing the physical design.',
+    'Append CREATE INDEX statements to ztd/ddl/*.sql instead of making ad-hoc sandbox-only changes.',
+    'Run `ztd perf db reset` so the perf sandbox recreates both tables and indexes from local DDL.'
+  ];
+  const pipelineRationale: string[] = [];
+  const pipelineNextSteps = [
+    'Review candidate_ctes and scalar_filter_candidates before rewriting the query.',
+    'Use PIPELINE decomposition when the same intermediate result is reused or scalar filters are optimizer-sensitive.',
+    'After SQL changes, rerun `ztd perf db reset` and `ztd perf seed` so the benchmark uses the intended physical schema.'
+  ];
+
+  const hasPipelineSignals = pipelineAnalysis.should_consider_pipeline
+    || pipelineAnalysis.candidate_ctes.length > 0
+    || pipelineAnalysis.scalar_filter_candidates.length > 0;
+  const hasPlanSignals = planFacts.hasSequentialScan || planFacts.hasJoin;
+
+  if (pipelineAnalysis.candidate_ctes.length > 0) {
+    pipelineRationale.push('Reusable intermediate stages detected: ' + pipelineAnalysis.candidate_ctes.map((candidate) => candidate.name).join(', ') + '.');
+  }
+  if (pipelineAnalysis.scalar_filter_candidates.length > 0) {
+    pipelineRationale.push('Optimizer-sensitive scalar predicates detected: ' + pipelineAnalysis.scalar_filter_candidates.join(', ') + '.');
+  }
+  if (planFacts.hasSequentialScan) {
+    indexRationale.push('Captured plan shows a sequential scan, so index coverage is the first physical-design branch to review.');
+  }
+  if (planFacts.hasJoin) {
+    indexRationale.push('Captured plan shows join work, so supporting indexes or join-order changes may matter.');
+  }
+  if (specGuidance?.review_policy === 'strongly-recommended') {
+    indexRationale.push('QuerySpec marks this query as performance-sensitive, so preserve physical design changes in local DDL before benchmarking.');
+  }
+
+  let primaryPath: PerfTuningPrimaryPath = 'capture-plan';
+  if (hasPipelineSignals) {
+    primaryPath = 'pipeline';
+  }
+  if (hasPlanSignals && !hasPipelineSignals) {
+    primaryPath = 'index';
+  }
+
+  if (primaryPath === 'capture-plan' && indexRationale.length === 0) {
+    indexRationale.push('No captured plan is available yet, so confirm whether scans or joins are the real bottleneck before adding indexes.');
+  }
+  if (primaryPath === 'capture-plan' && pipelineRationale.length === 0) {
+    pipelineRationale.push('No pipeline-specific signal is available yet, so start by capturing a representative plan and row counts.');
+  }
+
+  return {
+    primary_path: primaryPath,
+    requires_captured_plan: !hasPlanSignals,
+    index_branch: {
+      recommended: primaryPath === 'index',
+      rationale: indexRationale,
+      next_steps: indexNextSteps
+    },
+    pipeline_branch: {
+      recommended: primaryPath === 'pipeline',
+      rationale: pipelineRationale,
+      next_steps: pipelineNextSteps
+    }
+  };
+}
 function buildPerfRecommendedActions(
   selectedMode: PerfSelectedBenchmarkMode,
   completed: boolean,
@@ -2237,7 +2376,9 @@ function isPerfBenchmarkReport(value: unknown): value is PerfBenchmarkReport {
   }
   if (!isPerfPipelineAnalysis(report.pipeline_analysis)
     || !isOptionalPerfClassificationProbe(report.classification_probe)
-    || !isOptionalPerfQuerySpecGuidance(report.spec_guidance)) {
+    || !isOptionalPerfQuerySpecGuidance(report.spec_guidance)
+    || !isOptionalPerfDdlInventorySummary(report.ddl_inventory)
+    || !isOptionalPerfTuningGuidance(report.tuning_guidance)) {
     return false;
   }
   return typeof report.query_file === 'string'
@@ -2280,6 +2421,48 @@ function isOptionalPerfQuerySpecGuidance(value: unknown): value is PerfQuerySpec
     && isPerfFixtureRowsStatus(guidance.fixture_rows_status);
 }
 
+function isOptionalPerfDdlInventorySummary(value: unknown): value is PerfDdlInventorySummary | undefined {
+  if (value === undefined) {
+    return true;
+  }
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const inventory = value as Record<string, unknown>;
+  return typeof inventory.ddl_files === 'number'
+    && typeof inventory.ddl_statement_count === 'number'
+    && typeof inventory.table_count === 'number'
+    && typeof inventory.index_count === 'number'
+    && isStringArray(inventory.index_names);
+}
+
+function isOptionalPerfTuningGuidance(value: unknown): value is PerfTuningGuidance | undefined {
+  if (value === undefined) {
+    return true;
+  }
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const guidance = value as Record<string, unknown>;
+  return isPerfTuningPrimaryPath(guidance.primary_path)
+    && typeof guidance.requires_captured_plan === 'boolean'
+    && isPerfTuningBranchGuidance(guidance.index_branch)
+    && isPerfTuningBranchGuidance(guidance.pipeline_branch);
+}
+
+function isPerfTuningPrimaryPath(value: unknown): value is PerfTuningPrimaryPath {
+  return value === 'index' || value === 'pipeline' || value === 'capture-plan';
+}
+
+function isPerfTuningBranchGuidance(value: unknown): value is PerfTuningBranchGuidance {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const guidance = value as Record<string, unknown>;
+  return typeof guidance.recommended === 'boolean'
+    && isStringArray(guidance.rationale)
+    && isStringArray(guidance.next_steps);
+}
 function isOptionalPerfExpectedScale(value: unknown): value is PerfExpectedScale | undefined {
   return value === undefined || value === 'tiny' || value === 'small' || value === 'medium' || value === 'large' || value === 'batch';
 }

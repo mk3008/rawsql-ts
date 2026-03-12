@@ -275,8 +275,9 @@ For focused companion flows, use these scenario documents instead of expanding t
 - [SQL Debug Recovery Dogfooding](./sql-debug-recovery.md)
 - [SSSQL Optional-Condition Dogfooding](./sssql-optional-condition.md)
 - [Test Documentation Dogfooding](./test-documentation.md)
+- [Perf Scale Tuning Dogfooding](./perf-scale-tuning.md)
 
-Those companion scenarios cover broken long-CTE SQL recovery, query graph / query slice / query patch apply usage, truthful optional-condition authoring with SSSQL, direct-vs-decomposed perf evidence loops, and the human-readable test documentation export path.
+Those companion scenarios cover broken long-CTE SQL recovery, query graph / query slice / query patch apply usage, truthful optional-condition authoring with SSSQL, direct-vs-decomposed perf evidence loops, scale-sensitive index-vs-pipeline tuning decisions, and the human-readable test documentation export path.
 ## 8) Recommended run skeleton
 
 Use this order unless a hard blocker appears.

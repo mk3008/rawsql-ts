@@ -9,6 +9,18 @@ This benchmark compares traditional migration-style repository tests with ZTD fi
 - ZTD runs skip migration/seed/cleanup, hook into the repository query to capture the emitted SQL, feed that SQL into testkit-postgres for rewrite/fixture generation, and execute the rewritten statements.
 - Measurements cover variable suite sizes and steady-state loops so the report can show the impact of runner startup, warm runs, and incremental iteration cost.
 
+## QuerySpec scale and DDL/index expectations
+
+When a query already declares metadata.perf in its QuerySpec, treat that metadata as the benchmark review trigger, not as a substitute for the captured plan.
+
+For perf sandbox runs, keep these rules explicit:
+
+- If tuning adds an index, append the CREATE INDEX statement to ztd/ddl/*.sql.
+- After any table or index change, rerun ztd perf db reset before benchmarking again.
+- Compare direct vs decomposed runs only after the sandbox DDL reflects the intended physical schema.
+
+See [Perf Tuning Decision Guide](./perf-tuning-decision-guide.md) for the index-vs-pipeline rubric.
+
 ## What It Measures
 
 - End-to-end wall-clock time per scenario, including runner startup when applicable.

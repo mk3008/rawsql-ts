@@ -471,7 +471,7 @@ test('perf db reset dry-run lists DDL files without touching Docker', () => {
     }, null, 2),
     'utf8'
   );
-  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), 'create table public.users (id integer primary key);', 'utf8');
+  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), ['create table public.users (id integer primary key);', 'create index users_id_idx on public.users(id);', ''].join('\n'), 'utf8');
 
   const result = runCli(['--output', 'json', 'perf', 'db', 'reset', '--dry-run'], {}, workspace);
 
@@ -480,6 +480,10 @@ test('perf db reset dry-run lists DDL files without touching Docker', () => {
   expect(parsed.data).toMatchObject({
     dryRun: true,
     ddl_file_count: 1,
+    ddl_statement_count: 2,
+    table_count: 1,
+    index_count: 1,
+    index_names: ['users_id_idx'],
     ddl_files: ['ztd/ddl/public.sql']
   });
 });
@@ -501,7 +505,7 @@ test('perf seed output redacts connection credentials in global json mode', () =
     }, null, 2),
     'utf8'
   );
-  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), 'create table public.users (id integer primary key);', 'utf8');
+  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), ['create table public.users (id integer primary key);', 'create index users_id_idx on public.users(id);', ''].join('\n'), 'utf8');
   writeFileSync(path.join(workspace, 'perf', 'seed.yml'), [
     'seed: 999',
     'tables:',
@@ -534,7 +538,7 @@ test('perf db reset refuses implicit DATABASE_URL without explicit perf opt-in',
     }, null, 2),
     'utf8'
   );
-  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), 'create table public.users (id integer primary key);', 'utf8');
+  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), ['create table public.users (id integer primary key);', 'create index users_id_idx on public.users(id);', ''].join('\n'), 'utf8');
 
   const result = runCli(
     ['perf', 'db', 'reset'],
@@ -562,7 +566,7 @@ test('perf seed dry-run rejects unknown tables from perf seed config', () => {
     }, null, 2),
     'utf8'
   );
-  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), 'create table public.users (id integer primary key);', 'utf8');
+  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), ['create table public.users (id integer primary key);', 'create index users_id_idx on public.users(id);', ''].join('\n'), 'utf8');
   writeFileSync(path.join(workspace, 'perf', 'seed.yml'), [
     'seed: 999',
     'tables:',
