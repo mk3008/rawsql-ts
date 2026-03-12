@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 import { SqlTokenizer } from "../../src/parsers/SqlTokenizer";
+import { TokenType } from "../../src/models/Lexeme";
 import { StringUtils } from "../../src/utils/stringUtils";
 
 test('prefix comment', () => {
@@ -175,4 +176,56 @@ test('readWhiteSpaceAndComment consumes unterminated block comment', () => {
 
     expect(result.position).toBe(sql.length);
     expect(result.lines).toEqual(['partial comment']);
+});
+
+test('select suffix comments bind to command-started expressions', () => {
+    const caseLexemes = new SqlTokenizer(`select -- case comment
+case when score > 0 then 'positive' else 'negative' end`).readLexmes();
+    const caseLexeme = caseLexemes.find(lexeme => lexeme.value.startsWith('case'));
+    const caseBeforeComment = caseLexeme?.positionedComments?.find(comment => comment.position === 'before');
+
+    expect(caseBeforeComment?.comments).toContain('case comment');
+
+    const existsLexemes = new SqlTokenizer(`select -- exists comment
+exists (select 1)`).readLexmes();
+    const existsLexeme = existsLexemes.find(lexeme => lexeme.value === 'exists');
+    const existsBeforeComment = existsLexeme?.positionedComments?.find(comment => comment.position === 'before');
+
+    expect(existsBeforeComment?.comments).toContain('exists comment');
+});
+
+test('attachCommentsToLexeme preserves legacy comments from token readers', () => {
+    const tokenizer = new SqlTokenizer('');
+    const lexeme = {
+        type: TokenType.Command,
+        value: 'select',
+        comments: ['reader legacy comment'],
+        positionedComments: [{
+            position: 'before' as const,
+            comments: ['reader positioned comment'],
+        }],
+    };
+
+    (tokenizer as any).attachCommentsToLexeme(lexeme, {
+        prefixComments: ['prefix comment'],
+        suffixComments: ['suffix comment'],
+    });
+
+    expect(lexeme.comments).toEqual([
+        'reader legacy comment',
+    ]);
+    expect(lexeme.positionedComments).toEqual([
+        {
+            position: 'before',
+            comments: ['reader positioned comment'],
+        },
+        {
+            position: 'before',
+            comments: ['prefix comment'],
+        },
+        {
+            position: 'after',
+            comments: ['suffix comment'],
+        },
+    ]);
 });

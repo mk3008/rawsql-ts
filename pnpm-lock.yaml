@@ -257,8 +257,8 @@ importers:
         specifier: ^3.1.1
         version: 3.1.1
       node-sql-parser:
-        specifier: ^5.3.8
-        version: 5.3.12
+        specifier: ^5.4.0
+        version: 5.4.0
       sql-formatter:
         specifier: ^15.5.2
         version: 15.6.9
@@ -3042,6 +3042,10 @@ packages:
 
   node-sql-parser@5.3.12:
     resolution: {integrity: sha512-GQBwA2e44qjbK0MzFwh5bNYefniV6cKT4KfjNDpuh/2EWipUEK1BCMc//moSidp8EF6fHB/EqJwUH9GCh9MAPg==}
+    engines: {node: '>=8'}
+
+  node-sql-parser@5.4.0:
+    resolution: {integrity: sha512-jVe6Z61gPcPjCElPZ6j8llB3wnqGcuQzefim1ERsqIakxnEy5JlzV7XKdO1KmacRG5TKwPc4vJTgSRQ0LfkbFw==}
     engines: {node: '>=8'}
 
   normalize-path@3.0.0:
@@ -6893,6 +6897,11 @@ snapshots:
   node-gyp-build@4.8.4: {}
 
   node-sql-parser@5.3.12:
+    dependencies:
+      '@types/pegjs': 0.10.6
+      big-integer: 1.6.52
+
+  node-sql-parser@5.4.0:
     dependencies:
       '@types/pegjs': 0.10.6
       big-integer: 1.6.52

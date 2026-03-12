@@ -1,4 +1,4 @@
-﻿import type { Lexeme } from '../models/Lexeme';
+import type { Lexeme } from '../models/Lexeme';
 import type { SelectQuery } from '../models/SelectQuery';
 import type { InsertQuery } from '../models/InsertQuery';
 import type { UpdateQuery } from '../models/UpdateQuery';
@@ -80,6 +80,13 @@ export interface SqlParserManyOptions {
     skipEmptyStatements?: boolean;
 }
 
+type ParserResult<T> = {
+    value: T;
+    newIndex: number;
+};
+
+type LexemeParser<T> = (lexemes: Lexeme[], startIndex: number) => ParserResult<T>;
+
 /**
  * Canonical entry point for SQL parsing.
  * Delegates to dedicated parsers for SELECT, INSERT, UPDATE, and DELETE statements, and is designed to embrace additional statement types next.
@@ -89,6 +96,22 @@ export class SqlParser {
         const skipEmpty = options.skipEmptyStatements ?? true;
         const mode = options.mode ?? 'single';
         const tokenizer = new SqlTokenizer(sql);
+
+        // Fast path for the common single-statement parse used by benchmarks and most callers.
+        if (mode === 'single' && skipEmpty) {
+            const first = this.readNextMeaningfulStatement(tokenizer, 0);
+            if (!first) {
+                throw new Error('[SqlParser] No SQL statements found in input.');
+            }
+
+            const parsed = this.dispatchParse(first, 1);
+            const remainder = this.readNextMeaningfulStatement(tokenizer, first.nextPosition);
+            if (remainder) {
+                throw new Error('[SqlParser] Unexpected additional statement detected at index 2. Use parseMany or set mode to "multiple" to allow multiple statements.');
+            }
+
+            return parsed;
+        }
 
         // Acquire the first meaningful statement so future dispatching can inspect its leading keyword.
         const first = this.consumeNextStatement(tokenizer, 0, skipEmpty);
@@ -250,27 +273,12 @@ export class SqlParser {
     }
 
     private static parseSelectStatement(segment: StatementLexemeResult, statementIndex: number): SelectQuery {
-        try {
-            const result = SelectQueryParser.parseFromLexeme(segment.lexemes, 0);
-
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse SELECT statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'SELECT', (lexemes, startIndex) => SelectQueryParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseExplainStatement(segment: StatementLexemeResult, statementIndex: number): ExplainStatement {
-        try {
-            const result = ExplainStatementParser.parseFromLexeme(segment.lexemes, 0, (lexemes, nestedStart) => {
+        return this.parseStatementWithCallback(segment, statementIndex, 'EXPLAIN', () =>
+            ExplainStatementParser.parseFromLexeme(segment.lexemes, 0, (lexemes, nestedStart) => {
                 if (nestedStart >= lexemes.length) {
                     throw new Error("[ExplainStatementParser] Missing statement after EXPLAIN options.");
                 }
@@ -286,379 +294,143 @@ export class SqlParser {
 
                 const statement = this.dispatchParse(nestedSegment, statementIndex);
                 return { value: statement, newIndex: lexemes.length };
-            });
-
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in EXPLAIN statement ${statementIndex} at character ${position}.`
-                );
-            }
-
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse EXPLAIN statement ${statementIndex}: ${message}`);
-        }
+            }),
+            `EXPLAIN statement ${statementIndex}`
+        );
     }
 
     private static parseVacuumStatement(segment: StatementLexemeResult, statementIndex: number): VacuumStatement {
-        try {
-            const result = VacuumStatementParser.parseFromLexeme(segment.lexemes, 0);
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in VACUUM statement ${statementIndex} at character ${position}.`
-                );
-            }
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse VACUUM statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'VACUUM', (lexemes, startIndex) => VacuumStatementParser.parseFromLexeme(lexemes, startIndex), `VACUUM statement ${statementIndex}`);
     }
 
     private static parseReindexStatement(segment: StatementLexemeResult, statementIndex: number): ReindexStatement {
-        try {
-            const result = ReindexStatementParser.parseFromLexeme(segment.lexemes, 0);
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in REINDEX statement ${statementIndex} at character ${position}.`
-                );
-            }
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse REINDEX statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'REINDEX', (lexemes, startIndex) => ReindexStatementParser.parseFromLexeme(lexemes, startIndex), `REINDEX statement ${statementIndex}`);
     }
 
     private static parseClusterStatement(segment: StatementLexemeResult, statementIndex: number): ClusterStatement {
-        try {
-            const result = ClusterStatementParser.parseFromLexeme(segment.lexemes, 0);
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in CLUSTER statement ${statementIndex} at character ${position}.`
-                );
-            }
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse CLUSTER statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'CLUSTER', (lexemes, startIndex) => ClusterStatementParser.parseFromLexeme(lexemes, startIndex), `CLUSTER statement ${statementIndex}`);
     }
 
     private static parseCheckpointStatement(segment: StatementLexemeResult, statementIndex: number): CheckpointStatement {
-        try {
-            const result = CheckpointStatementParser.parseFromLexeme(segment.lexemes, 0);
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in CHECKPOINT statement ${statementIndex} at character ${position}.`
-                );
-            }
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse CHECKPOINT statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'CHECKPOINT', (lexemes, startIndex) => CheckpointStatementParser.parseFromLexeme(lexemes, startIndex), `CHECKPOINT statement ${statementIndex}`);
     }
 
     private static parseInsertStatement(segment: StatementLexemeResult, statementIndex: number): InsertQuery {
-        try {
-            const result = InsertQueryParser.parseFromLexeme(segment.lexemes, 0);
-
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse INSERT statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'INSERT', (lexemes, startIndex) => InsertQueryParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseUpdateStatement(segment: StatementLexemeResult, statementIndex: number): UpdateQuery {
-        try {
-            const result = UpdateQueryParser.parseFromLexeme(segment.lexemes, 0);
-
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse UPDATE statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'UPDATE', (lexemes, startIndex) => UpdateQueryParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseDeleteStatement(segment: StatementLexemeResult, statementIndex: number): DeleteQuery {
-        try {
-            const result = DeleteQueryParser.parseFromLexeme(segment.lexemes, 0);
-
-            // Guard against trailing tokens that would indicate multiple statements in DELETE parsing.
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse DELETE statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'DELETE', (lexemes, startIndex) => DeleteQueryParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseCreateTableStatement(segment: StatementLexemeResult, statementIndex: number): CreateTableQuery {
-        try {
-            const result = CreateTableParser.parseFromLexeme(segment.lexemes, 0);
-
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse CREATE TABLE statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'CREATE TABLE', (lexemes, startIndex) => CreateTableParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseDropTableStatement(segment: StatementLexemeResult, statementIndex: number): DropTableStatement {
-        try {
-            const result = DropTableParser.parseFromLexeme(segment.lexemes, 0);
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse DROP TABLE statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'DROP TABLE', (lexemes, startIndex) => DropTableParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseDropSchemaStatement(segment: StatementLexemeResult, statementIndex: number): DropSchemaStatement {
-        try {
-            const result = DropSchemaParser.parseFromLexeme(segment.lexemes, 0);
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse DROP SCHEMA statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'DROP SCHEMA', (lexemes, startIndex) => DropSchemaParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseDropIndexStatement(segment: StatementLexemeResult, statementIndex: number): DropIndexStatement {
-        try {
-            const result = DropIndexParser.parseFromLexeme(segment.lexemes, 0);
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse DROP INDEX statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'DROP INDEX', (lexemes, startIndex) => DropIndexParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseCreateIndexStatement(segment: StatementLexemeResult, statementIndex: number): CreateIndexStatement {
-        try {
-            const result = CreateIndexParser.parseFromLexeme(segment.lexemes, 0);
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse CREATE INDEX statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'CREATE INDEX', (lexemes, startIndex) => CreateIndexParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseCreateSchemaStatement(segment: StatementLexemeResult, statementIndex: number): CreateSchemaStatement {
-        try {
-            const result = CreateSchemaParser.parseFromLexeme(segment.lexemes, 0);
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse CREATE SCHEMA statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'CREATE SCHEMA', (lexemes, startIndex) => CreateSchemaParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseCreateSequenceStatement(segment: StatementLexemeResult, statementIndex: number): CreateSequenceStatement {
-        try {
-            const result = CreateSequenceParser.parseFromLexeme(segment.lexemes, 0);
-            // Ensure no trailing lexemes remain after the CREATE SEQUENCE clause.
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse CREATE SEQUENCE statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'CREATE SEQUENCE', (lexemes, startIndex) => CreateSequenceParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseAlterSequenceStatement(segment: StatementLexemeResult, statementIndex: number): AlterSequenceStatement {
-        try {
-            const result = AlterSequenceParser.parseFromLexeme(segment.lexemes, 0);
-            // Validate that the ALTER SEQUENCE statement consumed all available tokens.
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse ALTER SEQUENCE statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'ALTER SEQUENCE', (lexemes, startIndex) => AlterSequenceParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseAlterTableStatement(segment: StatementLexemeResult, statementIndex: number): AlterTableStatement {
-        try {
-            const result = AlterTableParser.parseFromLexeme(segment.lexemes, 0);
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse ALTER TABLE statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'ALTER TABLE', (lexemes, startIndex) => AlterTableParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseDropConstraintStatement(segment: StatementLexemeResult, statementIndex: number): DropConstraintStatement {
-        try {
-            const result = DropConstraintParser.parseFromLexeme(segment.lexemes, 0);
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse DROP CONSTRAINT statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'DROP CONSTRAINT', (lexemes, startIndex) => DropConstraintParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseCommentOnStatement(segment: StatementLexemeResult, statementIndex: number): CommentOnStatement {
-        try {
-            const result = CommentOnParser.parseFromLexeme(segment.lexemes, 0);
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse COMMENT ON statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'COMMENT ON', (lexemes, startIndex) => CommentOnParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseAnalyzeStatement(segment: StatementLexemeResult, statementIndex: number): AnalyzeStatement {
-        try {
-            // Delegate lexeme interpretation to the ANALYZE-specific parser.
-            const result = AnalyzeStatementParser.parseFromLexeme(segment.lexemes, 0);
-
-            // Ensure parsing consumed every lexeme belonging to this statement.
-            if (result.newIndex < segment.lexemes.length) {
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-
-            return result.value;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse ANALYZE statement ${statementIndex}: ${message}`);
-        }
+        return this.parseStatementWithParser(segment, statementIndex, 'ANALYZE', (lexemes, startIndex) => AnalyzeStatementParser.parseFromLexeme(lexemes, startIndex));
     }
 
     private static parseMergeStatement(segment: StatementLexemeResult, statementIndex: number): MergeQuery {
+        return this.parseStatementWithParser(segment, statementIndex, 'MERGE', (lexemes, startIndex) => MergeQueryParser.parseFromLexeme(lexemes, startIndex));
+    }
+
+    private static parseStatementWithParser<T>(
+        segment: StatementLexemeResult,
+        statementIndex: number,
+        statementLabel: string,
+        parser: LexemeParser<T>,
+        trailingContext = `statement ${statementIndex}`
+    ): T {
+        return this.parseStatementWithCallback(
+            segment,
+            statementIndex,
+            statementLabel,
+            () => parser(segment.lexemes, 0),
+            trailingContext
+        );
+    }
+
+    private static parseStatementWithCallback<T>(
+        segment: StatementLexemeResult,
+        statementIndex: number,
+        statementLabel: string,
+        parse: () => ParserResult<T>,
+        trailingContext = `statement ${statementIndex}`
+    ): T {
         try {
-            const result = MergeQueryParser.parseFromLexeme(segment.lexemes, 0);
+            const result = parse();
 
-            if (result.newIndex < segment.lexemes.length) {
-                // Guard against trailing tokens that would indicate parsing stopped prematurely.
-                const unexpected = segment.lexemes[result.newIndex];
-                const position = unexpected.position?.startPosition ?? segment.statementStart;
-                throw new Error(
-                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
-                );
-            }
-
+            // Keep trailing-token validation centralized so every statement parser reports the same shape of error.
+            this.assertFullyConsumed(segment, result.newIndex, trailingContext);
             return result.value;
         } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`[SqlParser] Failed to parse MERGE statement ${statementIndex}: ${message}`);
+            throw new Error(`[SqlParser] Failed to parse ${statementLabel} statement ${statementIndex}: ${this.errorMessage(error)}`);
         }
+    }
+
+    private static assertFullyConsumed(
+        segment: StatementLexemeResult,
+        newIndex: number,
+        trailingContext: string
+    ): void {
+        if (newIndex >= segment.lexemes.length) {
+            return;
+        }
+
+        const unexpected = segment.lexemes[newIndex];
+        const position = unexpected.position?.startPosition ?? segment.statementStart;
+        throw new Error(
+            `[SqlParser] Unexpected token "${unexpected.value}" in ${trailingContext} at character ${position}.`
+        );
+    }
+
+    private static errorMessage(error: unknown): string {
+        return error instanceof Error ? error.message : String(error);
     }
 
     private static getCommandAfterWith(lexemes: Lexeme[]): string | null {
@@ -668,6 +440,29 @@ export class SqlParser {
             return next?.value.toLowerCase() ?? null;
         } catch {
             return null;
+        }
+    }
+
+    private static readNextMeaningfulStatement(tokenizer: SqlTokenizer, cursor: number): StatementLexemeResult | null {
+        let localCursor = cursor;
+        let carry: string[] | null = null;
+
+        while (true) {
+            const segment = tokenizer.readNextStatement(localCursor, carry);
+            carry = null;
+
+            if (!segment) {
+                return null;
+            }
+
+            if (segment.lexemes.length > 0) {
+                return segment;
+            }
+
+            localCursor = segment.nextPosition;
+            if (segment.leadingComments && segment.leadingComments.length > 0) {
+                carry = segment.leadingComments;
+            }
         }
     }
 
@@ -704,7 +499,5 @@ export class SqlParser {
         }
     }
 }
-
-
 
 

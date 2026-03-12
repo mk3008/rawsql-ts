@@ -22,6 +22,8 @@
     "clean": "pnpm -r --if-present clean",
     "lint": "pnpm -r --if-present lint",
     "benchmark": "pnpm --filter rawsql-ts benchmark",
+    "benchmark:parser:pr": "ts-node benchmarks/parser-phase-benchmark.ts --profile=pr",
+    "benchmark:parser:full": "ts-node benchmarks/parser-phase-benchmark.ts --profile=full",
     "ztd:bench": "ts-node benchmarks/ztd-test-benchmark.ts",
     "ztd:bench:perworker": "cross-env ZTD_DB_CONCURRENCY=perWorker pnpm ztd:bench",
     "ztd:bench:testkit-postgres-mode": "ts-node benchmarks/testkit-postgres-mode-benchmark.ts",
@@ -113,5 +115,3 @@
     }
   }
 }
-
-

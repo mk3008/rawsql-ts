@@ -4,6 +4,17 @@ import { Lexeme } from "../models/Lexeme";
  * Utility functions for handling comments in parsers
  */
 export class CommentUtils {
+    private static readonly SIGNIFICANT_SQL_KEYWORDS = new Set([
+        'select',
+        'from',
+        'where',
+        'group by',
+        'having',
+        'order by',
+        'limit',
+        'offset'
+    ]);
+
     /**
      * Collects comments from preceding tokens that are associated with a specific keyword.
      * This function looks for comments in tokens before the current position that might
@@ -15,7 +26,9 @@ export class CommentUtils {
      * @returns Array of comments associated with this clause
      */
     public static collectClauseComments(lexemes: Lexeme[], currentIndex: number, keywordValue: string): string[] | null {
-        if (currentIndex >= lexemes.length || lexemes[currentIndex].value.toLowerCase() !== keywordValue.toLowerCase()) {
+        const normalizedKeyword = keywordValue.toLowerCase();
+
+        if (currentIndex >= lexemes.length || lexemes[currentIndex].value.toLowerCase() !== normalizedKeyword) {
             return null;
         }
 
@@ -38,7 +51,7 @@ export class CommentUtils {
                 // Check if the comments contain keywords that suggest they belong to the current clause
                 const clauseSpecificComments = prevToken.comments.filter(comment => {
                     const lowerComment = comment.toLowerCase();
-                    return lowerComment.includes(keywordValue.toLowerCase()) || 
+                    return lowerComment.includes(normalizedKeyword) || 
                            lowerComment.includes('の') || // Japanese possessive particle
                            lowerComment.includes('コメント'); // "comment" in Japanese
                 });
@@ -69,7 +82,6 @@ export class CommentUtils {
      * Checks if a token value is a significant SQL keyword that would separate clauses
      */
     private static isSignificantSqlKeyword(value: string): boolean {
-        const keywords = new Set(['select', 'from', 'where', 'group by', 'having', 'order by', 'limit', 'offset']);
-        return keywords.has(value.toLowerCase());
+        return this.SIGNIFICANT_SQL_KEYWORDS.has(value.toLowerCase());
     }
 }

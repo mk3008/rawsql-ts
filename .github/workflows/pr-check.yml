@@ -83,6 +83,9 @@ jobs:
       if: steps.playground_changes.outputs.run == 'true' && steps.playground.outputs.exists == 'true'
       run: git diff --exit-code
 
+    - name: Run parser benchmark (PR lightweight)
+      run: pnpm run benchmark:parser:pr
+
     # Keep package validation lightweight in PRs; broader multi-version validation stays in push CI.
     - name: Check package.json validity
       run: |

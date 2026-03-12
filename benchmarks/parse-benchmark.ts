@@ -1,12 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { createRequire } from 'module';
 import Benchmark = require('benchmark');
 type BenchmarkCase = Benchmark;
 import * as os from 'os';
-import { format as sqlFormat } from 'sql-formatter';
-import { Parser as NodeSqlParser } from 'node-sql-parser';
-import { SelectQueryParser } from '../packages/core/src/parsers/SelectQueryParser';
-import { SqlFormatter } from '../packages/core/src/transformers/SqlFormatter';
+import { SqlParser } from '../packages/core/src/parsers/SqlParser';
 
 interface BenchmarkResult {
     name: string;
@@ -25,24 +23,176 @@ interface SystemInfo {
     nodeVersion: string;
 }
 
+interface ComparedLibraryVersion {
+    label: string;
+    version: string;
+}
+
 interface ChartDataset {
     labels: string[];
     datasets: Array<{
         label: string;
         data: Array<number | null>;
+        borderColor?: string;
+        backgroundColor?: string;
+        fill?: boolean;
+        tension?: number;
     }>;
 }
 
-// Set of SQL queries for benchmarking
-const queries = [
+interface BenchmarkRunConfig {
+    defaultMinSamples: number;
+    defaultMaxTimeSec: number;
+    heavyMinSamples: number;
+    heavyMaxTimeSec: number;
+}
+
+interface QueryBenchmarkCase {
+    key: string;
+    chartLabel: string;
+    readerLabel: string;
+    sql: string;
+}
+
+const BENCHMARK_RUN_CONFIG: BenchmarkRunConfig = {
+    defaultMinSamples: 10,
+    defaultMaxTimeSec: 0.2,
+    heavyMinSamples: 6,
+    heavyMaxTimeSec: 0.12,
+};
+
+const corePackageRequire = createRequire(path.resolve(__dirname, '../packages/core/package.json'));
+const NodeSqlParser = corePackageRequire('node-sql-parser').Parser as typeof import('node-sql-parser').Parser;
+
+const COMPARED_LIBRARY_VERSIONS: ComparedLibraryVersion[] = [
     {
-        name: 'Tokens20',
-        sql: `SELECT id, name, email, age, created_at, updated_at, status, role, last_login, country
-              FROM users
-              WHERE id = 1;`
+        label: 'node-sql-parser',
+        version: corePackageRequire('node-sql-parser/package.json').version,
     },
+];
+
+function createLargeAnalyticsSql(sectionCount: number): string {
+    const lines: string[] = [
+        'WITH',
+        '  orders_base AS (',
+        '    SELECT',
+        '      o.order_id,',
+        '      o.customer_id,',
+        '      o.product_id,',
+        '      o.sales_region,',
+        '      o.sales_channel,',
+        '      o.order_date,',
+        '      o.status,',
+        '      o.quantity,',
+        '      o.net_amount,',
+        '      o.discount_amount,',
+        '      o.tax_amount,',
+        '      o.shipping_amount',
+        '    FROM order_fact o',
+        "    WHERE o.order_date >= DATE '2024-01-01'",
+        '  ),',
+        '  customers_base AS (',
+        '    SELECT',
+        '      c.customer_id,',
+        '      c.customer_tier,',
+        '      c.account_status,',
+        '      c.market_segment',
+        '    FROM customer_dim c',
+        '  ),',
+        '  products_base AS (',
+        '    SELECT',
+        '      p.product_id,',
+        '      p.category_name,',
+        '      p.brand_name,',
+        '      p.catalog_group',
+        '    FROM product_dim p',
+        '  ),',
+    ];
+
+    for (let i = 1; i <= sectionCount; i++) {
+        const month = ((i - 1) % 12) + 1;
+        const padded = i.toString().padStart(4, '0');
+        const sliceName = `report_slice_${padded}`;
+        const rankedName = `ranked_slice_${padded}`;
+        const channel = i % 3 === 0 ? 'partner' : i % 2 === 0 ? 'retail' : 'online';
+        const tail = i === sectionCount ? '' : ',';
+
+        lines.push(`  ${sliceName} AS (`);
+        lines.push('    SELECT');
+        lines.push("      DATE_TRUNC('month', ob.order_date) AS report_month,");
+        lines.push('      cb.customer_tier,');
+        lines.push('      cb.market_segment,');
+        lines.push('      pb.category_name,');
+        lines.push('      pb.brand_name,');
+        lines.push('      ob.sales_region,');
+        lines.push('      ob.sales_channel,');
+        lines.push('      COUNT(*) AS order_count,');
+        lines.push('      SUM(ob.quantity) AS unit_count,');
+        lines.push('      SUM(ob.net_amount) AS net_revenue,');
+        lines.push('      SUM(ob.discount_amount) AS total_discount,');
+        lines.push('      SUM(ob.tax_amount + ob.shipping_amount) AS fulfillment_amount,');
+        lines.push("      SUM(CASE WHEN ob.status = 'paid' THEN ob.net_amount ELSE 0 END) AS paid_revenue, SUM(CASE WHEN ob.status = 'shipped' THEN ob.net_amount ELSE 0 END) AS shipped_revenue,");
+        lines.push("      SUM(CASE WHEN cb.customer_tier = 'enterprise' THEN ob.net_amount ELSE 0 END) AS enterprise_revenue, SUM(CASE WHEN cb.customer_tier = 'team' THEN ob.net_amount ELSE 0 END) AS team_revenue,");
+        lines.push("      SUM(CASE WHEN pb.category_name = 'software' THEN ob.net_amount ELSE 0 END) AS software_revenue, SUM(CASE WHEN pb.category_name = 'services' THEN ob.net_amount ELSE 0 END) AS services_revenue,");
+        lines.push('      AVG(ob.net_amount) AS avg_order_value, MAX(ob.net_amount) AS max_order_value,');
+        lines.push('      MIN(ob.net_amount) AS min_order_value, AVG(ob.discount_amount) AS avg_discount_amount,');
+        lines.push('      COUNT(DISTINCT ob.customer_id) AS customer_count, COUNT(DISTINCT ob.product_id) AS product_count,');
+        lines.push("      SUM(CASE WHEN cb.market_segment = 'mid-market' THEN ob.quantity ELSE 0 END) AS mid_market_units, SUM(CASE WHEN cb.market_segment = 'enterprise' THEN ob.quantity ELSE 0 END) AS enterprise_units,");
+        lines.push("      SUM(CASE WHEN pb.brand_name = 'alpha' THEN ob.net_amount ELSE 0 END) AS alpha_brand_revenue, SUM(CASE WHEN pb.brand_name = 'beta' THEN ob.net_amount ELSE 0 END) AS beta_brand_revenue");
+        lines.push('    FROM orders_base ob');
+        lines.push('    JOIN customers_base cb ON cb.customer_id = ob.customer_id');
+        lines.push('    JOIN products_base pb ON pb.product_id = ob.product_id');
+        lines.push("    WHERE ob.status IN ('paid', 'shipped', 'completed')");
+        lines.push("      AND cb.account_status = 'active'");
+        lines.push("      AND pb.catalog_group = 'standard'");
+        lines.push(`      AND ob.sales_channel = '${channel}'`);
+        lines.push(`      AND EXTRACT(MONTH FROM ob.order_date) = ${month}`);
+        lines.push('    GROUP BY');
+        lines.push("      DATE_TRUNC('month', ob.order_date),");
+        lines.push('      cb.customer_tier,');
+        lines.push('      cb.market_segment,');
+        lines.push('      pb.category_name,');
+        lines.push('      pb.brand_name,');
+        lines.push('      ob.sales_region,');
+        lines.push('      ob.sales_channel');
+        lines.push('  ),');
+        lines.push(`  ${rankedName} AS (`);
+        lines.push('    SELECT');
+        lines.push('      s.*,');
+        lines.push('      ROW_NUMBER() OVER (');
+        lines.push('        PARTITION BY s.report_month, s.sales_region, s.sales_channel');
+        lines.push('        ORDER BY s.net_revenue DESC, s.order_count DESC');
+        lines.push('      ) AS revenue_rank');
+        lines.push(`    FROM ${sliceName} s`);
+        lines.push(`  )${tail}`);
+    }
+
+    lines.push('SELECT');
+    lines.push('  report_month,');
+    lines.push('  sales_region,');
+    lines.push('  sales_channel,');
+    lines.push('  customer_tier,');
+    lines.push('  market_segment,');
+    lines.push('  category_name,');
+    lines.push('  brand_name,');
+    lines.push('  order_count,');
+    lines.push('  unit_count,');
+    lines.push('  net_revenue,');
+    lines.push('  total_discount,');
+    lines.push('  fulfillment_amount,');
+    lines.push('  revenue_rank');
+    lines.push(`FROM ranked_slice_${sectionCount.toString().padStart(4, '0')}`);
+    lines.push('WHERE revenue_rank <= 5');
+    lines.push('ORDER BY report_month DESC, sales_region, sales_channel, net_revenue DESC;');
+
+    return lines.join('\n');
+}
+
+const queries: QueryBenchmarkCase[] = [
     {
-        name: 'Tokens70',
+        key: 'Tokens70',
+        chartLabel: 'Small 8 lines',
+        readerLabel: 'Small query, about 8 lines (70 tokens)',
         sql: `SELECT
                 u.id, u.name, u.email, u.age, u.status, u.role,
                 o.id AS order_id, o.total, o.order_date, o.status AS order_status
@@ -52,7 +202,9 @@ const queries = [
               ORDER BY o.order_date DESC;`
     },
     {
-        name: 'Tokens140',
+        key: 'Tokens140',
+        chartLabel: 'Medium 12 lines',
+        readerLabel: 'Medium query, about 12 lines (140 tokens)',
         sql: `WITH recent_orders AS (
                 SELECT user_id, MAX(order_date) AS last_order
                 FROM orders
@@ -70,7 +222,9 @@ const queries = [
               ORDER BY total_spent DESC;`
     },
     {
-        name: 'Tokens230',
+        key: 'Tokens230',
+        chartLabel: 'Large 20 lines',
+        readerLabel: 'Large query, about 20 lines (230 tokens)',
         sql: `WITH
                 detail AS (
                     SELECT
@@ -134,10 +288,21 @@ const queries = [
                     ) q
                 ORDER BY
                     line_id;`
+    },
+    {
+        key: 'Tokens5000',
+        chartLabel: 'Mid-large 400-500 lines',
+        readerLabel: 'Mid-large query, about 400-500 lines (5,000 tokens)',
+        sql: createLargeAnalyticsSql(10)
+    },
+    {
+        key: 'Tokens12000',
+        chartLabel: 'Very large 1,000+ lines',
+        readerLabel: 'Very large query, about 1,000+ lines (~12,000 tokens)',
+        sql: createLargeAnalyticsSql(24)
     }
 ];
 
-const sqlFormatter = new SqlFormatter();
 const nodeSqlParser = new NodeSqlParser();
 const suite = new Benchmark.Suite();
 const reportLines: string[] = [];
@@ -147,31 +312,19 @@ const logLine = (line = '') => {
     reportLines.push(line);
 };
 
-function formatWithRawSql(sql: string) {
+function parseWithRawSql(sql: string) {
     return () => {
-        // Parse into the rawsql-ts AST to exercise the updated tokenizer with comment support.
-        const query = SelectQueryParser.parse(sql);
-        // Format the query to mirror real-world usage that chains parsing and formatting.
-        sqlFormatter.format(query);
+        SqlParser.parse(sql, { mode: 'single' });
     };
 }
 
-function formatWithSqlFormatter(sql: string) {
+function parseWithNodeSqlParser(sql: string) {
     return () => {
-        // Execute sql-formatter as a baseline formatter-only comparison.
-        sqlFormat(sql, { language: 'postgresql' });
-    };
-}
-
-function formatWithNodeSqlParser(sql: string) {
-    return () => {
-        // Parse using node-sql-parser to compare against another AST-based parser.
         nodeSqlParser.astify(sql, { database: 'postgresql' });
     };
 }
 
 function getSystemInfo(): SystemInfo {
-    // Collect CPU, OS, memory, and runtime metadata for reproducible benchmark context.
     const cpuModel = os.cpus()[0]?.model ?? 'Unknown CPU';
     const logicalCores = os.cpus().length;
     const osName = `${os.type()} ${os.release()}`;
@@ -188,41 +341,43 @@ function getSystemInfo(): SystemInfo {
 }
 
 function printHeader() {
-    // Emit benchmark metadata as a fenced block for easy copying into documentation.
     const info = getSystemInfo();
     const currentDate = new Date().toISOString().split('T')[0];
     const benchmarkVersion = require('benchmark/package.json').version;
+    const comparedVersions = COMPARED_LIBRARY_VERSIONS
+        .map(item => `${item.label} ${item.version}`)
+        .join(', ');
 
     logLine('```');
     logLine(`benchmark.js v${benchmarkVersion}, ${info.osName}`);
     logLine(`${info.cpuModel.trim()}, ${info.logicalCores} logical cores`);
     logLine(`Node.js ${info.nodeVersion}`);
     logLine(`Date ${currentDate}`);
+    logLine(`Benchmark config: default minSamples=${BENCHMARK_RUN_CONFIG.defaultMinSamples}, maxTime=${BENCHMARK_RUN_CONFIG.defaultMaxTimeSec}s; heavy minSamples=${BENCHMARK_RUN_CONFIG.heavyMinSamples}, maxTime=${BENCHMARK_RUN_CONFIG.heavyMaxTimeSec}s`);
+    logLine(`Compared libraries: ${comparedVersions}`);
     logLine('```');
     logLine('');
 }
 
 function printResults(results: BenchmarkResult[]) {
-    // Organize results by query complexity so readers can compare like-for-like workloads.
-    const queryNames = queries.map(q => q.name);
+    const queryKeys = queries.map(q => q.key);
     const groupedResults: Record<string, BenchmarkResult[]> = {};
 
-    queryNames.forEach(name => {
-        groupedResults[name] = results.filter(r => r.name.includes(name));
+    queryKeys.forEach(key => {
+        groupedResults[key] = results.filter(r => r.name.includes(key));
     });
 
-    // Render each group as a Markdown table with a rawsql-ts baseline column.
-    Object.keys(groupedResults).forEach(groupName => {
-        logLine(`\n#### ${groupName}`);
+    Object.keys(groupedResults).forEach(groupKey => {
+        const query = queries.find(item => item.key === groupKey);
+        logLine(`\n#### ${query?.readerLabel ?? groupKey}`);
         logLine('| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |');
         logLine('|---------------------------------- |-----------:|----------:|----------:|--------------------------:|');
 
-        const groupResults = groupedResults[groupName];
+        const groupResults = groupedResults[groupKey];
         const rawsqlResult = groupResults.find(r => r.name.startsWith('rawsql-ts'));
         const rawsqlMean = rawsqlResult ? rawsqlResult.mean : null;
 
         groupResults.forEach(result => {
-            // Match the library segment before the query name for consistent labels.
             const methodMatch = result.name.match(/^([^]+)\s+Tokens\d+$/);
             const methodName = methodMatch ? methodMatch[1] : result.name;
             const name = methodName.padEnd(30).substring(0, 30);
@@ -250,13 +405,23 @@ function printResults(results: BenchmarkResult[]) {
 }
 
 function buildChartDataset(results: BenchmarkResult[]): ChartDataset {
-    // Generate QuickChart-compatible data for the README bar chart.
-    const labels = queries.map(query => query.name);
-    const methods = ['rawsql-ts', 'node-sql-parser', 'sql-formatter'];
+    const labels = queries.map(query => query.chartLabel);
+    const methods = [
+        {
+            label: 'rawsql-ts',
+            borderColor: 'rgba(54,162,235,1)',
+            backgroundColor: 'rgba(54,162,235,0.15)',
+        },
+        {
+            label: 'node-sql-parser',
+            borderColor: 'rgba(255,206,86,1)',
+            backgroundColor: 'rgba(255,206,86,0.15)',
+        }
+    ];
 
-    const datasets = methods.map(label => {
-        const data = labels.map(queryName => {
-            const match = results.find(result => result.name.startsWith(label) && result.name.endsWith(queryName));
+    const datasets = methods.map(method => {
+        const data = queries.map(query => {
+            const match = results.find(result => result.name.startsWith(method.label) && result.name.endsWith(query.key));
             if (!match) {
                 return null;
             }
@@ -266,8 +431,12 @@ function buildChartDataset(results: BenchmarkResult[]): ChartDataset {
         });
 
         return {
-            label,
-            data
+            label: method.label,
+            data,
+            borderColor: method.borderColor,
+            backgroundColor: method.backgroundColor,
+            fill: false,
+            tension: 0.2
         };
     });
 
@@ -278,7 +447,6 @@ function buildChartDataset(results: BenchmarkResult[]): ChartDataset {
 }
 
 function printChartDataset(results: BenchmarkResult[]) {
-    // Emit chart data as JSON so documentation can be updated without manual transcription.
     const dataset = buildChartDataset(results);
     logLine('#### Chart Dataset');
     logLine('```json');
@@ -288,7 +456,6 @@ function printChartDataset(results: BenchmarkResult[]) {
 }
 
 function writeReportFile(lines: string[]): string {
-    // Persist the Markdown report under ./tmp for downstream documentation updates.
     const timestamp = new Date().toISOString().replace(/[:]/g, '-');
     const tmpDir = path.resolve(__dirname, '../tmp');
     fs.mkdirSync(tmpDir, { recursive: true });
@@ -299,10 +466,18 @@ function writeReportFile(lines: string[]): string {
     return filePath;
 }
 
+function getBenchmarkOptions(queryKey: string): Benchmark.Options {
+    const isHeavy = queryKey === 'Tokens5000' || queryKey === 'Tokens12000';
+    return {
+        minSamples: isHeavy ? BENCHMARK_RUN_CONFIG.heavyMinSamples : BENCHMARK_RUN_CONFIG.defaultMinSamples,
+        maxTime: isHeavy ? BENCHMARK_RUN_CONFIG.heavyMaxTimeSec : BENCHMARK_RUN_CONFIG.defaultMaxTimeSec,
+    };
+}
+
 queries.forEach(query => {
-    suite.add(`rawsql-ts ${query.name}`, formatWithRawSql(query.sql));
-    suite.add(`node-sql-parser ${query.name}`, formatWithNodeSqlParser(query.sql));
-    suite.add(`sql-formatter ${query.name}`, formatWithSqlFormatter(query.sql));
+    const options = getBenchmarkOptions(query.key);
+    suite.add(`rawsql-ts ${query.key}`, parseWithRawSql(query.sql), options);
+    suite.add(`node-sql-parser ${query.key}`, parseWithNodeSqlParser(query.sql), options);
 });
 
 suite.on('cycle', () => {
@@ -310,7 +485,6 @@ suite.on('cycle', () => {
 });
 
 suite.on('complete', function (this: Benchmark.Suite) {
-    // Collect successful benchmarks for reporting once the suite finishes.
     const results = this.filter('successful').map((benchmark: BenchmarkCase) => ({
         name: benchmark.name,
         hz: benchmark.hz,

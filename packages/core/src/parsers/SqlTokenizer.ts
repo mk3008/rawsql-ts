@@ -13,6 +13,13 @@ import { TokenReaderManager } from '../tokenReaders/TokenReaderManager';
 import { TypeTokenReader } from '../tokenReaders/TypeTokenReader';
 import { StringUtils } from '../utils/stringUtils';
 
+const SELECT_LIST_MODIFIER_VALUES = new Set([
+    'all',
+    'distinct',
+    'distinct on',
+    'top',
+]);
+
 /**
  * Options for tokenization behavior
  */
@@ -99,6 +106,26 @@ export class SqlTokenizer {
      */
     private canRead(shift: number = 0): boolean {
         return !this.isEndOfInput(shift);
+    }
+
+    private isSelectListModifier(lexeme: Lexeme): boolean {
+        return SELECT_LIST_MODIFIER_VALUES.has(lexeme.value.toLowerCase());
+    }
+
+    private isMeaningfulSelectItemToken(lexeme: Lexeme): boolean {
+        const isSelectableOperator = (lexeme.type & TokenType.Operator) !== 0 && (lexeme.value === '*' || lexeme.value === 'exists');
+        if ((lexeme.type & TokenType.Identifier) !== 0 ||
+            (lexeme.type & TokenType.Literal) !== 0 ||
+            isSelectableOperator) {
+            return true;
+        }
+
+        if ((lexeme.type & TokenType.Command) !== 0) {
+            return !this.isSelectListModifier(lexeme);
+        }
+
+        return (lexeme.type & TokenType.Comma) === 0 &&
+            (lexeme.type & TokenType.Operator) === 0;
     }
 
     /**
@@ -212,7 +239,9 @@ export class SqlTokenizer {
         }
 
         const statementEnd = this.position;
-        const lexemes = this.buildLexemesFromTokenData(tokenData);
+        const lexemes = this.hasCommentMetadata(tokenData)
+            ? this.buildLexemesFromTokenData(tokenData)
+            : this.extractLexemes(tokenData);
         const nextPosition = this.skipPastTerminator(statementEnd);
 
         return {
@@ -225,6 +254,54 @@ export class SqlTokenizer {
         };
     }
 
+    private hasCommentMetadata(tokenData: Array<{
+        lexeme: Lexeme;
+        startPos: number;
+        endPos: number;
+        prefixComments: string[] | null;
+        suffixComments: string[] | null;
+    }>): boolean {
+        for (let i = 0; i < tokenData.length; i++) {
+            const token = tokenData[i];
+            if ((token.prefixComments && token.prefixComments.length > 0) ||
+                (token.suffixComments && token.suffixComments.length > 0) ||
+                (token.lexeme.comments && token.lexeme.comments.length > 0) ||
+                (token.lexeme.positionedComments && token.lexeme.positionedComments.length > 0)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private extractLexemes(tokenData: Array<{
+        lexeme: Lexeme;
+        startPos: number;
+        endPos: number;
+        prefixComments: string[] | null;
+        suffixComments: string[] | null;
+    }>): Lexeme[] {
+        const lexemes: Lexeme[] = new Array(tokenData.length);
+        const resolveLineColumn = this.createOrderedLineColumnResolver();
+        for (let i = 0; i < tokenData.length; i++) {
+            const token = tokenData[i];
+            const lexeme = token.lexeme;
+            const startInfo = resolveLineColumn(token.startPos);
+            const endInfo = resolveLineColumn(token.endPos);
+
+            // Keep position metadata behavior identical while skipping comment relocation work.
+            lexeme.position = {
+                startPosition: token.startPos,
+                endPosition: token.endPos,
+                startLine: startInfo.line,
+                startColumn: startInfo.column,
+                endLine: endInfo.line,
+                endColumn: endInfo.column,
+            };
+
+            lexemes[i] = lexeme;
+        }
+        return lexemes;
+    }
     private buildLexemesFromTokenData(tokenData: Array<{
         lexeme: Lexeme;
         startPos: number;
@@ -233,102 +310,112 @@ export class SqlTokenizer {
         suffixComments: string[] | null;
     }>): Lexeme[] {
         const lexemes: Lexeme[] = new Array(tokenData.length);
+        const resolveLineColumn = this.createOrderedLineColumnResolver();
+        let hasPositionedComments = false;
 
         for (let i = 0; i < tokenData.length; i++) {
             const current = tokenData[i];
             const lexeme = current.lexeme;
             const lexemeValue = lexeme.value;
 
-            // Redirect SELECT suffix comments to the first meaningful select item.
-            if (lexemeValue === 'select' && current.suffixComments && current.suffixComments.length > 0) {
-                const suffixComments = current.suffixComments;
-                let targetIndex = i + 1;
-                while (targetIndex < tokenData.length) {
-                    const target = tokenData[targetIndex];
-                    // Allow SELECT-prefix comments to bind to '*' tokens so they stay with the select list.
-                    const isStarOperator = (target.lexeme.type & TokenType.Operator) && target.lexeme.value === '*';
-                    if ((target.lexeme.type & TokenType.Identifier) ||
-                        (target.lexeme.type & TokenType.Literal) ||
-                        isStarOperator ||
-                        (!(target.lexeme.type & TokenType.Command) &&
-                         !(target.lexeme.type & TokenType.Comma) &&
-                         !(target.lexeme.type & TokenType.Operator))) {
+            // Most statements have no trailing comments, so skip forwarding logic early.
+            if (current.suffixComments && current.suffixComments.length > 0) {
+                // Redirect SELECT suffix comments to the first meaningful select item.
+                if (lexemeValue === 'select') {
+                    const suffixComments = current.suffixComments!;
+                    let targetIndex = i + 1;
+                    while (targetIndex < tokenData.length) {
+                        const target = tokenData[targetIndex];
+                        // Skip only SELECT list modifiers so command-started expressions still receive comments.
+                        if (this.isMeaningfulSelectItemToken(target.lexeme)) {
+                            if (!target.prefixComments) {
+                                target.prefixComments = [];
+                            }
+                            target.prefixComments.unshift(...suffixComments);
+                            current.suffixComments = null;
+                            break;
+                        }
+                        targetIndex++;
+                    }
+                }
+
+                if (lexemeValue === 'from') {
+                    const suffixComments = current.suffixComments!;
+                    let targetIndex = i + 1;
+                    while (targetIndex < tokenData.length) {
+                        const target = tokenData[targetIndex];
+                        // Attach FROM suffix comments to the immediately following source token.
+                        const isCommand = (target.lexeme.type & TokenType.Command) !== 0;
+                        if (!isCommand) {
+                            if (!target.prefixComments) {
+                                target.prefixComments = [];
+                            }
+                            target.prefixComments.unshift(...suffixComments);
+                            current.suffixComments = null;
+                            break;
+                        }
+                        targetIndex++;
+                    }
+                }
+
+                // Ensure commas push trailing comments onto the following token.
+                if (lexeme.type & TokenType.Comma) {
+                    const suffixComments = current.suffixComments!;
+                    const targetIndex = i + 1;
+                    if (targetIndex < tokenData.length) {
+                        const target = tokenData[targetIndex];
                         if (!target.prefixComments) {
                             target.prefixComments = [];
                         }
                         target.prefixComments.unshift(...suffixComments);
                         current.suffixComments = null;
-                        break;
                     }
-                    targetIndex++;
                 }
-            }
 
-            if (lexemeValue === 'from' && current.suffixComments && current.suffixComments.length > 0) {
-                const suffixComments = current.suffixComments;
-                let targetIndex = i + 1;
-                while (targetIndex < tokenData.length) {
-                    const target = tokenData[targetIndex];
-                    // Attach FROM suffix comments to the immediately following source token.
-                    const isCommand = (target.lexeme.type & TokenType.Command) !== 0;
-                    if (!isCommand) {
-                        if (!target.prefixComments) {
-                            target.prefixComments = [];
+                // Bridge set-operator suffix comments to the subsequent SELECT clause.
+                if (current.suffixComments) {
+                    const normalized = lexemeValue.toLowerCase();
+                    if (normalized === 'union' || normalized === 'intersect' || normalized === 'except') {
+                        const suffixComments = current.suffixComments!;
+                        let targetIndex = i + 1;
+                        while (targetIndex < tokenData.length) {
+                            const target = tokenData[targetIndex];
+                            if (target.lexeme.value.toLowerCase() === 'select') {
+                                if (!target.prefixComments) {
+                                    target.prefixComments = [];
+                                }
+                                target.prefixComments.unshift(...suffixComments);
+                                current.suffixComments = null;
+                                break;
+                            }
+                            targetIndex++;
                         }
-                        target.prefixComments.unshift(...suffixComments);
-                        current.suffixComments = null;
-                        break;
                     }
-                    targetIndex++;
                 }
             }
-
-            // Ensure commas push trailing comments onto the following token.
-            if ((lexeme.type & TokenType.Comma) && current.suffixComments && current.suffixComments.length > 0) {
-                const suffixComments = current.suffixComments;
-                let targetIndex = i + 1;
-                if (targetIndex < tokenData.length) {
-                    const target = tokenData[targetIndex];
-                    if (!target.prefixComments) {
-                        target.prefixComments = [];
-                    }
-                    target.prefixComments.unshift(...suffixComments);
-                    current.suffixComments = null;
-                }
-            }
-
-            // Bridge set-operator suffix comments to the subsequent SELECT clause.
-            if ((lexeme.value.toLowerCase() === 'union' ||
-                 lexeme.value.toLowerCase() === 'intersect' ||
-                 lexeme.value.toLowerCase() === 'except') &&
-                current.suffixComments && current.suffixComments.length > 0) {
-                const suffixComments = current.suffixComments;
-                let targetIndex = i + 1;
-                while (targetIndex < tokenData.length) {
-                    const target = tokenData[targetIndex];
-                    if (target.lexeme.value.toLowerCase() === 'select') {
-                        if (!target.prefixComments) {
-                            target.prefixComments = [];
-                        }
-                        target.prefixComments.unshift(...suffixComments);
-                        current.suffixComments = null;
-                        break;
-                    }
-                    targetIndex++;
-                }
-            }
-
             this.attachCommentsToLexeme(lexeme, current);
+            const startInfo = resolveLineColumn(current.startPos);
+            const endInfo = resolveLineColumn(current.endPos);
+
             // Attach source position metadata so downstream parsers can report precise locations.
             lexeme.position = {
                 startPosition: current.startPos,
                 endPosition: current.endPos,
-                ...this.getLineColumnInfo(current.startPos, current.endPos)
+                startLine: startInfo.line,
+                startColumn: startInfo.column,
+                endLine: endInfo.line,
+                endColumn: endInfo.column,
             };
+            if (lexeme.positionedComments && lexeme.positionedComments.length > 0) {
+                hasPositionedComments = true;
+            }
             lexemes[i] = lexeme;
         }
 
-        this.relocateOrderByComments(lexemes);
+        // Skip relocation pass when no positioned comments exist in this statement.
+        if (hasPositionedComments) {
+            this.relocateOrderByComments(lexemes);
+        }
         return lexemes;
     }
 
@@ -392,11 +479,18 @@ export class SqlTokenizer {
     // Attach comments to lexeme directly (no collection then assignment anti-pattern)
     private attachCommentsToLexeme(lexeme: Lexeme, tokenData: { prefixComments: string[] | null; suffixComments: string[] | null }): void {
         const newPositionedComments: { position: 'before' | 'after'; comments: string[] }[] = [];
+        const existingLegacyComments: string[] = [];
         const allLegacyComments: string[] = [];
 
         // Preserve existing positioned comments from token readers (e.g., CommandTokenReader)
         if (lexeme.positionedComments && lexeme.positionedComments.length > 0) {
             newPositionedComments.push(...lexeme.positionedComments);
+        }
+
+        // Preserve legacy comments from token readers so legacy consumers can still collect them.
+        if (lexeme.comments && lexeme.comments.length > 0) {
+            existingLegacyComments.push(...lexeme.comments);
+            allLegacyComments.push(...lexeme.comments);
         }
 
         // Add prefix comments as "before" positioned comments directly
@@ -420,8 +514,7 @@ export class SqlTokenizer {
         // Apply comments directly to lexeme (positioned comments take priority)
         if (newPositionedComments.length > 0) {
             lexeme.positionedComments = newPositionedComments;
-            // Clear legacy comments when positioned comments exist to avoid duplication
-            lexeme.comments = null;
+            lexeme.comments = existingLegacyComments.length > 0 ? existingLegacyComments : null;
         } else if (allLegacyComments.length > 0) {
             // Only set legacy comments if no positioned comments exist
             lexeme.comments = allLegacyComments;
@@ -439,7 +532,30 @@ export class SqlTokenizer {
      * @remarks This method updates the position pointer.
      */
     private readComment(): { position: number, lines: string[] | null } {
-        return StringUtils.readWhiteSpaceAndComment(this.input, this.position);
+        const pos = this.position;
+        const inputLength = this.input.length;
+
+        if (pos >= inputLength) {
+            return { position: pos, lines: null };
+        }
+
+        // Fast path: avoid full whitespace/comment scanner when current char cannot start either.
+        const code = this.input.charCodeAt(pos);
+        if (code !== 32 && code !== 9 && code !== 10 && code !== 13) {
+            if (code === 45) {
+                if (pos + 1 >= inputLength || this.input.charCodeAt(pos + 1) !== 45) {
+                    return { position: pos, lines: null };
+                }
+            } else if (code === 47) {
+                if (pos + 1 >= inputLength || this.input.charCodeAt(pos + 1) !== 42) {
+                    return { position: pos, lines: null };
+                }
+            } else {
+                return { position: pos, lines: null };
+            }
+        }
+
+        return StringUtils.readWhiteSpaceAndComment(this.input, pos);
     }
 
     /**
@@ -665,7 +781,24 @@ export class SqlTokenizer {
         };
     }
 
-    private ensureLineStartPositions(): number[] {
+
+    private createOrderedLineColumnResolver(): (position: number) => { line: number; column: number } {
+        const starts = this.ensureLineStartPositions();
+        let lineIndex = 0;
+
+        // Token positions are processed in ascending order, so a forward-only cursor avoids repeated binary searches.
+        return (position: number) => {
+            while (lineIndex + 1 < starts.length && starts[lineIndex + 1] <= position) {
+                lineIndex++;
+            }
+
+            const lineStart = starts[lineIndex];
+            return {
+                line: lineIndex + 1,
+                column: position - lineStart + 1,
+            };
+        };
+    }    private ensureLineStartPositions(): number[] {
         if (this.lineStartPositions) {
             return this.lineStartPositions;
         }

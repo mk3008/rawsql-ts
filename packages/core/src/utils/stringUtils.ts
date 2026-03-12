@@ -1,4 +1,4 @@
-﻿import { CharLookupTable } from "./charLookupTable";
+import { CharLookupTable } from "./charLookupTable";
 
 /**
  * Utilities for string operations during tokenization
@@ -157,54 +157,77 @@ export class StringUtils {
         const length = input.length;
 
         while (position < length) {
-            // Store current position
             const oldPosition = position;
-
-            // Skip whitespace first
             position = StringUtils.skipWhiteSpace(input, position);
             if (position !== oldPosition) {
                 continue;
             }
 
-            // Fast character code check
             const charCode = input.charCodeAt(position);
 
-            // '-'=45 (Line comment)
-            if (charCode === 45) {
-                const lineCommentResult = StringUtils.readLineComment(input, position);
-                if (lineCommentResult.newPosition !== position) {
-                    position = lineCommentResult.newPosition;
-                    if (lineCommentResult.comment) {
-                        if (lines === null) {
-                            lines = [];
-                        }
-                        lines.push(lineCommentResult.comment.trim());
-                    }
-                    continue;
+            // '--' line comment
+            if (charCode === 45 && position + 1 < length && input.charCodeAt(position + 1) === 45) {
+                const commentStart = position + 2;
+                position = commentStart;
+
+                while (position < length && input.charCodeAt(position) !== 10) {
+                    position++;
                 }
-            }
-            // '/'=47 (Block comment)
-            else if (charCode === 47) {
-                const blockCommentResult = StringUtils.readBlockComment(input, position);
-                if (blockCommentResult.newPosition !== position) {
-                    position = blockCommentResult.newPosition;
-                    if (blockCommentResult.comments) {
-                        if (lines === null) {
-                            lines = [];
-                        }
-                        lines.push(...blockCommentResult.comments);
+
+                const comment = input.slice(commentStart, position).trim();
+                if (comment) {
+                    if (lines === null) {
+                        lines = [];
                     }
-                    continue;
+                    lines.push(comment);
                 }
+                continue;
             }
 
-            // No more whitespace or comments found
+            // '/* ... */' block comment (excluding Oracle hint: /*+)
+            if (charCode === 47 && position + 1 < length && input.charCodeAt(position + 1) === 42) {
+                if (position + 2 < length && input.charCodeAt(position + 2) === 43) {
+                    break;
+                }
+
+                const contentStart = position + 2;
+                position = contentStart;
+                let closed = false;
+
+                while (position + 1 < length) {
+                    if (input.charCodeAt(position) === 42 && input.charCodeAt(position + 1) === 47) {
+                        const processedLines = this.processBlockCommentContent(input.slice(contentStart, position));
+                        position += 2;
+                        if (processedLines.length > 0) {
+                            if (lines === null) {
+                                lines = [];
+                            }
+                            lines.push(...processedLines);
+                        }
+                        closed = true;
+                        break;
+                    }
+                    position++;
+                }
+
+                if (!closed) {
+                    const processedLines = this.processBlockCommentContent(input.slice(contentStart));
+                    if (processedLines.length > 0) {
+                        if (lines === null) {
+                            lines = [];
+                        }
+                        lines.push(...processedLines);
+                    }
+                    position = length;
+                }
+                continue;
+            }
+
             break;
         }
 
         return { position, lines };
     }
-
     /**
      * Read a regular identifier.
      */

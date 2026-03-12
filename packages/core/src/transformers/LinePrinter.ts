@@ -61,7 +61,8 @@ export class LinePrinter {
         if (this.lines.length > 0) {
             const current = this.lines[this.lines.length - 1];
             if (current.text !== '') {
-                current.text = current.text.trimEnd() + this.newline;
+                const lineText = this.endsWithAsciiWhitespace(current.text) ? current.text.trimEnd() : current.text;
+                current.text = lineText + this.newline;
             }
         }
         this.lines.push(new PrintLine(level, ''));
@@ -73,11 +74,12 @@ export class LinePrinter {
      * @param text Text to append
      */
     appendText(text: string): void {
-        // Handle special comma cleanup first
-        if (this.cleanupLine(text)) {
+        // Handle special comma cleanup only when a comma token is appended.
+        if (text === ',' && this.cleanupLine()) {
             // If cleanup was performed, add comma to previous line
             const previousLine = this.lines[this.lines.length - 1];
-            previousLine.text = previousLine.text.trimEnd() + text;
+            const lineText = this.endsWithAsciiWhitespace(previousLine.text) ? previousLine.text.trimEnd() : previousLine.text;
+            previousLine.text = lineText + text;
             return;
         }
 
@@ -87,31 +89,61 @@ export class LinePrinter {
             workLine.text += text;
         }
     }
+    private endsWithAsciiWhitespace(text: string): boolean {
+        if (text.length === 0) {
+            return false;
+        }
 
+        const tail = text.charCodeAt(text.length - 1);
+        return tail === 32 || tail === 9 || tail === 10 || tail === 13;
+    }
     trimTrailingWhitespaceFromPreviousLine(): void {
         if (this.lines.length < 2) {
             return;
         }
+
         const previousLine = this.lines[this.lines.length - 2];
-        const newlineMatch = previousLine.text.match(/(\r?\n)$/);
-        const trailingNewline = newlineMatch ? newlineMatch[1] : '';
-        const content = trailingNewline
-            ? previousLine.text.slice(0, -trailingNewline.length)
-            : previousLine.text;
-        previousLine.text = content.replace(/[ \t]+$/, '') + trailingNewline;
+        const text = previousLine.text;
+        const lineEnd = this.findLineEndIndex(text);
+        let contentEnd = lineEnd;
+
+        // Trim only trailing spaces/tabs before a preserved newline suffix.
+        while (contentEnd > 0) {
+            const code = text.charCodeAt(contentEnd - 1);
+            if (code !== 32 && code !== 9) {
+                break;
+            }
+            contentEnd--;
+        }
+
+        if (contentEnd === lineEnd) {
+            return;
+        }
+
+        previousLine.text = text.slice(0, contentEnd) + text.slice(lineEnd);
     }
 
+    private findLineEndIndex(text: string): number {
+        if (text.endsWith('\r\n')) {
+            return text.length - 2;
+        }
+
+        if (text.endsWith('\n')) {
+            return text.length - 1;
+        }
+
+        return text.length;
+    }
     /**
      * Cleans up the current line for comma formatting.
      * For 'after' and 'none' comma styles, removes empty line when a comma is being added.
-     * @param text The text being processed
      * @returns true if cleanup was performed, false otherwise
      */
-    cleanupLine(text: string): boolean {
+    cleanupLine(): boolean {
         const workLine = this.getCurrentLine();
-        if (text === ',' && workLine.text.trim() === '' && this.lines.length > 1 && (this.commaBreak === 'after' || this.commaBreak === 'none')) {
+        if (this.isAsciiWhitespaceOnly(workLine.text) && this.lines.length > 1 && (this.commaBreak === 'after' || this.commaBreak === 'none')) {
             let previousIndex = this.lines.length - 2;
-            while (previousIndex >= 0 && this.lines[previousIndex].text.trim() === '') {
+            while (previousIndex >= 0 && this.isAsciiWhitespaceOnly(this.lines[previousIndex].text)) {
                 this.lines.splice(previousIndex, 1);
                 previousIndex--;
             }
@@ -129,14 +161,70 @@ export class LinePrinter {
         return false; // No cleanup needed
     }
 
+
+    private isAsciiWhitespaceOnly(text: string): boolean {
+        for (let i = 0; i < text.length; i++) {
+            const code = text.charCodeAt(i);
+            if (code !== 32 && code !== 9 && code !== 10 && code !== 13) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private lineHasTrailingComment(text: string): boolean {
-        // Strip simple quoted sections so comment markers inside literals are ignored.
-        const withoutStrings = text
-            .replace(/'([^']|'')*'/g, '')
-            .replace(/"([^"]|"")*"/g, '')
-            .trim();
-        // Treat any remaining '--' as a line comment marker so we never pull commas onto commented lines.
-        return withoutStrings.includes('--');
+        if (!text.includes('--')) {
+            return false;
+        }
+
+        if (!text.includes("'") && !text.includes('"')) {
+            return true;
+        }
+
+        let quote: number | null = null;
+
+        for (let i = 0; i < text.length - 1; i++) {
+            const current = text.charCodeAt(i);
+            const next = text.charCodeAt(i + 1);
+
+            if (quote === 39) {
+                if (current === 39) {
+                    if (next === 39) {
+                        i++;
+                        continue;
+                    }
+                    quote = null;
+                }
+                continue;
+            }
+
+            if (quote === 34) {
+                if (current === 34) {
+                    if (next === 34) {
+                        i++;
+                        continue;
+                    }
+                    quote = null;
+                }
+                continue;
+            }
+
+            if (current === 39) {
+                quote = 39;
+                continue;
+            }
+
+            if (current === 34) {
+                quote = 34;
+                continue;
+            }
+
+            if (current === 45 && next === 45) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     getCurrentLine(): PrintLine {
@@ -154,7 +242,7 @@ export class LinePrinter {
     isCurrentLineEmpty(): boolean {
         if (this.lines.length > 0) {
             const currentLine = this.lines[this.lines.length - 1];
-            return currentLine.text.trim() === '';
+            return this.isAsciiWhitespaceOnly(currentLine.text);
         }
         return true;
     }
@@ -169,3 +257,4 @@ export class PrintLine {
         this.text = text;
     }
 }
+

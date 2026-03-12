@@ -1,59 +1,61 @@
-﻿import { KeywordMatchResult } from "../parsers/KeywordParser";
+import { KeywordMatchResult } from "../parsers/KeywordParser";
+
+interface KeywordTrieNode {
+    children: Map<string, KeywordTrieNode>;
+    isFinal: boolean;
+}
 
 // Note: An object-based trie (string-keyed object) was tested, but benchmark results showed no improvement and sometimes worse performance for long queries.
-// Therefore, the original Map-based implementation is retained for best stability and speed.
-
+// Therefore, a Map-backed trie is retained while keeping terminal metadata on the node itself.
 export class KeywordTrie {
-    private root: Map<string, any> = new Map();
-    private currentNode: Map<string, any>;
-
-    // cache properties
-    private hasEndProperty: boolean = false;
-    private hasMoreProperties: boolean = false;
+    private readonly root: KeywordTrieNode = this.createNode();
+    private currentNode: KeywordTrieNode;
 
     constructor(keywords: string[][]) {
-        // initialize root node
-        for (const keyword of keywords) {
-            this.addKeyword(keyword);
+        // Build the keyword trie once so parse-time matching only walks existing nodes.
+        for (let i = 0; i < keywords.length; i++) {
+            this.addKeyword(keywords[i]);
         }
-        // set current node to root
         this.currentNode = this.root;
     }
 
-    private addKeyword(keyword: string[]) {
+    private createNode(): KeywordTrieNode {
+        return {
+            children: new Map<string, KeywordTrieNode>(),
+            isFinal: false,
+        };
+    }
+
+    private addKeyword(keyword: string[]): void {
         let node = this.root;
-        for (const word of keyword) {
-            if (!node.has(word)) {
-                node.set(word, new Map());
+        for (let i = 0; i < keyword.length; i++) {
+            const word = keyword[i];
+            let nextNode = node.children.get(word);
+            if (!nextNode) {
+                nextNode = this.createNode();
+                node.children.set(word, nextNode);
             }
-            node = node.get(word);
+            node = nextNode;
         }
-        node.set("__end__", true);
+        node.isFinal = true;
     }
 
     public reset(): void {
         this.currentNode = this.root;
-        this.hasEndProperty = false;
-        this.hasMoreProperties = false;
     }
 
     public pushLexeme(lexeme: string): KeywordMatchResult {
-        if (!this.currentNode.has(lexeme)) {
+        const nextNode = this.currentNode.children.get(lexeme);
+        if (!nextNode) {
             return KeywordMatchResult.NotAKeyword;
         }
 
-        // move to next node
-        this.currentNode = this.currentNode.get(lexeme);
+        this.currentNode = nextNode;
 
-        // Cache property checks to avoid repeated operations
-        this.hasEndProperty = this.currentNode.has("__end__");
-        this.hasMoreProperties = this.currentNode.size > (this.hasEndProperty ? 1 : 0);
-
-        if (this.hasEndProperty && !this.hasMoreProperties) {
-            return KeywordMatchResult.Final;
-        }
-        if (this.hasEndProperty && this.hasMoreProperties) {
-            return KeywordMatchResult.PartialOrFinal;
+        if (nextNode.isFinal) {
+            return nextNode.children.size === 0
+                ? KeywordMatchResult.Final
+                : KeywordMatchResult.PartialOrFinal;
         }
 
         return KeywordMatchResult.PartialOnly;
