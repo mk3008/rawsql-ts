@@ -1949,9 +1949,15 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const afterComments = arg.getPositionedComments('after');
 
         if (beforeComments.length > 0) {
-            const commentTokens = this.createInlineCommentSequence(beforeComments);
-            token.innerTokens.push(...commentTokens);
-            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            if (arg.value instanceof CaseExpression) {
+                const commentBlocks = this.createCommentBlocks(beforeComments);
+                token.innerTokens.push(...commentBlocks);
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.commentNewline, ''));
+            } else {
+                const commentTokens = this.createInlineCommentSequence(beforeComments);
+                token.innerTokens.push(...commentTokens);
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            }
         }
 
         token.innerTokens.push(this.visit(arg.value));
@@ -4057,5 +4063,4 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         return component.value;
     }
 }
-
 
