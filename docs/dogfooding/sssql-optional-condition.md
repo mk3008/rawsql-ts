@@ -4,7 +4,7 @@ title: SSSQL Optional-Condition Dogfooding
 
 # SSSQL Optional-Condition Dogfooding
 
-This scenario checks whether an AI agent or maintainer reaches for SSSQL first when the request is "add an optional condition" rather than falling back to SQL string concatenation or `WHERE 1 = 1` assembly.
+This scenario checks whether an AI agent or maintainer reaches for SSSQL first when the request is "add an optional condition" rather than falling back to SQL string concatenation, `WHERE 1 = 1` assembly, or redundant LEFT JOIN authoring plus later cleanup.
 
 ## Goal
 
@@ -67,7 +67,8 @@ when the request is just "add optional filters", SSSQL should be the first succe
 
 Treat these responses as dogfooding regressions:
 
-- building SQL by concatenating `AND ...` fragments first
+- building SQL by concatenating AND ... fragments first
+- expressing routine optional predicates as redundant LEFT JOINs and hoping unused-join cleanup removes them later
 - requiring `WHERE 1 = 1` as the primary authoring pattern
 - widening pruning support instead of keeping unsupported shapes exact no-op
 - hiding the optional-filter intent outside the SQL source

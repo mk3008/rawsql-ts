@@ -29,6 +29,7 @@ describe('SSSQL dogfooding', () => {
         expect(authoredSql).toContain('(:brand_name is null or p.brand_name = :brand_name)');
         expect(authoredSql).toContain(':category_name is null or exists');
         expect(authoredSql).not.toContain('where 1 = 1');
+        expect(authoredSql).not.toContain('left join');
 
         const prunedQuery = builder.buildQuery(sql, {
             optionalConditionParameters: {

@@ -140,6 +140,7 @@ Every projection change runs after pagination and before the optimizer passes, s
 - `removeUnusedCtes`: removes SELECT-only, non-recursive CTEs that never feed the final query (including chained dependencies) while leaving data-modifying, recursive, or otherwise ambiguous CTEs untouched.
 
 Both options must be explicitly enabled via `QueryBuildOptions` (or builder defaults) and rely on AST-driven reference analysis rather than string matching. Supplying accurate `schemaInfo` metadata is critical for safely pruning joins, and the fixed-point updater ensures cascading deletions are handled predictably.
+`optionalConditionParameters` is the preferred first move for routine optional predicates. Do not model ordinary optional filters as redundant LEFT JOIN branches just to rely on `removeUnusedLeftJoins` later.
 `optionalConditionParameters` adds a separate opt-in pass for truthful SQL branches shaped like `(:p IS NULL OR ...)`. Only explicitly listed parameter names are inspected, and `null`/`undefined` are treated as absent-equivalent for those targets. This means you do not need a `WHERE 1 = 1` sentinel for the pruning pass to remove the final `WHERE` clause when the optional branch is the only condition.
 
 ```ts
