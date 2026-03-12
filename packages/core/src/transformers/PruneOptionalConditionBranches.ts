@@ -24,7 +24,14 @@ const isBinaryOperator = (expression: ValueComponent, operator: string): express
 };
 
 const unwrapSingleOuterParen = (expression: ValueComponent): ValueComponent => {
-    return expression instanceof ParenExpression ? expression.expression : expression;
+    let candidate = expression;
+
+    // Generated SQL often nests harmless wrapper parentheses, so peel them before shape matching.
+    while (candidate instanceof ParenExpression) {
+        candidate = candidate.expression;
+    }
+
+    return candidate;
 };
 
 const collectTopLevelAndTerms = (expression: ValueComponent): ValueComponent[] => {

@@ -45,6 +45,19 @@ describe('pruneOptionalConditionBranches', () => {
         expect(formattedSql).not.toContain(':brand_name');
     });
 
+    it('prunes a supported branch even when redundant outer parentheses are nested', () => {
+        const sql = [
+            'SELECT p.product_id',
+            'FROM products p',
+            'WHERE (((:brand_name IS NULL OR p.brand_name = :brand_name)))'
+        ].join('\n');
+
+        const formattedSql = formatSql(sql, { brand_name: null });
+
+        expect(formattedSql).toBe('select "p"."product_id" from "products" as "p"');
+        expect(formattedSql).not.toContain('where');
+        expect(formattedSql).not.toContain(':brand_name');
+    });
     it('prunes a top-level optional exists branch when the targeted parameter is undefined', () => {
         const sql = `
             SELECT p.product_id
