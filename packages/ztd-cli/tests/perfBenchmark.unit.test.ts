@@ -811,3 +811,139 @@ test('toPerfPlannedSteps drops scalar-filter pseudo-steps before mapping execute
     expect.objectContaining({ role: 'final-query', target: 'FINAL_QUERY' })
   ]);
 });
+
+test('runPerfBenchmark dry-run discovers QuerySpec perf guidance from sql-root relative sqlFile', async () => {
+  const workspace = createSqlWorkspace('perf-benchmark-query-spec', path.join('src', 'sql', 'reports', 'sales.sql'));
+  const specFile = path.join(workspace.rootDir, 'src', 'catalog', 'specs', 'sales.spec.ts');
+  mkdirSync(path.dirname(specFile), { recursive: true });
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      select id
+      from public.sales
+    `,
+    'utf8'
+  );
+  writeFileSync(
+    specFile,
+    `
+      export const salesSpec = {
+        id: 'reports.sales',
+        sqlFile: 'reports/sales.sql',
+        params: { shape: 'named', example: {} },
+        output: { example: { id: 1 } },
+        metadata: {
+          perf: {
+            expectedScale: 'large',
+            expectedInputRows: 50000,
+            expectedOutputRows: 200
+          }
+        }
+      };
+    `,
+    'utf8'
+  );
+
+  const report = await runPerfBenchmark({
+    rootDir: workspace.rootDir,
+    queryFile: workspace.sqlFile,
+    strategy: 'direct',
+    material: [],
+    mode: 'completion',
+    repeat: 3,
+    warmup: 0,
+    classifyThresholdSeconds: 60,
+    timeoutMinutes: 5,
+    save: false,
+    dryRun: true,
+  });
+
+  expect(report.spec_guidance).toMatchObject({
+    spec_id: 'reports.sales',
+    expected_scale: 'large',
+    expected_input_rows: 50000,
+    expected_output_rows: 200,
+    review_policy: 'strongly-recommended',
+    evidence_status: 'missing',
+  });
+  expect(report.recommended_actions).toEqual(expect.arrayContaining([
+    expect.objectContaining({ action: 'capture-perf-evidence', priority: 'high' })
+  ]));
+
+  const text = formatPerfBenchmarkReport(report, 'text');
+  expect(text).toContain('Query spec guidance:');
+  expect(text).toContain('expected_scale: large');
+  expect(text).toContain('evidence_status: missing');
+});
+
+test('runPerfBenchmark dry-run warns when perf seed rows undershoot QuerySpec expected input rows', async () => {
+  const workspace = createSqlWorkspace('perf-benchmark-query-spec-seed', path.join('src', 'sql', 'reports', 'orders.sql'));
+  const specFile = path.join(workspace.rootDir, 'src', 'catalog', 'specs', 'orders.spec.ts');
+  const seedFile = path.join(workspace.rootDir, 'perf', 'seed.yml');
+  mkdirSync(path.dirname(specFile), { recursive: true });
+  mkdirSync(path.dirname(seedFile), { recursive: true });
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      select id
+      from public.orders
+    `,
+    'utf8'
+  );
+  writeFileSync(
+    specFile,
+    `
+      export const ordersSpec = {
+        id: 'reports.orders',
+        sqlFile: 'src/sql/reports/orders.sql',
+        params: { shape: 'named', example: {} },
+        output: { example: { id: 1 } },
+        metadata: {
+          perf: {
+            expectedScale: 'medium',
+            expectedInputRows: 1000
+          }
+        }
+      };
+    `,
+    'utf8'
+  );
+  writeFileSync(
+    seedFile,
+    [
+      'seed: 123',
+      'tables:',
+      '  orders:',
+      '    rows: 12',
+      'columns: {}',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+
+  const report = await runPerfBenchmark({
+    rootDir: workspace.rootDir,
+    queryFile: workspace.sqlFile,
+    strategy: 'direct',
+    material: [],
+    mode: 'completion',
+    repeat: 3,
+    warmup: 0,
+    classifyThresholdSeconds: 60,
+    timeoutMinutes: 5,
+    save: false,
+    dryRun: true,
+  });
+
+  expect(report.spec_guidance).toMatchObject({
+    spec_id: 'reports.orders',
+    expected_scale: 'medium',
+    expected_input_rows: 1000,
+    review_policy: 'recommended',
+    fixture_rows_available: 12,
+    fixture_rows_status: 'undersized',
+  });
+  expect(report.recommended_actions).toEqual(expect.arrayContaining([
+    expect.objectContaining({ action: 'increase-perf-fixture-scale' })
+  ]));
+});
