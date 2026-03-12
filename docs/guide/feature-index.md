@@ -60,7 +60,8 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Spec-Change Scenarios | [guide/spec-change-scenarios](./spec-change-scenarios.md) | Quick reference for common changes |
 | Query Uses Overview | [guide/query-uses-overview](./query-uses-overview.md) | Why static analysis beats grep, human vs machine output |
 | Query Uses Impact Checks | [guide/query-uses-impact-checks](./query-uses-impact-checks.md) | Full option reference, scenario playbook, troubleshooting |
-| SQL Tool Happy Paths | [guide/sql-tool-happy-paths](./sql-tool-happy-paths.md) | Decide whether to start with query plan, perf, query uses, or telemetry |
+| SQL Tool Happy Paths | [guide/sql-tool-happy-paths](./sql-tool-happy-paths.md) | Decide whether to start with query plan, perf, query uses, telemetry, or SSSQL |
+| What Is SSSQL? | [guide/sssql-overview](./sssql-overview.md) | Decide whether truthful optional-condition SQL is the right first move |
 | ztd-cli Agent Interface | [guide/ztd-cli-agent-interface](./ztd-cli-agent-interface.md) | Machine-readable CLI usage for automation and AI agents |
 | ztd describe schema | [guide/ztd-cli-describe-schema](./ztd-cli-describe-schema.md) | Contract details for `ztd describe` JSON payloads |
 | ztd-cli measurement inventory | [guide/ztd-cli-measurement-inventory](./ztd-cli-measurement-inventory.md) | Audit current timing/profiling surfaces before adding OpenTelemetry |
@@ -69,10 +70,10 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | ztd-cli telemetry philosophy | [guide/ztd-cli-telemetry-philosophy](./ztd-cli-telemetry-philosophy.md) | Why telemetry exists, why it stays opt-in, and which goals are explicitly out of scope |
 | Telemetry Dogfooding Scenarios | [dogfooding/telemetry-dogfooding](../dogfooding/telemetry-dogfooding.md) | Regression-ready telemetry investigation loops for query uses, model-gen, and perf run |
 | SQL debug recovery dogfooding | [dogfooding/sql-debug-recovery](../dogfooding/sql-debug-recovery.md) | End-to-end loop for broken long-CTE recovery, safe patching, and direct-vs-decomposed perf comparison |
+| SSSQL optional-condition dogfooding | [dogfooding/sssql-optional-condition](../dogfooding/sssql-optional-condition.md) | Confirms that optional-filter requests choose truthful SSSQL branches before dynamic SQL assembly |
 | Test documentation dogfooding | [dogfooding/test-documentation](../dogfooding/test-documentation.md) | Human-readable export loop for catalog purpose, fixtures, and happy-path test coverage |
 | Validation (Zod) | [recipes/validation-zod](../recipes/validation-zod.md) | Wire Zod schemas |
 | Validation (ArkType) | [recipes/validation-arktype](../recipes/validation-arktype.md) | Wire ArkType schemas |
 | SQL catalog recipe | [recipes/sql-contract](../recipes/sql-contract.md) | Catalog executor patterns |
 | Execution scope | [guide/execution-scope](./execution-scope.md) | Transaction and connection control |
 | ZTD Theory | [guide/ztd-theory](./ztd-theory.md) | Conceptual foundation |
-

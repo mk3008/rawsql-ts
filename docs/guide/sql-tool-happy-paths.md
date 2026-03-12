@@ -12,6 +12,7 @@ Use it when the problem is not "how do I use every command?" but "which command 
 | I need to confirm where a table or column is used before changing it | `ztd query uses <target>` | `ztd query lint <path>` | Telemetry |
 | I need timing, trace export, or machine-readable execution evidence | Telemetry mode for the command under investigation | The structural command that produced the suspicious result | Starting with telemetry before the SQL shape is known |
 | I need to inspect generated SQL or rewritten predicates | `ztd query plan <sql-file>` plus the focused SQL/debug workflow for the scenario | Integration or DB-backed verification | `query uses` |
+| I need to add optional search filters without falling back to SQL concatenation | SSSQL truthful branches plus `optionalConditionParameters` | Focused pruning verification in unit tests | Telemetry, `query uses` |
 
 ## Recommended dogfooding loop for SQL pipeline work
 
@@ -73,6 +74,8 @@ Saved telemetry regression scenarios live in [Telemetry Dogfooding Scenarios](..
 
 Saved SQL debug recovery scenarios live in [SQL Debug Recovery Dogfooding](../dogfooding/sql-debug-recovery.md).
 
+Saved SSSQL optional-condition scenarios live in [SSSQL Optional-Condition Dogfooding](../dogfooding/sssql-optional-condition.md).
+
 ## Current saved dogfooding surfaces
 
 The current routing now has saved regression scenarios for the following previously weak areas:
@@ -81,5 +84,6 @@ The current routing now has saved regression scenarios for the following previou
 |-----------|----------------|----------------|
 | Telemetry | `query uses`, `model-gen`, and `perf run --dry-run` timelines | Keeps phase attribution stable when the command result is correct but the boundary between phases is not. |
 | SQL/debug flow | Long-CTE recovery loop with `query outline`, `query lint`, `query slice`, `query patch apply`, and `perf run` | Preserves the shortest command sequence that is enough to decide the next repair or tuning step. |
+| SSSQL authoring | Optional-condition request -> truthful SQL branch -> explicit pruning parameters | Keeps optional-filter requests on the SQL-first path instead of regressing to string-built WHERE assembly. |
 
 When a tool keeps existing but does not become the natural first step in dogfooding, add a scenario that makes its happy path unavoidable.

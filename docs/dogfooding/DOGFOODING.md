@@ -273,9 +273,10 @@ Note: ztd lint validates SQL via Postgres. When queries contain placeholders ($1
 For focused companion flows, use these scenario documents instead of expanding this backend-focused harness inline:
 
 - [SQL Debug Recovery Dogfooding](./sql-debug-recovery.md)
+- [SSSQL Optional-Condition Dogfooding](./sssql-optional-condition.md)
 - [Test Documentation Dogfooding](./test-documentation.md)
 
-Those companion scenarios cover broken long-CTE SQL recovery, query graph / query slice / query patch apply usage, direct-vs-decomposed perf evidence loops, and the human-readable test documentation export path.
+Those companion scenarios cover broken long-CTE SQL recovery, query graph / query slice / query patch apply usage, truthful optional-condition authoring with SSSQL, direct-vs-decomposed perf evidence loops, and the human-readable test documentation export path.
 ## 8) Recommended run skeleton
 
 Use this order unless a hard blocker appears.
@@ -289,5 +290,3 @@ Use this order unless a hard blocker appears.
 7. Regenerate affected artifacts and tests.
 8. Run verification commands.
 9. Produce LOG and REPORT files.
-
-
