@@ -15,9 +15,18 @@ import {
 /**
  * Describes execution hints that runtime adapters can inspect without modifying SQL assets.
  */
+export type QuerySpecExpectedScale = 'tiny' | 'small' | 'medium' | 'large' | 'batch'
+
+export interface QuerySpecPerformanceMetadata {
+  expectedScale?: QuerySpecExpectedScale
+  expectedInputRows?: number
+  expectedOutputRows?: number
+}
+
 export interface QuerySpecMetadata {
   material?: string[]
   scalarMaterial?: string[]
+  perf?: QuerySpecPerformanceMetadata
 }
 
 /**
@@ -126,6 +135,54 @@ function cloneMetadataIdentifierList(
   })
 }
 
+const expectedScaleValues = new Set<QuerySpecExpectedScale>([
+  'tiny',
+  'small',
+  'medium',
+  'large',
+  'batch',
+])
+
+function cloneQuerySpecPerfNumber(
+  specId: string,
+  key: 'expectedInputRows' | 'expectedOutputRows',
+  value?: number
+): number | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  if (!Number.isFinite(value) || value < 0) {
+    throw new ContractViolationError(
+      `Spec "${specId}" declares invalid metadata.perf.${key}; expected a non-negative finite number.`,
+      specId
+    )
+  }
+  return value
+}
+
+function cloneQuerySpecPerfMetadata(
+  specId: string,
+  perf?: QuerySpecPerformanceMetadata
+): QuerySpecPerformanceMetadata | undefined {
+  if (!perf) {
+    return undefined
+  }
+
+  const expectedScale = perf.expectedScale
+  if (expectedScale !== undefined && !expectedScaleValues.has(expectedScale)) {
+    throw new ContractViolationError(
+      `Spec "${specId}" declares invalid metadata.perf.expectedScale "${expectedScale}".`,
+      specId
+    )
+  }
+
+  return {
+    expectedScale,
+    expectedInputRows: cloneQuerySpecPerfNumber(specId, 'expectedInputRows', perf.expectedInputRows),
+    expectedOutputRows: cloneQuerySpecPerfNumber(specId, 'expectedOutputRows', perf.expectedOutputRows),
+  }
+}
+
 function cloneQuerySpecMetadata(
   specId: string,
   metadata?: QuerySpecMetadata
@@ -141,6 +198,7 @@ function cloneQuerySpecMetadata(
       'scalarMaterial',
       metadata.scalarMaterial
     ),
+    perf: cloneQuerySpecPerfMetadata(specId, metadata.perf),
   }
 }
 
