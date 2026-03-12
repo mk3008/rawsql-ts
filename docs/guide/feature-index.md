@@ -69,8 +69,10 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | ztd-cli telemetry philosophy | [guide/ztd-cli-telemetry-philosophy](./ztd-cli-telemetry-philosophy.md) | Why telemetry exists, why it stays opt-in, and which goals are explicitly out of scope |
 | Telemetry Dogfooding Scenarios | [dogfooding/telemetry-dogfooding](../dogfooding/telemetry-dogfooding.md) | Regression-ready telemetry investigation loops for query uses, model-gen, and perf run |
 | SQL debug recovery dogfooding | [dogfooding/sql-debug-recovery](../dogfooding/sql-debug-recovery.md) | End-to-end loop for broken long-CTE recovery, safe patching, and direct-vs-decomposed perf comparison |
+| Test documentation dogfooding | [dogfooding/test-documentation](../dogfooding/test-documentation.md) | Human-readable export loop for catalog purpose, fixtures, and happy-path test coverage |
 | Validation (Zod) | [recipes/validation-zod](../recipes/validation-zod.md) | Wire Zod schemas |
 | Validation (ArkType) | [recipes/validation-arktype](../recipes/validation-arktype.md) | Wire ArkType schemas |
 | SQL catalog recipe | [recipes/sql-contract](../recipes/sql-contract.md) | Catalog executor patterns |
 | Execution scope | [guide/execution-scope](./execution-scope.md) | Transaction and connection control |
 | ZTD Theory | [guide/ztd-theory](./ztd-theory.md) | Conceptual foundation |
+

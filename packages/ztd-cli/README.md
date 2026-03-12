@@ -607,7 +607,7 @@ Use DDL such as `CREATE TABLE public.users (...)` in `ztd/ddl/public.sql`, keep 
 
 `ztd-cli` telemetry is opt-in investigation tooling for dogfooding, debugging, and optimization. It is intentionally outside the default happy path, it must not become mandatory for published-package usage, and production embedding/export stays optional and off by default.
 
-Read the full guidance in [ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md), [ztd-cli Telemetry Policy](../../docs/guide/ztd-cli-telemetry-policy.md), [ztd-cli Telemetry Export Modes](../../docs/guide/ztd-cli-telemetry-export-modes.md), [Telemetry Dogfooding Scenarios](../../docs/dogfooding/telemetry-dogfooding.md), and [SQL Debug Recovery Dogfooding](../../docs/dogfooding/sql-debug-recovery.md).
+Read the full guidance in [ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md), [ztd-cli Telemetry Policy](../../docs/guide/ztd-cli-telemetry-policy.md), [ztd-cli Telemetry Export Modes](../../docs/guide/ztd-cli-telemetry-export-modes.md), [Telemetry Dogfooding Scenarios](../../docs/dogfooding/telemetry-dogfooding.md), [SQL Debug Recovery Dogfooding](../../docs/dogfooding/sql-debug-recovery.md), and [Test Documentation Dogfooding](../../docs/dogfooding/test-documentation.md).
 ## Further Reading
 
 - Local-source quick start:
@@ -637,3 +637,4 @@ This mode emits `src/local/sql-contract.ts`, links `@rawsql-ts/sql-contract` via
 ## License
 
 MIT
+
