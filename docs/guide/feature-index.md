@@ -62,6 +62,7 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Query Uses Impact Checks | [guide/query-uses-impact-checks](./query-uses-impact-checks.md) | Full option reference, scenario playbook, troubleshooting |
 | SQL Tool Happy Paths | [guide/sql-tool-happy-paths](./sql-tool-happy-paths.md) | Decide whether to start with query plan, perf, query uses, telemetry, or SSSQL |
 | What Is SSSQL? | [guide/sssql-overview](./sssql-overview.md) | Decide whether truthful optional-condition SQL is the right first move |
+| ztd-cli SSSQL Authoring | [guide/ztd-cli-sssql-authoring](./ztd-cli-sssql-authoring.md) | Keep optional-condition requests on the SQL-first path while authoring ZTD SQL assets |
 | ztd-cli Agent Interface | [guide/ztd-cli-agent-interface](./ztd-cli-agent-interface.md) | Machine-readable CLI usage for automation and AI agents |
 | ztd describe schema | [guide/ztd-cli-describe-schema](./ztd-cli-describe-schema.md) | Contract details for `ztd describe` JSON payloads |
 | ztd-cli measurement inventory | [guide/ztd-cli-measurement-inventory](./ztd-cli-measurement-inventory.md) | Audit current timing/profiling surfaces before adding OpenTelemetry |
