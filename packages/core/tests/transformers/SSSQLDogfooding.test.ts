@@ -45,4 +45,20 @@ describe('SSSQL dogfooding', () => {
         expect(prunedSql).not.toContain(':category_name');
         expect(prunedSql).not.toContain('where');
     });
+
+    it('dogfood: optional-condition prompts stay on the SQL-first path instead of join cleanup', () => {
+        const authoredPrompt = [
+            'add an optional filter to src/sql/products/list_products.sql',
+            'keep one SQL file',
+            'regenerate the QuerySpec with ztd model-gen if needed',
+        ].join(' ');
+
+        const promptShape = normalizeSql(authoredPrompt);
+        expect(promptShape).toContain('optional filter');
+        expect(promptShape).toContain('src/sql/products/list_products.sql');
+        expect(promptShape).toContain('ztd model-gen');
+        expect(promptShape).not.toContain('left join');
+        expect(promptShape).not.toContain('removeunusedleftjoins');
+        expect(promptShape).not.toContain('where 1 = 1');
+    });
 });

@@ -594,13 +594,36 @@ Use truthful branches such as:
 where (:brand_name is null or p.brand_name = :brand_name)
 ```
 
+A minimal end-to-end authoring loop looks like this:
+
+```sql
+-- src/sql/products/list_products.sql
+select
+  p.product_id,
+  p.product_name,
+  p.brand_name
+from public.products p
+where (:brand_name is null or p.brand_name = :brand_name)
+order by p.product_name
+```
+
+```bash
+npx ztd model-gen src/sql/products/list_products.sql \
+  --probe-mode ztd \
+  --sql-root src/sql \
+  --out src/catalog/specs/products/list-products.spec.ts
+npx ztd lint src/sql/products/list_products.sql
+npx vitest run
+```
+
 This keeps the saved SQL asset readable, probeable, and reviewable in the normal ZTD loop:
 
-1. edit the SQL file
+1. edit the SQL file under `src/sql/`
 2. run `ztd model-gen --probe-mode ztd` if the contract changed
 3. run `ztd lint` and tests
+4. wire `optionalConditionParameters` in the runtime layer only to prune already-truthful branches
 
-When the runtime layer uses `rawsql-ts`, pair that SQL with `DynamicQueryBuilder` and `optionalConditionParameters` instead of inventing a separate `WHERE` concatenation path.
+When the runtime layer uses `rawsql-ts`, pair that SQL with `DynamicQueryBuilder` and `optionalConditionParameters` instead of inventing a separate `WHERE` concatenation path. Do not fall back to redundant `LEFT JOIN` scaffolding plus `removeUnusedLeftJoins` for ordinary optional filters.
 
 Read more:
 

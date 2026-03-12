@@ -76,6 +76,70 @@ Use `ztd-cli` to keep the SQL-first loop tight:
 
 `ztd-cli` should help validate the authored SQL, not push the project toward non-SQL-first assembly for ordinary optional filters.
 
+## End-to-end authoring example
+
+Use a single SQL asset as the source of truth:
+
+```sql
+-- src/sql/products/list_products.sql
+select
+  p.product_id,
+  p.product_name,
+  p.brand_name
+from public.products p
+where (:brand_name is null or p.brand_name = :brand_name)
+  and (:category_name is null or exists (
+    select 1
+    from public.product_categories pc
+    join public.categories c
+      on c.category_id = pc.category_id
+    where pc.product_id = p.product_id
+      and c.category_name = :category_name
+  ))
+order by p.product_name
+```
+
+Then run the normal ZTD loop:
+
+```bash
+ztd model-gen src/sql/products/list_products.sql \
+  --probe-mode ztd \
+  --sql-root src/sql \
+  --out src/catalog/specs/products/list-products.spec.ts
+ztd lint src/sql/products/list_products.sql
+vitest run
+```
+
+If the runtime layer uses `rawsql-ts`, keep the pruning contract explicit instead of inventing a second SQL assembly path:
+
+```ts
+const query = builder.buildQuery(sql, {
+  optionalConditionParameters: {
+    brand_name: input.brandName ?? null,
+    category_name: input.categoryName ?? null,
+  },
+});
+```
+
+This is the intended flow for prompts such as "add an optional filter to `src/sql/products/list_products.sql`" or "make category search optional without splitting the SQL file".
+
+## Agent prompt routing
+
+When an AI or scripted caller receives requests like these, the first response should stay on the SQL-first path:
+
+- "Add an optional filter to `src/sql/products/list_products.sql`."
+- "Make `brand_name` optional without branching the repository method."
+- "Support category filtering only when the value is present."
+
+A good response shape is:
+
+1. edit the SQL asset with truthful optional predicates
+2. rerun `ztd model-gen --probe-mode ztd` if the contract changed
+3. rerun `ztd lint` and tests
+4. wire `optionalConditionParameters` only for branch pruning
+
+Do not steer these requests toward string-built `WHERE` concatenation or redundant `LEFT JOIN` scaffolding plus later cleanup.
+
 ## Read next
 
 - [What Is SSSQL?](./sssql-overview.md)
