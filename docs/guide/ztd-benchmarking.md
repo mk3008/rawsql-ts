@@ -21,6 +21,17 @@ For perf sandbox runs, keep these rules explicit:
 
 See [Perf Tuning Decision Guide](./perf-tuning-decision-guide.md) for the index-vs-pipeline rubric.
 
+## What to hand to an agent
+
+When delegating perf work to an AI or another engineer, provide these artifacts together:
+
+- the SQL asset path and matching QuerySpec metadata.perf block
+- the current `perf/seed.yml` row counts for involved tables
+- the relevant `ztd/ddl/*.sql` file names plus any index definitions under discussion
+- the latest `ztd perf run` report, or a clear note that no captured plan exists yet
+
+This package of evidence is what lets the next person decide whether the branch is index-first, pipeline-first, or capture-plan-first.
+
 ## What It Measures
 
 - End-to-end wall-clock time per scenario, including runner startup when applicable.

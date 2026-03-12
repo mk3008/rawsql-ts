@@ -17,6 +17,17 @@ Use this scenario when a prompt sounds like:
 - `perf/seed.yml` large enough to approximate the intended workload.
 - `ztd/ddl/*.sql` containing every physical table and every index you expect the perf sandbox to use.
 
+## Prompt contract
+
+A good dogfooding prompt for this scenario should say all of the following explicitly:
+
+- how large the query is expected to be in production
+- whether the concern sounds like scan pressure, join pressure, or repeated intermediate work
+- which DDL/index definitions should already exist in the perf sandbox
+- whether the repo already has a saved perf run or whether the first task is evidence capture
+
+If the prompt omits those points, the scenario is not complete yet. The first repair is to gather the missing perf evidence, not to guess the tuning branch.
+
 ## Happy-path loop
 
 1. Confirm `metadata.perf` in the QuerySpec.

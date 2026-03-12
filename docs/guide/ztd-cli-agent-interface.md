@@ -14,6 +14,9 @@
 - The default response pattern for those requests is: update `src/sql/...`, rerun `ztd model-gen --probe-mode ztd` if needed, rerun `ztd lint` plus tests, and only then wire `optionalConditionParameters` for runtime pruning.
 - Do not route routine optional predicates toward redundant `LEFT JOIN` scaffolding plus `removeUnusedLeftJoins` cleanup.
 
+- For a scale-sensitive perf request, gather QuerySpec `metadata.perf`, current seed row counts, DDL/index inventory, and whether a captured plan already exists before picking index tuning or pipeline tuning.
+- If any of those perf inputs are missing, respond by capturing them with `ztd perf db reset --dry-run` and `ztd perf run` before proposing a fix.
+
 For SQL authoring guidance around optional predicates, see [ztd-cli SSSQL Authoring](./ztd-cli-sssql-authoring.md).
 ## JSON Envelope
 
