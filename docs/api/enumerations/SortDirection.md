@@ -1,7 +1,7 @@
 <div v-pre>
 # Enumeration: SortDirection
 
-Defined in: [packages/core/src/models/Clause.ts:94](https://github.com/mk3008/rawsql-ts/blob/777ce1575085b73504d744d64496cb92b0c79583/packages/core/src/models/Clause.ts#L94)
+Defined in: [packages/core/src/models/Clause.ts:94](https://github.com/mk3008/rawsql-ts/blob/4c7c8a4f97538aad171fb5f463a1787c5adb61de/packages/core/src/models/Clause.ts#L94)
 
 ## Enumeration Members
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/Clause.ts:94](https://github.com/mk3008/ra
 
 > **Ascending**: `"asc"`
 
-Defined in: [packages/core/src/models/Clause.ts:95](https://github.com/mk3008/rawsql-ts/blob/777ce1575085b73504d744d64496cb92b0c79583/packages/core/src/models/Clause.ts#L95)
+Defined in: [packages/core/src/models/Clause.ts:95](https://github.com/mk3008/rawsql-ts/blob/4c7c8a4f97538aad171fb5f463a1787c5adb61de/packages/core/src/models/Clause.ts#L95)
 
 ***
 
@@ -17,5 +17,5 @@ Defined in: [packages/core/src/models/Clause.ts:95](https://github.com/mk3008/ra
 
 > **Descending**: `"desc"`
 
-Defined in: [packages/core/src/models/Clause.ts:96](https://github.com/mk3008/rawsql-ts/blob/777ce1575085b73504d744d64496cb92b0c79583/packages/core/src/models/Clause.ts#L96)
+Defined in: [packages/core/src/models/Clause.ts:96](https://github.com/mk3008/rawsql-ts/blob/4c7c8a4f97538aad171fb5f463a1787c5adb61de/packages/core/src/models/Clause.ts#L96)
 </div>
