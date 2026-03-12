@@ -5,6 +5,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:193](https://
 
 DynamicQueryBuilder combines SQL parsing with dynamic condition injection (filters, sorts, paging, JSON serialization).
 It also supports the SSSQL optional-condition path for truthful SQL branches shaped like `(:p IS NULL OR ...)` when you pass `optionalConditionParameters`.
+When the filter only targets columns that the current query already exposes, `filter` is the first-choice path. Move to SSSQL only when the optional condition needs a table or SQL branch that the query does not already contain.
 
 Key behaviours verified in packages/core/tests/transformers/DynamicQueryBuilder.test.ts:
 - Preserves the input SQL when no options are supplied.
@@ -259,3 +260,4 @@ true if SQL is valid, throws error if invalid
 
 Error if SQL cannot be parsed
 </div>
+

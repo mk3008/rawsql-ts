@@ -79,6 +79,7 @@ const query = builder.buildQuery(sql, {
 ```
 
 This SSSQL style keeps optionality visible in the SQL itself and lets rawsql-ts prune only the explicitly targeted absent branches.
+Use `DynamicQueryBuilder` filter injection first for optional predicates on columns that already exist in the current query. Reach for SSSQL when the optional filter needs a table or branch that is not already part of the query graph.
 
 Read more:
 
@@ -161,3 +162,4 @@ Across these workloads, parsing remains fast and stable, performance remains pra
 ## License
 
 MIT
+

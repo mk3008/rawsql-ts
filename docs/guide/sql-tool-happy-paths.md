@@ -14,6 +14,7 @@ Use it when the problem is not "how do I use every command?" but "which command 
 | I need timing, trace export, or machine-readable execution evidence | Telemetry mode for the command under investigation | The structural command that produced the suspicious result | Starting with telemetry before the SQL shape is known |
 | I need to inspect generated SQL or rewritten predicates | `ztd query plan <sql-file>` plus the focused SQL/debug workflow for the scenario | Integration or DB-backed verification | `query uses` |
 | I need to add optional search filters without falling back to SQL concatenation | SSSQL truthful branches plus `optionalConditionParameters` | Focused pruning verification in unit tests | Telemetry, `query uses` |
+| I need to decide whether an optional filter belongs in DynamicQueryBuilder or SSSQL | [Dynamic Filter Routing](./dynamic-filter-routing.md) | Add the focused routing dogfooding test | Guessing from prompt wording alone |
 
 ## Recommended dogfooding loop for SQL pipeline work
 

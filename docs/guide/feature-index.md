@@ -63,6 +63,7 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | SQL Tool Happy Paths | [guide/sql-tool-happy-paths](./sql-tool-happy-paths.md) | Decide whether to start with query plan, perf, query uses, telemetry, or SSSQL |
 | Perf Tuning Decision Guide | [guide/perf-tuning-decision-guide](./perf-tuning-decision-guide.md) | Decide when QuerySpec scale hints should lead to indexes, pipeline tuning, or both |
 | What Is SSSQL? | [guide/sssql-overview](./sssql-overview.md) | Decide whether truthful optional-condition SQL is the right first move |
+| Dynamic Filter Routing | [guide/dynamic-filter-routing](./dynamic-filter-routing.md) | Decide whether DynamicQueryBuilder filters or SSSQL optional branches should be the first move |
 | ztd-cli SSSQL Authoring | [guide/ztd-cli-sssql-authoring](./ztd-cli-sssql-authoring.md) | Keep optional-condition requests on the SQL-first path while authoring ZTD SQL assets |
 | ztd-cli Agent Interface | [guide/ztd-cli-agent-interface](./ztd-cli-agent-interface.md) | Machine-readable CLI usage for automation and AI agents |
 | ztd describe schema | [guide/ztd-cli-describe-schema](./ztd-cli-describe-schema.md) | Contract details for `ztd describe` JSON payloads |
@@ -80,3 +81,4 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | SQL catalog recipe | [recipes/sql-contract](../recipes/sql-contract.md) | Catalog executor patterns |
 | Execution scope | [guide/execution-scope](./execution-scope.md) | Transaction and connection control |
 | ZTD Theory | [guide/ztd-theory](./ztd-theory.md) | Conceptual foundation |
+
