@@ -25,6 +25,9 @@ Created:
  - tests/smoke.test.ts
  - src/db/sql-client.ts
  - src/db/sql-client-adapters.ts
+ - src/infrastructure/telemetry/types.ts
+ - src/infrastructure/telemetry/consoleRepositoryTelemetry.ts
+ - src/infrastructure/telemetry/repositoryTelemetry.ts
  - tests/support/testkit-client.ts
  - tests/support/global-setup.ts
  - vitest.config.ts
@@ -46,9 +49,10 @@ AI guidance:
 Next steps:
  1. If the schema file is empty, edit ztd/ddl/public.sql
  2. Run npx ztd ztd-config
- 3. Provide a SqlClient implementation (adapter or mock)
- 4. Run tests (pnpm test or npx vitest run)
- 5. This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs."
+ 3. Wire repositories to src/infrastructure/telemetry/repositoryTelemetry.ts when you add SQL-backed repository classes
+ 4. Provide a SqlClient implementation (adapter or mock)
+ 5. Run tests (pnpm test or npx vitest run)
+ 6. This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs."
 `;
 
 exports[`init wizard bootstraps an empty scaffold 1`] = `
@@ -76,6 +80,9 @@ Created:
  - tests/smoke.test.ts
  - src/db/sql-client.ts
  - src/db/sql-client-adapters.ts
+ - src/infrastructure/telemetry/types.ts
+ - src/infrastructure/telemetry/consoleRepositoryTelemetry.ts
+ - src/infrastructure/telemetry/repositoryTelemetry.ts
  - tests/support/testkit-client.ts
  - tests/support/global-setup.ts
  - vitest.config.ts
@@ -97,9 +104,10 @@ AI guidance:
 Next steps:
  1. If the schema file is empty, edit ztd/ddl/public.sql
  2. Run npx ztd ztd-config
- 3. Provide a SqlClient implementation (adapter or mock)
- 4. Run tests (pnpm test or npx vitest run)
- 5. This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs."
+ 3. Wire repositories to src/infrastructure/telemetry/repositoryTelemetry.ts when you add SQL-backed repository classes
+ 4. Provide a SqlClient implementation (adapter or mock)
+ 5. Run tests (pnpm test or npx vitest run)
+ 6. This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs."
 `;
 
 exports[`init wizard pulls schema if pg_dump is available 1`] = `
@@ -127,6 +135,9 @@ Created:
  - tests/smoke.test.ts
  - src/db/sql-client.ts
  - src/db/sql-client-adapters.ts
+ - src/infrastructure/telemetry/types.ts
+ - src/infrastructure/telemetry/consoleRepositoryTelemetry.ts
+ - src/infrastructure/telemetry/repositoryTelemetry.ts
  - tests/support/testkit-client.ts
  - tests/support/global-setup.ts
  - vitest.config.ts
@@ -148,7 +159,8 @@ AI guidance:
 Next steps:
  1. Review the dumped DDL in ztd/ddl/public.sql
  2. Run npx ztd ztd-config
- 3. Provide a SqlClient implementation (adapter or mock)
- 4. Run tests (pnpm test or npx vitest run)
- 5. This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs."
+ 3. Wire repositories to src/infrastructure/telemetry/repositoryTelemetry.ts when you add SQL-backed repository classes
+ 4. Provide a SqlClient implementation (adapter or mock)
+ 5. Run tests (pnpm test or npx vitest run)
+ 6. This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs."
 `;

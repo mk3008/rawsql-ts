@@ -135,6 +135,9 @@ type FileKey =
   | 'jobsReadme'
   | 'sqlClient'
   | 'sqlClientAdapters'
+  | 'repositoryTelemetryTypes'
+  | 'repositoryTelemetryConsole'
+  | 'repositoryTelemetryEntry'
   | 'gitignore'
   | 'editorconfig'
   | 'prettierignore'
@@ -253,6 +256,9 @@ const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
 const TSCONFIG_TEMPLATE = 'tsconfig.json';
 const SQL_CLIENT_TEMPLATE = 'src/db/sql-client.ts';
 const SQL_CLIENT_ADAPTERS_TEMPLATE = 'src/db/sql-client-adapters.ts';
+const REPOSITORY_TELEMETRY_TYPES_TEMPLATE = 'src/infrastructure/telemetry/types.ts';
+const REPOSITORY_TELEMETRY_CONSOLE_TEMPLATE = 'src/infrastructure/telemetry/consoleRepositoryTelemetry.ts';
+const REPOSITORY_TELEMETRY_ENTRY_TEMPLATE = 'src/infrastructure/telemetry/repositoryTelemetry.ts';
 const SQL_README_TEMPLATE = 'src/sql/README.md';
 const VIEWS_REPO_README_TEMPLATE = 'src/repositories/views/README.md';
 const TABLES_REPO_README_TEMPLATE = 'src/repositories/tables/README.md';
@@ -442,6 +448,9 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     jobsReadme: path.join(rootDir, 'src', 'jobs', 'README.md'),
     sqlClient: path.join(rootDir, 'src', 'db', 'sql-client.ts'),
     sqlClientAdapters: path.join(rootDir, 'src', 'db', 'sql-client-adapters.ts'),
+    repositoryTelemetryTypes: path.join(rootDir, 'src', 'infrastructure', 'telemetry', 'types.ts'),
+    repositoryTelemetryConsole: path.join(rootDir, 'src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'),
+    repositoryTelemetryEntry: path.join(rootDir, 'src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'),
     testkitClient: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'testkit-client.ts'),
     globalSetup: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
     vitestConfig: path.join(rootDir, 'vitest.config.ts'),
@@ -749,6 +758,38 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     );
     if (sqlClientAdaptersSummary) {
       summaries.sqlClientAdapters = sqlClientAdaptersSummary;
+    }
+
+    // Repository telemetry stays application-owned, but the scaffold can
+    // provide a default structured seam that repositories depend on.
+    const repositoryTelemetryTypesSummary = writeOptionalTemplateFile(
+      absolutePaths.repositoryTelemetryTypes,
+      relativePath('repositoryTelemetryTypes'),
+      REPOSITORY_TELEMETRY_TYPES_TEMPLATE,
+      dependencies
+    );
+    if (repositoryTelemetryTypesSummary) {
+      summaries.repositoryTelemetryTypes = repositoryTelemetryTypesSummary;
+    }
+
+    const repositoryTelemetryConsoleSummary = writeOptionalTemplateFile(
+      absolutePaths.repositoryTelemetryConsole,
+      relativePath('repositoryTelemetryConsole'),
+      REPOSITORY_TELEMETRY_CONSOLE_TEMPLATE,
+      dependencies
+    );
+    if (repositoryTelemetryConsoleSummary) {
+      summaries.repositoryTelemetryConsole = repositoryTelemetryConsoleSummary;
+    }
+
+    const repositoryTelemetryEntrySummary = writeOptionalTemplateFile(
+      absolutePaths.repositoryTelemetryEntry,
+      relativePath('repositoryTelemetryEntry'),
+      REPOSITORY_TELEMETRY_ENTRY_TEMPLATE,
+      dependencies
+    );
+    if (repositoryTelemetryEntrySummary) {
+      summaries.repositoryTelemetryEntry = repositoryTelemetryEntrySummary;
     }
   }
 
@@ -1729,6 +1770,7 @@ function buildNextSteps(
       `Run ${runScriptCommand('test')}`,
       'Run npx ztd ztd-config',
       'For generated QuerySpecs, prefer ztd model-gen --probe-mode ztd --import-style relative',
+      'Wire repositories to src/infrastructure/telemetry/repositoryTelemetry.ts so applications can replace the default hook',
       'Provide a SqlClient implementation before adding SQL-backed tests'
     ];
     return localSourceSteps.map((step, index) => ` ${index + 1}. ${step}`);
@@ -1743,6 +1785,7 @@ function buildNextSteps(
     nextSteps.push(`Run ${installCommand}`);
   }
   nextSteps.push('Run npx ztd ztd-config');
+  nextSteps.push('Wire repositories to src/infrastructure/telemetry/repositoryTelemetry.ts when you add SQL-backed repository classes');
   nextSteps.push('Provide a SqlClient implementation (adapter or mock)');
   nextSteps.push('Run tests (pnpm test or npx vitest run)');
   // Avoid repeating the same install hint when the deferred-install path already emitted it explicitly.
@@ -1831,6 +1874,9 @@ function buildSummaryLines(
     'testsSmoke',
     'sqlClient',
     'sqlClientAdapters',
+    'repositoryTelemetryTypes',
+    'repositoryTelemetryConsole',
+    'repositoryTelemetryEntry',
     'testkitClient',
     'globalSetup',
     'vitestConfig',
@@ -1917,6 +1963,9 @@ function buildInitDryRunPlan(rootDir: string, options: {
   if (options.withSqlClient) {
     files.push(path.join('src', 'db', 'sql-client.ts'));
     files.push(path.join('src', 'db', 'sql-client-adapters.ts'));
+    files.push(path.join('src', 'infrastructure', 'telemetry', 'types.ts'));
+    files.push(path.join('src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'));
+    files.push(path.join('src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'));
   }
   if (options.withAppInterface) {
     files.splice(0, files.length, 'AGENTS.md');
