@@ -10,6 +10,9 @@ if [ -z "$STAGED_FILES" ]; then
   exit 0
 fi
 
+echo "[pre-commit] Enforcing staged-file policy..."
+node scripts/precommit-enforcement.js
+
 ZTD_ONLY=true
 for file in $STAGED_FILES
 do
