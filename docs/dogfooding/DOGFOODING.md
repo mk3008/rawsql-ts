@@ -3,6 +3,11 @@
 This spec defines a deterministic dogfooding harness for `@rawsql-ts/ztd-cli` backend development.
 Follow this file exactly and do not substitute ad-hoc scenarios.
 
+## Related practical lifecycle guides
+
+- [Migration Lifecycle Dogfooding](./ztd-migration-lifecycle.md)
+- [Application Lifecycle Dogfooding](./ztd-application-lifecycle.md)
+
 ## 0) Scope and objective
 
 - Objective A: Identify where progress still requires AI reasoning.
