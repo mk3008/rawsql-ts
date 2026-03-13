@@ -13,7 +13,7 @@ A high-performance SQL parser and AST transformer written in TypeScript. Parse r
 - **Zero dependencies** -- fully self-contained and lightweight
 - **High-performance** -- significantly faster than node-sql-parser in our parse-only benchmarks
 - **Browser ready** -- works in browsers via CDN (unpkg / jsdelivr)
-- **Dynamic query building** -- filtering, sorting, pagination, and JSON serialization
+- **Dynamic query building** -- filtering, sorting, pagination, JSON serialization, and truthful optional-condition pruning
 - **CTE management** -- add, remove, and manipulate CTEs programmatically
 - **Schema validation** -- static query validation against your database schema
 - **Full TypeScript support** -- type-safe APIs throughout
@@ -50,6 +50,43 @@ const formatter = new SqlFormatter();
 const { formattedSql, params } = formatter.format(query);
 ```
 
+## SSSQL for Optional Conditions
+
+When the request is "add an optional filter", rawsql-ts can keep the SQL source truthful instead of pushing you toward string-built `WHERE` assembly.
+
+```typescript
+const sql = `
+  SELECT p.product_id, p.product_name
+  FROM products p
+  WHERE (:brand_name IS NULL OR p.brand_name = :brand_name)
+    AND (:category_name IS NULL OR EXISTS (
+      SELECT 1
+      FROM product_categories pc
+      JOIN categories c
+        ON c.category_id = pc.category_id
+      WHERE pc.product_id = p.product_id
+        AND c.category_name = :category_name
+    ))
+`;
+
+const builder = new DynamicQueryBuilder();
+const query = builder.buildQuery(sql, {
+  optionalConditionParameters: {
+    brand_name: null,
+    category_name: "shoes",
+  },
+});
+```
+
+This SSSQL style keeps optionality visible in the SQL itself and lets rawsql-ts prune only the explicitly targeted absent branches.
+Use `DynamicQueryBuilder` filter injection first for optional predicates on columns that already exist in the current query. Reach for SSSQL when the optional filter needs a table or branch that is not already part of the query graph.
+
+Read more:
+
+- [What Is SSSQL?](../../docs/guide/sssql-overview.md)
+- [SSSQL Optional Branch Pruning MVP](../../docs/guide/sssql-optional-branch-pruning.md)
+- [Querybuilding Recipes](../../docs/guide/querybuilding-recipes.md)
+
 ## API Overview
 
 ### Parsing
@@ -65,7 +102,7 @@ const { formattedSql, params } = formatter.format(query);
 
 | Class                      | Description                                                    | Docs                                                      |
 | -------------------------- | -------------------------------------------------------------- | --------------------------------------------------------- |
-| `DynamicQueryBuilder`      | All-in-one filtering, sorting, pagination, and serialization   | [Guide](../../docs/guide/querybuilding-recipes.md)        |
+| `DynamicQueryBuilder`      | All-in-one filtering, sorting, pagination, serialization, and SSSQL optional-condition pruning | [Guide](../../docs/guide/querybuilding-recipes.md)        |
 | `QueryBuilder`             | Convert SELECT queries into INSERT / UPDATE statements         | [API](../../docs/api/classes/QueryBuilder.md)             |
 | `PostgresJsonQueryBuilder` | Transform relational queries into hierarchical JSON structures | [API](../../docs/api/classes/PostgresJsonQueryBuilder.md) |
 
@@ -125,3 +162,4 @@ Across these workloads, parsing remains fast and stable, performance remains pra
 ## License
 
 MIT
+

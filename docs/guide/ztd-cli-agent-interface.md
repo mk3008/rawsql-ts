@@ -10,6 +10,14 @@
 - Use `--json <payload>` on supported commands when nested option construction is easier than individual flags.
 - Read `.ztd/agents/manifest.json` first when you need project guidance without repo-visible `AGENTS.md` files.
 - Use `ztd agents status` to distinguish managed templates from user-owned instruction files.
+- When a request is "add an optional filter" to a SQL asset, prefer SSSQL-style truthful SQL branches before suggesting string-built SQL assembly outside the file.
+- The default response pattern for those requests is: update `src/sql/...`, rerun `ztd model-gen --probe-mode ztd` if needed, rerun `ztd lint` plus tests, and only then wire `optionalConditionParameters` for runtime pruning.
+- Do not route routine optional predicates toward redundant `LEFT JOIN` scaffolding plus `removeUnusedLeftJoins` cleanup.
+
+- For a scale-sensitive perf request, gather QuerySpec `metadata.perf`, current seed row counts, DDL/index inventory, and whether a captured plan already exists before picking index tuning or pipeline tuning.
+- If any of those perf inputs are missing, respond by capturing them with `ztd perf db reset --dry-run` and `ztd perf run` before proposing a fix.
+
+For SQL authoring guidance around optional predicates, see [ztd-cli SSSQL Authoring](./ztd-cli-sssql-authoring.md).
 
 ## JSON Envelope
 

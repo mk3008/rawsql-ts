@@ -270,11 +270,15 @@ Note: ztd lint validates SQL via Postgres. When queries contain placeholders ($1
 - This mode is intentionally not the default because it does not represent typical npm-package users.
 ## Companion scenarios
 
-For SQL debugging and tuning loops, use the companion scenario document instead of expanding this backend-focused harness inline:
+For focused companion flows, use these scenario documents instead of expanding this backend-focused harness inline:
 
 - [SQL Debug Recovery Dogfooding](./sql-debug-recovery.md)
+- [SSSQL Optional-Condition Dogfooding](./sssql-optional-condition.md)
+- [Test Documentation Dogfooding](./test-documentation.md)
+- [Perf Scale Tuning Dogfooding](./perf-scale-tuning.md)
+- [Dynamic Filter Routing Dogfooding](./dynamic-filter-routing.md)
 
-That companion scenario covers broken long-CTE SQL recovery, query graph / query slice / query patch apply usage, and direct-vs-decomposed perf evidence loops.
+Those companion scenarios cover broken long-CTE SQL recovery, query graph / query slice / query patch apply usage, truthful optional-condition authoring with SSSQL, direct-vs-decomposed perf evidence loops, scale-sensitive index-vs-pipeline tuning decisions, and the human-readable test documentation export path.
 ## 8) Recommended run skeleton
 
 Use this order unless a hard blocker appears.

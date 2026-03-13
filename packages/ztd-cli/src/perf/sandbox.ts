@@ -1,7 +1,14 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { CreateTableQuery, MultiQuerySplitter, SqlParser, createTableDefinitionFromCreateTableQuery, type TableDefinitionModel } from 'rawsql-ts';
+import {
+  CreateIndexStatement,
+  CreateTableQuery,
+  MultiQuerySplitter,
+  SqlParser,
+  createTableDefinitionFromCreateTableQuery,
+  type TableDefinitionModel
+} from 'rawsql-ts';
 import { collectSqlFiles } from '../utils/collectSqlFiles';
 import { ensurePgModule } from '../utils/optionalDependencies';
 import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
@@ -34,6 +41,21 @@ export interface PerfSeedConfig {
 export interface PerfInitPlan {
   rootDir: string;
   files: Array<{ path: string; contents: string }>;
+}
+
+export interface PerfDdlStatement {
+  file: string;
+  sql: string;
+  kind: 'table' | 'index' | 'other';
+}
+
+export interface PerfDdlInventory {
+  files: string[];
+  statements: PerfDdlStatement[];
+  ddlStatementCount: number;
+  tableCount: number;
+  indexCount: number;
+  indexNames: string[];
 }
 
 export interface PerfResetResult {
@@ -117,16 +139,72 @@ export function applyPerfInitPlan(plan: PerfInitPlan): string[] {
   return written;
 }
 
-export async function resetPerfSandbox(rootDir: string): Promise<PerfResetResult> {
+export function inspectPerfDdlInventory(rootDir: string, options: { requireExistingDdlDir?: boolean } = {}): PerfDdlInventory {
   const config = loadZtdProjectConfig(rootDir);
+  const ddlRoot = path.resolve(rootDir, config.ddlDir);
+  if (!existsSync(ddlRoot)) {
+    if (options.requireExistingDdlDir) {
+      throw new Error(`Perf DDL directory does not exist: ${ddlRoot}`);
+    }
+    return {
+      files: [],
+      statements: [],
+      ddlStatementCount: 0,
+      tableCount: 0,
+      indexCount: 0,
+      indexNames: []
+    };
+  }
+  const ddlSources = collectSqlFiles([ddlRoot], ['.sql']);
+  const statements: PerfDdlStatement[] = [];
+  const indexNames: string[] = [];
+  let tableCount = 0;
+  let indexCount = 0;
+
+  for (const source of ddlSources) {
+    const split = MultiQuerySplitter.split(source.sql);
+    for (const chunk of split.queries) {
+      const sql = chunk.sql.trim();
+      if (!sql) {
+        continue;
+      }
+
+      const parsed = SqlParser.parse(sql);
+      let kind: PerfDdlStatement['kind'] = 'other';
+      if (parsed instanceof CreateTableQuery) {
+        kind = 'table';
+        tableCount += 1;
+      } else if (parsed instanceof CreateIndexStatement) {
+        kind = 'index';
+        indexCount += 1;
+        indexNames.push(String(parsed.indexName));
+      }
+
+      statements.push({
+        file: source.path,
+        sql,
+        kind
+      });
+    }
+  }
+
+  return {
+    files: ddlSources.map((source) => source.path),
+    statements,
+    ddlStatementCount: statements.length,
+    tableCount,
+    indexCount,
+    indexNames
+  };
+}
+
+export async function resetPerfSandbox(rootDir: string): Promise<PerfResetResult> {
   const sandboxConfig = loadPerfSandboxConfig(rootDir);
   const resolvedConnection = await ensurePerfConnection(rootDir, sandboxConfig);
-  const ddlRoot = path.resolve(rootDir, config.ddlDir);
-  const ddlSources = collectSqlFiles([ddlRoot], ['.sql']);
+  const ddlInventory = inspectPerfDdlInventory(rootDir, { requireExistingDdlDir: true });
 
   const pg = await ensurePgModule();
   const client = new pg.Client({ connectionString: resolvedConnection.connectionUrl, connectionTimeoutMillis: 3000 });
-  let ddlStatements = 0;
 
   try {
     await client.connect();
@@ -135,16 +213,8 @@ export async function resetPerfSandbox(rootDir: string): Promise<PerfResetResult
     try {
       await client.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
 
-      for (const source of ddlSources) {
-        const split = MultiQuerySplitter.split(source.sql);
-        for (const chunk of split.queries) {
-          const sql = chunk.sql.trim();
-          if (!sql) {
-            continue;
-          }
-          await client.query(sql);
-          ddlStatements += 1;
-        }
+      for (const statement of ddlInventory.statements) {
+        await client.query(statement.sql);
       }
 
       await client.query('COMMIT');
@@ -155,8 +225,8 @@ export async function resetPerfSandbox(rootDir: string): Promise<PerfResetResult
 
     return {
       connectionUrl: resolvedConnection.connectionUrl,
-      appliedFiles: ddlSources.map((source) => source.path),
-      ddlStatements,
+      appliedFiles: ddlInventory.files,
+      ddlStatements: ddlInventory.ddlStatementCount,
       usedDocker: resolvedConnection.usedDocker
     };
   } finally {
@@ -363,6 +433,8 @@ function buildPerfReadme(): string {
     '1. `ztd perf init`',
     '2. `ztd perf db reset`',
     '3. `ztd perf seed`',
+    '',
+    'The reset step replays local `ztd/ddl/*.sql`, including physical tables and indexes.',
     '',
     'The sandbox is intentionally separated from default ZTD workflows.',
     ''

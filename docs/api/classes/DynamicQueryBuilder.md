@@ -4,11 +4,19 @@
 Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:193](https://github.com/mk3008/rawsql-ts/blob/4c7c8a4f97538aad171fb5f463a1787c5adb61de/packages/core/src/transformers/DynamicQueryBuilder.ts#L193)
 
 DynamicQueryBuilder combines SQL parsing with dynamic condition injection (filters, sorts, paging, JSON serialization).
+It also supports the SSSQL optional-condition path for truthful SQL branches shaped like `(:p IS NULL OR ...)` when you pass `optionalConditionParameters`.
+When the filter only targets columns that the current query already exposes, `filter` is the first-choice path. Move to SSSQL only when the optional condition needs a table or SQL branch that the query does not already contain.
 
 Key behaviours verified in packages/core/tests/transformers/DynamicQueryBuilder.test.ts:
 - Preserves the input SQL when no options are supplied.
 - Applies filter, sort, and pagination in a deterministic order.
 - Supports JSON serialization for hierarchical projections.
+- Prunes explicitly targeted absent optional branches without widening unsupported SQL shapes.
+
+See also:
+- [What Is SSSQL?](../../guide/sssql-overview.md)
+- [SSSQL Optional Branch Pruning MVP](../../guide/sssql-optional-branch-pruning.md)
+- [Querybuilding Recipes](../../guide/querybuilding-recipes.md)
 
 ## Constructors
 
@@ -44,6 +52,8 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:234](https://
 Builds a SelectQuery from SQL content with dynamic conditions.
 This is a pure function that does not perform any I/O operations.
 
+When the incoming SQL already expresses optional predicates truthfully, prefer `optionalConditionParameters` over string-building `WHERE` fragments outside SQL.
+
 #### Parameters
 
 ##### sqlContent
@@ -56,7 +66,7 @@ Raw SQL string to parse and modify
 
 [`QueryBuildOptions`](../interfaces/QueryBuildOptions.md) = `{}`
 
-Dynamic conditions to apply (filter, sort, paging, serialize)
+Dynamic conditions to apply (filter, sort, paging, serialize, optional-condition pruning)
 
 #### Returns
 
@@ -78,6 +88,33 @@ const query = builder.buildQuery(
   }
 );
 ```
+
+#### SSSQL Example
+
+```typescript
+const sql = `
+  SELECT p.product_id, p.product_name
+  FROM products p
+  WHERE (:brand_name IS NULL OR p.brand_name = :brand_name)
+    AND (:category_name IS NULL OR EXISTS (
+      SELECT 1
+      FROM product_categories pc
+      JOIN categories c
+        ON c.category_id = pc.category_id
+      WHERE pc.product_id = p.product_id
+        AND c.category_name = :category_name
+    ))
+`;
+
+const query = builder.buildQuery(sql, {
+  optionalConditionParameters: {
+    brand_name: null,
+    category_name: 'shoes',
+  },
+});
+```
+
+This keeps the optional-filter intent in SQL source form while pruning only the explicitly targeted absent branch.
 
 ***
 
@@ -223,3 +260,4 @@ true if SQL is valid, throws error if invalid
 
 Error if SQL cannot be parsed
 </div>
+

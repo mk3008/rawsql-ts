@@ -21,10 +21,18 @@ const query = builder.buildQuery(baseSql, {
 });
 ```
 
+## Choosing DynamicQueryBuilder vs SSSQL
+
+Use `DynamicQueryBuilder` filter injection first when the requested optional predicate only touches columns already present in the current query.
+
+Switch to SSSQL when the optional filter needs a table, subquery branch, or `EXISTS` condition that is not already part of the query graph. That is the point where `optionalConditionParameters` becomes the truthful fallback rather than the default.
+
+Hardcoded predicates in SQL remain mandatory by default. Only explicitly authored SSSQL branches such as `(:p IS NULL OR ...)` should be treated as removable when the targeted parameter is `null` or `undefined`.
+
 ## Column Targeting Patterns
 
 - Plain keys target every column with the same name (useful when the base SQL already scopes tables).
-- Qualified keys such as `"users.status"` bind filters to one table or CTE alias.
+- Qualified keys such as "users.status" bind filters to one table or CTE alias.
 - Mix both styles: unqualified rules act as defaults, qualified entries override them where ambiguity exists.
 
 ## Value Shapes
@@ -140,6 +148,7 @@ Every projection change runs after pagination and before the optimizer passes, s
 - `removeUnusedCtes`: removes SELECT-only, non-recursive CTEs that never feed the final query (including chained dependencies) while leaving data-modifying, recursive, or otherwise ambiguous CTEs untouched.
 
 Both options must be explicitly enabled via `QueryBuildOptions` (or builder defaults) and rely on AST-driven reference analysis rather than string matching. Supplying accurate `schemaInfo` metadata is critical for safely pruning joins, and the fixed-point updater ensures cascading deletions are handled predictably.
+`optionalConditionParameters` is the preferred first move for routine optional predicates. Do not model ordinary optional filters as redundant LEFT JOIN branches just to rely on `removeUnusedLeftJoins` later.
 `optionalConditionParameters` adds a separate opt-in pass for truthful SQL branches shaped like `(:p IS NULL OR ...)`. Only explicitly listed parameter names are inspected, and `null`/`undefined` are treated as absent-equivalent for those targets. This means you do not need a `WHERE 1 = 1` sentinel for the pruning pass to remove the final `WHERE` clause when the optional branch is the only condition.
 
 ```ts
@@ -158,3 +167,8 @@ Use this pass when you want the source SQL to stay truthful and readable while s
 - [`FilterConditions` API](../api/type-aliases/FilterConditions.md) documents every supported operator shape.
 - [`DynamicQueryBuilder` API](../api/classes/DynamicQueryBuilder.md) covers sorting, pagination, and JSON serialization helpers.
 - Revisit the [`SqlFormatter` recipes](formatting-recipes.md) to prepare the query for transport or display.
+
+
+
+
+

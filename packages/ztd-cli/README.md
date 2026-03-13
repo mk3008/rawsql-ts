@@ -584,6 +584,53 @@ Notes:
 - Common failure modes are unsupported placeholder syntax, connection/authentication errors, missing live schema objects in `live` mode, missing DDL directories in `ztd` mode, invalid probe SQL, and queries that do not expose any columns.
 - The generated file is a starting point only. Review imports, nullability, cardinality, rowMapping key, runtime normalization, and example values before typechecking or committing it.
 
+### Optional-condition SQL belongs in SSSQL first
+
+If the request is "add an optional filter" for a SQL asset under `src/sql/`, prefer keeping that optionality in the SQL file itself before reaching for string-built query assembly.
+
+Use truthful branches such as:
+
+```sql
+where (:brand_name is null or p.brand_name = :brand_name)
+```
+
+A minimal end-to-end authoring loop looks like this:
+
+```sql
+-- src/sql/products/list_products.sql
+select
+  p.product_id,
+  p.product_name,
+  p.brand_name
+from public.products p
+where (:brand_name is null or p.brand_name = :brand_name)
+order by p.product_name
+```
+
+```bash
+npx ztd model-gen src/sql/products/list_products.sql \
+  --probe-mode ztd \
+  --sql-root src/sql \
+  --out src/catalog/specs/products/list-products.spec.ts
+npx ztd lint src/sql/products/list_products.sql
+npx vitest run
+```
+
+This keeps the saved SQL asset readable, probeable, and reviewable in the normal ZTD loop:
+
+1. edit the SQL file under `src/sql/`
+2. run `ztd model-gen --probe-mode ztd` if the contract changed
+3. run `ztd lint` and tests
+4. wire `optionalConditionParameters` in the runtime layer only to prune already-truthful branches
+
+When the runtime layer uses `rawsql-ts`, pair that SQL with `DynamicQueryBuilder` and `optionalConditionParameters` instead of inventing a separate `WHERE` concatenation path. Do not fall back to redundant `LEFT JOIN` scaffolding plus `removeUnusedLeftJoins` for ordinary optional filters.
+
+Read more:
+
+- [ztd-cli SSSQL Authoring](../../docs/guide/ztd-cli-sssql-authoring.md)
+- [What Is SSSQL?](../../docs/guide/sssql-overview.md)
+- [SSSQL Optional-Condition Dogfooding](../../docs/dogfooding/sssql-optional-condition.md)
+
 ### Developer note: unqualified names and CLI test coverage
 
 - The ZTD probe path resolves unqualified table names such as `from users` through the same `ddl.defaultSchema` / `ddl.searchPath` order that runtime rewrites use.
@@ -607,7 +654,7 @@ Use DDL such as `CREATE TABLE public.users (...)` in `ztd/ddl/public.sql`, keep 
 
 `ztd-cli` telemetry is opt-in investigation tooling for dogfooding, debugging, and optimization. It is intentionally outside the default happy path, it must not become mandatory for published-package usage, and production embedding/export stays optional and off by default.
 
-Read the full guidance in [ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md), [ztd-cli Telemetry Policy](../../docs/guide/ztd-cli-telemetry-policy.md), [ztd-cli Telemetry Export Modes](../../docs/guide/ztd-cli-telemetry-export-modes.md), [Telemetry Dogfooding Scenarios](../../docs/dogfooding/telemetry-dogfooding.md), and [SQL Debug Recovery Dogfooding](../../docs/dogfooding/sql-debug-recovery.md).
+Read the full guidance in [ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md), [ztd-cli Telemetry Policy](../../docs/guide/ztd-cli-telemetry-policy.md), [ztd-cli Telemetry Export Modes](../../docs/guide/ztd-cli-telemetry-export-modes.md), [Telemetry Dogfooding Scenarios](../../docs/dogfooding/telemetry-dogfooding.md), [SQL Debug Recovery Dogfooding](../../docs/dogfooding/sql-debug-recovery.md), and [Test Documentation Dogfooding](../../docs/dogfooding/test-documentation.md).
 ## Further Reading
 
 - Local-source quick start:
@@ -620,6 +667,7 @@ This mode emits `src/local/sql-contract.ts`, links `@rawsql-ts/sql-contract` via
 
 - [Feature Index](../../docs/guide/feature-index.md) — at-a-glance list of easy-to-miss capabilities
 - [SQL Tool Happy Paths](../../docs/guide/sql-tool-happy-paths.md) — choose between query plan, perf, query uses, and telemetry based on the problem shape
+- [ztd-cli SSSQL Authoring](../../docs/guide/ztd-cli-sssql-authoring.md) — keep optional-condition requests on the SQL-first path in ZTD projects
 - [Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md) — avoid nested pnpm workspace drift and generated import mismatches
 - [Postgres Pitfalls](../../docs/guide/postgres-pitfalls.md) — common Postgres-specific surprises
 - [Spec-Change Scenarios](../../docs/guide/spec-change-scenarios.md) — condensed digest of common schema changes

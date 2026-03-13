@@ -3,12 +3,15 @@ import path from 'node:path';
 import { expect, test } from 'vitest';
 import {
   buildPerfPipelineAnalysis,
+  buildPerfTuningGuidance,
+  buildPerfTuningSummary,
   diffPerfBenchmarkReports,
   formatPerfBenchmarkReport,
   formatPerfDiffReport,
   loadPerfBenchmarkReport,
   mapPipelineStatements,
   runPerfBenchmark,
+  summarizePerfDdlInventory,
   toPerfPlannedSteps,
   type PerfBenchmarkReport
 } from '../src/perf/benchmark';
@@ -1284,4 +1287,172 @@ test('runPerfBenchmark dry-run rejects ambiguous QuerySpec perf guidance matches
     save: false,
     dryRun: true,
   })).rejects.toThrow(/Multiple QuerySpecs matched/);
+});
+
+test('runPerfBenchmark dry-run reports ddl inventory and pipeline-first tuning guidance for scale dogfooding', async () => {
+  const workspace = createSqlWorkspace('perf-benchmark-scale-dogfood', path.join('src', 'sql', 'reports', 'sales_pipeline.sql'));
+  const specFile = path.join(workspace.rootDir, 'src', 'catalog', 'specs', 'sales-pipeline.spec.ts');
+  const ddlFile = path.join(workspace.rootDir, 'ztd', 'ddl', 'public.sql');
+  mkdirSync(path.dirname(specFile), { recursive: true });
+  mkdirSync(path.dirname(ddlFile), { recursive: true });
+  writeFileSync(path.join(workspace.rootDir, 'ztd.config.json'), JSON.stringify({
+    dialect: 'postgres',
+    ddlDir: 'ztd/ddl',
+    testsDir: 'tests',
+    ddl: { defaultSchema: 'public', searchPath: ['public'] },
+    ddlLint: 'strict'
+  }, null, 2), 'utf8');
+  writeFileSync(ddlFile, [
+    'create table public.sales (id integer primary key, region_id integer not null, closed_month date not null);',
+    'create index sales_region_closed_month_idx on public.sales(region_id, closed_month);',
+    ''
+  ].join('\n'), 'utf8');
+  writeFileSync(workspace.sqlFile, [
+    'with base_sales as (',
+    '  select id, region_id, closed_month',
+    '  from public.sales',
+    '),',
+    'regional_sales as (',
+    '  select id, region_id from base_sales',
+    '),',
+    'month_sales as (',
+    '  select id, closed_month from base_sales',
+    ')',
+    'select rs.id',
+    'from regional_sales rs',
+    'join month_sales ms on ms.id = rs.id',
+    ''
+  ].join('\n'), 'utf8');
+  writeFileSync(specFile, [
+    'export const salesPipelineSpec = {',
+    "  id: 'reports.sales-pipeline',",
+    "  sqlFile: 'reports/sales_pipeline.sql',",
+    "  params: { shape: 'named', example: {} },",
+    "  output: { example: { id: 1 } },",
+    '  metadata: {',
+    '    perf: {',
+    "      expectedScale: 'large',",
+    '      expectedInputRows: 50000,',
+    '      expectedOutputRows: 500',
+    '    }',
+    '  }',
+    '};',
+    ''
+  ].join('\n'), 'utf8');
+
+  const report = await runPerfBenchmark({
+    rootDir: workspace.rootDir,
+    queryFile: workspace.sqlFile,
+    strategy: 'direct',
+    material: [],
+    mode: 'completion',
+    repeat: 1,
+    warmup: 0,
+    classifyThresholdSeconds: 60,
+    timeoutMinutes: 5,
+    save: false,
+    dryRun: true,
+  });
+
+  expect(report.ddl_inventory).toMatchObject({
+    ddl_files: 1,
+    ddl_statement_count: 2,
+    table_count: 1,
+    index_count: 1,
+    index_names: ['sales_region_closed_month_idx']
+  });
+  expect(report.tuning_guidance).toMatchObject({
+    primary_path: 'pipeline',
+    requires_captured_plan: true,
+    pipeline_branch: expect.objectContaining({ recommended: true }),
+    index_branch: expect.objectContaining({ recommended: false })
+  });
+  expect(report.tuning_summary).toMatchObject({
+    headline: 'Start with pipeline tuning.'
+  });
+
+  const textReport = formatPerfBenchmarkReport(report, 'text');
+  const jsonReport = JSON.parse(formatPerfBenchmarkReport(report, 'json')) as PerfBenchmarkReport;
+  expect(textReport).toContain('Decision summary: Start with pipeline tuning.');
+  expect(textReport).toContain('DDL inventory:');
+  expect(textReport).toContain('index_count: 1');
+  expect(textReport).toContain('Tuning guidance:');
+  expect(jsonReport.tuning_summary?.headline).toBe('Start with pipeline tuning.');
+  expect(textReport).toContain('primary_path: pipeline');
+  expect(textReport).toContain('Run `ztd perf db reset` so the perf sandbox recreates both tables and indexes from local DDL.');
+});
+
+test('buildPerfTuningGuidance prefers index remediation when the captured plan shows a sequential scan without pipeline signals', () => {
+  const guidance = buildPerfTuningGuidance({
+    query_type: 'SELECT',
+    cte_count: 0,
+    should_consider_pipeline: false,
+    candidate_ctes: [],
+    scalar_filter_candidates: [],
+    notes: []
+  }, {
+    observations: ['Seq Scan on public.sales'],
+    statement_summary: 'Seq Scan',
+    hasCapturedPlan: true,
+    hasSequentialScan: true,
+    hasJoin: false
+  }, {
+    spec_id: 'reports.sales',
+    spec_file: 'src/catalog/specs/sales.spec.ts',
+    expected_scale: 'large',
+    review_policy: 'strongly-recommended',
+    evidence_status: 'missing',
+    fixture_rows_status: 'unknown'
+  });
+
+  expect(guidance.primary_path).toBe('index');
+  expect(guidance.index_branch.recommended).toBe(true);
+  expect(guidance.pipeline_branch.recommended).toBe(false);
+  expect(guidance.index_branch.next_steps).toContain('Append CREATE INDEX statements to ztd/ddl/*.sql instead of making ad-hoc sandbox-only changes.');
+  expect(buildPerfTuningSummary(guidance)).toMatchObject({
+    headline: 'Start with index tuning.'
+  });
+});
+test('buildPerfTuningGuidance does not require another capture when a non-signal plan already exists', () => {
+  const guidance = buildPerfTuningGuidance({
+    query_type: 'SELECT',
+    cte_count: 0,
+    should_consider_pipeline: false,
+    candidate_ctes: [],
+    scalar_filter_candidates: [],
+    notes: []
+  }, {
+    observations: [],
+    statement_summary: 'Index Only Scan on public.sales',
+    hasCapturedPlan: true,
+    hasSequentialScan: false,
+    hasJoin: false
+  });
+
+  expect(guidance.primary_path).toBe('capture-plan');
+  expect(guidance.requires_captured_plan).toBe(false);
+  expect(buildPerfTuningSummary(guidance)).toMatchObject({
+    headline: 'A representative plan is already available; compare index and pipeline evidence next.',
+    evidence: ['A captured plan exists, but it does not yet isolate scans, joins, or pipeline hotspots.'],
+    next_step: 'Capture or review EXPLAIN (ANALYZE, BUFFERS) before changing the physical design.'
+  });
+});
+
+test('summarizePerfDdlInventory keeps index counts visible in saved perf guidance', () => {
+  const summary = summarizePerfDdlInventory({
+    files: ['ztd/ddl/public.sql'],
+    statements: [],
+    ddlStatementCount: 4,
+    tableCount: 2,
+    indexCount: 2,
+    indexNames: ['sales_region_idx', 'sales_closed_month_idx']
+  });
+
+  expect(summary).toEqual({
+    ddl_files: 1,
+    ddl_statement_count: 4,
+    table_count: 2,
+    index_count: 2,
+    index_names: ['sales_region_idx', 'sales_closed_month_idx']
+  });
 });

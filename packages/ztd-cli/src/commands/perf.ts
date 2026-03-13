@@ -1,9 +1,16 @@
 import { Command } from 'commander';
 import path from 'node:path';
 import {
+  CreateTableQuery,
+  MultiQuerySplitter,
+  SqlParser,
+  createTableDefinitionFromCreateTableQuery
+} from 'rawsql-ts';
+import {
   applyPerfInitPlan,
   buildInsertStatementsForTable,
   buildPerfInitPlan,
+  inspectPerfDdlInventory,
   loadPerfSeedConfig,
   resetPerfSandbox,
   seedPerfSandbox
@@ -18,10 +25,9 @@ import {
   type PerfBenchmarkMode
 } from '../perf/benchmark';
 import { isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
+import { collectSqlFiles } from '../utils/collectSqlFiles';
 import { withSpan, withSpanSync } from '../utils/telemetry';
 import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
-import { CreateTableQuery, MultiQuerySplitter, SqlParser, createTableDefinitionFromCreateTableQuery } from 'rawsql-ts';
-import { collectSqlFiles } from '../utils/collectSqlFiles';
 
 interface PerfInitOptions {
   dryRun?: boolean;
@@ -161,31 +167,40 @@ function runPerfInitCommand(options: PerfInitOptions): void {
 
 async function runPerfDbResetCommand(options: PerfResetOptions): Promise<void> {
   const merged = resolvePerfOptions(options);
-  const config = loadZtdProjectConfig(process.cwd());
-  const ddlSources = collectSqlFiles([path.resolve(process.cwd(), config.ddlDir)], ['.sql']);
+  const ddlInventory = inspectPerfDdlInventory(process.cwd(), { requireExistingDdlDir: true });
 
   if (merged.dryRun) {
     emitPerfResult('perf db reset', {
       dryRun: true,
-      ddl_files: ddlSources.map((source) => source.path),
-      ddl_file_count: ddlSources.length
+      ddl_files: ddlInventory.files,
+      ddl_file_count: ddlInventory.files.length,
+      ddl_statement_count: ddlInventory.ddlStatementCount,
+      table_count: ddlInventory.tableCount,
+      index_count: ddlInventory.indexCount,
+      index_names: ddlInventory.indexNames
     });
     return;
   }
 
   const result = await resetPerfSandbox(process.cwd());
   const displayConnectionUrl = toDisplayConnectionUrl(result.connectionUrl);
+  const appliedInventory = inspectPerfDdlInventory(process.cwd(), { requireExistingDdlDir: true });
   emitPerfResult('perf db reset', {
     dryRun: false,
     connection_url: displayConnectionUrl,
     used_docker: result.usedDocker,
     ddl_files: result.appliedFiles,
-    ddl_statement_count: result.ddlStatements
+    ddl_statement_count: result.ddlStatements,
+    table_count: appliedInventory.tableCount,
+    index_count: appliedInventory.indexCount,
+    index_names: appliedInventory.indexNames
   }, [
     `Perf sandbox reset complete.`,
     `Connection: ${displayConnectionUrl}`,
     `DDL files: ${result.appliedFiles.length}`,
-    `DDL statements: ${result.ddlStatements}`
+    `DDL statements: ${result.ddlStatements}`,
+    `Tables: ${appliedInventory.tableCount}`,
+    `Indexes: ${appliedInventory.indexCount}`
   ]);
 }
 

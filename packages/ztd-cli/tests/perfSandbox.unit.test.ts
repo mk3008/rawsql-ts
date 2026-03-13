@@ -1,7 +1,11 @@
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { expect, test } from 'vitest';
 import {
   buildInsertStatementsForTable,
   buildPerfInitPlan,
+  inspectPerfDdlInventory,
   parsePerfSeedYaml,
   resolvePerfExternalDatabaseUrl,
   type PerfSeedConfig
@@ -110,4 +114,46 @@ test('resolvePerfExternalDatabaseUrl only honors the explicit perf variable', ()
   expect(resolvePerfExternalDatabaseUrl({
     DATABASE_URL: 'postgres://app.example/db'
   })).toBeNull();
+});
+
+test('inspectPerfDdlInventory counts CREATE INDEX statements so perf reset can recreate them', () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'perf-ddl-'));
+  const ddlDir = path.join(rootDir, 'ztd', 'ddl');
+  if (!existsSync(ddlDir)) {
+    mkdirSync(ddlDir, { recursive: true });
+  }
+
+  writeFileSync(path.join(rootDir, 'ztd.config.json'), JSON.stringify({
+    dialect: 'postgres',
+    ddlDir: 'ztd/ddl',
+    testsDir: 'tests',
+    ddl: { defaultSchema: 'public', searchPath: ['public'] },
+    ddlLint: 'strict'
+  }, null, 2), 'utf8');
+  writeFileSync(path.join(ddlDir, 'public.sql'), [
+    'create table public.users (id integer primary key, email text not null);',
+    'create index users_email_idx on public.users(email);',
+    ''
+  ].join('\n'), 'utf8');
+
+  const inventory = inspectPerfDdlInventory(rootDir);
+
+  expect(inventory.ddlStatementCount).toBe(2);
+  expect(inventory.tableCount).toBe(1);
+  expect(inventory.indexCount).toBe(1);
+  expect(inventory.indexNames).toEqual(['users_email_idx']);
+  expect(inventory.statements.map((statement) => statement.kind)).toEqual(['table', 'index']);
+});
+test('inspectPerfDdlInventory fails fast when the configured DDL directory does not exist', () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'perf-ddl-missing-'));
+
+  writeFileSync(path.join(rootDir, 'ztd.config.json'), JSON.stringify({
+    dialect: 'postgres',
+    ddlDir: 'ztd/ddl',
+    testsDir: 'tests',
+    ddl: { defaultSchema: 'public', searchPath: ['public'] },
+    ddlLint: 'strict'
+  }, null, 2), 'utf8');
+
+  expect(() => inspectPerfDdlInventory(rootDir, { requireExistingDdlDir: true })).toThrow(/Perf DDL directory does not exist:/);
 });
