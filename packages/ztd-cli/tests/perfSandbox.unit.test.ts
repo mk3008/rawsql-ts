@@ -144,3 +144,16 @@ test('inspectPerfDdlInventory counts CREATE INDEX statements so perf reset can r
   expect(inventory.indexNames).toEqual(['users_email_idx']);
   expect(inventory.statements.map((statement) => statement.kind)).toEqual(['table', 'index']);
 });
+test('inspectPerfDdlInventory fails fast when the configured DDL directory does not exist', () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'perf-ddl-missing-'));
+
+  writeFileSync(path.join(rootDir, 'ztd.config.json'), JSON.stringify({
+    dialect: 'postgres',
+    ddlDir: 'ztd/ddl',
+    testsDir: 'tests',
+    ddl: { defaultSchema: 'public', searchPath: ['public'] },
+    ddlLint: 'strict'
+  }, null, 2), 'utf8');
+
+  expect(() => inspectPerfDdlInventory(rootDir, { requireExistingDdlDir: true })).toThrow(/Perf DDL directory does not exist:/);
+});

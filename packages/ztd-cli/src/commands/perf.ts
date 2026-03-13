@@ -167,7 +167,7 @@ function runPerfInitCommand(options: PerfInitOptions): void {
 
 async function runPerfDbResetCommand(options: PerfResetOptions): Promise<void> {
   const merged = resolvePerfOptions(options);
-  const ddlInventory = inspectPerfDdlInventory(process.cwd());
+  const ddlInventory = inspectPerfDdlInventory(process.cwd(), { requireExistingDdlDir: true });
 
   if (merged.dryRun) {
     emitPerfResult('perf db reset', {
@@ -184,7 +184,7 @@ async function runPerfDbResetCommand(options: PerfResetOptions): Promise<void> {
 
   const result = await resetPerfSandbox(process.cwd());
   const displayConnectionUrl = toDisplayConnectionUrl(result.connectionUrl);
-  const appliedInventory = inspectPerfDdlInventory(process.cwd());
+  const appliedInventory = inspectPerfDdlInventory(process.cwd(), { requireExistingDdlDir: true });
   emitPerfResult('perf db reset', {
     dryRun: false,
     connection_url: displayConnectionUrl,

@@ -127,6 +127,7 @@ export interface PerfStatementDelta {
 interface PerfPlanFacts {
   observations: string[];
   statement_summary: string;
+  hasCapturedPlan: boolean;
   hasSequentialScan: boolean;
   hasJoin: boolean;
 }
@@ -751,6 +752,7 @@ export async function runPerfBenchmark(options: PerfRunOptions): Promise<PerfBen
     const dryRunPlanFacts: PerfPlanFacts = {
       observations: [],
       statement_summary: '(no plan captured)',
+      hasCapturedPlan: false,
       hasSequentialScan: false,
       hasJoin: false
     };
@@ -1322,6 +1324,7 @@ function toPerfStatementReports(statements: StatementExecutionTrace[]): PerfStat
 function buildPerfPlanFactsFromStatements(statements: StatementExecutionTrace[]): PerfPlanFacts {
   const observations: string[] = [];
   const summaries: string[] = [];
+  let hasCapturedPlan = false;
   let hasSequentialScan = false;
   let hasJoin = false;
 
@@ -1330,6 +1333,7 @@ function buildPerfPlanFactsFromStatements(statements: StatementExecutionTrace[])
     const prefix = `${statement.role}(${statement.target})`;
     summaries.push(`${prefix}: ${facts.statement_summary}`);
     observations.push(...facts.observations.map((observation) => `${prefix}: ${observation}`));
+    hasCapturedPlan = hasCapturedPlan || facts.hasCapturedPlan;
     hasSequentialScan = hasSequentialScan || facts.hasSequentialScan;
     hasJoin = hasJoin || facts.hasJoin;
   }
@@ -1337,6 +1341,7 @@ function buildPerfPlanFactsFromStatements(statements: StatementExecutionTrace[])
   return {
     observations: Array.from(new Set(observations)),
     statement_summary: summaries.join(' | ') || '(no plan captured)',
+    hasCapturedPlan,
     hasSequentialScan,
     hasJoin
   };
@@ -1743,7 +1748,7 @@ export function buildPerfTuningGuidance(
 
   return {
     primary_path: primaryPath,
-    requires_captured_plan: !hasPlanSignals,
+    requires_captured_plan: !planFacts.hasCapturedPlan,
     index_branch: {
       recommended: primaryPath === 'index',
       rationale: indexRationale,
@@ -1856,6 +1861,7 @@ function uniqueRecommendedActions(actions: PerfRecommendedAction[]): PerfRecomme
 function buildPerfPlanFacts(planJson: unknown): PerfPlanFacts {
   const observations: string[] = [];
   const statementSummaryParts: string[] = [];
+  const hasCapturedPlan = planJson !== null && planJson !== undefined;
   let hasSequentialScan = false;
   let hasJoin = false;
 
@@ -1894,6 +1900,7 @@ function buildPerfPlanFacts(planJson: unknown): PerfPlanFacts {
   return {
     observations: Array.from(new Set(observations)),
     statement_summary: Array.from(new Set(statementSummaryParts)).join(' -> ') || '(no plan captured)',
+    hasCapturedPlan,
     hasSequentialScan,
     hasJoin
   };

@@ -57,3 +57,8 @@ That means these two statements can both be true without contradiction:
 3. If no, author the missing optional branch in SQL with SSSQL.
 4. Keep hardcoded required predicates separate from removable optional branches.
 5. Add or update the focused unit test that proves the routing choice.
+
+## Related guides
+
+- [SSSQL for Humans](./sssql-for-humans.md)
+- [SSSQL Optional Branch Pruning MVP](./sssql-optional-branch-pruning.md)

@@ -490,6 +490,25 @@ test('perf db reset dry-run lists DDL files without touching Docker', () => {
 
 
 
+test('perf db reset dry-run fails fast when the configured DDL directory is missing', () => {
+  const workspace = createTempDir('perf-reset-missing-ddl');
+  writeFileSync(
+    path.join(workspace, 'ztd.config.json'),
+    JSON.stringify({
+      dialect: 'postgres',
+      ddlDir: 'ztd/ddl',
+      testsDir: 'tests',
+      ddl: { defaultSchema: 'public', searchPath: ['public'] },
+      ddlLint: 'strict'
+    }, null, 2),
+    'utf8'
+  );
+
+  const result = runCli(['perf', 'db', 'reset', '--dry-run'], {}, workspace);
+
+  assertCliFailure(result, 'perf db reset dry-run missing ddl');
+  expect(result.stderr).toContain('Perf DDL directory does not exist:');
+});
 test('perf seed output redacts connection credentials in global json mode', () => {
   const workspace = createTempDir('perf-seed-redact');
   mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });

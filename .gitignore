@@ -119,6 +119,7 @@ obj/
 # Source maps
 *.map
 
+# Generated demo workspaces materialize local package manifests during dogfooding.
 demo/package.json
 demo/package-lock.json
 demo/formatter/node_modules/

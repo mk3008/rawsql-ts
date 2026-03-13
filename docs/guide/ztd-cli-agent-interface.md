@@ -18,6 +18,7 @@
 - If any of those perf inputs are missing, respond by capturing them with `ztd perf db reset --dry-run` and `ztd perf run` before proposing a fix.
 
 For SQL authoring guidance around optional predicates, see [ztd-cli SSSQL Authoring](./ztd-cli-sssql-authoring.md).
+
 ## JSON Envelope
 
 Supported commands emit a JSON object on stdout with this shape:

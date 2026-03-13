@@ -29,9 +29,10 @@ It marks the query as important enough that perf evidence, fixture scale, and fo
 A useful perf loop needs all of the following:
 
 1. QuerySpec perf metadata so the team knows the intended scale.
-2. `perf/seed.yml` row counts large enough to approximate the intended workload.
-3. A captured plan or benchmark report from `ztd perf run` so the next tuning branch is based on evidence.
-4. DDL-backed schema state under `ztd/ddl/*.sql`, including any indexes that should exist in the perf sandbox.
+2. A structural read of the query from `ztd query plan <sql-file>` before deciding whether indexes or PIPELINE are the right branch.
+3. `perf/seed.yml` row counts large enough to approximate the intended workload.
+4. A captured plan or benchmark report from `ztd perf run` so the next tuning branch is based on runtime evidence.
+5. DDL-backed schema state under `ztd/ddl/*.sql`, including any indexes that should exist in the perf sandbox.
 
 ## Information the prompt must provide
 
@@ -42,7 +43,7 @@ When an AI agent or reviewer is asked to choose between index tuning and pipelin
 3. the current DDL/index state that the perf sandbox will replay
 4. whether a captured plan already exists, or whether the next step must be evidence capture first
 
-Without those inputs, the correct first response is not "add an index" or "rewrite into PIPELINE". The correct first response is to capture the missing evidence with `ztd perf run`, `ztd perf db reset --dry-run`, and the local QuerySpec metadata.
+Without those inputs, the correct first response is not "add an index" or "rewrite into PIPELINE". The correct first response is to capture the missing evidence in order: `ztd query plan <sql-file>`, `ztd perf db reset --dry-run`, `ztd perf run --dry-run` or `ztd perf run`, and the local QuerySpec metadata.
 
 ## Choose index tuning first when
 
@@ -92,8 +93,10 @@ If an index is missing from DDL, the perf sandbox should treat it as missing.
 ## Recommended loop
 
 1. Add or confirm QuerySpec `metadata.perf`.
-2. Make sure `perf/seed.yml` is not undersized for the intended workload.
-3. Run `ztd perf run` and inspect the tuning guidance.
-4. If the report points to indexes, update DDL and rerun `ztd perf db reset`.
-5. If the report points to pipeline tuning, compare direct vs decomposed runs.
-6. Save evidence once the faster branch is confirmed.
+2. Run `ztd query plan <sql-file>` to capture the structural shape before runtime tuning.
+3. Make sure `perf/seed.yml` is not undersized for the intended workload.
+4. Run `ztd perf db reset --dry-run`, then `ztd perf run --dry-run` or `ztd perf run` to capture runtime evidence.
+5. Reproduce the suspicious case with the smallest focused SQL/debug or integration verification surface.
+6. If the report points to indexes, update DDL and rerun `ztd perf db reset`.
+7. If the report points to pipeline tuning, compare direct vs decomposed runs and measure the refactor impact.
+8. Save evidence once the faster branch is confirmed.

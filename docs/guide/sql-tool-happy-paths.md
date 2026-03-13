@@ -8,8 +8,8 @@ Use it when the problem is not "how do I use every command?" but "which command 
 | Problem shape | Start here | Then | Avoid as the first step |
 |---------------|------------|------|--------------------------|
 | I need to understand how one SQL asset will split into pipeline stages | `ztd query plan <sql-file>` | `ztd perf run --dry-run ...` | Telemetry, `query uses` |
-| I suspect the optimizer is confused by a predicate or CTE | `ztd perf run --dry-run ...` | `ztd query plan <sql-file>` and the perf tuning decision guide | `query uses` |
-| I need to decide between index tuning and pipeline tuning for a high-volume query | `ztd perf run ...` plus QuerySpec `metadata.perf` | `ztd perf db reset` after DDL/index changes, then direct vs decomposed comparison | Telemetry before plan or perf evidence exists |
+| I suspect the optimizer is confused by a predicate or CTE | `ztd query plan <sql-file>` | `ztd perf run --dry-run ...` and the perf tuning decision guide | `query uses` |
+| I need to decide between index tuning and pipeline tuning for a high-volume query | `ztd query plan <sql-file>` plus QuerySpec `metadata.perf` | `ztd perf db reset --dry-run`, then `ztd perf run ...`, then direct vs decomposed comparison | Telemetry before plan or perf evidence exists |
 | I need to confirm where a table or column is used before changing it | `ztd query uses <target>` | `ztd query lint <path>` | Telemetry |
 | I need timing, trace export, or machine-readable execution evidence | Telemetry mode for the command under investigation | The structural command that produced the suspicious result | Starting with telemetry before the SQL shape is known |
 | I need to inspect generated SQL or rewritten predicates | `ztd query plan <sql-file>` plus the focused SQL/debug workflow for the scenario | Integration or DB-backed verification | `query uses` |
@@ -41,7 +41,7 @@ This is the default entry point for SQL pipeline dogfooding.
 
 ### `perf run --dry-run`
 
-Use `perf run --dry-run` when you need recommendations rather than just structure.
+Use `perf run --dry-run` after `query plan` when you need recommendations rather than just structure.
 It is the best follow-up when the next question is "is this rewrite likely worth doing?"
 
 Look for:

@@ -1393,6 +1393,7 @@ test('buildPerfTuningGuidance prefers index remediation when the captured plan s
   }, {
     observations: ['Seq Scan on public.sales'],
     statement_summary: 'Seq Scan',
+    hasCapturedPlan: true,
     hasSequentialScan: true,
     hasJoin: false
   }, {
@@ -1411,6 +1412,25 @@ test('buildPerfTuningGuidance prefers index remediation when the captured plan s
   expect(buildPerfTuningSummary(guidance)).toMatchObject({
     headline: 'Start with index tuning.'
   });
+});
+test('buildPerfTuningGuidance does not require another capture when a non-signal plan already exists', () => {
+  const guidance = buildPerfTuningGuidance({
+    query_type: 'SELECT',
+    cte_count: 0,
+    should_consider_pipeline: false,
+    candidate_ctes: [],
+    scalar_filter_candidates: [],
+    notes: []
+  }, {
+    observations: [],
+    statement_summary: 'Index Only Scan on public.sales',
+    hasCapturedPlan: true,
+    hasSequentialScan: false,
+    hasJoin: false
+  });
+
+  expect(guidance.primary_path).toBe('capture-plan');
+  expect(guidance.requires_captured_plan).toBe(false);
 });
 
 test('summarizePerfDdlInventory keeps index counts visible in saved perf guidance', () => {

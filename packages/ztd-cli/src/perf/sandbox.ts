@@ -139,10 +139,13 @@ export function applyPerfInitPlan(plan: PerfInitPlan): string[] {
   return written;
 }
 
-export function inspectPerfDdlInventory(rootDir: string): PerfDdlInventory {
+export function inspectPerfDdlInventory(rootDir: string, options: { requireExistingDdlDir?: boolean } = {}): PerfDdlInventory {
   const config = loadZtdProjectConfig(rootDir);
   const ddlRoot = path.resolve(rootDir, config.ddlDir);
   if (!existsSync(ddlRoot)) {
+    if (options.requireExistingDdlDir) {
+      throw new Error(`Perf DDL directory does not exist: ${ddlRoot}`);
+    }
     return {
       files: [],
       statements: [],
@@ -198,7 +201,7 @@ export function inspectPerfDdlInventory(rootDir: string): PerfDdlInventory {
 export async function resetPerfSandbox(rootDir: string): Promise<PerfResetResult> {
   const sandboxConfig = loadPerfSandboxConfig(rootDir);
   const resolvedConnection = await ensurePerfConnection(rootDir, sandboxConfig);
-  const ddlInventory = inspectPerfDdlInventory(rootDir);
+  const ddlInventory = inspectPerfDdlInventory(rootDir, { requireExistingDdlDir: true });
 
   const pg = await ensurePgModule();
   const client = new pg.Client({ connectionString: resolvedConnection.connectionUrl, connectionTimeoutMillis: 3000 });
