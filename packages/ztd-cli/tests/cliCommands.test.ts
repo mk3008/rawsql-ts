@@ -355,7 +355,7 @@ test('agents install emits the visible AGENTS plan and materializes the files', 
   expect(result.stdout).toContain('AGENTS.md');
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(false);
 });
 
 test('agents install preserves an existing root AGENTS.md and falls back to AGENTS_ztd.md', { timeout: 60_000 }, () => {
