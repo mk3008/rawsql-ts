@@ -3,7 +3,7 @@
 
 > **isModelDrivenFormat**(`input`): `input is ModelDrivenJsonMapping`
 
-Defined in: [packages/core/src/transformers/JsonMappingUnifier.ts:224](https://github.com/mk3008/rawsql-ts/blob/4c7c8a4f97538aad171fb5f463a1787c5adb61de/packages/core/src/transformers/JsonMappingUnifier.ts#L224)
+Defined in: [packages/core/src/transformers/JsonMappingUnifier.ts:224](https://github.com/mk3008/rawsql-ts/blob/048e31d240bb59505c83f5c0c9a6bff3144552fc/packages/core/src/transformers/JsonMappingUnifier.ts#L224)
 
 Type guard to check if input uses model-driven format.
 

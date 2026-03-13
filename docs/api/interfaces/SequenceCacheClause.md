@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: SequenceCacheClause
 
-Defined in: [packages/core/src/models/DDLStatements.ts:441](https://github.com/mk3008/rawsql-ts/blob/4c7c8a4f97538aad171fb5f463a1787c5adb61de/packages/core/src/models/DDLStatements.ts#L441)
+Defined in: [packages/core/src/models/DDLStatements.ts:441](https://github.com/mk3008/rawsql-ts/blob/048e31d240bb59505c83f5c0c9a6bff3144552fc/packages/core/src/models/DDLStatements.ts#L441)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:441](https://github.com/m
 
 > **kind**: `"cache"`
 
-Defined in: [packages/core/src/models/DDLStatements.ts:442](https://github.com/mk3008/rawsql-ts/blob/4c7c8a4f97538aad171fb5f463a1787c5adb61de/packages/core/src/models/DDLStatements.ts#L442)
+Defined in: [packages/core/src/models/DDLStatements.ts:442](https://github.com/mk3008/rawsql-ts/blob/048e31d240bb59505c83f5c0c9a6bff3144552fc/packages/core/src/models/DDLStatements.ts#L442)
 
 ***
 
@@ -17,7 +17,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:442](https://github.com/m
 
 > `optional` **value**: [`ValueComponent`](../type-aliases/ValueComponent.md)
 
-Defined in: [packages/core/src/models/DDLStatements.ts:443](https://github.com/mk3008/rawsql-ts/blob/4c7c8a4f97538aad171fb5f463a1787c5adb61de/packages/core/src/models/DDLStatements.ts#L443)
+Defined in: [packages/core/src/models/DDLStatements.ts:443](https://github.com/mk3008/rawsql-ts/blob/048e31d240bb59505c83f5c0c9a6bff3144552fc/packages/core/src/models/DDLStatements.ts#L443)
 
 ***
 
@@ -25,5 +25,5 @@ Defined in: [packages/core/src/models/DDLStatements.ts:443](https://github.com/m
 
 > `optional` **noValue**: `boolean`
 
-Defined in: [packages/core/src/models/DDLStatements.ts:444](https://github.com/mk3008/rawsql-ts/blob/4c7c8a4f97538aad171fb5f463a1787c5adb61de/packages/core/src/models/DDLStatements.ts#L444)
+Defined in: [packages/core/src/models/DDLStatements.ts:444](https://github.com/mk3008/rawsql-ts/blob/048e31d240bb59505c83f5c0c9a6bff3144552fc/packages/core/src/models/DDLStatements.ts#L444)
 </div>

@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SqlSortInjector
 
-Defined in: [packages/core/src/transformers/SqlSortInjector.ts:11](https://github.com/mk3008/rawsql-ts/blob/4c7c8a4f97538aad171fb5f463a1787c5adb61de/packages/core/src/transformers/SqlSortInjector.ts#L11)
+Defined in: [packages/core/src/transformers/SqlSortInjector.ts:11](https://github.com/mk3008/rawsql-ts/blob/048e31d240bb59505c83f5c0c9a6bff3144552fc/packages/core/src/transformers/SqlSortInjector.ts#L11)
 
 SqlSortInjector injects sort conditions into a SelectQuery model,
 creating ORDER BY clauses based on provided sort conditions.
@@ -12,7 +12,7 @@ creating ORDER BY clauses based on provided sort conditions.
 
 > **new SqlSortInjector**(`tableColumnResolver?`): `SqlSortInjector`
 
-Defined in: [packages/core/src/transformers/SqlSortInjector.ts:14](https://github.com/mk3008/rawsql-ts/blob/4c7c8a4f97538aad171fb5f463a1787c5adb61de/packages/core/src/transformers/SqlSortInjector.ts#L14)
+Defined in: [packages/core/src/transformers/SqlSortInjector.ts:14](https://github.com/mk3008/rawsql-ts/blob/048e31d240bb59505c83f5c0c9a6bff3144552fc/packages/core/src/transformers/SqlSortInjector.ts#L14)
 
 #### Parameters
 
@@ -30,7 +30,7 @@ Defined in: [packages/core/src/transformers/SqlSortInjector.ts:14](https://githu
 
 > `static` **removeOrderBy**(`query`): [`SimpleSelectQuery`](SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/transformers/SqlSortInjector.ts:23](https://github.com/mk3008/rawsql-ts/blob/4c7c8a4f97538aad171fb5f463a1787c5adb61de/packages/core/src/transformers/SqlSortInjector.ts#L23)
+Defined in: [packages/core/src/transformers/SqlSortInjector.ts:23](https://github.com/mk3008/rawsql-ts/blob/048e31d240bb59505c83f5c0c9a6bff3144552fc/packages/core/src/transformers/SqlSortInjector.ts#L23)
 
 Removes ORDER BY clause from the given query.
 
@@ -54,7 +54,7 @@ The modified SimpleSelectQuery with ORDER BY clause removed
 
 > **inject**(`query`, `sortConditions`): [`SimpleSelectQuery`](SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/transformers/SqlSortInjector.ts:58](https://github.com/mk3008/rawsql-ts/blob/4c7c8a4f97538aad171fb5f463a1787c5adb61de/packages/core/src/transformers/SqlSortInjector.ts#L58)
+Defined in: [packages/core/src/transformers/SqlSortInjector.ts:58](https://github.com/mk3008/rawsql-ts/blob/048e31d240bb59505c83f5c0c9a6bff3144552fc/packages/core/src/transformers/SqlSortInjector.ts#L58)
 
 Injects sort conditions as ORDER BY clauses into the given query model.
 Appends to existing ORDER BY clause if present.
