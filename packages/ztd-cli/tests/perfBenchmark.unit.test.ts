@@ -1431,6 +1431,11 @@ test('buildPerfTuningGuidance does not require another capture when a non-signal
 
   expect(guidance.primary_path).toBe('capture-plan');
   expect(guidance.requires_captured_plan).toBe(false);
+  expect(buildPerfTuningSummary(guidance)).toMatchObject({
+    headline: 'A representative plan is already available; compare index and pipeline evidence next.',
+    evidence: ['A captured plan exists, but it does not yet isolate scans, joins, or pipeline hotspots.'],
+    next_step: 'Capture or review EXPLAIN (ANALYZE, BUFFERS) before changing the physical design.'
+  });
 });
 
 test('summarizePerfDdlInventory keeps index counts visible in saved perf guidance', () => {

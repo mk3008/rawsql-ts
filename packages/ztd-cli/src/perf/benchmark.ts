@@ -1778,14 +1778,22 @@ export function buildPerfTuningSummary(guidance: PerfTuningGuidance): PerfTuning
     };
   }
 
-  return {
-    headline: 'Capture a representative plan before choosing index or pipeline work.',
-    evidence: [
-      'No captured plan signal is available yet.',
-      ...guidance.index_branch.rationale.slice(0, 1)
-    ],
-    next_step: guidance.index_branch.next_steps[0] ?? 'Capture EXPLAIN (ANALYZE, BUFFERS) output first.'
-  };
+  return guidance.requires_captured_plan
+    ? {
+      headline: 'Capture a representative plan before choosing index or pipeline work.',
+      evidence: [
+        'No captured plan signal is available yet.',
+        ...guidance.index_branch.rationale.slice(0, 1)
+      ],
+      next_step: guidance.index_branch.next_steps[0] ?? 'Capture EXPLAIN (ANALYZE, BUFFERS) output first.'
+    }
+    : {
+      headline: 'A representative plan is already available; compare index and pipeline evidence next.',
+      evidence: guidance.index_branch.rationale.length > 0
+        ? guidance.index_branch.rationale.slice(0, 2)
+        : ['A captured plan exists, but it does not yet isolate scans, joins, or pipeline hotspots.'],
+      next_step: guidance.index_branch.next_steps[0] ?? 'Review the captured plan before changing indexes.'
+    };
 }
 
 function buildPerfRecommendedActions(
@@ -2779,4 +2787,3 @@ function truncateSingleLine(value: string, limit: number): string {
   }
   return `${normalized.slice(0, limit - 3)}...`;
 }
-
