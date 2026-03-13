@@ -254,9 +254,11 @@ Use this split to classify repetition:
 | `ztd model-gen --import-from <specifier>` | Override the generated `sql-contract` import target explicitly |
 | `ztd ztd-config --quiet` | Suppress next-step hints (useful in scripts) |
 | `ztd ddl pull` | Fetch schema from a live Postgres database via `pg_dump` |
+| `ztd ddl pull --pg-dump-shell` | Run `--pg-dump-path` through a shell so wrapper commands such as `docker exec <container> pg_dump` can be used |
 | `ztd ddl pull --dry-run` | Run `pg_dump` and normalize the schema without writing files |
 | `ztd ddl pull --json <payload>` | Pass pull options as a raw JSON object |
 | `ztd ddl diff` | Diff local DDL snapshot against a live database |
+| `ztd ddl diff --pg-dump-shell` | Run `--pg-dump-path` through a shell so wrapper commands such as `docker exec <container> pg_dump` can be used |
 | `ztd ddl diff --dry-run` | Compute the diff plan without writing the patch file |
 | `ztd ddl diff --json <payload>` | Pass diff options as a raw JSON object |
 | `ztd ddl gen-entities` | Generate `entities.ts` for ad-hoc schema inspection |

@@ -9,6 +9,7 @@ export interface PullSchemaOptions {
   url: string;
   out: string;
   pgDumpPath?: string;
+  pgDumpShell?: boolean;
   schemas?: string[];
   tables?: string[];
   connectionContext?: DbConnectionContext;
@@ -41,6 +42,7 @@ export function runPullSchema(options: PullSchemaOptions): PullSchemaResult {
   const ddlSql = runPgDump({
     url: options.url,
     pgDumpPath: options.pgDumpPath,
+    pgDumpShell: options.pgDumpShell,
     extraArgs: buildPgDumpArguments(schemaFilters, tableFilters),
     connectionContext: options.connectionContext
   });

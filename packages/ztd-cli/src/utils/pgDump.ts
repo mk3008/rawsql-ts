@@ -6,6 +6,7 @@ import { describeConnectionContext } from './connectionSummary';
 export interface PgDumpOptions {
   url: string;
   pgDumpPath?: string;
+  pgDumpShell?: boolean;
   extraArgs?: string[];
   connectionContext?: DbConnectionContext;
 }
@@ -15,6 +16,7 @@ export interface PgDumpOptions {
  */
 export function runPgDump(options: PgDumpOptions): string {
   const executable = options.pgDumpPath ?? process.env.PG_DUMP_PATH ?? 'pg_dump';
+  const useShell = Boolean(options.pgDumpShell);
   const args = [
     '--schema-only',
     '--no-owner',
@@ -26,7 +28,9 @@ export function runPgDump(options: PgDumpOptions): string {
 
   const result = spawnSync(executable, args, {
     encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe']
+    stdio: ['ignore', 'pipe', 'pipe'],
+    // Allow wrapper scripts or compound commands such as "docker exec <container> pg_dump".
+    shell: useShell
   });
 
   const connectionNote = describeConnectionContext(options.connectionContext);
@@ -35,7 +39,7 @@ export function runPgDump(options: PgDumpOptions): string {
   if (result.error) {
     const windowsHint =
       os.platform() === 'win32'
-        ? ' On Windows, ensure "C:\\Program Files\\PostgreSQL\\<version>\\bin" is on PATH or use a shell where pg_dump is available.'
+        ? ' On Windows, ensure "C:\\Program Files\\PostgreSQL\\<version>\\bin" is on PATH, or pass --pg-dump-shell with a wrapper command such as "docker exec <container> pg_dump".'
         : '';
 
     if (isExecutableMissing(result.error, result.stderr?.toString())) {
@@ -45,7 +49,7 @@ export function runPgDump(options: PgDumpOptions): string {
     }
 
     throw new Error(
-      `Failed to launch pg_dump (${executable})${connectionNote}: ${result.error.message ?? 'Unknown error'}${extraArgsNote}`
+      `Failed to launch pg_dump (${executable})${connectionNote}: ${result.error.message ?? 'Unknown error'}${extraArgsNote}${useShell ? ' (shell mode enabled)' : ''}`
     );
   }
 

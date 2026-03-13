@@ -18,6 +18,7 @@ import { validateProjectPath, validateResourceIdentifier } from '../utils/agentS
 
 interface PullCommandOptions extends ConnectionCliOptions {
   pgDumpPath?: string;
+  pgDumpShell?: boolean;
   out?: string;
   schema?: string[];
   table?: string[];
@@ -27,6 +28,7 @@ interface PullCommandOptions extends ConnectionCliOptions {
 
 interface DiffCommandOptions extends ConnectionCliOptions {
   pgDumpPath?: string;
+  pgDumpShell?: boolean;
   ddlDir?: string[];
   extensions?: string[];
   out?: string;
@@ -52,6 +54,7 @@ export function registerDdlCommands(program: Command): void {
       .option('--db-password <password>', 'Database password')
       .option('--db-name <name>', 'Database name to connect to')
       .option('--pg-dump-path <path>', 'Custom pg_dump executable path')
+      .option('--pg-dump-shell', 'Run the pg_dump path through a shell so wrapper commands like "docker exec <container> pg_dump" can be used')
       .option('--schema <schema>', 'Schema name to include (repeatable)', collectValues, [])
       .option('--table <table>', 'Table spec (schema.table) to include (repeatable)', collectValues, [])
       .option('--dry-run', 'Validate pull inputs and normalize the dump without writing files')
@@ -63,6 +66,7 @@ export function registerDdlCommands(program: Command): void {
           url: connection.url,
           out: validateProjectPath(String(merged.out ?? DEFAULT_DDL_DIRECTORY), '--out'),
           pgDumpPath: merged.pgDumpPath,
+          pgDumpShell: Boolean(merged.pgDumpShell),
           schemas: (merged.schema ?? []).map((value) => validateResourceIdentifier(String(value), '--schema')),
           tables: (merged.table ?? []).map((value) => validateResourceIdentifier(String(value), '--table')),
           connectionContext: connection.context,
@@ -120,6 +124,7 @@ export function registerDdlCommands(program: Command): void {
       .option('--db-password <password>', 'Database password')
       .option('--db-name <name>', 'Database name to connect to')
       .option('--pg-dump-path <path>', 'Custom pg_dump executable path')
+      .option('--pg-dump-shell', 'Run the pg_dump path through a shell so wrapper commands like "docker exec <container> pg_dump" can be used')
       .option('--dry-run', 'Compute the diff plan without writing the patch file')
       .option('--json <payload>', 'Pass diff options as a JSON object')
       .action(async (options: DiffCommandOptions) => {
@@ -134,6 +139,7 @@ export function registerDdlCommands(program: Command): void {
           url: connection.url,
           out: outPath,
           pgDumpPath: merged.pgDumpPath,
+          pgDumpShell: Boolean(merged.pgDumpShell),
           connectionContext: connection.context,
           dryRun: Boolean(merged.dryRun)
         });
