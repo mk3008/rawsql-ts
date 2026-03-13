@@ -94,6 +94,32 @@ start:execute-perf-benchmark
 start:render-perf-report
 end:perf run:ok
 ```
+
+## Scenario D: Repository telemetry scaffold replacement loop
+
+Use this scenario when `ztd init --with-sqlclient` claims to scaffold repository telemetry, but you need to prove the generated hook is both safe by default and replaceable by application code.
+
+### Why telemetry is the right tool here
+
+This is the shortest dogfooding loop that answers the real repository integration questions:
+
+- does the scaffold emit structured repository events out of the box?
+- is SQL text still suppressed by the default console implementation?
+- can application code replace the hook without editing generated internals?
+
+### Regression surface
+
+- Test file: `packages/ztd-cli/tests/init.command.test.ts`
+- Test name: `repository telemetry scaffold dogfood scenario keeps the default hook replaceable and conservative`
+
+### Expected assertions
+
+```text
+- default hook emits start/success/error repository events
+- default console payload omits sqlText unless explicitly enabled
+- custom hook receives the structured events directly
+- custom hook bypasses the default console sink
+```
 ## What this guide is for
 
 These scenarios are intentionally narrow.

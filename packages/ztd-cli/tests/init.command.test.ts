@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { expect, test } from 'vitest';
+import { pathToFileURL } from 'node:url';
+import { expect, test, vi } from 'vitest';
 
 import { DEFAULT_ZTD_CONFIG } from '../src/utils/ztdProjectConfig';
 import {
@@ -260,17 +261,36 @@ test('init wizard can scaffold the optional SqlClient seam', async () => {
   const result = await runInitCommand(prompter, { rootDir: workspace, withSqlClient: true });
 
   const sqlClientPath = path.join(workspace, 'src', 'db', 'sql-client.ts');
+  const repositoryTelemetryPath = path.join(
+    workspace,
+    'src',
+    'infrastructure',
+    'telemetry',
+    'repositoryTelemetry.ts'
+  );
 
   expect(existsSync(sqlClientPath)).toBe(true);
+  expect(existsSync(repositoryTelemetryPath)).toBe(true);
   expect(readNormalizedFile(sqlClientPath)).toContain('export type SqlClient');
+  expect(readNormalizedFile(repositoryTelemetryPath)).toContain('defaultRepositoryTelemetry');
   expect(result.summary).toContain('src/db/sql-client.ts');
+  expect(result.summary).toContain('src/infrastructure/telemetry/repositoryTelemetry.ts');
 });
 
 test('init wizard preserves existing SqlClient files when opted in', async () => {
   const workspace = createTempDir('cli-init-sqlclient-existing');
   const sqlClientPath = path.join(workspace, 'src', 'db', 'sql-client.ts');
+  const repositoryTelemetryPath = path.join(
+    workspace,
+    'src',
+    'infrastructure',
+    'telemetry',
+    'repositoryTelemetry.ts'
+  );
   mkdirSync(path.dirname(sqlClientPath), { recursive: true });
+  mkdirSync(path.dirname(repositoryTelemetryPath), { recursive: true });
   writeFileSync(sqlClientPath, '// existing\n', 'utf8');
+  writeFileSync(repositoryTelemetryPath, '// existing telemetry\n', 'utf8');
 
   const prompter = new TestPrompter(['2', '1']);
   const logs: string[] = [];
@@ -281,9 +301,162 @@ test('init wizard preserves existing SqlClient files when opted in', async () =>
   await runInitCommand(prompter, { rootDir: workspace, withSqlClient: true, dependencies });
 
   expect(readNormalizedFile(sqlClientPath)).toBe('// existing\n');
+  expect(readNormalizedFile(repositoryTelemetryPath)).toBe('// existing telemetry\n');
   expect(logs.some((message) => message.includes('Skipping src/db/sql-client.ts because the file already exists.'))).toBe(
     true
   );
+  expect(
+    logs.some((message) =>
+      message.includes('Skipping src/infrastructure/telemetry/repositoryTelemetry.ts because the file already exists.')
+    )
+  ).toBe(true);
+});
+
+test('repository telemetry scaffold dogfood scenario keeps the default hook replaceable and conservative', async () => {
+  const workspace = createTempDir('cli-init-telemetry-dogfood');
+  const prompter = new TestPrompter(['2', '1']);
+  await runInitCommand(prompter, { rootDir: workspace, withSqlClient: true });
+
+  const repositoryFile = path.join(workspace, 'src', 'repositories', 'views', 'ordersRepository.ts');
+  writeFileSync(
+    repositoryFile,
+    [
+      "import { resolveRepositoryTelemetry, type RepositoryTelemetry } from '../../infrastructure/telemetry/repositoryTelemetry';",
+      '',
+      'export class OrdersRepository {',
+      '  private readonly telemetry: RepositoryTelemetry;',
+      '',
+      '  constructor(telemetry?: RepositoryTelemetry) {',
+      '    this.telemetry = resolveRepositoryTelemetry(telemetry);',
+      '  }',
+      '',
+      '  async listRecentOrders(): Promise<number> {',
+      '    await this.telemetry.emit({',
+      "      kind: 'query.execute.start',",
+      "      timestamp: '2026-03-13T00:00:00.000Z',",
+      "      repositoryName: 'OrdersRepository',",
+      "      methodName: 'listRecentOrders',",
+      "      queryName: 'orders.listRecent',",
+      "      sqlText: 'select * from public.orders order by created_at desc limit 3',",
+      '    });',
+      '    await this.telemetry.emit({',
+      "      kind: 'query.execute.success',",
+      "      timestamp: '2026-03-13T00:00:00.012Z',",
+      "      repositoryName: 'OrdersRepository',",
+      "      methodName: 'listRecentOrders',",
+      "      queryName: 'orders.listRecent',",
+      '      durationMs: 12,',
+      '      rowCount: 3,',
+      "      sqlText: 'select * from public.orders order by created_at desc limit 3',",
+      '    });',
+      '    return 3;',
+      '  }',
+      '',
+      '  async failRecentOrders(): Promise<void> {',
+      '    await this.telemetry.emit({',
+      "      kind: 'query.execute.error',",
+      "      timestamp: '2026-03-13T00:00:00.099Z',",
+      "      repositoryName: 'OrdersRepository',",
+      "      methodName: 'failRecentOrders',",
+      "      queryName: 'orders.listRecent',",
+      '      durationMs: 99,',
+      "      errorName: 'TimeoutError',",
+      "      errorMessage: 'statement timed out',",
+      "      sqlText: 'select * from public.orders order by created_at desc limit 3',",
+      '    });',
+      '  }',
+      '}',
+      '',
+      'export function createSpyTelemetry(events: unknown[]): RepositoryTelemetry {',
+      '  return {',
+      '    emit(event): void {',
+      '      events.push(event);',
+      '    },',
+      '  };',
+      '}',
+      '',
+    ].join('\n'),
+    'utf8'
+  );
+
+  const { OrdersRepository, createSpyTelemetry } = await import(pathToFileURL(repositoryFile).href) as {
+    OrdersRepository: new (telemetry?: { emit(event: unknown): void }) => {
+      listRecentOrders(): Promise<number>;
+      failRecentOrders(): Promise<void>;
+    };
+    createSpyTelemetry(events: unknown[]): { emit(event: unknown): void };
+  };
+
+  const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+  try {
+    const defaultRepository = new OrdersRepository();
+    await defaultRepository.listRecentOrders();
+    await defaultRepository.failRecentOrders();
+
+    const infoPayloads = infoSpy.mock.calls.map((call) => call[1] as Record<string, unknown>);
+    const errorPayloads = errorSpy.mock.calls.map((call) => call[1] as Record<string, unknown>);
+
+    expect(infoPayloads).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'query.execute.start',
+          repositoryName: 'OrdersRepository',
+          methodName: 'listRecentOrders',
+          queryName: 'orders.listRecent',
+        }),
+        expect.objectContaining({
+          kind: 'query.execute.success',
+          repositoryName: 'OrdersRepository',
+          methodName: 'listRecentOrders',
+          rowCount: 3,
+          durationMs: 12,
+        }),
+      ])
+    );
+    expect(errorPayloads).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'query.execute.error',
+          repositoryName: 'OrdersRepository',
+          methodName: 'failRecentOrders',
+          errorName: 'TimeoutError',
+          errorMessage: 'statement timed out',
+        }),
+      ])
+    );
+    expect(infoPayloads.some((payload) => Object.hasOwn(payload, 'sqlText'))).toBe(false);
+    expect(errorPayloads.some((payload) => Object.hasOwn(payload, 'sqlText'))).toBe(false);
+
+    infoSpy.mockClear();
+    errorSpy.mockClear();
+
+    const customEvents: unknown[] = [];
+    const customRepository = new OrdersRepository(createSpyTelemetry(customEvents));
+    await customRepository.listRecentOrders();
+
+    expect(infoSpy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(customEvents).toEqual([
+      expect.objectContaining({
+        kind: 'query.execute.start',
+        repositoryName: 'OrdersRepository',
+        methodName: 'listRecentOrders',
+        sqlText: 'select * from public.orders order by created_at desc limit 3',
+      }),
+      expect.objectContaining({
+        kind: 'query.execute.success',
+        repositoryName: 'OrdersRepository',
+        methodName: 'listRecentOrders',
+        rowCount: 3,
+        sqlText: 'select * from public.orders order by created_at desc limit 3',
+      }),
+    ]);
+  } finally {
+    infoSpy.mockRestore();
+    errorSpy.mockRestore();
+  }
 });
 
 test('init runs install when package.json is created from scratch', async () => {
