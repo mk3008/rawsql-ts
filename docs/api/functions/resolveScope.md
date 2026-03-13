@@ -3,7 +3,7 @@
 
 > **resolveScope**(`sql`, `cursorPosition`): [`ScopeInfo`](../interfaces/ScopeInfo.md)
 
-Defined in: [packages/core/src/utils/IntelliSenseApi.ts:89](https://github.com/mk3008/rawsql-ts/blob/9ba8e4fe62abbab1a89e863122fb19acb311b6a5/packages/core/src/utils/IntelliSenseApi.ts#L89)
+Defined in: [packages/core/src/utils/IntelliSenseApi.ts:89](https://github.com/mk3008/rawsql-ts/blob/54335acf95e92a53b59952bdcbd87976eeeb5d3f/packages/core/src/utils/IntelliSenseApi.ts#L89)
 
 Resolve scope information at cursor position
 

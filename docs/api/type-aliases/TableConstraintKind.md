@@ -3,5 +3,5 @@
 
 > **TableConstraintKind** = `"primary-key"` \| `"unique"` \| `"foreign-key"` \| `"check"` \| `"raw"`
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:96](https://github.com/mk3008/rawsql-ts/blob/9ba8e4fe62abbab1a89e863122fb19acb311b6a5/packages/core/src/models/CreateTableQuery.ts#L96)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:96](https://github.com/mk3008/rawsql-ts/blob/54335acf95e92a53b59952bdcbd87976eeeb5d3f/packages/core/src/models/CreateTableQuery.ts#L96)
 </div>
