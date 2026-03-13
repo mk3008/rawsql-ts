@@ -1739,10 +1739,10 @@ export function buildPerfTuningGuidance(
     primaryPath = 'index';
   }
 
-  if (primaryPath === 'capture-plan' && indexRationale.length === 0) {
+  if (!planFacts.hasCapturedPlan && indexRationale.length === 0) {
     indexRationale.push('No captured plan is available yet, so confirm whether scans or joins are the real bottleneck before adding indexes.');
   }
-  if (primaryPath === 'capture-plan' && pipelineRationale.length === 0) {
+  if (!planFacts.hasCapturedPlan && pipelineRationale.length === 0) {
     pipelineRationale.push('No pipeline-specific signal is available yet, so start by capturing a representative plan and row counts.');
   }
 

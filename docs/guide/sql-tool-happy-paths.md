@@ -49,7 +49,7 @@ Look for:
 - QuerySpec `spec_guidance` scale expectations
 - `ddl_inventory` table/index counts
 - `tuning_guidance.primary_path`
-- `material_candidates`
+- `candidate_ctes`
 - `scalar_filter_candidates`
 - human-readable text hints such as `consider-scalar-filter-binding`
 
