@@ -103,8 +103,7 @@ jobs:
           NPM_CONFIG_PROVENANCE: "true"
           RAWSQL_PUBLISH_AUTH: "oidc"
           RAWSQL_PUBLISH_OIDC_FALLBACK_TO_TOKEN: "1"
-          # Keep the npm token out of the default npm environment and only expose it when ci-publish.mjs retries explicitly.
-          RAWSQL_PUBLISH_FALLBACK_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
         run: |
-          # Prevent token-based auth from overriding OIDC Trusted Publishing.
-          env -u NODE_AUTH_TOKEN node ./scripts/ci-publish.mjs
+          # Preserve the existing npm token under a separate name so ci-publish.mjs can use it only for explicit retries.
+          # Then drop NODE_AUTH_TOKEN from the live environment to keep the primary publish path on OIDC.
+          RAWSQL_PUBLISH_FALLBACK_TOKEN="${NODE_AUTH_TOKEN:-}" env -u NODE_AUTH_TOKEN node ./scripts/ci-publish.mjs

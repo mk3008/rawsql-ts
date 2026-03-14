@@ -471,7 +471,8 @@ function npmPackageVersionExists(packageName, version) {
 }
 
 function publishWithNpm(packageDir, publishAuth, opts) {
-  const args = ["publish", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public"];
+  // CI already builds publish artifacts up front, so skip lifecycle rebuilds during npm publish.
+  const args = ["publish", "--ignore-scripts", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public"];
 
   if (publishAuth === "oidc") {
     // OIDC Trusted Publishing requires provenance.
@@ -508,7 +509,9 @@ function publishWithNpm(packageDir, publishAuth, opts) {
         process.env.NPM_CONFIG_USERCONFIG = ensureTokenUserConfig(opts.workspaceRoot);
 
         try {
-          runWithOutput(NPM, ["publish", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public"], { cwd: packageDir });
+          runWithOutput(NPM, ["publish", "--ignore-scripts", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public"], {
+            cwd: packageDir,
+          });
           return;
         } catch (fallbackError) {
           const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
