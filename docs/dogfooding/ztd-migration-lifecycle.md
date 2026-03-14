@@ -40,6 +40,12 @@ Validate that the following lifecycle remains workable:
 
 That separation is important. In this dogfood run, migration execution stayed explicit and reviewable.
 
+Inspection note:
+
+- `ddl pull` and `ddl diff` are inspection-oriented commands.
+- They help you understand target schema state and prepare follow-up artifacts.
+- They are not the migration apply step, and they are not a deployment executor.
+
 ## Scenario summary
 
 The temporary app was created with:

@@ -28,6 +28,19 @@ This also means:
 - `ztd-cli` does not have a project default database.
 - `ZTD_TEST_DATABASE_URL` and `DATABASE_URL` are not the same concern.
 
+| Setting / action | Owned by `ztd-cli` | Typical use |
+|---|---|---|
+| `ZTD_TEST_DATABASE_URL` | Yes | ZTD tests, internal verification, perf workflows |
+| `DATABASE_URL` | No | Application runtime, CI/CD, deployment tooling |
+| `--url` / complete `--db-*` | No, explicit only | Non-ZTD target inspection such as `ddl pull`, `ddl diff`, or live metadata inspection |
+
+The shortest way to remember the boundary is:
+
+- `ZTD_TEST_DATABASE_URL` is the only implicit database setting in `ztd-cli`.
+- `DATABASE_URL` may exist in the same project, but `ztd-cli` does not read it automatically.
+- `ddl pull` and `ddl diff` are inspection commands, not migration apply commands.
+- `ztd-cli` may help generate migration SQL artifacts, but it stops before apply or deploy execution.
+
 ## Features
 
 - Project scaffolding with `ztd init` (DDL folder, config, test stubs)

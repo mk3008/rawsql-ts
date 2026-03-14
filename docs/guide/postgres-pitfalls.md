@@ -35,7 +35,7 @@ Schema pulled with `ztd ddl pull` may differ in formatting, keyword casing, or f
 
 **Mitigation:**
 - Pin the DDL to a single PostgreSQL major version for your project.
-- Run `ztd ddl diff` to compare local DDL against the live database after version changes.
+- Run `ztd ddl diff --url <target>` to compare local DDL against an explicit target database after version changes.
 - Simplify DDL constructs that use version-specific syntax if cross-version portability matters.
 
 ## 4. Quoted identifiers are case-sensitive

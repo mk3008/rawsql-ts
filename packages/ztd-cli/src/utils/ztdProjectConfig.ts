@@ -21,6 +21,7 @@ export interface ZtdProjectConfig {
   };
   /** Controls DDL integrity validation during config generation and tests. */
   ddlLint: DdlLintMode;
+  /** @deprecated Legacy field. ztd-cli no longer uses config-based DB connections implicitly. */
   connection?: ZtdConnectionConfig;
 }
 
@@ -30,6 +31,8 @@ const DEFAULT_DDL_PROPERTIES = {
   defaultSchema: 'public',
   searchPath: ['public']
 };
+
+let hasWarnedLegacyConnectionConfig = false;
 
 export const DEFAULT_ZTD_CONFIG: ZtdProjectConfig = {
   dialect: 'postgres',
@@ -79,6 +82,11 @@ export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjec
           typeof schema === 'string' && schema.length > 0
       );
     }
+    const normalizedConnection = normalizeConnectionConfig(rawConnection);
+    if (normalizedConnection) {
+      emitLegacyConnectionConfigWarning(filePath);
+    }
+
     return {
       dialect: typeof raw.dialect === 'string' ? raw.dialect : DEFAULT_ZTD_CONFIG.dialect,
       ddlDir: typeof raw.ddlDir === 'string' && raw.ddlDir.length ? raw.ddlDir : DEFAULT_ZTD_CONFIG.ddlDir,
@@ -93,7 +101,7 @@ export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjec
       }
       ,
       ddlLint: isDdlLintMode(rawLintMode) ? rawLintMode : DEFAULT_ZTD_CONFIG.ddlLint,
-      connection: normalizeConnectionConfig(rawConnection)
+      connection: normalizedConnection
     };
   } catch (error) {
     throw new Error(`${CONFIG_NAME} is malformed: ${error instanceof Error ? error.message : String(error)}`);
@@ -207,4 +215,19 @@ function mergeConnectionConfig(
   }
 
   return merged;
+}
+
+function emitLegacyConnectionConfigWarning(filePath: string): void {
+  if (hasWarnedLegacyConnectionConfig) {
+    return;
+  }
+
+  hasWarnedLegacyConnectionConfig = true;
+  process.emitWarning(
+    `Legacy connection settings were found in ${filePath}. ztd-cli no longer uses ztd.config.json.connection for implicit DB resolution. Use ZTD_TEST_DATABASE_URL for ZTD-owned workflows and pass --url or --db-* explicitly for non-ZTD targets.`,
+    {
+      code: 'ZTD_LEGACY_CONNECTION_CONFIG',
+      detail: 'The connection field remains readable for compatibility, but it is deprecated.'
+    }
+  );
 }

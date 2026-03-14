@@ -8,6 +8,11 @@ Conceptual model:
 - Any non-ZTD database target must be passed explicitly via `--url` or `--db-*`.
 - `ztd-cli` may generate migration SQL artifacts, but it does not apply them.
 
+Quick boundary table:
+- `ZTD_TEST_DATABASE_URL`: owned by `ztd-cli` for ZTD tests and verification
+- `DATABASE_URL`: runtime or deployment concern, not read automatically by `ztd-cli`
+- `--url` / complete `--db-*`: explicit target inspection only
+
 Key folders:
 - ztd/ddl: schema files (source of truth)
 - src: application SQL and repositories

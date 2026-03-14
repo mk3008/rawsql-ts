@@ -114,7 +114,7 @@ Common workflow:
   3. vitest run                Run tests
 
 After schema changes:
-  1. Edit ztd/ddl/*.sql (or run ztd ddl pull)
+  1. Edit ztd/ddl/*.sql (or inspect an explicit target with ztd ddl pull --url <target>)
   2. ztd ztd-config            Regenerate types
   3. vitest run                Verify tests still pass
 
