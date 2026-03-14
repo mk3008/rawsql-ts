@@ -1,5 +1,12 @@
 # @rawsql-ts/sql-contract-zod
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [[`bf369a8`](https://github.com/mk3008/rawsql-ts/commit/bf369a8cf5c873d0820221285209b70ea87f164a)]:
+  - @rawsql-ts/sql-contract@0.3.1
+
 ## 0.1.2
 
 ### Patch Changes
