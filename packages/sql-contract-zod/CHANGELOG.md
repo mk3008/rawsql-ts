@@ -1,5 +1,12 @@
 # @rawsql-ts/sql-contract-zod
 
+## 2.0.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @rawsql-ts/sql-contract@2.0.0
+
 ## 0.1.3
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/sql-grep-core",
-  "version": "0.1.1",
+  "version": "2.0.0",
   "description": "Low-dependency SQL usage analysis engine for rawsql-ts workspaces.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

@@ -1,5 +1,12 @@
 # @rawsql-ts/ddl-docs-vitepress
 
+## 2.0.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @rawsql-ts/ddl-docs-cli@2.0.0
+
 ## 0.2.1
 
 ### Patch Changes

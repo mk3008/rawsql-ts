@@ -1,5 +1,12 @@
 # @rawsql-ts/test-evidence-renderer-md
 
+## 2.0.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @rawsql-ts/test-evidence-core@2.0.0
+
 ## 0.3.0
 
 ### Minor Changes

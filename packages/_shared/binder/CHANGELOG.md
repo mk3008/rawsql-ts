@@ -1,5 +1,7 @@
 # @rawsql-ts/shared-binder
 
+## 2.0.0
+
 ## 0.0.1
 
 ### Patch Changes

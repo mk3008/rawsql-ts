@@ -1,5 +1,12 @@
 # @rawsql-ts/ddl-docs-cli
 
+## 2.0.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - rawsql-ts@2.0.0
+
 ## 0.2.2
 
 ### Patch Changes

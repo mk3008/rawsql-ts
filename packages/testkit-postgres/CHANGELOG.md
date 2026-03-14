@@ -1,5 +1,14 @@
 # @rawsql-ts/testkit-postgres
 
+## 2.0.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - rawsql-ts@2.0.0
+  - @rawsql-ts/sql-contract@2.0.0
+  - @rawsql-ts/testkit-core@2.0.0
+
 ## 0.15.3
 
 ### Patch Changes

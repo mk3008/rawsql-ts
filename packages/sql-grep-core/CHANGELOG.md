@@ -1,5 +1,12 @@
 # @rawsql-ts/sql-grep-core
 
+## 2.0.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - rawsql-ts@2.0.0
+
 ## 0.1.1
 
 ### Patch Changes
