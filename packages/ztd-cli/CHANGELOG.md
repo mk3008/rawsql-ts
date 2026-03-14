@@ -1,5 +1,21 @@
 # @rawsql-ts/ztd-cli
 
+## 0.19.0
+
+### Minor Changes
+
+- [#552](https://github.com/mk3008/rawsql-ts/pull/552) [`953c569`](https://github.com/mk3008/rawsql-ts/commit/953c5699ee8cd6125335fc4443e24891d1a7fae1) Thanks [@mk3008](https://github.com/mk3008)! - Add ztd evidence test-doc to export human-readable Markdown test documentation from deterministic ZTD test assets.
+
+### Patch Changes
+
+- [#551](https://github.com/mk3008/rawsql-ts/pull/551) [`bf369a8`](https://github.com/mk3008/rawsql-ts/commit/bf369a8cf5c873d0820221285209b70ea87f164a) Thanks [@mk3008](https://github.com/mk3008)! - Add QuerySpec perf scale metadata and surface spec-driven perf guidance in ztd-cli benchmark reports.
+
+- Updated dependencies [[`b56a3fa`](https://github.com/mk3008/rawsql-ts/commit/b56a3fa82763c4120f73b2cec9f295c55c951609), [`953c569`](https://github.com/mk3008/rawsql-ts/commit/953c5699ee8cd6125335fc4443e24891d1a7fae1)]:
+  - rawsql-ts@0.17.0
+  - @rawsql-ts/test-evidence-renderer-md@0.3.0
+  - @rawsql-ts/adapter-node-pg@0.15.4
+  - @rawsql-ts/sql-grep-core@0.1.1
+
 ## 0.18.0
 
 ### Minor Changes

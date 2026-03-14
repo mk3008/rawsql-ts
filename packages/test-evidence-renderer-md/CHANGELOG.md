@@ -1,5 +1,11 @@
 # @rawsql-ts/test-evidence-renderer-md
 
+## 0.3.0
+
+### Minor Changes
+
+- [#552](https://github.com/mk3008/rawsql-ts/pull/552) [`953c569`](https://github.com/mk3008/rawsql-ts/commit/953c5699ee8cd6125335fc4443e24891d1a7fae1) Thanks [@mk3008](https://github.com/mk3008)! - Add ztd evidence test-doc to export human-readable Markdown test documentation from deterministic ZTD test assets.
+
 ## 0.2.0
 
 ### Minor Changes

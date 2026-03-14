@@ -1,5 +1,11 @@
 # rawsql-ts
 
+## 0.17.0
+
+### Minor Changes
+
+- [#550](https://github.com/mk3008/rawsql-ts/pull/550) [`b56a3fa`](https://github.com/mk3008/rawsql-ts/commit/b56a3fa82763c4120f73b2cec9f295c55c951609) Thanks [@mk3008](https://github.com/mk3008)! - Add an MVP optional-condition pruning pass for truthful SSSQL-style `WHERE` branches, with explicit opt-in parameter targeting and `null`/`undefined` treated as absent-equivalent for those targets.
+
 ## 0.16.1
 
 ### Patch Changes

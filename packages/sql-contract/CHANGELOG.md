@@ -1,5 +1,11 @@
 # @rawsql-ts/sql-contract
 
+## 0.3.1
+
+### Patch Changes
+
+- [#551](https://github.com/mk3008/rawsql-ts/pull/551) [`bf369a8`](https://github.com/mk3008/rawsql-ts/commit/bf369a8cf5c873d0820221285209b70ea87f164a) Thanks [@mk3008](https://github.com/mk3008)! - Add QuerySpec perf scale metadata and surface spec-driven perf guidance in ztd-cli benchmark reports.
+
 ## 0.3.0
 
 ### Minor Changes
