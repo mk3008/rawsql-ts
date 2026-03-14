@@ -7,12 +7,6 @@ Created:
  - ztd/ddl/public.sql
  - ztd.config.json
  - README.md
- - CONTEXT.md
- - .ztd/agents/manifest.json
- - .ztd/agents/root.md
- - .ztd/agents/src.md
- - .ztd/agents/tests.md
- - .ztd/agents/ztd.md
  - ztd/README.md
  - src/sql/README.md
  - src/repositories/views/README.md
@@ -41,10 +35,6 @@ Created:
 Validation configuration:
  - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)
  - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
-
-AI guidance:
- - Internal guidance is managed under .ztd/agents/.
- - Visible AGENTS.md files are disabled by default. Enable with: ztd agents install
 
 Next steps:
  1. If the schema file is empty, edit ztd/ddl/public.sql
@@ -62,12 +52,6 @@ Created:
  - ztd/ddl/public.sql
  - ztd.config.json
  - README.md
- - CONTEXT.md
- - .ztd/agents/manifest.json
- - .ztd/agents/root.md
- - .ztd/agents/src.md
- - .ztd/agents/tests.md
- - .ztd/agents/ztd.md
  - ztd/README.md
  - src/sql/README.md
  - src/repositories/views/README.md
@@ -96,10 +80,6 @@ Created:
 Validation configuration:
  - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)
  - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
-
-AI guidance:
- - Internal guidance is managed under .ztd/agents/.
- - Visible AGENTS.md files are disabled by default. Enable with: ztd agents install
 
 Next steps:
  1. If the schema file is empty, edit ztd/ddl/public.sql
@@ -117,12 +97,6 @@ Created:
  - ztd/ddl/public.sql
  - ztd.config.json
  - README.md
- - CONTEXT.md
- - .ztd/agents/manifest.json
- - .ztd/agents/root.md
- - .ztd/agents/src.md
- - .ztd/agents/tests.md
- - .ztd/agents/ztd.md
  - ztd/README.md
  - src/sql/README.md
  - src/repositories/views/README.md
@@ -151,10 +125,6 @@ Created:
 Validation configuration:
  - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)
  - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
-
-AI guidance:
- - Internal guidance is managed under .ztd/agents/.
- - Visible AGENTS.md files are disabled by default. Enable with: ztd agents install
 
 Next steps:
  1. Review the dumped DDL in ztd/ddl/public.sql
