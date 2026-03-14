@@ -2,7 +2,6 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
-import { loadZtdProjectConfig } from '../src/utils/ztdProjectConfig';
 
 const tempDirs: string[] = [];
 
@@ -13,7 +12,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-test('loadZtdProjectConfig warns when legacy connection config is present', () => {
+async function loadConfigModule() {
+  vi.resetModules();
+  return import('../src/utils/ztdProjectConfig');
+}
+
+test('loadZtdProjectConfig warns when legacy connection config is present', async () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-config-legacy-'));
   tempDirs.push(rootDir);
 
@@ -39,6 +43,7 @@ test('loadZtdProjectConfig warns when legacy connection config is present', () =
   );
 
   const emitWarning = vi.spyOn(process, 'emitWarning').mockImplementation(() => undefined);
+  const { loadZtdProjectConfig } = await loadConfigModule();
 
   const config = loadZtdProjectConfig(rootDir);
 
@@ -51,7 +56,7 @@ test('loadZtdProjectConfig warns when legacy connection config is present', () =
   expect(emitWarning.mock.calls[0]?.[0]).toContain('ztd.config.json.connection');
 });
 
-test('loadZtdProjectConfig does not warn when legacy connection config is absent', () => {
+test('loadZtdProjectConfig does not warn when legacy connection config is absent', async () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-config-modern-'));
   tempDirs.push(rootDir);
 
@@ -72,6 +77,7 @@ test('loadZtdProjectConfig does not warn when legacy connection config is absent
   );
 
   const emitWarning = vi.spyOn(process, 'emitWarning').mockImplementation(() => undefined);
+  const { loadZtdProjectConfig } = await loadConfigModule();
 
   const config = loadZtdProjectConfig(rootDir);
 

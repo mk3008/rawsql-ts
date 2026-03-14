@@ -246,8 +246,8 @@ interface InitScaffoldLayout {
 }
 
 const STACK_DEV_DEPENDENCIES: Record<string, string> = {
-  '@rawsql-ts/sql-contract': '^0.1.0',
-  '@rawsql-ts/ztd-cli': '^0.17.0'
+  '@rawsql-ts/sql-contract': '0.2.0',
+  '@rawsql-ts/ztd-cli': '0.17.0'
 };
 const LOCAL_SOURCE_STACK_PACKAGE_DIRS: Record<string, string> = {
   '@rawsql-ts/sql-contract': path.join('packages', 'sql-contract')
@@ -256,7 +256,7 @@ const ZOD_DEPENDENCY: Record<string, string> = {
   zod: '^4.3.6'
 };
 const ARKTYPE_DEPENDENCY: Record<string, string> = {
-  arktype: '^2.1.29'
+  arktype: '2.2.0'
 };
 
 async function gatherOptionalFeatures(

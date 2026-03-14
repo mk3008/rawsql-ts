@@ -157,12 +157,12 @@ function buildInternalManifest(): string {
     })),
     prompt_examples: [
       {
-        prompt: 'WebAPI化して',
+        prompt: 'Convert to WebAPI (Original: WebAPI化して)',
         preferred_scopes: ['src-presentation', 'src-application', 'src-domain'],
         avoid_scopes: ['src-infrastructure-persistence', 'ztd']
       },
       {
-        prompt: 'SQLを増やして repository を実装して',
+        prompt: 'Add SQL and implement repository (Original: SQLを増やして repository を実装して)',
         preferred_scopes: ['src-infrastructure-persistence', 'ztd'],
         avoid_scopes: ['src-domain', 'src-presentation']
       }

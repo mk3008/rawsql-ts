@@ -320,8 +320,12 @@ test('init webapi scaffold localizes ZTD guidance to persistence-oriented paths'
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm exec ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('does not read it automatically');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('explicit target inspection');
-  expect(readNormalizedFile(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toContain('WebAPI化して');
-  expect(readNormalizedFile(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toContain('SQLを増やして repository を実装して');
+  expect(readNormalizedFile(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toContain(
+    'Convert to WebAPI (Original: WebAPI化して)'
+  );
+  expect(readNormalizedFile(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toContain(
+    'Add SQL and implement repository (Original: SQLを増やして repository を実装して)'
+  );
   expect(readNormalizedFile(path.join(workspace, 'src', 'domain', 'README.md'))).not.toContain('ztd');
 
   const manifest = JSON.parse(readNormalizedFile(path.join(workspace, '.ztd', 'agents', 'manifest.json'))) as {

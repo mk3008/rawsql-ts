@@ -214,7 +214,7 @@ async function runLintCommand(pattern: string): Promise<void> {
         throw new Error(`${baseMessage} Or set ZTD_TEST_DATABASE_URL to reuse an existing Postgres connection.`);
       });
       const { PostgreSqlContainer } = containerModule;
-      const started = await new PostgreSqlContainer(process.env.ZTD_LINT_DB_IMAGE ?? 'postgres:16-alpine')
+      const started = await new PostgreSqlContainer(process.env.ZTD_TEST_DB_IMAGE ?? 'postgres:16-alpine')
         .withDatabase('ztdlint')
         .withUsername('ztd')
         .withPassword('ztd')

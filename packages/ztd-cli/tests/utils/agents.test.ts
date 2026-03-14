@@ -81,11 +81,11 @@ test('writeInternalAgentsArtifacts creates managed payloads and sidecars unmanag
   expect(manifest.prompt_examples).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
-        prompt: 'WebAPI化して',
+        prompt: 'Convert to WebAPI (Original: WebAPI化して)',
         preferred_scopes: expect.arrayContaining(['src-presentation', 'src-application', 'src-domain'])
       }),
       expect.objectContaining({
-        prompt: 'SQLを増やして repository を実装して',
+        prompt: 'Add SQL and implement repository (Original: SQLを増やして repository を実装して)',
         preferred_scopes: expect.arrayContaining(['src-infrastructure-persistence', 'ztd'])
       })
     ])

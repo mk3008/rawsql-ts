@@ -39,6 +39,24 @@ if (command === 'ztd') {
     stdio: 'inherit',
     shell: false
   });
+
+  // Surface execution failures explicitly so local-source dogfooding does not
+  // collapse permission, spawn, and signal problems into the same exit code.
+  if (result.error) {
+    console.error('[local-source guard] Failed to launch the local ztd CLI entry.');
+    console.error(`- Message: ${result.error.message}`);
+    if (result.error.stack) {
+      console.error(result.error.stack);
+    }
+    process.exit(1);
+  }
+
+  if (result.signal) {
+    console.error('[local-source guard] The local ztd CLI entry was terminated by signal.');
+    console.error(`- Signal: ${result.signal}`);
+    process.exit(1);
+  }
+
   process.exit(result.status ?? 1);
 }
 
