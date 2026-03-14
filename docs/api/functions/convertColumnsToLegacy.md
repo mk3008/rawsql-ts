@@ -3,7 +3,7 @@
 
 > **convertColumnsToLegacy**(`columns`): `Record`&lt;`string`, `string`\&gt;
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:146](https://github.com/mk3008/rawsql-ts/blob/54335acf95e92a53b59952bdcbd87976eeeb5d3f/packages/core/src/transformers/EnhancedJsonMapping.ts#L146)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:146](https://github.com/mk3008/rawsql-ts/blob/9a1f2fe06729665247044262e9b171d6b0348aaa/packages/core/src/transformers/EnhancedJsonMapping.ts#L146)
 
 Converts enhanced column configurations to simple string mappings for legacy compatibility.
 
