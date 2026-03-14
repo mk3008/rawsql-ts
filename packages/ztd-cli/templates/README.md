@@ -29,7 +29,7 @@ Next steps:
 8. Use `ztd model-gen --probe-mode live`, `ztd ddl pull`, or `ztd ddl diff` only for explicit target inspection by passing `--url` or a complete `--db-*` flag set.
 9. If you generate migration SQL artifacts, apply them with your deployment tooling instead of `ztd-cli`.
 
-If this project was scaffolded with `ztd init --local-source-root <monorepo-root>`, first run `pnpm install` (or `pnpm install --ignore-workspace` when nested under another `pnpm-workspace.yaml`), then `pnpm typecheck`, then `pnpm test`, then `pnpm ztd ztd-config`. For generated QuerySpecs, prefer `pnpm ztd model-gen --probe-mode ztd --import-style relative` so imports keep using the local shim.
+If this project was scaffolded with `ztd init --local-source-root <monorepo-root>`, first run `pnpm install` (or `pnpm install --ignore-workspace` when nested under another `pnpm-workspace.yaml`), then `pnpm typecheck`, then `pnpm test`, then `pnpm ztd ztd-config`. The scaffold keeps `@rawsql-ts/sql-contract` as a normal package import even in local-source developer mode.
 
 For schema-change impact checks, `npx ztd query uses` defaults to the `impact` view. Table add / column add checks usually work with the default scan, while table rename / column rename / column type change checks often benefit from `--exclude-generated` so review-only specs under `src/catalog/specs/generated` do not add noise. The flag is optional and does not change the default scan set.
 

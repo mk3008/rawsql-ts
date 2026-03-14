@@ -111,7 +111,7 @@ How to read that layout:
 * `src/domain`, `src/application`, and `src/presentation/http` are where generic WebAPI work should begin.
 * `src/infrastructure/persistence`, `src/sql`, `src/catalog`, and `ztd/ddl` are the ZTD-owned persistence side.
 * `tests/generated` is generated output. Recreate it with `ztd ztd-config` instead of editing it manually.
-* `.ztd/agents` contains managed AI guidance so a later prompt such as "WebAPI化して" does not accidentally jump straight into persistence-specific rules.
+* Optional AI guidance files can be generated when you explicitly request them, but the default scaffold stays focused on consumer-facing project files.
 
 ## Choose The Right Happy Path
 
@@ -158,8 +158,6 @@ After `ztd init` you should see:
 | `tests/smoke.validation.test.ts`  | Validator integration smoke test                                |
 | `tests/support/testkit-client.ts` | Driver wiring placeholder                                       |
 | `src/catalog/specs/`              | Spec and runtime files for the smoke contract                   |
-| `CONTEXT.md`                      | Agent-focused project invariants and recommended command usage  |
-| `.ztd/agents/manifest.json`       | Managed AI guidance index with security notices and entrypoints |
 
 ```bash
 # 4. Generate test types from the demo DDL
@@ -184,6 +182,7 @@ All smoke tests should pass. You now have a working ZTD project.
 
 * Replace the demo DDL with your own schema, or inspect an explicit target with `npx ztd ddl pull --url <target>`
 * Re-run `npx ztd ztd-config` whenever DDL changes (or use `--watch`)
+* Add AI guidance files only if you want them in the repo: `npx ztd init --with-ai-guidance`
 * Install visible AGENTS files only if you want them in the repo: `npx ztd agents install`
 * Wire a real driver in `tests/support/testkit-client.ts` (see [adapter-node-pg](../adapters/adapter-node-pg) for Postgres)
 * Write domain tests against generated `TestRowMap` types
@@ -214,6 +213,7 @@ mkdir /tmp/my-ztd-dogfood && cd /tmp/my-ztd-dogfood
 node "<LOCAL_SOURCE_ROOT>/packages/ztd-cli/dist/index.js" init \
   --workflow empty \
   --validator zod \
+  --with-ai-guidance \
   --local-source-root "<LOCAL_SOURCE_ROOT>"
 
 # 4. Install the scaffolded dependencies
@@ -314,7 +314,7 @@ Most write-capable commands support `--dry-run` and `--json <payload>` for autom
 
 | Command | Description |
 |---------|-------------|
-| `ztd init` | Create a ZTD-ready project layout (DDL folder, config, test stubs). Flags: `--yes`, `--workflow <pg_dump\|empty\|demo>`, `--validator <zod\|arktype>`, `--with-sqlclient`, `--with-app-interface`, `--local-source-root <path>` |
+| `ztd init` | Create a ZTD-ready project layout (DDL folder, config, test stubs). Flags: `--yes`, `--workflow <pg_dump\|empty\|demo>`, `--validator <zod\|arktype>`, `--with-ai-guidance`, `--with-sqlclient`, `--with-app-interface`, `--local-source-root <path>` |
 | `ztd agents install` | Materialize visible `AGENTS.md` files from the managed templates |
 | `ztd agents status` | Report internal/visible AGENTS state and drift signals |
 | `ztd ztd-config` | Generate `TestRowMap` and layout from DDL files. Flags: `--watch`, `--quiet` |

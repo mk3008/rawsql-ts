@@ -113,7 +113,6 @@ type FileKey =
   | 'smokeSpec'
   | 'smokeCoercions'
   | 'smokeRuntime'
-  | 'localSqlContractShim'
   | 'localSourceGuardScript'
   | 'smokeValidationTest'
   | 'testsSmoke'
@@ -194,6 +193,7 @@ export interface InitCommandOptions {
   dependencies?: Partial<ZtdConfigWriterDependencies>;
   appShape?: InitAppShape;
   withSqlClient?: boolean;
+  withAiGuidance?: boolean;
   withAppInterface?: boolean;
   forceOverwrite?: boolean;
   nonInteractive?: boolean;
@@ -209,6 +209,7 @@ type InitAppShape = 'default' | 'webapi';
 
 interface OptionalFeatures {
   validator: ValidatorBackend;
+  aiGuidance: boolean;
 }
 
 interface InitScaffoldProfile {
@@ -262,17 +263,24 @@ const ARKTYPE_DEPENDENCY: Record<string, string> = {
 async function gatherOptionalFeatures(
   prompter: Prompter,
   _dependencies: ZtdConfigWriterDependencies,
-  validatorOverride?: ValidatorBackend
+  validatorOverride?: ValidatorBackend,
+  aiGuidanceOverride?: boolean
 ): Promise<OptionalFeatures> {
   if (validatorOverride) {
-    return { validator: validatorOverride };
+    return {
+      validator: validatorOverride,
+      aiGuidance: aiGuidanceOverride ?? false
+    };
   }
   const validatorChoice = await prompter.selectChoice(
     'Runtime DTO validation is required for ZTD tests. Which validator backend should we install?',
     ['Zod (zod, recommended)', 'ArkType (arktype)']
   );
   const validator: ValidatorBackend = validatorChoice === 0 ? 'zod' : 'arktype';
-  return { validator };
+  return {
+    validator,
+    aiGuidance: aiGuidanceOverride ?? false
+  };
 }
 
 type InitWorkflow = 'pg_dump' | 'empty' | 'demo';
@@ -285,9 +293,7 @@ const PROMPT_DOGFOOD_WEBAPI_TEMPLATE = 'PROMPT_DOGFOOD.webapi.md';
 const SMOKE_SPEC_ZOD_TEMPLATE = 'src/catalog/specs/_smoke.spec.zod.ts';
 const SMOKE_SPEC_ARKTYPE_TEMPLATE = 'src/catalog/specs/_smoke.spec.arktype.ts';
 const SMOKE_COERCIONS_TEMPLATE = 'src/catalog/runtime/_coercions.ts';
-const SMOKE_COERCIONS_LOCAL_SOURCE_TEMPLATE = 'src/catalog/runtime/_coercions.local-source.ts';
 const SMOKE_RUNTIME_TEMPLATE = 'src/catalog/runtime/_smoke.runtime.ts';
-const LOCAL_SQL_CONTRACT_TEMPLATE = 'src/local/sql-contract.ts';
 const LOCAL_SOURCE_GUARD_TEMPLATE = 'scripts/local-source-guard.mjs';
 const SMOKE_VALIDATION_TEST_TEMPLATE = 'tests/smoke.validation.test.ts';
 const TESTS_SMOKE_TEMPLATE = 'tests/smoke.test.ts';
@@ -546,7 +552,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     smokeSpec: path.join(rootDir, 'src', 'catalog', 'specs', '_smoke.spec.ts'),
     smokeCoercions: path.join(rootDir, 'src', 'catalog', 'runtime', '_coercions.ts'),
     smokeRuntime: path.join(rootDir, 'src', 'catalog', 'runtime', '_smoke.runtime.ts'),
-    localSqlContractShim: path.join(rootDir, 'src', 'local', 'sql-contract.ts'),
     localSourceGuardScript: path.join(rootDir, 'scripts', 'local-source-guard.mjs'),
     smokeValidationTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'smoke.validation.test.ts'),
     testsSmoke: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'smoke.test.ts'),
@@ -670,7 +675,12 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   summaries.config = configSummary;
 
   const validatorOverride = options?.validator ?? (overwritePolicy.nonInteractive ? 'zod' : undefined);
-  const optionalFeatures = await gatherOptionalFeatures(prompter, dependencies, validatorOverride);
+  const optionalFeatures = await gatherOptionalFeatures(
+    prompter,
+    dependencies,
+    validatorOverride,
+    options?.withAiGuidance
+  );
 
   // Emit supporting documentation that describes the workflow for contributors.
   const readmeSummary = await writeTemplateFile(
@@ -687,21 +697,23 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.readme = readmeSummary;
   }
 
-  const contextSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.context,
-    relativePath('context'),
-    scaffoldLayout.contextTemplate,
-    dependencies,
-    prompter,
-    overwritePolicy,
-    true
-  );
-  if (contextSummary) {
-    summaries.context = contextSummary;
+  if (optionalFeatures.aiGuidance) {
+    const contextSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.context,
+      relativePath('context'),
+      scaffoldLayout.contextTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy,
+      true
+    );
+    if (contextSummary) {
+      summaries.context = contextSummary;
+    }
   }
 
-  if (scaffoldLayout.promptDogfoodTemplate) {
+  if (optionalFeatures.aiGuidance && scaffoldLayout.promptDogfoodTemplate) {
     const promptDogfoodSummary = await writeTemplateFile(
       rootDir,
       absolutePaths.promptDogfood,
@@ -717,17 +729,19 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     }
   }
 
-  for (const summary of writeInternalAgentsArtifacts(rootDir)) {
-    if (summary.relativePath === relativePath('internalAgentsManifest')) {
-      summaries.internalAgentsManifest = summary;
-    } else if (summary.relativePath === relativePath('internalAgentsRoot')) {
-      summaries.internalAgentsRoot = summary;
-    } else if (summary.relativePath === relativePath('internalAgentsSrc')) {
-      summaries.internalAgentsSrc = summary;
-    } else if (summary.relativePath === relativePath('internalAgentsTests')) {
-      summaries.internalAgentsTests = summary;
-    } else if (summary.relativePath === relativePath('internalAgentsZtd')) {
-      summaries.internalAgentsZtd = summary;
+  if (optionalFeatures.aiGuidance) {
+    for (const summary of writeInternalAgentsArtifacts(rootDir)) {
+      if (summary.relativePath === relativePath('internalAgentsManifest')) {
+        summaries.internalAgentsManifest = summary;
+      } else if (summary.relativePath === relativePath('internalAgentsRoot')) {
+        summaries.internalAgentsRoot = summary;
+      } else if (summary.relativePath === relativePath('internalAgentsSrc')) {
+        summaries.internalAgentsSrc = summary;
+      } else if (summary.relativePath === relativePath('internalAgentsTests')) {
+        summaries.internalAgentsTests = summary;
+      } else if (summary.relativePath === relativePath('internalAgentsZtd')) {
+        summaries.internalAgentsZtd = summary;
+      }
     }
   }
 
@@ -892,9 +906,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     rootDir,
     absolutePaths.smokeCoercions,
     relativePath('smokeCoercions'),
-    scaffoldProfile.dependencyProfile === 'local-source'
-      ? SMOKE_COERCIONS_LOCAL_SOURCE_TEMPLATE
-      : SMOKE_COERCIONS_TEMPLATE,
+    SMOKE_COERCIONS_TEMPLATE,
     dependencies,
     prompter,
     overwritePolicy
@@ -904,18 +916,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   }
 
   if (scaffoldProfile.dependencyProfile === 'local-source') {
-    const localSqlContractSummary = await writeDocFile(
-      absolutePaths.localSqlContractShim,
-      relativePath('localSqlContractShim'),
-      buildLocalSqlContractShimContents(absolutePaths.localSqlContractShim, scaffoldProfile),
-      dependencies,
-      prompter,
-      overwritePolicy
-    );
-    if (localSqlContractSummary) {
-      summaries.localSqlContractShim = localSqlContractSummary;
-    }
-
     const localSourceGuardSummary = await writeDocFile(
       absolutePaths.localSourceGuardScript,
       relativePath('localSourceGuardScript'),
@@ -1060,25 +1060,15 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.vitestConfig = vitestConfigSummary;
   }
 
-  const tsconfigSummary =
-    scaffoldProfile.dependencyProfile === 'local-source'
-      ? await writeDocFile(
-          absolutePaths.tsconfig,
-          relativePath('tsconfig'),
-          buildLocalSourceTsconfigContents(),
-          dependencies,
-          prompter,
-          overwritePolicy
-        )
-      : await writeTemplateFile(
-          rootDir,
-          absolutePaths.tsconfig,
-          relativePath('tsconfig'),
-          TSCONFIG_TEMPLATE,
-          dependencies,
-          prompter,
-          overwritePolicy
-        );
+  const tsconfigSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.tsconfig,
+    relativePath('tsconfig'),
+    TSCONFIG_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
   if (tsconfigSummary) {
     summaries.tsconfig = tsconfigSummary;
   }
@@ -1928,31 +1918,6 @@ function loadTemplate(templateName: string): string {
   return readFileSync(templatePath, 'utf8');
 }
 
-function buildLocalSqlContractShimContents(
-  absolutePath: string,
-  scaffoldProfile: InitScaffoldProfile
-): string {
-  if (scaffoldProfile.dependencyProfile !== 'local-source' || !scaffoldProfile.localSourceRoot) {
-    return `${loadTemplate(LOCAL_SQL_CONTRACT_TEMPLATE).trimEnd()}\n`;
-  }
-
-  // Point the shim at the local package source so scaffolds do not require a prebuilt dist/ folder.
-  const sourceEntry = path.join(
-    scaffoldProfile.localSourceRoot,
-    LOCAL_SOURCE_STACK_PACKAGE_DIRS['@rawsql-ts/sql-contract'],
-    'src',
-    'index.ts'
-  );
-  const relativeImport = normalizeCliPath(path.relative(path.dirname(absolutePath), sourceEntry));
-  const importPath =
-    relativeImport.startsWith('.') || relativeImport.startsWith('/') ? relativeImport : `./${relativeImport}`;
-  return [
-    "// export * from '@rawsql-ts/sql-contract';",
-    `export * from '${importPath}';`,
-    ''
-  ].join('\n');
-}
-
 function buildLocalSourceGuardContents(
   absolutePath: string,
   scaffoldProfile: InitScaffoldProfile
@@ -1968,19 +1933,6 @@ function buildLocalSourceGuardContents(
   const cliImportPath =
     relativeCliEntry.startsWith('.') || relativeCliEntry.startsWith('/') ? relativeCliEntry : `./${relativeCliEntry}`;
   return template.replace('__LOCAL_SOURCE_ZTD_CLI__', cliImportPath);
-}
-
-function buildLocalSourceTsconfigContents(): string {
-  const parsed = JSON.parse(loadTemplate(TSCONFIG_TEMPLATE)) as {
-    compilerOptions?: Record<string, unknown>;
-  };
-  const compilerOptions = parsed.compilerOptions ?? {};
-
-  // Local-source shims target TypeScript source files directly, so the scaffold must allow that import style.
-  compilerOptions.allowImportingTsExtensions = true;
-  compilerOptions.noEmit = true;
-  parsed.compilerOptions = compilerOptions;
-  return `${JSON.stringify(parsed, null, 2)}\n`;
 }
 
 function buildNextSteps(
@@ -2009,7 +1961,7 @@ function buildNextSteps(
       `Run ${runScriptCommand('typecheck')}`,
       `Run ${runScriptCommand('test')}`,
       `Run ${runLocalSourceZtdCommand} ztd-config`,
-      `For generated QuerySpecs, prefer ${runLocalSourceZtdCommand} model-gen --probe-mode ztd --import-style relative`,
+      'Generated QuerySpecs can keep the default @rawsql-ts/sql-contract package import.',
       appShape === 'webapi'
         ? 'Keep Domain, Application, and Presentation changes free from direct ZTD assumptions'
         : 'Keep handwritten SQL and QuerySpecs aligned before adding repository code',
@@ -2120,7 +2072,6 @@ function buildSummaryLines(
     'smokeSpec',
     'smokeCoercions',
     'smokeRuntime',
-    'localSqlContractShim',
     'localSourceGuardScript',
     'smokeValidationTest',
     'testsSmoke',
@@ -2157,7 +2108,7 @@ function buildSummaryLines(
   lines.push('', 'Validation configuration:');
   const stackLine =
     scaffoldProfile.dependencyProfile === 'local-source'
-      ? ' - SQL catalog/mapping support via src/local/sql-contract.ts backed by a local file dependency (see docs/recipes/sql-contract.md)'
+      ? ' - SQL catalog/mapping support via @rawsql-ts/sql-contract backed by a local file dependency in developer mode (see docs/recipes/sql-contract.md)'
       : ' - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)';
   lines.push(stackLine);
   const validatorLabel =
@@ -2165,9 +2116,11 @@ function buildSummaryLines(
       ? 'Zod (zod, docs/recipes/validation-zod.md)'
       : 'ArkType (arktype, docs/recipes/validation-arktype.md)';
   lines.push(` - Validator backend: ${validatorLabel}`);
-  lines.push('', 'AI guidance:');
-  lines.push(' - Internal guidance is managed under .ztd/agents/.');
-  lines.push(' - Visible AGENTS.md files are disabled by default. Enable with: ztd agents install');
+  if (optionalFeatures.aiGuidance) {
+    lines.push('', 'AI guidance:');
+    lines.push(' - Internal guidance is managed under .ztd/agents/.');
+    lines.push(' - Visible AGENTS.md files are disabled by default. Enable with: ztd agents install');
+  }
   lines.push('', 'Next steps:', ...nextSteps);
   return lines;
 }
@@ -2186,6 +2139,7 @@ interface InitDryRunPlan {
 
 function buildInitDryRunPlan(rootDir: string, options: {
   appShape: InitAppShape;
+  withAiGuidance?: boolean;
   withSqlClient?: boolean;
   withAppInterface?: boolean;
   workflow: InitWorkflow;
@@ -2205,19 +2159,24 @@ function buildInitDryRunPlan(rootDir: string, options: {
     path.join(DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-row-map.generated.ts'),
     path.join(DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-layout.generated.ts'),
     'README.md',
-    '.ztd/agents/manifest.json',
-    '.ztd/agents/root.md',
-    '.ztd/agents/src.md',
-    '.ztd/agents/tests.md',
-    '.ztd/agents/ztd.md',
-    'CONTEXT.md',
     'src/sql/README.md',
     'vitest.config.ts',
     'tsconfig.json'
   ];
 
+  if (options.withAiGuidance) {
+    files.push('.ztd/agents/manifest.json');
+    files.push('.ztd/agents/root.md');
+    files.push('.ztd/agents/src.md');
+    files.push('.ztd/agents/tests.md');
+    files.push('.ztd/agents/ztd.md');
+    files.push('CONTEXT.md');
+  }
+
   if (options.appShape === 'webapi') {
-    files.push('PROMPT_DOGFOOD.md');
+    if (options.withAiGuidance) {
+      files.push('PROMPT_DOGFOOD.md');
+    }
     files.push('src/domain/README.md');
     files.push('src/application/README.md');
     files.push('src/presentation/http/README.md');
@@ -2260,6 +2219,7 @@ export function registerInitCommand(program: Command): void {
     .command('init')
     .description('Automate project setup for Zero Table Dependency workflows')
     .option('--app-shape <type>', 'Application scaffold shape: default or webapi (default: default)')
+    .option('--with-ai-guidance', 'Generate internal AI guidance files such as CONTEXT.md and .ztd/agents/*')
     .option('--with-sqlclient', 'Generate a minimal SqlClient interface for repositories')
     .option('--with-app-interface', 'Append application interface guidance to AGENTS.md only')
     .option('--yes', 'Accept defaults and overwrite existing files without prompting')
@@ -2273,6 +2233,7 @@ export function registerInitCommand(program: Command): void {
     )
     .action(async (options: {
       appShape?: string;
+      withAiGuidance?: boolean;
       withSqlclient?: boolean;
       withAppInterface?: boolean;
       yes?: boolean;
@@ -2316,6 +2277,7 @@ export function registerInitCommand(program: Command): void {
       if (merged.dryRun) {
         const plan = buildInitDryRunPlan(process.cwd(), {
           appShape,
+          withAiGuidance: Boolean(merged.withAiGuidance),
           withSqlClient: Boolean(merged.withSqlclient),
           withAppInterface: Boolean(merged.withAppInterface),
           workflow: workflow ?? 'demo',
@@ -2334,6 +2296,7 @@ export function registerInitCommand(program: Command): void {
       try {
         await runInitCommand(prompter, {
           appShape,
+          withAiGuidance: Boolean(merged.withAiGuidance),
           withSqlClient: Boolean(merged.withSqlclient),
           withAppInterface: Boolean(merged.withAppInterface),
           forceOverwrite: Boolean(merged.yes),

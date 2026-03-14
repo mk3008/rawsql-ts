@@ -327,21 +327,33 @@ test('init dry-run emits scaffold plan without writing files', { timeout: 60_000
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(false);
 });
 
-test('init CLI writes internal agent guidance by default and no visible AGENTS files', { timeout: 60_000 }, () => {
-  const workspace = createTempDir('init-default-internal-agents');
+test('init CLI keeps AI guidance files out of the default scaffold', { timeout: 60_000 }, () => {
+  const workspace = createTempDir('init-default-no-ai-guidance');
   const result = runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace);
 
-    assertCliSuccess(result, 'init default agents');
-    expect(result.stdout).toContain('Internal guidance is managed under .ztd/agents/.');
-    expect(result.stdout).toContain('Enable with: ztd agents install');
-    expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(true);
-    expect(existsSync(path.join(workspace, '.ztd', 'agents', 'root.md'))).toBe(true);
-    expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
-    expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
-    expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(false);
-  },
-  60000,
+  assertCliSuccess(result, 'init default agents');
+  expect(result.stdout).not.toContain('Internal guidance is managed under .ztd/agents/.');
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(false);
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'root.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'CONTEXT.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(false);
+},
+60000,
 );
+
+test('init CLI can opt into internal AI guidance explicitly', { timeout: 60_000 }, () => {
+  const workspace = createTempDir('init-with-ai-guidance');
+  const result = runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod', '--with-ai-guidance'], {}, workspace);
+
+  assertCliSuccess(result, 'init with ai guidance');
+  expect(result.stdout).toContain('Internal guidance is managed under .ztd/agents/.');
+  expect(result.stdout).toContain('Enable with: ztd agents install');
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(true);
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'root.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'CONTEXT.md'))).toBe(true);
+});
 
 test('agents install emits the visible AGENTS plan and materializes the files', { timeout: 60_000 }, () => {
   const workspace = createTempDir('agents-install');
@@ -382,8 +394,8 @@ test('agents status reports internal files and visible install recommendation be
     targets: expect.arrayContaining([
       expect.objectContaining({
         path: '.ztd/agents/manifest.json',
-        installed: true,
-        managed: true,
+        installed: false,
+        managed: false,
         drift: 'none'
       }),
       expect.objectContaining({
