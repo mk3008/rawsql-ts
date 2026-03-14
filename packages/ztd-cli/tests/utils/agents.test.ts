@@ -154,3 +154,13 @@ test('getAgentsStatus ignores optional visible templates when their parent direc
   expect(report.targets.some((target) => target.path === 'tests/support/AGENTS.md')).toBe(false);
   expect(report.recommendedActions).not.toContain('install-visible-agents');
 });
+
+test('installVisibleAgents treats requiredDirectory as a real directory contract', () => {
+  const workspace = createTempDir('ztd-agents-directory-contract');
+  writeFileSync(path.join(workspace, 'src'), 'not a directory\n', 'utf8');
+
+  const written = installVisibleAgents(workspace);
+
+  expect(written.some((summary) => summary.relativePath === 'src/AGENTS.md')).toBe(false);
+  expect(existsSync(path.join(workspace, 'src', 'AGENTS.md'))).toBe(false);
+});

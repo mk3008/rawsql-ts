@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { ensureDirectory } from './fs';
 
@@ -186,7 +186,11 @@ function templateParentExists(projectRoot: string, target: VisibleAgentTemplate)
   if (!target.requiredDirectory) {
     return true;
   }
-  return existsSync(path.join(projectRoot, target.requiredDirectory));
+  try {
+    return statSync(path.join(projectRoot, target.requiredDirectory)).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 function getApplicableVisibleAgentTemplates(projectRoot: string): readonly VisibleAgentTemplate[] {
