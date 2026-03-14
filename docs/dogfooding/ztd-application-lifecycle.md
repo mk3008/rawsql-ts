@@ -11,6 +11,13 @@ The purpose was not to prove a specific framework integration. The purpose was t
 5. deploy persistence changes
 6. repeat
 
+The database boundary used in this guide is:
+
+- `ztd-cli` implicitly uses only `ZTD_TEST_DATABASE_URL`
+- runtime or deployment settings such as `DATABASE_URL` remain outside `ztd-cli` ownership
+- any non-ZTD target must be passed explicitly when inspection is needed
+- `ztd-cli` may generate migration SQL artifacts, but it does not apply them
+
 ## What was tested
 
 The dogfood run used the `demo` DDL and added minimal code only in:
@@ -97,8 +104,9 @@ Use this only when the contract needs new schema or SQL behavior.
 2. Run `pnpm ztd ztd-config`.
 3. Update persistence-facing code or specs if needed.
 4. Run `pnpm typecheck`, `pnpm test`, and `pnpm ztd check contract`.
-5. Prepare and apply an explicit migration to the live target.
-6. Verify the live schema.
+5. Prepare a migration SQL artifact for the explicit target.
+6. Apply it outside `ztd-cli`.
+7. Verify the explicit target schema.
 
 ## What `ztd-cli` is in this lifecycle
 

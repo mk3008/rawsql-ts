@@ -2,6 +2,12 @@
 
 This scaffold separates WebAPI concerns into explicit layers so transport and use-case work do not accidentally inherit persistence-specific rules.
 
+Conceptual model:
+- `ztd-cli` implicitly uses only `ZTD_TEST_DATABASE_URL`.
+- Projects often also have a runtime or deployment database setting such as `DATABASE_URL`, but `ztd-cli` does not read it automatically.
+- Any non-ZTD database target must be passed explicitly via `--url` or `--db-*`.
+- `ztd-cli` may generate migration SQL artifacts, but it does not apply them.
+
 Key folders:
 - `src/domain`: domain types and business rules with no direct ZTD dependency
 - `src/application`: use cases and orchestration over domain-facing ports
@@ -20,6 +26,8 @@ Next steps:
 4. Use `pnpm exec ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` when you want a QuerySpec scaffold from the local DDL snapshot.
 5. Wire repositories to `src/infrastructure/telemetry/repositoryTelemetry.ts` only when you add SQL-backed repository classes.
 6. Provide a SqlClient implementation in `src/infrastructure/db`.
-7. Run tests (`pnpm test` or `npx vitest run`).
+7. Run tests (`pnpm test` or `npx vitest run`) with `ZTD_TEST_DATABASE_URL` when SQL-backed verification needs a managed test database.
+8. Treat `ddl pull` and `ddl diff` as explicit target inspection commands that require `--url` or a complete `--db-*` flag set.
+9. If you generate migration SQL artifacts, apply them outside `ztd-cli`.
 
 If this project was scaffolded with `ztd init --local-source-root <monorepo-root>`, first run `pnpm install` (or `pnpm install --ignore-workspace` when nested under another `pnpm-workspace.yaml`), then `pnpm typecheck`, then `pnpm test`, then `pnpm ztd ztd-config`. For generated QuerySpecs, prefer `pnpm ztd model-gen --probe-mode ztd --import-style relative` so imports keep using the local shim.

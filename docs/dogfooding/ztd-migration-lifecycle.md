@@ -1,6 +1,6 @@
 # Migration Lifecycle Dogfooding
 
-This guide records a practical migration dogfooding loop for `@rawsql-ts/ztd-cli` using a Docker-hosted PostgreSQL instance as a production-like target.
+This guide records a practical migration dogfooding loop for `@rawsql-ts/ztd-cli` using a Docker-hosted PostgreSQL instance as the ZTD-owned test database plus an explicit target inspection workflow.
 
 The scenario was validated on:
 
@@ -16,11 +16,12 @@ Validate that the following lifecycle remains workable:
 
 1. Scaffold a WebAPI-shaped app.
 2. Keep local DDL as the source of truth.
-3. Apply DDL to a production-like target database.
+3. Verify the ZTD-owned test database.
 4. Change the DDL.
 5. Regenerate ZTD artifacts.
-6. Apply an explicit migration.
-7. Verify the live schema again.
+6. Generate or prepare an explicit migration artifact.
+7. Apply the migration outside `ztd-cli`.
+8. Inspect the target schema again.
 
 ## What `ztd-cli` owns and what it does not
 
@@ -28,11 +29,12 @@ Validate that the following lifecycle remains workable:
 
 - Scaffolding a DDL-first project layout
 - Regenerating `TestRowMap` and layout files from `ztd/ddl/*.sql`
-- Pulling or diffing live schema when `pg_dump` is available on the host
+- Inspecting explicit target schema state with `ddl pull` and `ddl diff` when `pg_dump` is available on the host
+- Generating migration SQL artifacts
 
 `ztd-cli` does not own:
 
-- Executing production migrations
+- Applying generated SQL to any non-ZTD target
 - Choosing a migration framework
 - Automatically transforming the textual DDL diff into a deploy-safe migration plan
 
@@ -136,7 +138,7 @@ Use this loop when local DDL is the source of truth:
 
 This dogfood run supports the following recommendation:
 
-- Keep `ztd-cli` inside the authoring and verification loop.
+- Keep `ztd-cli` inside the authoring, verification, and inspection loop.
 - Keep migration execution outside `ztd-cli`, because deploy-time ordering, locking, rollback, and review policy belong to the application or platform owner.
 
 ## Observed friction
@@ -147,7 +149,7 @@ One important friction surfaced on Windows:
 - A Docker-only `pg_dump` wrapper implemented as a `.cmd` file failed with `spawnSync ... EINVAL`.
 - The lifecycle itself still worked by using `docker exec ... pg_dump` and `docker exec ... psql` directly, but `ztd ddl diff` was not end-to-end usable in that exact setup.
 
-That means the migration lifecycle is viable today, but Docker-only Windows users need a shell-capable `pg_dump` entrypoint.
+That means the inspection lifecycle is viable today, but Docker-only Windows users need a shell-capable `pg_dump` entrypoint.
 
 The recommended form is now:
 
@@ -177,6 +179,7 @@ It should not be presented as a migration executor. The successful dogfood loop 
 1. author DDL locally
 2. regenerate artifacts
 3. test locally
-4. prepare a migration deliberately
-5. apply the migration explicitly
-6. verify the live target
+4. inspect the target deliberately
+5. generate migration SQL artifacts deliberately
+6. apply the migration explicitly outside `ztd-cli`
+7. verify the target again

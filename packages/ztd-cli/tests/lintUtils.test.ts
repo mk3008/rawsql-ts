@@ -91,19 +91,19 @@ test('buildParserFailure marks parser kind with parse keyword', () => {
 test('buildLintContainerStartError appends Docker guidance for runtime failures', () => {
   const error = buildLintContainerStartError(new Error('Could not find a working container runtime strategy'));
   expect(error.message).toContain('Start Docker Desktop/service');
-  expect(error.message).toContain('ZTD_LINT_DATABASE_URL');
+  expect(error.message).toContain('ZTD_TEST_DATABASE_URL');
 });
 
 test('buildLintConnectionError explains external connection recovery', () => {
   const error = buildLintConnectionError(new Error('ECONNREFUSED'), true);
-  expect(error.message).toContain('ZTD_LINT_DATABASE_URL or DATABASE_URL');
+  expect(error.message).toContain('ZTD_TEST_DATABASE_URL');
   expect(error.message).toContain('ECONNREFUSED');
 });
 
 test('buildLintConnectionError explains Docker recovery when no external connection is set', () => {
   const error = buildLintConnectionError(new Error('timeout'), false);
   expect(error.message).toContain('Docker Desktop/service');
-  expect(error.message).toContain('ZTD_LINT_DATABASE_URL');
+  expect(error.message).toContain('ZTD_TEST_DATABASE_URL');
 });
 
 test('buildLintCommandFailureData returns a stable JSON envelope payload for command failures', () => {

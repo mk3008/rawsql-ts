@@ -181,6 +181,8 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(existsSync(path.join(workspace, 'src', 'repositories', 'tables', 'user-accounts.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'jobs', 'refresh-user-accounts.ts'))).toBe(false);
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('ZTD_TEST_DATABASE_URL');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('outside the ownership of `ztd-cli`');
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
   expect(readNormalizedFile(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toContain('"managed_by": "ztd:agents"');
@@ -245,6 +247,9 @@ test('init wizard bootstraps an empty scaffold', async () => {
   );
   expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.test.ts'))).toContain(
     'SqlClient seam is either wired or fails with an actionable message',
+  );
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toContain(
+    'ZTD_TEST_DATABASE_URL'
   );
 
   // Ensure the generated testkit client can safely log params with circular references.
@@ -313,6 +318,8 @@ test('init webapi scaffold localizes ZTD guidance to persistence-oriented paths'
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/domain');
   expect(readNormalizedFile(path.join(workspace, 'CONTEXT.md'))).toContain('src/domain');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm exec ztd ztd-config');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('does not read it automatically');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('explicit target inspection');
   expect(readNormalizedFile(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toContain('WebAPI化して');
   expect(readNormalizedFile(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toContain('SQLを増やして repository を実装して');
   expect(readNormalizedFile(path.join(workspace, 'src', 'domain', 'README.md'))).not.toContain('ztd');

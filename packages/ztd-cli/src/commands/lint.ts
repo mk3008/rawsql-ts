@@ -194,7 +194,7 @@ async function runLintCommand(pattern: string): Promise<void> {
   const ddlRoot = path.resolve(projectRoot, config.ddlDir);
   const sqlFiles = resolveSqlFiles(pattern);
 
-  const databaseUrl = process.env.ZTD_LINT_DATABASE_URL?.trim() ?? process.env.DATABASE_URL?.trim();
+  const databaseUrl = process.env.ZTD_TEST_DATABASE_URL?.trim();
   const connectionUrl = databaseUrl && databaseUrl.length > 0 ? databaseUrl : null;
 
   if (!connectionUrl) {
@@ -211,7 +211,7 @@ async function runLintCommand(pattern: string): Promise<void> {
     if (!resolvedConnectionUrl) {
       const containerModule = await ensurePostgresContainerModule().catch((error) => {
         const baseMessage = error instanceof Error ? error.message : String(error);
-        throw new Error(`${baseMessage} Or set ZTD_LINT_DATABASE_URL to reuse an existing Postgres connection.`);
+        throw new Error(`${baseMessage} Or set ZTD_TEST_DATABASE_URL to reuse an existing Postgres connection.`);
       });
       const { PostgreSqlContainer } = containerModule;
       const started = await new PostgreSqlContainer(process.env.ZTD_LINT_DB_IMAGE ?? 'postgres:16-alpine')
@@ -311,7 +311,7 @@ function assertDockerReadyForLint(): void {
     const stderr = (probe.stderr ?? '').trim();
     const detail = stderr.length > 0 ? ` (${stderr})` : '';
     throw new Error(
-      `Docker is not reachable. Start Docker Desktop/service before running ztd lint without ZTD_LINT_DATABASE_URL.${detail}`
+      `Docker is not reachable. Start Docker Desktop/service before running ztd lint without ZTD_TEST_DATABASE_URL.${detail}`
     );
   }
 }
@@ -320,7 +320,7 @@ export function buildLintContainerStartError(error: unknown): Error {
   const message = error instanceof Error ? error.message : String(error);
   if (message.toLowerCase().includes('container runtime strategy') || message.toLowerCase().includes('docker')) {
     return new Error(
-      `${message} Start Docker Desktop/service, or set ZTD_LINT_DATABASE_URL to use an existing Postgres.`
+      `${message} Start Docker Desktop/service, or set ZTD_TEST_DATABASE_URL to use an existing Postgres.`
     );
   }
   return new Error(message);
@@ -329,8 +329,8 @@ export function buildLintContainerStartError(error: unknown): Error {
 export function buildLintConnectionError(error: unknown, usingExternalConnection: boolean): Error {
   const message = error instanceof Error ? error.message : String(error);
   const guidance = usingExternalConnection
-    ? 'Check ZTD_LINT_DATABASE_URL or DATABASE_URL and verify the target Postgres is reachable.'
-    : 'Check Docker Desktop/service and retry, or set ZTD_LINT_DATABASE_URL to skip container startup.';
+    ? 'Check ZTD_TEST_DATABASE_URL and verify the ZTD-owned test database is reachable.'
+    : 'Check Docker Desktop/service and retry, or set ZTD_TEST_DATABASE_URL to skip container startup.';
   return new Error(`Failed to connect to PostgreSQL for ztd lint. ${guidance} (${message})`);
 }
 function readFileSafe(filePath: string): string {

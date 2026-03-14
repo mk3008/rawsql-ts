@@ -54,7 +54,7 @@ node "<LOCAL_SOURCE_ROOT>/packages/ztd-cli/dist/index.js" <ztd-subcommand-and-ar
 pnpm -C "<LOCAL_SOURCE_ROOT>" --filter @rawsql-ts/ztd-cli build
 ```
 
-Note: model-gen (probe-mode ztd) requires DATABASE_URL. Also, model-gen is currently SELECT-oriented; INSERT/UPDATE/DELETE SQL may fail with parser errors and is out of scope for model-gen in this dogfooding scenario.
+Note: model-gen (`--probe-mode ztd`) requires `ZTD_TEST_DATABASE_URL`. `ztd-cli` does not read `DATABASE_URL` automatically. Also, model-gen is currently SELECT-oriented; INSERT/UPDATE/DELETE SQL may fail with parser errors and is out of scope for model-gen in this dogfooding scenario.
 
 Note on modes:
 

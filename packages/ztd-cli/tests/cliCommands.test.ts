@@ -57,7 +57,7 @@ function commandExists(command: string): boolean {
 
 function buildCliEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   return {
-    // Copy the current environment so per-test mutations (e.g. DATABASE_URL) propagate to the CLI.
+    // Copy the current environment so per-test mutations (for example ZTD_TEST_DATABASE_URL) propagate to the CLI.
     ...process.env,
     NODE_ENV: 'test',
     ...overrides,
@@ -293,7 +293,7 @@ test(
     const result = runCli(
       ['--output', 'json', 'lint', '--json', JSON.stringify({ path: workspace.sqlFile })],
       {
-        ZTD_LINT_DATABASE_URL: 'postgres://127.0.0.1:1/invalid',
+        ZTD_TEST_DATABASE_URL: 'postgres://127.0.0.1:1/invalid',
         DATABASE_URL: ''
       },
       workspace.rootDir
@@ -536,14 +536,14 @@ test('perf seed output redacts connection credentials in global json mode', () =
 
   const result = runCli(
     ['--output', 'json', 'perf', 'seed'],
-    { ZTD_PERF_DATABASE_URL: 'postgres://perf_user:perf_pass@127.0.0.1:1/ztd_perf' },
+    { ZTD_TEST_DATABASE_URL: 'postgres://perf_user:perf_pass@127.0.0.1:1/ztd_perf' },
     workspace
   );
 
   assertCliFailure(result, 'perf seed redaction');
   expect(result.stderr).not.toContain('perf_pass');
 });
-test('perf db reset refuses implicit DATABASE_URL without explicit perf opt-in', () => {
+test('perf db reset refuses implicit DATABASE_URL without explicit ZTD test opt-in', () => {
   const workspace = createTempDir('perf-reset-safety');
   mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
   writeFileSync(
@@ -561,13 +561,13 @@ test('perf db reset refuses implicit DATABASE_URL without explicit perf opt-in',
 
   const result = runCli(
     ['perf', 'db', 'reset'],
-    { DATABASE_URL: 'postgres://app.example/db', ZTD_PERF_DATABASE_URL: '' },
+    { DATABASE_URL: 'postgres://app.example/db', ZTD_TEST_DATABASE_URL: '' },
     workspace
   );
 
   assertCliFailure(result, 'perf db reset safety');
   expect(result.stderr).toContain('Perf sandbox ignores DATABASE_URL');
-  expect(result.stderr).toContain('ZTD_PERF_DATABASE_URL');
+  expect(result.stderr).toContain('ZTD_TEST_DATABASE_URL');
 });
 
 test('perf seed dry-run rejects unknown tables from perf seed config', () => {
@@ -1008,7 +1008,7 @@ pullTest('pull CLI emits schema from Postgres via pg_dump', async () => {
     await seedProductsTable(client);
 
     const outDir = createTempDir('cli-pull');
-    const result = runCli(['ddl', 'pull', '--out', outDir], { DATABASE_URL: connectionString });
+    const result = runCli(['ddl', 'pull', '--url', connectionString, '--out', outDir], { DATABASE_URL: 'postgres://ignored.example/app' });
     assertCliSuccess(result, 'ddl pull');
     const schemaFile = path.join(outDir, 'public.sql');
     expect(existsSync(schemaFile)).toBe(true);
@@ -1026,6 +1026,25 @@ pullTest('pull CLI emits schema from Postgres via pg_dump', async () => {
   }
 }, 60_000);
 
+test('ddl pull ignores DATABASE_URL and requires an explicit target', () => {
+  const outDir = createTempDir('cli-pull-no-implicit-target');
+  const result = runCli(['ddl', 'pull', '--out', outDir], {
+    DATABASE_URL: 'postgres://app.example/db',
+    ZTD_TEST_DATABASE_URL: 'postgres://ztd.example/db'
+  });
+
+  assertCliFailure(result, 'ddl pull explicit target requirement');
+  expect(result.stderr).toContain('This command does not use implicit database settings');
+});
+
+test('ddl pull rejects partial explicit target flags', () => {
+  const outDir = createTempDir('cli-pull-partial-flags');
+  const result = runCli(['ddl', 'pull', '--out', outDir, '--db-host', '127.0.0.1', '--db-user', 'postgres']);
+
+  assertCliFailure(result, 'ddl pull partial flags');
+  expect(result.stderr).toContain('Incomplete explicit target database flags');
+});
+
 pullTest('pull CLI dry-run validates dump without writing files', async () => {
   const connectionString = process.env.TEST_PG_URI!;
   const client = new Client({ connectionString });
@@ -1036,7 +1055,7 @@ pullTest('pull CLI dry-run validates dump without writing files', async () => {
     await seedProductsTable(client);
 
     const outDir = createTempDir('cli-pull-dry-run');
-    const result = runCli(['--output', 'json', 'ddl', 'pull', '--out', outDir, '--dry-run'], { DATABASE_URL: connectionString });
+    const result = runCli(['--output', 'json', 'ddl', 'pull', '--url', connectionString, '--out', outDir, '--dry-run'], { DATABASE_URL: 'postgres://ignored.example/app' });
     assertCliSuccess(result, 'ddl pull dry-run');
     const parsed = JSON.parse(result.stdout);
     expect(parsed.data).toMatchObject({
@@ -1080,8 +1099,8 @@ pullTest('model-gen emits a names-first spec scaffold from live Postgres metadat
     );
     const outFile = path.join(workspace.rootDir, 'product.spec.ts');
     const result = runCli(
-      ['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--out', outFile, '--debug-probe'],
-      { DATABASE_URL: connectionString },
+      ['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--url', connectionString, '--out', outFile, '--debug-probe'],
+      { DATABASE_URL: 'postgres://ignored.example/app' },
       workspace.rootDir
     );
 
@@ -1091,9 +1110,9 @@ pullTest('model-gen emits a names-first spec scaffold from live Postgres metadat
     expect(content).toContain("productId: 'product_id'");
     expect(content).toContain("listPrice: 'list_price'");
     expect(content).toContain("params: { shape: 'named', example: { product_id: null } }");
-    expect(result.stderr).toContain('[model-gen] probe debug');
+    expect(result.stderr).toContain('[model-gen] inspection debug');
     expect(result.stderr).toContain('orderedParamNames: ["product_id"]');
-    expect(result.stderr).toContain('probeSql: SELECT * FROM (');
+    expect(result.stderr).toContain('inspectionSql: SELECT * FROM (');
     expect(result.stdout).toBe('');
   } finally {
     await resetPublicSchema(client);
@@ -1156,7 +1175,7 @@ pullTest('model-gen emits a spec scaffold from ZTD DDL metadata without physical
     const outFile = path.join(workspace.rootDir, 'product-ztd.spec.ts');
     const result = runCli(
       ['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--probe-mode', 'ztd', '--out', outFile, '--debug-probe'],
-      { DATABASE_URL: connectionString },
+      { ZTD_TEST_DATABASE_URL: connectionString, DATABASE_URL: 'postgres://ignored.example/app' },
       workspace.rootDir
     );
 
@@ -1227,7 +1246,7 @@ pullTest('model-gen ztd resolves unqualified table names through defaultSchema/s
     const outFile = path.join(workspace.rootDir, 'users-ztd.spec.ts');
     const result = runCli(
       ['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--probe-mode', 'ztd', '--out', outFile, '--debug-probe'],
-      { DATABASE_URL: connectionString },
+      { ZTD_TEST_DATABASE_URL: connectionString, DATABASE_URL: 'postgres://ignored.example/app' },
       workspace.rootDir
     );
 
@@ -1299,7 +1318,7 @@ pullTest('model-gen ztd honors searchPath precedence for unqualified table names
     const outFile = path.join(workspace.rootDir, 'current-users-ztd.spec.ts');
     const result = runCli(
       ['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--probe-mode', 'ztd', '--out', outFile, '--debug-probe'],
-      { DATABASE_URL: connectionString },
+      { ZTD_TEST_DATABASE_URL: connectionString, DATABASE_URL: 'postgres://ignored.example/app' },
       workspace.rootDir
     );
 
@@ -1344,8 +1363,8 @@ pullTest('model-gen allows legacy positional placeholders only behind --allow-po
     );
     const outFile = path.join(workspace.rootDir, 'product-positional.spec.ts');
     const result = runCli(
-      ['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--allow-positional', '--out', outFile],
-      { DATABASE_URL: connectionString },
+      ['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--url', connectionString, '--allow-positional', '--out', outFile],
+      { DATABASE_URL: 'postgres://ignored.example/app' },
       workspace.rootDir
     );
 
