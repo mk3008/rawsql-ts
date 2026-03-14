@@ -52,6 +52,72 @@ This also means:
 npm install -D @rawsql-ts/ztd-cli
 ```
 
+## Getting Started with AI
+
+If you are using an AI coding agent, start with a short prompt that sets only the minimum project shape and domain language. You do **not** need to explain `pnpm install` or package-manager setup in that prompt.
+
+Example prompt:
+
+```text
+I want to build a WebAPI application with @rawsql-ts/ztd-cli.
+Use Docker and Postgres.
+Start from the webapi scaffold.
+Model three tables: sales, sale_lines, and products.
+Keep domain, application, presentation, and persistence concerns separated.
+Prepare the initial DDL, scaffold the ZTD project, and explain what was created.
+Do not apply migrations automatically.
+```
+
+What a prompt at this level should usually guarantee:
+
+- a `webapi`-shaped project layout
+- starter DDL under `ztd/ddl/`
+- initial smoke tests and generated-type workflow via `ztd-config`
+- separation between app-facing layers and ZTD-owned persistence assets
+- README / CONTEXT / AGENTS guidance that tells the next actor where to keep working
+
+What it does **not** guarantee by itself:
+
+- production-ready DDL review
+- finalized API boundaries, DTOs, or SQL contracts
+- migration application or deployment execution
+- non-ZTD target inspection unless the caller explicitly passes `--url` or `--db-*`
+
+For a typical `webapi` scaffold, the generated directory shape looks like this:
+
+```text
+src/
+  domain/
+  application/
+  presentation/
+    http/
+  infrastructure/
+    db/
+    telemetry/
+    persistence/
+      repositories/
+        views/
+        tables/
+  sql/
+  catalog/
+    specs/
+    runtime/
+ztd/
+  ddl/
+tests/
+  support/
+  generated/
+.ztd/
+  agents/
+```
+
+How to read that layout:
+
+- `src/domain`, `src/application`, and `src/presentation/http` are where generic WebAPI work should begin.
+- `src/infrastructure/persistence`, `src/sql`, `src/catalog`, and `ztd/ddl` are the ZTD-owned persistence side.
+- `tests/generated` is generated output. Recreate it with `ztd ztd-config` instead of editing it manually.
+- `.ztd/agents` contains managed AI guidance so a later prompt such as "WebAPI化して" does not accidentally jump straight into persistence-specific rules.
+
 ## Choose The Right Happy Path
 
 `ztd-cli` has two valid happy paths, and they answer different questions:
