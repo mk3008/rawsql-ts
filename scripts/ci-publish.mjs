@@ -506,9 +506,33 @@ function npmPackageExists(packageName) {
   );
 }
 
+function createPublishTarball(packageDir, workspaceRoot, packageName) {
+  const tarballDir = path.join(workspaceRoot, "tmp", "publish-tarballs", sanitizeFilename(packageName));
+
+  // Recreate the staging directory so each publish attempt uses a single, deterministic tarball.
+  fs.rmSync(tarballDir, { recursive: true, force: true });
+  ensureDir(tarballDir);
+
+  runWithOutput(PNPM, ["pack", "--pack-destination", tarballDir], { cwd: packageDir });
+
+  const tarballs = fs.readdirSync(tarballDir).filter((entry) => entry.endsWith(".tgz"));
+  if (tarballs.length !== 1) {
+    throw new Error(
+      `[publish] expected exactly one tarball for ${packageName}, found ${tarballs.length} in ${tarballDir}`,
+    );
+  }
+
+  return path.join(tarballDir, tarballs[0]);
+}
+
 function publishWithNpm(packageDir, publishAuth, opts) {
+  if (!opts?.workspaceRoot || !opts?.packageName) {
+    throw new Error("[publish] publishWithNpm requires workspaceRoot and packageName");
+  }
+
+  const tarballPath = createPublishTarball(packageDir, opts.workspaceRoot, opts.packageName);
   // CI already builds publish artifacts up front, so skip lifecycle rebuilds during npm publish.
-  const args = ["publish", "--ignore-scripts", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public"];
+  const args = [tarballPath, "--ignore-scripts", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public"];
 
   if (publishAuth === "oidc") {
     // OIDC Trusted Publishing requires provenance.
@@ -516,7 +540,7 @@ function publishWithNpm(packageDir, publishAuth, opts) {
   }
 
   try {
-    runWithOutput(NPM, args, { cwd: packageDir });
+    runWithOutput(NPM, ["publish", ...args], { cwd: packageDir });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const c = classifyNpmFailure(message);
@@ -545,9 +569,7 @@ function publishWithNpm(packageDir, publishAuth, opts) {
         process.env.NPM_CONFIG_USERCONFIG = ensureTokenUserConfig(opts.workspaceRoot);
 
         try {
-          runWithOutput(NPM, ["publish", "--ignore-scripts", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public"], {
-            cwd: packageDir,
-          });
+          runWithOutput(NPM, ["publish", ...args.filter((arg) => arg !== "--provenance")], { cwd: packageDir });
           return;
         } catch (fallbackError) {
           const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
