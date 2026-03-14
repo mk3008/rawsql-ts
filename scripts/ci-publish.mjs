@@ -8,6 +8,7 @@ const PNPM = "pnpm";
 const NPM = "npm";
 const GIT = "git";
 const GH = "gh";
+const FALLBACK_TOKEN_ENV = "RAWSQL_PUBLISH_FALLBACK_TOKEN";
 
 // Always target the public npm registry explicitly to avoid .npmrc/env quirks.
 const NPM_PUBLIC_REGISTRY = "https://registry.npmjs.org";
@@ -318,14 +319,21 @@ function ensureTokenUserConfig(workspaceRoot) {
   return tokenUserConfig;
 }
 
+function getPreservedPublishToken() {
+  return process.env[FALLBACK_TOKEN_ENV] || process.env.NODE_AUTH_TOKEN || "";
+}
+
 function sanitizeOidcEnvironment(publishAuth, workspaceRoot) {
   if (publishAuth !== "oidc") return;
 
-  // npm can prefer token-based auth when NODE_AUTH_TOKEN exists, which can break OIDC Trusted Publishing.
-  // Remove it proactively so downstream npm commands run in a clean OIDC environment.
+  // Remove auth tokens from the live environment so OIDC attempts stay pure until an explicit fallback retry.
   if (process.env.NODE_AUTH_TOKEN) {
     console.warn("[publish] warning: NODE_AUTH_TOKEN is set; removing it to avoid token-based auth overriding OIDC.");
     delete process.env.NODE_AUTH_TOKEN;
+  }
+  if (process.env[FALLBACK_TOKEN_ENV]) {
+    console.warn(`[publish] warning: ${FALLBACK_TOKEN_ENV} is set; removing it until token fallback is needed.`);
+    delete process.env[FALLBACK_TOKEN_ENV];
   }
 
   // Ensure npm doesn't pick up token auth from user-level config written by actions/setup-node or pre-existing runner config.
@@ -530,8 +538,8 @@ function publishWithNpm(packageDir, publishAuth, opts) {
         `  4) npm >= 11.5.1 and registry is ${NPM_PUBLIC_REGISTRY}`,
         "  5) npm publish includes --provenance (this script adds it in oidc mode)",
         opts?.allowTokenFallback === true
-          ? "  6) (fallback enabled) ensure a valid NODE_AUTH_TOKEN is available for token auth retry"
-          : "  6) (optional) enable RAWSQL_PUBLISH_OIDC_FALLBACK_TO_TOKEN=1 to retry with NODE_AUTH_TOKEN",
+          ? `  6) (fallback enabled) ensure a valid ${FALLBACK_TOKEN_ENV} or NODE_AUTH_TOKEN is available for token auth retry`
+          : `  6) (optional) enable RAWSQL_PUBLISH_OIDC_FALLBACK_TO_TOKEN=1 and provide ${FALLBACK_TOKEN_ENV} for token retry`,
       ].join("\n");
 
       throw new Error([hint, `---\n${message}`].join("\n"));
@@ -590,7 +598,7 @@ async function main() {
   const dryRun = process.env.RAWSQL_CI_DRY_RUN === "1";
   const publishAuth = detectPublishAuth();
 
-  const preservedNodeAuthToken = process.env.NODE_AUTH_TOKEN || "";
+  const preservedNodeAuthToken = getPreservedPublishToken();
   const allowTokenFallback = process.env.RAWSQL_PUBLISH_OIDC_FALLBACK_TO_TOKEN === "1";
 
   sanitizeOidcEnvironment(publishAuth, workspaceRoot);

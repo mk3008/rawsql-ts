@@ -102,6 +102,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
           RAWSQL_PUBLISH_AUTH: "oidc"
+          RAWSQL_PUBLISH_OIDC_FALLBACK_TO_TOKEN: "1"
+          # Keep the npm token out of the default npm environment and only expose it when ci-publish.mjs retries explicitly.
+          RAWSQL_PUBLISH_FALLBACK_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
         run: |
           # Prevent token-based auth from overriding OIDC Trusted Publishing.
           env -u NODE_AUTH_TOKEN node ./scripts/ci-publish.mjs
