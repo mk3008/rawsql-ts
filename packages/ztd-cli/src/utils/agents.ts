@@ -157,12 +157,12 @@ function buildInternalManifest(): string {
     })),
     prompt_examples: [
       {
-        prompt: 'Convert to WebAPI (Original: WebAPI化して)',
+        prompt: 'Convert to WebAPI',
         preferred_scopes: ['src-presentation', 'src-application', 'src-domain'],
         avoid_scopes: ['src-infrastructure-persistence', 'ztd']
       },
       {
-        prompt: 'Add SQL and implement repository (Original: SQLを増やして repository を実装して)',
+        prompt: 'Add SQL and implement repository',
         preferred_scopes: ['src-infrastructure-persistence', 'ztd'],
         avoid_scopes: ['src-domain', 'src-presentation']
       }
@@ -187,6 +187,14 @@ function templateParentExists(projectRoot: string, target: VisibleAgentTemplate)
     return true;
   }
   return existsSync(path.join(projectRoot, target.requiredDirectory));
+}
+
+function getApplicableVisibleAgentTemplates(projectRoot: string): readonly VisibleAgentTemplate[] {
+  return VISIBLE_AGENT_TEMPLATES.filter(
+    (target) =>
+      ROOT_VISIBLE_TARGETS.includes(target.relativePath as typeof ROOT_VISIBLE_TARGETS[number]) ||
+      templateParentExists(projectRoot, target)
+  );
 }
 
 export function parseMarkdownAgentsMarker(contents: string): { templateVersion: number; scope: string } | null {
@@ -262,11 +270,8 @@ export function getVisibleAgentsInstallPaths(projectRoot: string): string[] {
     planned.push(ROOT_VISIBLE_TARGETS[1]);
   }
 
-  for (const target of VISIBLE_AGENT_TEMPLATES) {
+  for (const target of getApplicableVisibleAgentTemplates(projectRoot)) {
     if (ROOT_VISIBLE_TARGETS.includes(target.relativePath as typeof ROOT_VISIBLE_TARGETS[number])) {
-      continue;
-    }
-    if (!templateParentExists(projectRoot, target)) {
       continue;
     }
     const absolutePath = path.join(projectRoot, target.relativePath);
@@ -298,11 +303,8 @@ export function installVisibleAgents(projectRoot: string): FileSummaryLike[] {
     summaries.push({ relativePath: toRelative(projectRoot, rootTarget), outcome: 'created' });
   }
 
-  for (const target of VISIBLE_AGENT_TEMPLATES) {
+  for (const target of getApplicableVisibleAgentTemplates(projectRoot)) {
     if (ROOT_VISIBLE_TARGETS.includes(target.relativePath as typeof ROOT_VISIBLE_TARGETS[number])) {
-      continue;
-    }
-    if (!templateParentExists(projectRoot, target)) {
       continue;
     }
     const absolutePath = path.join(projectRoot, target.relativePath);
@@ -400,7 +402,7 @@ export function getAgentsStatus(projectRoot: string): AgentsStatusReport {
   for (const target of INTERNAL_AGENT_TEMPLATES) {
     targets.push(buildStatusEntry(projectRoot, target.relativePath, renderInternalTarget(target.relativePath)));
   }
-  for (const target of VISIBLE_AGENT_TEMPLATES) {
+  for (const target of getApplicableVisibleAgentTemplates(projectRoot)) {
     targets.push(buildStatusEntry(projectRoot, target.relativePath, renderVisibleTarget(target.relativePath)));
   }
 

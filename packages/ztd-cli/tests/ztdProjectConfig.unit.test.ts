@@ -54,6 +54,7 @@ test('loadZtdProjectConfig warns when legacy connection config is present', asyn
   });
   expect(emitWarning).toHaveBeenCalledTimes(1);
   expect(emitWarning.mock.calls[0]?.[0]).toContain('ztd.config.json.connection');
+  expect(emitWarning.mock.calls[0]?.[1]).toMatchObject({ code: 'ZTD_LEGACY_CONNECTION_CONFIG' });
 });
 
 test('loadZtdProjectConfig does not warn when legacy connection config is absent', async () => {

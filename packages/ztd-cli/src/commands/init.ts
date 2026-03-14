@@ -2231,9 +2231,10 @@ function buildInitDryRunPlan(rootDir: string, options: {
     files.push('src/jobs/README.md');
   }
 
+  files.push(normalizeCliPath(path.relative(rootDir, scaffoldLayout.sqlClientPath)));
+  files.push(normalizeCliPath(path.relative(rootDir, scaffoldLayout.sqlClientAdaptersPath)));
+
   if (options.withSqlClient) {
-    files.push(normalizeCliPath(path.relative(rootDir, scaffoldLayout.sqlClientPath)));
-    files.push(normalizeCliPath(path.relative(rootDir, scaffoldLayout.sqlClientAdaptersPath)));
     files.push(path.join('src', 'infrastructure', 'telemetry', 'types.ts'));
     files.push(path.join('src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'));
     files.push(path.join('src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'));

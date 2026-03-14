@@ -81,11 +81,11 @@ test('writeInternalAgentsArtifacts creates managed payloads and sidecars unmanag
   expect(manifest.prompt_examples).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
-        prompt: 'Convert to WebAPI (Original: WebAPI化して)',
+        prompt: 'Convert to WebAPI',
         preferred_scopes: expect.arrayContaining(['src-presentation', 'src-application', 'src-domain'])
       }),
       expect.objectContaining({
-        prompt: 'Add SQL and implement repository (Original: SQLを増やして repository を実装して)',
+        prompt: 'Add SQL and implement repository',
         preferred_scopes: expect.arrayContaining(['src-infrastructure-persistence', 'ztd'])
       })
     ])
@@ -137,4 +137,20 @@ test('getAgentsStatus reports none modified and unknown drift states', () => {
   });
   expect(report.recommendedActions).toContain('inspect-unmanaged-agents-files');
   expect(report.recommendedActions).toContain('review-visible-agents');
+});
+
+test('getAgentsStatus ignores optional visible templates when their parent directory is absent', () => {
+  const workspace = createTempDir('ztd-agents-status-gating');
+  mkdirSync(path.join(workspace, 'src'), { recursive: true });
+  mkdirSync(path.join(workspace, 'tests'), { recursive: true });
+
+  writeInternalAgentsArtifacts(workspace);
+  installVisibleAgents(workspace);
+  copyAgentsTemplate(workspace);
+
+  const report = getAgentsStatus(workspace);
+
+  expect(report.targets.some((target) => target.path === 'src/jobs/AGENTS.md')).toBe(false);
+  expect(report.targets.some((target) => target.path === 'tests/support/AGENTS.md')).toBe(false);
+  expect(report.recommendedActions).not.toContain('install-visible-agents');
 });

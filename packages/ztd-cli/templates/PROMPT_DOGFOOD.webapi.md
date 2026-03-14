@@ -7,7 +7,7 @@ Use this checklist when you want to confirm that generic WebAPI requests stay fo
 Prompt:
 
 ```text
-Convert to WebAPI (Original: WebAPI化して)
+Convert to WebAPI
 ```
 
 Expected focus:
@@ -27,7 +27,7 @@ Expected non-focus:
 Prompt:
 
 ```text
-Add SQL and implement repository (Original: SQLを増やして repository を実装して)
+Add SQL and implement repository
 ```
 
 Expected focus:
@@ -45,5 +45,5 @@ Expected non-focus:
 
 | Prompt | Primary files mentioned | Unwanted ZTD leakage? | Notes |
 | --- | --- | --- | --- |
-| `Convert to WebAPI (Original: WebAPI化して)` | | | |
-| `Add SQL and implement repository (Original: SQLを増やして repository を実装して)` | | | |
+| `Convert to WebAPI` | | | |
+| `Add SQL and implement repository` | | | |
