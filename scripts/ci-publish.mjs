@@ -172,18 +172,6 @@ async function fetchOidcClaims() {
   return { ok: true, claims: payloadJson.value, error: null };
 }
 
-function getFixedPackageNames(workspaceRoot) {
-  const configPath = path.join(workspaceRoot, ".changeset", "config.json");
-  const config = readJson(configPath);
-
-  const fixedGroups = Array.isArray(config.fixed) ? config.fixed : [];
-  const fixedGroup = fixedGroups[0];
-  if (!Array.isArray(fixedGroup) || fixedGroup.length === 0) {
-    throw new Error(`No fixed group found in ${configPath}`);
-  }
-  return fixedGroup;
-}
-
 function getWorkspacePackageDirByName() {
   const raw = execFileSync(PNPM, ["-r", "list", "--depth", "-1", "--json"], {
     encoding: "utf8",
@@ -198,6 +186,29 @@ function getWorkspacePackageDirByName() {
     map.set(item.name, item.path);
   }
   return map;
+}
+
+function getWorkspacePackages(dirByName) {
+  const packages = [];
+
+  // Discover publish candidates from the current workspace instead of assuming a fixed group.
+  for (const [packageName, packageDir] of dirByName.entries()) {
+    const pkgJsonPath = path.join(packageDir, "package.json");
+    if (!fs.existsSync(pkgJsonPath)) continue;
+
+    const pkg = readJson(pkgJsonPath);
+    if (pkg.private) continue;
+
+    packages.push({
+      name: packageName,
+      version: pkg.version,
+      dir: packageDir,
+      changelogPath: path.join(packageDir, "CHANGELOG.md"),
+    });
+  }
+
+  packages.sort((a, b) => a.name.localeCompare(b.name));
+  return packages;
 }
 
 function detectPublishAuth() {
@@ -635,28 +646,11 @@ async function main() {
   await logOidcTokenClaims(publishAuth);
   ensureOidcPrereqs(publishAuth);
 
-  const fixedPackageNames = getFixedPackageNames(workspaceRoot);
   const dirByName = getWorkspacePackageDirByName();
+  const packages = getWorkspacePackages(dirByName);
 
   const tmpNotesDir = path.join(workspaceRoot, "tmp", "release-notes");
   ensureDir(tmpNotesDir);
-
-  const packages = [];
-  for (const packageName of fixedPackageNames) {
-    const packageDir = dirByName.get(packageName);
-    if (!packageDir) throw new Error(`Workspace package directory not found for "${packageName}"`);
-
-    const pkgJsonPath = path.join(packageDir, "package.json");
-    const pkg = readJson(pkgJsonPath);
-    if (pkg.private) continue;
-
-    packages.push({
-      name: pkg.name,
-      version: pkg.version,
-      dir: packageDir,
-      changelogPath: path.join(packageDir, "CHANGELOG.md"),
-    });
-  }
 
   const publishablePackages = [];
   const skippedUnpublishedPackages = [];
