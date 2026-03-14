@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { ensureDirectory } from './fs';
 
@@ -35,6 +35,7 @@ interface VisibleAgentTemplate {
   templateName: string;
   scope: string;
   purposeTags: string[];
+  requiredDirectory?: string;
 }
 
 interface InternalAgentTemplate {
@@ -51,25 +52,45 @@ const INTERNAL_MANIFEST_PATH = path.join(INTERNAL_AGENTS_DIR, 'manifest.json');
 const VISIBLE_AGENT_TEMPLATES: readonly VisibleAgentTemplate[] = [
   { relativePath: 'AGENTS.md', templateName: 'AGENTS.md', scope: 'root', purposeTags: ['root', 'global'] },
   { relativePath: 'AGENTS_ztd.md', templateName: 'AGENTS.md', scope: 'root', purposeTags: ['root', 'fallback'] },
-  { relativePath: 'ztd/AGENTS.md', templateName: 'ztd/AGENTS.md', scope: 'ztd', purposeTags: ['ztd', 'metadata'] },
-  { relativePath: 'ztd/ddl/AGENTS.md', templateName: 'ztd/ddl/AGENTS.md', scope: 'ztd-ddl', purposeTags: ['ddl', 'schema'] },
-  { relativePath: 'src/AGENTS.md', templateName: 'src/AGENTS.md', scope: 'src', purposeTags: ['runtime', 'root'] },
-  { relativePath: 'src/catalog/AGENTS.md', templateName: 'src/catalog/AGENTS.md', scope: 'src-catalog', purposeTags: ['catalog', 'runtime'] },
-  { relativePath: 'src/catalog/runtime/AGENTS.md', templateName: 'src/catalog/runtime/AGENTS.md', scope: 'src-catalog-runtime', purposeTags: ['catalog', 'runtime'] },
-  { relativePath: 'src/catalog/specs/AGENTS.md', templateName: 'src/catalog/specs/AGENTS.md', scope: 'src-catalog-specs', purposeTags: ['catalog', 'specs'] },
-  { relativePath: 'src/sql/AGENTS.md', templateName: 'src/sql/AGENTS.md', scope: 'src-sql', purposeTags: ['sql', 'authoring'] },
-  { relativePath: 'src/repositories/AGENTS.md', templateName: 'src/repositories/AGENTS.md', scope: 'src-repositories', purposeTags: ['repositories', 'runtime'] },
-  { relativePath: 'src/repositories/views/AGENTS.md', templateName: 'src/repositories/views/AGENTS.md', scope: 'src-repositories-views', purposeTags: ['repositories', 'views'] },
-  { relativePath: 'src/repositories/tables/AGENTS.md', templateName: 'src/repositories/tables/AGENTS.md', scope: 'src-repositories-tables', purposeTags: ['repositories', 'tables'] },
-  { relativePath: 'src/jobs/AGENTS.md', templateName: 'src/jobs/AGENTS.md', scope: 'src-jobs', purposeTags: ['jobs', 'runtime'] },
-  { relativePath: 'tests/AGENTS.md', templateName: 'tests/AGENTS.md', scope: 'tests', purposeTags: ['tests', 'root'] },
-  { relativePath: 'tests/support/AGENTS.md', templateName: 'tests/support/AGENTS.md', scope: 'tests-support', purposeTags: ['tests', 'support'] },
-  { relativePath: 'tests/generated/AGENTS.md', templateName: 'tests/generated/AGENTS.md', scope: 'tests-generated', purposeTags: ['tests', 'generated'] }
+  { relativePath: 'ztd/AGENTS.md', templateName: 'ztd/AGENTS.md', scope: 'ztd', purposeTags: ['ztd', 'metadata'], requiredDirectory: 'ztd' },
+  { relativePath: 'ztd/ddl/AGENTS.md', templateName: 'ztd/ddl/AGENTS.md', scope: 'ztd-ddl', purposeTags: ['ddl', 'schema'], requiredDirectory: 'ztd/ddl' },
+  { relativePath: 'src/AGENTS.md', templateName: 'src/AGENTS.md', scope: 'src', purposeTags: ['runtime', 'root'], requiredDirectory: 'src' },
+  { relativePath: 'src/catalog/AGENTS.md', templateName: 'src/catalog/AGENTS.md', scope: 'src-catalog', purposeTags: ['catalog', 'runtime'], requiredDirectory: 'src/catalog' },
+  { relativePath: 'src/catalog/runtime/AGENTS.md', templateName: 'src/catalog/runtime/AGENTS.md', scope: 'src-catalog-runtime', purposeTags: ['catalog', 'runtime'], requiredDirectory: 'src/catalog/runtime' },
+  { relativePath: 'src/catalog/specs/AGENTS.md', templateName: 'src/catalog/specs/AGENTS.md', scope: 'src-catalog-specs', purposeTags: ['catalog', 'specs'], requiredDirectory: 'src/catalog/specs' },
+  { relativePath: 'src/sql/AGENTS.md', templateName: 'src/sql/AGENTS.md', scope: 'src-sql', purposeTags: ['sql', 'authoring'], requiredDirectory: 'src/sql' },
+  { relativePath: 'src/repositories/AGENTS.md', templateName: 'src/repositories/AGENTS.md', scope: 'src-repositories', purposeTags: ['repositories', 'runtime'], requiredDirectory: 'src/repositories' },
+  { relativePath: 'src/repositories/views/AGENTS.md', templateName: 'src/repositories/views/AGENTS.md', scope: 'src-repositories-views', purposeTags: ['repositories', 'views'], requiredDirectory: 'src/repositories/views' },
+  { relativePath: 'src/repositories/tables/AGENTS.md', templateName: 'src/repositories/tables/AGENTS.md', scope: 'src-repositories-tables', purposeTags: ['repositories', 'tables'], requiredDirectory: 'src/repositories/tables' },
+  { relativePath: 'src/jobs/AGENTS.md', templateName: 'src/jobs/AGENTS.md', scope: 'src-jobs', purposeTags: ['jobs', 'runtime'], requiredDirectory: 'src/jobs' },
+  { relativePath: 'src/domain/AGENTS.md', templateName: 'src/domain/AGENTS.md', scope: 'src-domain', purposeTags: ['domain', 'layer'], requiredDirectory: 'src/domain' },
+  { relativePath: 'src/application/AGENTS.md', templateName: 'src/application/AGENTS.md', scope: 'src-application', purposeTags: ['application', 'layer'], requiredDirectory: 'src/application' },
+  { relativePath: 'src/presentation/AGENTS.md', templateName: 'src/presentation/AGENTS.md', scope: 'src-presentation', purposeTags: ['presentation', 'layer'], requiredDirectory: 'src/presentation' },
+  { relativePath: 'src/presentation/http/AGENTS.md', templateName: 'src/presentation/http/AGENTS.md', scope: 'src-presentation-http', purposeTags: ['presentation', 'http'], requiredDirectory: 'src/presentation/http' },
+  { relativePath: 'src/infrastructure/AGENTS.md', templateName: 'src/infrastructure/AGENTS.md', scope: 'src-infrastructure', purposeTags: ['infrastructure', 'layer'], requiredDirectory: 'src/infrastructure' },
+  { relativePath: 'src/infrastructure/db/AGENTS.md', templateName: 'src/infrastructure/db/AGENTS.md', scope: 'src-infrastructure-db', purposeTags: ['infrastructure', 'db'], requiredDirectory: 'src/infrastructure/db' },
+  { relativePath: 'src/infrastructure/telemetry/AGENTS.md', templateName: 'src/infrastructure/telemetry/AGENTS.md', scope: 'src-infrastructure-telemetry', purposeTags: ['infrastructure', 'telemetry'], requiredDirectory: 'src/infrastructure/telemetry' },
+  { relativePath: 'src/infrastructure/persistence/AGENTS.md', templateName: 'src/infrastructure/persistence/AGENTS.md', scope: 'src-infrastructure-persistence', purposeTags: ['infrastructure', 'persistence'], requiredDirectory: 'src/infrastructure/persistence' },
+  { relativePath: 'src/infrastructure/persistence/repositories/AGENTS.md', templateName: 'src/infrastructure/persistence/repositories/AGENTS.md', scope: 'src-infrastructure-persistence-repositories', purposeTags: ['repositories', 'persistence'], requiredDirectory: 'src/infrastructure/persistence/repositories' },
+  { relativePath: 'src/infrastructure/persistence/repositories/views/AGENTS.md', templateName: 'src/infrastructure/persistence/repositories/views/AGENTS.md', scope: 'src-infrastructure-persistence-repositories-views', purposeTags: ['repositories', 'views', 'persistence'], requiredDirectory: 'src/infrastructure/persistence/repositories/views' },
+  { relativePath: 'src/infrastructure/persistence/repositories/tables/AGENTS.md', templateName: 'src/infrastructure/persistence/repositories/tables/AGENTS.md', scope: 'src-infrastructure-persistence-repositories-tables', purposeTags: ['repositories', 'tables', 'persistence'], requiredDirectory: 'src/infrastructure/persistence/repositories/tables' },
+  { relativePath: 'tests/AGENTS.md', templateName: 'tests/AGENTS.md', scope: 'tests', purposeTags: ['tests', 'root'], requiredDirectory: 'tests' },
+  { relativePath: 'tests/support/AGENTS.md', templateName: 'tests/support/AGENTS.md', scope: 'tests-support', purposeTags: ['tests', 'support'], requiredDirectory: 'tests/support' },
+  { relativePath: 'tests/generated/AGENTS.md', templateName: 'tests/generated/AGENTS.md', scope: 'tests-generated', purposeTags: ['tests', 'generated'], requiredDirectory: 'tests/generated' }
 ] as const;
 
 const INTERNAL_AGENT_TEMPLATES: readonly InternalAgentTemplate[] = [
   { relativePath: path.join(INTERNAL_AGENTS_DIR, 'root.md'), templateName: 'AGENTS.md', scope: 'root' },
   { relativePath: path.join(INTERNAL_AGENTS_DIR, 'src.md'), templateName: 'src/AGENTS.md', scope: 'src' },
+  { relativePath: path.join(INTERNAL_AGENTS_DIR, 'src-domain.md'), templateName: 'src/domain/AGENTS.md', scope: 'src-domain' },
+  { relativePath: path.join(INTERNAL_AGENTS_DIR, 'src-application.md'), templateName: 'src/application/AGENTS.md', scope: 'src-application' },
+  { relativePath: path.join(INTERNAL_AGENTS_DIR, 'src-presentation.md'), templateName: 'src/presentation/AGENTS.md', scope: 'src-presentation' },
+  { relativePath: path.join(INTERNAL_AGENTS_DIR, 'src-infrastructure.md'), templateName: 'src/infrastructure/AGENTS.md', scope: 'src-infrastructure' },
+  {
+    relativePath: path.join(INTERNAL_AGENTS_DIR, 'src-infrastructure-persistence.md'),
+    templateName: 'src/infrastructure/persistence/AGENTS.md',
+    scope: 'src-infrastructure-persistence'
+  },
   { relativePath: path.join(INTERNAL_AGENTS_DIR, 'tests.md'), templateName: 'tests/AGENTS.md', scope: 'tests' },
   { relativePath: path.join(INTERNAL_AGENTS_DIR, 'ztd.md'), templateName: 'ztd/AGENTS.md', scope: 'ztd' }
 ] as const;
@@ -134,9 +155,50 @@ function buildInternalManifest(): string {
       scope: target.scope,
       path: normalizeCliPath(path.basename(target.relativePath))
     })),
-    recommended_entrypoints: INTERNAL_AGENT_TEMPLATES.map((target) => target.scope)
+    prompt_examples: [
+      {
+        prompt: 'Convert to WebAPI',
+        preferred_scopes: ['src-presentation', 'src-application', 'src-domain'],
+        avoid_scopes: ['src-infrastructure-persistence', 'ztd']
+      },
+      {
+        prompt: 'Add SQL and implement repository',
+        preferred_scopes: ['src-infrastructure-persistence', 'ztd'],
+        avoid_scopes: ['src-domain', 'src-presentation']
+      }
+    ],
+    recommended_entrypoints: INTERNAL_AGENT_TEMPLATES.map((target) => target.scope),
+    routing_rules: [
+      { paths: ['src/domain/**'], scope: 'src-domain' },
+      { paths: ['src/application/**'], scope: 'src-application' },
+      { paths: ['src/presentation/**'], scope: 'src-presentation' },
+      { paths: ['src/infrastructure/persistence/**', 'src/repositories/**'], scope: 'src-infrastructure-persistence' },
+      { paths: ['src/infrastructure/**', 'src/db/**'], scope: 'src-infrastructure' },
+      { paths: ['src/sql/**', 'src/catalog/**'], scope: 'src-infrastructure-persistence' },
+      { paths: ['tests/**'], scope: 'tests' },
+      { paths: ['ztd/**'], scope: 'ztd' }
+    ]
   };
   return `${JSON.stringify(payload, null, 2)}\n`;
+}
+
+function templateParentExists(projectRoot: string, target: VisibleAgentTemplate): boolean {
+  if (!target.requiredDirectory) {
+    return true;
+  }
+  try {
+    return statSync(path.join(projectRoot, target.requiredDirectory)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function getApplicableVisibleAgentTemplates(projectRoot: string): readonly VisibleAgentTemplate[] {
+  return VISIBLE_AGENT_TEMPLATES.filter(
+    (target) =>
+      ROOT_VISIBLE_TARGETS.includes(target.relativePath as typeof ROOT_VISIBLE_TARGETS[number]) ||
+      templateParentExists(projectRoot, target)
+  );
 }
 
 export function parseMarkdownAgentsMarker(contents: string): { templateVersion: number; scope: string } | null {
@@ -212,7 +274,7 @@ export function getVisibleAgentsInstallPaths(projectRoot: string): string[] {
     planned.push(ROOT_VISIBLE_TARGETS[1]);
   }
 
-  for (const target of VISIBLE_AGENT_TEMPLATES) {
+  for (const target of getApplicableVisibleAgentTemplates(projectRoot)) {
     if (ROOT_VISIBLE_TARGETS.includes(target.relativePath as typeof ROOT_VISIBLE_TARGETS[number])) {
       continue;
     }
@@ -245,7 +307,7 @@ export function installVisibleAgents(projectRoot: string): FileSummaryLike[] {
     summaries.push({ relativePath: toRelative(projectRoot, rootTarget), outcome: 'created' });
   }
 
-  for (const target of VISIBLE_AGENT_TEMPLATES) {
+  for (const target of getApplicableVisibleAgentTemplates(projectRoot)) {
     if (ROOT_VISIBLE_TARGETS.includes(target.relativePath as typeof ROOT_VISIBLE_TARGETS[number])) {
       continue;
     }
@@ -344,7 +406,7 @@ export function getAgentsStatus(projectRoot: string): AgentsStatusReport {
   for (const target of INTERNAL_AGENT_TEMPLATES) {
     targets.push(buildStatusEntry(projectRoot, target.relativePath, renderInternalTarget(target.relativePath)));
   }
-  for (const target of VISIBLE_AGENT_TEMPLATES) {
+  for (const target of getApplicableVisibleAgentTemplates(projectRoot)) {
     targets.push(buildStatusEntry(projectRoot, target.relativePath, renderVisibleTarget(target.relativePath)));
   }
 

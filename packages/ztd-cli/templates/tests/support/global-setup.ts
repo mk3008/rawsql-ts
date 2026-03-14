@@ -1,14 +1,14 @@
 /**
  * Vitest global setup.
  *
- * This hook warns when DATABASE_URL is missing so the developer remembers to
- * install an adapter or provide a connection before running SQL-backed tests.
+ * This hook warns when ZTD_TEST_DATABASE_URL is missing so the developer remembers
+ * to provide the ZTD-owned test database connection before running SQL-backed tests.
  */
 export default async function globalSetup() {
-  const configuredUrl = process.env.DATABASE_URL?.trim();
+  const configuredUrl = process.env.ZTD_TEST_DATABASE_URL?.trim();
   if (!configuredUrl) {
     console.warn(
-      'DATABASE_URL is not configured. SQL-backed tests will need a driver plus a SqlClient implementation in tests/support/testkit-client.ts before they can run.',
+      'ZTD_TEST_DATABASE_URL is not configured. SQL-backed tests will need a driver plus a ZTD-owned test database connection before they can run.',
     );
   }
   return () => undefined;

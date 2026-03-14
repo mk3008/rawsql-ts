@@ -342,24 +342,24 @@ test('loadModelGenZtdFixtureState preserves searchPath precedence so unqualified
 
 
 test('resolveCliConnectionWithProbeGuidance explains ztd probe DB requirement when connection is missing', () => {
-  const previous = process.env.DATABASE_URL;
+  const previous = process.env.ZTD_TEST_DATABASE_URL;
   try {
-    delete process.env.DATABASE_URL;
+    delete process.env.ZTD_TEST_DATABASE_URL;
     expect(() => resolveCliConnectionWithProbeGuidance({}, 'ztd')).toThrow(
-      /still needs a reachable PostgreSQL connection/
+      /ZTD_TEST_DATABASE_URL/
     );
   } finally {
     if (previous === undefined) {
-      delete process.env.DATABASE_URL;
+      delete process.env.ZTD_TEST_DATABASE_URL;
     } else {
-      process.env.DATABASE_URL = previous;
+      process.env.ZTD_TEST_DATABASE_URL = previous;
     }
   }
 });
 
 test('buildModelGenConnectionFailure includes mode-specific guidance', () => {
   const ztdError = buildModelGenConnectionFailure(new Error('ECONNREFUSED'), 'ztd');
-  expect(ztdError.message).toContain('before ztd probing');
+  expect(ztdError.message).toContain('before ZTD-owned inspection');
   expect(ztdError.message).toContain('ECONNREFUSED');
 
   const liveError = buildModelGenConnectionFailure(new Error('timeout'), 'live');

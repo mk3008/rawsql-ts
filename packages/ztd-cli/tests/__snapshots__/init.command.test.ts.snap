@@ -48,7 +48,7 @@ AI guidance:
 
 Next steps:
  1. If the schema file is empty, edit ztd/ddl/public.sql
- 2. Run npx ztd ztd-config
+ 2. Run pnpm exec ztd ztd-config
  3. Wire repositories to src/infrastructure/telemetry/repositoryTelemetry.ts when you add SQL-backed repository classes
  4. Provide a SqlClient implementation (adapter or mock)
  5. Run tests (pnpm test or npx vitest run)
@@ -103,7 +103,7 @@ AI guidance:
 
 Next steps:
  1. If the schema file is empty, edit ztd/ddl/public.sql
- 2. Run npx ztd ztd-config
+ 2. Run pnpm exec ztd ztd-config
  3. Wire repositories to src/infrastructure/telemetry/repositoryTelemetry.ts when you add SQL-backed repository classes
  4. Provide a SqlClient implementation (adapter or mock)
  5. Run tests (pnpm test or npx vitest run)
@@ -158,7 +158,7 @@ AI guidance:
 
 Next steps:
  1. Review the dumped DDL in ztd/ddl/public.sql
- 2. Run npx ztd ztd-config
+ 2. Run pnpm exec ztd ztd-config
  3. Wire repositories to src/infrastructure/telemetry/repositoryTelemetry.ts when you add SQL-backed repository classes
  4. Provide a SqlClient implementation (adapter or mock)
  5. Run tests (pnpm test or npx vitest run)

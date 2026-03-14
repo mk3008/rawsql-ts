@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import { runDiffSchema } from './diff';
 import { runGenerateEntities } from './genEntities';
 import { runPullSchema } from './pull';
-import { resolveCliConnection, type ConnectionCliOptions } from './connectionOptions';
+import { resolveExplicitCliConnection, type ConnectionCliOptions } from './connectionOptions';
 import {
   collectDirectories,
   collectValues,
@@ -18,6 +18,7 @@ import { validateProjectPath, validateResourceIdentifier } from '../utils/agentS
 
 interface PullCommandOptions extends ConnectionCliOptions {
   pgDumpPath?: string;
+  pgDumpShell?: boolean;
   out?: string;
   schema?: string[];
   table?: string[];
@@ -27,6 +28,7 @@ interface PullCommandOptions extends ConnectionCliOptions {
 
 interface DiffCommandOptions extends ConnectionCliOptions {
   pgDumpPath?: string;
+  pgDumpShell?: boolean;
   ddlDir?: string[];
   extensions?: string[];
   out?: string;
@@ -43,26 +45,28 @@ export function registerDdlCommands(program: Command): void {
 
   ddl
     .command('pull')
-      .description('Retrieve the current schema DDL from a PostgreSQL database')
-      .option('--url <databaseUrl>', 'Connection string to use for pg_dump (optional; fallback to env/config)')
+      .description('Inspect schema state from an explicit target database and normalize the pulled DDL')
+      .option('--url <databaseUrl>', 'Explicit target database URL for inspection workflows (preferred over --db-*)')
       .option('--out <directory>', 'Destination directory for the pulled DDL', DEFAULT_DDL_DIRECTORY)
-      .option('--db-host <host>', 'Database host to use instead of DATABASE_URL')
-      .option('--db-port <port>', 'Database port (defaults to 5432)')
-      .option('--db-user <user>', 'Database user to connect as')
-      .option('--db-password <password>', 'Database password')
-      .option('--db-name <name>', 'Database name to connect to')
+      .option('--db-host <host>', 'Explicit target database host when --url is not used')
+      .option('--db-port <port>', 'Explicit target database port (defaults to 5432)')
+      .option('--db-user <user>', 'Explicit target database user')
+      .option('--db-password <password>', 'Explicit target database password')
+      .option('--db-name <name>', 'Explicit target database name')
       .option('--pg-dump-path <path>', 'Custom pg_dump executable path')
+      .option('--pg-dump-shell', 'Run the pg_dump path through a shell so wrapper commands like "docker exec <container> pg_dump" can be used')
       .option('--schema <schema>', 'Schema name to include (repeatable)', collectValues, [])
       .option('--table <table>', 'Table spec (schema.table) to include (repeatable)', collectValues, [])
       .option('--dry-run', 'Validate pull inputs and normalize the dump without writing files')
       .option('--json <payload>', 'Pass pull options as a JSON object')
       .action(async (options: PullCommandOptions) => {
         const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
-        const connection = resolveCliConnection(merged);
+        const connection = resolveExplicitCliConnection(merged);
         const result = await runPullSchema({
           url: connection.url,
           out: validateProjectPath(String(merged.out ?? DEFAULT_DDL_DIRECTORY), '--out'),
           pgDumpPath: merged.pgDumpPath,
+          pgDumpShell: Boolean(merged.pgDumpShell),
           schemas: (merged.schema ?? []).map((value) => validateResourceIdentifier(String(value), '--schema')),
           tables: (merged.table ?? []).map((value) => validateResourceIdentifier(String(value), '--table')),
           connectionContext: connection.context,
@@ -109,17 +113,18 @@ export function registerDdlCommands(program: Command): void {
 
   ddl
     .command('diff')
-      .description('Compare local DDL against a live PostgreSQL database and emit a plan')
+      .description('Compare local DDL against an explicit target database for inspection purposes')
       .option('--ddl-dir <directory>', 'DDL directory to scan (repeatable)', collectDirectories, [])
       .option('--extensions <list>', 'Comma-separated extensions to include', parseExtensions, DEFAULT_EXTENSIONS)
-      .option('--url <databaseUrl>', 'Connection string to use for pg_dump (optional; fallback to env/config)')
+      .option('--url <databaseUrl>', 'Explicit target database URL for inspection workflows (preferred over --db-*)')
       .option('--out <file>', 'Output path for the generated plan file')
-      .option('--db-host <host>', 'Database host to use instead of DATABASE_URL')
-      .option('--db-port <port>', 'Database port (defaults to 5432)')
-      .option('--db-user <user>', 'Database user to connect as')
-      .option('--db-password <password>', 'Database password')
-      .option('--db-name <name>', 'Database name to connect to')
+      .option('--db-host <host>', 'Explicit target database host when --url is not used')
+      .option('--db-port <port>', 'Explicit target database port (defaults to 5432)')
+      .option('--db-user <user>', 'Explicit target database user')
+      .option('--db-password <password>', 'Explicit target database password')
+      .option('--db-name <name>', 'Explicit target database name')
       .option('--pg-dump-path <path>', 'Custom pg_dump executable path')
+      .option('--pg-dump-shell', 'Run the pg_dump path through a shell so wrapper commands like "docker exec <container> pg_dump" can be used')
       .option('--dry-run', 'Compute the diff plan without writing the patch file')
       .option('--json <payload>', 'Pass diff options as a JSON object')
       .action(async (options: DiffCommandOptions) => {
@@ -127,13 +132,14 @@ export function registerDdlCommands(program: Command): void {
         const outPath = resolveRequiredProjectPath(merged.out, '--out');
         const directories = normalizeDirectoryList(merged.ddlDir ?? [], DEFAULT_DDL_DIRECTORY);
         const extensions = resolveExtensions(merged.extensions, DEFAULT_EXTENSIONS);
-        const connection = resolveCliConnection(merged);
+        const connection = resolveExplicitCliConnection(merged);
         const result = await runDiffSchema({
           directories,
           extensions,
           url: connection.url,
           out: outPath,
           pgDumpPath: merged.pgDumpPath,
+          pgDumpShell: Boolean(merged.pgDumpShell),
           connectionContext: connection.context,
           dryRun: Boolean(merged.dryRun)
         });

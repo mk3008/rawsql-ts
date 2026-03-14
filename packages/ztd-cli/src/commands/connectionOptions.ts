@@ -1,5 +1,7 @@
-import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
-import { resolveDatabaseConnection } from '../utils/dbConnection';
+import {
+  resolveExplicitTargetConnection,
+  resolveZtdOwnedTestConnection
+} from '../utils/dbConnection';
 import type { DbConnectionFlags, ResolvedDatabaseConnection } from '../utils/dbConnection';
 
 export interface ConnectionCliOptions {
@@ -11,8 +13,12 @@ export interface ConnectionCliOptions {
   dbName?: string;
 }
 
-export function resolveCliConnection(options: ConnectionCliOptions): ResolvedDatabaseConnection {
-  return resolveDatabaseConnection(buildFlagSet(options), loadZtdProjectConfig(), options.url);
+export function resolveExplicitCliConnection(options: ConnectionCliOptions): ResolvedDatabaseConnection {
+  return resolveExplicitTargetConnection(buildFlagSet(options), options.url);
+}
+
+export function resolveZtdOwnedCliConnection(): ResolvedDatabaseConnection {
+  return resolveZtdOwnedTestConnection();
 }
 
 export function buildFlagSet(options: ConnectionCliOptions): DbConnectionFlags {

@@ -18,6 +18,7 @@ import {
 } from '../src/commands/init';
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const tmpRoot = path.join(repoRoot, 'tmp');
+const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 
 function createTempDir(prefix: string): string {
   if (!existsSync(tmpRoot)) {
@@ -40,6 +41,18 @@ function readNormalizedFile(filePath: string): string {
   return contents.replace(/\r\n/g, '\n');
 }
 
+function runPnpmCommand(cwd: string, args: string[]) {
+  return spawnSync(pnpmCommand, args, {
+    cwd,
+    encoding: 'utf8',
+    shell: process.platform === 'win32'
+  });
+}
+
+function installScaffoldDependencies(cwd: string) {
+  return runPnpmCommand(cwd, ['install', '--ignore-workspace']);
+}
+
 const requiredDirectories = [
   '.ztd',
   '.ztd/agents',
@@ -54,6 +67,29 @@ const requiredDirectories = [
   'src/repositories/tables',
   'src/repositories/views',
   'src/jobs',
+  'tests',
+  'tests/support'
+];
+
+const requiredWebapiDirectories = [
+  '.ztd',
+  '.ztd/agents',
+  'ztd',
+  'ztd/ddl',
+  'src',
+  'src/domain',
+  'src/application',
+  'src/presentation',
+  'src/presentation/http',
+  'src/infrastructure',
+  'src/infrastructure/persistence',
+  'src/infrastructure/persistence/repositories',
+  'src/infrastructure/persistence/repositories/views',
+  'src/infrastructure/persistence/repositories/tables',
+  'src/sql',
+  'src/catalog',
+  'src/catalog/runtime',
+  'src/catalog/specs',
   'tests',
   'tests/support'
 ];
@@ -145,6 +181,8 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(existsSync(path.join(workspace, 'src', 'repositories', 'tables', 'user-accounts.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'jobs', 'refresh-user-accounts.ts'))).toBe(false);
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('ZTD_TEST_DATABASE_URL');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('outside the ownership of `ztd-cli`');
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
   expect(readNormalizedFile(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toContain('"managed_by": "ztd:agents"');
@@ -184,6 +222,7 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(packageJson.devDependencies.vitest).toBeDefined();
   expect(packageJson.devDependencies.typescript).toBeDefined();
   expect(packageJson.devDependencies['@types/node']).toBeDefined();
+  expect(packageJson.devDependencies['@rawsql-ts/ztd-cli']).toBeDefined();
   expect(packageJson.devDependencies.zod).toBeDefined();
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/adapter-node-pg');
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
@@ -208,6 +247,9 @@ test('init wizard bootstraps an empty scaffold', async () => {
   );
   expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.test.ts'))).toContain(
     'SqlClient seam is either wired or fails with an actionable message',
+  );
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toContain(
+    'ZTD_TEST_DATABASE_URL'
   );
 
   // Ensure the generated testkit client can safely log params with circular references.
@@ -240,6 +282,66 @@ test('init wizard bootstraps a scaffold with demo DDL', async () => {
   };
   expect(config.ddl.defaultSchema).toBe(defaultSchemaName);
   expect(config.ddl.searchPath).toEqual([defaultSchemaName]);
+});
+
+test('init webapi scaffold localizes ZTD guidance to persistence-oriented paths', async () => {
+  const workspace = createTempDir('cli-init-webapi');
+  const prompter = new TestPrompter([]);
+
+  const result = await runInitCommand(prompter, {
+    rootDir: workspace,
+    nonInteractive: true,
+    forceOverwrite: true,
+    workflow: 'empty',
+    validator: 'zod',
+    appShape: 'webapi'
+  });
+
+  for (const dir of requiredWebapiDirectories) {
+    expect(existsSync(path.join(workspace, dir))).toBe(true);
+  }
+
+  expect(existsSync(path.join(workspace, 'src', 'repositories'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'src', 'jobs'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'domain', 'README.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'application', 'README.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'presentation', 'http', 'README.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'persistence', 'README.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'persistence', 'repositories', 'views', 'README.md'))).toBe(
+    true
+  );
+  expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'db', 'sql-client.ts'))).toBe(true);
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'testkit-client.ts'))).toContain(
+    "../../src/infrastructure/db/sql-client"
+  );
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/domain');
+  expect(readNormalizedFile(path.join(workspace, 'CONTEXT.md'))).toContain('src/domain');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm exec ztd ztd-config');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('does not read it automatically');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('explicit target inspection');
+  expect(readNormalizedFile(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toContain(
+    'Convert to WebAPI'
+  );
+  expect(readNormalizedFile(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toContain(
+    'Add SQL and implement repository'
+  );
+  expect(readNormalizedFile(path.join(workspace, 'src', 'domain', 'README.md'))).not.toContain('ztd');
+
+  const manifest = JSON.parse(readNormalizedFile(path.join(workspace, '.ztd', 'agents', 'manifest.json'))) as {
+    routing_rules: Array<{ paths: string[]; scope: string }>;
+  };
+  expect(manifest.routing_rules).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ scope: 'src-domain' }),
+      expect.objectContaining({ scope: 'src-application' }),
+      expect.objectContaining({ scope: 'src-presentation' }),
+      expect.objectContaining({ scope: 'src-infrastructure-persistence' })
+    ])
+  );
+  expect(result.summary).toContain('src/domain/README.md');
+  expect(result.summary).toContain('src/infrastructure/persistence/repositories/views/README.md');
+  expect(result.summary).toContain('Run pnpm exec ztd ztd-config');
 });
 
 test('init wizard leaves existing ztd/ddl directory untouched', async () => {
@@ -457,6 +559,72 @@ test('repository telemetry scaffold dogfood scenario keeps the default hook repl
     infoSpy.mockRestore();
     errorSpy.mockRestore();
   }
+});
+
+test('webapi telemetry dogfood scenario keeps repository guidance inside infrastructure persistence', async () => {
+  const workspace = createTempDir('cli-init-telemetry-dogfood-webapi');
+  const prompter = new TestPrompter([]);
+  await runInitCommand(prompter, {
+    rootDir: workspace,
+    nonInteractive: true,
+    forceOverwrite: true,
+    workflow: 'empty',
+    validator: 'zod',
+    appShape: 'webapi'
+  });
+
+  const repositoryFile = path.join(
+    workspace,
+    'src',
+    'infrastructure',
+    'persistence',
+    'repositories',
+    'views',
+    'ordersRepository.ts'
+  );
+  writeFileSync(
+    repositoryFile,
+    [
+      "import { resolveRepositoryTelemetry, type RepositoryTelemetry } from '../../../telemetry/repositoryTelemetry';",
+      '',
+      'export class OrdersRepository {',
+      '  private readonly telemetry: RepositoryTelemetry;',
+      '',
+      '  constructor(telemetry?: RepositoryTelemetry) {',
+      '    this.telemetry = resolveRepositoryTelemetry(telemetry);',
+      '  }',
+      '}',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+
+  expect(readNormalizedFile(repositoryFile)).toContain('../../../telemetry/repositoryTelemetry');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/infrastructure/persistence');
+  expect(readNormalizedFile(path.join(workspace, 'CONTEXT.md'))).toContain('src/presentation/http');
+});
+
+test('registry webapi scaffold exposes ztd via pnpm exec for dogfooding', async () => {
+  const workspace = createTempDir('cli-init-webapi-ztd-registry');
+  const prompter = new TestPrompter([]);
+
+  await runInitCommand(prompter, {
+    rootDir: workspace,
+    nonInteractive: true,
+    forceOverwrite: true,
+    workflow: 'demo',
+    validator: 'zod',
+    appShape: 'webapi'
+  });
+
+  const installResult = installScaffoldDependencies(workspace);
+  expect(installResult.status).toBe(0);
+
+  const commandResult = runPnpmCommand(workspace, ['exec', 'ztd', 'ztd-config']);
+
+  expect(commandResult.status).toBe(0);
+  expect(commandResult.stdout).toContain('Generated 3 ZTD test rows');
+  expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))).toBe(true);
 });
 
 test('init runs install when package.json is created from scratch', async () => {
@@ -755,18 +923,51 @@ test('init local-source mode links direct rawsql-ts dependencies from the monore
   expect(packageJson.devDependencies['@rawsql-ts/sql-contract']).toBe(
     `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'sql-contract')).replace(/\\/g, '/')}`
   );
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/ztd-cli');
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/adapter-node-pg');
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
   expect(packageJson.scripts.typecheck).toBe('node ./scripts/local-source-guard.mjs typecheck');
   expect(packageJson.scripts.test).toBe('node ./scripts/local-source-guard.mjs test');
+  expect(packageJson.scripts.ztd).toBe('node ./scripts/local-source-guard.mjs ztd');
+  expect(readNormalizedFile(localSourceGuardPath)).toContain('Requested subcommand');
+  expect(readNormalizedFile(localSourceGuardPath)).toContain('Project root');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm install --ignore-workspace');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('--import-style relative');
+  expect(result.summary).toContain('Run pnpm ztd ztd-config');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd ztd-config');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd model-gen --probe-mode ztd --import-style relative');
+
+  const installResult = installScaffoldDependencies(workspace);
+  expect(installResult.status).toBe(0);
 
   const guardResult = spawnSync(process.execPath, [localSourceGuardPath, 'typecheck'], {
     cwd: workspace,
     encoding: 'utf8'
   });
   expect(guardResult.status).toBe(0);
+});
+
+test('local-source webapi scaffold exposes ztd via pnpm ztd for dogfooding', async () => {
+  const workspace = createTempDir('cli-init-webapi-ztd-local-source');
+  const prompter = new TestPrompter([]);
+
+  await runInitCommand(prompter, {
+    rootDir: workspace,
+    nonInteractive: true,
+    forceOverwrite: true,
+    workflow: 'demo',
+    validator: 'zod',
+    appShape: 'webapi',
+    localSourceRoot: repoRoot
+  });
+
+  const installResult = installScaffoldDependencies(workspace);
+  expect(installResult.status).toBe(0);
+
+  const commandResult = runPnpmCommand(workspace, ['ztd', 'ztd-config']);
+
+  expect(commandResult.status).toBe(0);
+  expect(commandResult.stdout).toContain('Generated 3 ZTD test rows');
+  expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))).toBe(true);
 });
 
 test('init local-source mode uses npm script commands when package-lock.json selects npm', async () => {
@@ -791,7 +992,7 @@ test('init local-source mode uses npm script commands when package-lock.json sel
   expect(result.summary).toContain('Run npm install');
   expect(result.summary).toContain('Run npm run typecheck');
   expect(result.summary).toContain('Run npm run test');
-  expect(result.summary).toContain('Run npx ztd ztd-config');
+  expect(result.summary).toContain('Run npm run ztd -- ztd-config');
 });
 
 test('init local-source mode rejects a root that is not a rawsql-ts monorepo', async () => {
@@ -837,6 +1038,7 @@ test('init local-source mode accepts a minimal local-source root with sql-contra
 
   expect(result.summary).toContain('ZTD project initialized.');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/sql-contract');
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/ztd-cli');
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/adapter-node-pg');
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
 });

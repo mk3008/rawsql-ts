@@ -18,7 +18,11 @@ import {
   type ModelGenFormat
 } from '../utils/modelGenRender';
 import { ModelGenSqlScanError, scanModelGenSql, type PlaceholderMode, type SqlScanResult } from '../utils/modelGenScanner';
-import { resolveCliConnection, type ConnectionCliOptions } from './connectionOptions';
+import {
+  resolveExplicitCliConnection,
+  resolveZtdOwnedCliConnection,
+  type ConnectionCliOptions
+} from './connectionOptions';
 import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
 import { validateProjectPath, validateResourceIdentifier } from '../utils/agentSafety';
@@ -195,25 +199,25 @@ export async function runModelGen(sqlFilePath: string, options: ModelGenCommandO
 export function registerModelGenCommand(program: Command): void {
   program
     .command('model-gen <sql-file>')
-    .description('Generate QuerySpec output scaffolds from a ZTD-backed probe or live PostgreSQL metadata (prefer --probe-mode ztd for the fast loop; positional requires --allow-positional)')
+    .description('Generate QuerySpec output scaffolds from ZTD-backed inspection or explicit target inspection metadata (prefer --probe-mode ztd for the fast loop; positional requires --allow-positional)')
     .option('--out <file>', 'Write the generated scaffold to a TypeScript file')
     .option('--format <format>', 'Output format (spec, row-mapping, interface)', 'spec')
     .option('--sql-root <dir>', 'SQL root used to derive sqlFile and spec id', path.join('src', 'sql'))
     .option('--allow-positional', 'Allow legacy positional placeholders ($1, $2, ...) for this run')
-    .option('--probe-mode <mode>', 'Probe source: live or ztd (default: live for backward compatibility; prefer ztd for the fast loop)', 'live')
+    .option('--probe-mode <mode>', 'Inspection source: live or ztd (default: live for backward compatibility; prefer ztd for the fast loop)', 'live')
     .option('--ddl-dir <dir>', 'DDL directory override for --probe-mode ztd (default: ztd.config.json ddlDir)')
     .option('--import-style <style>', 'Generated sql-contract import style: package or relative (default: package)', 'package')
     .option('--import-from <specifier>', 'Override the module specifier used for sql-contract imports in generated files')
-    .option('--debug-probe', 'Print the bound probe SQL and ordered parameter names to stderr before probing')
-    .option('--dry-run', 'Validate probing and render output metadata without writing the generated file')
+    .option('--debug-probe', 'Print the bound inspection SQL and ordered parameter names to stderr before inspection')
+    .option('--dry-run', 'Validate inspection and render output metadata without writing the generated file')
     .option('--describe-output', 'Describe the generated artifact contract and exit')
     .option('--json <payload>', 'Pass model-gen options as a JSON object')
-    .option('--url <databaseUrl>', 'Connection string to use for probing (optional; fallback to env/config)')
-    .option('--db-host <host>', 'Database host to use instead of DATABASE_URL')
-    .option('--db-port <port>', 'Database port (defaults to 5432)')
-    .option('--db-user <user>', 'Database user to connect as')
-    .option('--db-password <password>', 'Database password')
-    .option('--db-name <name>', 'Database name to connect to')
+    .option('--url <databaseUrl>', 'Explicit target database URL for live inspection (preferred over --db-*)')
+    .option('--db-host <host>', 'Explicit target database host when --url is not used')
+    .option('--db-port <port>', 'Explicit target database port (defaults to 5432)')
+    .option('--db-user <user>', 'Explicit target database user')
+    .option('--db-password <password>', 'Explicit target database password')
+    .option('--db-name <name>', 'Explicit target database name')
     .action(async (sqlFile: string, options: ModelGenCommandOptions) => {
       const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
       if (merged.describeOutput) {
@@ -269,15 +273,18 @@ export function resolveCliConnectionWithProbeGuidance(
   probeMode: ModelGenProbeMode
 ) {
   try {
-    return resolveCliConnection(options);
+    if (probeMode === 'ztd') {
+      return resolveZtdOwnedCliConnection();
+    }
+    return resolveExplicitCliConnection(options);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (message.includes('No database connection information supplied') && probeMode === 'ztd') {
+    if (message.includes('ZTD_TEST_DATABASE_URL is required') && probeMode === 'ztd') {
       throw new Error(
         [
           message,
-          'model-gen --probe-mode ztd still needs a reachable PostgreSQL connection for type probing.',
-          'Start Docker/service and provide DATABASE_URL (or --db-* flags), then rerun.'
+          'model-gen --probe-mode ztd still needs a reachable PostgreSQL connection for ZTD-owned inspection.',
+          'Start Docker/service and provide ZTD_TEST_DATABASE_URL, then rerun.'
         ].join('\n')
       );
     }
@@ -301,8 +308,8 @@ export function buildModelGenConnectionFailure(error: unknown, probeMode: ModelG
   const message = error instanceof Error ? error.message : String(error);
   const modeHint =
     probeMode === 'ztd'
-      ? 'Ensure DATABASE_URL (or --db-* flags) points to a reachable PostgreSQL instance before ztd probing.'
-      : 'Ensure DATABASE_URL (or --db-* flags) points to a reachable PostgreSQL instance.';
+      ? 'Ensure ZTD_TEST_DATABASE_URL points to a reachable PostgreSQL instance before ZTD-owned inspection.'
+      : 'Ensure --url or a complete --db-* flag set points to a reachable PostgreSQL instance for explicit target inspection.';
   return new Error(`Failed to connect to PostgreSQL for model-gen. ${modeHint} (${message})`);
 }
 function normalizeFormat(format?: string): ModelGenFormat {
@@ -599,7 +606,7 @@ function printProbeDebug(
   ddlDir?: string
 ): void {
   const lines = [
-    '[model-gen] probe debug',
+    '[model-gen] inspection debug',
     `sqlFile: ${normalizeCliPath(sqlFile)}`,
     `placeholderMode: ${mode}`,
     `allowPositional: ${allowPositional}`,
@@ -607,7 +614,7 @@ function printProbeDebug(
     `orderedParamNames: ${JSON.stringify(orderedParamNames)}`,
     'boundSql:',
     boundSql,
-    `probeSql: ${buildProbeSql(boundSql)}`
+    `inspectionSql: ${buildProbeSql(boundSql)}`
   ];
   if (probeMode === 'ztd') {
     const ztdOptions = resolveModelGenZtdProbeOptions({ ddlDir });

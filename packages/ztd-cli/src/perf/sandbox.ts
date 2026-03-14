@@ -73,7 +73,7 @@ export interface PerfSeedResult {
 }
 
 export function resolvePerfExternalDatabaseUrl(env: NodeJS.ProcessEnv = process.env): string | null {
-  const explicitUrl = (env.ZTD_PERF_DATABASE_URL ?? '').trim();
+  const explicitUrl = (env.ZTD_TEST_DATABASE_URL ?? '').trim();
   return explicitUrl || null;
 }
 
@@ -495,7 +495,7 @@ export async function ensurePerfConnection(rootDir: string, config: PerfSandboxC
   const composeFile = path.join(rootDir, PERF_DIRECTORY, PERF_DOCKER_COMPOSE);
   if (!existsSync(composeFile)) {
     if (ignoredDefaultDatabaseUrl) {
-      throw new Error('Perf sandbox ignores DATABASE_URL for destructive commands. Set ZTD_PERF_DATABASE_URL explicitly or run `ztd perf init` first.');
+      throw new Error('Perf sandbox ignores DATABASE_URL for ZTD-owned workflows. Set ZTD_TEST_DATABASE_URL explicitly or run `ztd perf init` first.');
     }
     throw new Error('Perf sandbox is not initialized. Run `ztd perf init` first.');
   }

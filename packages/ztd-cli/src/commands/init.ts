@@ -123,6 +123,7 @@ type FileKey =
   | 'tsconfig'
   | 'readme'
   | 'context'
+  | 'promptDogfood'
   | 'internalAgentsManifest'
   | 'internalAgentsRoot'
   | 'internalAgentsSrc'
@@ -133,6 +134,11 @@ type FileKey =
   | 'viewsRepoReadme'
   | 'tablesRepoReadme'
   | 'jobsReadme'
+  | 'domainReadme'
+  | 'applicationReadme'
+  | 'presentationHttpReadme'
+  | 'infrastructureReadme'
+  | 'persistenceReadme'
   | 'sqlClient'
   | 'sqlClientAdapters'
   | 'repositoryTelemetryTypes'
@@ -186,6 +192,7 @@ export interface ZtdConfigWriterDependencies {
 export interface InitCommandOptions {
   rootDir?: string;
   dependencies?: Partial<ZtdConfigWriterDependencies>;
+  appShape?: InitAppShape;
   withSqlClient?: boolean;
   withAppInterface?: boolean;
   forceOverwrite?: boolean;
@@ -198,6 +205,7 @@ export interface InitCommandOptions {
 
 type ValidatorBackend = 'zod' | 'arktype';
 type InitDependencyProfile = 'registry' | 'local-source';
+type InitAppShape = 'default' | 'webapi';
 
 interface OptionalFeatures {
   validator: ValidatorBackend;
@@ -208,8 +216,38 @@ interface InitScaffoldProfile {
   localSourceRoot: string | null;
 }
 
-const SQL_CONTRACT_DEPENDENCY: Record<string, string> = {
-  '@rawsql-ts/sql-contract': '^0.1.0'
+interface InitScaffoldLayout {
+  appShape: InitAppShape;
+  readmeTemplate: string;
+  contextTemplate: string;
+  promptDogfoodPath: string | null;
+  promptDogfoodTemplate: string | null;
+  sqlClientTemplate: string;
+  sqlClientAdaptersTemplate: string;
+  testkitClientTemplate: string;
+  viewsRepoReadmeTemplate: string;
+  tablesRepoReadmeTemplate: string;
+  viewsRepoReadmePath: string;
+  tablesRepoReadmePath: string;
+  jobsReadmePath: string | null;
+  jobsReadmeTemplate: string | null;
+  domainReadmePath: string | null;
+  domainReadmeTemplate: string | null;
+  applicationReadmePath: string | null;
+  applicationReadmeTemplate: string | null;
+  presentationHttpReadmePath: string | null;
+  presentationHttpReadmeTemplate: string | null;
+  infrastructureReadmePath: string | null;
+  infrastructureReadmeTemplate: string | null;
+  persistenceReadmePath: string | null;
+  persistenceReadmeTemplate: string | null;
+  sqlClientPath: string;
+  sqlClientAdaptersPath: string;
+}
+
+const STACK_DEV_DEPENDENCIES: Record<string, string> = {
+  '@rawsql-ts/sql-contract': '0.2.0',
+  '@rawsql-ts/ztd-cli': '0.17.0'
 };
 const LOCAL_SOURCE_STACK_PACKAGE_DIRS: Record<string, string> = {
   '@rawsql-ts/sql-contract': path.join('packages', 'sql-contract')
@@ -218,7 +256,7 @@ const ZOD_DEPENDENCY: Record<string, string> = {
   zod: '^4.3.6'
 };
 const ARKTYPE_DEPENDENCY: Record<string, string> = {
-  arktype: '^2.1.29'
+  arktype: '2.2.0'
 };
 
 async function gatherOptionalFeatures(
@@ -240,7 +278,10 @@ async function gatherOptionalFeatures(
 type InitWorkflow = 'pg_dump' | 'empty' | 'demo';
 
 const README_TEMPLATE = 'README.md';
+const README_WEBAPI_TEMPLATE = 'README.webapi.md';
 const CONTEXT_TEMPLATE = 'CONTEXT.md';
+const CONTEXT_WEBAPI_TEMPLATE = 'CONTEXT.webapi.md';
+const PROMPT_DOGFOOD_WEBAPI_TEMPLATE = 'PROMPT_DOGFOOD.webapi.md';
 const SMOKE_SPEC_ZOD_TEMPLATE = 'src/catalog/specs/_smoke.spec.zod.ts';
 const SMOKE_SPEC_ARKTYPE_TEMPLATE = 'src/catalog/specs/_smoke.spec.arktype.ts';
 const SMOKE_COERCIONS_TEMPLATE = 'src/catalog/runtime/_coercions.ts';
@@ -251,17 +292,27 @@ const LOCAL_SOURCE_GUARD_TEMPLATE = 'scripts/local-source-guard.mjs';
 const SMOKE_VALIDATION_TEST_TEMPLATE = 'tests/smoke.validation.test.ts';
 const TESTS_SMOKE_TEMPLATE = 'tests/smoke.test.ts';
 const TESTKIT_CLIENT_TEMPLATE = 'tests/support/testkit-client.ts';
+const TESTKIT_CLIENT_WEBAPI_TEMPLATE = 'tests/support/testkit-client.webapi.ts';
 const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
 const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
 const TSCONFIG_TEMPLATE = 'tsconfig.json';
 const SQL_CLIENT_TEMPLATE = 'src/db/sql-client.ts';
 const SQL_CLIENT_ADAPTERS_TEMPLATE = 'src/db/sql-client-adapters.ts';
+const SQL_CLIENT_WEBAPI_TEMPLATE = 'src/infrastructure/db/sql-client.ts';
+const SQL_CLIENT_ADAPTERS_WEBAPI_TEMPLATE = 'src/infrastructure/db/sql-client-adapters.ts';
 const REPOSITORY_TELEMETRY_TYPES_TEMPLATE = 'src/infrastructure/telemetry/types.ts';
 const REPOSITORY_TELEMETRY_CONSOLE_TEMPLATE = 'src/infrastructure/telemetry/consoleRepositoryTelemetry.ts';
 const REPOSITORY_TELEMETRY_ENTRY_TEMPLATE = 'src/infrastructure/telemetry/repositoryTelemetry.ts';
 const SQL_README_TEMPLATE = 'src/sql/README.md';
 const VIEWS_REPO_README_TEMPLATE = 'src/repositories/views/README.md';
 const TABLES_REPO_README_TEMPLATE = 'src/repositories/tables/README.md';
+const WEBAPI_DOMAIN_README_TEMPLATE = 'src/domain/README.md';
+const WEBAPI_APPLICATION_README_TEMPLATE = 'src/application/README.md';
+const WEBAPI_PRESENTATION_HTTP_README_TEMPLATE = 'src/presentation/http/README.md';
+const WEBAPI_INFRASTRUCTURE_README_TEMPLATE = 'src/infrastructure/README.md';
+const WEBAPI_PERSISTENCE_README_TEMPLATE = 'src/infrastructure/persistence/README.md';
+const WEBAPI_VIEWS_REPO_README_TEMPLATE = 'src/infrastructure/persistence/repositories/views/README.md';
+const WEBAPI_TABLES_REPO_README_TEMPLATE = 'src/infrastructure/persistence/repositories/tables/README.md';
 const JOBS_README_TEMPLATE = 'src/jobs/README.md';
 const ZTD_README_TEMPLATE = 'ztd/README.md';
 const ZTD_DDL_DEMO_TEMPLATE = 'ztd/ddl/demo.sql';
@@ -276,6 +327,68 @@ const EMPTY_SCHEMA_COMMENT = (schemaName: string): string =>
 const DEMO_SCHEMA_TEMPLATE = (_schemaName: string): string => {
   return loadTemplate(ZTD_DDL_DEMO_TEMPLATE);
 };
+
+function resolveInitScaffoldLayout(rootDir: string, appShape: InitAppShape): InitScaffoldLayout {
+  if (appShape === 'webapi') {
+    return {
+      appShape,
+      readmeTemplate: README_WEBAPI_TEMPLATE,
+      contextTemplate: CONTEXT_WEBAPI_TEMPLATE,
+      promptDogfoodPath: path.join(rootDir, 'PROMPT_DOGFOOD.md'),
+      promptDogfoodTemplate: PROMPT_DOGFOOD_WEBAPI_TEMPLATE,
+      sqlClientTemplate: SQL_CLIENT_WEBAPI_TEMPLATE,
+      sqlClientAdaptersTemplate: SQL_CLIENT_ADAPTERS_WEBAPI_TEMPLATE,
+      testkitClientTemplate: TESTKIT_CLIENT_WEBAPI_TEMPLATE,
+      viewsRepoReadmeTemplate: WEBAPI_VIEWS_REPO_README_TEMPLATE,
+      tablesRepoReadmeTemplate: WEBAPI_TABLES_REPO_README_TEMPLATE,
+      viewsRepoReadmePath: path.join(rootDir, 'src', 'infrastructure', 'persistence', 'repositories', 'views', 'README.md'),
+      tablesRepoReadmePath: path.join(rootDir, 'src', 'infrastructure', 'persistence', 'repositories', 'tables', 'README.md'),
+      jobsReadmePath: null,
+      jobsReadmeTemplate: null,
+      domainReadmePath: path.join(rootDir, 'src', 'domain', 'README.md'),
+      domainReadmeTemplate: WEBAPI_DOMAIN_README_TEMPLATE,
+      applicationReadmePath: path.join(rootDir, 'src', 'application', 'README.md'),
+      applicationReadmeTemplate: WEBAPI_APPLICATION_README_TEMPLATE,
+      presentationHttpReadmePath: path.join(rootDir, 'src', 'presentation', 'http', 'README.md'),
+      presentationHttpReadmeTemplate: WEBAPI_PRESENTATION_HTTP_README_TEMPLATE,
+      infrastructureReadmePath: path.join(rootDir, 'src', 'infrastructure', 'README.md'),
+      infrastructureReadmeTemplate: WEBAPI_INFRASTRUCTURE_README_TEMPLATE,
+      persistenceReadmePath: path.join(rootDir, 'src', 'infrastructure', 'persistence', 'README.md'),
+      persistenceReadmeTemplate: WEBAPI_PERSISTENCE_README_TEMPLATE,
+      sqlClientPath: path.join(rootDir, 'src', 'infrastructure', 'db', 'sql-client.ts'),
+      sqlClientAdaptersPath: path.join(rootDir, 'src', 'infrastructure', 'db', 'sql-client-adapters.ts')
+    };
+  }
+
+  return {
+    appShape,
+    readmeTemplate: README_TEMPLATE,
+    contextTemplate: CONTEXT_TEMPLATE,
+    promptDogfoodPath: null,
+    promptDogfoodTemplate: null,
+    sqlClientTemplate: SQL_CLIENT_TEMPLATE,
+    sqlClientAdaptersTemplate: SQL_CLIENT_ADAPTERS_TEMPLATE,
+    testkitClientTemplate: TESTKIT_CLIENT_TEMPLATE,
+    viewsRepoReadmeTemplate: VIEWS_REPO_README_TEMPLATE,
+    tablesRepoReadmeTemplate: TABLES_REPO_README_TEMPLATE,
+    viewsRepoReadmePath: path.join(rootDir, 'src', 'repositories', 'views', 'README.md'),
+    tablesRepoReadmePath: path.join(rootDir, 'src', 'repositories', 'tables', 'README.md'),
+    jobsReadmePath: path.join(rootDir, 'src', 'jobs', 'README.md'),
+    jobsReadmeTemplate: JOBS_README_TEMPLATE,
+    domainReadmePath: null,
+    domainReadmeTemplate: null,
+    applicationReadmePath: null,
+    applicationReadmeTemplate: null,
+    presentationHttpReadmePath: null,
+    presentationHttpReadmeTemplate: null,
+    infrastructureReadmePath: null,
+    infrastructureReadmeTemplate: null,
+    persistenceReadmePath: null,
+    persistenceReadmeTemplate: null,
+    sqlClientPath: path.join(rootDir, 'src', 'db', 'sql-client.ts'),
+    sqlClientAdaptersPath: path.join(rootDir, 'src', 'db', 'sql-client-adapters.ts')
+  };
+}
 
 const AGENTS_FILE_CANDIDATES = ['AGENTS.md', 'AGENTS_ztd.md'];
 
@@ -424,6 +537,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
 
   const schemaName = normalizeSchemaName(DEFAULT_ZTD_CONFIG.ddl.defaultSchema);
   const schemaFileName = `${sanitizeSchemaFileName(schemaName)}.sql`;
+  const appShape: InitAppShape = options?.appShape ?? 'default';
+  const scaffoldLayout = resolveInitScaffoldLayout(rootDir, appShape);
 
   const absolutePaths: Record<FileKey, string> = {
     schema: path.join(rootDir, DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
@@ -437,17 +552,25 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     testsSmoke: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'smoke.test.ts'),
     readme: path.join(rootDir, 'README.md'),
     context: path.join(rootDir, 'CONTEXT.md'),
+    promptDogfood: scaffoldLayout.promptDogfoodPath ?? path.join(rootDir, 'PROMPT_DOGFOOD.md'),
     internalAgentsManifest: path.join(rootDir, '.ztd', 'agents', 'manifest.json'),
     internalAgentsRoot: path.join(rootDir, '.ztd', 'agents', 'root.md'),
     internalAgentsSrc: path.join(rootDir, '.ztd', 'agents', 'src.md'),
     internalAgentsTests: path.join(rootDir, '.ztd', 'agents', 'tests.md'),
     internalAgentsZtd: path.join(rootDir, '.ztd', 'agents', 'ztd.md'),
     sqlReadme: path.join(rootDir, 'src', 'sql', 'README.md'),
-    viewsRepoReadme: path.join(rootDir, 'src', 'repositories', 'views', 'README.md'),
-    tablesRepoReadme: path.join(rootDir, 'src', 'repositories', 'tables', 'README.md'),
-    jobsReadme: path.join(rootDir, 'src', 'jobs', 'README.md'),
-    sqlClient: path.join(rootDir, 'src', 'db', 'sql-client.ts'),
-    sqlClientAdapters: path.join(rootDir, 'src', 'db', 'sql-client-adapters.ts'),
+    viewsRepoReadme: scaffoldLayout.viewsRepoReadmePath,
+    tablesRepoReadme: scaffoldLayout.tablesRepoReadmePath,
+    jobsReadme: scaffoldLayout.jobsReadmePath ?? path.join(rootDir, 'src', 'jobs', 'README.md'),
+    domainReadme: scaffoldLayout.domainReadmePath ?? path.join(rootDir, 'src', 'domain', 'README.md'),
+    applicationReadme: scaffoldLayout.applicationReadmePath ?? path.join(rootDir, 'src', 'application', 'README.md'),
+    presentationHttpReadme:
+      scaffoldLayout.presentationHttpReadmePath ?? path.join(rootDir, 'src', 'presentation', 'http', 'README.md'),
+    infrastructureReadme: scaffoldLayout.infrastructureReadmePath ?? path.join(rootDir, 'src', 'infrastructure', 'README.md'),
+    persistenceReadme:
+      scaffoldLayout.persistenceReadmePath ?? path.join(rootDir, 'src', 'infrastructure', 'persistence', 'README.md'),
+    sqlClient: scaffoldLayout.sqlClientPath,
+    sqlClientAdapters: scaffoldLayout.sqlClientAdaptersPath,
     repositoryTelemetryTypes: path.join(rootDir, 'src', 'infrastructure', 'telemetry', 'types.ts'),
     repositoryTelemetryConsole: path.join(rootDir, 'src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'),
     repositoryTelemetryEntry: path.join(rootDir, 'src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'),
@@ -554,7 +677,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     rootDir,
     absolutePaths.readme,
     relativePath('readme'),
-    README_TEMPLATE,
+    scaffoldLayout.readmeTemplate,
     dependencies,
     prompter,
     overwritePolicy,
@@ -568,7 +691,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     rootDir,
     absolutePaths.context,
     relativePath('context'),
-    CONTEXT_TEMPLATE,
+    scaffoldLayout.contextTemplate,
     dependencies,
     prompter,
     overwritePolicy,
@@ -576,6 +699,22 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (contextSummary) {
     summaries.context = contextSummary;
+  }
+
+  if (scaffoldLayout.promptDogfoodTemplate) {
+    const promptDogfoodSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.promptDogfood,
+      relativePath('promptDogfood'),
+      scaffoldLayout.promptDogfoodTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy,
+      true
+    );
+    if (promptDogfoodSummary) {
+      summaries.promptDogfood = promptDogfoodSummary;
+    }
   }
 
   for (const summary of writeInternalAgentsArtifacts(rootDir)) {
@@ -622,7 +761,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     rootDir,
     absolutePaths.viewsRepoReadme,
     relativePath('viewsRepoReadme'),
-    VIEWS_REPO_README_TEMPLATE,
+    scaffoldLayout.viewsRepoReadmeTemplate,
     dependencies,
     prompter,
     overwritePolicy
@@ -635,7 +774,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     rootDir,
     absolutePaths.tablesRepoReadme,
     relativePath('tablesRepoReadme'),
-    TABLES_REPO_README_TEMPLATE,
+    scaffoldLayout.tablesRepoReadmeTemplate,
     dependencies,
     prompter,
     overwritePolicy
@@ -644,17 +783,94 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.tablesRepoReadme = tablesRepoReadmeSummary;
   }
 
-  const jobsReadmeSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.jobsReadme,
-    relativePath('jobsReadme'),
-    JOBS_README_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (jobsReadmeSummary) {
-    summaries.jobsReadme = jobsReadmeSummary;
+  if (scaffoldLayout.jobsReadmeTemplate) {
+    const jobsReadmeSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.jobsReadme,
+      relativePath('jobsReadme'),
+      scaffoldLayout.jobsReadmeTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (jobsReadmeSummary) {
+      summaries.jobsReadme = jobsReadmeSummary;
+    }
+  }
+
+  if (scaffoldLayout.domainReadmeTemplate) {
+    const domainReadmeSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.domainReadme,
+      relativePath('domainReadme'),
+      scaffoldLayout.domainReadmeTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (domainReadmeSummary) {
+      summaries.domainReadme = domainReadmeSummary;
+    }
+  }
+
+  if (scaffoldLayout.applicationReadmeTemplate) {
+    const applicationReadmeSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.applicationReadme,
+      relativePath('applicationReadme'),
+      scaffoldLayout.applicationReadmeTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (applicationReadmeSummary) {
+      summaries.applicationReadme = applicationReadmeSummary;
+    }
+  }
+
+  if (scaffoldLayout.presentationHttpReadmeTemplate) {
+    const presentationHttpReadmeSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.presentationHttpReadme,
+      relativePath('presentationHttpReadme'),
+      scaffoldLayout.presentationHttpReadmeTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (presentationHttpReadmeSummary) {
+      summaries.presentationHttpReadme = presentationHttpReadmeSummary;
+    }
+  }
+
+  if (scaffoldLayout.infrastructureReadmeTemplate) {
+    const infrastructureReadmeSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.infrastructureReadme,
+      relativePath('infrastructureReadme'),
+      scaffoldLayout.infrastructureReadmeTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (infrastructureReadmeSummary) {
+      summaries.infrastructureReadme = infrastructureReadmeSummary;
+    }
+  }
+
+  if (scaffoldLayout.persistenceReadmeTemplate) {
+    const persistenceReadmeSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.persistenceReadme,
+      relativePath('persistenceReadme'),
+      scaffoldLayout.persistenceReadmeTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (persistenceReadmeSummary) {
+      summaries.persistenceReadme = persistenceReadmeSummary;
+    }
   }
 
   const smokeSpecTemplate =
@@ -700,11 +916,10 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
       summaries.localSqlContractShim = localSqlContractSummary;
     }
 
-    const localSourceGuardSummary = await writeTemplateFile(
-      rootDir,
+    const localSourceGuardSummary = await writeDocFile(
       absolutePaths.localSourceGuardScript,
       relativePath('localSourceGuardScript'),
-      LOCAL_SOURCE_GUARD_TEMPLATE,
+      buildLocalSourceGuardContents(absolutePaths.localSourceGuardScript, scaffoldProfile),
       dependencies,
       prompter,
       overwritePolicy
@@ -743,7 +958,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   const sqlClientSummary = writeOptionalTemplateFile(
     absolutePaths.sqlClient,
     relativePath('sqlClient'),
-    SQL_CLIENT_TEMPLATE,
+    scaffoldLayout.sqlClientTemplate,
     dependencies
   );
   if (sqlClientSummary) {
@@ -753,7 +968,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     const sqlClientAdaptersSummary = writeOptionalTemplateFile(
       absolutePaths.sqlClientAdapters,
       relativePath('sqlClientAdapters'),
-      SQL_CLIENT_ADAPTERS_TEMPLATE,
+      scaffoldLayout.sqlClientAdaptersTemplate,
       dependencies
     );
     if (sqlClientAdaptersSummary) {
@@ -810,7 +1025,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     rootDir,
     absolutePaths.testkitClient,
     relativePath('testkitClient'),
-    TESTKIT_CLIENT_TEMPLATE,
+    scaffoldLayout.testkitClientTemplate,
     dependencies,
     prompter,
     overwritePolicy
@@ -925,7 +1140,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     normalizeRelative(rootDir, absolutePaths.schema),
     workflow,
     rootDir,
-    scaffoldProfile
+    scaffoldProfile,
+    appShape
   );
   const summaryLines = buildSummaryLines(
     summaries as Record<FileKey, FileSummary>,
@@ -1368,6 +1584,7 @@ function ensurePackageJsonFormatting(
     // Route test and typecheck through the local-source guard so parent workspaces cannot silently hijack execution.
     requiredScripts.test = 'node ./scripts/local-source-guard.mjs test';
     requiredScripts.typecheck = 'node ./scripts/local-source-guard.mjs typecheck';
+    requiredScripts.ztd = 'node ./scripts/local-source-guard.mjs ztd';
   }
 
   // Ensure the canonical formatting and lint scripts exist without overwriting custom commands.
@@ -1425,7 +1642,7 @@ function ensurePackageJsonFormatting(
     scaffoldProfile.dependencyProfile === 'local-source'
       ? buildLocalSourceStackDependencies(rootDir, scaffoldProfile)
       : {
-          ...SQL_CONTRACT_DEPENDENCY
+          ...STACK_DEV_DEPENDENCIES
         };
   if (optionalFeatures.validator === 'zod') {
     Object.assign(stackDependencies, ZOD_DEPENDENCY);
@@ -1735,6 +1952,24 @@ function buildLocalSqlContractShimContents(
     ''
   ].join('\n');
 }
+
+function buildLocalSourceGuardContents(
+  absolutePath: string,
+  scaffoldProfile: InitScaffoldProfile
+): string {
+  const template = loadTemplate(LOCAL_SOURCE_GUARD_TEMPLATE);
+  if (scaffoldProfile.dependencyProfile !== 'local-source' || !scaffoldProfile.localSourceRoot) {
+    return template.replace('__LOCAL_SOURCE_ZTD_CLI__', './packages/ztd-cli/dist/index.js');
+  }
+
+  const cliEntry = path.join(scaffoldProfile.localSourceRoot, 'packages', 'ztd-cli', 'dist', 'index.js');
+  const projectRoot = path.dirname(path.dirname(absolutePath));
+  const relativeCliEntry = normalizeCliPath(path.relative(projectRoot, cliEntry));
+  const cliImportPath =
+    relativeCliEntry.startsWith('.') || relativeCliEntry.startsWith('/') ? relativeCliEntry : `./${relativeCliEntry}`;
+  return template.replace('__LOCAL_SOURCE_ZTD_CLI__', cliImportPath);
+}
+
 function buildLocalSourceTsconfigContents(): string {
   const parsed = JSON.parse(loadTemplate(TSCONFIG_TEMPLATE)) as {
     compilerOptions?: Record<string, unknown>;
@@ -1752,13 +1987,18 @@ function buildNextSteps(
   schemaRelativePath: string,
   workflow: InitWorkflow,
   rootDir: string,
-  scaffoldProfile: InitScaffoldProfile
+  scaffoldProfile: InitScaffoldProfile,
+  appShape: InitAppShape
 ): string[] {
   const packageManager = detectPackageManager(rootDir);
   const installStrategy = resolveInitInstallStrategy(rootDir, packageManager);
   const installCommand = installStrategy.installCommand;
   const runScriptCommand = (script: 'typecheck' | 'test'): string =>
     packageManager === 'npm' ? `npm run ${script}` : `${packageManager} ${script}`;
+  const runLocalSourceZtdCommand =
+    packageManager === 'npm' ? 'npm run ztd --' : `${packageManager} ztd`;
+  const ztdCommand =
+    packageManager === 'npm' ? 'npx ztd' : packageManager === 'yarn' ? 'yarn exec ztd' : 'pnpm exec ztd';
 
   if (scaffoldProfile.dependencyProfile === 'local-source') {
     const localSourceSteps = [
@@ -1768,8 +2008,11 @@ function buildNextSteps(
       `Run ${installCommand}`,
       `Run ${runScriptCommand('typecheck')}`,
       `Run ${runScriptCommand('test')}`,
-      'Run npx ztd ztd-config',
-      'For generated QuerySpecs, prefer ztd model-gen --probe-mode ztd --import-style relative',
+      `Run ${runLocalSourceZtdCommand} ztd-config`,
+      `For generated QuerySpecs, prefer ${runLocalSourceZtdCommand} model-gen --probe-mode ztd --import-style relative`,
+      appShape === 'webapi'
+        ? 'Keep Domain, Application, and Presentation changes free from direct ZTD assumptions'
+        : 'Keep handwritten SQL and QuerySpecs aligned before adding repository code',
       'Wire repositories to src/infrastructure/telemetry/repositoryTelemetry.ts so applications can replace the default hook',
       'Provide a SqlClient implementation before adding SQL-backed tests'
     ];
@@ -1784,7 +2027,10 @@ function buildNextSteps(
   if (installStrategy.shouldDeferAutoInstall) {
     nextSteps.push(`Run ${installCommand}`);
   }
-  nextSteps.push('Run npx ztd ztd-config');
+  nextSteps.push(`Run ${ztdCommand} ztd-config`);
+  if (appShape === 'webapi') {
+    nextSteps.push('Keep WebAPI flow changes in src/domain, src/application, and src/presentation/http unless you are editing persistence infrastructure');
+  }
   nextSteps.push('Wire repositories to src/infrastructure/telemetry/repositoryTelemetry.ts when you add SQL-backed repository classes');
   nextSteps.push('Provide a SqlClient implementation (adapter or mock)');
   nextSteps.push('Run tests (pnpm test or npx vitest run)');
@@ -1825,7 +2071,7 @@ function buildLocalSourceStackDependencies(
 ): Record<string, string> {
   if (scaffoldProfile.dependencyProfile !== 'local-source' || !scaffoldProfile.localSourceRoot) {
     return {
-      ...SQL_CONTRACT_DEPENDENCY
+      ...STACK_DEV_DEPENDENCIES
     };
   }
 
@@ -1855,6 +2101,7 @@ function buildSummaryLines(
     'config',
     'readme',
     'context',
+    'promptDogfood',
     'internalAgentsManifest',
     'internalAgentsRoot',
     'internalAgentsSrc',
@@ -1865,6 +2112,11 @@ function buildSummaryLines(
     'viewsRepoReadme',
     'tablesRepoReadme',
     'jobsReadme',
+    'domainReadme',
+    'applicationReadme',
+    'presentationHttpReadme',
+    'infrastructureReadme',
+    'persistenceReadme',
     'smokeSpec',
     'smokeCoercions',
     'smokeRuntime',
@@ -1922,6 +2174,7 @@ function buildSummaryLines(
 
 const VALID_WORKFLOWS: readonly InitWorkflow[] = ['pg_dump', 'empty', 'demo'] as const;
 const VALID_VALIDATORS: readonly ValidatorBackend[] = ['zod', 'arktype'] as const;
+const VALID_APP_SHAPES: readonly InitAppShape[] = ['default', 'webapi'] as const;
 
 interface InitDryRunPlan {
   schemaVersion: 1;
@@ -1932,6 +2185,7 @@ interface InitDryRunPlan {
 }
 
 function buildInitDryRunPlan(rootDir: string, options: {
+  appShape: InitAppShape;
   withSqlClient?: boolean;
   withAppInterface?: boolean;
   workflow: InitWorkflow;
@@ -1940,6 +2194,7 @@ function buildInitDryRunPlan(rootDir: string, options: {
 }): InitDryRunPlan {
   const schemaName = normalizeSchemaName(DEFAULT_ZTD_CONFIG.ddl.defaultSchema);
   const schemaFileName = `${sanitizeSchemaFileName(schemaName)}.sql`;
+  const scaffoldLayout = resolveInitScaffoldLayout(rootDir, options.appShape);
   const files = [
     'ztd.config.json',
     path.join(DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
@@ -1956,13 +2211,30 @@ function buildInitDryRunPlan(rootDir: string, options: {
     '.ztd/agents/tests.md',
     '.ztd/agents/ztd.md',
     'CONTEXT.md',
+    'src/sql/README.md',
     'vitest.config.ts',
     'tsconfig.json'
   ];
 
+  if (options.appShape === 'webapi') {
+    files.push('PROMPT_DOGFOOD.md');
+    files.push('src/domain/README.md');
+    files.push('src/application/README.md');
+    files.push('src/presentation/http/README.md');
+    files.push('src/infrastructure/README.md');
+    files.push('src/infrastructure/persistence/README.md');
+    files.push('src/infrastructure/persistence/repositories/views/README.md');
+    files.push('src/infrastructure/persistence/repositories/tables/README.md');
+  } else {
+    files.push('src/repositories/views/README.md');
+    files.push('src/repositories/tables/README.md');
+    files.push('src/jobs/README.md');
+  }
+
+  files.push(normalizeCliPath(path.relative(rootDir, scaffoldLayout.sqlClientPath)));
+  files.push(normalizeCliPath(path.relative(rootDir, scaffoldLayout.sqlClientAdaptersPath)));
+
   if (options.withSqlClient) {
-    files.push(path.join('src', 'db', 'sql-client.ts'));
-    files.push(path.join('src', 'db', 'sql-client-adapters.ts'));
     files.push(path.join('src', 'infrastructure', 'telemetry', 'types.ts'));
     files.push(path.join('src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'));
     files.push(path.join('src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'));
@@ -1987,6 +2259,7 @@ export function registerInitCommand(program: Command): void {
   program
     .command('init')
     .description('Automate project setup for Zero Table Dependency workflows')
+    .option('--app-shape <type>', 'Application scaffold shape: default or webapi (default: default)')
     .option('--with-sqlclient', 'Generate a minimal SqlClient interface for repositories')
     .option('--with-app-interface', 'Append application interface guidance to AGENTS.md only')
     .option('--yes', 'Accept defaults and overwrite existing files without prompting')
@@ -1999,6 +2272,7 @@ export function registerInitCommand(program: Command): void {
       'Link @rawsql-ts dependencies to a local monorepo root for dogfooding instead of published npm packages'
     )
     .action(async (options: {
+      appShape?: string;
       withSqlclient?: boolean;
       withAppInterface?: boolean;
       yes?: boolean;
@@ -2022,12 +2296,17 @@ export function registerInitCommand(program: Command): void {
         console.error(`Invalid --validator value: "${merged.validator}". Must be one of: ${VALID_VALIDATORS.join(', ')}`);
         process.exit(1);
       }
+      if (merged.appShape && !VALID_APP_SHAPES.includes(merged.appShape as InitAppShape)) {
+        console.error(`Invalid --app-shape value: "${merged.appShape}". Must be one of: ${VALID_APP_SHAPES.join(', ')}`);
+        process.exit(1);
+      }
 
       const isNonInteractive = merged.yes === true || !process.stdin.isTTY || merged.dryRun === true;
 
       // When --yes is used, apply defaults for unspecified flags.
       const workflow = (merged.workflow as InitWorkflow | undefined) ?? (isNonInteractive ? 'demo' : undefined);
       const validator = (merged.validator as ValidatorBackend | undefined) ?? (isNonInteractive ? 'zod' : undefined);
+      const appShape = (merged.appShape as InitAppShape | undefined) ?? 'default';
 
       if (isNonInteractive && workflow === 'pg_dump') {
         console.error('Non-interactive mode does not support the pg_dump workflow (requires connection string prompt).');
@@ -2036,6 +2315,7 @@ export function registerInitCommand(program: Command): void {
 
       if (merged.dryRun) {
         const plan = buildInitDryRunPlan(process.cwd(), {
+          appShape,
           withSqlClient: Boolean(merged.withSqlclient),
           withAppInterface: Boolean(merged.withAppInterface),
           workflow: workflow ?? 'demo',
@@ -2053,6 +2333,7 @@ export function registerInitCommand(program: Command): void {
       const prompter = createConsolePrompter();
       try {
         await runInitCommand(prompter, {
+          appShape,
           withSqlClient: Boolean(merged.withSqlclient),
           withAppInterface: Boolean(merged.withAppInterface),
           forceOverwrite: Boolean(merged.yes),

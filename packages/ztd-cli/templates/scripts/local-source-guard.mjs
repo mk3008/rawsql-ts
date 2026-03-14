@@ -6,9 +6,58 @@ import { spawnSync } from 'node:child_process';
 const projectRoot = process.cwd();
 const command = process.argv[2];
 
-if (command !== 'test' && command !== 'typecheck') {
-  console.error('local-source guard expects "test" or "typecheck".');
+if (command !== 'test' && command !== 'typecheck' && command !== 'ztd') {
+  console.error('local-source guard expects "test", "typecheck", or "ztd".');
   process.exit(1);
+}
+
+if (command === 'ztd') {
+  const cliEntry = path.resolve(projectRoot, '__LOCAL_SOURCE_ZTD_CLI__');
+  const requestedSubcommand = process.argv.slice(3).join(' ').trim() || '(none)';
+  if (!existsSync(cliEntry)) {
+    console.error(
+      [
+        '[local-source guard] ztd cannot run against the local source checkout yet.',
+        '',
+        `What happened:`,
+        `- Requested subcommand: ${requestedSubcommand}`,
+        `- Project root: ${normalizePath(projectRoot)}`,
+        `- The local CLI entry was not found at ${normalizePath(cliEntry)}.`,
+        '',
+        'Next steps:',
+        '1. Build the local CLI package (for example: pnpm --filter @rawsql-ts/ztd-cli build)',
+        '2. Confirm this scaffold still points at the intended rawsql-ts monorepo root',
+        '3. Re-run pnpm ztd <subcommand>'
+      ].join('\n')
+    );
+    process.exit(1);
+  }
+
+  const cliArgs = process.argv.slice(3);
+  const result = spawnSync(process.execPath, [cliEntry, ...cliArgs], {
+    cwd: projectRoot,
+    stdio: 'inherit',
+    shell: false
+  });
+
+  // Surface execution failures explicitly so local-source dogfooding does not
+  // collapse permission, spawn, and signal problems into the same exit code.
+  if (result.error) {
+    console.error('[local-source guard] Failed to launch the local ztd CLI entry.');
+    console.error(`- Message: ${result.error.message}`);
+    if (result.error.stack) {
+      console.error(result.error.stack);
+    }
+    process.exit(1);
+  }
+
+  if (result.signal) {
+    console.error('[local-source guard] The local ztd CLI entry was terminated by signal.');
+    console.error(`- Signal: ${result.signal}`);
+    process.exit(1);
+  }
+
+  process.exit(result.status ?? 1);
 }
 
 const workspaceRoot = findAncestorPnpmWorkspaceRoot(projectRoot);

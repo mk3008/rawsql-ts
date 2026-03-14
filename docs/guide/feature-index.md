@@ -14,8 +14,8 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Internal agent guidance | `.ztd/agents/manifest.json` | Default AI/project guidance without repo-visible `AGENTS.md` files |
 | Visible AGENTS install | `ztd agents install` | Materialize repo-visible `AGENTS.md` files only when you want them |
 | AGENTS status | `ztd agents status` | Check managed guidance state and drift |
-| DDL pull from live DB | `ztd ddl pull` | Bootstrap DDL from an existing Postgres database |
-| DDL diff | `ztd ddl diff` | Compare local DDL against a live database after changes |
+| DDL pull from explicit target | `ztd ddl pull --url <target>` | Inspect schema state from an existing Postgres database |
+| DDL diff | `ztd ddl diff --url <target>` | Compare local DDL against an explicit target database after changes |
 | Watch mode | `ztd ztd-config --watch` | Continuous type regeneration while editing DDL |
 | Quiet mode | `ztd ztd-config --quiet` | Suppress next-step hints in scripts |
 | SQL linting | `ztd lint <path>` | Validate SQL files against the schema |

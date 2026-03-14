@@ -14,6 +14,7 @@ export interface DiffSchemaOptions {
   url: string;
   out: string;
   pgDumpPath?: string;
+  pgDumpShell?: boolean;
   connectionContext?: DbConnectionContext;
   dryRun?: boolean;
 }
@@ -50,6 +51,7 @@ export function runDiffSchema(options: DiffSchemaOptions): DiffSchemaResult {
     return runPgDump({
       url: options.url,
       pgDumpPath: options.pgDumpPath,
+      pgDumpShell: options.pgDumpShell,
       connectionContext: options.connectionContext
     });
   });

@@ -2,11 +2,9 @@
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-A monorepo for **rawsql-ts**: a toolkit that treats raw SQL as a first-class citizen, enhancing maintainability and reusability through high-performance AST parsing and programmatic manipulation.
+A monorepo for **rawsql-ts**: a SQL-first toolkit for parsing, testing, inspecting, and evolving database applications while keeping raw SQL as a first-class asset.
 
-By parsing SQL into abstract syntax trees, rawsql-ts enables type-safe query building, static validation, and transparent result mapping, all while preserving the expressiveness and control of handwritten SQL. AST-based rewriting also powers Zero Table Dependency (ZTD) testing, which transforms application queries to run against in-memory fixtures instead of physical tables, enabling deterministic unit tests without database setup overhead.
-
-Designed to complement, not replace, your SQL expertise.
+By parsing SQL into abstract syntax trees, rawsql-ts enables type-safe query building, static validation, and transparent result mapping — all while preserving the expressiveness and control of handwritten SQL. AST-based rewriting also powers Zero Table Dependency (ZTD) testing, which transforms application queries to run against in-memory fixtures instead of physical tables, enabling deterministic unit tests without database setup overhead. The repo additionally covers AST-based impact analysis, deterministic test evidence, schema documentation, and `ztd-cli` workflows for inspection and SQL artifact generation.
 
 > [!Note]
 > This project is currently in beta. APIs may change until the v1.0 release.
@@ -26,7 +24,7 @@ Use this section as the shortest repo-level map. It is intentionally brief: pack
 | ZTD fixture rewriting and testkits | `@rawsql-ts/testkit-*` | [packages/testkit-core](./packages/testkit-core) |
 | Test evidence storage and rendering | `@rawsql-ts/test-evidence-*` | [packages/test-evidence-core](./packages/test-evidence-core) |
 | Schema documentation generation | `@rawsql-ts/ddl-docs-*` | [packages/ddl-docs-cli](./packages/ddl-docs-cli) |
-| ZTD project scaffolding and SQL tooling | `@rawsql-ts/ztd-cli` | [packages/ztd-cli/README.md](./packages/ztd-cli/README.md) |
+| ZTD project scaffolding and SQL lifecycle tooling | `@rawsql-ts/ztd-cli` | [packages/ztd-cli/README.md](./packages/ztd-cli/README.md) |
 
 ### Workflow Surfaces
 
@@ -37,7 +35,7 @@ These capabilities are important at the repo level even though they are mostly e
 | SQL pipeline planning and dry-run optimization analysis | `ztd query plan`, `ztd perf run --dry-run` | Explains how SQL may be decomposed into stages before execution. |
 | SQL impact analysis before schema changes | `ztd query uses` | Supports rename/type-change investigations using AST-based usage analysis. |
 | SQL debug and recovery for long CTE queries | `ztd query outline`, `ztd query lint`, `ztd query slice`, `ztd query patch apply` | Helps isolate and repair problematic query shapes. |
-| Safe DDL diff and migration-prep workflow | `ztd ddl diff`, `ztd ddl pull` | Supports two safe routes: diff local DDL files directly, or pull live Postgres schema via `pg_dump` and then generate a patch SQL file. Applying that patch is intentionally out of scope. |
+| Explicit-target schema inspection and migration-prep workflow | `ztd ddl diff`, `ztd ddl pull` | Supports safe inspection against explicit target databases and generation of diff / patch SQL artifacts. Applying generated SQL is intentionally out of scope. |
 | Machine-readable CLI automation and telemetry | `ztd --output json`, `ztd describe`, telemetry export modes | Supports AI/tooling integration and timing investigation. |
 
 ## Packages
@@ -88,7 +86,7 @@ These capabilities are important at the repo level even though they are mostly e
 
 | Package | Version | Description |
 |---------|---------|-------------|
-| [@rawsql-ts/ztd-cli](./packages/ztd-cli) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/ztd-cli) | DB-agnostic scaffolding and DDL helpers for Zero Table Dependency projects. |
+| [@rawsql-ts/ztd-cli](./packages/ztd-cli) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/ztd-cli) | SQL-first CLI for ZTD workflows, schema inspection, and migration SQL artifact generation. |
 
 For the machine-readable CLI surface, see [ztd-cli Agent Interface](./docs/guide/ztd-cli-agent-interface.md) and [ztd-cli Describe Schema](./docs/guide/ztd-cli-describe-schema.md).
 
@@ -115,29 +113,26 @@ rawsql-ts (core)
 npm install rawsql-ts
 ```
 
-See the [Core Package Documentation](./packages/core/README.md) for usage examples and API reference. For reusable AST-based impact analysis, see [@rawsql-ts/sql-grep-core](./packages/sql-grep-core). Deterministic dogfooding spec: [docs/dogfooding/DOGFOODING.md](./docs/dogfooding/DOGFOODING.md).
+See the [Core Package Documentation](./packages/core/README.md) for usage examples and API reference. For reusable AST-based impact analysis, see [@rawsql-ts/sql-grep-core](./packages/sql-grep-core). For repo-level SQL lifecycle workflows, inspection commands, and ZTD project guidance, see [@rawsql-ts/ztd-cli](./packages/ztd-cli/README.md). Deterministic dogfooding spec: [docs/dogfooding/DOGFOODING.md](./docs/dogfooding/DOGFOODING.md).
 
 ## CLI Tool Routing Happy Paths
 
-When the question is "which CLI should I run first?", start from the problem shape instead of the full command catalog.
+- SQL pipeline / debug → `ztd query plan <sql-file>`
+- Impact analysis → `ztd query uses <target>`
+- Schema inspection → `ztd ddl diff --url <target>`
 
-| Goal | First command | Follow-up | Why |
-|------|---------------|-----------|-----|
-| Understand how a SQL asset will be split into pipeline steps | `npx ztd query plan <sql-file>` | `npx ztd perf run --dry-run` | Plan shows the intended materialization / scalar filter binding order before you benchmark or execute anything. |
-| Find optimizer-sensitive rewrite candidates in a real query | `npx ztd perf run --dry-run` | `npx ztd query plan <sql-file>` | Perf analysis highlights materialization and scalar-filter candidates so you can decide whether a pipeline rewrite is worth it. |
-| Inspect where a table or column is used before refactoring | `npx ztd query uses <target>` | `npx ztd query lint <path>` | `query uses` is the impact-analysis path; it is not a performance debugging tool. |
-| Prepare a safe schema patch without executing migrations | `npx ztd ddl diff` | `npx ztd ddl pull` when the live schema must be captured first | The supported output is a diff / patch SQL file. Execution against the target database is intentionally left to the caller. |
-| Debug generated SQL shape, rewritten predicates, or temp-table flow | `npx ztd query plan <sql-file>` | Scenario-specific SQL/debug workflow from [SQL Tool Happy Paths](./docs/guide/sql-tool-happy-paths.md) | Start with the structural plan, then move to command-specific debugging once you know which stage is suspicious. |
-| Investigate command timings or export machine-readable traces | Telemetry guidance in [SQL Tool Happy Paths](./docs/guide/sql-tool-happy-paths.md) | [ztd-cli telemetry philosophy](./docs/guide/ztd-cli-telemetry-philosophy.md) | Telemetry is an opt-in investigation branch, not the default entry point. |
+For the full routing guide and decision table, see [SQL Tool Happy Paths](./docs/guide/sql-tool-happy-paths.md).
 
-Recommended shortest loop for SQL pipeline dogfooding:
+## Database Boundary at a Glance
 
-1. Run `npx ztd query plan <sql-file>` to confirm the proposed stages.
-2. Run `npx ztd perf run --dry-run` to see whether the query exposes materialization or scalar-filter opportunities.
-3. Run the focused SQL/debug or integration check for the suspected stage.
-4. Use `npx ztd query uses <target>` only when the task is impact analysis or refactoring, not pipeline tuning.
+For repo-level workflows, keep this boundary in mind:
 
-For the full routing guide, see [SQL Tool Happy Paths](./docs/guide/sql-tool-happy-paths.md).
+* `ZTD_TEST_DATABASE_URL` is the only implicit database input used by `ztd-cli`
+* `DATABASE_URL` is typically an application/runtime/deployment concern and is not read automatically by `ztd-cli`
+* any non-ZTD database target must be supplied explicitly via `--url` or `--db-*`
+* migration SQL artifacts may be generated by `ztd-cli`, but apply / deployment execution remains outside its ownership
+
+This boundary exists for both AI-driven and human-driven workflows. It keeps test, inspection, and deployment concerns from silently collapsing into a single default database model.
 
 ## Online Demo
 
