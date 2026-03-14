@@ -470,6 +470,31 @@ function npmPackageVersionExists(packageName, version) {
   );
 }
 
+function npmPackageExists(packageName) {
+  const result = spawnSync(NPM, ["view", "--registry", NPM_PUBLIC_REGISTRY, packageName, "version"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: IS_WINDOWS,
+  });
+
+  if (result.error) throw result.error;
+  if (result.status === 0) return true;
+
+  const combined = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  const { e404 } = classifyNpmFailure(combined);
+  if (e404) return false;
+
+  const snippet = combined.trim().split(/\r?\n/).slice(-40).join("\n");
+  throw new Error(
+    [
+      `[publish] npm view failed for ${packageName} (exit=${result.status ?? "unknown"})`,
+      snippet ? `---\n${snippet}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
+}
+
 function publishWithNpm(packageDir, publishAuth, opts) {
   // CI already builds publish artifacts up front, so skip lifecycle rebuilds during npm publish.
   const args = ["publish", "--ignore-scripts", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public"];
@@ -633,11 +658,25 @@ async function main() {
     });
   }
 
+  const publishablePackages = [];
+  const skippedUnpublishedPackages = [];
+  for (const pkg of packages) {
+    // The manual CI workflow can update existing npm packages, but first-time package creation
+    // may still require out-of-band registry setup/permissions. Skip those packages here.
+    const existsOnRegistry = npmPackageExists(pkg.name);
+    if (!existsOnRegistry) {
+      skippedUnpublishedPackages.push(`${pkg.name}@${pkg.version}`);
+      console.log(`[publish] ${pkg.name} is not registered on npm yet; skipping from manual CI publish`);
+      continue;
+    }
+    publishablePackages.push(pkg);
+  }
+
   const publishedNow = [];
   const releaseErrors = [];
 
   // Publish packages
-  for (const pkg of packages) {
+  for (const pkg of publishablePackages) {
     const exists = npmPackageVersionExists(pkg.name, pkg.version);
     if (exists) {
       console.log(`[publish] ${pkg.name}@${pkg.version} already exists; skipping`);
@@ -660,7 +699,7 @@ async function main() {
   }
 
   // Create tags
-  for (const pkg of packages) {
+  for (const pkg of publishablePackages) {
     const tagName = `${pkg.name}@${pkg.version}`;
     if (gitTagExists(tagName)) {
       console.log(`[tag] ${tagName} already exists; skipping`);
@@ -684,7 +723,7 @@ async function main() {
   }
 
   // Create GitHub releases (best-effort by default)
-  for (const pkg of packages) {
+  for (const pkg of publishablePackages) {
     const tagName = `${pkg.name}@${pkg.version}`;
 
     if (dryRun) {
@@ -727,6 +766,10 @@ async function main() {
     console.log("[publish] no packages were published (all versions already exist)");
   } else {
     console.log(`[publish] published: ${publishedNow.join(", ")}`);
+  }
+
+  if (skippedUnpublishedPackages.length > 0) {
+    console.log(`[publish] skipped packages not yet registered on npm: ${skippedUnpublishedPackages.join(", ")}`);
   }
 
   if (releaseErrors.length > 0) {
