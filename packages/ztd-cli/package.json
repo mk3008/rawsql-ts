@@ -23,6 +23,11 @@
   ],
   "author": "msugiura",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mk3008/rawsql-ts.git",
+    "directory": "packages/ztd-cli"
+  },
   "publishConfig": {
     "access": "public"
   },
