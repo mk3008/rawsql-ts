@@ -3,7 +3,7 @@
 
 > **tableNameVariants**(`tableName`): `string`[]
 
-Defined in: [packages/core/src/utils/TableNameUtils.ts:19](https://github.com/mk3008/rawsql-ts/blob/9a1f2fe06729665247044262e9b171d6b0348aaa/packages/core/src/utils/TableNameUtils.ts#L19)
+Defined in: [packages/core/src/utils/TableNameUtils.ts:19](https://github.com/mk3008/rawsql-ts/blob/65cb7600ac93597b00283d664ff739a4012a25f3/packages/core/src/utils/TableNameUtils.ts#L19)
 
 For schema-sensitive matching we no longer drop qualifiers; a single
 normalized key is sufficient and safer than heuristic variants.
