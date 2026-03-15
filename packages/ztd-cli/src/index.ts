@@ -98,6 +98,7 @@ export function buildProgram(): Command {
 Getting started:
   $ ztd init                   Create a new ZTD project (interactive)
   $ ztd init --yes             Create a new ZTD project (non-interactive, demo + Zod defaults)
+  $ ztd init --yes --force     Allow non-interactive overwrite of scaffold-owned files
   $ ztd agents install         Materialize visible AGENTS.md files on demand
   $ ztd ztd-config             Generate TestRowMap types from DDL
   $ ztd lint <path>            Lint SQL files against the schema

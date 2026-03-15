@@ -2,6 +2,7 @@
 
 This repo publishes packages to npm using GitHub Actions OIDC (npm Trusted Publishing).
 When publishing fails, the most important clue is **which authentication path npm actually used**.
+The same publish workflow also applies npm deprecation messages for versions whose package metadata declares a `rawsqlTs.deprecationMessage`.
 
 `scripts/ci-publish.mjs` prints:
 - GitHub context (`GITHUB_*`) and OIDC availability (`ACTIONS_ID_TOKEN_REQUEST_*`)
@@ -43,3 +44,4 @@ What to do:
 ## Notes
 
 - `publish.yml` is intended to run from the default branch (`main`). Running from feature branches can cause OIDC Trusted Publishing to fail depending on npm configuration.
+- Version-specific npm deprecations are applied after publish during the same workflow run. If deprecation fails, treat it as a publish-operations issue rather than a docs-only issue.

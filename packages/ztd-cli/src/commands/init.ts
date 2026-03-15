@@ -452,6 +452,7 @@ const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
   installPackages: ({ rootDir, kind, packages, packageManager }) => {
     // Use the Windows shim executables so spawnSync finds the package manager in PATH.
     const executable = resolvePackageManagerExecutable(packageManager);
+    const shellExecutable = resolvePackageManagerShellExecutable(executable, packageManager);
     const args = buildPackageManagerArgs(kind, packageManager, packages, rootDir);
     if (args.length === 0) {
       return;
@@ -470,10 +471,10 @@ const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
       shell: true
     };
 
-    let result = spawnSync(executable, args, preferShell ? shellSpawnOptions : baseSpawnOptions);
+    let result = spawnSync(preferShell ? shellExecutable : executable, args, preferShell ? shellSpawnOptions : baseSpawnOptions);
     if (result.error && isWin32 && !preferShell) {
       // Retry with cmd.exe only on Windows so .cmd shims resolve reliably.
-      result = spawnSync(executable, args, shellSpawnOptions);
+      result = spawnSync(shellExecutable, args, shellSpawnOptions);
     }
     if ((result.error || result.status !== 0) && executable !== packageManager) {
       // Retry with the bare command name in case a resolved path is rejected.
@@ -1177,6 +1178,24 @@ function resolvePackageManagerExecutable(packageManager: PackageManager): string
   return cmdFallbacks[packageManager] ?? packageManager;
 }
 
+export function resolvePackageManagerShellExecutable(
+  executable: string,
+  packageManager: PackageManager,
+  platform: NodeJS.Platform = process.platform
+): string {
+  if (platform !== 'win32') {
+    return executable;
+  }
+
+  // `shell: true` delegates through cmd.exe, which splits unquoted absolute paths with spaces.
+  // Use the shim basename so the shell resolves it from PATH without truncating at `C:\Program`.
+  if (/\.(cmd|bat)$/i.test(executable) && path.isAbsolute(executable)) {
+    return path.basename(executable);
+  }
+
+  return executable || packageManager;
+}
+
 function resolveExecutableInPath(executable: string): string | null {
   const pathValue = process.env.PATH ?? process.env.Path ?? '';
   if (!pathValue) {
@@ -1725,7 +1744,7 @@ async function confirmOverwriteIfExists(
   }
   if (overwritePolicy.nonInteractive) {
     throw new Error(
-      `File ${relative} already exists. Re-run with --yes to overwrite or remove the file before running ztd init.`
+      `File ${relative} already exists. Re-run with --force to overwrite or remove the file before running ztd init.`
     );
   }
   const overwrite = await prompter.confirm(`File ${relative} already exists. Overwrite?`);
@@ -2222,7 +2241,8 @@ export function registerInitCommand(program: Command): void {
     .option('--with-ai-guidance', 'Generate internal AI guidance files such as CONTEXT.md and .ztd/agents/*')
     .option('--with-sqlclient', 'Generate a minimal SqlClient interface for repositories')
     .option('--with-app-interface', 'Append application interface guidance to AGENTS.md only')
-    .option('--yes', 'Accept defaults and overwrite existing files without prompting')
+    .option('--yes', 'Accept defaults without interactive prompts')
+    .option('--force', 'Allow ztd init to overwrite files it owns')
     .option('--workflow <type>', 'Schema workflow: pg_dump, empty, or demo (default: demo)')
     .option('--validator <type>', 'Validator backend: zod or arktype (default: zod)')
     .option('--dry-run', 'Validate init options and emit the planned scaffold without writing files')
@@ -2237,6 +2257,7 @@ export function registerInitCommand(program: Command): void {
       withSqlclient?: boolean;
       withAppInterface?: boolean;
       yes?: boolean;
+      force?: boolean;
       workflow?: string;
       validator?: string;
       localSourceRoot?: string;
@@ -2299,7 +2320,7 @@ export function registerInitCommand(program: Command): void {
           withAiGuidance: Boolean(merged.withAiGuidance),
           withSqlClient: Boolean(merged.withSqlclient),
           withAppInterface: Boolean(merged.withAppInterface),
-          forceOverwrite: Boolean(merged.yes),
+          forceOverwrite: Boolean(merged.force),
           nonInteractive: isNonInteractive,
           workflow,
           validator,

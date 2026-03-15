@@ -1,4 +1,4 @@
-import type { SqlClient } from '../../src/db/sql-client';
+import type { SqlClient } from '../../src/db/sql-client.js';
 
 /**
  * Placeholder for wiring an SQL client that tests can reuse.

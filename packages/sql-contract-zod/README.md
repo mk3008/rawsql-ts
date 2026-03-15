@@ -1,5 +1,7 @@
 # @rawsql-ts/sql-contract-zod
 
+Deprecated: prefer `@rawsql-ts/sql-contract` together with `zod` for new projects. This package remains publishable for existing consumers that still rely on the legacy helper APIs.
+
 ## Overview
 
 @rawsql-ts/sql-contract-zod maps SQL results to DTOs and validates them with Zod.
@@ -38,6 +40,8 @@ pnpm add @rawsql-ts/sql-contract-zod zod
 ```
 
 @rawsql-ts/sql-contract-zod depends on `@rawsql-ts/sql-contract` for the mapper helper primitives and adds runtime validation through Zod.
+
+For new code, install `@rawsql-ts/sql-contract` and `zod` unless you specifically need the compatibility helpers from this package.
 
 The built-in Zod helpers rely on the core package's `decimalStringToNumberUnsafe` and `bigintStringToBigInt` utilities so the same string-to-number and string-to-bigint coercion policies are shared.
 

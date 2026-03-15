@@ -1,5 +1,5 @@
-import { createConsoleRepositoryTelemetry } from './consoleRepositoryTelemetry';
-import type { RepositoryTelemetry } from './types';
+import { createConsoleRepositoryTelemetry } from './consoleRepositoryTelemetry.js';
+import type { RepositoryTelemetry } from './types.js';
 
 export type {
   RepositoryTelemetry,
@@ -7,9 +7,9 @@ export type {
   RepositoryTelemetryContext,
   RepositoryTelemetryEvent,
   RepositoryTelemetryEventKind,
-} from './types';
+} from './types.js';
 
-export { createConsoleRepositoryTelemetry } from './consoleRepositoryTelemetry';
+export { createConsoleRepositoryTelemetry } from './consoleRepositoryTelemetry.js';
 
 export const defaultRepositoryTelemetry = createConsoleRepositoryTelemetry();
 

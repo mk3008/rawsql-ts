@@ -504,6 +504,17 @@ function npmPackageExists(packageName) {
   );
 }
 
+function readPackageReleaseMetadata(packageDir) {
+  const packageJsonPath = path.join(packageDir, "package.json");
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+
+  return {
+    deprecationMessage: typeof packageJson?.rawsqlTs?.deprecationMessage === "string"
+      ? packageJson.rawsqlTs.deprecationMessage.trim()
+      : "",
+  };
+}
+
 function publishWithNpm(publishTarget, publishAuth, opts) {
   // CI already builds publish artifacts up front, so skip lifecycle rebuilds during npm publish.
   const args = ["publish"];
@@ -593,6 +604,43 @@ function publishWithNpm(publishTarget, publishAuth, opts) {
   }
 }
 
+function deprecateWithNpm(packageSpec, message, publishAuth, opts) {
+  const args = ["deprecate", "--registry", NPM_PUBLIC_REGISTRY, packageSpec, message];
+
+  try {
+    runWithOutput(NPM, args, { cwd: opts?.cwd });
+  } catch (error) {
+    const messageText = error instanceof Error ? error.message : String(error);
+    const c = classifyNpmFailure(messageText);
+
+    if (publishAuth === "oidc") {
+      const canFallback =
+        opts?.allowTokenFallback === true && Boolean(opts?.preservedNodeAuthToken) && Boolean(opts?.workspaceRoot);
+
+      if (canFallback && (c.needAuth || c.e401 || c.e403)) {
+        console.warn(`[publish] OIDC deprecate failed for ${packageSpec}; retrying with token auth fallback.`);
+
+        process.env.NODE_AUTH_TOKEN = opts.preservedNodeAuthToken;
+        process.env.NPM_CONFIG_USERCONFIG = ensureTokenUserConfig(opts.workspaceRoot);
+
+        const fallbackArgs = ["deprecate", "--registry", NPM_PUBLIC_REGISTRY, packageSpec, message];
+        runWithOutput(NPM, fallbackArgs, { cwd: opts?.cwd });
+        return;
+      }
+
+      throw new Error(
+        [
+          `[publish] npm deprecate failed for ${packageSpec} (OIDC mode).`,
+          "Ensure the publish credentials also have rights to manage package deprecations.",
+          `---\n${messageText}`,
+        ].join("\n"),
+      );
+    }
+
+    throw error;
+  }
+}
+
 function gitTagExists(tagName) {
   return tryRun(GIT, ["rev-parse", "-q", "--verify", `refs/tags/${tagName}`]).ok;
 }
@@ -675,6 +723,10 @@ async function main() {
     publishablePackages.push(pkg);
   }
 
+  const packageReleaseMetadata = new Map(
+    publishablePackages.map((pkg) => [pkg.name, readPackageReleaseMetadata(pkg.dir)]),
+  );
+
   const publishedNow = [];
   const releaseErrors = [];
 
@@ -700,6 +752,31 @@ async function main() {
       workspaceRoot,
     });
     publishedNow.push(`${pkg.name}@${pkg.version}`);
+  }
+
+  for (const pkg of publishablePackages) {
+    const deprecationMessage = packageReleaseMetadata.get(pkg.name)?.deprecationMessage ?? "";
+    if (!deprecationMessage) {
+      continue;
+    }
+
+    const versionExists = npmPackageVersionExists(pkg.name, pkg.version);
+    if (!versionExists) {
+      continue;
+    }
+
+    if (dryRun) {
+      console.log(`[publish] (dry-run) would deprecate ${pkg.name}@${pkg.version}`);
+      continue;
+    }
+
+    console.log(`[publish] deprecating ${pkg.name}@${pkg.version}`);
+    deprecateWithNpm(`${pkg.name}@${pkg.version}`, deprecationMessage, publishAuth, {
+      cwd: pkg.publishCwd ?? pkg.dir,
+      allowTokenFallback,
+      preservedNodeAuthToken,
+      workspaceRoot,
+    });
   }
 
   // Create tags

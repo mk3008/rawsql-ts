@@ -1,145 +1,352 @@
 #!/usr/bin/env node
-import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import {
+  IS_WINDOWS,
+  NPM,
+  PNPM,
+  ensureCleanDir,
+  getWorkspacePackages,
+  runWithOutput,
+  writeJson,
+} from "./publish-workspace-utils.mjs";
 
 const workspaceRoot = process.cwd();
-const isWindows = process.platform === "win32";
-const pnpm = "pnpm";
-const tar = "tar";
-const noLockfileEnv = {
-  ...process.env,
-  npm_config_lockfile: "false",
-};
-
-const packagesToPack = [
-  { name: "rawsql-ts", dir: "packages/core", tarball: "rawsql-ts-core.tgz" },
-  { name: "@rawsql-ts/sql-contract", dir: "packages/sql-contract", tarball: "sql-contract.tgz" },
-  { name: "@rawsql-ts/shared-binder", dir: "packages/_shared/binder", tarball: "shared-binder.tgz" },
-  { name: "@rawsql-ts/test-evidence-core", dir: "packages/test-evidence-core", tarball: "test-evidence-core.tgz" },
-  { name: "@rawsql-ts/test-evidence-renderer-md", dir: "packages/test-evidence-renderer-md", tarball: "test-evidence-renderer-md.tgz" },
-  { name: "@rawsql-ts/testkit-core", dir: "packages/testkit-core", tarball: "testkit-core.tgz" },
-  { name: "@rawsql-ts/testkit-postgres", dir: "packages/testkit-postgres", tarball: "testkit-postgres.tgz" },
-  { name: "@rawsql-ts/adapter-node-pg", dir: "packages/adapters/adapter-node-pg", tarball: "adapter-node-pg.tgz" },
-  { name: "@rawsql-ts/ztd-cli", dir: "packages/ztd-cli", tarball: "ztd-cli.tgz" },
-];
-
+const tarCommand = "tar";
 const outputRoot = path.join(workspaceRoot, "tmp", "published-package-check");
 const tarballRoot = path.join(outputRoot, "tarballs");
-const appRoot = path.join(outputRoot, "standalone-app");
+const packageRoot = path.join(outputRoot, "packages");
 
-function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {
-    cwd: workspaceRoot,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-    shell: isWindows,
-    env: process.env,
-    ...options,
-  });
-
-  if (result.stdout) process.stdout.write(result.stdout);
-  if (result.stderr) process.stderr.write(result.stderr);
-
-  if (result.error) {
-    throw result.error;
-  }
-
-  if (typeof result.status === "number" && result.status !== 0) {
-    throw new Error(`${command} ${args.join(" ")} failed with exit code ${result.status}`);
-  }
-
-  return result.stdout ?? "";
+function sanitizePackageName(packageName) {
+  return packageName.replace(/[^a-zA-Z0-9._-]+/g, "_");
 }
 
-function ensureCleanDir(dirPath) {
-  fs.rmSync(dirPath, { recursive: true, force: true });
-  fs.mkdirSync(dirPath, { recursive: true });
+function normalizePortablePath(filePath) {
+  return path.resolve(filePath).split(path.sep).join("/");
 }
 
-function inspectPackedManifest(tarballPath) {
-  const manifestText = run(tar, ["-xOf", tarballPath, "package/package.json"], {
+function toFileSpecifier(filePath) {
+  return `file:${normalizePortablePath(filePath)}`;
+}
+
+function isPublishTarget(pkg) {
+  return (
+    !pkg.private
+    && pkg.dir.startsWith(path.join(workspaceRoot, "packages"))
+    && !pkg.dir.includes(`${path.sep}templates${path.sep}`)
+  );
+}
+
+function readPackedManifest(tarballPath) {
+  const { stdout } = runWithOutput(tarCommand, ["-xOf", tarballPath, "package/package.json"], {
     cwd: workspaceRoot,
   });
-  const manifest = JSON.parse(manifestText);
-  const sections = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
-  const workspaceRefs = [];
+  return JSON.parse(stdout);
+}
 
-  // Packed manifests must not leak workspace protocol references.
+function listTarEntries(tarballPath) {
+  const { stdout } = runWithOutput(tarCommand, ["-tf", tarballPath], {
+    cwd: workspaceRoot,
+  });
+  return stdout
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function collectManifestPathsFromExports(exportsField, entries = new Set()) {
+  if (typeof exportsField === "string") {
+    entries.add(exportsField);
+    return entries;
+  }
+  if (Array.isArray(exportsField)) {
+    for (const value of exportsField) {
+      collectManifestPathsFromExports(value, entries);
+    }
+    return entries;
+  }
+  if (exportsField && typeof exportsField === "object") {
+    for (const value of Object.values(exportsField)) {
+      collectManifestPathsFromExports(value, entries);
+    }
+  }
+  return entries;
+}
+
+function assertNoWorkspaceProtocols(manifest, packageName) {
+  const sections = ["dependencies", "optionalDependencies", "peerDependencies"];
+
   for (const section of sections) {
-    const deps = manifest[section] ?? {};
-    for (const [name, version] of Object.entries(deps)) {
+    const record = manifest[section] ?? {};
+    for (const [dependencyName, version] of Object.entries(record)) {
       if (String(version).startsWith("workspace:")) {
-        workspaceRefs.push(`${section}:${name}=${version}`);
+        throw new Error(
+          `[packaging contract] ${packageName} leaked a workspace protocol in ${section}: ${dependencyName}=${version}`,
+        );
       }
     }
   }
-
-  return { manifest, workspaceRefs };
 }
 
-function writeJson(filePath, value) {
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+function assertTarballHasDist(entries, packageName) {
+  if (!entries.some((entry) => entry.startsWith("package/dist/"))) {
+    throw new Error(`[packaging contract] ${packageName} tarball is missing dist/.`);
+  }
 }
 
-function toPortableFilePath(toPath) {
-  const normalized = path.resolve(toPath).split(path.sep).join("/");
-  return `file:${normalized}`;
+function assertPathExistsInTarball(entries, packageName, manifestField, relativePath) {
+  if (typeof relativePath !== "string" || relativePath.length === 0 || !relativePath.startsWith(".")) {
+    return;
+  }
+
+  const normalized = `package/${relativePath.replace(/^\.\//u, "")}`;
+  if (normalized.includes("*")) {
+    const matcher = new RegExp(
+      `^${normalized
+        .split("*")
+        .map((segment) => segment.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"))
+        .join("[^/]+")}$`,
+      "u",
+    );
+    if (entries.some((entry) => matcher.test(entry))) {
+      return;
+    }
+  } else if (entries.includes(normalized)) {
+    return;
+  }
+
+  if (!normalized.includes("*")) {
+    throw new Error(
+      `[packaging contract] ${packageName} ${manifestField} points to a missing file: ${relativePath}`,
+    );
+  }
+
+  throw new Error(
+    `[packaging contract] ${packageName} ${manifestField} glob did not match a packed file: ${relativePath}`,
+  );
+}
+
+function assertManifestEntrypoints(manifest, entries, packageName) {
+  if (typeof manifest.main === "string") {
+    assertPathExistsInTarball(entries, packageName, "main", `./${manifest.main.replace(/^\.\//u, "")}`);
+  }
+
+  if (typeof manifest.types === "string") {
+    assertPathExistsInTarball(entries, packageName, "types", `./${manifest.types.replace(/^\.\//u, "")}`);
+  }
+
+  if (typeof manifest.bin === "string") {
+    assertPathExistsInTarball(entries, packageName, "bin", `./${manifest.bin.replace(/^\.\//u, "")}`);
+  } else if (manifest.bin && typeof manifest.bin === "object") {
+    for (const [binName, binPath] of Object.entries(manifest.bin)) {
+      assertPathExistsInTarball(entries, packageName, `bin.${binName}`, `./${String(binPath).replace(/^\.\//u, "")}`);
+    }
+  }
+
+  for (const exportPath of collectManifestPathsFromExports(manifest.exports)) {
+    assertPathExistsInTarball(entries, packageName, "exports", exportPath);
+  }
+}
+
+function writePackageJson(directory, packageJson) {
+  fs.mkdirSync(directory, { recursive: true });
+  fs.writeFileSync(path.join(directory, "package.json"), `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+}
+
+function run(command, args, options = {}) {
+  return runWithOutput(command, args, {
+    cwd: workspaceRoot,
+    shell: IS_WINDOWS,
+    ...options,
+  });
+}
+
+function runIn(directory, command, args, options = {}) {
+  return runWithOutput(command, args, {
+    cwd: directory,
+    shell: options.shell ?? IS_WINDOWS,
+    ...options,
+  });
+}
+
+function createTarballDependencyMap(packages) {
+  return Object.fromEntries(
+    packages.map((pkg) => [pkg.name, toFileSpecifier(pkg.tarballPath)]),
+  );
+}
+
+function setPackageTypeModule(directory) {
+  const packageJsonPath = path.join(directory, "package.json");
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  packageJson.type = "module";
+  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+}
+
+function writeNode16Tsconfig(directory) {
+  const tsconfigPath = path.join(directory, "tsconfig.node16.json");
+  writeJson(tsconfigPath, {
+    extends: "./tsconfig.json",
+    compilerOptions: {
+      module: "Node16",
+      moduleResolution: "Node16",
+      noEmit: true,
+    },
+  });
+}
+
+function packPublishedPackages() {
+  const workspacePackages = Array.from(getWorkspacePackages(workspaceRoot).values())
+    .filter(isPublishTarget)
+    .sort((left, right) => left.name.localeCompare(right.name));
+
+  const packed = [];
+
+  for (const pkg of workspacePackages) {
+    const packDir = path.join(tarballRoot, sanitizePackageName(pkg.name));
+    ensureCleanDir(packDir);
+    runIn(pkg.dir, PNPM, ["pack", "--pack-destination", packDir]);
+
+    const tarballs = fs
+      .readdirSync(packDir)
+      .filter((entry) => entry.endsWith(".tgz"))
+      .map((entry) => path.join(packDir, entry));
+
+    if (tarballs.length !== 1) {
+      throw new Error(`Expected exactly one tarball for ${pkg.name}, found ${tarballs.length}.`);
+    }
+
+    const tarballPath = tarballs[0];
+    const manifest = readPackedManifest(tarballPath);
+    const entries = listTarEntries(tarballPath);
+
+    assertTarballHasDist(entries, pkg.name);
+    assertNoWorkspaceProtocols(manifest, pkg.name);
+    assertManifestEntrypoints(manifest, entries, pkg.name);
+
+    packed.push({
+      dir: pkg.dir,
+      manifest,
+      name: pkg.name,
+      tarballPath,
+    });
+  }
+
+  return packed;
+}
+
+function verifyPackedTarballInstall(packages) {
+  const appDir = path.join(packageRoot, "packed-install");
+  ensureCleanDir(appDir);
+
+  writePackageJson(appDir, {
+    name: "packed-install-check",
+    private: true,
+    version: "0.0.0",
+    type: "module",
+    devDependencies: createTarballDependencyMap(packages),
+  });
+
+  runIn(appDir, NPM, ["install"]);
+  runIn(appDir, NPM, ["exec", "--", "ztd", "--help"]);
+  runIn(appDir, process.execPath, [
+    "--input-type=module",
+    "-e",
+    "await import('@rawsql-ts/testkit-core'); await import('@rawsql-ts/sql-contract-zod');",
+  ], { shell: false });
+
+  return appDir;
+}
+
+function verifyNpmConsumerSmoke(packages) {
+  const appDir = path.join(packageRoot, "npm-consumer-smoke");
+  ensureCleanDir(appDir);
+
+  writePackageJson(appDir, {
+    name: "npm-consumer-smoke",
+    private: true,
+    version: "0.0.0",
+    devDependencies: createTarballDependencyMap(packages),
+  });
+
+  runIn(appDir, NPM, ["install"]);
+  runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "demo", "--validator", "zod"]);
+  runIn(appDir, NPM, ["exec", "--", "ztd", "ztd-config"]);
+
+  setPackageTypeModule(appDir);
+  writeNode16Tsconfig(appDir);
+
+  runIn(appDir, NPM, ["exec", "--", "tsc", "--noEmit", "-p", "tsconfig.json"]);
+  runIn(appDir, NPM, ["exec", "--", "tsc", "-p", "tsconfig.node16.json"]);
+
+  return appDir;
+}
+
+function verifyOverwriteSafety(packages) {
+  const appDir = path.join(packageRoot, "overwrite-safety");
+  ensureCleanDir(appDir);
+
+  writePackageJson(appDir, {
+    name: "overwrite-safety-check",
+    private: true,
+    version: "0.0.0",
+    devDependencies: createTarballDependencyMap(packages),
+  });
+
+  fs.mkdirSync(path.join(appDir, "ztd", "ddl"), { recursive: true });
+  fs.writeFileSync(path.join(appDir, "ztd", "ddl", "public.sql"), "-- existing\n", "utf8");
+
+  runIn(appDir, NPM, ["install"]);
+
+  let overwriteFailed = false;
+  try {
+    runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "empty", "--validator", "zod"]);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes("--force")) {
+      throw error;
+    }
+    overwriteFailed = true;
+  }
+
+  if (!overwriteFailed) {
+    throw new Error("[scaffold safety] ztd init overwrote an existing DDL file without requiring --force.");
+  }
+
+  runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--force", "--workflow", "demo", "--validator", "zod"]);
+
+  const schemaContents = fs.readFileSync(path.join(appDir, "ztd", "ddl", "public.sql"), "utf8");
+  if (!schemaContents.includes('create table "user"')) {
+    throw new Error("[scaffold safety] --force did not overwrite the existing DDL file as expected.");
+  }
+
+  return appDir;
 }
 
 function main() {
   ensureCleanDir(outputRoot);
   ensureCleanDir(tarballRoot);
-  fs.mkdirSync(appRoot, { recursive: true });
+  ensureCleanDir(packageRoot);
 
-  // Use the existing release build entrypoint so pack verification mirrors publish preparation.
-  run(pnpm, ["build:publish"], { cwd: workspaceRoot });
+  run(PNPM, ["build:publish"]);
 
-  const summaries = [];
-  const overrides = {};
-
-  // Pack each published package and assert that workspace protocol references are rewritten.
-  for (const pkg of packagesToPack) {
-    const packageDir = path.join(workspaceRoot, pkg.dir);
-    const tarballPath = path.join(tarballRoot, pkg.tarball);
-    run(pnpm, ["pack", "--out", tarballPath], { cwd: packageDir });
-    const { manifest, workspaceRefs } = inspectPackedManifest(tarballPath);
-
-    if (workspaceRefs.length > 0) {
-      throw new Error(`${pkg.name} leaked workspace protocol refs: ${workspaceRefs.join(", ")}`);
-    }
-
-    overrides[pkg.name] = toPortableFilePath(tarballPath);
-    summaries.push({
-      name: pkg.name,
-      version: manifest.version,
-      tarball: tarballPath,
-    });
-  }
-
-  // Resolve internal packages from local tarballs so the standalone app can smoke-test unpublished combinations.
-  writeJson(path.join(appRoot, "package.json"), {
-    name: "published-package-check-app",
-    private: true,
-    version: "0.0.0",
-    pnpm: {
-      overrides,
-    },
-  });
-
-  const ztdCliTarball = overrides["@rawsql-ts/ztd-cli"];
-  run(pnpm, ["add", "-D", ztdCliTarball], { cwd: appRoot, env: noLockfileEnv });
-  run(pnpm, ["exec", "ztd", "init", "--yes"], { cwd: appRoot, env: noLockfileEnv });
-  run(pnpm, ["exec", "ztd", "ztd-config"], { cwd: appRoot, env: noLockfileEnv });
-  run(pnpm, ["test"], { cwd: appRoot, env: noLockfileEnv });
+  const packedPackages = packPublishedPackages();
+  const packedInstallApp = verifyPackedTarballInstall(packedPackages);
+  const npmSmokeApp = verifyNpmConsumerSmoke(packedPackages);
+  const overwriteSafetyApp = verifyOverwriteSafety(packedPackages);
 
   writeJson(path.join(outputRoot, "summary.json"), {
     checkedAt: new Date().toISOString(),
     node: process.version,
     platform: os.platform(),
-    packages: summaries,
-    smokeApp: appRoot,
+    packedInstallApp,
+    npmSmokeApp,
+    overwriteSafetyApp,
+    packages: packedPackages.map((pkg) => ({
+      name: pkg.name,
+      version: pkg.manifest.version,
+      tarballPath: pkg.tarballPath,
+    })),
   });
 }
 
