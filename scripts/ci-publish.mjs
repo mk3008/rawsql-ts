@@ -1,10 +1,9 @@
 #!/usr/bin/env node
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
 const IS_WINDOWS = process.platform === "win32";
-const PNPM = "pnpm";
 const NPM = "npm";
 const GIT = "git";
 const GH = "gh";
@@ -99,6 +98,32 @@ function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
+function loadPublishManifest(workspaceRoot) {
+  const manifestPath = process.env.RAWSQL_PUBLISH_MANIFEST;
+  if (!manifestPath) {
+    throw new Error("[publish] RAWSQL_PUBLISH_MANIFEST is required. Build publish artifacts before running actual publish.");
+  }
+
+  const resolvedPath = path.isAbsolute(manifestPath)
+    ? manifestPath
+    : path.resolve(workspaceRoot, manifestPath);
+  const manifest = readJson(resolvedPath);
+  const packages = Array.isArray(manifest.packages) ? manifest.packages : [];
+  if (packages.length === 0) {
+    throw new Error(`[publish] publish manifest has no packages: ${resolvedPath}`);
+  }
+
+  console.log(`[publish] using prebuilt publish manifest: ${resolvedPath}`);
+  return packages.map((pkg) => ({
+    name: pkg.name,
+    version: pkg.version,
+    dir: pkg.dir,
+    changelogPath: pkg.changelogPath,
+    publishSource: pkg.tarballPath,
+    publishCwd: workspaceRoot,
+  }));
+}
+
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -170,45 +195,6 @@ async function fetchOidcClaims() {
   }
 
   return { ok: true, claims: payloadJson.value, error: null };
-}
-
-function getWorkspacePackageDirByName() {
-  const raw = execFileSync(PNPM, ["-r", "list", "--depth", "-1", "--json"], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "inherit"],
-    shell: IS_WINDOWS,
-  });
-  const items = JSON.parse(raw);
-
-  const map = new Map();
-  for (const item of items) {
-    if (!item?.name || !item?.path) continue;
-    map.set(item.name, item.path);
-  }
-  return map;
-}
-
-function getWorkspacePackages(dirByName) {
-  const packages = [];
-
-  // Discover publish candidates from the current workspace instead of assuming a fixed group.
-  for (const [packageName, packageDir] of dirByName.entries()) {
-    const pkgJsonPath = path.join(packageDir, "package.json");
-    if (!fs.existsSync(pkgJsonPath)) continue;
-
-    const pkg = readJson(pkgJsonPath);
-    if (pkg.private) continue;
-
-    packages.push({
-      name: packageName,
-      version: pkg.version,
-      dir: packageDir,
-      changelogPath: path.join(packageDir, "CHANGELOG.md"),
-    });
-  }
-
-  packages.sort((a, b) => a.name.localeCompare(b.name));
-  return packages;
 }
 
 function detectPublishAuth() {
@@ -506,33 +492,13 @@ function npmPackageExists(packageName) {
   );
 }
 
-function createPublishTarball(packageDir, workspaceRoot, packageName) {
-  const tarballDir = path.join(workspaceRoot, "tmp", "publish-tarballs", sanitizeFilename(packageName));
-
-  // Recreate the staging directory so each publish attempt uses a single, deterministic tarball.
-  fs.rmSync(tarballDir, { recursive: true, force: true });
-  ensureDir(tarballDir);
-
-  runWithOutput(PNPM, ["pack", "--pack-destination", tarballDir], { cwd: packageDir });
-
-  const tarballs = fs.readdirSync(tarballDir).filter((entry) => entry.endsWith(".tgz"));
-  if (tarballs.length !== 1) {
-    throw new Error(
-      `[publish] expected exactly one tarball for ${packageName}, found ${tarballs.length} in ${tarballDir}`,
-    );
-  }
-
-  return path.join(tarballDir, tarballs[0]);
-}
-
-function publishWithNpm(packageDir, publishAuth, opts) {
-  if (!opts?.workspaceRoot || !opts?.packageName) {
-    throw new Error("[publish] publishWithNpm requires workspaceRoot and packageName");
-  }
-
-  const tarballPath = createPublishTarball(packageDir, opts.workspaceRoot, opts.packageName);
+function publishWithNpm(publishTarget, publishAuth, opts) {
   // CI already builds publish artifacts up front, so skip lifecycle rebuilds during npm publish.
-  const args = [tarballPath, "--ignore-scripts", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public"];
+  const args = ["publish"];
+  if (publishTarget) {
+    args.push(publishTarget);
+  }
+  args.push("--ignore-scripts", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public");
 
   if (publishAuth === "oidc") {
     // OIDC Trusted Publishing requires provenance.
@@ -540,7 +506,7 @@ function publishWithNpm(packageDir, publishAuth, opts) {
   }
 
   try {
-    runWithOutput(NPM, ["publish", ...args], { cwd: packageDir });
+    runWithOutput(NPM, args, { cwd: opts?.cwd });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const c = classifyNpmFailure(message);
@@ -569,7 +535,12 @@ function publishWithNpm(packageDir, publishAuth, opts) {
         process.env.NPM_CONFIG_USERCONFIG = ensureTokenUserConfig(opts.workspaceRoot);
 
         try {
-          runWithOutput(NPM, ["publish", ...args.filter((arg) => arg !== "--provenance")], { cwd: packageDir });
+          const fallbackArgs = ["publish"];
+          if (publishTarget) {
+            fallbackArgs.push(publishTarget);
+          }
+          fallbackArgs.push("--ignore-scripts", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public");
+          runWithOutput(NPM, fallbackArgs, { cwd: opts?.cwd });
           return;
         } catch (fallbackError) {
           const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
@@ -668,8 +639,7 @@ async function main() {
   await logOidcTokenClaims(publishAuth);
   ensureOidcPrereqs(publishAuth);
 
-  const dirByName = getWorkspacePackageDirByName();
-  const packages = getWorkspacePackages(dirByName);
+  const packages = loadPublishManifest(workspaceRoot);
 
   const tmpNotesDir = path.join(workspaceRoot, "tmp", "release-notes");
   ensureDir(tmpNotesDir);
@@ -705,7 +675,8 @@ async function main() {
     }
 
     console.log(`[publish] publishing ${pkg.name}@${pkg.version}`);
-    publishWithNpm(pkg.dir, publishAuth, {
+    publishWithNpm(pkg.publishSource ?? null, publishAuth, {
+      cwd: pkg.publishCwd ?? pkg.dir,
       packageName: pkg.name,
       allowTokenFallback,
       preservedNodeAuthToken,

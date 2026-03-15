@@ -8,8 +8,8 @@
     "sourceMap": true,
     "composite": false,
     "paths": {
-      "rawsql-ts": ["packages/core/dist/src/index.d.ts"],
-      "rawsql-ts/*": ["packages/core/dist/src/*"]
+      "rawsql-ts": ["../core/dist/src/index.d.ts"],
+      "rawsql-ts/*": ["../core/dist/src/*"]
     },
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
