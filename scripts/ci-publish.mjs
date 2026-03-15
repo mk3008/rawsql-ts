@@ -131,7 +131,7 @@ function loadPublishManifest(workspaceRoot) {
     version: pkg.version,
     dir: pkg.dir,
     changelogPath: pkg.changelogPath,
-    publishSource: pkg.tarballPath,
+    publishSource: pkg.resolvedTarballPath ?? pkg.tarballPath,
     publishCwd: workspaceRoot,
   }));
 }

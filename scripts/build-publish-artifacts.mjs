@@ -12,6 +12,7 @@ import {
   getReadinessContractDir,
   getReadinessPlanPath,
   loadValidatedPublishPlanContract,
+  toRelocatableTarballLocator,
   run,
   writeJson,
 } from "./publish-workspace-utils.mjs";
@@ -109,7 +110,7 @@ function main() {
       const tarballPath = findPackedTarball(packDir);
       report.packedArtifacts.push({
         ...candidate,
-        tarballPath,
+        tarballPath: toRelocatableTarballLocator(outputDir, tarballPath),
       });
     }
   } catch (error) {

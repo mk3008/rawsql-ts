@@ -163,6 +163,17 @@ function requireStringArray(value, contractName, description) {
   }
 }
 
+function toPortableRelativePath(filePath) {
+  return filePath.split(path.sep).join("/");
+}
+
+function ensurePathInsideRoot(rootDir, candidatePath, contractName, description) {
+  const relative = path.relative(rootDir, candidatePath);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw publishContractError(contractName, `${description} must stay within contract root ${rootDir}.`);
+  }
+}
+
 function validateSchemaVersion(payload, contractName) {
   if (payload.schemaVersion !== PUBLISH_CONTRACT_SCHEMA_VERSION) {
     throw publishContractError(
@@ -232,6 +243,29 @@ export function resolveContractFileFromArtifactRoot(artifactRoot, fileName, cont
   return matches[0];
 }
 
+export function resolveTarballPathFromContractDir(contractDir, locator, contractName, description) {
+  requireString(locator, contractName, description);
+  if (path.isAbsolute(locator)) {
+    throw publishContractError(contractName, `${description} must be relative to the contract root, received absolute path ${locator}.`);
+  }
+
+  const resolvedPath = path.resolve(contractDir, locator);
+  ensurePathInsideRoot(contractDir, resolvedPath, contractName, description);
+
+  if (!fs.existsSync(resolvedPath)) {
+    throw publishContractError(contractName, `${description} resolved to a missing tarball: ${resolvedPath}.`);
+  }
+
+  return resolvedPath;
+}
+
+export function toRelocatableTarballLocator(contractDir, tarballPath, contractName = "publish-artifacts") {
+  const resolvedContractDir = path.resolve(contractDir);
+  const resolvedTarballPath = path.resolve(tarballPath);
+  ensurePathInsideRoot(resolvedContractDir, resolvedTarballPath, contractName, "tarballPath");
+  return toPortableRelativePath(path.relative(resolvedContractDir, resolvedTarballPath));
+}
+
 export function loadValidatedPublishPlanContract(planPath) {
   if (!fs.existsSync(planPath)) {
     throw publishContractError("publish-readiness", `expected publish plan file at ${planPath}.`);
@@ -261,6 +295,7 @@ export function loadValidatedPublishManifestContract(manifestPath) {
     throw publishContractError("publish-artifacts", `expected publish manifest file at ${manifestPath}.`);
   }
 
+  const contractDir = path.dirname(path.resolve(manifestPath));
   const manifest = readContractJson(manifestPath, "publish-artifacts", "publish manifest payload");
   requireObject(manifest, "publish-artifacts", "publish manifest payload");
   validateSchemaVersion(manifest, "publish-artifacts");
@@ -270,6 +305,12 @@ export function loadValidatedPublishManifestContract(manifestPath) {
   requireArray(manifest.packages, "publish-artifacts", "packages");
   for (let index = 0; index < manifest.packages.length; index += 1) {
     validateManifestPackageEntry(manifest.packages[index], "publish-artifacts", index);
+    manifest.packages[index].resolvedTarballPath = resolveTarballPathFromContractDir(
+      contractDir,
+      manifest.packages[index].tarballPath,
+      "publish-artifacts",
+      `packages[${index}].tarballPath`,
+    );
   }
   return manifest;
 }
@@ -279,6 +320,7 @@ export function loadValidatedBuildReportContract(reportPath) {
     throw publishContractError("publish-artifacts", `expected build report file at ${reportPath}.`);
   }
 
+  const contractDir = path.dirname(path.resolve(reportPath));
   const report = readContractJson(reportPath, "publish-artifacts", "build report payload");
   requireObject(report, "publish-artifacts", "build report payload");
   validateSchemaVersion(report, "publish-artifacts");
@@ -293,6 +335,12 @@ export function loadValidatedBuildReportContract(reportPath) {
   }
   for (let index = 0; index < report.packedArtifacts.length; index += 1) {
     validateManifestPackageEntry(report.packedArtifacts[index], "publish-artifacts", index);
+    report.packedArtifacts[index].resolvedTarballPath = resolveTarballPathFromContractDir(
+      contractDir,
+      report.packedArtifacts[index].tarballPath,
+      "publish-artifacts",
+      `packedArtifacts[${index}].tarballPath`,
+    );
   }
   return report;
 }
