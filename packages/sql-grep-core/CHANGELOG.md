@@ -1,5 +1,11 @@
 # @rawsql-ts/sql-grep-core
 
+## 0.1.3
+
+### Patch Changes
+
+- [#583](https://github.com/mk3008/rawsql-ts/pull/583) [`214bb0a`](https://github.com/mk3008/rawsql-ts/commit/214bb0a8d6ceffb193e78d7531d78d6d2182b34a) Thanks [@mk3008](https://github.com/mk3008)! - Fix `@rawsql-ts/sql-grep-core` so its publish artifact build no longer fails on parser result typing and `rawsql-ts` import resolution during pack.
+
 ## 0.1.2
 
 ### Patch Changes
