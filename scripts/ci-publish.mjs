@@ -2,6 +2,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { loadValidatedPublishManifestContract } from "./publish-workspace-utils.mjs";
 
 const IS_WINDOWS = process.platform === "win32";
 const NPM = "npm";
@@ -109,23 +110,19 @@ function ensureCommandAvailable(command) {
   }
 }
 
-function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
-}
-
 function loadPublishManifest(workspaceRoot) {
   const manifestPath = process.env.RAWSQL_PUBLISH_MANIFEST;
   if (!manifestPath) {
-    throw new Error("[publish] RAWSQL_PUBLISH_MANIFEST is required. Build publish artifacts before running actual publish.");
+    throw new Error("[publish-contract] Artifact contract violation (publish-artifacts): RAWSQL_PUBLISH_MANIFEST is required. Build and verify publish artifacts before running actual publish.");
   }
 
   const resolvedPath = path.isAbsolute(manifestPath)
     ? manifestPath
     : path.resolve(workspaceRoot, manifestPath);
-  const manifest = readJson(resolvedPath);
+  const manifest = loadValidatedPublishManifestContract(resolvedPath);
   const packages = Array.isArray(manifest.packages) ? manifest.packages : [];
   if (packages.length === 0) {
-    throw new Error(`[publish] publish manifest has no packages: ${resolvedPath}`);
+    throw new Error(`[publish-contract] Artifact contract violation (publish-artifacts): publish manifest has no packages: ${resolvedPath}`);
   }
 
   console.log(`[publish] using prebuilt publish manifest: ${resolvedPath}`);
