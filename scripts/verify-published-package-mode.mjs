@@ -183,6 +183,20 @@ function setPackageTypeModule(directory) {
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
 }
 
+function readPackageJson(directory) {
+  return JSON.parse(fs.readFileSync(path.join(directory, "package.json"), "utf8"));
+}
+
+function restoreTarballDependencies(directory, tarballDependencies) {
+  const packageJsonPath = path.join(directory, "package.json");
+  const packageJson = readPackageJson(directory);
+  packageJson.devDependencies = {
+    ...(packageJson.devDependencies ?? {}),
+    ...tarballDependencies,
+  };
+  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+}
+
 function writeNode16Tsconfig(directory) {
   const tsconfigPath = path.join(directory, "tsconfig.node16.json");
   writeJson(tsconfigPath, {
@@ -261,16 +275,19 @@ function verifyPackedTarballInstall(packages) {
 function verifyNpmConsumerSmoke(packages) {
   const appDir = path.join(packageRoot, "npm-consumer-smoke");
   ensureCleanDir(appDir);
+  const tarballDependencies = createTarballDependencyMap(packages);
 
   writePackageJson(appDir, {
     name: "npm-consumer-smoke",
     private: true,
     version: "0.0.0",
-    devDependencies: createTarballDependencyMap(packages),
+    devDependencies: tarballDependencies,
   });
 
   runIn(appDir, NPM, ["install"]);
   runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "demo", "--validator", "zod"]);
+  restoreTarballDependencies(appDir, tarballDependencies);
+  runIn(appDir, NPM, ["install"]);
   runIn(appDir, NPM, ["exec", "--", "ztd", "ztd-config"]);
 
   setPackageTypeModule(appDir);

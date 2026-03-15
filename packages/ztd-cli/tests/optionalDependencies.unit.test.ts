@@ -26,9 +26,7 @@ test('findNearestPackageRoot resolves a consumer package without requiring pnpm-
 });
 
 test('findWorkspaceRoot still detects the rawsql-ts monorepo root when present', () => {
-  const nestedDir = path.join(repoRoot, 'packages', 'ztd-cli', 'dist', 'utils');
-
-  mkdirSync(nestedDir, { recursive: true });
+  const nestedDir = path.join(repoRoot, 'packages', 'ztd-cli', 'src', 'utils');
 
   expect(findWorkspaceRoot(nestedDir)).toBe(repoRoot);
 });

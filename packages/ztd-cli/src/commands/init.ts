@@ -1189,8 +1189,8 @@ export function resolvePackageManagerShellExecutable(
 
   // `shell: true` delegates through cmd.exe, which splits unquoted absolute paths with spaces.
   // Use the shim basename so the shell resolves it from PATH without truncating at `C:\Program`.
-  if (/\.(cmd|bat)$/i.test(executable) && path.isAbsolute(executable)) {
-    return path.basename(executable);
+  if (/\.(cmd|bat)$/i.test(executable) && path.win32.isAbsolute(executable)) {
+    return path.win32.basename(executable);
   }
 
   return executable || packageManager;

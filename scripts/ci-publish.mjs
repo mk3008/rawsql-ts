@@ -549,7 +549,7 @@ function publishWithNpm(publishTarget, publishAuth, opts) {
       if (c.e403) reasons.push("E403 Forbidden");
       if (c.e404) reasons.push("E404 Not Found (sometimes permission/auth is masked as 404)");
 
-      if (canFallback && (c.needAuth || c.e401 || c.e403)) {
+      if (canFallback && (c.needAuth || c.e401 || c.e403 || c.e404)) {
         // OIDC can fail if Trusted Publishers isn't configured or the workflow context doesn't match.
         // When allowed, retry with token auth so releases aren't blocked.
         console.warn("[publish] OIDC publish failed; retrying with token auth fallback.");
@@ -617,7 +617,7 @@ function deprecateWithNpm(packageSpec, message, publishAuth, opts) {
       const canFallback =
         opts?.allowTokenFallback === true && Boolean(opts?.preservedNodeAuthToken) && Boolean(opts?.workspaceRoot);
 
-      if (canFallback && (c.needAuth || c.e401 || c.e403)) {
+      if (canFallback && (c.needAuth || c.e401 || c.e403 || c.e404)) {
         console.warn(`[publish] OIDC deprecate failed for ${packageSpec}; retrying with token auth fallback.`);
 
         process.env.NODE_AUTH_TOKEN = opts.preservedNodeAuthToken;

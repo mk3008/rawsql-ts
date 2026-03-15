@@ -36,6 +36,10 @@ await writer.remove('customers', { id: 17 })
 ### Installation
 
 ```sh
+# Recommended for new projects
+pnpm add @rawsql-ts/sql-contract zod
+
+# Legacy compatibility helpers
 pnpm add @rawsql-ts/sql-contract-zod zod
 ```
 

@@ -45,4 +45,4 @@ Zod validation runs after the mapper binds every row to the DTO, so schema error
 
 ## Deprecated optional helper: @rawsql-ts/sql-contract-zod
 
-`@rawsql-ts/sql-contract-zod` depends on the core mapper and adds the `mapper.zod` helper plus Zod-aware coercion helpers such as `zNumberFromString`. Keep it only when you need that compatibility layer; new projects should install `@rawsql-ts/sql-contract` plus `zod` instead.
+`@rawsql-ts/sql-contract-zod` depends on the core mapper and adds the `reader.zod` helper plus Zod-aware coercion helpers such as `zNumberFromString`. Keep it only when you need that compatibility layer; new projects should install `@rawsql-ts/sql-contract` plus `zod` instead.
