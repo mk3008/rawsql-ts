@@ -479,6 +479,52 @@ function npmPackageVersionExists(packageName, version) {
   );
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForPackageVersion(packageName, version, { attempts = 5, initialDelayMs = 1_000 } = {}) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    if (npmPackageVersionExists(packageName, version)) {
+      return true;
+    }
+
+    if (attempt < attempts) {
+      const delayMs = initialDelayMs * (2 ** (attempt - 1));
+      console.log(
+        `[publish] ${packageName}@${version} is not visible on npm yet; retrying in ${delayMs}ms (${attempt}/${attempts}).`,
+      );
+      await sleep(delayMs);
+    }
+  }
+
+  return false;
+}
+
+function withTokenFallbackEnvironment(workspaceRoot, preservedNodeAuthToken, fn) {
+  const previousNodeAuthToken = process.env.NODE_AUTH_TOKEN;
+  const previousUserConfig = process.env.NPM_CONFIG_USERCONFIG;
+
+  process.env.NODE_AUTH_TOKEN = preservedNodeAuthToken;
+  process.env.NPM_CONFIG_USERCONFIG = ensureTokenUserConfig(workspaceRoot);
+
+  try {
+    return fn();
+  } finally {
+    if (previousNodeAuthToken === undefined) {
+      delete process.env.NODE_AUTH_TOKEN;
+    } else {
+      process.env.NODE_AUTH_TOKEN = previousNodeAuthToken;
+    }
+
+    if (previousUserConfig === undefined) {
+      delete process.env.NPM_CONFIG_USERCONFIG;
+    } else {
+      process.env.NPM_CONFIG_USERCONFIG = previousUserConfig;
+    }
+  }
+}
+
 function npmPackageExists(packageName) {
   const result = spawnSync(NPM, ["view", "--registry", NPM_PUBLIC_REGISTRY, packageName, "version"], {
     encoding: "utf8",
@@ -554,16 +600,15 @@ function publishWithNpm(publishTarget, publishAuth, opts) {
         // When allowed, retry with token auth so releases aren't blocked.
         console.warn("[publish] OIDC publish failed; retrying with token auth fallback.");
 
-        process.env.NODE_AUTH_TOKEN = opts.preservedNodeAuthToken;
-        process.env.NPM_CONFIG_USERCONFIG = ensureTokenUserConfig(opts.workspaceRoot);
-
         try {
-          const fallbackArgs = ["publish"];
-          if (publishTarget) {
-            fallbackArgs.push(publishTarget);
-          }
-          fallbackArgs.push("--ignore-scripts", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public");
-          runWithOutput(NPM, fallbackArgs, { cwd: opts?.cwd });
+          withTokenFallbackEnvironment(opts.workspaceRoot, opts.preservedNodeAuthToken, () => {
+            const fallbackArgs = ["publish"];
+            if (publishTarget) {
+              fallbackArgs.push(publishTarget);
+            }
+            fallbackArgs.push("--ignore-scripts", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public");
+            runWithOutput(NPM, fallbackArgs, { cwd: opts?.cwd });
+          });
           return;
         } catch (fallbackError) {
           const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
@@ -619,12 +664,10 @@ function deprecateWithNpm(packageSpec, message, publishAuth, opts) {
 
       if (canFallback && (c.needAuth || c.e401 || c.e403 || c.e404)) {
         console.warn(`[publish] OIDC deprecate failed for ${packageSpec}; retrying with token auth fallback.`);
-
-        process.env.NODE_AUTH_TOKEN = opts.preservedNodeAuthToken;
-        process.env.NPM_CONFIG_USERCONFIG = ensureTokenUserConfig(opts.workspaceRoot);
-
-        const fallbackArgs = ["deprecate", "--registry", NPM_PUBLIC_REGISTRY, packageSpec, message];
-        runWithOutput(NPM, fallbackArgs, { cwd: opts?.cwd });
+        withTokenFallbackEnvironment(opts.workspaceRoot, opts.preservedNodeAuthToken, () => {
+          const fallbackArgs = ["deprecate", "--registry", NPM_PUBLIC_REGISTRY, packageSpec, message];
+          runWithOutput(NPM, fallbackArgs, { cwd: opts?.cwd });
+        });
         return;
       }
 
@@ -760,8 +803,9 @@ async function main() {
       continue;
     }
 
-    const versionExists = npmPackageVersionExists(pkg.name, pkg.version);
+    const versionExists = await waitForPackageVersion(pkg.name, pkg.version);
     if (!versionExists) {
+      console.warn(`[publish] skipping deprecate for ${pkg.name}@${pkg.version}; version is still not visible on npm after retries.`);
       continue;
     }
 

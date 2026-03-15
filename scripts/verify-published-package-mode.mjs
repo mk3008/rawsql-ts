@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   IS_WINDOWS,
   NPM,
@@ -22,12 +23,8 @@ function sanitizePackageName(packageName) {
   return packageName.replace(/[^a-zA-Z0-9._-]+/g, "_");
 }
 
-function normalizePortablePath(filePath) {
-  return path.resolve(filePath).split(path.sep).join("/");
-}
-
 function toFileSpecifier(filePath) {
-  return `file:${normalizePortablePath(filePath)}`;
+  return pathToFileURL(path.resolve(filePath)).href;
 }
 
 function isPublishTarget(pkg) {

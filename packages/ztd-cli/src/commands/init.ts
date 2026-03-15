@@ -2233,6 +2233,15 @@ function buildInitDryRunPlan(rootDir: string, options: {
   };
 }
 
+function validateJsonBooleanFlag(value: unknown, flagName: string): value is boolean | undefined {
+  if (value === undefined || typeof value === 'boolean') {
+    return true;
+  }
+
+  console.error(`Invalid --${flagName} value in --json payload. Expected a boolean.`);
+  process.exit(1);
+}
+
 export function registerInitCommand(program: Command): void {
   program
     .command('init')
@@ -2268,6 +2277,11 @@ export function registerInitCommand(program: Command): void {
       if (typeof merged.localSourceRoot === 'string') {
         merged.localSourceRoot = rejectEncodedTraversal(rejectControlChars(merged.localSourceRoot, '--local-source-root'), '--local-source-root');
       }
+      // Reject stringly-typed booleans from --json so unsupported payloads cannot silently enable features.
+      validateJsonBooleanFlag(merged.force, 'force');
+      validateJsonBooleanFlag(merged.withAiGuidance, 'with-ai-guidance');
+      validateJsonBooleanFlag(merged.withSqlclient, 'with-sqlclient');
+      validateJsonBooleanFlag(merged.withAppInterface, 'with-app-interface');
       // Validate --workflow value if provided.
       if (merged.workflow && !VALID_WORKFLOWS.includes(merged.workflow as InitWorkflow)) {
         console.error(`Invalid --workflow value: "${merged.workflow}". Must be one of: ${VALID_WORKFLOWS.join(', ')}`);
@@ -2298,9 +2312,9 @@ export function registerInitCommand(program: Command): void {
       if (merged.dryRun) {
         const plan = buildInitDryRunPlan(process.cwd(), {
           appShape,
-          withAiGuidance: Boolean(merged.withAiGuidance),
-          withSqlClient: Boolean(merged.withSqlclient),
-          withAppInterface: Boolean(merged.withAppInterface),
+          withAiGuidance: merged.withAiGuidance === true,
+          withSqlClient: merged.withSqlclient === true,
+          withAppInterface: merged.withAppInterface === true,
           workflow: workflow ?? 'demo',
           validator: validator ?? 'zod',
           localSourceRoot: merged.localSourceRoot
@@ -2317,10 +2331,10 @@ export function registerInitCommand(program: Command): void {
       try {
         await runInitCommand(prompter, {
           appShape,
-          withAiGuidance: Boolean(merged.withAiGuidance),
-          withSqlClient: Boolean(merged.withSqlclient),
-          withAppInterface: Boolean(merged.withAppInterface),
-          forceOverwrite: Boolean(merged.force),
+          withAiGuidance: merged.withAiGuidance === true,
+          withSqlClient: merged.withSqlclient === true,
+          withAppInterface: merged.withAppInterface === true,
+          forceOverwrite: merged.force === true,
           nonInteractive: isNonInteractive,
           workflow,
           validator,
