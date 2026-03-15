@@ -3,7 +3,7 @@
 
 > **convertModelDrivenMapping**(`modelMapping`): `object`
 
-Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:63](https://github.com/mk3008/rawsql-ts/blob/afccb0e5ee5bb5f54992146ee22aae0d2dcec5db/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L63)
+Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:63](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L63)
 
 Convert a model-driven JSON mapping to the traditional JsonMapping format.
 This enables backward compatibility with existing PostgresJsonQueryBuilder.

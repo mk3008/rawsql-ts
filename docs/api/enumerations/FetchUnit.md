@@ -1,7 +1,7 @@
 <div v-pre>
 # Enumeration: FetchUnit
 
-Defined in: [packages/core/src/models/Clause.ts:412](https://github.com/mk3008/rawsql-ts/blob/afccb0e5ee5bb5f54992146ee22aae0d2dcec5db/packages/core/src/models/Clause.ts#L412)
+Defined in: [packages/core/src/models/Clause.ts:412](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/models/Clause.ts#L412)
 
 ## Enumeration Members
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/Clause.ts:412](https://github.com/mk3008/r
 
 > **RowsOnly**: `"rows only"`
 
-Defined in: [packages/core/src/models/Clause.ts:413](https://github.com/mk3008/rawsql-ts/blob/afccb0e5ee5bb5f54992146ee22aae0d2dcec5db/packages/core/src/models/Clause.ts#L413)
+Defined in: [packages/core/src/models/Clause.ts:413](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/models/Clause.ts#L413)
 
 ***
 
@@ -17,7 +17,7 @@ Defined in: [packages/core/src/models/Clause.ts:413](https://github.com/mk3008/r
 
 > **Percent**: `"percent"`
 
-Defined in: [packages/core/src/models/Clause.ts:414](https://github.com/mk3008/rawsql-ts/blob/afccb0e5ee5bb5f54992146ee22aae0d2dcec5db/packages/core/src/models/Clause.ts#L414)
+Defined in: [packages/core/src/models/Clause.ts:414](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/models/Clause.ts#L414)
 
 ***
 
@@ -25,5 +25,5 @@ Defined in: [packages/core/src/models/Clause.ts:414](https://github.com/mk3008/r
 
 > **PercentWithTies**: `"percent with ties"`
 
-Defined in: [packages/core/src/models/Clause.ts:415](https://github.com/mk3008/rawsql-ts/blob/afccb0e5ee5bb5f54992146ee22aae0d2dcec5db/packages/core/src/models/Clause.ts#L415)
+Defined in: [packages/core/src/models/Clause.ts:415](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/models/Clause.ts#L415)
 </div>

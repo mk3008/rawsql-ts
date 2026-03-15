@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: InsertResultSelectConverter
 
-Defined in: [packages/core/src/transformers/InsertResultSelectConverter.ts:67](https://github.com/mk3008/rawsql-ts/blob/afccb0e5ee5bb5f54992146ee22aae0d2dcec5db/packages/core/src/transformers/InsertResultSelectConverter.ts#L67)
+Defined in: [packages/core/src/transformers/InsertResultSelectConverter.ts:67](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/transformers/InsertResultSelectConverter.ts#L67)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/InsertResultSelectConverter.ts:67](h
 
 > `static` **toSelectQuery**(`insertQuery`, `options?`): [`SimpleSelectQuery`](SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/transformers/InsertResultSelectConverter.ts:76](https://github.com/mk3008/rawsql-ts/blob/afccb0e5ee5bb5f54992146ee22aae0d2dcec5db/packages/core/src/transformers/InsertResultSelectConverter.ts#L76)
+Defined in: [packages/core/src/transformers/InsertResultSelectConverter.ts:76](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/transformers/InsertResultSelectConverter.ts#L76)
 
 Converts an INSERT ... SELECT/VALUES query into a SELECT that mirrors its RETURNING output
 (or a count(*) when RETURNING is absent).
