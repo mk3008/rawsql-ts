@@ -3,7 +3,7 @@
 
 > **MappingFormat** = `"enhanced"` \| `"model-driven"` \| `"legacy"`
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:21](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/transformers/JsonMappingConverter.ts#L21)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:21](https://github.com/mk3008/rawsql-ts/blob/b8af36add63fea682bf305ea1eaa342ce61b03bd/packages/core/src/transformers/JsonMappingConverter.ts#L21)
 
 Format detection result.
 </div>

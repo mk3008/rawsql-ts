@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SqlSchemaValidator
 
-Defined in: [packages/core/src/utils/SqlSchemaValidator.ts:20](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/utils/SqlSchemaValidator.ts#L20)
+Defined in: [packages/core/src/utils/SqlSchemaValidator.ts:20](https://github.com/mk3008/rawsql-ts/blob/b8af36add63fea682bf305ea1eaa342ce61b03bd/packages/core/src/utils/SqlSchemaValidator.ts#L20)
 
 Validates SQL query structures against known tables and columns.
 
@@ -32,7 +32,7 @@ Related tests: packages/core/tests/utils/SqlSchemaValidator.validate.test.ts
 
 > `static` **validate**(`sql`, `tableResolver`): `void`
 
-Defined in: [packages/core/src/utils/SqlSchemaValidator.ts:27](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/utils/SqlSchemaValidator.ts#L27)
+Defined in: [packages/core/src/utils/SqlSchemaValidator.ts:27](https://github.com/mk3008/rawsql-ts/blob/b8af36add63fea682bf305ea1eaa342ce61b03bd/packages/core/src/utils/SqlSchemaValidator.ts#L27)
 
 Validates a SQL query structure against a provided TableColumnResolver or TableSchema array.
 

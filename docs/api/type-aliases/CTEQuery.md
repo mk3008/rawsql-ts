@@ -3,7 +3,7 @@
 
 > **CTEQuery** = [`SelectQuery`](../interfaces/SelectQuery.md) \| [`InsertQuery`](../classes/InsertQuery.md) \| [`UpdateQuery`](../classes/UpdateQuery.md) \| [`DeleteQuery`](../classes/DeleteQuery.md)
 
-Defined in: [packages/core/src/models/Clause.ts:363](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/models/Clause.ts#L363)
+Defined in: [packages/core/src/models/Clause.ts:363](https://github.com/mk3008/rawsql-ts/blob/b8af36add63fea682bf305ea1eaa342ce61b03bd/packages/core/src/models/Clause.ts#L363)
 
 Query types permitted inside a CTE body.
 </div>

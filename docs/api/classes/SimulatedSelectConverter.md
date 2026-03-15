@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SimulatedSelectConverter
 
-Defined in: [packages/core/src/transformers/SimulatedSelectConverter.ts:23](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/transformers/SimulatedSelectConverter.ts#L23)
+Defined in: [packages/core/src/transformers/SimulatedSelectConverter.ts:23](https://github.com/mk3008/rawsql-ts/blob/b8af36add63fea682bf305ea1eaa342ce61b03bd/packages/core/src/transformers/SimulatedSelectConverter.ts#L23)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/SimulatedSelectConverter.ts:23](http
 
 > `static` **convert**(`ast`, `options?`): `null` \| [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/SimulatedSelectConverter.ts:37](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/transformers/SimulatedSelectConverter.ts#L37)
+Defined in: [packages/core/src/transformers/SimulatedSelectConverter.ts:37](https://github.com/mk3008/rawsql-ts/blob/b8af36add63fea682bf305ea1eaa342ce61b03bd/packages/core/src/transformers/SimulatedSelectConverter.ts#L37)
 
 Converts a SQL statement into a simulated SELECT statement for previewing results.
 

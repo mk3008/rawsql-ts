@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: ModelDrivenJsonMapping
 
-Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:44](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L44)
+Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:44](https://github.com/mk3008/rawsql-ts/blob/b8af36add63fea682bf305ea1eaa342ce61b03bd/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L44)
 
 Model-driven JSON mapping that mirrors TypeScript interface structure.
 This design makes it easy to understand the relationship between models and database columns.
@@ -12,7 +12,7 @@ This design makes it easy to understand the relationship between models and data
 
 > **typeInfo**: `object`
 
-Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:45](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L45)
+Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:45](https://github.com/mk3008/rawsql-ts/blob/b8af36add63fea682bf305ea1eaa342ce61b03bd/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L45)
 
 #### interface
 
@@ -28,5 +28,5 @@ Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:45](https:
 
 > **structure**: [`StructureFields`](../type-aliases/StructureFields.md)
 
-Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:49](https://github.com/mk3008/rawsql-ts/blob/8d1f15661e73f584057907d1a7b293ae05bc5ae9/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L49)
+Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:49](https://github.com/mk3008/rawsql-ts/blob/b8af36add63fea682bf305ea1eaa342ce61b03bd/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L49)
 </div>
