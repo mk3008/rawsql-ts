@@ -30,6 +30,14 @@ inputs:
     description: "Comma-separated relative file paths validated by verify-runtime-prereqs.mjs"
     required: false
     default: ""
+  min-npm-version:
+    description: "Blocking npm minimum version. Leave empty when a job does not depend on a specific npm floor."
+    required: false
+    default: ""
+  warn-min-npm-version:
+    description: "Warning-only npm minimum version used for advisory checks."
+    required: false
+    default: ""
   label:
     description: "Human-readable label for runtime diagnostics"
     required: false
@@ -85,5 +93,6 @@ runs:
           --label "${{ inputs.label }}" \
           --commands "${{ inputs.required-commands }}" \
           --files "${{ inputs.required-files }}" \
-          --min-npm-version "11.5.1" \
+          ${{ inputs.min-npm-version != '' && format('--min-npm-version "{0}"', inputs.min-npm-version) || '' }} \
+          ${{ inputs.warn-min-npm-version != '' && format('--warn-min-npm-version "{0}"', inputs.warn-min-npm-version) || '' }} \
           --output "tmp/runtime-checks/${{ inputs.label }}.json"

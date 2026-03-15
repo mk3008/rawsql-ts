@@ -39,6 +39,7 @@ jobs:
           install-dependencies: "true"
           update-npm: "true"
           required-commands: "node,npm,pnpm"
+          warn-min-npm-version: "11.5.1"
           label: "verify-publish-readiness"
 
       - name: Verify publish readiness
@@ -67,6 +68,7 @@ jobs:
           install-dependencies: "true"
           update-npm: "false"
           required-commands: "node,npm,pnpm"
+          warn-min-npm-version: "11.5.1"
           label: "build-publish-artifacts"
 
       - name: Download publish readiness evidence
@@ -103,6 +105,7 @@ jobs:
           install-dependencies: "false"
           update-npm: "true"
           required-commands: "node,npm,git,gh"
+          min-npm-version: "11.5.1"
           label: "actual-publish"
 
       - name: Download built publish artifacts
@@ -117,7 +120,6 @@ jobs:
             --label "actual-publish-manifest" \
             --commands "node,npm,git,gh" \
             --files "tmp/publish-artifacts/publish-manifest.json" \
-            --min-npm-version "11.5.1" \
             --output "tmp/runtime-checks/actual-publish-manifest.json"
 
       - name: Configure git identity for tags

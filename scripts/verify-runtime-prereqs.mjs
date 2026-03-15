@@ -9,6 +9,7 @@ function parseArgs(argv) {
     commands: [],
     files: [],
     minNpmVersion: null,
+    warnMinNpmVersion: null,
     output: null,
   };
 
@@ -33,6 +34,11 @@ function parseArgs(argv) {
     }
     if (arg === "--min-npm-version") {
       options.minNpmVersion = next || null;
+      index += 1;
+      continue;
+    }
+    if (arg === "--warn-min-npm-version") {
+      options.warnMinNpmVersion = next || null;
       index += 1;
       continue;
     }
@@ -105,6 +111,7 @@ function main() {
     exists: fs.existsSync(path.resolve(workspaceRoot, filePath)),
   }));
   const failures = [];
+  const warnings = [];
 
   for (const check of commandChecks) {
     if (!check.ok) {
@@ -123,6 +130,17 @@ function main() {
     }
   }
 
+  if (options.warnMinNpmVersion) {
+    const npmCheck = commandChecks.find((check) => check.command === "npm");
+    if (!npmCheck?.ok) {
+      warnings.push(`[runtime-check] npm is unavailable, so recommended minimum ${options.warnMinNpmVersion} could not be checked.`);
+    } else if (compareSemver(npmCheck.version, options.warnMinNpmVersion) < 0) {
+      warnings.push(
+        `[runtime-check] npm ${npmCheck.version} is below the recommended minimum ${options.warnMinNpmVersion}.`,
+      );
+    }
+  }
+
   for (const check of fileChecks) {
     if (!check.exists) {
       failures.push(`[runtime-check] Required file is missing: ${check.path}`);
@@ -137,6 +155,7 @@ function main() {
     commands: commandChecks,
     files: fileChecks,
     ok: failures.length === 0,
+    warnings,
     failures,
   };
 
@@ -151,6 +170,9 @@ function main() {
   }
   for (const check of fileChecks) {
     console.log(`[runtime-check] file ${check.path}: ${check.exists ? "present" : "missing"}`);
+  }
+  for (const warning of warnings) {
+    console.warn(warning);
   }
 
   if (failures.length > 0) {
