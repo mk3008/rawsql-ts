@@ -94,6 +94,21 @@ function tryRun(command, args, options = {}) {
   return { ok: result.status === 0, status: result.status };
 }
 
+function ensureCommandAvailable(command) {
+  const probe = spawnSync(command, ["--version"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: IS_WINDOWS,
+  });
+
+  if (probe.error || probe.status !== 0) {
+    const message = probe.error instanceof Error
+      ? probe.error.message
+      : `${command} --version failed with exit code ${probe.status ?? "unknown"}`;
+    throw new Error(`[publish] Required command is missing or unusable: ${command}. ${message}`);
+  }
+}
+
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
@@ -629,6 +644,11 @@ async function main() {
   const workspaceRoot = process.cwd();
   const dryRun = process.env.RAWSQL_CI_DRY_RUN === "1";
   const publishAuth = detectPublishAuth();
+
+  // Keep actual publish self-diagnosing even when invoked outside the intended workflow wrapper.
+  for (const command of [NPM, GIT, GH]) {
+    ensureCommandAvailable(command);
+  }
 
   const preservedNodeAuthToken = getPreservedPublishToken();
   const allowTokenFallback = process.env.RAWSQL_PUBLISH_OIDC_FALLBACK_TO_TOKEN === "1";

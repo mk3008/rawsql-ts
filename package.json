@@ -34,6 +34,7 @@
     "playground:test": "pnpm --filter ztd-playground test",
     "prepare": "husky",
     "verify:publish-readiness": "node scripts/publish-plan.mjs",
+    "verify:runtime-prereqs": "node scripts/verify-runtime-prereqs.mjs",
     "docs:dev": "vitepress dev docs",
     "docs:build": "pnpm docs:api && vitepress build docs",
     "docs:preview": "vitepress preview docs",

@@ -1,0 +1,89 @@
+name: "Setup Publish Runtime"
+description: "Initialize a self-contained runtime for publish workflow jobs and fail fast when required tools/files are missing."
+
+inputs:
+  node-version:
+    description: "Node.js version to install"
+    required: false
+    default: "22"
+  use-pnpm:
+    description: "Whether this job needs pnpm on PATH"
+    required: false
+    default: "true"
+  install-dependencies:
+    description: "Whether to run pnpm install --frozen-lockfile"
+    required: false
+    default: "false"
+  update-npm:
+    description: "Whether to upgrade npm for Trusted Publishing requirements"
+    required: false
+    default: "false"
+  registry-url:
+    description: "Registry URL passed to setup-node"
+    required: false
+    default: "https://registry.npmjs.org"
+  required-commands:
+    description: "Comma-separated command list validated by verify-runtime-prereqs.mjs"
+    required: false
+    default: "node,npm"
+  required-files:
+    description: "Comma-separated relative file paths validated by verify-runtime-prereqs.mjs"
+    required: false
+    default: ""
+  label:
+    description: "Human-readable label for runtime diagnostics"
+    required: false
+    default: "publish-job"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup pnpm
+      if: ${{ inputs.use-pnpm == 'true' }}
+      uses: pnpm/action-setup@v4
+      with:
+        run_install: false
+
+    - name: Setup Node with pnpm cache
+      if: ${{ inputs.use-pnpm == 'true' }}
+      uses: actions/setup-node@v5
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: "pnpm"
+        registry-url: ${{ inputs.registry-url }}
+
+    - name: Setup Node without pnpm cache
+      if: ${{ inputs.use-pnpm != 'true' }}
+      uses: actions/setup-node@v5
+      with:
+        node-version: ${{ inputs.node-version }}
+        package-manager-cache: false
+        registry-url: ${{ inputs.registry-url }}
+
+    - name: Enable Corepack
+      if: ${{ inputs.use-pnpm == 'true' }}
+      shell: bash
+      run: corepack enable
+
+    - name: Install dependencies
+      if: ${{ inputs.install-dependencies == 'true' && inputs.use-pnpm == 'true' }}
+      shell: bash
+      run: pnpm install --frozen-lockfile
+
+    - name: Update npm
+      if: ${{ inputs.update-npm == 'true' }}
+      shell: bash
+      run: |
+        npm install -g "npm@^11.5.1"
+        npm --version
+
+    - name: Verify runtime prerequisites
+      shell: bash
+      run: |
+        mkdir -p tmp/runtime-checks
+        node ./scripts/verify-runtime-prereqs.mjs \
+          --label "${{ inputs.label }}" \
+          --commands "${{ inputs.required-commands }}" \
+          --files "${{ inputs.required-files }}" \
+          --min-npm-version "11.5.1" \
+          --output "tmp/runtime-checks/${{ inputs.label }}.json"
