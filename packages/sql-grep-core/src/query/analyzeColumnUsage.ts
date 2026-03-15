@@ -21,6 +21,7 @@ import {
   ParenSource,
   RawString,
   SelectItem,
+  SelectQuery,
   SimpleSelectQuery,
   SqlParser,
   StringSpecifierExpression,
@@ -31,6 +32,7 @@ import {
   UnaryExpression,
   UpdateQuery,
   ValueList,
+  type ParsedStatement,
   type FromClause,
   type JoinClause,
   type SourceExpression,
@@ -69,9 +71,13 @@ export function analyzeColumnUsage(params: {
   target: QueryUsageTarget;
   mode: QueryUsageMode;
 }): QueryUsageAnalyzerResult {
-  let parsed: unknown;
   try {
-    parsed = SqlParser.parse(params.statement.statementText);
+    const parsed = SqlParser.parse(params.statement.statementText);
+    const occurrences = collectColumnOccurrences(parsed, params.target, params.mode);
+    return {
+      matches: occurrences.map((occurrence) => toColumnMatch(params.statement, occurrence)),
+      warnings: []
+    };
   } catch (error) {
     return {
       matches: [],
@@ -86,16 +92,10 @@ export function analyzeColumnUsage(params: {
       ]
     };
   }
-
-  const occurrences = collectColumnOccurrences(parsed, params.target, params.mode);
-  return {
-    matches: occurrences.map((occurrence) => toColumnMatch(params.statement, occurrence)),
-    warnings: []
-  };
 }
 
 function collectColumnOccurrences(
-  parsed: unknown,
+  parsed: ParsedStatement | SelectQuery,
   target: QueryUsageTarget,
   mode: QueryUsageMode,
   context: { inSubquery?: boolean; inCte?: boolean } = {}

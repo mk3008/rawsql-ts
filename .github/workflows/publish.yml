@@ -12,10 +12,10 @@ permissions:
   id-token: write
 
 jobs:
-  publish_oidc:
+  verify_publish_readiness:
     runs-on: ubuntu-latest
     outputs:
-      should_publish: ${{ steps.guard.outputs.should_publish }}
+      should_publish: ${{ steps.plan.outputs.should_publish }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -56,32 +56,87 @@ jobs:
           npm install -g "npm@^11.5.1"
           npm --version
 
-      # Safety guard: do not attempt a publish while a release PR is still pending.
-      - name: Check for unapplied changesets
-        id: guard
+      - name: Verify publish readiness
+        id: plan
+        run: node ./scripts/publish-plan.mjs --github-output "$GITHUB_OUTPUT"
+
+      - name: Upload publish readiness evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-readiness
+          path: tmp/publish-readiness
+
+  build_publish_artifacts:
+    needs: verify_publish_readiness
+    if: ${{ needs.verify_publish_readiness.outputs.should_publish == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - run: corepack enable
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Download publish readiness evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: publish-readiness
+          path: tmp/publish-readiness
+
+      - name: Build publish artifacts
+        run: node ./scripts/build-publish-artifacts.mjs --plan tmp/publish-readiness/publish-plan.json
+
+      - name: Upload publish artifact evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-artifacts
+          path: tmp/publish-artifacts
+
+  actual_publish:
+    needs: [verify_publish_readiness, build_publish_artifacts]
+    if: ${{ needs.verify_publish_readiness.outputs.should_publish == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Update npm
         shell: bash
         run: |
-          if find .changeset -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | grep -q .; then
-            echo "::notice::Unapplied changesets exist. Run the Release PR workflow and merge that PR before publishing."
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          # npm Trusted Publishing (OIDC) requires npm >= 11.5.1.
+          npm install -g "npm@^11.5.1"
+          npm --version
 
-          echo "should_publish=true" >> "$GITHUB_OUTPUT"
-
-      - name: Build publish artifacts (dist/)
-        if: ${{ steps.guard.outputs.should_publish == 'true' }}
-        run: pnpm build:publish
+      - name: Download built publish artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: publish-artifacts
+          path: tmp/publish-artifacts
 
       - name: Configure git identity for tags
-        if: ${{ steps.guard.outputs.should_publish == 'true' }}
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: OIDC diagnostics
-        if: ${{ steps.guard.outputs.should_publish == 'true' }}
         shell: bash
         run: |
           echo "RAWSQL_PUBLISH_AUTH=oidc"
@@ -96,13 +151,13 @@ jobs:
           env -u NODE_AUTH_TOKEN npm whoami && echo "npm auth: token/session is active (unexpected for pure OIDC)" || echo "npm auth: no token/session (expected for OIDC)"
 
       - name: Publish to npm (OIDC-compatible), tag, and create GitHub Releases
-        if: ${{ steps.guard.outputs.should_publish == 'true' }}
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
           RAWSQL_PUBLISH_AUTH: "oidc"
           RAWSQL_PUBLISH_OIDC_FALLBACK_TO_TOKEN: "1"
+          RAWSQL_PUBLISH_MANIFEST: tmp/publish-artifacts/publish-manifest.json
         run: |
           # Preserve the existing npm token under a separate name so ci-publish.mjs can use it only for explicit retries.
           # Then drop NODE_AUTH_TOKEN from the live environment to keep the primary publish path on OIDC.

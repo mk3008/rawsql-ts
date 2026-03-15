@@ -17,6 +17,7 @@ import {
   ParenExpression,
   ParenSource,
   RawString,
+  SelectQuery,
   SimpleSelectQuery,
   SourceExpression,
   SqlParser,
@@ -27,6 +28,7 @@ import {
   UnaryExpression,
   UpdateQuery,
   ValueList,
+  type ParsedStatement,
   type ValueComponent
 } from 'rawsql-ts';
 import type { FromClause, JoinClause, TableSource, UsingClause } from 'rawsql-ts';
@@ -59,9 +61,13 @@ export function analyzeTableUsage(params: {
   target: QueryUsageTarget;
   mode: QueryUsageMode;
 }): QueryUsageAnalyzerResult {
-  let parsed: unknown;
   try {
-    parsed = SqlParser.parse(params.statement.statementText);
+    const parsed = SqlParser.parse(params.statement.statementText);
+    const occurrences = collectTableOccurrences(parsed, params.target, params.mode);
+    return {
+      matches: occurrences.map((occurrence) => toTableMatch(params.statement, occurrence)),
+      warnings: []
+    };
   } catch (error) {
     return {
       matches: [],
@@ -76,16 +82,10 @@ export function analyzeTableUsage(params: {
       ]
     };
   }
-
-  const occurrences = collectTableOccurrences(parsed, params.target, params.mode);
-  return {
-    matches: occurrences.map((occurrence) => toTableMatch(params.statement, occurrence)),
-    warnings: []
-  };
 }
 
 function collectTableOccurrences(
-  parsed: unknown,
+  parsed: ParsedStatement | SelectQuery,
   target: QueryUsageTarget,
   mode: QueryUsageMode,
   context: { inSubquery?: boolean; inCte?: boolean } = {}
