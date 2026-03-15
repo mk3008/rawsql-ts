@@ -6,6 +6,8 @@ import {
   NPM_PUBLIC_REGISTRY,
   collectWorkspaceDependencyNames,
   ensureDir,
+  getReadinessContractDir,
+  getReadinessPlanPath,
   getWorkspacePackages,
   listPendingChangesetFiles,
   npmPackageExists,
@@ -48,7 +50,9 @@ function appendGitHubOutputs(filePath, outputs) {
 function main() {
   const workspaceRoot = process.cwd();
   const options = parseArgs(process.argv.slice(2));
-  const outputDir = options.outputDir ?? path.join(workspaceRoot, "tmp", "publish-readiness");
+  const outputDir = options.outputDir
+    ? path.resolve(workspaceRoot, options.outputDir)
+    : getReadinessContractDir(workspaceRoot);
   ensureDir(outputDir);
 
   const workspacePackages = getWorkspacePackages(workspaceRoot);
@@ -135,7 +139,7 @@ function main() {
     buildOrder,
   };
 
-  const reportPath = path.join(outputDir, "publish-plan.json");
+  const reportPath = getReadinessPlanPath(outputDir);
   writeJson(reportPath, report);
 
   console.log(`[publish-plan] wrote ${reportPath}`);

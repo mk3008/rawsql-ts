@@ -6,7 +6,12 @@ import {
   ensureCleanDir,
   ensureDir,
   findPackedTarball,
-  readJson,
+  getArtifactsContractDir,
+  getBuildReportPath,
+  getPublishManifestPath,
+  getReadinessContractDir,
+  getReadinessPlanPath,
+  loadValidatedPublishPlanContract,
   run,
   writeJson,
 } from "./publish-workspace-utils.mjs";
@@ -40,14 +45,11 @@ function toPackDirName(packageName) {
 function loadPlan(workspaceRoot, planPath) {
   const resolvedPlanPath = planPath
     ? (path.isAbsolute(planPath) ? planPath : path.resolve(workspaceRoot, planPath))
-    : path.join(workspaceRoot, "tmp", "publish-readiness", "publish-plan.json");
-  if (!fs.existsSync(resolvedPlanPath)) {
-    throw new Error(`[publish-artifacts] Publish plan not found: ${resolvedPlanPath}`);
-  }
+    : getReadinessPlanPath(getReadinessContractDir(workspaceRoot));
 
   return {
     planPath: resolvedPlanPath,
-    plan: readJson(resolvedPlanPath),
+    plan: loadValidatedPublishPlanContract(resolvedPlanPath),
   };
 }
 
@@ -57,10 +59,10 @@ function main() {
   const { planPath, plan } = loadPlan(workspaceRoot, options.planPath);
   const outputDir = options.outputDir
     ? (path.isAbsolute(options.outputDir) ? options.outputDir : path.resolve(workspaceRoot, options.outputDir))
-    : path.join(workspaceRoot, "tmp", "publish-artifacts");
+    : getArtifactsContractDir(workspaceRoot);
   const tarballRoot = path.join(outputDir, "tarballs");
-  const manifestPath = path.join(outputDir, "publish-manifest.json");
-  const reportPath = path.join(outputDir, "build-report.json");
+  const manifestPath = getPublishManifestPath(outputDir);
+  const reportPath = getBuildReportPath(outputDir);
   const candidateNames = new Set(plan.publishCandidates.map((pkg) => pkg.name));
   const report = {
     schemaVersion: 1,

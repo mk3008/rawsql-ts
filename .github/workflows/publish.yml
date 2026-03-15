@@ -11,6 +11,16 @@ permissions:
   contents: write
   id-token: write
 
+env:
+  READINESS_CONTRACT_ARTIFACT_NAME: publish-readiness-contract
+  READINESS_DIAGNOSTICS_ARTIFACT_NAME: publish-readiness-diagnostics
+  READINESS_CONTRACT_DIR: tmp/publish-contracts/readiness
+  READINESS_DOWNLOAD_ROOT: tmp/downloaded-contracts/readiness
+  ARTIFACTS_CONTRACT_ARTIFACT_NAME: publish-artifacts-contract
+  ARTIFACTS_DIAGNOSTICS_ARTIFACT_NAME: publish-artifacts-diagnostics
+  ARTIFACTS_CONTRACT_DIR: tmp/publish-contracts/artifacts
+  ARTIFACTS_DOWNLOAD_ROOT: tmp/downloaded-contracts/artifacts
+
 jobs:
   verify_publish_readiness:
     runs-on: ubuntu-latest
@@ -44,15 +54,20 @@ jobs:
 
       - name: Verify publish readiness
         id: plan
-        run: node ./scripts/publish-plan.mjs --github-output "$GITHUB_OUTPUT"
+        run: node ./scripts/publish-plan.mjs --github-output "$GITHUB_OUTPUT" --output-dir "${READINESS_CONTRACT_DIR}"
 
-      - name: Upload publish readiness evidence
+      - name: Upload publish readiness contract
         uses: actions/upload-artifact@v4
         with:
-          name: publish-readiness
-          path: |
-            tmp/publish-readiness
-            tmp/runtime-checks
+          name: ${{ env.READINESS_CONTRACT_ARTIFACT_NAME }}
+          path: ${{ env.READINESS_CONTRACT_DIR }}
+
+      - name: Upload publish readiness diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.READINESS_DIAGNOSTICS_ARTIFACT_NAME }}
+          path: tmp/runtime-checks
 
   build_publish_artifacts:
     needs: verify_publish_readiness
@@ -71,23 +86,41 @@ jobs:
           warn-min-npm-version: "11.5.1"
           label: "build-publish-artifacts"
 
-      - name: Download publish readiness evidence
+      - name: Download publish readiness contract
         uses: actions/download-artifact@v4
         with:
-          name: publish-readiness
-          path: tmp/publish-readiness
+          name: ${{ env.READINESS_CONTRACT_ARTIFACT_NAME }}
+          path: ${{ env.READINESS_DOWNLOAD_ROOT }}
+
+      - name: Verify downloaded publish readiness contract
+        id: readiness_contract
+        run: |
+          node ./scripts/verify-publish-contract.mjs \
+            --contract "readiness" \
+            --artifact-root "${READINESS_DOWNLOAD_ROOT}" \
+            --label "build-publish-readiness-contract" \
+            --output "tmp/runtime-checks/build-publish-readiness-contract.json" \
+            --github-output "$GITHUB_OUTPUT"
 
       - name: Build publish artifacts
-        run: node ./scripts/build-publish-artifacts.mjs --plan tmp/publish-readiness/publish-plan.json
+        run: |
+          node ./scripts/build-publish-artifacts.mjs \
+            --plan "${{ steps.readiness_contract.outputs.publish_plan_path }}" \
+            --output-dir "${ARTIFACTS_CONTRACT_DIR}"
 
-      - name: Upload publish artifact evidence
+      - name: Upload publish artifact contract
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: publish-artifacts
-          path: |
-            tmp/publish-artifacts
-            tmp/runtime-checks
+          name: ${{ env.ARTIFACTS_CONTRACT_ARTIFACT_NAME }}
+          path: ${{ env.ARTIFACTS_CONTRACT_DIR }}
+
+      - name: Upload publish artifact diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACTS_DIAGNOSTICS_ARTIFACT_NAME }}
+          path: tmp/runtime-checks
 
   actual_publish:
     needs: [verify_publish_readiness, build_publish_artifacts]
@@ -111,16 +144,18 @@ jobs:
       - name: Download built publish artifacts
         uses: actions/download-artifact@v4
         with:
-          name: publish-artifacts
-          path: tmp/publish-artifacts
+          name: ${{ env.ARTIFACTS_CONTRACT_ARTIFACT_NAME }}
+          path: ${{ env.ARTIFACTS_DOWNLOAD_ROOT }}
 
-      - name: Verify publish manifest is present
+      - name: Verify downloaded publish artifact contract
+        id: artifacts_contract
         run: |
-          node ./scripts/verify-runtime-prereqs.mjs \
-            --label "actual-publish-manifest" \
-            --commands "node,npm,git,gh" \
-            --files "tmp/publish-artifacts/publish-manifest.json" \
-            --output "tmp/runtime-checks/actual-publish-manifest.json"
+          node ./scripts/verify-publish-contract.mjs \
+            --contract "artifacts" \
+            --artifact-root "${ARTIFACTS_DOWNLOAD_ROOT}" \
+            --label "actual-publish-artifacts-contract" \
+            --output "tmp/runtime-checks/actual-publish-artifacts-contract.json" \
+            --github-output "$GITHUB_OUTPUT"
 
       - name: Configure git identity for tags
         shell: bash
@@ -149,7 +184,7 @@ jobs:
           NPM_CONFIG_PROVENANCE: "true"
           RAWSQL_PUBLISH_AUTH: "oidc"
           RAWSQL_PUBLISH_OIDC_FALLBACK_TO_TOKEN: "1"
-          RAWSQL_PUBLISH_MANIFEST: tmp/publish-artifacts/publish-manifest.json
+          RAWSQL_PUBLISH_MANIFEST: ${{ steps.artifacts_contract.outputs.publish_manifest_path }}
         run: |
           # Preserve the existing npm token under a separate name so ci-publish.mjs can use it only for explicit retries.
           # Then drop NODE_AUTH_TOKEN from the live environment to keep the primary publish path on OIDC.

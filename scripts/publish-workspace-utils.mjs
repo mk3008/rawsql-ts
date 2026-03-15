@@ -6,6 +6,20 @@ export const IS_WINDOWS = process.platform === "win32";
 export const PNPM = "pnpm";
 export const NPM = "npm";
 export const NPM_PUBLIC_REGISTRY = "https://registry.npmjs.org";
+export const PUBLISH_CONTRACT_SCHEMA_VERSION = 1;
+export const PUBLISH_CONTRACT_PATHS = {
+  readiness: {
+    artifactName: "publish-readiness-contract",
+    dirSegments: ["tmp", "publish-contracts", "readiness"],
+    planFileName: "publish-plan.json",
+  },
+  artifacts: {
+    artifactName: "publish-artifacts-contract",
+    dirSegments: ["tmp", "publish-contracts", "artifacts"],
+    manifestFileName: "publish-manifest.json",
+    buildReportFileName: "build-report.json",
+  },
+};
 
 export function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
@@ -19,12 +33,33 @@ export function ensureCleanDir(dirPath) {
 }
 
 export function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  const raw = fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, "");
+  return JSON.parse(raw);
 }
 
 export function writeJson(filePath, value) {
   ensureDir(path.dirname(filePath));
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+export function getReadinessContractDir(workspaceRoot) {
+  return path.join(workspaceRoot, ...PUBLISH_CONTRACT_PATHS.readiness.dirSegments);
+}
+
+export function getReadinessPlanPath(contractDir) {
+  return path.join(contractDir, PUBLISH_CONTRACT_PATHS.readiness.planFileName);
+}
+
+export function getArtifactsContractDir(workspaceRoot) {
+  return path.join(workspaceRoot, ...PUBLISH_CONTRACT_PATHS.artifacts.dirSegments);
+}
+
+export function getPublishManifestPath(contractDir) {
+  return path.join(contractDir, PUBLISH_CONTRACT_PATHS.artifacts.manifestFileName);
+}
+
+export function getBuildReportPath(contractDir) {
+  return path.join(contractDir, PUBLISH_CONTRACT_PATHS.artifacts.buildReportFileName);
 }
 
 export function run(command, args, options = {}) {
@@ -66,6 +101,200 @@ export function runWithOutput(command, args, options = {}) {
   }
 
   return { stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
+}
+
+function publishContractError(contractName, message) {
+  return new Error(`[publish-contract] Artifact contract violation (${contractName}): ${message}`);
+}
+
+function collectFilesByBasename(rootDir, basename) {
+  if (!fs.existsSync(rootDir)) {
+    return [];
+  }
+
+  const matches = [];
+  const stack = [rootDir];
+
+  while (stack.length > 0) {
+    const currentDir = stack.pop();
+    for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
+      const nextPath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(nextPath);
+        continue;
+      }
+      if (entry.isFile() && entry.name === basename) {
+        matches.push(nextPath);
+      }
+    }
+  }
+
+  return matches.sort();
+}
+
+function requireObject(value, contractName, description) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw publishContractError(contractName, `${description} must be an object.`);
+  }
+}
+
+function requireArray(value, contractName, description) {
+  if (!Array.isArray(value)) {
+    throw publishContractError(contractName, `${description} must be an array.`);
+  }
+}
+
+function requireBoolean(value, contractName, description) {
+  if (typeof value !== "boolean") {
+    throw publishContractError(contractName, `${description} must be a boolean.`);
+  }
+}
+
+function requireString(value, contractName, description) {
+  if (typeof value !== "string" || value.length === 0) {
+    throw publishContractError(contractName, `${description} must be a non-empty string.`);
+  }
+}
+
+function requireStringArray(value, contractName, description) {
+  requireArray(value, contractName, description);
+  for (let index = 0; index < value.length; index += 1) {
+    requireString(value[index], contractName, `${description}[${index}]`);
+  }
+}
+
+function validateSchemaVersion(payload, contractName) {
+  if (payload.schemaVersion !== PUBLISH_CONTRACT_SCHEMA_VERSION) {
+    throw publishContractError(
+      contractName,
+      `schemaVersion must be ${PUBLISH_CONTRACT_SCHEMA_VERSION}, received ${String(payload.schemaVersion)}.`,
+    );
+  }
+}
+
+function readContractJson(filePath, contractName, description) {
+  try {
+    return readJson(filePath);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw publishContractError(contractName, `${description} could not be parsed as JSON: ${message}`);
+  }
+}
+
+function validatePublishCandidateEntry(entry, contractName, index) {
+  requireObject(entry, contractName, `publishCandidates[${index}]`);
+  requireString(entry.name, contractName, `publishCandidates[${index}].name`);
+  requireString(entry.version, contractName, `publishCandidates[${index}].version`);
+  requireString(entry.dir, contractName, `publishCandidates[${index}].dir`);
+  requireString(entry.changelogPath, contractName, `publishCandidates[${index}].changelogPath`);
+  requireStringArray(entry.workspaceDependencies, contractName, `publishCandidates[${index}].workspaceDependencies`);
+}
+
+function validateBuildOrderEntry(entry, contractName, index) {
+  requireObject(entry, contractName, `buildOrder[${index}]`);
+  requireString(entry.name, contractName, `buildOrder[${index}].name`);
+  requireString(entry.dir, contractName, `buildOrder[${index}].dir`);
+  requireBoolean(entry.isPublishCandidate, contractName, `buildOrder[${index}].isPublishCandidate`);
+  requireBoolean(entry.hasBuildScript, contractName, `buildOrder[${index}].hasBuildScript`);
+}
+
+function validateManifestPackageEntry(entry, contractName, index) {
+  requireObject(entry, contractName, `packages[${index}]`);
+  requireString(entry.name, contractName, `packages[${index}].name`);
+  requireString(entry.version, contractName, `packages[${index}].version`);
+  requireString(entry.dir, contractName, `packages[${index}].dir`);
+  requireString(entry.changelogPath, contractName, `packages[${index}].changelogPath`);
+  requireStringArray(entry.workspaceDependencies, contractName, `packages[${index}].workspaceDependencies`);
+  requireString(entry.tarballPath, contractName, `packages[${index}].tarballPath`);
+}
+
+function validateBuiltDependencyEntry(entry, contractName, index) {
+  requireObject(entry, contractName, `builtDependencies[${index}]`);
+  requireString(entry.name, contractName, `builtDependencies[${index}].name`);
+  requireString(entry.dir, contractName, `builtDependencies[${index}].dir`);
+}
+
+export function resolveContractFileFromArtifactRoot(artifactRoot, fileName, contractName) {
+  const resolvedRoot = path.resolve(artifactRoot);
+  const matches = collectFilesByBasename(resolvedRoot, fileName);
+  if (matches.length === 0) {
+    throw publishContractError(
+      contractName,
+      `expected ${fileName} under ${resolvedRoot}, but no matching file was found after artifact download.`,
+    );
+  }
+  if (matches.length > 1) {
+    throw publishContractError(
+      contractName,
+      `expected exactly one ${fileName} under ${resolvedRoot}, but found ${matches.length}: ${matches.join(", ")}`,
+    );
+  }
+  return matches[0];
+}
+
+export function loadValidatedPublishPlanContract(planPath) {
+  if (!fs.existsSync(planPath)) {
+    throw publishContractError("publish-readiness", `expected publish plan file at ${planPath}.`);
+  }
+
+  const plan = readContractJson(planPath, "publish-readiness", "publish plan payload");
+  requireObject(plan, "publish-readiness", "publish plan payload");
+  validateSchemaVersion(plan, "publish-readiness");
+  if (plan.kind !== "publish-readiness-plan") {
+    throw publishContractError("publish-readiness", `kind must be "publish-readiness-plan", received ${String(plan.kind)}.`);
+  }
+  requireBoolean(plan.shouldPublish, "publish-readiness", "shouldPublish");
+  requireArray(plan.blockers, "publish-readiness", "blockers");
+  requireArray(plan.publishCandidates, "publish-readiness", "publishCandidates");
+  requireArray(plan.buildOrder, "publish-readiness", "buildOrder");
+  for (let index = 0; index < plan.publishCandidates.length; index += 1) {
+    validatePublishCandidateEntry(plan.publishCandidates[index], "publish-readiness", index);
+  }
+  for (let index = 0; index < plan.buildOrder.length; index += 1) {
+    validateBuildOrderEntry(plan.buildOrder[index], "publish-readiness", index);
+  }
+  return plan;
+}
+
+export function loadValidatedPublishManifestContract(manifestPath) {
+  if (!fs.existsSync(manifestPath)) {
+    throw publishContractError("publish-artifacts", `expected publish manifest file at ${manifestPath}.`);
+  }
+
+  const manifest = readContractJson(manifestPath, "publish-artifacts", "publish manifest payload");
+  requireObject(manifest, "publish-artifacts", "publish manifest payload");
+  validateSchemaVersion(manifest, "publish-artifacts");
+  if (manifest.kind !== "publish-artifact-manifest") {
+    throw publishContractError("publish-artifacts", `kind must be "publish-artifact-manifest", received ${String(manifest.kind)}.`);
+  }
+  requireArray(manifest.packages, "publish-artifacts", "packages");
+  for (let index = 0; index < manifest.packages.length; index += 1) {
+    validateManifestPackageEntry(manifest.packages[index], "publish-artifacts", index);
+  }
+  return manifest;
+}
+
+export function loadValidatedBuildReportContract(reportPath) {
+  if (!fs.existsSync(reportPath)) {
+    throw publishContractError("publish-artifacts", `expected build report file at ${reportPath}.`);
+  }
+
+  const report = readContractJson(reportPath, "publish-artifacts", "build report payload");
+  requireObject(report, "publish-artifacts", "build report payload");
+  validateSchemaVersion(report, "publish-artifacts");
+  if (report.kind !== "publish-artifact-build-report") {
+    throw publishContractError("publish-artifacts", `kind must be "publish-artifact-build-report", received ${String(report.kind)}.`);
+  }
+  requireArray(report.blockers, "publish-artifacts", "blockers");
+  requireArray(report.builtDependencies, "publish-artifacts", "builtDependencies");
+  requireArray(report.packedArtifacts, "publish-artifacts", "packedArtifacts");
+  for (let index = 0; index < report.builtDependencies.length; index += 1) {
+    validateBuiltDependencyEntry(report.builtDependencies[index], "publish-artifacts", index);
+  }
+  for (let index = 0; index < report.packedArtifacts.length; index += 1) {
+    validateManifestPackageEntry(report.packedArtifacts[index], "publish-artifacts", index);
+  }
+  return report;
 }
 
 export function listPendingChangesetFiles(workspaceRoot) {
