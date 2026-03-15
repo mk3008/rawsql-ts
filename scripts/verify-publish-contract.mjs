@@ -115,34 +115,64 @@ function main() {
   }
 
   const resolvedArtifactRoot = path.resolve(workspaceRoot, options.artifactRoot);
-  const verification = options.contract === "readiness"
-    ? verifyReadinessContract(resolvedArtifactRoot)
-    : options.contract === "artifacts"
-      ? verifyArtifactsContract(resolvedArtifactRoot)
-      : null;
+  let resolvedPath = null;
+  let githubOutputs = {};
 
-  if (!verification) {
-    throw new Error(`[publish-contract] Unsupported contract type: ${options.contract}`);
+  try {
+    const verification = options.contract === "readiness"
+      ? verifyReadinessContract(resolvedArtifactRoot)
+      : options.contract === "artifacts"
+        ? verifyArtifactsContract(resolvedArtifactRoot)
+        : null;
+
+    if (!verification) {
+      throw new Error(`[publish-contract] Unsupported contract type: ${options.contract}`);
+    }
+
+    resolvedPath = verification.contractPath;
+    githubOutputs = verification.githubOutputs ?? {};
+
+    const report = {
+      schemaVersion: PUBLISH_CONTRACT_SCHEMA_VERSION,
+      kind: "publish-contract-verification",
+      checkedAt: new Date().toISOString(),
+      label: options.label,
+      contract: options.contract,
+      artifactRoot: resolvedArtifactRoot,
+      resolvedPath,
+      ok: true,
+      summary: verification.summary,
+    };
+
+    if (options.output) {
+      writeJson(path.resolve(workspaceRoot, options.output), report);
+    }
+
+    appendGitHubOutputs(options.githubOutputPath, githubOutputs);
+    console.log(`[publish-contract] verified ${options.contract} contract at ${verification.contractPath}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const report = {
+      schemaVersion: PUBLISH_CONTRACT_SCHEMA_VERSION,
+      kind: "publish-contract-verification",
+      checkedAt: new Date().toISOString(),
+      label: options.label,
+      contract: options.contract,
+      artifactRoot: resolvedArtifactRoot,
+      resolvedPath,
+      ok: false,
+      summary: {
+        error: message,
+      },
+    };
+
+    if (options.output) {
+      writeJson(path.resolve(workspaceRoot, options.output), report);
+    }
+
+    appendGitHubOutputs(options.githubOutputPath, githubOutputs);
+    throw error;
   }
-
-  const report = {
-    schemaVersion: PUBLISH_CONTRACT_SCHEMA_VERSION,
-    kind: "publish-contract-verification",
-    checkedAt: new Date().toISOString(),
-    label: options.label,
-    contract: options.contract,
-    artifactRoot: resolvedArtifactRoot,
-    resolvedPath: verification.contractPath,
-    ok: true,
-    summary: verification.summary,
-  };
-
-  if (options.output) {
-    writeJson(path.resolve(workspaceRoot, options.output), report);
-  }
-
-  appendGitHubOutputs(options.githubOutputPath, verification.githubOutputs);
-  console.log(`[publish-contract] verified ${options.contract} contract at ${verification.contractPath}`);
 }
 
 main();
