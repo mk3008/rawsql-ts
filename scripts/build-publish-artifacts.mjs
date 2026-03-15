@@ -89,6 +89,9 @@ function main() {
 
       // Build workspace prerequisites first so candidate packs do not rely on accidental dist state.
       run(PNPM, ["run", "build"], { cwd: entry.dir });
+      if (!fs.existsSync(path.join(entry.dir, "dist"))) {
+        throw new Error(`[publish-artifacts] ${entry.name} build completed without producing dist/.`);
+      }
       report.builtDependencies.push({
         name: entry.name,
         dir: entry.dir,
