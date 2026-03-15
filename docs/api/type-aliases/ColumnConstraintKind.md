@@ -3,5 +3,5 @@
 
 > **ColumnConstraintKind** = `"not-null"` \| `"null"` \| `"default"` \| `"primary-key"` \| `"unique"` \| `"references"` \| `"check"` \| `"generated-always-identity"` \| `"generated-by-default-identity"` \| `"raw"`
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:54](https://github.com/mk3008/rawsql-ts/blob/65cb7600ac93597b00283d664ff739a4012a25f3/packages/core/src/models/CreateTableQuery.ts#L54)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:54](https://github.com/mk3008/rawsql-ts/blob/afccb0e5ee5bb5f54992146ee22aae0d2dcec5db/packages/core/src/models/CreateTableQuery.ts#L54)
 </div>
