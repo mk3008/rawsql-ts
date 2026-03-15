@@ -32,29 +32,14 @@ jobs:
             exit 1
           fi
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup publish readiness runtime
+        uses: ./.github/actions/setup-publish-runtime
         with:
-          run_install: false
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: "pnpm"
-          registry-url: "https://registry.npmjs.org"
-
-      - run: corepack enable
-
-      - run: pnpm --version
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Update npm
-        shell: bash
-        run: |
-          # npm Trusted Publishing (OIDC) requires npm >= 11.5.1.
-          npm install -g "npm@^11.5.1"
-          npm --version
+          use-pnpm: "true"
+          install-dependencies: "true"
+          update-npm: "true"
+          required-commands: "node,npm,pnpm"
+          label: "verify-publish-readiness"
 
       - name: Verify publish readiness
         id: plan
@@ -64,7 +49,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: publish-readiness
-          path: tmp/publish-readiness
+          path: |
+            tmp/publish-readiness
+            tmp/runtime-checks
 
   build_publish_artifacts:
     needs: verify_publish_readiness
@@ -73,19 +60,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup artifact build runtime
+        uses: ./.github/actions/setup-publish-runtime
         with:
-          run_install: false
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: "pnpm"
-
-      - run: corepack enable
-
-      - run: pnpm install --frozen-lockfile
+          use-pnpm: "true"
+          install-dependencies: "true"
+          update-npm: "false"
+          required-commands: "node,npm,pnpm"
+          label: "build-publish-artifacts"
 
       - name: Download publish readiness evidence
         uses: actions/download-artifact@v4
@@ -101,7 +83,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: publish-artifacts
-          path: tmp/publish-artifacts
+          path: |
+            tmp/publish-artifacts
+            tmp/runtime-checks
 
   actual_publish:
     needs: [verify_publish_readiness, build_publish_artifacts]
@@ -112,23 +96,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v5
+      - name: Setup actual publish runtime
+        uses: ./.github/actions/setup-publish-runtime
         with:
-          node-version: 22
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Update npm
-        shell: bash
-        run: |
-          # npm Trusted Publishing (OIDC) requires npm >= 11.5.1.
-          npm install -g "npm@^11.5.1"
-          npm --version
+          use-pnpm: "false"
+          install-dependencies: "false"
+          update-npm: "true"
+          required-commands: "node,npm,git,gh"
+          label: "actual-publish"
 
       - name: Download built publish artifacts
         uses: actions/download-artifact@v4
         with:
           name: publish-artifacts
           path: tmp/publish-artifacts
+
+      - name: Verify publish manifest is present
+        run: |
+          node ./scripts/verify-runtime-prereqs.mjs \
+            --label "actual-publish-manifest" \
+            --commands "node,npm,git,gh" \
+            --files "tmp/publish-artifacts/publish-manifest.json" \
+            --min-npm-version "11.5.1" \
+            --output "tmp/runtime-checks/actual-publish-manifest.json"
 
       - name: Configure git identity for tags
         shell: bash
@@ -162,3 +152,10 @@ jobs:
           # Preserve the existing npm token under a separate name so ci-publish.mjs can use it only for explicit retries.
           # Then drop NODE_AUTH_TOKEN from the live environment to keep the primary publish path on OIDC.
           RAWSQL_PUBLISH_FALLBACK_TOKEN="${NODE_AUTH_TOKEN:-}" env -u NODE_AUTH_TOKEN node ./scripts/ci-publish.mjs
+
+      - name: Upload actual publish diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: actual-publish-diagnostics
+          path: tmp/runtime-checks
