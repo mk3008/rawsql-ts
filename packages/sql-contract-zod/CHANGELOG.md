@@ -1,5 +1,13 @@
 # @rawsql-ts/sql-contract-zod
 
+## 0.1.4
+
+### Patch Changes
+
+- [#589](https://github.com/mk3008/rawsql-ts/pull/589) [`70b928d`](https://github.com/mk3008/rawsql-ts/commit/70b928d81096165e66ff6578baa78354f39db4b2) Thanks [@mk3008](https://github.com/mk3008)! - Fix npm consumer compatibility for `ztd-cli` by removing the hard `pnpm-workspace.yaml` runtime assumption, requiring `--force` for scaffold overwrites, and emitting Node16/NodeNext-friendly `.js` template imports.
+
+  Keep `@rawsql-ts/sql-contract-zod` publishable with a prepack build step while documenting that new projects should prefer `@rawsql-ts/sql-contract` with `zod`.
+
 ## 0.1.3
 
 ### Patch Changes
