@@ -6,6 +6,7 @@ import { loadValidatedPublishManifestContract } from "./publish-workspace-utils.
 
 const IS_WINDOWS = process.platform === "win32";
 const NPM = "npm";
+const TAR = "tar";
 const GIT = "git";
 const GH = "gh";
 const FALLBACK_TOKEN_ENV = "RAWSQL_PUBLISH_FALLBACK_TOKEN";
@@ -550,11 +551,20 @@ function npmPackageExists(packageName) {
   );
 }
 
-function readPackageReleaseMetadata(packageDir) {
-  const packageJsonPath = path.join(packageDir, "package.json");
+function readPackedPackageJson(tarballPath) {
+  const { stdout } = runWithOutput(TAR, ["-xOf", tarballPath, "package/package.json"]);
+  return JSON.parse(stdout);
+}
+
+function readPackageReleaseMetadata(pkg) {
+  const packageJsonPath = typeof pkg?.publishSource === "string" && pkg.publishSource.endsWith(".tgz")
+    ? pkg.publishSource
+    : path.join(pkg.dir, "package.json");
   let packageJson;
   try {
-    packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+    packageJson = packageJsonPath.endsWith(".tgz")
+      ? readPackedPackageJson(packageJsonPath)
+      : JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`[publish] failed to read release metadata from ${packageJsonPath}: ${message}`);
@@ -773,7 +783,7 @@ async function main() {
   }
 
   const packageReleaseMetadata = new Map(
-    publishablePackages.map((pkg) => [pkg.name, readPackageReleaseMetadata(pkg.dir)]),
+    publishablePackages.map((pkg) => [pkg.name, readPackageReleaseMetadata(pkg)]),
   );
 
   const publishedNow = [];

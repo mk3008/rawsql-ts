@@ -290,6 +290,7 @@ function verifyNpmConsumerSmoke(packages) {
   setPackageTypeModule(appDir);
   writeNode16Tsconfig(appDir);
 
+  runIn(appDir, PNPM, ["test"]);
   runIn(appDir, NPM, ["exec", "--", "tsc", "--noEmit", "-p", "tsconfig.json"]);
   runIn(appDir, NPM, ["exec", "--", "tsc", "-p", "tsconfig.node16.json"]);
 
@@ -316,8 +317,12 @@ function verifyOverwriteSafety(packages) {
 
   let overwriteFailed = false;
   try {
-    runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "empty", "--validator", "zod"]);
-  } catch {
+    runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "demo", "--validator", "zod"]);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes("--force") && !message.includes("already exists")) {
+      throw error;
+    }
     overwriteFailed = true;
   }
 
