@@ -2278,6 +2278,8 @@ export function registerInitCommand(program: Command): void {
         merged.localSourceRoot = rejectEncodedTraversal(rejectControlChars(merged.localSourceRoot, '--local-source-root'), '--local-source-root');
       }
       // Reject stringly-typed booleans from --json so unsupported payloads cannot silently enable features.
+      validateJsonBooleanFlag(merged.yes, 'yes');
+      validateJsonBooleanFlag(merged.dryRun, 'dry-run');
       validateJsonBooleanFlag(merged.force, 'force');
       validateJsonBooleanFlag(merged.withAiGuidance, 'with-ai-guidance');
       validateJsonBooleanFlag(merged.withSqlclient, 'with-sqlclient');
@@ -2309,7 +2311,7 @@ export function registerInitCommand(program: Command): void {
         process.exit(1);
       }
 
-      if (merged.dryRun) {
+      if (merged.dryRun === true) {
         const plan = buildInitDryRunPlan(process.cwd(), {
           appShape,
           withAiGuidance: merged.withAiGuidance === true,

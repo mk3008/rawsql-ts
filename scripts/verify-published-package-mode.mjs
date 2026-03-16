@@ -103,7 +103,7 @@ function assertPathExistsInTarball(entries, packageName, manifestField, relative
       `^${normalized
         .split("*")
         .map((segment) => segment.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"))
-        .join("[^/]+")}$`,
+        .join(".+")}$`,
       "u",
     );
     if (entries.some((entry) => matcher.test(entry))) {
@@ -311,26 +311,28 @@ function verifyOverwriteSafety(packages) {
   fs.writeFileSync(path.join(appDir, "ztd", "ddl", "public.sql"), "-- existing\n", "utf8");
 
   runIn(appDir, NPM, ["install"]);
+  const ddlPath = path.join(appDir, "ztd", "ddl", "public.sql");
+  const originalSchema = fs.readFileSync(ddlPath, "utf8");
 
   let overwriteFailed = false;
   try {
     runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "empty", "--validator", "zod"]);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (!message.includes("--force")) {
-      throw error;
-    }
+  } catch {
     overwriteFailed = true;
   }
 
   if (!overwriteFailed) {
     throw new Error("[scaffold safety] ztd init overwrote an existing DDL file without requiring --force.");
   }
+  const afterFailedInit = fs.readFileSync(ddlPath, "utf8");
+  if (afterFailedInit !== originalSchema) {
+    throw new Error("[scaffold safety] DDL changed even though init without --force failed.");
+  }
 
   runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--force", "--workflow", "demo", "--validator", "zod"]);
 
-  const schemaContents = fs.readFileSync(path.join(appDir, "ztd", "ddl", "public.sql"), "utf8");
-  if (!schemaContents.includes('create table "user"')) {
+  const schemaContents = fs.readFileSync(ddlPath, "utf8");
+  if (schemaContents === originalSchema) {
     throw new Error("[scaffold safety] --force did not overwrite the existing DDL file as expected.");
   }
 

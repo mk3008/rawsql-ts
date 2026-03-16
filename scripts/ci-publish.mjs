@@ -552,7 +552,13 @@ function npmPackageExists(packageName) {
 
 function readPackageReleaseMetadata(packageDir) {
   const packageJsonPath = path.join(packageDir, "package.json");
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  let packageJson;
+  try {
+    packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`[publish] failed to read release metadata from ${packageJsonPath}: ${message}`);
+  }
 
   return {
     deprecationMessage: typeof packageJson?.rawsqlTs?.deprecationMessage === "string"
@@ -798,6 +804,14 @@ async function main() {
   }
 
   for (const pkg of publishablePackages) {
+    if (dryRun) {
+      const deprecationMessage = packageReleaseMetadata.get(pkg.name)?.deprecationMessage ?? "";
+      if (deprecationMessage) {
+        console.log(`[publish] (dry-run) would deprecate ${pkg.name}@${pkg.version}`);
+      }
+      continue;
+    }
+
     const deprecationMessage = packageReleaseMetadata.get(pkg.name)?.deprecationMessage ?? "";
     if (!deprecationMessage) {
       continue;
@@ -806,11 +820,6 @@ async function main() {
     const versionExists = await waitForPackageVersion(pkg.name, pkg.version);
     if (!versionExists) {
       console.warn(`[publish] skipping deprecate for ${pkg.name}@${pkg.version}; version is still not visible on npm after retries.`);
-      continue;
-    }
-
-    if (dryRun) {
-      console.log(`[publish] (dry-run) would deprecate ${pkg.name}@${pkg.version}`);
       continue;
     }
 

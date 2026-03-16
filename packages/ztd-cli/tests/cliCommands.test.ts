@@ -327,7 +327,23 @@ test('init dry-run emits scaffold plan without writing files', { timeout: 60_000
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(false);
 });
 
-test('init rejects non-boolean flags in --json payload', { timeout: 60_000 }, () => {
+test('init rejects non-boolean dryRun in --json payload', { timeout: 60_000 }, () => {
+  const workspace = createTempDir('init-json-dryrun-boolean-validation');
+  const result = runCli([
+    'init',
+    '--json',
+    JSON.stringify({
+      workflow: 'demo',
+      validator: 'zod',
+      dryRun: 'false'
+    })
+  ], {}, workspace);
+
+  assertCliFailure(result, 'init json dryRun boolean validation');
+  expect(result.stderr).toContain('Invalid --dry-run value in --json payload. Expected a boolean.');
+});
+
+test('init rejects non-boolean force in --json payload', { timeout: 60_000 }, () => {
   const workspace = createTempDir('init-json-boolean-validation');
   const result = runCli([
     'init',
@@ -340,7 +356,7 @@ test('init rejects non-boolean flags in --json payload', { timeout: 60_000 }, ()
     })
   ], {}, workspace);
 
-  assertCliFailure(result, 'init json boolean validation');
+  assertCliFailure(result, 'init json force boolean validation');
   expect(result.stderr).toContain('Invalid --force value in --json payload. Expected a boolean.');
 });
 
