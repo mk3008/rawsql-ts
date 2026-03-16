@@ -484,16 +484,88 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForPackageVersion(packageName, version, { attempts = 5, initialDelayMs = 1_000 } = {}) {
+function getBackoffDelayMs(attempt, initialDelayMs, maxDelayMs) {
+  return Math.min(initialDelayMs * (2 ** (attempt - 1)), maxDelayMs);
+}
+
+async function waitForPackageVersion(
+  packageName,
+  version,
+  { attempts = 10, initialDelayMs = 1_000, maxDelayMs = 16_000, logPrefix = "[publish]" } = {},
+) {
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     if (npmPackageVersionExists(packageName, version)) {
       return true;
     }
 
     if (attempt < attempts) {
-      const delayMs = initialDelayMs * (2 ** (attempt - 1));
+      const delayMs = getBackoffDelayMs(attempt, initialDelayMs, maxDelayMs);
       console.log(
-        `[publish] ${packageName}@${version} is not visible on npm yet; retrying in ${delayMs}ms (${attempt}/${attempts}).`,
+        `${logPrefix} ${packageName}@${version} is not visible on npm yet; retrying in ${delayMs}ms (${attempt}/${attempts}).`,
+      );
+      await sleep(delayMs);
+    }
+  }
+
+  return false;
+}
+
+async function npmRegistryPropagationGuard(pkg, deprecationMessage, publishAuth, opts) {
+  const attempts = opts?.attempts ?? 10;
+  const initialDelayMs = opts?.initialDelayMs ?? 1_000;
+  const maxDelayMs = opts?.maxDelayMs ?? 16_000;
+  const packageSpec = `${pkg.name}@${pkg.version}`;
+
+  // Wait for the newly published version to become visible before attempting deprecate.
+  const versionExists = await waitForPackageVersion(pkg.name, pkg.version, {
+    attempts,
+    initialDelayMs,
+    maxDelayMs,
+    logPrefix: "[publish] npmRegistryPropagationGuard",
+  });
+  if (!versionExists) {
+    console.warn(
+      `[publish] npmRegistryPropagationGuard: ${packageSpec} never became visible on npm after ${attempts} attempts; skipping deprecate without failing publish.`,
+    );
+    return false;
+  }
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      if (attempt > 1) {
+        console.log(`[publish] npmRegistryPropagationGuard: retrying deprecate for ${packageSpec} (${attempt}/${attempts}).`);
+      }
+
+      deprecateWithNpm(packageSpec, deprecationMessage, publishAuth, opts);
+      return true;
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : String(error);
+      const failure = classifyNpmFailure(messageText);
+
+      // Treat post-publish deprecate as best-effort so propagation lag does not fail the whole release.
+      if (!failure.e404) {
+        console.warn(
+          [
+            `[publish] npmRegistryPropagationGuard: deprecate failed for ${packageSpec}; continuing because publish already succeeded.`,
+            `---\n${messageText}`,
+          ].join("\n"),
+        );
+        return false;
+      }
+
+      if (attempt === attempts) {
+        console.warn(
+          [
+            `[publish] npmRegistryPropagationGuard: deprecate still returned E404 for ${packageSpec} after ${attempts} attempts; continuing without failing publish.`,
+            `---\n${messageText}`,
+          ].join("\n"),
+        );
+        return false;
+      }
+
+      const delayMs = getBackoffDelayMs(attempt, initialDelayMs, maxDelayMs);
+      console.warn(
+        `[publish] npmRegistryPropagationGuard: deprecate returned E404 for ${packageSpec}; retrying in ${delayMs}ms (${attempt}/${attempts}).`,
       );
       await sleep(delayMs);
     }
@@ -836,14 +908,8 @@ async function main() {
       continue;
     }
 
-    const versionExists = await waitForPackageVersion(pkg.name, pkg.version);
-    if (!versionExists) {
-      console.warn(`[publish] skipping deprecate for ${pkg.name}@${pkg.version}; version is still not visible on npm after retries.`);
-      continue;
-    }
-
     console.log(`[publish] deprecating ${pkg.name}@${pkg.version}`);
-    deprecateWithNpm(`${pkg.name}@${pkg.version}`, deprecationMessage, publishAuth, {
+    await npmRegistryPropagationGuard(pkg, deprecationMessage, publishAuth, {
       cwd: pkg.publishCwd ?? pkg.dir,
       allowTokenFallback,
       preservedNodeAuthToken,
