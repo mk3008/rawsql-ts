@@ -2,7 +2,7 @@ import type {
   RepositoryTelemetry,
   RepositoryTelemetryConsoleOptions,
   RepositoryTelemetryEvent,
-} from './types';
+} from './types.js';
 
 /**
  * Create a conservative console-backed telemetry hook for repositories.

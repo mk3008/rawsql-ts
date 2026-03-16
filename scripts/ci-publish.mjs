@@ -6,6 +6,7 @@ import { loadValidatedPublishManifestContract } from "./publish-workspace-utils.
 
 const IS_WINDOWS = process.platform === "win32";
 const NPM = "npm";
+const TAR = "tar";
 const GIT = "git";
 const GH = "gh";
 const FALLBACK_TOKEN_ENV = "RAWSQL_PUBLISH_FALLBACK_TOKEN";
@@ -479,6 +480,52 @@ function npmPackageVersionExists(packageName, version) {
   );
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForPackageVersion(packageName, version, { attempts = 5, initialDelayMs = 1_000 } = {}) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    if (npmPackageVersionExists(packageName, version)) {
+      return true;
+    }
+
+    if (attempt < attempts) {
+      const delayMs = initialDelayMs * (2 ** (attempt - 1));
+      console.log(
+        `[publish] ${packageName}@${version} is not visible on npm yet; retrying in ${delayMs}ms (${attempt}/${attempts}).`,
+      );
+      await sleep(delayMs);
+    }
+  }
+
+  return false;
+}
+
+function withTokenFallbackEnvironment(workspaceRoot, preservedNodeAuthToken, fn) {
+  const previousNodeAuthToken = process.env.NODE_AUTH_TOKEN;
+  const previousUserConfig = process.env.NPM_CONFIG_USERCONFIG;
+
+  process.env.NODE_AUTH_TOKEN = preservedNodeAuthToken;
+  process.env.NPM_CONFIG_USERCONFIG = ensureTokenUserConfig(workspaceRoot);
+
+  try {
+    return fn();
+  } finally {
+    if (previousNodeAuthToken === undefined) {
+      delete process.env.NODE_AUTH_TOKEN;
+    } else {
+      process.env.NODE_AUTH_TOKEN = previousNodeAuthToken;
+    }
+
+    if (previousUserConfig === undefined) {
+      delete process.env.NPM_CONFIG_USERCONFIG;
+    } else {
+      process.env.NPM_CONFIG_USERCONFIG = previousUserConfig;
+    }
+  }
+}
+
 function npmPackageExists(packageName) {
   const result = spawnSync(NPM, ["view", "--registry", NPM_PUBLIC_REGISTRY, packageName, "version"], {
     encoding: "utf8",
@@ -502,6 +549,41 @@ function npmPackageExists(packageName) {
       .filter(Boolean)
       .join("\n"),
   );
+}
+
+function readPackedPackageJson(tarballPath) {
+  const result = tryCaptureOutput(TAR, ["-xOf", tarballPath, "package/package.json"]);
+  if (!result.ok) {
+    throw new Error(result.error ?? `[publish] failed to read package/package.json from ${tarballPath}`);
+  }
+
+  try {
+    return JSON.parse(result.stdout);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`[publish] failed to parse package/package.json from ${tarballPath}: ${message}`);
+  }
+}
+
+function readPackageReleaseMetadata(pkg) {
+  const packageJsonPath = typeof pkg?.publishSource === "string" && pkg.publishSource.endsWith(".tgz")
+    ? pkg.publishSource
+    : path.join(pkg.dir, "package.json");
+  let packageJson;
+  try {
+    packageJson = packageJsonPath.endsWith(".tgz")
+      ? readPackedPackageJson(packageJsonPath)
+      : JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`[publish] failed to read release metadata from ${packageJsonPath}: ${message}`);
+  }
+
+  return {
+    deprecationMessage: typeof packageJson?.rawsqlTs?.deprecationMessage === "string"
+      ? packageJson.rawsqlTs.deprecationMessage.trim()
+      : "",
+  };
 }
 
 function publishWithNpm(publishTarget, publishAuth, opts) {
@@ -538,21 +620,20 @@ function publishWithNpm(publishTarget, publishAuth, opts) {
       if (c.e403) reasons.push("E403 Forbidden");
       if (c.e404) reasons.push("E404 Not Found (sometimes permission/auth is masked as 404)");
 
-      if (canFallback && (c.needAuth || c.e401 || c.e403)) {
+      if (canFallback && (c.needAuth || c.e401 || c.e403 || c.e404)) {
         // OIDC can fail if Trusted Publishers isn't configured or the workflow context doesn't match.
         // When allowed, retry with token auth so releases aren't blocked.
         console.warn("[publish] OIDC publish failed; retrying with token auth fallback.");
 
-        process.env.NODE_AUTH_TOKEN = opts.preservedNodeAuthToken;
-        process.env.NPM_CONFIG_USERCONFIG = ensureTokenUserConfig(opts.workspaceRoot);
-
         try {
-          const fallbackArgs = ["publish"];
-          if (publishTarget) {
-            fallbackArgs.push(publishTarget);
-          }
-          fallbackArgs.push("--ignore-scripts", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public");
-          runWithOutput(NPM, fallbackArgs, { cwd: opts?.cwd });
+          withTokenFallbackEnvironment(opts.workspaceRoot, opts.preservedNodeAuthToken, () => {
+            const fallbackArgs = ["publish"];
+            if (publishTarget) {
+              fallbackArgs.push(publishTarget);
+            }
+            fallbackArgs.push("--ignore-scripts", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public");
+            runWithOutput(NPM, fallbackArgs, { cwd: opts?.cwd });
+          });
           return;
         } catch (fallbackError) {
           const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
@@ -587,6 +668,41 @@ function publishWithNpm(publishTarget, publishAuth, opts) {
       ].join("\n");
 
       throw new Error([hint, `---\n${message}`].join("\n"));
+    }
+
+    throw error;
+  }
+}
+
+function deprecateWithNpm(packageSpec, message, publishAuth, opts) {
+  const args = ["deprecate", "--registry", NPM_PUBLIC_REGISTRY, packageSpec, message];
+
+  try {
+    runWithOutput(NPM, args, { cwd: opts?.cwd });
+  } catch (error) {
+    const messageText = error instanceof Error ? error.message : String(error);
+    const c = classifyNpmFailure(messageText);
+
+    if (publishAuth === "oidc") {
+      const canFallback =
+        opts?.allowTokenFallback === true && Boolean(opts?.preservedNodeAuthToken) && Boolean(opts?.workspaceRoot);
+
+      if (canFallback && (c.needAuth || c.e401 || c.e403 || c.e404)) {
+        console.warn(`[publish] OIDC deprecate failed for ${packageSpec}; retrying with token auth fallback.`);
+        withTokenFallbackEnvironment(opts.workspaceRoot, opts.preservedNodeAuthToken, () => {
+          const fallbackArgs = ["deprecate", "--registry", NPM_PUBLIC_REGISTRY, packageSpec, message];
+          runWithOutput(NPM, fallbackArgs, { cwd: opts?.cwd });
+        });
+        return;
+      }
+
+      throw new Error(
+        [
+          `[publish] npm deprecate failed for ${packageSpec} (OIDC mode).`,
+          "Ensure the publish credentials also have rights to manage package deprecations.",
+          `---\n${messageText}`,
+        ].join("\n"),
+      );
     }
 
     throw error;
@@ -675,6 +791,10 @@ async function main() {
     publishablePackages.push(pkg);
   }
 
+  const packageReleaseMetadata = new Map(
+    publishablePackages.map((pkg) => [pkg.name, readPackageReleaseMetadata(pkg)]),
+  );
+
   const publishedNow = [];
   const releaseErrors = [];
 
@@ -700,6 +820,35 @@ async function main() {
       workspaceRoot,
     });
     publishedNow.push(`${pkg.name}@${pkg.version}`);
+  }
+
+  for (const pkg of publishablePackages) {
+    if (dryRun) {
+      const deprecationMessage = packageReleaseMetadata.get(pkg.name)?.deprecationMessage ?? "";
+      if (deprecationMessage) {
+        console.log(`[publish] (dry-run) would deprecate ${pkg.name}@${pkg.version}`);
+      }
+      continue;
+    }
+
+    const deprecationMessage = packageReleaseMetadata.get(pkg.name)?.deprecationMessage ?? "";
+    if (!deprecationMessage) {
+      continue;
+    }
+
+    const versionExists = await waitForPackageVersion(pkg.name, pkg.version);
+    if (!versionExists) {
+      console.warn(`[publish] skipping deprecate for ${pkg.name}@${pkg.version}; version is still not visible on npm after retries.`);
+      continue;
+    }
+
+    console.log(`[publish] deprecating ${pkg.name}@${pkg.version}`);
+    deprecateWithNpm(`${pkg.name}@${pkg.version}`, deprecationMessage, publishAuth, {
+      cwd: pkg.publishCwd ?? pkg.dir,
+      allowTokenFallback,
+      preservedNodeAuthToken,
+      workspaceRoot,
+    });
   }
 
   // Create tags

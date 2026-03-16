@@ -452,6 +452,7 @@ const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
   installPackages: ({ rootDir, kind, packages, packageManager }) => {
     // Use the Windows shim executables so spawnSync finds the package manager in PATH.
     const executable = resolvePackageManagerExecutable(packageManager);
+    const shellExecutable = resolvePackageManagerShellExecutable(executable, packageManager);
     const args = buildPackageManagerArgs(kind, packageManager, packages, rootDir);
     if (args.length === 0) {
       return;
@@ -470,10 +471,10 @@ const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
       shell: true
     };
 
-    let result = spawnSync(executable, args, preferShell ? shellSpawnOptions : baseSpawnOptions);
+    let result = spawnSync(preferShell ? shellExecutable : executable, args, preferShell ? shellSpawnOptions : baseSpawnOptions);
     if (result.error && isWin32 && !preferShell) {
       // Retry with cmd.exe only on Windows so .cmd shims resolve reliably.
-      result = spawnSync(executable, args, shellSpawnOptions);
+      result = spawnSync(shellExecutable, args, shellSpawnOptions);
     }
     if ((result.error || result.status !== 0) && executable !== packageManager) {
       // Retry with the bare command name in case a resolved path is rejected.
@@ -1177,6 +1178,24 @@ function resolvePackageManagerExecutable(packageManager: PackageManager): string
   return cmdFallbacks[packageManager] ?? packageManager;
 }
 
+export function resolvePackageManagerShellExecutable(
+  executable: string,
+  packageManager: PackageManager,
+  platform: NodeJS.Platform = process.platform
+): string {
+  if (platform !== 'win32') {
+    return executable;
+  }
+
+  // `shell: true` delegates through cmd.exe, which splits unquoted absolute paths with spaces.
+  // Use the shim basename so the shell resolves it from PATH without truncating at `C:\Program`.
+  if (/\.(cmd|bat)$/i.test(executable) && path.win32.isAbsolute(executable)) {
+    return path.win32.basename(executable);
+  }
+
+  return executable || packageManager;
+}
+
 function resolveExecutableInPath(executable: string): string | null {
   const pathValue = process.env.PATH ?? process.env.Path ?? '';
   if (!pathValue) {
@@ -1725,7 +1744,7 @@ async function confirmOverwriteIfExists(
   }
   if (overwritePolicy.nonInteractive) {
     throw new Error(
-      `File ${relative} already exists. Re-run with --yes to overwrite or remove the file before running ztd init.`
+      `File ${relative} already exists. Re-run with --force to overwrite or remove the file before running ztd init.`
     );
   }
   const overwrite = await prompter.confirm(`File ${relative} already exists. Overwrite?`);
@@ -2214,6 +2233,15 @@ function buildInitDryRunPlan(rootDir: string, options: {
   };
 }
 
+function validateJsonBooleanFlag(value: unknown, flagName: string): value is boolean | undefined {
+  if (value === undefined || typeof value === 'boolean') {
+    return true;
+  }
+
+  console.error(`Invalid --${flagName} value in --json payload. Expected a boolean.`);
+  process.exit(1);
+}
+
 export function registerInitCommand(program: Command): void {
   program
     .command('init')
@@ -2222,7 +2250,8 @@ export function registerInitCommand(program: Command): void {
     .option('--with-ai-guidance', 'Generate internal AI guidance files such as CONTEXT.md and .ztd/agents/*')
     .option('--with-sqlclient', 'Generate a minimal SqlClient interface for repositories')
     .option('--with-app-interface', 'Append application interface guidance to AGENTS.md only')
-    .option('--yes', 'Accept defaults and overwrite existing files without prompting')
+    .option('--yes', 'Accept defaults without interactive prompts')
+    .option('--force', 'Allow ztd init to overwrite files it owns')
     .option('--workflow <type>', 'Schema workflow: pg_dump, empty, or demo (default: demo)')
     .option('--validator <type>', 'Validator backend: zod or arktype (default: zod)')
     .option('--dry-run', 'Validate init options and emit the planned scaffold without writing files')
@@ -2237,6 +2266,7 @@ export function registerInitCommand(program: Command): void {
       withSqlclient?: boolean;
       withAppInterface?: boolean;
       yes?: boolean;
+      force?: boolean;
       workflow?: string;
       validator?: string;
       localSourceRoot?: string;
@@ -2247,6 +2277,13 @@ export function registerInitCommand(program: Command): void {
       if (typeof merged.localSourceRoot === 'string') {
         merged.localSourceRoot = rejectEncodedTraversal(rejectControlChars(merged.localSourceRoot, '--local-source-root'), '--local-source-root');
       }
+      // Reject stringly-typed booleans from --json so unsupported payloads cannot silently enable features.
+      validateJsonBooleanFlag(merged.yes, 'yes');
+      validateJsonBooleanFlag(merged.dryRun, 'dry-run');
+      validateJsonBooleanFlag(merged.force, 'force');
+      validateJsonBooleanFlag(merged.withAiGuidance, 'with-ai-guidance');
+      validateJsonBooleanFlag(merged.withSqlclient, 'with-sqlclient');
+      validateJsonBooleanFlag(merged.withAppInterface, 'with-app-interface');
       // Validate --workflow value if provided.
       if (merged.workflow && !VALID_WORKFLOWS.includes(merged.workflow as InitWorkflow)) {
         console.error(`Invalid --workflow value: "${merged.workflow}". Must be one of: ${VALID_WORKFLOWS.join(', ')}`);
@@ -2274,12 +2311,12 @@ export function registerInitCommand(program: Command): void {
         process.exit(1);
       }
 
-      if (merged.dryRun) {
+      if (merged.dryRun === true) {
         const plan = buildInitDryRunPlan(process.cwd(), {
           appShape,
-          withAiGuidance: Boolean(merged.withAiGuidance),
-          withSqlClient: Boolean(merged.withSqlclient),
-          withAppInterface: Boolean(merged.withAppInterface),
+          withAiGuidance: merged.withAiGuidance === true,
+          withSqlClient: merged.withSqlclient === true,
+          withAppInterface: merged.withAppInterface === true,
           workflow: workflow ?? 'demo',
           validator: validator ?? 'zod',
           localSourceRoot: merged.localSourceRoot
@@ -2296,10 +2333,10 @@ export function registerInitCommand(program: Command): void {
       try {
         await runInitCommand(prompter, {
           appShape,
-          withAiGuidance: Boolean(merged.withAiGuidance),
-          withSqlClient: Boolean(merged.withSqlclient),
-          withAppInterface: Boolean(merged.withAppInterface),
-          forceOverwrite: Boolean(merged.yes),
+          withAiGuidance: merged.withAiGuidance === true,
+          withSqlClient: merged.withSqlclient === true,
+          withAppInterface: merged.withAppInterface === true,
+          forceOverwrite: merged.force === true,
           nonInteractive: isNonInteractive,
           workflow,
           validator,

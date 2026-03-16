@@ -1,5 +1,5 @@
-import { parseSmokeOutput, type SmokeOutput } from '../specs/_smoke.spec';
-import { normalizeTimestamp } from './_coercions';
+import { parseSmokeOutput, type SmokeOutput } from '../specs/_smoke.spec.js';
+import { normalizeTimestamp } from './_coercions.js';
 
 /**
  * Validate runtime output against the catalog smoke invariant.

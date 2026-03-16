@@ -11,6 +11,7 @@ import {
   findAncestorPnpmWorkspaceRoot,
   normalizeSchemaName,
   resolveInitInstallStrategy,
+  resolvePackageManagerShellExecutable,
   resolvePnpmWorkspaceGuard,
   sanitizeSchemaFileName,
   type ZtdConfigWriterDependencies,
@@ -19,6 +20,7 @@ import {
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const tmpRoot = path.join(repoRoot, 'tmp');
 const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 function createTempDir(prefix: string): string {
   if (!existsSync(tmpRoot)) {
@@ -43,6 +45,14 @@ function readNormalizedFile(filePath: string): string {
 
 function runPnpmCommand(cwd: string, args: string[]) {
   return spawnSync(pnpmCommand, args, {
+    cwd,
+    encoding: 'utf8',
+    shell: process.platform === 'win32'
+  });
+}
+
+function runNpmCommand(cwd: string, args: string[]) {
+  return spawnSync(npmCommand, args, {
     cwd,
     encoding: 'utf8',
     shell: process.platform === 'win32'
@@ -369,6 +379,43 @@ test('init wizard leaves existing ztd/ddl directory untouched', async () => {
   expect(readdirSync(ddlDir)).toEqual(expect.arrayContaining([schemaFileName(defaultSchemaName)]));
 });
 
+test('init requires --force before overwriting an existing DDL file in non-interactive mode', async () => {
+  const workspace = createTempDir('cli-init-overwrite-safety');
+  const existingSchemaPath = schemaFilePath(workspace);
+  mkdirSync(path.dirname(existingSchemaPath), { recursive: true });
+  writeFileSync(existingSchemaPath, '-- keep me\n', 'utf8');
+  const prompter = new TestPrompter([]);
+
+  await expect(
+    runInitCommand(prompter, {
+      rootDir: workspace,
+      nonInteractive: true,
+      workflow: 'demo',
+      validator: 'zod'
+    })
+  ).rejects.toThrow('Re-run with --force to overwrite');
+
+  expect(readNormalizedFile(existingSchemaPath)).toBe('-- keep me\n');
+});
+
+test('init with force can overwrite an existing DDL file in non-interactive mode', async () => {
+  const workspace = createTempDir('cli-init-overwrite-force');
+  const existingSchemaPath = schemaFilePath(workspace);
+  mkdirSync(path.dirname(existingSchemaPath), { recursive: true });
+  writeFileSync(existingSchemaPath, '-- keep me\n', 'utf8');
+  const prompter = new TestPrompter([]);
+
+  await runInitCommand(prompter, {
+    rootDir: workspace,
+    forceOverwrite: true,
+    nonInteractive: true,
+    workflow: 'demo',
+    validator: 'zod'
+  });
+
+  expect(readNormalizedFile(existingSchemaPath)).toContain('create table "user" (');
+});
+
 test('init wizard can scaffold the optional SqlClient seam', async () => {
   const workspace = createTempDir('cli-init-sqlclient');
   const prompter = new TestPrompter(['2', '1']);
@@ -640,6 +687,45 @@ test('registry webapi scaffold exposes ztd via pnpm exec for dogfooding', async 
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))).toBe(true);
 });
 
+test('generated scaffold compiles with Node16 ESM settings', async () => {
+  const workspace = createTempDir('cli-init-node16-compile');
+  const prompter = new TestPrompter([]);
+
+  await runInitCommand(prompter, {
+    rootDir: workspace,
+    nonInteractive: true,
+    forceOverwrite: true,
+    workflow: 'empty',
+    validator: 'zod'
+  });
+
+  const packageJsonPath = path.join(workspace, 'package.json');
+  const packageJson = JSON.parse(readNormalizedFile(packageJsonPath)) as Record<string, unknown>;
+  writeFileSync(
+    packageJsonPath,
+    `${JSON.stringify({ ...packageJson, type: 'module' }, null, 2)}\n`,
+    'utf8'
+  );
+  writeFileSync(
+    path.join(workspace, 'tsconfig.node16.json'),
+    `${JSON.stringify({
+      extends: './tsconfig.json',
+      compilerOptions: {
+        module: 'Node16',
+        moduleResolution: 'Node16',
+        noEmit: true
+      }
+    }, null, 2)}\n`,
+    'utf8'
+  );
+
+  const installResult = runNpmCommand(workspace, ['install']);
+  expect(installResult.status).toBe(0);
+
+  const typecheckResult = runNpmCommand(workspace, ['exec', '--', 'tsc', '-p', 'tsconfig.node16.json']);
+  expect(typecheckResult.status).toBe(0);
+});
+
 test('init runs install when package.json is created from scratch', async () => {
   const workspace = createTempDir('cli-init-deps-created');
   const prompter = new TestPrompter(['2', '1']);
@@ -757,6 +843,16 @@ test('resolveInitInstallStrategy keeps manual add commands workspace-safe for Wi
       npmCommand: 'exec'
     }).shouldDeferAutoInstall
   ).toBe(true);
+});
+
+test('resolvePackageManagerShellExecutable strips Windows absolute shim paths before shell execution', () => {
+  expect(
+    resolvePackageManagerShellExecutable('C:\\Program Files\\nodejs\\npm.cmd', 'npm', 'win32')
+  ).toBe('npm.cmd');
+  expect(
+    resolvePackageManagerShellExecutable('C:\\Program Files\\nodejs\\pnpm.cmd', 'pnpm', 'win32')
+  ).toBe('pnpm.cmd');
+  expect(resolvePackageManagerShellExecutable('/usr/local/bin/npm', 'npm', 'linux')).toBe('/usr/local/bin/npm');
 });
 
 test('init generates ArkType spec when ArkType backend is selected', async () => {

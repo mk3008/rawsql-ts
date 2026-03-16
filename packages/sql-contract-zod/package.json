@@ -1,7 +1,7 @@
 {
   "name": "@rawsql-ts/sql-contract-zod",
   "version": "0.1.3",
-  "description": "Runtime DTO validation on top of sql-contract's explicit mapper using Zod schemas.",
+  "description": "Deprecated helper package for Zod integration; prefer @rawsql-ts/sql-contract with zod.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -11,6 +11,7 @@
     }
   },
   "scripts": {
+    "prepack": "npm run build",
     "build": "tsc -b tsconfig.json",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
@@ -30,6 +31,9 @@
     "type": "git",
     "url": "https://github.com/mk3008/rawsql-ts.git",
     "directory": "packages/sql-contract-zod"
+  },
+  "rawsqlTs": {
+    "deprecationMessage": "Deprecated: prefer @rawsql-ts/sql-contract with zod."
   },
   "publishConfig": {
     "access": "public"

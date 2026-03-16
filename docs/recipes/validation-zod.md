@@ -12,7 +12,7 @@ ZTD init always selects a validator backend. When Zod is chosen, you can wire sc
 pnpm add -D @rawsql-ts/sql-contract zod
 ```
 
-`@rawsql-ts/sql-contract` exposes `reader.validator`, which accepts Zod schemas because they implement `parse(value)` (see `ReaderValidatorInput`). For convenience you can still install `@rawsql-ts/sql-contract-zod` if you want the `reader.zod` helper and numeric coercion helpers described in its README, but the base stack only requires `zod`.
+`@rawsql-ts/sql-contract` exposes `reader.validator`, which accepts Zod schemas because they implement `parse(value)` (see `ReaderValidatorInput`). For convenience you can still install `@rawsql-ts/sql-contract-zod` if you want the legacy `reader.zod` helper and numeric coercion helpers described in its README, but the recommended stack is `@rawsql-ts/sql-contract` plus `zod`.
 
 ## Example snippet
 
@@ -43,6 +43,6 @@ export async function listCustomers() {
 
 Zod validation runs after the mapper binds every row to the DTO, so schema errors surface before tests rely on the result shape.
 
-## Optional helper: @rawsql-ts/sql-contract-zod
+## Deprecated optional helper: @rawsql-ts/sql-contract-zod
 
-`@rawsql-ts/sql-contract-zod` depends on the core mapper and adds the `mapper.zod` helper plus Zod-aware coercion helpers such as `zNumberFromString`. Install it only if you prefer those dedicated APIs; `@rawsql-ts/sql-contract` plus `zod` covers the required validator flow.
+`@rawsql-ts/sql-contract-zod` depends on the core mapper and adds the `reader.zod` helper plus Zod-aware coercion helpers such as `zNumberFromString`. Keep it only when you need that compatibility layer; new projects should install `@rawsql-ts/sql-contract` plus `zod` instead.

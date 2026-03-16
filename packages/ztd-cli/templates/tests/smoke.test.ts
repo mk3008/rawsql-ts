@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 
-import { ensureSmokeOutput } from '../src/catalog/runtime/_smoke.runtime';
-import { createTestkitClient } from './support/testkit-client';
+import { ensureSmokeOutput } from '../src/catalog/runtime/_smoke.runtime.js';
+import { createTestkitClient } from './support/testkit-client.js';
 
 test('smoke: runtime contract wiring is usable before SQL-backed tests exist', () => {
   const output = ensureSmokeOutput({

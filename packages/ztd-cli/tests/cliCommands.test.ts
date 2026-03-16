@@ -327,6 +327,39 @@ test('init dry-run emits scaffold plan without writing files', { timeout: 60_000
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(false);
 });
 
+test('init rejects non-boolean dryRun in --json payload', { timeout: 60_000 }, () => {
+  const workspace = createTempDir('init-json-dryrun-boolean-validation');
+  const result = runCli([
+    'init',
+    '--json',
+    JSON.stringify({
+      workflow: 'demo',
+      validator: 'zod',
+      dryRun: 'false'
+    })
+  ], {}, workspace);
+
+  assertCliFailure(result, 'init json dryRun boolean validation');
+  expect(result.stderr).toContain('Invalid --dry-run value in --json payload. Expected a boolean.');
+});
+
+test('init rejects non-boolean force in --json payload', { timeout: 60_000 }, () => {
+  const workspace = createTempDir('init-json-boolean-validation');
+  const result = runCli([
+    'init',
+    '--dry-run',
+    '--json',
+    JSON.stringify({
+      workflow: 'demo',
+      validator: 'zod',
+      force: 'false'
+    })
+  ], {}, workspace);
+
+  assertCliFailure(result, 'init json force boolean validation');
+  expect(result.stderr).toContain('Invalid --force value in --json payload. Expected a boolean.');
+});
+
 test('init CLI keeps AI guidance files out of the default scaffold', { timeout: 60_000 }, () => {
   const workspace = createTempDir('init-default-no-ai-guidance');
   const result = runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace);

@@ -5,7 +5,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const moduleCache = new Map<string, Promise<unknown>>();
 const currentDirPath = resolveCurrentDirPath();
-const repositoryRoot = findRepositoryRoot(currentDirPath);
+const packageRoot = findNearestPackageRoot(currentDirPath);
+const repositoryRoot = findWorkspaceRoot(currentDirPath);
 
 async function loadOptionalModule<T>(
   cacheKey: string,
@@ -96,10 +97,27 @@ function tryGetImportMetaUrl(): string | undefined {
   }
 }
 
-function findRepositoryRoot(startDir: string): string {
+export function findNearestPackageRoot(startDir: string): string {
   let cursor = startDir;
   while (true) {
-    // Treat the monorepo root as the first directory containing both workspace marker files.
+    const hasPackageJson = existsSync(path.join(cursor, 'package.json'));
+    if (hasPackageJson) {
+      return cursor;
+    }
+
+    const parentDir = path.dirname(cursor);
+    if (parentDir === cursor) {
+      throw new Error(
+        'Failed to locate the package root while resolving optional dependencies.'
+      );
+    }
+    cursor = parentDir;
+  }
+}
+
+export function findWorkspaceRoot(startDir: string): string | null {
+  let cursor = startDir;
+  while (true) {
     const hasWorkspaceFile = existsSync(path.join(cursor, 'pnpm-workspace.yaml'));
     const hasPackageJson = existsSync(path.join(cursor, 'package.json'));
     if (hasWorkspaceFile && hasPackageJson) {
@@ -108,23 +126,25 @@ function findRepositoryRoot(startDir: string): string {
 
     const parentDir = path.dirname(cursor);
     if (parentDir === cursor) {
-      throw new Error(
-        'Failed to locate repository root while resolving optional dependencies.'
-      );
+      return null;
     }
     cursor = parentDir;
   }
 }
 
-function requireFromWorkspace<T>(specifier: string): T {
-  const require = createRequire(path.join(repositoryRoot, 'package.json'));
+function requireFromPackageRoot<T>(specifier: string): T {
+  const require = createRequire(path.join(packageRoot, 'package.json'));
   return require(specifier) as T;
 }
 
 async function loadAdapterNodePgModule(): Promise<AdapterNodePgModule> {
   try {
-    return requireFromWorkspace<AdapterNodePgModule>('@rawsql-ts/adapter-node-pg');
+    return requireFromPackageRoot<AdapterNodePgModule>('@rawsql-ts/adapter-node-pg');
   } catch (error) {
+    if (!repositoryRoot) {
+      throw error;
+    }
+
     // Workspace tests can run before adapter build output exists, so use source entrypoint.
     const workspaceAdapterSrc = path.join(
       repositoryRoot,

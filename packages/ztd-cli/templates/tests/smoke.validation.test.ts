@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { ensureSmokeOutput } from '../src/catalog/runtime/_smoke.runtime';
+import { ensureSmokeOutput } from '../src/catalog/runtime/_smoke.runtime.js';
 
 test('validator invariant smoke passes for valid runtime output', () => {
   const output = ensureSmokeOutput({
