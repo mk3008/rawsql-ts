@@ -93,8 +93,16 @@ function assertTarballHasDist(entries, packageName) {
 }
 
 function assertPathExistsInTarball(entries, packageName, manifestField, relativePath) {
-  if (typeof relativePath !== "string" || relativePath.length === 0 || !relativePath.startsWith(".")) {
-    return;
+  if (typeof relativePath !== "string" || relativePath.length === 0) {
+    throw new Error(
+      `[packaging contract] ${packageName} ${manifestField} must point to a non-empty relative path, received: ${String(relativePath)}`,
+    );
+  }
+
+  if (!relativePath.startsWith("./")) {
+    throw new Error(
+      `[packaging contract] ${packageName} ${manifestField} must start with "./", received: ${relativePath}`,
+    );
   }
 
   const normalized = `package/${relativePath.replace(/^\.\//u, "")}`;

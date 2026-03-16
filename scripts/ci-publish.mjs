@@ -552,8 +552,17 @@ function npmPackageExists(packageName) {
 }
 
 function readPackedPackageJson(tarballPath) {
-  const { stdout } = runWithOutput(TAR, ["-xOf", tarballPath, "package/package.json"]);
-  return JSON.parse(stdout);
+  const result = tryCaptureOutput(TAR, ["-xOf", tarballPath, "package/package.json"]);
+  if (!result.ok) {
+    throw new Error(result.error ?? `[publish] failed to read package/package.json from ${tarballPath}`);
+  }
+
+  try {
+    return JSON.parse(result.stdout);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`[publish] failed to parse package/package.json from ${tarballPath}: ${message}`);
+  }
 }
 
 function readPackageReleaseMetadata(pkg) {
