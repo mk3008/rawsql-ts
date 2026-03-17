@@ -321,13 +321,13 @@ test('init webapi scaffold localizes ZTD guidance to persistence-oriented paths'
     "../../src/infrastructure/db/sql-client"
   );
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/domain');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm exec ztd ztd-config');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('does not read it automatically');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('explicit target inspection');
   expect(readNormalizedFile(path.join(workspace, 'src', 'domain', 'README.md'))).not.toContain('ztd');
   expect(result.summary).toContain('src/domain/README.md');
   expect(result.summary).toContain('src/infrastructure/persistence/repositories/views/README.md');
-  expect(result.summary).toContain('Run pnpm exec ztd ztd-config');
+  expect(result.summary).toContain('Run npx ztd ztd-config');
 });
 
 test('init can opt into AI guidance files when explicitly requested', async () => {
@@ -664,7 +664,7 @@ test('webapi telemetry dogfood scenario keeps repository guidance inside infrast
   expect(existsSync(path.join(workspace, 'CONTEXT.md'))).toBe(false);
 });
 
-test('registry webapi scaffold exposes ztd via pnpm exec for dogfooding', async () => {
+test('registry webapi scaffold exposes ztd via npm exec for external onboarding', async () => {
   const workspace = createTempDir('cli-init-webapi-ztd-registry');
   const prompter = new TestPrompter([]);
 
@@ -677,10 +677,10 @@ test('registry webapi scaffold exposes ztd via pnpm exec for dogfooding', async 
     appShape: 'webapi'
   });
 
-  const installResult = installScaffoldDependencies(workspace);
+  const installResult = runNpmCommand(workspace, ['install']);
   expect(installResult.status).toBe(0);
 
-  const commandResult = runPnpmCommand(workspace, ['exec', 'ztd', 'ztd-config']);
+  const commandResult = runNpmCommand(workspace, ['exec', '--', 'ztd', 'ztd-config']);
 
   expect(commandResult.status).toBe(0);
   expect(commandResult.stdout).toContain('Generated 3 ZTD test rows');
@@ -741,7 +741,7 @@ test('init runs install when package.json is created from scratch', async () => 
 
   expect(installs.length).toBe(1);
   expect(installs[0].kind).toBe('install');
-  expect(installs[0].packageManager).toBe('pnpm');
+  expect(installs[0].packageManager).toBe('npm');
   expect(installs[0].packages).toEqual([]);
 });
 
@@ -767,7 +767,7 @@ test('init runs install when package.json is updated', async () => {
 
   expect(installs.length).toBe(1);
   expect(installs[0].kind).toBe('install');
-  expect(installs[0].packageManager).toBe('pnpm');
+  expect(installs[0].packageManager).toBe('npm');
   expect(installs[0].packages).toEqual([]);
 
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {

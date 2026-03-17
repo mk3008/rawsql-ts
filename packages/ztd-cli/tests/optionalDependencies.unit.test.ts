@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from 'vitest';
 
-import { findNearestPackageRoot, findWorkspaceRoot } from '../src/utils/optionalDependencies';
+import { buildConsumerInstallHint, findNearestPackageRoot, findWorkspaceRoot } from '../src/utils/optionalDependencies';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const tmpRoot = path.join(repoRoot, 'tmp');
@@ -29,4 +29,11 @@ test('findWorkspaceRoot still detects the rawsql-ts monorepo root when present',
   const nestedDir = path.join(repoRoot, 'packages', 'ztd-cli', 'src', 'utils');
 
   expect(findWorkspaceRoot(nestedDir)).toBe(repoRoot);
+});
+
+test('buildConsumerInstallHint uses npm as the external standalone primary path', () => {
+  expect(buildConsumerInstallHint('@rawsql-ts/testkit-core')).toBe('npm install --save-dev @rawsql-ts/testkit-core');
+  expect(buildConsumerInstallHint('pg', '@testcontainers/postgresql')).toBe(
+    'npm install --save-dev pg @testcontainers/postgresql'
+  );
 });

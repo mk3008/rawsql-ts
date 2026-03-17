@@ -5,16 +5,21 @@ Use this guide when you need to validate the published-package happy path **befo
 This is not a perfect substitute for a real registry publish. It is a local verification layer that answers two practical questions:
 
 1. Did `pnpm pack` rewrite workspace protocol dependencies to concrete semver ranges?
-2. Does the packed `@rawsql-ts/ztd-cli` tarball still reach a green standalone smoke run?
+2. Does the packed `@rawsql-ts/ztd-cli` tarball still reach a green npm-first standalone smoke run?
 
 ## What this check proves
 
 - Release builds complete for the packages needed by the published-package path.
 - Packed tarballs do not leak `workspace:*`, `workspace:^`, or similar references.
-- A standalone app can install the packed `@rawsql-ts/ztd-cli` tarball and complete:
-  - `ztd init --yes`
-  - `ztd ztd-config`
-  - `pnpm test`
+- Phase A proves the packaging / npm primary path gate:
+  - the tarball installs with `npm install`
+  - `npx ztd init --yes` completes
+  - the generated completion message stays on the npm primary path
+  - follow-up `npm install` still works
+- Phase B proves the stronger consumer smoke:
+  - `npx ztd ztd-config`
+  - `npm run test`
+  - TypeScript compile checks for both default and Node16 settings
 
 ## What this check does not prove
 
@@ -35,16 +40,18 @@ The script will:
 1. Run `pnpm build:publish`
 2. Pack the publishable packages into `tmp/published-package-check/tarballs`
 3. Inspect each packed `package.json` for leaked `workspace:` references
-4. Create a standalone app under `tmp/published-package-check/standalone-app`
-5. Install the packed `@rawsql-ts/ztd-cli` tarball there
-6. Run `ztd init --yes`, `ztd ztd-config`, and `pnpm test`
+4. Create a standalone app under `tmp/published-package-check/packages/npm-primary-path`
+5. Run Phase A: `npm install`, `npx ztd init --yes`, completion-message assertions, and follow-up `npm install`
+6. Run Phase B: `npx ztd ztd-config`, `npm run test`, and TypeScript compile checks
 7. Write a machine-readable summary to `tmp/published-package-check/summary.json`
 
 ## How to interpret failures
 
 - Pack inspection fails because a tarball still contains `workspace:` references.
   - Treat this as a packaging/release bug.
-- The standalone app fails during `pnpm add` or later install steps because an unpublished transitive dependency still expects the public registry.
+- Phase A fails before `ztd-config`.
+  - Treat this as a packaging or npm-primary-path regression.
+- Phase B fails after the npm-first setup completed.
   - Treat this as a published-package-mode release gap.
   - The local-source developer path may still be healthy.
 - The standalone smoke app passes, but local-source dogfooding fails.

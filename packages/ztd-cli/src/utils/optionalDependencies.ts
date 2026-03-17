@@ -30,6 +30,10 @@ async function loadOptionalModule<T>(
   return moduleLoader;
 }
 
+export function buildConsumerInstallHint(...packages: string[]): string {
+  return `npm install --save-dev ${packages.join(' ')}`;
+}
+
 export type TestkitCoreModule = typeof import('@rawsql-ts/testkit-core');
 
 export interface PgTestkitClientLike {
@@ -163,7 +167,7 @@ export async function ensureTestkitCoreModule(): Promise<TestkitCoreModule> {
     '@rawsql-ts/testkit-core',
     () => import('@rawsql-ts/testkit-core'),
     'This command requires @rawsql-ts/testkit-core so fixtures and schema metadata are available.',
-    'pnpm add -D @rawsql-ts/testkit-core'
+    buildConsumerInstallHint('@rawsql-ts/testkit-core')
   );
 }
 
@@ -172,7 +176,7 @@ export async function ensureAdapterNodePgModule(): Promise<AdapterNodePgModule> 
     '@rawsql-ts/adapter-node-pg',
     loadAdapterNodePgModule,
     'A database adapter (for example @rawsql-ts/adapter-node-pg) is required to execute the rewritten SQL.',
-    'pnpm add -D @rawsql-ts/adapter-node-pg'
+    buildConsumerInstallHint('@rawsql-ts/adapter-node-pg')
   );
 }
 
@@ -181,7 +185,7 @@ export async function ensurePgModule(): Promise<PgModule> {
     'pg',
     () => import('pg'),
     'The SQL lint command needs a PostgreSQL driver such as pg.',
-    'pnpm add -D pg'
+    buildConsumerInstallHint('pg')
   );
 }
 
@@ -190,7 +194,7 @@ export async function ensurePostgresContainerModule(): Promise<PostgresContainer
     '@testcontainers/postgresql',
     () => import('@testcontainers/postgresql'),
     'ztd lint wants to spin up a disposable Postgres container via @testcontainers/postgresql.',
-    'pnpm add -D @testcontainers/postgresql'
+    buildConsumerInstallHint('@testcontainers/postgresql')
   );
 }
 
