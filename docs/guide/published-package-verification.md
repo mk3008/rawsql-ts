@@ -16,10 +16,11 @@ This is not a perfect substitute for a real registry publish. It is a local veri
   - `npx ztd init --yes` completes
   - the generated completion message stays on the npm primary path
   - follow-up `npm install` still works
-- Phase B proves the stronger consumer smoke:
+- Phase B proves the first test quality gate:
   - `npx ztd ztd-config`
   - `npm run test`
-  - TypeScript compile checks for both default and Node16 settings
+  - the generated scaffold reaches a passing first smoke test on the npm-first consumer path
+  - TypeScript compile checks for both default and Node16 settings as follow-up smoke coverage
 
 ## What this check does not prove
 
@@ -52,10 +53,19 @@ The script will:
 - Phase A fails before `ztd-config`.
   - Treat this as a packaging or npm-primary-path regression.
 - Phase B fails after the npm-first setup completed.
-  - Treat this as a published-package-mode release gap.
+  - Treat this as a first test quality gate regression on the published-package path.
   - The local-source developer path may still be healthy.
 - The standalone smoke app passes, but local-source dogfooding fails.
   - Treat that as a developer-mode problem, not a packaging problem.
+
+## First test definition
+
+For this verification, `first test` means the generated scaffold's minimal smoke test passes after the npm-first setup flow.
+
+- It is the test path exercised by `npm install -> ztd init -> npx ztd ztd-config -> npm run test`.
+- It is **not** a full integration suite.
+- It does **not** require every SQL-backed DB test to pass.
+- It exists to prove that consumer onboarding reaches visible value, not just successful command execution.
 
 ## Recommended policy
 
@@ -64,6 +74,14 @@ Use both checks before release work is considered healthy:
 - `Local-source developer mode`
   - Answers: can we dogfood unreleased changes from source?
 - `Published-package verification before release`
-  - Answers: are the packed artifacts internally consistent enough for release preparation?
+  - Answers: are the packed artifacts internally consistent enough for release preparation, and does the first generated test pass on the consumer onboarding path?
+
+## Release checklist
+
+Treat this document as the canonical pre-release policy for the npm consumer path.
+
+- `pnpm verify:published-package-mode` is green.
+- The consumer path confirms `first test passes`.
+- The generated scaffold and the verification path still match the intended onboarding flow.
 
 Only a real npm publish can fully answer the end-user registry path, but this check removes most avoidable surprises before that point.

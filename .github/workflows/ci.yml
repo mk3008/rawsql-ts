@@ -85,7 +85,7 @@ jobs:
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
 
-    - name: Run npm primary-path consumer guard
+    - name: Run npm primary-path and first test quality gate
       run: pnpm verify:customer-consumers
 
   benchmark:
