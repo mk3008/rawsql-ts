@@ -214,6 +214,18 @@ function writeNode16Tsconfig(directory) {
   });
 }
 
+function assertIncludes(haystack, needle, label) {
+  if (!haystack.includes(needle)) {
+    throw new Error(`[${label}] Expected output to include: ${needle}`);
+  }
+}
+
+function assertExcludes(haystack, needle, label) {
+  if (haystack.includes(needle)) {
+    throw new Error(`[${label}] Unexpected output included: ${needle}`);
+  }
+}
+
 function packPublishedPackages() {
   const workspacePackages = Array.from(getWorkspacePackages(workspaceRoot).values())
     .filter(isPublishTarget)
@@ -277,8 +289,8 @@ function verifyPackedTarballInstall(packages) {
   return appDir;
 }
 
-function verifyNpmConsumerSmoke(packages) {
-  const appDir = path.join(packageRoot, "npm-consumer-smoke");
+function verifyNpmPrimaryPath(packages) {
+  const appDir = path.join(packageRoot, "npm-primary-path");
   ensureCleanDir(appDir);
   const tarballDependencies = createTarballDependencyMap(packages);
 
@@ -290,15 +302,33 @@ function verifyNpmConsumerSmoke(packages) {
   });
 
   runIn(appDir, NPM, ["install"]);
-  runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "demo", "--validator", "zod"]);
+  const initResult = runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "demo", "--validator", "zod"]);
+
+  assertIncludes(initResult.stdout, "Run npx ztd ztd-config", "phase-a npm-primary-path");
+  assertIncludes(initResult.stdout, "Run tests (npm run test or npx vitest run)", "phase-a npm-primary-path");
+  assertExcludes(initResult.stdout, "pnpm exec ztd", "phase-a npm-primary-path");
+  assertExcludes(initResult.stdout, "pnpm test", "phase-a npm-primary-path");
+
+  const readme = fs.readFileSync(path.join(appDir, "README.md"), "utf8");
+  assertIncludes(readme, "Run `npx ztd ztd-config`.", "phase-a scaffold-readme");
+  assertIncludes(readme, "Run tests (`npm run test` or `npx vitest run`).", "phase-a scaffold-readme");
+  assertExcludes(readme, "pnpm exec ztd ztd-config", "phase-a scaffold-readme");
+
   restoreTarballDependencies(appDir, tarballDependencies);
   runIn(appDir, NPM, ["install"]);
+
+  return { appDir };
+}
+
+function verifyNpmConsumerSmoke(phaseAResult) {
+  const { appDir } = phaseAResult;
+
   runIn(appDir, NPM, ["exec", "--", "ztd", "ztd-config"]);
 
   setPackageTypeModule(appDir);
   writeNode16Tsconfig(appDir);
 
-  runIn(appDir, PNPM, ["test"]);
+  runIn(appDir, NPM, ["test"]);
   runIn(appDir, NPM, ["exec", "--", "tsc", "--noEmit", "-p", "tsconfig.json"]);
   runIn(appDir, NPM, ["exec", "--", "tsc", "-p", "tsconfig.node16.json"]);
 
@@ -361,7 +391,8 @@ function main() {
 
   const packedPackages = packPublishedPackages();
   const packedInstallApp = verifyPackedTarballInstall(packedPackages);
-  const npmSmokeApp = verifyNpmConsumerSmoke(packedPackages);
+  const npmPrimaryPathApp = verifyNpmPrimaryPath(packedPackages);
+  const npmSmokeApp = verifyNpmConsumerSmoke(npmPrimaryPathApp);
   const overwriteSafetyApp = verifyOverwriteSafety(packedPackages);
 
   writeJson(path.join(outputRoot, "summary.json"), {
@@ -369,6 +400,7 @@ function main() {
     node: process.version,
     platform: os.platform(),
     packedInstallApp,
+    npmPrimaryPathApp: npmPrimaryPathApp.appDir,
     npmSmokeApp,
     overwriteSafetyApp,
     packages: packedPackages.map((pkg) => ({

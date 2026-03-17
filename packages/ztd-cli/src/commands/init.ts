@@ -1125,7 +1125,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.package = packageSummary;
   }
 
-  await ensureTemplateDependenciesInstalled(rootDir, absolutePaths, summaries, dependencies);
+  await ensureTemplateDependenciesInstalled(rootDir, absolutePaths, summaries, dependencies, scaffoldProfile);
 
   const nextSteps = buildNextSteps(
     normalizeRelative(rootDir, absolutePaths.schema),
@@ -1340,7 +1340,11 @@ export function buildPackageManagerArgs(
     : ['add', '-D', ...packages];
 }
 
-function detectPackageManager(rootDir: string): PackageManager {
+function defaultPackageManagerForScaffold(scaffoldProfile?: InitScaffoldProfile): PackageManager {
+  return scaffoldProfile?.dependencyProfile === 'local-source' ? 'pnpm' : 'npm';
+}
+
+function detectPackageManager(rootDir: string, fallbackPackageManager: PackageManager = 'npm'): PackageManager {
   // Prefer lockfiles to avoid guessing when multiple package managers are installed.
   if (existsSync(path.join(rootDir, 'pnpm-lock.yaml'))) {
     return 'pnpm';
@@ -1352,8 +1356,8 @@ function detectPackageManager(rootDir: string): PackageManager {
     return 'npm';
   }
 
-  // Fall back to pnpm because rawsql-ts itself standardizes on pnpm.
-  return 'pnpm';
+  // Default external standalone consumers to npm unless the scaffold explicitly targets local-source dogfooding.
+  return fallbackPackageManager;
 }
 
 function extractPackageName(specifier: string): string | null {
@@ -1462,17 +1466,18 @@ async function ensureTemplateDependenciesInstalled(
   rootDir: string,
   absolutePaths: Record<FileKey, string>,
   summaries: Partial<Record<FileKey, FileSummary>>,
-  dependencies: ZtdConfigWriterDependencies
+  dependencies: ZtdConfigWriterDependencies,
+  scaffoldProfile: InitScaffoldProfile
 ): Promise<void> {
+  const packageManager = detectPackageManager(rootDir, defaultPackageManagerForScaffold(scaffoldProfile));
   const packageJsonPath = path.join(rootDir, 'package.json');
   if (!dependencies.fileExists(packageJsonPath)) {
     dependencies.log(
-      'Skipping dependency installation because package.json is missing. Next: run pnpm init (or npm init), install dependencies, then run npx ztd ztd-config.'
+      `Skipping dependency installation because package.json is missing. Next: run ${packageManager} init, install dependencies, then run npx ztd ztd-config.`
     );
     return;
   }
 
-  const packageManager = detectPackageManager(rootDir);
   const installStrategy = resolveInitInstallStrategy(rootDir, packageManager);
   if (installStrategy.workspaceGuard.shouldIgnoreWorkspace) {
     dependencies.log(
@@ -1961,7 +1966,7 @@ function buildNextSteps(
   scaffoldProfile: InitScaffoldProfile,
   appShape: InitAppShape
 ): string[] {
-  const packageManager = detectPackageManager(rootDir);
+  const packageManager = detectPackageManager(rootDir, defaultPackageManagerForScaffold(scaffoldProfile));
   const installStrategy = resolveInitInstallStrategy(rootDir, packageManager);
   const installCommand = installStrategy.installCommand;
   const runScriptCommand = (script: 'typecheck' | 'test'): string =>
@@ -2004,7 +2009,7 @@ function buildNextSteps(
   }
   nextSteps.push('Wire repositories to src/infrastructure/telemetry/repositoryTelemetry.ts when you add SQL-backed repository classes');
   nextSteps.push('Provide a SqlClient implementation (adapter or mock)');
-  nextSteps.push('Run tests (pnpm test or npx vitest run)');
+  nextSteps.push(`Run tests (${runScriptCommand('test')} or npx vitest run)`);
   // Avoid repeating the same install hint when the deferred-install path already emitted it explicitly.
   if (installStrategy.workspaceGuard.shouldIgnoreWorkspace && !installStrategy.shouldDeferAutoInstall) {
     nextSteps.push('This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs.');

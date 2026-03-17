@@ -26,12 +26,12 @@ Prompt dogfooding:
 
 Next steps:
 1. Update `ztd/ddl/<schema>.sql` if needed.
-2. Run `pnpm exec ztd ztd-config` (or `npx ztd ztd-config` if you prefer npm-style invocation).
+2. Run `npx ztd ztd-config`.
 3. Keep `src/domain`, `src/application`, and `src/presentation/http` free from direct SQL or DDL concerns.
-4. Use `pnpm exec ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` when you want a QuerySpec scaffold from the local DDL snapshot.
+4. Use `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` when you want a QuerySpec scaffold from the local DDL snapshot.
 5. Wire repositories to `src/infrastructure/telemetry/repositoryTelemetry.ts` only when you add SQL-backed repository classes.
 6. Provide a SqlClient implementation in `src/infrastructure/db`.
-7. Run tests (`pnpm test` or `npx vitest run`) with `ZTD_TEST_DATABASE_URL` when SQL-backed verification needs a managed test database.
+7. Run tests (`npm run test` or `npx vitest run`) with `ZTD_TEST_DATABASE_URL` when SQL-backed verification needs a managed test database.
 8. Treat `ddl pull` and `ddl diff` as explicit target inspection commands that require `--url` or a complete `--db-*` flag set.
 9. If you generate migration SQL artifacts, apply them outside `ztd-cli`.
 

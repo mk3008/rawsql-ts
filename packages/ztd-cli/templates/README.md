@@ -20,11 +20,11 @@ Key folders:
 
 Next steps:
 1. Update `ztd/ddl/<schema>.sql` if needed.
-2. Run `pnpm exec ztd ztd-config` (or `npx ztd ztd-config` if you prefer npm-style invocation).
-3. Run `pnpm exec ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` when you want a QuerySpec scaffold from the local DDL snapshot.
+2. Run `npx ztd ztd-config`.
+3. Run `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` when you want a QuerySpec scaffold from the local DDL snapshot.
 4. Wire repositories to `src/infrastructure/telemetry/repositoryTelemetry.ts` so application code can replace the default telemetry hook.
 5. Provide a SqlClient implementation.
-6. Run tests (`pnpm test` or `npx vitest run`).
+6. Run tests (`npm run test` or `npx vitest run`).
 7. Use `ZTD_TEST_DATABASE_URL` for ZTD-owned test and verification workflows.
 8. Use `ztd model-gen --probe-mode live`, `ztd ddl pull`, or `ztd ddl diff` only for explicit target inspection by passing `--url` or a complete `--db-*` flag set.
 9. If you generate migration SQL artifacts, apply them with your deployment tooling instead of `ztd-cli`.
@@ -38,9 +38,9 @@ If you later switch this scaffold into a layered WebAPI shape, add a prompt-dogf
 Examples:
 
 ```bash
-pnpm exec ztd query uses table public.sale_items --exclude-generated
-pnpm exec ztd query uses table public.sale_lines --exclude-generated
-pnpm exec ztd query uses column public.products.title --exclude-generated
-pnpm exec ztd query uses column public.sale_items.quantity --exclude-generated
-pnpm exec ztd query uses table public.sale_lines --view detail --exclude-generated
+npx ztd query uses table public.sale_items --exclude-generated
+npx ztd query uses table public.sale_lines --exclude-generated
+npx ztd query uses column public.products.title --exclude-generated
+npx ztd query uses column public.sale_items.quantity --exclude-generated
+npx ztd query uses table public.sale_lines --view detail --exclude-generated
 ```
