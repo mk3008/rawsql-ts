@@ -304,14 +304,16 @@ function verifyNpmPrimaryPath(packages) {
   runIn(appDir, NPM, ["install"]);
   const initResult = runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "demo", "--validator", "zod"]);
 
-  assertIncludes(initResult.stdout, "Run npx ztd ztd-config", "phase-a npm-primary-path");
-  assertIncludes(initResult.stdout, "Run tests (npm run test or npx vitest run)", "phase-a npm-primary-path");
+  assertIncludes(initResult.stdout, "npx ztd ztd-config", "phase-a npm-primary-path");
+  assertIncludes(initResult.stdout, "npx ztd model-gen", "phase-a npm-primary-path");
+  assertIncludes(initResult.stdout, "npm run test", "phase-a npm-primary-path");
   assertExcludes(initResult.stdout, "pnpm exec ztd", "phase-a npm-primary-path");
   assertExcludes(initResult.stdout, "pnpm test", "phase-a npm-primary-path");
 
   const readme = fs.readFileSync(path.join(appDir, "README.md"), "utf8");
-  assertIncludes(readme, "Run `npx ztd ztd-config`.", "phase-a scaffold-readme");
-  assertIncludes(readme, "Run tests (`npm run test` or `npx vitest run`).", "phase-a scaffold-readme");
+  assertIncludes(readme, "npx ztd ztd-config", "phase-a scaffold-readme");
+  assertIncludes(readme, "npx ztd model-gen", "phase-a scaffold-readme");
+  assertIncludes(readme, "npm run test", "phase-a scaffold-readme");
   assertExcludes(readme, "pnpm exec ztd ztd-config", "phase-a scaffold-readme");
 
   restoreTarballDependencies(appDir, tarballDependencies);
