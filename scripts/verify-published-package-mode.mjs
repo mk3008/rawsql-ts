@@ -304,11 +304,11 @@ function verifyNpmPrimaryPath(packages) {
   runIn(appDir, NPM, ["install"]);
   const initResult = runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "demo", "--validator", "zod"]);
 
-  assertIncludes(initResult.stdout, "npx ztd ztd-config", "phase-a npm-primary-path");
-  assertIncludes(initResult.stdout, "npx ztd model-gen", "phase-a npm-primary-path");
-  assertIncludes(initResult.stdout, "npm run test", "phase-a npm-primary-path");
-  assertExcludes(initResult.stdout, "pnpm exec ztd", "phase-a npm-primary-path");
-  assertExcludes(initResult.stdout, "pnpm test", "phase-a npm-primary-path");
+  assertIncludes(initResult.stdout, "npx ztd ztd-config", "phase-a packaging-npm-primary-path-gate");
+  assertIncludes(initResult.stdout, "npx ztd model-gen", "phase-a packaging-npm-primary-path-gate");
+  assertIncludes(initResult.stdout, "npm run test", "phase-a packaging-npm-primary-path-gate");
+  assertExcludes(initResult.stdout, "pnpm exec ztd", "phase-a packaging-npm-primary-path-gate");
+  assertExcludes(initResult.stdout, "pnpm test", "phase-a packaging-npm-primary-path-gate");
 
   const readme = fs.readFileSync(path.join(appDir, "README.md"), "utf8");
   assertIncludes(readme, "npx ztd ztd-config", "phase-a scaffold-readme");
@@ -325,6 +325,7 @@ function verifyNpmPrimaryPath(packages) {
 function verifyNpmConsumerSmoke(phaseAResult) {
   const { appDir } = phaseAResult;
 
+  // Phase B proves the first generated smoke test can pass on the npm-first consumer path.
   runIn(appDir, NPM, ["exec", "--", "ztd", "ztd-config"]);
 
   setPackageTypeModule(appDir);
@@ -403,6 +404,7 @@ function main() {
     platform: os.platform(),
     packedInstallApp,
     npmPrimaryPathApp: npmPrimaryPathApp.appDir,
+    firstTestGateApp: npmSmokeApp,
     npmSmokeApp,
     overwriteSafetyApp,
     packages: packedPackages.map((pkg) => ({
