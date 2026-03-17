@@ -128,6 +128,8 @@ For pre-release work inside this monorepo, use the repository-root verification 
 
 A complete copy-paste sequence to reach a green test run. Choose the **demo** workflow during `ztd init` to get a working example immediately.
 
+If you want a shorter DDL-to-first-test walkthrough, see [SQL-first End-to-End Tutorial](../../docs/guide/sql-first-end-to-end-tutorial.md).
+
 ### Prerequisites
 
 * Node.js 20+
