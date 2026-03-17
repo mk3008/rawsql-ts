@@ -115,6 +115,10 @@ npm install rawsql-ts
 
 See the [Core Package Documentation](./packages/core/README.md) for usage examples and API reference. For reusable AST-based impact analysis, see [@rawsql-ts/sql-grep-core](./packages/sql-grep-core). For repo-level SQL lifecycle workflows, inspection commands, and ZTD project guidance, see [@rawsql-ts/ztd-cli](./packages/ztd-cli/README.md). Deterministic dogfooding spec: [docs/dogfooding/DOGFOODING.md](./docs/dogfooding/DOGFOODING.md).
 
+## Tutorials
+
+- [SQL-first End-to-End Tutorial](./docs/guide/sql-first-end-to-end-tutorial.md) - Walk from DDL to `ztd-config`, `model-gen`, repository wiring, and the first passing smoke test in one focused path.
+
 ## CLI Tool Routing Happy Paths
 
 - SQL pipeline / debug → `ztd query plan <sql-file>`
