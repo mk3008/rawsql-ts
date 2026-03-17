@@ -2,6 +2,58 @@
 - Applies to the entire repository subtree rooted at `./`.
 - Defines repository-wide contract rules for SQL rewriting, ZTD testing, and contribution safety.
 - Serves as the fallback contract when no deeper `AGENTS.md` overrides a rule.
+- Serves as the canonical source for task routing and token-efficiency policy in this repository.
+
+# Task Routing
+
+## Default entrypoint
+- Human requests SHOULD be handled through the `orchestrator` agent.
+- Specialist agents SHOULD NOT be invoked directly by humans unless debugging the orchestration itself.
+- The `orchestrator` agent MAY be invoked from either plan mode or normal prompt mode.
+
+## Routing policy
+- For code changes, bug fixes, refactors, parser behavior, SQL rewrite behavior, package behavior, or test failures:
+  1. `pr_explorer`
+  2. `implementer` if changes are needed
+  3. `reviewer`
+- For docs UX, first-run flows, self-usage, or ztd-cli workflow friction:
+  1. `dogfooder`
+  2. `reviewer` only if correctness or regression risk is involved
+- For simple read-only questions, answer directly without spawning specialists unless scope is unclear.
+
+## Scope discipline
+- The first pass MUST identify the smallest affected package and nearest verification scope before broad repo reads.
+- Root-wide verification MUST NOT be the first step unless the task is explicitly repo-wide.
+
+# Token Efficiency
+
+## REQUIRED
+- Start from the smallest affected package, nearest tests, and nearest docs.
+- Prefer `pnpm --filter <package>` scoped commands before workspace-wide commands.
+- Summaries MUST name touched package(s), touched files, and chosen verification scope.
+- Do not restate repository architecture unless it is necessary for the current task.
+- Do not read broad docs sets when a package README or nearby test already answers the question.
+
+## ESCALATION
+- Escalate from scoped verification to root-wide verification only when:
+  - multiple packages are changed
+  - a shared package contract is changed
+  - release-readiness is being claimed
+  - scoped verification is insufficient to support the claim
+
+## OUTPUT SHAPE
+- Default reports SHOULD be concise and use:
+  - Summary
+  - Scope
+  - Actions
+  - Verification
+  - Risks or Assumptions
+
+# Plan Mode Guidance
+
+- For non-trivial work, plan mode SHOULD use `orchestrator` as the entrypoint.
+- Plan mode SHOULD stay read-only and produce the smallest defensible plan before execution.
+- Specialist names SHOULD remain internal unless orchestration debugging is requested.
 
 # Policy
 ## REQUIRED
