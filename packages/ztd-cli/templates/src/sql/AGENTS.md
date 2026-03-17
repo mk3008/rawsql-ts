@@ -21,6 +21,7 @@
 
 # Mandatory Workflow
 - SQL asset changes MUST run tests that execute the changed SQL via catalog/repository paths.
+- The first SQL-backed repository should be mirrored in `tests/queryspec.example.test.ts` so SQL, QuerySpec, and tests stay aligned.
 
 # Hygiene
 - Keep SQL filenames stable and unambiguous for CRUD intent.

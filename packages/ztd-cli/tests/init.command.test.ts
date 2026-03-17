@@ -112,7 +112,8 @@ const requiredInvariantFiles = [
   'src/catalog/specs/_smoke.spec.ts',
   'src/catalog/runtime/_coercions.ts',
   'src/catalog/runtime/_smoke.runtime.ts',
-  'tests/smoke.validation.test.ts'
+  'tests/smoke.validation.test.ts',
+  'tests/queryspec.example.test.ts'
 ];
 
 class TestPrompter implements Prompter {
@@ -175,6 +176,7 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(existsSync(path.join(workspace, 'tests', 'smoke.test.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toBe(true);
   expect(existsSync(testkitClientPath)).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'queryspec.example.test.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'vitest.config.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'package.json'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
@@ -246,10 +248,13 @@ test('init wizard bootstraps an empty scaffold', async () => {
     'normalizes valid timestamp strings',
   );
   expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.test.ts'))).toContain(
-    'runtime contract wiring is usable before SQL-backed tests exist',
+    'first sanity check keeps the scaffold runnable',
   );
   expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.test.ts'))).toContain(
-    'SqlClient seam is either wired or fails with an actionable message',
+    'SqlClient seam is the handoff point after the QuerySpec sample',
+  );
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'queryspec.example.test.ts'))).toContain(
+    'queryspec example keeps SQL, rowMapping, and tests aligned',
   );
   expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toContain(
     'ZTD_TEST_DATABASE_URL'
@@ -279,6 +284,7 @@ test('init wizard bootstraps a scaffold with demo DDL', async () => {
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'tests', 'smoke.test.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'smoke.validation.test.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'queryspec.example.test.ts'))).toBe(true);
 
   const config = JSON.parse(readNormalizedFile(path.join(workspace, 'ztd.config.json'))) as {
     ddl: { defaultSchema: string; searchPath: string[] };
@@ -317,12 +323,14 @@ test('init webapi scaffold localizes ZTD guidance to persistence-oriented paths'
     true
   );
   expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'db', 'sql-client.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'queryspec.example.test.ts'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'testkit-client.ts'))).toContain(
     "../../src/infrastructure/db/sql-client"
   );
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/domain');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('tests/queryspec.example.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If this fails:');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('does not read it automatically');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('explicit target inspection');
@@ -1047,6 +1055,7 @@ test('init local-source mode links direct rawsql-ts dependencies from the monore
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm install --ignore-workspace');
   expect(result.summary).toContain('Run pnpm ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd ztd-config');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('tests/queryspec.example.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If this fails:');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
     'The scaffold keeps `@rawsql-ts/sql-contract` as a normal package import even in local-source developer mode.'

@@ -9,6 +9,7 @@
 - CREATE tests for table repositories MUST expect identifier-only returns unless spec explicitly requires DTO return.
 - Test runner configuration MUST exist and support single-command execution.
 - Initial template state MUST include at least one executable test.
+- Initial template state MUST include one QuerySpec-first example test at `tests/queryspec.example.test.ts` so the repository sample is easy to copy.
 
 ## ALLOWED
 - Tests MAY import runtime modules from `src/`.

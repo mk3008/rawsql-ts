@@ -116,6 +116,7 @@ type FileKey =
   | 'localSourceGuardScript'
   | 'smokeValidationTest'
   | 'testsSmoke'
+  | 'querySpecExampleTest'
   | 'testkitClient'
   | 'globalSetup'
   | 'vitestConfig'
@@ -297,6 +298,7 @@ const SMOKE_RUNTIME_TEMPLATE = 'src/catalog/runtime/_smoke.runtime.ts';
 const LOCAL_SOURCE_GUARD_TEMPLATE = 'scripts/local-source-guard.mjs';
 const SMOKE_VALIDATION_TEST_TEMPLATE = 'tests/smoke.validation.test.ts';
 const TESTS_SMOKE_TEMPLATE = 'tests/smoke.test.ts';
+const QUERYSPEC_EXAMPLE_TEST_TEMPLATE = 'tests/queryspec.example.test.ts';
 const TESTKIT_CLIENT_TEMPLATE = 'tests/support/testkit-client.ts';
 const TESTKIT_CLIENT_WEBAPI_TEMPLATE = 'tests/support/testkit-client.webapi.ts';
 const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
@@ -556,6 +558,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     localSourceGuardScript: path.join(rootDir, 'scripts', 'local-source-guard.mjs'),
     smokeValidationTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'smoke.validation.test.ts'),
     testsSmoke: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'smoke.test.ts'),
+    querySpecExampleTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'queryspec.example.test.ts'),
     readme: path.join(rootDir, 'README.md'),
     context: path.join(rootDir, 'CONTEXT.md'),
     promptDogfood: scaffoldLayout.promptDogfoodPath ?? path.join(rootDir, 'PROMPT_DOGFOOD.md'),
@@ -1020,6 +1023,19 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (testsSmokeSummary) {
     summaries.testsSmoke = testsSmokeSummary;
+  }
+
+  const querySpecExampleTestSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.querySpecExampleTest,
+    relativePath('querySpecExampleTest'),
+    QUERYSPEC_EXAMPLE_TEST_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (querySpecExampleTestSummary) {
+    summaries.querySpecExampleTest = querySpecExampleTestSummary;
   }
 
   const testkitSummary = await writeTemplateFile(
@@ -1995,6 +2011,8 @@ function buildNextSteps(
       ? `Review ${sqlClientPath} and ${repositoryTelemetryPath} so the first SQL-backed repository has a seam to plug into`
       : `Review ${sqlClientPath} and ${repositoryTelemetryPath} so the first SQL-backed repository has a seam to plug into`;
   const firstTestStep = `Run tests (${runScriptCommand('test')} or npx vitest run) to pass the generated smoke test before adding SQL-backed coverage`;
+  const sampleTestStep =
+    'Open tests/queryspec.example.test.ts as the QuerySpec-first sample before you write the first repository test';
   const fallbackSteps = [
     `If ${ztdCommand} ztd-config fails, keep editing ${schemaRelativePath} and ${sqlAssetPath} first, then rerun generation after the DDL is ready`,
     `If ${ztdCommand} model-gen fails, keep the SQL file and rerun it after ${ztdCommand} ztd-config succeeds; the ztd probe path does not need DATABASE_URL`,
@@ -2008,6 +2026,7 @@ function buildNextSteps(
       sqlStep,
       ...generationSteps.map((step) => step.replace(ztdCommand, runLocalSourceZtdCommand)),
       wiringStep,
+      sampleTestStep,
       firstTestStep,
       `Run ${runScriptCommand('typecheck')} before you start wiring handwritten repository code`
     ];
@@ -2023,7 +2042,7 @@ function buildNextSteps(
   if (installStrategy.shouldDeferAutoInstall) {
     nextSteps.push(`Run ${installCommand}`);
   }
-  nextSteps.push(...generationSteps, wiringStep, firstTestStep);
+  nextSteps.push(...generationSteps, wiringStep, sampleTestStep, firstTestStep);
   // Avoid repeating the same install hint when the deferred-install path already emitted it explicitly.
   if (installStrategy.workspaceGuard.shouldIgnoreWorkspace && !installStrategy.shouldDeferAutoInstall) {
     fallbackSteps.push('This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs.');
@@ -2116,6 +2135,7 @@ function buildSummaryLines(
     'localSourceGuardScript',
     'smokeValidationTest',
     'testsSmoke',
+    'querySpecExampleTest',
     'sqlClient',
     'sqlClientAdapters',
     'repositoryTelemetryTypes',
@@ -2200,6 +2220,7 @@ function buildInitDryRunPlan(rootDir: string, options: {
     path.join(DEFAULT_ZTD_CONFIG.testsDir, 'smoke.validation.test.ts'),
     path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'testkit-client.ts'),
     path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
+    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'queryspec.example.test.ts'),
     path.join(DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-row-map.generated.ts'),
     path.join(DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-layout.generated.ts'),
     'README.md',

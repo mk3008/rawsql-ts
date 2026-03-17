@@ -16,20 +16,21 @@ Quick boundary table:
 Key folders:
 - ztd/ddl: schema files (source of truth)
 - src: application SQL and repositories
-- tests: ZTD tests and support
+- tests: ZTD tests, smoke checks, and the QuerySpec-first example sample
 
 Next steps:
 1. Update `ztd/ddl/<schema>.sql` if needed.
 2. Add or edit your first SQL asset under `src/sql/`.
 3. Run `npx ztd ztd-config` to regenerate DDL-derived test rows and layout metadata.
 4. Run `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` to scaffold a QuerySpec from that SQL file.
-5. Review `src/db/sql-client.ts` and `src/infrastructure/telemetry/repositoryTelemetry.ts` so the first SQL-backed repository has a seam to plug into.
+5. Review `src/catalog/specs/_smoke.spec.ts`, `tests/queryspec.example.test.ts`, and `src/db/sql-client.ts` so the first SQL-backed repository has both a minimal gate and a QuerySpec-first sample to copy.
 6. Run tests (`npm run test` or `npx vitest run`) to pass the generated smoke test before adding SQL-backed coverage.
 
 If this fails:
 - If `npx ztd ztd-config` fails, keep editing `ztd/ddl/<schema>.sql` and `src/sql/` first, then rerun generation after the DDL is ready.
 - If `npx ztd model-gen` fails, keep the SQL file and rerun it after `npx ztd ztd-config` succeeds; the `ztd` probe path does not need `DATABASE_URL`.
 - If you do not have `ZTD_TEST_DATABASE_URL` yet, use the generated smoke test as the first DB-free pass and wait to add SQL-backed tests until the connection is ready.
+- If you want a concrete repository-test sample, start from `tests/queryspec.example.test.ts` after the smoke gate is green.
 - Use `ztd model-gen --probe-mode live`, `ztd ddl pull`, or `ztd ddl diff` only for explicit target inspection by passing `--url` or a complete `--db-*` flag set.
 - If you generate migration SQL artifacts, apply them with your deployment tooling instead of `ztd-cli`.
 

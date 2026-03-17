@@ -19,7 +19,7 @@ Key folders:
 - `src/presentation/http`: HTTP handlers, request parsing, and response shaping
 - `src/infrastructure/persistence`: repositories, SQL assets, and QuerySpec wiring
 - `src/sql`, `src/catalog`, `ztd/ddl`: ZTD-owned persistence assets
-- `tests`: smoke tests and test support
+- `tests`: smoke tests, support files, and the QuerySpec-first example sample
 
 Prompt dogfooding:
 - See `PROMPT_DOGFOOD.md` when you want to verify that generic WebAPI requests stay out of persistence-specific ZTD guidance unless repository or SQL work is explicitly requested.
@@ -29,13 +29,14 @@ Next steps:
 2. Add or edit your first SQL asset under `src/sql/`, while keeping `src/domain`, `src/application`, and `src/presentation/http` free from direct SQL or DDL concerns.
 3. Run `npx ztd ztd-config` to regenerate DDL-derived test rows and layout metadata.
 4. Run `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` to scaffold a QuerySpec from that SQL file.
-5. Review `src/infrastructure/db/sql-client.ts` and `src/infrastructure/telemetry/repositoryTelemetry.ts` so the first SQL-backed repository has a seam to plug into.
+5. Review `src/catalog/specs/_smoke.spec.ts`, `tests/queryspec.example.test.ts`, and `src/infrastructure/db/sql-client.ts` so the first SQL-backed repository has both a minimal gate and a QuerySpec-first sample to copy.
 6. Run tests (`npm run test` or `npx vitest run`) to pass the generated smoke test before adding SQL-backed coverage.
 
 If this fails:
 - If `npx ztd ztd-config` fails, keep editing `ztd/ddl/<schema>.sql` and `src/sql/` first, then rerun generation after the DDL is ready.
 - If `npx ztd model-gen` fails, keep the SQL file and rerun it after `npx ztd ztd-config` succeeds; the `ztd` probe path does not need `DATABASE_URL`.
 - If you do not have `ZTD_TEST_DATABASE_URL` yet, use the generated smoke test as the first DB-free pass and wait to add SQL-backed tests until the connection is ready.
+- If you want the repository-test sample that mirrors the first SQL-backed workflow, start from `tests/queryspec.example.test.ts`.
 - Treat `ddl pull` and `ddl diff` as explicit target inspection commands that require `--url` or a complete `--db-*` flag set.
 - If you generate migration SQL artifacts, apply them outside `ztd-cli`.
 
