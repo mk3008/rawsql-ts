@@ -322,12 +322,16 @@ test('init webapi scaffold localizes ZTD guidance to persistence-oriented paths'
   );
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/domain');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If this fails:');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('does not read it automatically');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('explicit target inspection');
   expect(readNormalizedFile(path.join(workspace, 'src', 'domain', 'README.md'))).not.toContain('ztd');
   expect(result.summary).toContain('src/domain/README.md');
   expect(result.summary).toContain('src/infrastructure/persistence/repositories/views/README.md');
   expect(result.summary).toContain('Run npx ztd ztd-config');
+  expect(result.summary).toContain('Run npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>');
+  expect(result.summary).toContain('If this fails:');
 });
 
 test('init can opt into AI guidance files when explicitly requested', async () => {
@@ -1022,7 +1026,9 @@ test('init local-source mode links direct rawsql-ts dependencies from the monore
 
   expect(result.summary).toContain('Run pnpm install --ignore-workspace');
   expect(result.summary).toContain('Run pnpm typecheck');
-  expect(result.summary).toContain('Run pnpm test');
+  expect(result.summary).toContain('Run tests (pnpm test or npx vitest run)');
+  expect(result.summary).toContain('Run pnpm ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>');
+  expect(result.summary).toContain('If this fails:');
   expect(result.summary).toContain('@rawsql-ts/sql-contract backed by a local file dependency in developer mode');
   expect(existsSync(path.join(workspace, 'src', 'local', 'sql-contract.ts'))).toBe(false);
   expect(existsSync(localSourceGuardPath)).toBe(true);
@@ -1041,6 +1047,7 @@ test('init local-source mode links direct rawsql-ts dependencies from the monore
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm install --ignore-workspace');
   expect(result.summary).toContain('Run pnpm ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd ztd-config');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If this fails:');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
     'The scaffold keeps `@rawsql-ts/sql-contract` as a normal package import even in local-source developer mode.'
   );
@@ -1100,8 +1107,9 @@ test('init local-source mode uses npm script commands when package-lock.json sel
 
   expect(result.summary).toContain('Run npm install');
   expect(result.summary).toContain('Run npm run typecheck');
-  expect(result.summary).toContain('Run npm run test');
+  expect(result.summary).toContain('Run tests (npm run test or npx vitest run)');
   expect(result.summary).toContain('Run npm run ztd -- ztd-config');
+  expect(result.summary).toContain('Run npm run ztd -- model-gen --probe-mode ztd <sql-file> --out <spec-file>');
 });
 
 test('init local-source mode rejects a root that is not a rawsql-ts monorepo', async () => {

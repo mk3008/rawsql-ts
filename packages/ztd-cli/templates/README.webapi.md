@@ -26,13 +26,17 @@ Prompt dogfooding:
 
 Next steps:
 1. Update `ztd/ddl/<schema>.sql` if needed.
-2. Run `npx ztd ztd-config`.
-3. Keep `src/domain`, `src/application`, and `src/presentation/http` free from direct SQL or DDL concerns.
-4. Use `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` when you want a QuerySpec scaffold from the local DDL snapshot.
-5. Wire repositories to `src/infrastructure/telemetry/repositoryTelemetry.ts` only when you add SQL-backed repository classes.
-6. Provide a SqlClient implementation in `src/infrastructure/db`.
-7. Run tests (`npm run test` or `npx vitest run`) with `ZTD_TEST_DATABASE_URL` when SQL-backed verification needs a managed test database.
-8. Treat `ddl pull` and `ddl diff` as explicit target inspection commands that require `--url` or a complete `--db-*` flag set.
-9. If you generate migration SQL artifacts, apply them outside `ztd-cli`.
+2. Add or edit your first SQL asset under `src/sql/`, while keeping `src/domain`, `src/application`, and `src/presentation/http` free from direct SQL or DDL concerns.
+3. Run `npx ztd ztd-config` to regenerate DDL-derived test rows and layout metadata.
+4. Run `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` to scaffold a QuerySpec from that SQL file.
+5. Review `src/infrastructure/db/sql-client.ts` and `src/infrastructure/telemetry/repositoryTelemetry.ts` so the first SQL-backed repository has a seam to plug into.
+6. Run tests (`npm run test` or `npx vitest run`) to pass the generated smoke test before adding SQL-backed coverage.
+
+If this fails:
+- If `npx ztd ztd-config` fails, keep editing `ztd/ddl/<schema>.sql` and `src/sql/` first, then rerun generation after the DDL is ready.
+- If `npx ztd model-gen` fails, keep the SQL file and rerun it after `npx ztd ztd-config` succeeds; the `ztd` probe path does not need `DATABASE_URL`.
+- If you do not have `ZTD_TEST_DATABASE_URL` yet, use the generated smoke test as the first DB-free pass and wait to add SQL-backed tests until the connection is ready.
+- Treat `ddl pull` and `ddl diff` as explicit target inspection commands that require `--url` or a complete `--db-*` flag set.
+- If you generate migration SQL artifacts, apply them outside `ztd-cli`.
 
 If this project was scaffolded with `ztd init --local-source-root <monorepo-root>`, first run `pnpm install` (or `pnpm install --ignore-workspace` when nested under another `pnpm-workspace.yaml`), then `pnpm typecheck`, then `pnpm test`, then `pnpm ztd ztd-config`. The scaffold keeps `@rawsql-ts/sql-contract` as a normal package import even in local-source developer mode.

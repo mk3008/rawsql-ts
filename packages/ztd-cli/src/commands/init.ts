@@ -1965,7 +1965,7 @@ function buildNextSteps(
   rootDir: string,
   scaffoldProfile: InitScaffoldProfile,
   appShape: InitAppShape
-): string[] {
+): { nextSteps: string[]; fallbackSteps: string[] } {
   const packageManager = detectPackageManager(rootDir, defaultPackageManagerForScaffold(scaffoldProfile));
   const installStrategy = resolveInitInstallStrategy(rootDir, packageManager);
   const installCommand = installStrategy.installCommand;
@@ -1975,46 +1975,63 @@ function buildNextSteps(
     packageManager === 'npm' ? 'npm run ztd --' : `${packageManager} ztd`;
   const ztdCommand =
     packageManager === 'npm' ? 'npx ztd' : packageManager === 'yarn' ? 'yarn exec ztd' : 'pnpm exec ztd';
+  const sqlAssetPath = appShape === 'webapi' ? 'src/sql/' : 'src/sql/';
+  const sqlClientPath = appShape === 'webapi' ? 'src/infrastructure/db/sql-client.ts' : 'src/db/sql-client.ts';
+  const repositoryTelemetryPath = 'src/infrastructure/telemetry/repositoryTelemetry.ts';
+  const firstStep =
+    workflow === 'pg_dump'
+      ? `Review the dumped DDL in ${schemaRelativePath} and adjust it before generating downstream artifacts`
+      : `If the schema file is empty, edit ${schemaRelativePath} before generating downstream artifacts`;
+  const sqlStep =
+    appShape === 'webapi'
+      ? `Add or edit your first SQL asset under ${sqlAssetPath} while keeping src/domain, src/application, and src/presentation/http free from direct SQL or DDL concerns`
+      : `Add or edit your first SQL asset under ${sqlAssetPath} so the happy path starts from a human-maintained query file`;
+  const generationSteps = [
+    `Run ${ztdCommand} ztd-config to regenerate DDL-derived test rows and layout metadata`,
+    `Run ${ztdCommand} model-gen --probe-mode ztd <sql-file> --out <spec-file> to scaffold a QuerySpec from that SQL file`
+  ];
+  const wiringStep =
+    appShape === 'webapi'
+      ? `Review ${sqlClientPath} and ${repositoryTelemetryPath} so the first SQL-backed repository has a seam to plug into`
+      : `Review ${sqlClientPath} and ${repositoryTelemetryPath} so the first SQL-backed repository has a seam to plug into`;
+  const firstTestStep = `Run tests (${runScriptCommand('test')} or npx vitest run) to pass the generated smoke test before adding SQL-backed coverage`;
+  const fallbackSteps = [
+    `If ${ztdCommand} ztd-config fails, keep editing ${schemaRelativePath} and ${sqlAssetPath} first, then rerun generation after the DDL is ready`,
+    `If ${ztdCommand} model-gen fails, keep the SQL file and rerun it after ${ztdCommand} ztd-config succeeds; the ztd probe path does not need DATABASE_URL`,
+    'If you do not have ZTD_TEST_DATABASE_URL yet, use the generated smoke test as the first DB-free pass and wait to add SQL-backed tests until the connection is ready'
+  ];
 
   if (scaffoldProfile.dependencyProfile === 'local-source') {
     const localSourceSteps = [
-      workflow === 'pg_dump'
-        ? `Review the dumped DDL in ${schemaRelativePath}`
-        : `If the schema file is empty, edit ${schemaRelativePath}`,
       `Run ${installCommand}`,
-      `Run ${runScriptCommand('typecheck')}`,
-      `Run ${runScriptCommand('test')}`,
-      `Run ${runLocalSourceZtdCommand} ztd-config`,
-      'Generated QuerySpecs can keep the default @rawsql-ts/sql-contract package import.',
-      appShape === 'webapi'
-        ? 'Keep Domain, Application, and Presentation changes free from direct ZTD assumptions'
-        : 'Keep handwritten SQL and QuerySpecs aligned before adding repository code',
-      'Wire repositories to src/infrastructure/telemetry/repositoryTelemetry.ts so applications can replace the default hook',
-      'Provide a SqlClient implementation before adding SQL-backed tests'
+      firstStep,
+      sqlStep,
+      ...generationSteps.map((step) => step.replace(ztdCommand, runLocalSourceZtdCommand)),
+      wiringStep,
+      firstTestStep,
+      `Run ${runScriptCommand('typecheck')} before you start wiring handwritten repository code`
     ];
-    return localSourceSteps.map((step, index) => ` ${index + 1}. ${step}`);
+    return {
+      nextSteps: localSourceSteps.map((step, index) => ` ${index + 1}. ${step}`),
+      fallbackSteps: fallbackSteps
+        .map((step) => step.split(ztdCommand).join(runLocalSourceZtdCommand))
+        .map((step) => ` - ${step}`)
+    };
   }
 
-  const nextSteps = [
-    workflow === 'pg_dump'
-      ? `Review the dumped DDL in ${schemaRelativePath}`
-      : `If the schema file is empty, edit ${schemaRelativePath}`
-  ];
+  const nextSteps = [firstStep, sqlStep];
   if (installStrategy.shouldDeferAutoInstall) {
     nextSteps.push(`Run ${installCommand}`);
   }
-  nextSteps.push(`Run ${ztdCommand} ztd-config`);
-  if (appShape === 'webapi') {
-    nextSteps.push('Keep WebAPI flow changes in src/domain, src/application, and src/presentation/http unless you are editing persistence infrastructure');
-  }
-  nextSteps.push('Wire repositories to src/infrastructure/telemetry/repositoryTelemetry.ts when you add SQL-backed repository classes');
-  nextSteps.push('Provide a SqlClient implementation (adapter or mock)');
-  nextSteps.push(`Run tests (${runScriptCommand('test')} or npx vitest run)`);
+  nextSteps.push(...generationSteps, wiringStep, firstTestStep);
   // Avoid repeating the same install hint when the deferred-install path already emitted it explicitly.
   if (installStrategy.workspaceGuard.shouldIgnoreWorkspace && !installStrategy.shouldDeferAutoInstall) {
-    nextSteps.push('This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs.');
+    fallbackSteps.push('This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs.');
   }
-  return nextSteps.map((step, index) => ` ${index + 1}. ${step}`);
+  return {
+    nextSteps: nextSteps.map((step, index) => ` ${index + 1}. ${step}`),
+    fallbackSteps: fallbackSteps.map((step) => ` - ${step}`)
+  };
 }
 
 function resolveInitScaffoldProfile(rootDir: string, localSourceRoot?: string): InitScaffoldProfile {
@@ -2069,7 +2086,7 @@ function toFileDependencySpecifier(rootDir: string, targetDir: string): string {
 function buildSummaryLines(
   summaries: Record<FileKey, FileSummary>,
   optionalFeatures: OptionalFeatures,
-  nextSteps: string[],
+  nextSteps: { nextSteps: string[]; fallbackSteps: string[] },
   scaffoldProfile: InitScaffoldProfile
 ): string[] {
   const orderedKeys: FileKey[] = [
@@ -2145,7 +2162,10 @@ function buildSummaryLines(
     lines.push(' - Internal guidance is managed under .ztd/agents/.');
     lines.push(' - Visible AGENTS.md files are disabled by default. Enable with: ztd agents install');
   }
-  lines.push('', 'Next steps:', ...nextSteps);
+  lines.push('', 'Next steps:', ...nextSteps.nextSteps);
+  if (nextSteps.fallbackSteps.length > 0) {
+    lines.push('', 'If this fails:', ...nextSteps.fallbackSteps);
+  }
   return lines;
 }
 
