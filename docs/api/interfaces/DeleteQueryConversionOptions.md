@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: DeleteQueryConversionOptions
 
-Defined in: [packages/core/src/models/SelectQuery.ts:55](https://github.com/mk3008/rawsql-ts/blob/937a4369243f31d8023c43a12f0889feef178efd/packages/core/src/models/SelectQuery.ts#L55)
+Defined in: [packages/core/src/models/SelectQuery.ts:55](https://github.com/mk3008/rawsql-ts/blob/e8e8779fe0a77e85827bb825fbc013472b94f439/packages/core/src/models/SelectQuery.ts#L55)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/SelectQuery.ts:55](https://github.com/mk30
 
 > **target**: `string`
 
-Defined in: [packages/core/src/models/SelectQuery.ts:56](https://github.com/mk3008/rawsql-ts/blob/937a4369243f31d8023c43a12f0889feef178efd/packages/core/src/models/SelectQuery.ts#L56)
+Defined in: [packages/core/src/models/SelectQuery.ts:56](https://github.com/mk3008/rawsql-ts/blob/e8e8779fe0a77e85827bb825fbc013472b94f439/packages/core/src/models/SelectQuery.ts#L56)
 
 ***
 
@@ -17,7 +17,7 @@ Defined in: [packages/core/src/models/SelectQuery.ts:56](https://github.com/mk30
 
 > **primaryKeys**: `string` \| `string`[]
 
-Defined in: [packages/core/src/models/SelectQuery.ts:57](https://github.com/mk3008/rawsql-ts/blob/937a4369243f31d8023c43a12f0889feef178efd/packages/core/src/models/SelectQuery.ts#L57)
+Defined in: [packages/core/src/models/SelectQuery.ts:57](https://github.com/mk3008/rawsql-ts/blob/e8e8779fe0a77e85827bb825fbc013472b94f439/packages/core/src/models/SelectQuery.ts#L57)
 
 ***
 
@@ -25,7 +25,7 @@ Defined in: [packages/core/src/models/SelectQuery.ts:57](https://github.com/mk30
 
 > `optional` **columns**: `string`[]
 
-Defined in: [packages/core/src/models/SelectQuery.ts:58](https://github.com/mk3008/rawsql-ts/blob/937a4369243f31d8023c43a12f0889feef178efd/packages/core/src/models/SelectQuery.ts#L58)
+Defined in: [packages/core/src/models/SelectQuery.ts:58](https://github.com/mk3008/rawsql-ts/blob/e8e8779fe0a77e85827bb825fbc013472b94f439/packages/core/src/models/SelectQuery.ts#L58)
 
 ***
 
@@ -33,5 +33,5 @@ Defined in: [packages/core/src/models/SelectQuery.ts:58](https://github.com/mk30
 
 > `optional` **sourceAlias**: `string`
 
-Defined in: [packages/core/src/models/SelectQuery.ts:59](https://github.com/mk3008/rawsql-ts/blob/937a4369243f31d8023c43a12f0889feef178efd/packages/core/src/models/SelectQuery.ts#L59)
+Defined in: [packages/core/src/models/SelectQuery.ts:59](https://github.com/mk3008/rawsql-ts/blob/e8e8779fe0a77e85827bb825fbc013472b94f439/packages/core/src/models/SelectQuery.ts#L59)
 </div>

@@ -1,7 +1,7 @@
 <div v-pre>
 # Enumeration: NullsSortDirection
 
-Defined in: [packages/core/src/models/Clause.ts:98](https://github.com/mk3008/rawsql-ts/blob/937a4369243f31d8023c43a12f0889feef178efd/packages/core/src/models/Clause.ts#L98)
+Defined in: [packages/core/src/models/Clause.ts:98](https://github.com/mk3008/rawsql-ts/blob/e8e8779fe0a77e85827bb825fbc013472b94f439/packages/core/src/models/Clause.ts#L98)
 
 ## Enumeration Members
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/Clause.ts:98](https://github.com/mk3008/ra
 
 > **First**: `"first"`
 
-Defined in: [packages/core/src/models/Clause.ts:99](https://github.com/mk3008/rawsql-ts/blob/937a4369243f31d8023c43a12f0889feef178efd/packages/core/src/models/Clause.ts#L99)
+Defined in: [packages/core/src/models/Clause.ts:99](https://github.com/mk3008/rawsql-ts/blob/e8e8779fe0a77e85827bb825fbc013472b94f439/packages/core/src/models/Clause.ts#L99)
 
 ***
 
@@ -17,5 +17,5 @@ Defined in: [packages/core/src/models/Clause.ts:99](https://github.com/mk3008/ra
 
 > **Last**: `"last"`
 
-Defined in: [packages/core/src/models/Clause.ts:100](https://github.com/mk3008/rawsql-ts/blob/937a4369243f31d8023c43a12f0889feef178efd/packages/core/src/models/Clause.ts#L100)
+Defined in: [packages/core/src/models/Clause.ts:100](https://github.com/mk3008/rawsql-ts/blob/e8e8779fe0a77e85827bb825fbc013472b94f439/packages/core/src/models/Clause.ts#L100)
 </div>
