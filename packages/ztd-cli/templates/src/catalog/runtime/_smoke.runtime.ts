@@ -3,6 +3,8 @@ import { normalizeTimestamp } from './_coercions.js';
 
 /**
  * Validate runtime output against the catalog smoke invariant.
+ *
+ * The reusable QuerySpec-first sample lives in `tests/queryspec.example.test.ts`.
  */
 export function ensureSmokeOutput(value: unknown): SmokeOutput {
   // Normalize driver-dependent timestamp representations before contract validation.

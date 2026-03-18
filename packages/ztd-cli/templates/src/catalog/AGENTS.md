@@ -9,6 +9,7 @@
 - `src/catalog/runtime` MUST implement runtime wiring only.
 - Code in `src/catalog` MUST remain independent from `tests`, `tests/generated`, and `ztd` imports.
 - Each spec MUST be covered by tests for rewrite execution, mapping/validation outcomes, and output shape.
+- The scaffold MUST keep `src/catalog/specs/_smoke.spec.*` minimal and pair it with `tests/queryspec.example.test.ts` as the reusable QuerySpec-first sample.
 
 ## ALLOWED
 - Runtime catalog code MAY add observability hooks where contract behavior is unchanged.

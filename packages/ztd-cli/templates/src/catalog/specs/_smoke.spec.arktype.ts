@@ -1,7 +1,9 @@
 import { type } from 'arktype';
 
 /**
- * Validator invariant contract used to prove runtime validation wiring.
+ * Validator invariant contract used to prove the minimal onboarding gate.
+ *
+ * The reusable QuerySpec-first example lives in `tests/queryspec.example.test.ts`.
  *
  * This file is intentionally minimal and domain-agnostic.
  */

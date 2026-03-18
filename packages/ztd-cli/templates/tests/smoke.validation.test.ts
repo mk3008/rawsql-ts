@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 
 import { ensureSmokeOutput } from '../src/catalog/runtime/_smoke.runtime.js';
 
+// Keep this file as the smallest DB-free validation gate; the reusable QuerySpec sample lives in queryspec.example.test.ts.
 test('validator invariant smoke passes for valid runtime output', () => {
   const output = ensureSmokeOutput({
     id: 1,

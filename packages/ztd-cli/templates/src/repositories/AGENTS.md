@@ -21,6 +21,7 @@
 
 # Mandatory Workflow
 - Repository changes MUST run tests covering mapping, rowCount behavior, and error surfaces.
+- When introducing the first repository-backed QuerySpec, start from `tests/queryspec.example.test.ts` so the sample and the repository seam stay aligned.
 
 # Hygiene
 - Error messages MUST include operation identifiers and relevant parameters.
