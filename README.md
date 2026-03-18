@@ -119,6 +119,14 @@ See the [Core Package Documentation](./packages/core/README.md) for usage exampl
 
 - [SQL-first End-to-End Tutorial](./docs/guide/sql-first-end-to-end-tutorial.md) - Walk from DDL to `ztd-config`, `model-gen`, repository wiring, and the first passing smoke test in one focused path.
 
+## Intent and Procedure
+
+Use this repo by treating DDL and SQL as source assets, and generated specs, repositories, and tests as downstream artifacts that must stay in sync.
+
+Procedure: `DDL -> SQL -> generate -> wire -> test`.
+
+For a step-by-step example, see the SQL-first tutorial above.
+
 ## CLI Tool Routing Happy Paths
 
 - SQL pipeline / debug → `ztd query plan <sql-file>`

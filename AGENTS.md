@@ -55,6 +55,16 @@
 - Plan mode SHOULD stay read-only and produce the smallest defensible plan before execution.
 - Specialist names SHOULD remain internal unless orchestration debugging is requested.
 
+# INTENT
+- Source assets stay human-owned so the repository keeps a clear edit surface.
+- Downstream artifacts exist to match the source assets, not to replace their intent.
+- These rules explain why the repository is arranged the way it is, not only what is forbidden.
+
+# procedure
+- Follow `DDL -> SQL -> generate -> wire -> test` when moving from source assets to downstream artifacts.
+- Keep generated files and tests aligned with the source asset they were derived from.
+- Use the shortest path that preserves that causality.
+
 # Policy
 ## Interpretation
 - `MUST` and `REQUIRED` define completion criteria.
