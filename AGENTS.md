@@ -56,6 +56,17 @@
 - Specialist names SHOULD remain internal unless orchestration debugging is requested.
 
 # Policy
+## Interpretation
+- `MUST` and `REQUIRED` define completion criteria.
+- `ALLOWED` means permitted but not required.
+- `PROHIBITED` means disallowed unless a narrower rule explicitly allows it.
+- User requests can add context, but they do not relax a `MUST` or `REQUIRED` rule by default.
+- When this file and a deeper `AGENTS.md` both apply, the deeper file may narrow scope only if it does not weaken a completion criterion.
+
+## Completion Example
+- Repository implementation is only complete when the required verification and tests that the policy calls for are included in the same change.
+- A change that skips required tests is not complete, even if the implementation itself is otherwise correct.
+
 ## REQUIRED
 - Claims in task reports MUST be backed by direct observation.
 - Each reported observation MUST include the executed command, exit code, and key output excerpt.
