@@ -131,8 +131,6 @@ type FileKey =
   | 'internalAgentsZtd'
   | 'ztdDocsReadme'
   | 'sqlReadme'
-  | 'viewsRepoReadme'
-  | 'tablesRepoReadme'
   | 'jobsReadme'
   | 'domainReadme'
   | 'applicationReadme'
@@ -227,10 +225,6 @@ interface InitScaffoldLayout {
   sqlClientTemplate: string;
   sqlClientAdaptersTemplate: string;
   testkitClientTemplate: string;
-  viewsRepoReadmeTemplate: string;
-  tablesRepoReadmeTemplate: string;
-  viewsRepoReadmePath: string;
-  tablesRepoReadmePath: string;
   jobsReadmePath: string | null;
   jobsReadmeTemplate: string | null;
   domainReadmePath: string | null;
@@ -312,15 +306,11 @@ const REPOSITORY_TELEMETRY_TYPES_TEMPLATE = 'src/infrastructure/telemetry/types.
 const REPOSITORY_TELEMETRY_CONSOLE_TEMPLATE = 'src/infrastructure/telemetry/consoleRepositoryTelemetry.ts';
 const REPOSITORY_TELEMETRY_ENTRY_TEMPLATE = 'src/infrastructure/telemetry/repositoryTelemetry.ts';
 const SQL_README_TEMPLATE = 'src/sql/README.md';
-const VIEWS_REPO_README_TEMPLATE = 'src/repositories/views/README.md';
-const TABLES_REPO_README_TEMPLATE = 'src/repositories/tables/README.md';
 const WEBAPI_DOMAIN_README_TEMPLATE = 'src/domain/README.md';
 const WEBAPI_APPLICATION_README_TEMPLATE = 'src/application/README.md';
 const WEBAPI_PRESENTATION_HTTP_README_TEMPLATE = 'src/presentation/http/README.md';
 const WEBAPI_INFRASTRUCTURE_README_TEMPLATE = 'src/infrastructure/README.md';
 const WEBAPI_PERSISTENCE_README_TEMPLATE = 'src/infrastructure/persistence/README.md';
-const WEBAPI_VIEWS_REPO_README_TEMPLATE = 'src/infrastructure/persistence/repositories/views/README.md';
-const WEBAPI_TABLES_REPO_README_TEMPLATE = 'src/infrastructure/persistence/repositories/tables/README.md';
 const JOBS_README_TEMPLATE = 'src/jobs/README.md';
 const ZTD_README_TEMPLATE = 'ztd/README.md';
 const ZTD_DDL_DEMO_TEMPLATE = 'ztd/ddl/demo.sql';
@@ -347,10 +337,6 @@ function resolveInitScaffoldLayout(rootDir: string, appShape: InitAppShape): Ini
       sqlClientTemplate: SQL_CLIENT_WEBAPI_TEMPLATE,
       sqlClientAdaptersTemplate: SQL_CLIENT_ADAPTERS_WEBAPI_TEMPLATE,
       testkitClientTemplate: TESTKIT_CLIENT_WEBAPI_TEMPLATE,
-      viewsRepoReadmeTemplate: WEBAPI_VIEWS_REPO_README_TEMPLATE,
-      tablesRepoReadmeTemplate: WEBAPI_TABLES_REPO_README_TEMPLATE,
-      viewsRepoReadmePath: path.join(rootDir, 'src', 'infrastructure', 'persistence', 'repositories', 'views', 'README.md'),
-      tablesRepoReadmePath: path.join(rootDir, 'src', 'infrastructure', 'persistence', 'repositories', 'tables', 'README.md'),
       jobsReadmePath: null,
       jobsReadmeTemplate: null,
       domainReadmePath: path.join(rootDir, 'src', 'domain', 'README.md'),
@@ -377,10 +363,6 @@ function resolveInitScaffoldLayout(rootDir: string, appShape: InitAppShape): Ini
     sqlClientTemplate: SQL_CLIENT_TEMPLATE,
     sqlClientAdaptersTemplate: SQL_CLIENT_ADAPTERS_TEMPLATE,
     testkitClientTemplate: TESTKIT_CLIENT_TEMPLATE,
-    viewsRepoReadmeTemplate: VIEWS_REPO_README_TEMPLATE,
-    tablesRepoReadmeTemplate: TABLES_REPO_README_TEMPLATE,
-    viewsRepoReadmePath: path.join(rootDir, 'src', 'repositories', 'views', 'README.md'),
-    tablesRepoReadmePath: path.join(rootDir, 'src', 'repositories', 'tables', 'README.md'),
     jobsReadmePath: path.join(rootDir, 'src', 'jobs', 'README.md'),
     jobsReadmeTemplate: JOBS_README_TEMPLATE,
     domainReadmePath: null,
@@ -568,8 +550,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     internalAgentsTests: path.join(rootDir, '.ztd', 'agents', 'tests.md'),
     internalAgentsZtd: path.join(rootDir, '.ztd', 'agents', 'ztd.md'),
     sqlReadme: path.join(rootDir, 'src', 'sql', 'README.md'),
-    viewsRepoReadme: scaffoldLayout.viewsRepoReadmePath,
-    tablesRepoReadme: scaffoldLayout.tablesRepoReadmePath,
     jobsReadme: scaffoldLayout.jobsReadmePath ?? path.join(rootDir, 'src', 'jobs', 'README.md'),
     domainReadme: scaffoldLayout.domainReadmePath ?? path.join(rootDir, 'src', 'domain', 'README.md'),
     applicationReadme: scaffoldLayout.applicationReadmePath ?? path.join(rootDir, 'src', 'application', 'README.md'),
@@ -773,32 +753,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (sqlReadmeSummary) {
     summaries.sqlReadme = sqlReadmeSummary;
-  }
-
-  const viewsRepoReadmeSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.viewsRepoReadme,
-    relativePath('viewsRepoReadme'),
-    scaffoldLayout.viewsRepoReadmeTemplate,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (viewsRepoReadmeSummary) {
-    summaries.viewsRepoReadme = viewsRepoReadmeSummary;
-  }
-
-  const tablesRepoReadmeSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.tablesRepoReadme,
-    relativePath('tablesRepoReadme'),
-    scaffoldLayout.tablesRepoReadmeTemplate,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (tablesRepoReadmeSummary) {
-    summaries.tablesRepoReadme = tablesRepoReadmeSummary;
   }
 
   if (scaffoldLayout.jobsReadmeTemplate) {
@@ -2121,8 +2075,6 @@ function buildSummaryLines(
     'internalAgentsZtd',
     'ztdDocsReadme',
     'sqlReadme',
-    'viewsRepoReadme',
-    'tablesRepoReadme',
     'jobsReadme',
     'domainReadme',
     'applicationReadme',
@@ -2247,11 +2199,7 @@ function buildInitDryRunPlan(rootDir: string, options: {
     files.push('src/presentation/http/README.md');
     files.push('src/infrastructure/README.md');
     files.push('src/infrastructure/persistence/README.md');
-    files.push('src/infrastructure/persistence/repositories/views/README.md');
-    files.push('src/infrastructure/persistence/repositories/tables/README.md');
   } else {
-    files.push('src/repositories/views/README.md');
-    files.push('src/repositories/tables/README.md');
     files.push('src/jobs/README.md');
   }
 

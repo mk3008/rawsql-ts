@@ -71,9 +71,6 @@ const requiredDirectories = [
   'src/catalog/runtime',
   'src/catalog/specs',
   'src/sql',
-  'src/repositories',
-  'src/repositories/tables',
-  'src/repositories/views',
   'src/jobs',
   'tests',
   'tests/support'
@@ -89,9 +86,6 @@ const requiredWebapiDirectories = [
   'src/presentation/http',
   'src/infrastructure',
   'src/infrastructure/persistence',
-  'src/infrastructure/persistence/repositories',
-  'src/infrastructure/persistence/repositories/views',
-  'src/infrastructure/persistence/repositories/tables',
   'src/sql',
   'src/catalog',
   'src/catalog/runtime',
@@ -181,12 +175,8 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(existsSync(path.join(workspace, 'package.json'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'sql', 'README.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'src', 'repositories', 'views', 'README.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'src', 'repositories', 'tables', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'jobs', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'sql', 'user_account', 'list_user_profiles.sql'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'src', 'repositories', 'views', 'user-profiles.ts'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'src', 'repositories', 'tables', 'user-accounts.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'jobs', 'refresh-user-accounts.ts'))).toBe(false);
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('ZTD_TEST_DATABASE_URL');
@@ -322,9 +312,6 @@ test('init webapi scaffold localizes ZTD guidance to persistence-oriented paths'
   expect(existsSync(path.join(workspace, 'src', 'application', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'presentation', 'http', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'persistence', 'README.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'persistence', 'repositories', 'views', 'README.md'))).toBe(
-    true
-  );
   expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'db', 'sql-client.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'queryspec.example.test.ts'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'testkit-client.ts'))).toContain(
@@ -342,7 +329,6 @@ test('init webapi scaffold localizes ZTD guidance to persistence-oriented paths'
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('explicit target inspection');
   expect(readNormalizedFile(path.join(workspace, 'src', 'domain', 'README.md'))).not.toContain('ztd');
   expect(result.summary).toContain('src/domain/README.md');
-  expect(result.summary).toContain('src/infrastructure/persistence/repositories/views/README.md');
   expect(result.summary).toContain('Run npx ztd ztd-config');
   expect(result.summary).toContain('Run npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>');
   expect(result.summary).toContain('If this fails:');
@@ -497,11 +483,12 @@ test('repository telemetry scaffold dogfood scenario keeps the default hook repl
   const prompter = new TestPrompter(['2', '1']);
   await runInitCommand(prompter, { rootDir: workspace, withSqlClient: true });
 
-  const repositoryFile = path.join(workspace, 'src', 'repositories', 'views', 'ordersRepository.ts');
+  const repositoryFile = path.join(workspace, 'src', 'repositories', 'ordersRepository.ts');
+  mkdirSync(path.dirname(repositoryFile), { recursive: true });
   writeFileSync(
     repositoryFile,
     [
-      "import { resolveRepositoryTelemetry, type RepositoryTelemetry } from '../../infrastructure/telemetry/repositoryTelemetry';",
+      "import { resolveRepositoryTelemetry, type RepositoryTelemetry } from '../infrastructure/telemetry/repositoryTelemetry';",
       '',
       'export class OrdersRepository {',
       '  private readonly telemetry: RepositoryTelemetry;',
@@ -651,19 +638,12 @@ test('webapi telemetry dogfood scenario keeps repository guidance inside infrast
     appShape: 'webapi'
   });
 
-  const repositoryFile = path.join(
-    workspace,
-    'src',
-    'infrastructure',
-    'persistence',
-    'repositories',
-    'views',
-    'ordersRepository.ts'
-  );
+  const repositoryFile = path.join(workspace, 'src', 'infrastructure', 'persistence', 'repositories', 'ordersRepository.ts');
+  mkdirSync(path.dirname(repositoryFile), { recursive: true });
   writeFileSync(
     repositoryFile,
     [
-      "import { resolveRepositoryTelemetry, type RepositoryTelemetry } from '../../../telemetry/repositoryTelemetry';",
+      "import { resolveRepositoryTelemetry, type RepositoryTelemetry } from '../../telemetry/repositoryTelemetry';",
       '',
       'export class OrdersRepository {',
       '  private readonly telemetry: RepositoryTelemetry;',
@@ -677,7 +657,7 @@ test('webapi telemetry dogfood scenario keeps repository guidance inside infrast
     'utf8'
   );
 
-  expect(readNormalizedFile(repositoryFile)).toContain('../../../telemetry/repositoryTelemetry');
+  expect(readNormalizedFile(repositoryFile)).toContain('../../telemetry/repositoryTelemetry');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/infrastructure/persistence');
   expect(existsSync(path.join(workspace, 'CONTEXT.md'))).toBe(false);
 });

@@ -15,11 +15,13 @@ Quick boundary table:
 
 Key folders:
 - ztd/ddl: schema files (source of truth)
-- src: query-unit SQL assets, repositories, and DTOs
+- src/sql: handwritten SQL assets, one query unit at a time
+- src/catalog: QuerySpec contracts and runtime wiring
+- src/repositories: repository entrypoints and DTO mappings
 - tests: ZTD tests, smoke checks, and the QuerySpec-first example sample
 
 Think in query units: 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.
-Treat `tables/` and `views/` as lower-level implementation examples under that rule.
+Keep handwritten SQL assets in `src/sql/` as the single human-owned source location for query logic.
 
 Next steps:
 1. Update `ztd/ddl/<schema>.sql` if needed.

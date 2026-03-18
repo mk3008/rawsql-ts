@@ -13,7 +13,6 @@
 - Public repository methods MUST be covered by tests.
 
 ## ALLOWED
-- `tables/` and `views/` MAY remain as lower-level implementation examples under the query-unit policy.
 - SELECT methods MAY return `T | null` or `T[]` according to contract cardinality.
 
 ## PROHIBITED
@@ -29,5 +28,3 @@
 - Error messages MUST include operation identifiers and relevant parameters.
 
 # References
-- Tables repository policy: [./tables/AGENTS.md](./tables/AGENTS.md)
-- Views repository policy: [./views/AGENTS.md](./views/AGENTS.md)

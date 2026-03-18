@@ -14,15 +14,16 @@ Quick boundary table:
 - `--url` / complete `--db-*`: explicit target inspection only
 
 Key folders:
-- `src/domain`: domain types and business rules with no direct ZTD dependency
+- `src/domain`: domain types and business rules with no direct SQL dependency
 - `src/application`: use cases and orchestration over domain-facing ports
 - `src/presentation/http`: HTTP handlers, request parsing, and response shaping
-- `src/infrastructure/persistence`: repositories, SQL assets, and QuerySpec wiring for one query unit at a time
-- `src/sql`, `src/catalog`, `ztd/ddl`: human-owned source assets that feed those query units
+- `src/infrastructure/persistence`: repositories, DTO mappings, and QuerySpec wiring for one query unit at a time
+- `src/sql`: handwritten SQL assets, one query unit at a time
+- `src/catalog`, `ztd/ddl`: human-owned support assets that feed those query units
 - `tests`: smoke tests, support files, and the QuerySpec-first example sample
 
 Think in query units: 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.
-Treat `tables/` and `views/` as lower-level implementation examples under that rule.
+Keep handwritten SQL assets in `src/sql/` as the single human-owned source location for query logic.
 
 Prompt dogfooding:
 - See `PROMPT_DOGFOOD.md` when you want to verify that generic WebAPI requests stay out of persistence-specific ZTD guidance unless repository or SQL work is explicitly requested.
