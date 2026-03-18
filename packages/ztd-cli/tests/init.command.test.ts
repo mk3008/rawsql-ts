@@ -191,6 +191,9 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('ZTD_TEST_DATABASE_URL');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('outside the ownership of `ztd-cli`');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
+    '1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO',
+  );
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'CONTEXT.md'))).toBe(false);
@@ -328,6 +331,9 @@ test('init webapi scaffold localizes ZTD guidance to persistence-oriented paths'
     "../../src/infrastructure/db/sql-client"
   );
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/domain');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
+    '1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO',
+  );
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('tests/queryspec.example.test.ts');
@@ -1053,6 +1059,9 @@ test('init local-source mode links direct rawsql-ts dependencies from the monore
   expect(readNormalizedFile(localSourceGuardPath)).toContain('Requested subcommand');
   expect(readNormalizedFile(localSourceGuardPath)).toContain('Project root');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm install --ignore-workspace');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
+    '1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO',
+  );
   expect(result.summary).toContain('Run pnpm ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('tests/queryspec.example.test.ts');

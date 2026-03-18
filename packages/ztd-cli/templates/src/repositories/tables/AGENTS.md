@@ -1,9 +1,10 @@
 # Package Scope
 - Applies to `packages/ztd-cli/templates/src/repositories/tables`.
-- Defines table-oriented CRUD repository contract behavior.
+- Defines the lower-level table example for query units that mutate data.
 
 # Policy
 ## REQUIRED
+- This subtree MUST stay aligned with the parent query-unit rule: 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.
 - CREATE SQL MUST use identifier-focused `RETURNING` when generated keys are required.
 - CREATE repository methods MUST return identifier-only results by default.
 - UPDATE and DELETE MUST rely on affected-row counts where available.

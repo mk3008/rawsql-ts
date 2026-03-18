@@ -1,9 +1,10 @@
 # Package Scope
 - Applies to `packages/ztd-cli/templates/src/repositories`.
-- Defines runtime repository responsibilities for SQL execution orchestration.
+- Defines runtime repository responsibilities for one query unit: 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.
 
 # Policy
 ## REQUIRED
+- Repositories MUST keep 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO aligned.
 - Repositories MUST load SQL assets from `src/sql` through shared loader infrastructure.
 - Repositories MUST use catalog runtime helpers (`ensure*`, `map*`) for input/output validation.
 - Repository CUD behavior MUST follow contract rules for `RETURNING`, rowCount handling, and explicit unsupported-driver failures.
@@ -12,6 +13,7 @@
 - Public repository methods MUST be covered by tests.
 
 ## ALLOWED
+- `tables/` and `views/` MAY remain as lower-level implementation examples under the query-unit policy.
 - SELECT methods MAY return `T | null` or `T[]` according to contract cardinality.
 
 ## PROHIBITED

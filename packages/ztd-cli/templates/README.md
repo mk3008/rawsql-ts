@@ -15,15 +15,18 @@ Quick boundary table:
 
 Key folders:
 - ztd/ddl: schema files (source of truth)
-- src: application SQL and repositories
+- src: query-unit SQL assets, repositories, and DTOs
 - tests: ZTD tests, smoke checks, and the QuerySpec-first example sample
+
+Think in query units: 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.
+Treat `tables/` and `views/` as lower-level implementation examples under that rule.
 
 Next steps:
 1. Update `ztd/ddl/<schema>.sql` if needed.
-2. Add or edit your first SQL asset under `src/sql/`.
+2. Add or edit your first SQL asset under `src/sql/` as the human-owned source for one query unit.
 3. Run `npx ztd ztd-config` to regenerate DDL-derived test rows and layout metadata.
 4. Run `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` to scaffold a QuerySpec from that SQL file.
-5. Review `src/catalog/specs/_smoke.spec.ts`, `tests/queryspec.example.test.ts`, and `src/db/sql-client.ts` so the first SQL-backed repository has both a minimal gate and a QuerySpec-first sample to copy.
+5. Review `src/catalog/specs/_smoke.spec.ts`, `tests/queryspec.example.test.ts`, and `src/db/sql-client.ts` so the first SQL-backed repository keeps 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO aligned.
 6. Run tests (`npm run test` or `npx vitest run`) to pass the generated smoke test before adding SQL-backed coverage.
 
 If this fails:

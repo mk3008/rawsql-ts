@@ -121,6 +121,8 @@ See the [Core Package Documentation](./packages/core/README.md) for usage exampl
 
 ## Intent and Procedure
 
+Treat each query as one unit: 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.
+
 Use this repo by treating DDL and SQL as source assets, and generated specs, repositories, and tests as downstream artifacts that must stay in sync.
 
 Procedure: `DDL -> SQL -> generate -> wire -> test`.

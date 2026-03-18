@@ -1,9 +1,10 @@
 # Package Scope
 - Applies to `packages/ztd-cli/templates/src/infrastructure/persistence`.
-- Defines persistence-layer rules for WebAPI-oriented scaffolds.
+- Defines persistence-layer rules for WebAPI-oriented scaffolds and their query units.
 
 # Policy
 ## REQUIRED
+- Persistence repositories MUST keep 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO aligned.
 - ZTD-specific workflow rules apply here and in the related `src/sql`, `src/catalog`, and `ztd` assets.
 - Persistence adapters MUST keep handwritten SQL, QuerySpecs, and DDL aligned.
 - Repository code MUST rely on explicit contracts and generated/runtime helpers instead of hidden driver behavior.
