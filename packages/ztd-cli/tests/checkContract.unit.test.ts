@@ -50,6 +50,22 @@ describe('runCheckContract', () => {
     expect(result.violations.some((v) => v.rule === 'mapping-invalid-entry')).toBe(true);
   });
 
+  test('warns when SQL assets are not covered by any QuerySpec', () => {
+    const root = createWorkspace();
+    writeFileSync(path.join(root, 'src', 'sql', 'orphan.sql'), 'SELECT 1', 'utf8');
+
+    const result = runCheckContract({ strict: false, rootDir: root });
+    expect(result.ok).toBe(true);
+    expect(result.violations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rule: 'uncovered-sql-file',
+          severity: 'warning'
+        })
+      ])
+    );
+  });
+
   test('safety checks are warnings by default and errors with strict', () => {
     const root = createWorkspace();
     writeFileSync(path.join(root, 'src', 'sql', 'unsafe.sql'), 'SELECT * FROM users; UPDATE users SET name = $1;', 'utf8');

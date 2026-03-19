@@ -92,6 +92,23 @@ test('CLI: check contract prints violations and sets exitCode=1', async () => {
   expect(parsed.violations.some((v: { rule: string }) => v.rule === 'params-shape-mismatch')).toBe(true);
 });
 
+test('CLI: check contract flags uncovered SQL assets in strict mode', async () => {
+  const workspace = createWorkspace('check-contract-cli-uncovered-sql');
+  writeFileSync(path.join(workspace, 'src', 'sql', 'orphan.sql'), 'select 1', 'utf8');
+
+  process.env.ZTD_PROJECT_ROOT = workspace;
+  const capture = { stdout: [] as string[], stderr: [] as string[] };
+  const program = createProgram(capture);
+  const outPath = path.join(workspace, 'artifacts', 'contract-check.json');
+
+  await program.parseAsync(['check', 'contract', '--format', 'json', '--strict', '--out', outPath], { from: 'user' });
+
+  expect(process.exitCode).toBe(1);
+  const parsed = JSON.parse(readFileSync(outPath, 'utf8'));
+  expect(parsed.ok).toBe(false);
+  expect(parsed.violations.some((v: { rule: string }) => v.rule === 'uncovered-sql-file')).toBe(true);
+});
+
 test('CLI: check contract sets exitCode=2 for runtime/config errors', async () => {
   const workspace = mkdtempSync(path.join(os.tmpdir(), 'check-contract-cli-error-'));
   process.env.ZTD_PROJECT_ROOT = workspace;
