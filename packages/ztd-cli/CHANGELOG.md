@@ -1,5 +1,17 @@
 # @rawsql-ts/ztd-cli
 
+## 1.0.0
+
+### Major Changes
+
+- [#616](https://github.com/mk3008/rawsql-ts/pull/616) [`33b300c`](https://github.com/mk3008/rawsql-ts/commit/33b300c147c909296f5a29f547a12210ed612170) Thanks [@mk3008](https://github.com/mk3008)! - Remove the scaffold's `tables/` and `views/` folders and update the docs, AGENTS guidance, and tests so `1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO` is the only query-unit storage rule.
+
+### Patch Changes
+
+- [#610](https://github.com/mk3008/rawsql-ts/pull/610) [`41b6729`](https://github.com/mk3008/rawsql-ts/commit/41b672995f4ffd3d825aaef03697d818e20e2fd8) Thanks [@mk3008](https://github.com/mk3008)! - Clarify repo policy interpretation so `MUST` and `REQUIRED` mean completion criteria, and add a regression test for the canonical policy mirror.
+
+- [#613](https://github.com/mk3008/rawsql-ts/pull/613) [`99535b1`](https://github.com/mk3008/rawsql-ts/commit/99535b16c00423756c32e37f9d63982cfaede5ed) Thanks [@mk3008](https://github.com/mk3008)! - Clarify repository intent and procedure so source assets and downstream artifacts are read as causality, not just rules.
+
 ## 0.20.3
 
 ### Patch Changes
