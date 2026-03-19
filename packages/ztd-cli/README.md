@@ -31,6 +31,7 @@ SQL-first CLI for **Zero Table Dependency (ZTD)** workflows, schema inspection, 
 - Schema pull from an explicit target Postgres database via `pg_dump`
 - DDL diff against an explicit target database for inspection
 - SQL linting with fixture-backed validation
+- `join-direction` lint for FK-aware JOIN readability, documented in [JOIN Direction Lint Specification](../../docs/guide/join-direction-lint-spec.md)
 - Deterministic test specification evidence export (JSON / Markdown)
 - Human-readable test documentation export for ZTD test assets
 - Watch mode for continuous regeneration

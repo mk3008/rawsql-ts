@@ -5,17 +5,30 @@ import {
   CommonTable,
   CTETableReferenceCollector,
   DeleteQuery,
+  BinaryExpression,
+  ColumnReference,
+  CreateTableQuery,
   FromClause,
   HavingClause,
+  IdentifierString,
   InsertQuery,
   JoinClause,
   JoinOnClause,
+  JoinUsingClause,
+  FunctionCall,
+  ParenExpression,
   SimpleSelectQuery,
+  SourceExpression,
+  TableSource,
   SqlFormatter,
   SqlParser,
+  MultiQuerySplitter,
   UpdateQuery,
   ValuesQuery,
   WhereClause,
+  ValueList,
+  normalizeTableName,
+  type RelationGraph,
   type ValueComponent
 } from 'rawsql-ts';
 import {
@@ -25,16 +38,21 @@ import {
   detectQueryType,
   type SupportedStatement
 } from './analysis';
+import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
+import { collectSqlFiles } from '../utils/collectSqlFiles';
+import { buildRelationGraphFromCreateTableQueries, getOutgoingRelations } from 'rawsql-ts';
 
 export type QueryLintFormat = 'text' | 'json';
 export type QueryLintSeverity = 'error' | 'warning' | 'info';
+export type QueryLintRule = 'join-direction';
 export type QueryLintIssueType =
   | 'unused-cte'
   | 'duplicate-join-block'
   | 'duplicate-filter-predicate'
   | 'dependency-cycle'
   | 'analysis-risk'
-  | 'large-cte';
+  | 'large-cte'
+  | 'join-direction';
 
 export interface QueryLintIssue {
   type: QueryLintIssueType;
@@ -46,6 +64,13 @@ export interface QueryLintIssue {
   occurrences?: string[];
   line_count?: number;
   risk_pattern?: string;
+  join_type?: string;
+  subject_table?: string;
+  joined_table?: string;
+  child_table?: string;
+  parent_table?: string;
+  child_columns?: string[];
+  parent_columns?: string[];
 }
 
 export interface QueryLintReport {
@@ -54,6 +79,11 @@ export interface QueryLintReport {
   cte_count: number;
   issue_count: number;
   issues: QueryLintIssue[];
+}
+
+export interface QueryLintBuildOptions {
+  projectRoot?: string;
+  rules?: QueryLintRule[];
 }
 
 const LARGE_CTE_LINE_THRESHOLD = 40;
@@ -100,13 +130,14 @@ interface PatternOccurrence {
 /**
  * Build a structural maintainability lint report for one SQL file.
  */
-export function buildQueryLintReport(sqlFile: string): QueryLintReport {
+export function buildQueryLintReport(sqlFile: string, options: QueryLintBuildOptions = {}): QueryLintReport {
   const absolutePath = path.resolve(sqlFile);
   const sql = readFileSync(absolutePath, 'utf8');
   const statement = assertSupportedStatement(SqlParser.parse(sql), 'ztd query lint');
   const analysis = analyzeStatement(statement);
   const formatter = new SqlFormatter();
   const issues: QueryLintIssue[] = [];
+  const enabledRules = new Set(options.rules ?? []);
 
   const usedCtes = collectReachableCtes(analysis.rootDependencies, analysis.dependencyMap);
   for (const cteName of analysis.cteNames.filter((name) => !usedCtes.has(name)).sort()) {
@@ -152,6 +183,13 @@ export function buildQueryLintReport(sqlFile: string): QueryLintReport {
 
   for (const risk of detectAnalysisRiskPatterns(sql)) {
     issues.push(risk);
+  }
+
+  if (enabledRules.has('join-direction')) {
+    const relationGraph = loadJoinDirectionRelationGraph(options.projectRoot);
+    if (relationGraph) {
+      issues.push(...buildJoinDirectionIssues(statement, analysis.ctes, relationGraph, sql));
+    }
   }
 
   const sortedIssues = issues.sort((left, right) =>
@@ -453,6 +491,468 @@ function detectAnalysisRiskPatterns(sql: string): QueryLintIssue[] {
       risk_pattern: riskPattern,
       message
     }));
+}
+
+function loadJoinDirectionRelationGraph(projectRoot?: string): RelationGraph | null {
+  const resolvedRoot = path.resolve(projectRoot ?? process.env.ZTD_PROJECT_ROOT ?? process.cwd());
+  let config;
+  try {
+    config = loadZtdProjectConfig(resolvedRoot);
+  } catch {
+    return null;
+  }
+
+  const ddlRoot = path.resolve(resolvedRoot, config.ddlDir);
+  let ddlSources;
+  try {
+    ddlSources = collectSqlFiles([ddlRoot], ['.sql']);
+  } catch {
+    return null;
+  }
+
+  const createTableQueries: CreateTableQuery[] = [];
+  for (const source of ddlSources) {
+    let split;
+    try {
+      split = MultiQuerySplitter.split(source.sql);
+    } catch {
+      continue;
+    }
+
+    for (const chunk of split.queries) {
+      if (chunk.isEmpty) {
+        continue;
+      }
+
+      try {
+        const parsed = SqlParser.parse(chunk.sql);
+        if (parsed instanceof CreateTableQuery) {
+          createTableQueries.push(parsed);
+        }
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  if (createTableQueries.length === 0) {
+    return null;
+  }
+
+  return buildRelationGraphFromCreateTableQueries(createTableQueries);
+}
+
+function buildJoinDirectionIssues(
+  statement: SupportedStatement,
+  ctes: CommonTable[],
+  relationGraph: RelationGraph,
+  sql: string
+): QueryLintIssue[] {
+  if (hasJoinDirectionSuppression(sql)) {
+    return [];
+  }
+
+  const issues: QueryLintIssue[] = [];
+  for (const target of collectJoinDirectionTargets(statement, ctes)) {
+    issues.push(...inspectJoinDirectionQuery(target.query, target.scope, relationGraph));
+  }
+  return issues;
+}
+
+function collectJoinDirectionTargets(
+  statement: SupportedStatement,
+  ctes: CommonTable[]
+): Array<{ query: SimpleSelectQuery; scope: string }> {
+  const targets: Array<{ query: SimpleSelectQuery; scope: string }> = [];
+
+  for (const cte of ctes) {
+    if (cte.query instanceof SimpleSelectQuery) {
+      targets.push({ query: cte.query, scope: cte.aliasExpression.table.name });
+    }
+  }
+
+  if (statement instanceof SimpleSelectQuery) {
+    targets.push({ query: statement, scope: 'FINAL_QUERY' });
+  } else if (statement instanceof InsertQuery && statement.selectQuery instanceof SimpleSelectQuery) {
+    targets.push({ query: statement.selectQuery, scope: 'FINAL_QUERY' });
+  }
+
+  return targets;
+}
+
+function inspectJoinDirectionQuery(
+  query: SimpleSelectQuery,
+  scope: string,
+  relationGraph: RelationGraph
+): QueryLintIssue[] {
+  if (shouldSkipJoinDirectionQuery(query)) {
+    return [];
+  }
+
+  const fromClause = query.fromClause;
+  if (!fromClause?.joins || fromClause.joins.length === 0) {
+    return [];
+  }
+
+  const rootSource = resolveSourceTable(fromClause.source);
+  if (!rootSource) {
+    return [];
+  }
+
+  const issues: QueryLintIssue[] = [];
+  let currentSource = rootSource;
+
+  for (const join of fromClause.joins) {
+    const joinSource = resolveSourceTable(join.source);
+    if (!joinSource || join.lateral || !isInspectableInnerJoin(join.joinType.value)) {
+      // Non-inner joins stay clean in v1 because preserving the parent row
+      // is often the intended readable pattern.
+      break;
+    }
+
+    if (isBridgeTableCandidate(relationGraph, currentSource.tableName) || isBridgeTableCandidate(relationGraph, joinSource.tableName)) {
+      // Bridge / many-to-many paths are intentionally skipped in v1 to avoid
+      // over-reporting on relationship tables that legitimately sit in the middle.
+      return [];
+    }
+
+    const comparison = extractJoinComparison(join.condition, currentSource, joinSource);
+    if (!comparison) {
+      break;
+    }
+
+    const forwardMatch = findMatchingRelation(
+      getOutgoingRelations(relationGraph, currentSource.tableName),
+      joinSource.tableName,
+      comparison
+    );
+    if (forwardMatch) {
+      currentSource = joinSource;
+      continue;
+    }
+
+    const reverseMatch = findMatchingRelation(
+      getOutgoingRelations(relationGraph, joinSource.tableName),
+      currentSource.tableName,
+      comparison
+    );
+    if (reverseMatch) {
+      issues.push(
+        buildJoinDirectionIssue(scope, join.joinType.value, currentSource.tableName, joinSource.tableName, reverseMatch)
+      );
+      currentSource = joinSource;
+      continue;
+    }
+
+    if (
+      hasAmbiguousRelation(relationGraph, currentSource.tableName, joinSource.tableName) ||
+      hasAmbiguousRelation(relationGraph, joinSource.tableName, currentSource.tableName)
+    ) {
+      break;
+    }
+    break;
+  }
+
+  return issues;
+}
+
+function shouldSkipJoinDirectionQuery(query: SimpleSelectQuery): boolean {
+  if (query.groupByClause || query.havingClause) {
+    return true;
+  }
+
+  if (query.selectClause.items.some((item) => containsAggregateFunction(item.value))) {
+    return true;
+  }
+
+  return containsNamedFunction(query.whereClause?.condition, new Set(['exists']));
+}
+
+function containsAggregateFunction(value: ValueComponent | null | undefined): boolean {
+  return containsNamedFunction(
+    value,
+    new Set(['count', 'sum', 'avg', 'min', 'max', 'string_agg', 'array_agg', 'json_agg', 'jsonb_agg', 'bool_and', 'bool_or'])
+  );
+}
+
+function containsNamedFunction(value: ValueComponent | null | undefined, names: ReadonlySet<string>): boolean {
+  if (!value) {
+    return false;
+  }
+
+  if (value instanceof FunctionCall) {
+    const functionName = value.name instanceof IdentifierString ? value.name.name : value.name.value;
+    if (names.has(functionName.toLowerCase())) {
+      return true;
+    }
+    return containsNamedFunction(value.argument, names) ||
+      containsNamedFunction(value.filterCondition, names);
+  }
+
+  if (value instanceof BinaryExpression) {
+    return containsNamedFunction(value.left, names) || containsNamedFunction(value.right, names);
+  }
+
+  if (value instanceof ParenExpression) {
+    return containsNamedFunction(value.expression, names);
+  }
+
+  if (value instanceof ValueList) {
+    return value.values.some((entry) => containsNamedFunction(entry, names));
+  }
+
+  return false;
+}
+
+function resolveSourceTable(source: SourceExpression): ResolvedSourceTable | null {
+  if (!(source.datasource instanceof TableSource)) {
+    return null;
+  }
+
+  const tableName = normalizeTableName(source.datasource.getSourceName());
+  const alias = normalizeTableName(source.getAliasName() ?? source.datasource.getSourceName());
+  const ownerNames = new Set<string>([tableName, alias]);
+  return { tableName, alias, ownerNames };
+}
+
+interface JoinComparison {
+  currentColumns: string[];
+  joinedColumns: string[];
+}
+
+function extractJoinComparison(
+  condition: JoinClause['condition'],
+  currentSource: ResolvedSourceTable,
+  joinedSource: ResolvedSourceTable
+): JoinComparison | null {
+  if (condition instanceof JoinUsingClause) {
+    return extractUsingComparison(condition.condition);
+  }
+
+  if (condition instanceof JoinOnClause) {
+    return extractOnComparison(condition.condition, currentSource, joinedSource);
+  }
+
+  return null;
+}
+
+function extractUsingComparison(
+  value: ValueComponent
+): JoinComparison | null {
+  if (!(value instanceof ValueList)) {
+    return null;
+  }
+
+  const columns: string[] = [];
+  for (const entry of value.values) {
+    if (!(entry instanceof ColumnReference) && !(entry instanceof IdentifierString)) {
+      return null;
+    }
+    const name = entry instanceof ColumnReference ? entry.column.name : entry.name;
+    if (!name) {
+      return null;
+    }
+    columns.push(name);
+  }
+
+  return {
+    currentColumns: columns,
+    joinedColumns: columns
+  };
+}
+
+function extractOnComparison(
+  value: ValueComponent,
+  currentSource: ResolvedSourceTable,
+  joinedSource: ResolvedSourceTable
+): JoinComparison | null {
+  const pairs = collectOnComparisonPairs(value, currentSource, joinedSource);
+  if (!pairs || pairs.length === 0) {
+    return null;
+  }
+
+  return {
+    currentColumns: pairs.map((pair) => pair.currentColumn),
+    joinedColumns: pairs.map((pair) => pair.joinedColumn)
+  };
+}
+
+function collectOnComparisonPairs(
+  value: ValueComponent,
+  currentSource: ResolvedSourceTable,
+  joinedSource: ResolvedSourceTable
+): Array<{ currentColumn: string; joinedColumn: string }> | null {
+  if (value instanceof ParenExpression) {
+    return collectOnComparisonPairs(value.expression, currentSource, joinedSource);
+  }
+
+  if (value instanceof BinaryExpression) {
+    const operator = value.operator.value.toLowerCase();
+    if (operator === 'and') {
+      const left = collectOnComparisonPairs(value.left, currentSource, joinedSource);
+      const right = collectOnComparisonPairs(value.right, currentSource, joinedSource);
+      if (!left || !right) {
+        return null;
+      }
+      return [...left, ...right];
+    }
+
+    if (operator !== '=') {
+      return null;
+    }
+
+    const pair = resolveEqualityPair(value.left, value.right, currentSource, joinedSource);
+    if (pair) {
+      return [pair];
+    }
+
+    const reversed = resolveEqualityPair(value.right, value.left, currentSource, joinedSource);
+    if (reversed) {
+      return [{ currentColumn: reversed.joinedColumn, joinedColumn: reversed.currentColumn }];
+    }
+  }
+
+  return null;
+}
+
+function resolveEqualityPair(
+  left: ValueComponent,
+  right: ValueComponent,
+  currentSource: ResolvedSourceTable,
+  joinedSource: ResolvedSourceTable
+): { currentColumn: string; joinedColumn: string } | null {
+  const leftRef = extractColumnReference(left);
+  const rightRef = extractColumnReference(right);
+  if (!leftRef || !rightRef) {
+    return null;
+  }
+
+  const leftOwner = normalizeTableName(leftRef.owner);
+  const rightOwner = normalizeTableName(rightRef.owner);
+  if (!isOwnerMatch(leftOwner, currentSource) || !isOwnerMatch(rightOwner, joinedSource)) {
+    return null;
+  }
+
+  return {
+    currentColumn: leftRef.column,
+    joinedColumn: rightRef.column
+  };
+}
+
+function extractColumnReference(value: ValueComponent): { owner: string; column: string } | null {
+  if (!(value instanceof ColumnReference)) {
+    return null;
+  }
+
+  const owner = value.namespaces?.map((namespace) => namespace.name).join('.');
+  if (!owner) {
+    return null;
+  }
+
+  const column = value.column.name;
+  if (!column) {
+    return null;
+  }
+
+  return {
+    owner,
+    column
+  };
+}
+
+interface ResolvedSourceTable {
+  tableName: string;
+  alias: string;
+  ownerNames: Set<string>;
+}
+
+function isOwnerMatch(owner: string, source: ResolvedSourceTable): boolean {
+  return source.ownerNames.has(normalizeTableName(owner));
+}
+
+function findMatchingRelation(
+  candidates: ReturnType<typeof getOutgoingRelations>,
+  expectedParentTable: string,
+  comparison: JoinComparison
+): ReturnType<typeof getOutgoingRelations>[number] | null {
+  const matches = candidates.filter((candidate) => candidate.parentTable === expectedParentTable);
+  if (matches.length === 0) {
+    return null;
+  }
+
+  const matched = matches.find((candidate) => relationMatchesComparison(candidate, comparison));
+  if (!matched) {
+    return null;
+  }
+
+  return matched;
+}
+
+function relationMatchesComparison(candidate: ReturnType<typeof getOutgoingRelations>[number], comparison: JoinComparison): boolean {
+  if (candidate.childColumns.length === 0 || candidate.parentColumns.length === 0) {
+    return true;
+  }
+
+  return sameNormalizedColumns(candidate.childColumns, comparison.currentColumns) &&
+    sameNormalizedColumns(candidate.parentColumns, comparison.joinedColumns);
+}
+
+function sameNormalizedColumns(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  const normalize = (values: string[]) => [...values].map((value) => value.toLowerCase()).sort();
+  const leftNormalized = normalize(left);
+  const rightNormalized = normalize(right);
+  return leftNormalized.every((value, index) => value === rightNormalized[index]);
+}
+
+function hasAmbiguousRelation(
+  relationGraph: RelationGraph,
+  leftTable: string,
+  rightTable: string
+): boolean {
+  const forward = getOutgoingRelations(relationGraph, leftTable).filter((edge) => edge.parentTable === rightTable);
+  const reverse = getOutgoingRelations(relationGraph, rightTable).filter((edge) => edge.parentTable === leftTable);
+  return forward.length > 1 || reverse.length > 1;
+}
+
+function isBridgeTableCandidate(relationGraph: RelationGraph, tableName: string): boolean {
+  const outgoing = getOutgoingRelations(relationGraph, tableName);
+  const distinctParents = new Set(outgoing.map((edge) => edge.parentTable));
+  return distinctParents.size >= 2;
+}
+
+function buildJoinDirectionIssue(
+  scope: string,
+  joinType: string,
+  subjectTable: string,
+  joinedTable: string,
+  relation: ReturnType<typeof getOutgoingRelations>[number]
+): QueryLintIssue {
+  return {
+    type: 'join-direction',
+    severity: 'warning',
+    cte: scope === 'FINAL_QUERY' ? undefined : scope,
+    join_type: joinType,
+    subject_table: subjectTable,
+    joined_table: joinedTable,
+    child_table: relation.childTable,
+    parent_table: relation.parentTable,
+    child_columns: relation.childColumns,
+    parent_columns: relation.parentColumns,
+    message: `JOIN direction is reversed for ${relation.childTable} -> ${relation.parentTable}; prefer starting from the child table and joining upward`
+  };
+}
+
+function isInspectableInnerJoin(joinType: string): boolean {
+  const normalized = joinType.trim().toLowerCase();
+  return normalized === 'join' || normalized === 'inner join';
+}
+
+function hasJoinDirectionSuppression(sql: string): boolean {
+  return /ztd-lint-disable\s+join-direction/i.test(sql);
 }
 
 function normalizeSqlFragment(sql: string): string {

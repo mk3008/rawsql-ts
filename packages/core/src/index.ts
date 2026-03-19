@@ -121,6 +121,7 @@ export * from './transformers/DynamicQueryBuilder';
 export * from './utils/SqlSchemaValidator';
 export * from './utils/JsonSchemaValidator';
 export * from './utils/SchemaManager';
+export * from './utils/RelationGraph';
 export * from './utils/CommentEditor';
 export * from './utils/LexemeCursor';
 export type { LineColumn } from './utils/LexemeCursor';
