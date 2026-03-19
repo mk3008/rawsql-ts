@@ -8,6 +8,9 @@ outline: deep
 This guide inventories the existing timing, profiling, duration-reporting, and benchmark-specific measurement paths that currently exist around `ztd-cli`.
 Its purpose is to make the OpenTelemetry migration explicit before any new instrumentation is added.
 
+For dogfooding findings and their remediation status, use the companion [Finding Registry](./finding-registry.md).
+That registry keeps the failure record, the prevention layer, and the evidence separate from this measurement inventory.
+
 ## Scope and audit rules
 
 - The audit covers `packages/ztd-cli`, generated helper paths that `ztd-cli` scaffolds, and benchmark/test harnesses that exist specifically to exercise the ZTD flow.
