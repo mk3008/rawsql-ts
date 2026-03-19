@@ -84,7 +84,7 @@ test('queryspec example keeps SQL, rowMapping, and CatalogExecutor aligned', asy
     loader: {
       async load(sqlFile: string) {
         loadedSql.push(sqlFile);
-        return 'select user_id, display_name from "user" where user_id = $1';
+        return 'select user_id, display_name from "user"';
       }
     },
     executor: async (sql, params) => {
@@ -103,7 +103,7 @@ test('queryspec example keeps SQL, rowMapping, and CatalogExecutor aligned', asy
   expect(loadedSql).toEqual(['src/sql/users/list-active-users.sql']);
   expect(executedSql).toEqual([
     {
-      sql: 'select user_id, display_name from "user" where user_id = $1',
+      sql: 'select user_id, display_name from "user"',
       params: []
     }
   ]);
