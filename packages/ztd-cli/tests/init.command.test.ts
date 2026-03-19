@@ -222,8 +222,7 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(packageJson.devDependencies['@types/node']).toBeDefined();
   expect(packageJson.devDependencies['@rawsql-ts/ztd-cli']).toBeDefined();
   expect(packageJson.devDependencies.zod).toBeDefined();
-  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/adapter-node-pg');
-  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/sql-contract');
 
   expect(readNormalizedFile(path.join(workspace, 'src', 'catalog', 'specs', '_smoke.spec.ts'))).toContain(
     "from 'zod'",
@@ -247,7 +246,7 @@ test('init wizard bootstraps an empty scaffold', async () => {
     'SqlClient seam is the handoff point after the QuerySpec sample',
   );
   expect(readNormalizedFile(path.join(workspace, 'tests', 'queryspec.example.test.ts'))).toContain(
-    'queryspec example keeps SQL, rowMapping, and tests aligned',
+    'queryspec example keeps SQL, rowMapping, and CatalogExecutor aligned',
   );
   expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toContain(
     'ZTD_TEST_DATABASE_URL'
@@ -255,10 +254,10 @@ test('init wizard bootstraps an empty scaffold', async () => {
 
   // Ensure the generated testkit client can safely log params with circular references.
   expect(readNormalizedFile(testkitClientPath)).toContain(
-    'Provide a SqlClient implementation here',
+    'Provide tableFixture() rows before executing fixture-backed tests.',
   );
   expect(readNormalizedFile(testkitClientPath)).toContain(
-    '@rawsql-ts/adapter-node-pg',
+    'Create a reusable fixture-backed SqlClient for ZTD tests.',
   );
 });
 
@@ -324,7 +323,7 @@ test('init webapi scaffold localizes ZTD guidance to persistence-oriented paths'
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('tests/queryspec.example.test.ts');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If this fails:');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If a command fails');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('does not read it automatically');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('explicit target inspection');
   expect(readNormalizedFile(path.join(workspace, 'src', 'domain', 'README.md'))).not.toContain('ztd');
@@ -926,7 +925,10 @@ test('init wizard pulls schema if pg_dump is available', async () => {
 
   // Ensure the generated testkit client can safely log params with circular references.
   expect(readNormalizedFile(testkitClientPath)).toContain(
-    'Provide a SqlClient implementation here',
+    'Provide tableFixture() rows before executing fixture-backed tests.',
+  );
+  expect(readNormalizedFile(testkitClientPath)).toContain(
+    'Create a reusable fixture-backed SqlClient for ZTD tests.',
   );
 });
 
@@ -1028,11 +1030,9 @@ test('init local-source mode links direct rawsql-ts dependencies from the monore
   expect(existsSync(localSourceGuardPath)).toBe(true);
   expect(readNormalizedFile(coercionsPath)).toContain('export function normalizeTimestamp');
   expect(packageJson.devDependencies['@rawsql-ts/sql-contract']).toBe(
-    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'sql-contract')).replace(/\\/g, '/')}`
+      `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'sql-contract')).replace(/\\/g, '/')}`
   );
-  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/ztd-cli');
-  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/adapter-node-pg');
-  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
+  expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/ztd-cli');
   expect(packageJson.scripts.typecheck).toBe('node ./scripts/local-source-guard.mjs typecheck');
   expect(packageJson.scripts.test).toBe('node ./scripts/local-source-guard.mjs test');
   expect(packageJson.scripts.ztd).toBe('node ./scripts/local-source-guard.mjs ztd');
@@ -1045,7 +1045,7 @@ test('init local-source mode links direct rawsql-ts dependencies from the monore
   expect(result.summary).toContain('Run pnpm ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('tests/queryspec.example.test.ts');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If this fails:');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If a command fails');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
     'The scaffold keeps `@rawsql-ts/sql-contract` as a normal package import even in local-source developer mode.'
   );
@@ -1153,9 +1153,7 @@ test('init local-source mode accepts a minimal local-source root with sql-contra
 
   expect(result.summary).toContain('ZTD project initialized.');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/sql-contract');
-  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/ztd-cli');
-  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/adapter-node-pg');
-  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
+  expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/ztd-cli');
 });
 
 test('init rejects non-interactive pg_dump workflow', async () => {

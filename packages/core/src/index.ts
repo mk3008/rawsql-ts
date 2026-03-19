@@ -118,6 +118,8 @@ export * from './transformers/SqlSortInjector';
 export * from './transformers/SqlPaginationInjector';
 export * from './transformers/DynamicQueryBuilder';
 
+export * from './utils/ParameterHelper';
+export * from './transformers/SqlParameterBinder';
 export * from './utils/SqlSchemaValidator';
 export * from './utils/JsonSchemaValidator';
 export * from './utils/SchemaManager';

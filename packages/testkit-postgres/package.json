@@ -32,9 +32,9 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/sql-contract": "workspace:^",
-    "@rawsql-ts/testkit-core": "workspace:^",
-    "rawsql-ts": "workspace:^"
+    "@rawsql-ts/sql-contract": "^0.3.1",
+    "@rawsql-ts/testkit-core": "^0.16.1",
+    "rawsql-ts": "^0.17.0"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

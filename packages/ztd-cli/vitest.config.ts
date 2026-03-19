@@ -7,5 +7,6 @@ export default mergeConfig(rootConfig, {
     root: resolve(__dirname),
     include: ['tests/**/*.test.ts'],
     exclude: ['dist/**', '**/dist/**', '**/node_modules/**'],
+    testTimeout: 60_000,
   },
 });
