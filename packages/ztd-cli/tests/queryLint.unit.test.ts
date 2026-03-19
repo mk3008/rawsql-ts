@@ -1,10 +1,17 @@
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { expect, test } from 'vitest';
+import { Command } from 'commander';
+import { afterEach, expect, test, vi } from 'vitest';
+import { registerQueryCommands } from '../src/commands/query';
 import { buildQueryLintReport, formatQueryLintReport } from '../src/query/lint';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const tmpRoot = path.join(repoRoot, 'tmp');
+const originalProjectRoot = process.env.ZTD_PROJECT_ROOT;
+
+afterEach(() => {
+  process.env.ZTD_PROJECT_ROOT = originalProjectRoot;
+});
 
 function createTempDir(prefix: string): string {
   if (!existsSync(tmpRoot)) {
@@ -21,6 +28,63 @@ function createSqlWorkspace(prefix: string, sqlRelativePath: string = path.join(
   const sqlFile = path.join(rootDir, sqlRelativePath);
   mkdirSync(path.dirname(sqlFile), { recursive: true });
   return { rootDir, sqlFile };
+}
+
+function createJoinDirectionWorkspace(prefix: string): {
+  rootDir: string;
+  sqlFile: string;
+  ddlDir: string;
+} {
+  const rootDir = createTempDir(prefix);
+  const ddlDir = path.join(rootDir, 'ztd', 'ddl');
+  const sqlFile = path.join(rootDir, 'src', 'sql', 'query.sql');
+  mkdirSync(path.dirname(sqlFile), { recursive: true });
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(rootDir, 'ztd.config.json'),
+    JSON.stringify({
+      ddlDir: 'ztd/ddl',
+      ddl: {
+        defaultSchema: 'public',
+        searchPath: ['public']
+      }
+    }, null, 2),
+    'utf8'
+  );
+  return { rootDir, sqlFile, ddlDir };
+}
+
+function writeJoinDirectionSchema(ddlDir: string): void {
+  writeFileSync(
+    path.join(ddlDir, 'schema.sql'),
+    `
+      CREATE TABLE public.customers (
+        customer_id integer PRIMARY KEY
+      );
+
+      CREATE TABLE public.orders (
+        order_id integer PRIMARY KEY,
+        customer_id integer NOT NULL REFERENCES public.customers(customer_id)
+      );
+
+      CREATE TABLE public.order_items (
+        order_item_id integer PRIMARY KEY,
+        order_id integer NOT NULL REFERENCES public.orders(order_id)
+      );
+    `,
+    'utf8'
+  );
+}
+
+function createQueryLintProgram(capture: { stdout: string[]; stderr: string[] }): Command {
+  const program = new Command();
+  program.exitOverride();
+  program.configureOutput({
+    writeOut: (str) => capture.stdout.push(str),
+    writeErr: (str) => capture.stderr.push(str)
+  });
+  registerQueryCommands(program);
+  return program;
 }
 
 test('buildQueryLintReport detects structural maintainability issues', () => {
@@ -143,4 +207,168 @@ test('formatQueryLintReport renders json for agents and compact text for humans'
 
   const textOutput = formatQueryLintReport(report, 'text');
   expect(textOutput).toContain('WARN  unused-cte: unused_stage is defined but never used');
+});
+
+test('buildQueryLintReport detects reversed joins when join-direction is enabled', () => {
+  const workspace = createJoinDirectionWorkspace('query-lint-join-direction');
+  writeJoinDirectionSchema(workspace.ddlDir);
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      select
+        oi.order_item_id,
+        o.order_id,
+        c.customer_id
+      from public.order_items oi
+      join public.orders o
+        on o.order_id = oi.order_id
+      join public.customers c
+        on c.customer_id = o.customer_id
+    `,
+    'utf8'
+  );
+
+  const report = buildQueryLintReport(workspace.sqlFile, {
+    projectRoot: workspace.rootDir,
+    rules: ['join-direction']
+  });
+
+  expect(report.issues.filter((issue) => issue.type === 'join-direction')).toEqual([]);
+});
+
+test('buildQueryLintReport warns on parent-to-child join direction when join-direction is enabled', () => {
+  const workspace = createJoinDirectionWorkspace('query-lint-join-direction-reversed');
+  writeJoinDirectionSchema(workspace.ddlDir);
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      select
+        c.customer_id,
+        o.order_id,
+        oi.order_item_id
+      from public.customers c
+      join public.orders o
+        on o.customer_id = c.customer_id
+      join public.order_items oi
+        on oi.order_id = o.order_id
+    `,
+    'utf8'
+  );
+
+  const report = buildQueryLintReport(workspace.sqlFile, {
+    projectRoot: workspace.rootDir,
+    rules: ['join-direction']
+  });
+
+  expect(report.issues).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        type: 'join-direction',
+        severity: 'warning',
+        subject_table: 'public.customers',
+        joined_table: 'public.orders',
+        child_table: 'public.orders',
+        parent_table: 'public.customers'
+      })
+    ])
+  );
+});
+
+test('buildQueryLintReport suppresses join-direction when explicitly disabled in SQL text', () => {
+  const workspace = createJoinDirectionWorkspace('query-lint-join-direction-suppressed');
+  writeJoinDirectionSchema(workspace.ddlDir);
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      -- ztd-lint-disable join-direction
+      select
+        c.customer_id,
+        o.order_id
+      from public.customers c
+      join public.orders o
+        on o.customer_id = c.customer_id
+    `,
+    'utf8'
+  );
+
+  const report = buildQueryLintReport(workspace.sqlFile, {
+    projectRoot: workspace.rootDir,
+    rules: ['join-direction']
+  });
+
+  expect(report.issues.filter((issue) => issue.type === 'join-direction')).toEqual([]);
+});
+
+test('query lint command enables join-direction through --rules', async () => {
+  const workspace = createJoinDirectionWorkspace('query-lint-join-direction-cli');
+  writeJoinDirectionSchema(workspace.ddlDir);
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      select
+        c.customer_id,
+        o.order_id
+      from public.customers c
+      join public.orders o
+        on o.customer_id = c.customer_id
+    `,
+    'utf8'
+  );
+
+  const capture = { stdout: [] as string[], stderr: [] as string[] };
+  const program = createQueryLintProgram(capture);
+  const logSpy = vi.spyOn(console, 'log').mockImplementation((value?: unknown) => {
+    capture.stdout.push(String(value ?? ''));
+  });
+
+  process.env.ZTD_PROJECT_ROOT = workspace.rootDir;
+  try {
+    await program.parseAsync(['query', 'lint', workspace.sqlFile, '--rules', 'join-direction'], { from: 'user' });
+  } finally {
+    logSpy.mockRestore();
+  }
+
+  expect(capture.stderr).toEqual([]);
+  expect(capture.stdout.join('')).toContain('WARN  join-direction: JOIN direction is reversed for public.orders -> public.customers');
+});
+
+test('query lint command emits join-direction diagnostics in json mode', async () => {
+  const workspace = createJoinDirectionWorkspace('query-lint-join-direction-cli-json');
+  writeJoinDirectionSchema(workspace.ddlDir);
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      select
+        c.customer_id,
+        o.order_id
+      from public.customers c
+      join public.orders o
+        on o.customer_id = c.customer_id
+    `,
+    'utf8'
+  );
+
+  const capture = { stdout: [] as string[], stderr: [] as string[] };
+  const program = createQueryLintProgram(capture);
+  const logSpy = vi.spyOn(console, 'log').mockImplementation((value?: unknown) => {
+    capture.stdout.push(String(value ?? ''));
+  });
+
+  process.env.ZTD_PROJECT_ROOT = workspace.rootDir;
+  try {
+    await program.parseAsync(['query', 'lint', workspace.sqlFile, '--rules', 'join-direction', '--format', 'json'], { from: 'user' });
+  } finally {
+    logSpy.mockRestore();
+  }
+
+  expect(capture.stderr).toEqual([]);
+  const payload = JSON.parse(capture.stdout.join(''));
+  expect(payload.issues).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      type: 'join-direction',
+      severity: 'warning',
+      parent_table: 'public.customers',
+      child_table: 'public.orders'
+    })
+  ]));
 });

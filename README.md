@@ -34,7 +34,7 @@ These capabilities are important at the repo level even though they are mostly e
 |----------|-------------|----------------|
 | SQL pipeline planning and dry-run optimization analysis | `ztd query plan`, `ztd perf run --dry-run` | Explains how SQL may be decomposed into stages before execution. |
 | SQL impact analysis before schema changes | `ztd query uses` | Supports rename/type-change investigations using AST-based usage analysis. |
-| SQL debug and recovery for long CTE queries | `ztd query outline`, `ztd query lint`, `ztd query slice`, `ztd query patch apply` | Helps isolate and repair problematic query shapes. |
+| SQL debug and recovery for long CTE queries | `ztd query outline`, `ztd query lint`, `ztd query slice`, `ztd query patch apply` | Helps isolate and repair problematic query shapes; `ztd query lint --rules join-direction` adds a FK-aware JOIN readability guard. |
 | Explicit-target schema inspection and migration-prep workflow | `ztd ddl diff`, `ztd ddl pull` | Supports safe inspection against explicit target databases and generation of diff / patch SQL artifacts. Applying generated SQL is intentionally out of scope. |
 | Machine-readable CLI automation and telemetry | `ztd --output json`, `ztd describe`, telemetry export modes | Supports AI/tooling integration and timing investigation. |
 
