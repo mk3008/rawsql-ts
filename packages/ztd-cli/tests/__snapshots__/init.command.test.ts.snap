@@ -9,8 +9,6 @@ Created:
  - README.md
  - ztd/README.md
  - src/sql/README.md
- - src/repositories/views/README.md
- - src/repositories/tables/README.md
  - src/jobs/README.md
  - src/catalog/specs/_smoke.spec.ts
  - src/catalog/runtime/_coercions.ts
@@ -61,8 +59,6 @@ Created:
  - README.md
  - ztd/README.md
  - src/sql/README.md
- - src/repositories/views/README.md
- - src/repositories/tables/README.md
  - src/jobs/README.md
  - src/catalog/specs/_smoke.spec.ts
  - src/catalog/runtime/_coercions.ts
@@ -113,8 +109,6 @@ Created:
  - README.md
  - ztd/README.md
  - src/sql/README.md
- - src/repositories/views/README.md
- - src/repositories/tables/README.md
  - src/jobs/README.md
  - src/catalog/specs/_smoke.spec.ts
  - src/catalog/runtime/_coercions.ts

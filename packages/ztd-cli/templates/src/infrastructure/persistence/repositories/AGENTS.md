@@ -1,9 +1,10 @@
 # Package Scope
 - Applies to `packages/ztd-cli/templates/src/infrastructure/persistence/repositories`.
-- Defines repository responsibilities for WebAPI-oriented persistence infrastructure.
+- Defines repository responsibilities for WebAPI-oriented persistence query units.
 
 # Policy
 ## REQUIRED
+- Persistence repositories MUST keep 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO aligned.
 - Repositories MUST load SQL assets from `src/sql` through shared loader infrastructure.
 - Repository CUD behavior MUST follow contract rules for `RETURNING`, rowCount handling, and explicit unsupported-driver failures.
 - Repositories MUST reference SQL by stable logical keys.

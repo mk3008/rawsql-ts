@@ -5,6 +5,7 @@
 # Policy
 ## REQUIRED
 - Catalog entrypoints MUST bind SQL assets, parameter contracts, output contracts, and runtime validation/mapping.
+- Each catalog spec MUST stay aligned with 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.
 - `src/catalog/specs` MUST be treated as human-owned contracts.
 - `src/catalog/runtime` MUST implement runtime wiring only.
 - Code in `src/catalog` MUST remain independent from `tests`, `tests/generated`, and `ztd` imports.

@@ -14,12 +14,16 @@ Quick boundary table:
 - `--url` / complete `--db-*`: explicit target inspection only
 
 Key folders:
-- `src/domain`: domain types and business rules with no direct ZTD dependency
+- `src/domain`: domain types and business rules with no direct SQL dependency
 - `src/application`: use cases and orchestration over domain-facing ports
 - `src/presentation/http`: HTTP handlers, request parsing, and response shaping
-- `src/infrastructure/persistence`: repositories, SQL assets, and QuerySpec wiring
-- `src/sql`, `src/catalog`, `ztd/ddl`: ZTD-owned persistence assets
+- `src/infrastructure/persistence`: repositories, DTO mappings, and QuerySpec wiring for one query unit at a time
+- `src/sql`: handwritten SQL assets, one query unit at a time
+- `src/catalog`, `ztd/ddl`: human-owned support assets that feed those query units
 - `tests`: smoke tests, support files, and the QuerySpec-first example sample
+
+Think in query units: 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.
+Keep handwritten SQL assets in `src/sql/` as the single human-owned source location for query logic.
 
 Prompt dogfooding:
 - See `PROMPT_DOGFOOD.md` when you want to verify that generic WebAPI requests stay out of persistence-specific ZTD guidance unless repository or SQL work is explicitly requested.
@@ -29,7 +33,7 @@ Next steps:
 2. Add or edit your first SQL asset under `src/sql/`, while keeping `src/domain`, `src/application`, and `src/presentation/http` free from direct SQL or DDL concerns.
 3. Run `npx ztd ztd-config` to regenerate DDL-derived test rows and layout metadata.
 4. Run `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` to scaffold a QuerySpec from that SQL file.
-5. Review `src/catalog/specs/_smoke.spec.ts`, `tests/queryspec.example.test.ts`, and `src/infrastructure/db/sql-client.ts` so the first SQL-backed repository has both a minimal gate and a QuerySpec-first sample to copy.
+5. Review `src/catalog/specs/_smoke.spec.ts`, `tests/queryspec.example.test.ts`, and `src/infrastructure/db/sql-client.ts` so the first SQL-backed repository keeps 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO aligned.
 6. Run tests (`npm run test` or `npx vitest run`) to pass the generated smoke test before adding SQL-backed coverage.
 
 If this fails:
