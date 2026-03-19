@@ -1,7 +1,7 @@
 <div v-pre>
 # Enumeration: FetchType
 
-Defined in: [packages/core/src/models/Clause.ts:407](https://github.com/mk3008/rawsql-ts/blob/e8e8779fe0a77e85827bb825fbc013472b94f439/packages/core/src/models/Clause.ts#L407)
+Defined in: [packages/core/src/models/Clause.ts:407](https://github.com/mk3008/rawsql-ts/blob/1f5539f5ca8ae5592d6a0246b09ae3cb6fd0e095/packages/core/src/models/Clause.ts#L407)
 
 ## Enumeration Members
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/Clause.ts:407](https://github.com/mk3008/r
 
 > **Next**: `"next"`
 
-Defined in: [packages/core/src/models/Clause.ts:408](https://github.com/mk3008/rawsql-ts/blob/e8e8779fe0a77e85827bb825fbc013472b94f439/packages/core/src/models/Clause.ts#L408)
+Defined in: [packages/core/src/models/Clause.ts:408](https://github.com/mk3008/rawsql-ts/blob/1f5539f5ca8ae5592d6a0246b09ae3cb6fd0e095/packages/core/src/models/Clause.ts#L408)
 
 ***
 
@@ -17,5 +17,5 @@ Defined in: [packages/core/src/models/Clause.ts:408](https://github.com/mk3008/r
 
 > **First**: `"first"`
 
-Defined in: [packages/core/src/models/Clause.ts:409](https://github.com/mk3008/rawsql-ts/blob/e8e8779fe0a77e85827bb825fbc013472b94f439/packages/core/src/models/Clause.ts#L409)
+Defined in: [packages/core/src/models/Clause.ts:409](https://github.com/mk3008/rawsql-ts/blob/1f5539f5ca8ae5592d6a0246b09ae3cb6fd0e095/packages/core/src/models/Clause.ts#L409)
 </div>

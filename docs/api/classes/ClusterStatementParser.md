@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: ClusterStatementParser
 
-Defined in: [packages/core/src/parsers/ClusterStatementParser.ts:4](https://github.com/mk3008/rawsql-ts/blob/e8e8779fe0a77e85827bb825fbc013472b94f439/packages/core/src/parsers/ClusterStatementParser.ts#L4)
+Defined in: [packages/core/src/parsers/ClusterStatementParser.ts:4](https://github.com/mk3008/rawsql-ts/blob/1f5539f5ca8ae5592d6a0246b09ae3cb6fd0e095/packages/core/src/parsers/ClusterStatementParser.ts#L4)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/parsers/ClusterStatementParser.ts:4](https://gith
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/ClusterStatementParser.ts:5](https://github.com/mk3008/rawsql-ts/blob/e8e8779fe0a77e85827bb825fbc013472b94f439/packages/core/src/parsers/ClusterStatementParser.ts#L5)
+Defined in: [packages/core/src/parsers/ClusterStatementParser.ts:5](https://github.com/mk3008/rawsql-ts/blob/1f5539f5ca8ae5592d6a0246b09ae3cb6fd0e095/packages/core/src/parsers/ClusterStatementParser.ts#L5)
 
 #### Parameters
 
