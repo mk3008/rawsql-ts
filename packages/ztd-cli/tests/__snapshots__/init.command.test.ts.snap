@@ -38,11 +38,12 @@ Validation configuration:
 Next steps:
  1. If the schema file is empty, edit ztd/ddl/public.sql before generating downstream artifacts
  2. Add or edit your first SQL asset under src/sql/ so the happy path starts from a human-maintained query file
- 3. Run npx ztd ztd-config to regenerate DDL-derived test rows and layout metadata
- 4. Run npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file> to scaffold a QuerySpec from that SQL file
- 5. Review src/db/sql-client.ts and src/infrastructure/telemetry/repositoryTelemetry.ts so the first SQL-backed repository has a seam to plug into
- 6. Open tests/queryspec.example.test.ts as the QuerySpec-first sample before you write the first repository test
- 7. Run tests (npm run test or npx vitest run) to pass the generated smoke test before adding SQL-backed coverage
+ 3. Open README.md and follow the Getting Started With AI section before writing repository code
+ 4. Run npx ztd ztd-config to regenerate DDL-derived test rows and layout metadata
+ 5. Run npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file> to scaffold a QuerySpec from that SQL file
+ 6. Review src/db/sql-client.ts and src/infrastructure/telemetry/repositoryTelemetry.ts so the first SQL-backed repository has a seam to plug into
+ 7. Open tests/queryspec.example.test.ts for the QuerySpec + CatalogExecutor sample, and tests/smoke.test.ts for the fixture-backed ZTD rewrite sample
+ 8. Run tests (npm run test or npx vitest run) to pass the generated smoke test before adding SQL-backed coverage
 
 If this fails:
  - If npx ztd ztd-config fails, keep editing ztd/ddl/public.sql and src/sql/ first, then rerun generation after the DDL is ready
@@ -88,11 +89,12 @@ Validation configuration:
 Next steps:
  1. If the schema file is empty, edit ztd/ddl/public.sql before generating downstream artifacts
  2. Add or edit your first SQL asset under src/sql/ so the happy path starts from a human-maintained query file
- 3. Run npx ztd ztd-config to regenerate DDL-derived test rows and layout metadata
- 4. Run npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file> to scaffold a QuerySpec from that SQL file
- 5. Review src/db/sql-client.ts and src/infrastructure/telemetry/repositoryTelemetry.ts so the first SQL-backed repository has a seam to plug into
- 6. Open tests/queryspec.example.test.ts as the QuerySpec-first sample before you write the first repository test
- 7. Run tests (npm run test or npx vitest run) to pass the generated smoke test before adding SQL-backed coverage
+ 3. Open README.md and follow the Getting Started With AI section before writing repository code
+ 4. Run npx ztd ztd-config to regenerate DDL-derived test rows and layout metadata
+ 5. Run npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file> to scaffold a QuerySpec from that SQL file
+ 6. Review src/db/sql-client.ts and src/infrastructure/telemetry/repositoryTelemetry.ts so the first SQL-backed repository has a seam to plug into
+ 7. Open tests/queryspec.example.test.ts for the QuerySpec + CatalogExecutor sample, and tests/smoke.test.ts for the fixture-backed ZTD rewrite sample
+ 8. Run tests (npm run test or npx vitest run) to pass the generated smoke test before adding SQL-backed coverage
 
 If this fails:
  - If npx ztd ztd-config fails, keep editing ztd/ddl/public.sql and src/sql/ first, then rerun generation after the DDL is ready
@@ -138,11 +140,12 @@ Validation configuration:
 Next steps:
  1. Review the dumped DDL in ztd/ddl/public.sql and adjust it before generating downstream artifacts
  2. Add or edit your first SQL asset under src/sql/ so the happy path starts from a human-maintained query file
- 3. Run npx ztd ztd-config to regenerate DDL-derived test rows and layout metadata
- 4. Run npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file> to scaffold a QuerySpec from that SQL file
- 5. Review src/db/sql-client.ts and src/infrastructure/telemetry/repositoryTelemetry.ts so the first SQL-backed repository has a seam to plug into
- 6. Open tests/queryspec.example.test.ts as the QuerySpec-first sample before you write the first repository test
- 7. Run tests (npm run test or npx vitest run) to pass the generated smoke test before adding SQL-backed coverage
+ 3. Open README.md and follow the Getting Started With AI section before writing repository code
+ 4. Run npx ztd ztd-config to regenerate DDL-derived test rows and layout metadata
+ 5. Run npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file> to scaffold a QuerySpec from that SQL file
+ 6. Review src/db/sql-client.ts and src/infrastructure/telemetry/repositoryTelemetry.ts so the first SQL-backed repository has a seam to plug into
+ 7. Open tests/queryspec.example.test.ts for the QuerySpec + CatalogExecutor sample, and tests/smoke.test.ts for the fixture-backed ZTD rewrite sample
+ 8. Run tests (npm run test or npx vitest run) to pass the generated smoke test before adding SQL-backed coverage
 
 If this fails:
  - If npx ztd ztd-config fails, keep editing ztd/ddl/public.sql and src/sql/ first, then rerun generation after the DDL is ready

@@ -1,6 +1,44 @@
 import { expect, test } from 'vitest';
 
-import { rowMapping, type QuerySpec } from '@rawsql-ts/sql-contract';
+type QuerySpec<TParams extends readonly unknown[], TRow> = {
+  id: string;
+  sqlFile: string;
+  params: {
+    shape: 'positional';
+    example: TParams;
+  };
+  output: {
+    mapping: {
+      name: string;
+      key: string;
+      columnMap: Record<string, string>;
+    };
+    validate?: (value: unknown) => TRow;
+    example: TRow;
+  };
+  notes: string;
+};
+
+type CatalogExecutorOptions = {
+  loader: {
+    load(sqlFile: string): Promise<string>;
+  };
+  executor: (sql: string, params: readonly unknown[]) => Promise<Record<string, unknown>[]>;
+};
+
+function rowMapping(mapping: { name: string; key: string; columnMap: Record<string, string> }) {
+  return mapping;
+}
+
+function createCatalogExecutor({ loader, executor }: CatalogExecutorOptions) {
+  return {
+    async list<TParams extends readonly unknown[], TRow>(spec: QuerySpec<TParams, TRow>, params: TParams) {
+      const sql = await loader.load(spec.sqlFile);
+      const rows = await executor(sql, params);
+      return rows.map((value) => (spec.output.validate ? spec.output.validate(value) : (value as TRow)));
+    }
+  };
+}
 
 type UserProfileRow = {
   userId: string;
@@ -38,10 +76,43 @@ const listActiveUsersSpec: QuerySpec<[], UserProfileRow> = {
   notes: 'Use this as the sample when you add the first repository-backed QuerySpec.'
 };
 
-test('queryspec example keeps SQL, rowMapping, and tests aligned', () => {
-  expect(listActiveUsersSpec.id).toBe('users.list-active');
-  expect(listActiveUsersSpec.sqlFile).toBe('src/sql/users/list-active-users.sql');
-  expect(listActiveUsersSpec.output.example.userId).toBe('user-1');
+test('queryspec example keeps SQL, rowMapping, and CatalogExecutor aligned', async () => {
+  const loadedSql: string[] = [];
+  const executedSql: Array<{ sql: string; params: readonly unknown[] }> = [];
+
+  const executor = createCatalogExecutor({
+    loader: {
+      async load(sqlFile: string) {
+        loadedSql.push(sqlFile);
+        return 'select user_id, display_name from "user" where user_id = $1';
+      }
+    },
+    executor: async (sql, params) => {
+      executedSql.push({ sql, params });
+      return [
+        {
+          user_id: 'user-1',
+          display_name: 'Alice'
+        }
+      ];
+    }
+  });
+
+  const rows = await executor.list(listActiveUsersSpec, []);
+
+  expect(loadedSql).toEqual(['src/sql/users/list-active-users.sql']);
+  expect(executedSql).toEqual([
+    {
+      sql: 'select user_id, display_name from "user" where user_id = $1',
+      params: []
+    }
+  ]);
+  expect(rows).toEqual([
+    {
+      userId: 'user-1',
+      displayName: 'Alice'
+    }
+  ]);
   expect(listActiveUsersSpec.output.validate?.(listActiveUsersSpec.output.example)).toEqual(
     listActiveUsersSpec.output.example
   );

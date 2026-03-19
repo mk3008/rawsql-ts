@@ -19,6 +19,11 @@ interface PnpmWorkspaceGuard {
   shouldIgnoreWorkspace: boolean;
 }
 
+interface NpmWorkspaceGuard {
+  workspaceRoot: string | null;
+  shouldDisableWorkspaces: boolean;
+}
+
 /**
  * Prompt interface for interactive input during `ztd init`.
  */
@@ -194,6 +199,7 @@ export interface InitCommandOptions {
   withSqlClient?: boolean;
   withAiGuidance?: boolean;
   withAppInterface?: boolean;
+  skipInstall?: boolean;
   forceOverwrite?: boolean;
   nonInteractive?: boolean;
   workflow?: InitWorkflow;
@@ -242,8 +248,7 @@ interface InitScaffoldLayout {
 }
 
 const STACK_DEV_DEPENDENCIES: Record<string, string> = {
-  '@rawsql-ts/sql-contract': '0.2.0',
-  '@rawsql-ts/ztd-cli': '0.17.0'
+  '@rawsql-ts/ztd-cli': '^0.20.3',
 };
 const LOCAL_SOURCE_STACK_PACKAGE_DIRS: Record<string, string> = {
   '@rawsql-ts/sql-contract': path.join('packages', 'sql-contract')
@@ -1095,20 +1100,31 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.package = packageSummary;
   }
 
-  await ensureTemplateDependenciesInstalled(rootDir, absolutePaths, summaries, dependencies, scaffoldProfile);
+  const installNote = await ensureTemplateDependenciesInstalled(
+    rootDir,
+    absolutePaths,
+    summaries,
+    dependencies,
+    scaffoldProfile,
+    options?.skipInstall === true
+  );
+  const shouldIncludeManualInstallStep =
+    options?.skipInstall === true || installNote?.startsWith('Dependency install failed') === true;
 
   const nextSteps = buildNextSteps(
     normalizeRelative(rootDir, absolutePaths.schema),
     workflow,
     rootDir,
     scaffoldProfile,
-    appShape
+    appShape,
+    shouldIncludeManualInstallStep
   );
   const summaryLines = buildSummaryLines(
     summaries as Record<FileKey, FileSummary>,
     optionalFeatures,
     nextSteps,
-    scaffoldProfile
+    scaffoldProfile,
+    installNote
   );
   summaryLines.forEach(dependencies.log);
 
@@ -1246,6 +1262,44 @@ export function resolvePnpmWorkspaceGuard(
   };
 }
 
+function resolveNpmWorkspaceGuard(rootDir: string, packageManager: PackageManager): NpmWorkspaceGuard {
+  if (packageManager !== 'npm') {
+    return { workspaceRoot: null, shouldDisableWorkspaces: false };
+  }
+
+  const workspaceRoot = findAncestorWorkspaceRoot(rootDir);
+  return {
+    workspaceRoot,
+    shouldDisableWorkspaces: workspaceRoot !== null,
+  };
+}
+
+function findAncestorWorkspaceRoot(rootDir: string): string | null {
+  let cursor = path.resolve(rootDir);
+
+  while (true) {
+    const parentDir = path.dirname(cursor);
+    if (parentDir === cursor) {
+      return null;
+    }
+    cursor = parentDir;
+
+    const packagePath = path.join(cursor, 'package.json');
+    if (!existsSync(packagePath)) {
+      continue;
+    }
+
+    try {
+      const parsed = JSON.parse(readFileSync(packagePath, 'utf8')) as Record<string, unknown>;
+      if (parsed.workspaces !== undefined) {
+        return cursor;
+      }
+    } catch {
+      continue;
+    }
+  }
+}
+
 export interface InitInstallStrategy {
   installCommand: string;
   workspaceGuard: PnpmWorkspaceGuard;
@@ -1267,10 +1321,13 @@ export function resolveInitInstallStrategy(
   environment?: { platform?: NodeJS.Platform; npmCommand?: string }
 ): InitInstallStrategy {
   const workspaceGuard = resolvePnpmWorkspaceGuard(rootDir, packageManager);
+  const npmWorkspaceGuard = resolveNpmWorkspaceGuard(rootDir, packageManager);
   const installCommand =
     packageManager === 'pnpm' && workspaceGuard.shouldIgnoreWorkspace
       ? 'pnpm install --ignore-workspace'
-      : `${packageManager} install`;
+      : packageManager === 'npm' && npmWorkspaceGuard.shouldDisableWorkspaces
+        ? 'npm install --workspaces=false'
+        : `${packageManager} install`;
   const platform = environment?.platform ?? process.platform;
   // npm_command is provided by npm/pnpm for lifecycle and exec invocations, which we use as a fallback in real CLI runs.
   const npmCommand = environment?.npmCommand ?? process.env.npm_command;
@@ -1290,11 +1347,19 @@ export function buildPackageManagerArgs(
 ): string[] {
   const pnpmWorkspaceGuard =
     rootDir !== undefined ? resolvePnpmWorkspaceGuard(rootDir, packageManager) : { shouldIgnoreWorkspace: false };
+  const npmWorkspaceGuard =
+    rootDir !== undefined
+      ? resolveNpmWorkspaceGuard(rootDir, packageManager)
+      : { workspaceRoot: null, shouldDisableWorkspaces: false };
 
   if (kind === 'install') {
-    return packageManager === 'pnpm' && pnpmWorkspaceGuard.shouldIgnoreWorkspace
-      ? ['install', '--ignore-workspace']
-      : ['install'];
+    if (packageManager === 'pnpm' && pnpmWorkspaceGuard.shouldIgnoreWorkspace) {
+      return ['install', '--ignore-workspace'];
+    }
+    if (packageManager === 'npm' && npmWorkspaceGuard.shouldDisableWorkspaces) {
+      return ['install', '--workspaces=false'];
+    }
+    return ['install'];
   }
 
   if (packages.length === 0) {
@@ -1302,7 +1367,9 @@ export function buildPackageManagerArgs(
   }
 
   if (packageManager === 'npm') {
-    return ['install', '-D', ...packages];
+    return npmWorkspaceGuard.shouldDisableWorkspaces
+      ? ['install', '-D', ...packages, '--workspaces=false']
+      : ['install', '-D', ...packages];
   }
 
   return packageManager === 'pnpm' && pnpmWorkspaceGuard.shouldIgnoreWorkspace
@@ -1355,8 +1422,10 @@ function extractPackageName(specifier: string): string | null {
 function listReferencedPackagesFromSource(source: string): string[] {
   const packages = new Set<string>();
   const patterns = [
-    // Capture ESM imports and re-exports, including `import type`.
-    /\bfrom\s+['"]([^'"]+)['"]/g,
+    // Capture ESM imports and re-exports, including `import type`, but only
+    // when the statement itself starts with import/export so SQL string
+    // literals like `from "user"` do not get misidentified as packages.
+    /^\s*(?:import|export)\b[\s\S]*?\bfrom\s+['"]([^'"]+)['"]/gm,
     // Capture dynamic imports.
     /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
     // Capture CommonJS requires.
@@ -1437,15 +1506,15 @@ async function ensureTemplateDependenciesInstalled(
   absolutePaths: Record<FileKey, string>,
   summaries: Partial<Record<FileKey, FileSummary>>,
   dependencies: ZtdConfigWriterDependencies,
-  scaffoldProfile: InitScaffoldProfile
-): Promise<void> {
+  scaffoldProfile: InitScaffoldProfile,
+  skipInstall: boolean
+): Promise<string | null> {
   const packageManager = detectPackageManager(rootDir, defaultPackageManagerForScaffold(scaffoldProfile));
   const packageJsonPath = path.join(rootDir, 'package.json');
   if (!dependencies.fileExists(packageJsonPath)) {
-    dependencies.log(
-      `Skipping dependency installation because package.json is missing. Next: run ${packageManager} init, install dependencies, then run npx ztd ztd-config.`
-    );
-    return;
+    const note = `Skipping dependency installation because package.json is missing. Next: run ${packageManager} init, install dependencies, then run npx ztd ztd-config.`;
+    dependencies.log(note);
+    return note;
   }
 
   const installStrategy = resolveInitInstallStrategy(rootDir, packageManager);
@@ -1453,6 +1522,11 @@ async function ensureTemplateDependenciesInstalled(
     dependencies.log(
       `Detected parent pnpm workspace at ${installStrategy.workspaceGuard.workspaceRoot}. Running pnpm with --ignore-workspace so this initialized project keeps isolated installs.`
     );
+  }
+  if (skipInstall) {
+    const note = `Skipping dependency installation because --skip-install was set. Next: run ${installStrategy.installCommand} manually before executing ztd-config or tests.`;
+    dependencies.log(note);
+    return note;
   }
   const referencedPackages = listTemplateReferencedPackages(absolutePaths, summaries);
   const declaredPackages = listDeclaredPackages(rootDir);
@@ -1462,33 +1536,46 @@ async function ensureTemplateDependenciesInstalled(
   if (missingPackages.length > 0) {
     if (installStrategy.shouldDeferAutoInstall) {
       const manualAddCommand = buildManualInstallCommand('devDependencies', packageManager, missingPackages, rootDir);
-      dependencies.log(
-        `Skipping automatic ${manualAddCommand} because Windows pnpm exec can break the current ztd process after package.json changes. Next: run ${manualAddCommand} manually.`
-      );
-      return;
+      const note = `Skipping automatic ${manualAddCommand} because Windows pnpm exec can break the current ztd process after package.json changes. Next: run ${manualAddCommand} manually.`;
+      dependencies.log(note);
+      return note;
     }
 
     dependencies.log(`Installing devDependencies referenced by templates (${packageManager}): ${missingPackages.join(', ')}`);
-    await dependencies.installPackages({
-      rootDir,
-      kind: 'devDependencies',
-      packages: missingPackages,
-      packageManager
-    });
-    return;
+    try {
+      await dependencies.installPackages({
+        rootDir,
+        kind: 'devDependencies',
+        packages: missingPackages,
+        packageManager
+      });
+      return null;
+    } catch (error) {
+      const note = `Dependency install failed, but the scaffold was created: ${extractErrorMessage(error)}`;
+      dependencies.log(note);
+      return note;
+    }
   }
   // Avoid mutating the current pnpm exec shim on Windows while it is still executing this command.
   if (summaries.package?.outcome === 'created' || summaries.package?.outcome === 'overwritten') {
     if (installStrategy.shouldDeferAutoInstall) {
-      dependencies.log(
-        `Skipping automatic ${installStrategy.installCommand} because Windows pnpm exec can break the current ztd process after package.json changes. Next: run ${installStrategy.installCommand} manually.`
-      );
-      return;
+      const note = `Skipping automatic ${installStrategy.installCommand} because Windows pnpm exec can break the current ztd process after package.json changes. Next: run ${installStrategy.installCommand} manually.`;
+      dependencies.log(note);
+      return note;
     }
 
     dependencies.log(`Running ${installStrategy.installCommand} to sync dependencies.`);
-    await dependencies.installPackages({ rootDir, kind: 'install', packages: [], packageManager });
+    try {
+      await dependencies.installPackages({ rootDir, kind: 'install', packages: [], packageManager });
+      return null;
+    } catch (error) {
+      const note = `Dependency install failed, but the scaffold was created: ${extractErrorMessage(error)}`;
+      dependencies.log(note);
+      return note;
+    }
   }
+
+  return null;
 }
 
 function copyTemplateFileIfMissing(
@@ -1934,7 +2021,8 @@ function buildNextSteps(
   workflow: InitWorkflow,
   rootDir: string,
   scaffoldProfile: InitScaffoldProfile,
-  appShape: InitAppShape
+  appShape: InitAppShape,
+  includeInstallStep: boolean
 ): { nextSteps: string[]; fallbackSteps: string[] } {
   const packageManager = detectPackageManager(rootDir, defaultPackageManagerForScaffold(scaffoldProfile));
   const installStrategy = resolveInitInstallStrategy(rootDir, packageManager);
@@ -1956,6 +2044,8 @@ function buildNextSteps(
     appShape === 'webapi'
       ? `Add or edit your first SQL asset under ${sqlAssetPath} while keeping src/domain, src/application, and src/presentation/http free from direct SQL or DDL concerns`
       : `Add or edit your first SQL asset under ${sqlAssetPath} so the happy path starts from a human-maintained query file`;
+  const aiGuidanceStep =
+    'Open README.md and follow the Getting Started With AI section before writing repository code';
   const generationSteps = [
     `Run ${ztdCommand} ztd-config to regenerate DDL-derived test rows and layout metadata`,
     `Run ${ztdCommand} model-gen --probe-mode ztd <sql-file> --out <spec-file> to scaffold a QuerySpec from that SQL file`
@@ -1966,7 +2056,7 @@ function buildNextSteps(
       : `Review ${sqlClientPath} and ${repositoryTelemetryPath} so the first SQL-backed repository has a seam to plug into`;
   const firstTestStep = `Run tests (${runScriptCommand('test')} or npx vitest run) to pass the generated smoke test before adding SQL-backed coverage`;
   const sampleTestStep =
-    'Open tests/queryspec.example.test.ts as the QuerySpec-first sample before you write the first repository test';
+    'Open tests/queryspec.example.test.ts for the QuerySpec + CatalogExecutor sample, and tests/smoke.test.ts for the fixture-backed ZTD rewrite sample';
   const fallbackSteps = [
     `If ${ztdCommand} ztd-config fails, keep editing ${schemaRelativePath} and ${sqlAssetPath} first, then rerun generation after the DDL is ready`,
     `If ${ztdCommand} model-gen fails, keep the SQL file and rerun it after ${ztdCommand} ztd-config succeeds; the ztd probe path does not need DATABASE_URL`,
@@ -1993,10 +2083,10 @@ function buildNextSteps(
   }
 
   const nextSteps = [firstStep, sqlStep];
-  if (installStrategy.shouldDeferAutoInstall) {
+  if (includeInstallStep || installStrategy.shouldDeferAutoInstall) {
     nextSteps.push(`Run ${installCommand}`);
   }
-  nextSteps.push(...generationSteps, wiringStep, sampleTestStep, firstTestStep);
+  nextSteps.push(aiGuidanceStep, ...generationSteps, wiringStep, sampleTestStep, firstTestStep);
   // Avoid repeating the same install hint when the deferred-install path already emitted it explicitly.
   if (installStrategy.workspaceGuard.shouldIgnoreWorkspace && !installStrategy.shouldDeferAutoInstall) {
     fallbackSteps.push('This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs.');
@@ -2041,12 +2131,15 @@ function buildLocalSourceStackDependencies(
     };
   }
 
-  return Object.fromEntries(
-    Object.entries(LOCAL_SOURCE_STACK_PACKAGE_DIRS).map(([packageName, packageDir]) => [
-      packageName,
-      toFileDependencySpecifier(rootDir, path.join(scaffoldProfile.localSourceRoot!, packageDir))
-    ])
-  );
+  return {
+    ...STACK_DEV_DEPENDENCIES,
+    ...Object.fromEntries(
+      Object.entries(LOCAL_SOURCE_STACK_PACKAGE_DIRS).map(([packageName, packageDir]) => [
+        packageName,
+        toFileDependencySpecifier(rootDir, path.join(scaffoldProfile.localSourceRoot!, packageDir))
+      ])
+    )
+  };
 }
 
 function toFileDependencySpecifier(rootDir: string, targetDir: string): string {
@@ -2060,7 +2153,8 @@ function buildSummaryLines(
   summaries: Record<FileKey, FileSummary>,
   optionalFeatures: OptionalFeatures,
   nextSteps: { nextSteps: string[]; fallbackSteps: string[] },
-  scaffoldProfile: InitScaffoldProfile
+  scaffoldProfile: InitScaffoldProfile,
+  installNote?: string | null
 ): string[] {
   const orderedKeys: FileKey[] = [
     'schema',
@@ -2134,11 +2228,23 @@ function buildSummaryLines(
     lines.push(' - Internal guidance is managed under .ztd/agents/.');
     lines.push(' - Visible AGENTS.md files are disabled by default. Enable with: ztd agents install');
   }
+  if (installNote) {
+    lines.push('', 'Dependency installation:');
+    lines.push(` - ${installNote}`);
+  }
   lines.push('', 'Next steps:', ...nextSteps.nextSteps);
   if (nextSteps.fallbackSteps.length > 0) {
     lines.push('', 'If this fails:', ...nextSteps.fallbackSteps);
   }
   return lines;
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
 }
 
 const VALID_WORKFLOWS: readonly InitWorkflow[] = ['pg_dump', 'empty', 'demo'] as const;
@@ -2244,6 +2350,7 @@ export function registerInitCommand(program: Command): void {
     .option('--with-ai-guidance', 'Generate internal AI guidance files such as CONTEXT.md and .ztd/agents/*')
     .option('--with-sqlclient', 'Generate a minimal SqlClient interface for repositories')
     .option('--with-app-interface', 'Append application interface guidance to AGENTS.md only')
+    .option('--skip-install', 'Create the scaffold without installing dependencies')
     .option('--yes', 'Accept defaults without interactive prompts')
     .option('--force', 'Allow ztd init to overwrite files it owns')
     .option('--workflow <type>', 'Schema workflow: pg_dump, empty, or demo (default: demo)')
@@ -2259,6 +2366,7 @@ export function registerInitCommand(program: Command): void {
       withAiGuidance?: boolean;
       withSqlclient?: boolean;
       withAppInterface?: boolean;
+      skipInstall?: boolean;
       yes?: boolean;
       force?: boolean;
       workflow?: string;
@@ -2278,6 +2386,7 @@ export function registerInitCommand(program: Command): void {
       validateJsonBooleanFlag(merged.withAiGuidance, 'with-ai-guidance');
       validateJsonBooleanFlag(merged.withSqlclient, 'with-sqlclient');
       validateJsonBooleanFlag(merged.withAppInterface, 'with-app-interface');
+      validateJsonBooleanFlag(merged.skipInstall, 'skip-install');
       // Validate --workflow value if provided.
       if (merged.workflow && !VALID_WORKFLOWS.includes(merged.workflow as InitWorkflow)) {
         console.error(`Invalid --workflow value: "${merged.workflow}". Must be one of: ${VALID_WORKFLOWS.join(', ')}`);
@@ -2330,6 +2439,7 @@ export function registerInitCommand(program: Command): void {
           withAiGuidance: merged.withAiGuidance === true,
           withSqlClient: merged.withSqlclient === true,
           withAppInterface: merged.withAppInterface === true,
+          skipInstall: merged.skipInstall === true,
           forceOverwrite: merged.force === true,
           nonInteractive: isNonInteractive,
           workflow,
