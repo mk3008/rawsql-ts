@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
 import { BinarySelectQuery, ColumnReference, DeleteQuery, MultiQuerySplitter, SimpleSelectQuery, SqlParser, UpdateQuery } from 'rawsql-ts';
@@ -19,11 +19,12 @@ export interface ContractViolation {
     | 'duplicate-spec-id'
     | 'unresolved-sql-file'
     | 'params-shape-mismatch'
-    | 'mapping-invalid-entry'
-    | 'mapping-duplicate-entry'
-    | 'safety-select-star'
-    | 'safety-missing-where'
-    | 'sql-parse-error';
+  | 'mapping-invalid-entry'
+  | 'mapping-duplicate-entry'
+  | 'uncovered-sql-file'
+  | 'safety-select-star'
+  | 'safety-missing-where'
+  | 'sql-parse-error';
   severity: ViolationSeverity;
   specId: string;
   filePath: string;
@@ -167,6 +168,31 @@ export function runCheckContract(options: { strict: boolean; rootDir?: string; s
     loadSqlCatalogSpecsFromFile(filePath, (message) => new CheckContractRuntimeError(message))
   );
   const violations: ContractViolation[] = [];
+  const sqlDir = path.resolve(root, 'src', 'sql');
+  const sqlFiles = existsSync(sqlDir) ? walkSqlFiles(sqlDir) : [];
+
+  const coveredSqlFiles = new Set<string>();
+  for (const loaded of loadedSpecs) {
+    if (typeof loaded.spec.sqlFile !== 'string' || loaded.spec.sqlFile.trim().length === 0) {
+      continue;
+    }
+    coveredSqlFiles.add(path.resolve(path.dirname(loaded.filePath), loaded.spec.sqlFile));
+  }
+
+  const uncoveredSeverity: ViolationSeverity = options.strict ? 'error' : 'warning';
+  for (const sqlFile of sqlFiles) {
+    if (coveredSqlFiles.has(sqlFile)) {
+      continue;
+    }
+    violations.push({
+      rule: 'uncovered-sql-file',
+      severity: uncoveredSeverity,
+      specId: path.relative(root, sqlFile).replace(/\\/g, '/'),
+      filePath: sqlFile,
+      message:
+        'SQL asset is not covered by any QuerySpec. Start from tests/queryspec.example.test.ts or run ztd model-gen to scaffold the first spec.'
+    });
+  }
 
   const duplicateMap = new Map<string, LoadedSqlCatalogSpec[]>();
   for (const loaded of loadedSpecs) {
@@ -407,6 +433,30 @@ function validateMapping(
     }
     seenColumns.set(normalized, key);
   }
+}
+
+function walkSqlFiles(rootDir: string): string[] {
+  const files: string[] = [];
+  const stack = [rootDir];
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    const entries = readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      const absolute = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(absolute);
+        continue;
+      }
+      if (!entry.isFile()) {
+        continue;
+      }
+      if (path.extname(entry.name).toLowerCase() !== '.sql') {
+        continue;
+      }
+      files.push(absolute);
+    }
+  }
+  return files.sort((a, b) => a.localeCompare(b));
 }
 
 /** Format check results into human text or deterministic JSON text. */
