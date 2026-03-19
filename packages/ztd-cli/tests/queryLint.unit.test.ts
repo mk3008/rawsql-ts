@@ -1,9 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
 import { afterEach, expect, test, vi } from 'vitest';
+import { activeOrdersCatalog } from '../src/specs/sql/activeOrders.catalog';
+import { usersListCatalog } from '../src/specs/sql/usersList.catalog';
 import { registerQueryCommands } from '../src/commands/query';
 import { buildQueryLintReport, formatQueryLintReport } from '../src/query/lint';
+import { TAX_ALLOCATION_QUERY } from './utils/taxAllocationScenario';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const tmpRoot = path.join(repoRoot, 'tmp');
@@ -54,6 +57,41 @@ function createJoinDirectionWorkspace(prefix: string): {
   return { rootDir, sqlFile, ddlDir };
 }
 
+function writeJoinDirectionUsersOrdersSchema(ddlDir: string): void {
+  writeFileSync(
+    path.join(ddlDir, 'schema.sql'),
+    `
+      CREATE TABLE public.users (
+        id integer PRIMARY KEY,
+        email text NOT NULL,
+        active integer NOT NULL
+      );
+
+      CREATE TABLE public.orders (
+        id integer PRIMARY KEY,
+        user_id integer NOT NULL REFERENCES public.users(id),
+        total integer NOT NULL
+      );
+    `,
+    'utf8'
+  );
+}
+
+function writeJoinDirectionInvoiceSchema(ddlDir: string): void {
+  writeFileSync(
+    path.join(ddlDir, 'schema.sql'),
+    `
+      CREATE TABLE public.invoice_lines (
+        invoice_id integer NOT NULL,
+        id integer PRIMARY KEY,
+        amount_cents integer NOT NULL,
+        tax_rate_basis_points integer NOT NULL
+      );
+    `,
+    'utf8'
+  );
+}
+
 function writeJoinDirectionSchema(ddlDir: string): void {
   writeFileSync(
     path.join(ddlDir, 'schema.sql'),
@@ -71,9 +109,26 @@ function writeJoinDirectionSchema(ddlDir: string): void {
         order_item_id integer PRIMARY KEY,
         order_id integer NOT NULL REFERENCES public.orders(order_id)
       );
+
+      CREATE TABLE public.sales (
+        sale_id integer PRIMARY KEY
+      );
+
+      CREATE TABLE public.tags (
+        tag_id integer PRIMARY KEY
+      );
+
+      CREATE TABLE public.sale_item_tags (
+        sale_id integer NOT NULL REFERENCES public.sales(sale_id),
+        tag_id integer NOT NULL REFERENCES public.tags(tag_id)
+      );
     `,
     'utf8'
   );
+}
+
+function readJoinDirectionFixture(name: string): string {
+  return readFileSync(path.join(__dirname, 'fixtures', 'join-direction', name), 'utf8');
 }
 
 function createQueryLintProgram(capture: { stdout: string[]; stderr: string[] }): Command {
@@ -209,24 +264,10 @@ test('formatQueryLintReport renders json for agents and compact text for humans'
   expect(textOutput).toContain('WARN  unused-cte: unused_stage is defined but never used');
 });
 
-test('buildQueryLintReport detects reversed joins when join-direction is enabled', () => {
+test('buildQueryLintReport keeps the forward join-direction dogfood query clean', () => {
   const workspace = createJoinDirectionWorkspace('query-lint-join-direction');
   writeJoinDirectionSchema(workspace.ddlDir);
-  writeFileSync(
-    workspace.sqlFile,
-    `
-      select
-        oi.order_item_id,
-        o.order_id,
-        c.customer_id
-      from public.order_items oi
-      join public.orders o
-        on o.order_id = oi.order_id
-      join public.customers c
-        on c.customer_id = o.customer_id
-    `,
-    'utf8'
-  );
+  writeFileSync(workspace.sqlFile, readJoinDirectionFixture('forward.sql'), 'utf8');
 
   const report = buildQueryLintReport(workspace.sqlFile, {
     projectRoot: workspace.rootDir,
@@ -236,24 +277,10 @@ test('buildQueryLintReport detects reversed joins when join-direction is enabled
   expect(report.issues.filter((issue) => issue.type === 'join-direction')).toEqual([]);
 });
 
-test('buildQueryLintReport warns on parent-to-child join direction when join-direction is enabled', () => {
+test('buildQueryLintReport warns on the reverse join-direction dogfood query', () => {
   const workspace = createJoinDirectionWorkspace('query-lint-join-direction-reversed');
   writeJoinDirectionSchema(workspace.ddlDir);
-  writeFileSync(
-    workspace.sqlFile,
-    `
-      select
-        c.customer_id,
-        o.order_id,
-        oi.order_item_id
-      from public.customers c
-      join public.orders o
-        on o.customer_id = c.customer_id
-      join public.order_items oi
-        on oi.order_id = o.order_id
-    `,
-    'utf8'
-  );
+  writeFileSync(workspace.sqlFile, readJoinDirectionFixture('reverse.sql'), 'utf8');
 
   const report = buildQueryLintReport(workspace.sqlFile, {
     projectRoot: workspace.rootDir,
@@ -277,19 +304,46 @@ test('buildQueryLintReport warns on parent-to-child join direction when join-dir
 test('buildQueryLintReport suppresses join-direction when explicitly disabled in SQL text', () => {
   const workspace = createJoinDirectionWorkspace('query-lint-join-direction-suppressed');
   writeJoinDirectionSchema(workspace.ddlDir);
-  writeFileSync(
-    workspace.sqlFile,
-    `
-      -- ztd-lint-disable join-direction
-      select
-        c.customer_id,
-        o.order_id
-      from public.customers c
-      join public.orders o
-        on o.customer_id = c.customer_id
-    `,
-    'utf8'
-  );
+  writeFileSync(workspace.sqlFile, readJoinDirectionFixture('suppressed.sql'), 'utf8');
+
+  const report = buildQueryLintReport(workspace.sqlFile, {
+    projectRoot: workspace.rootDir,
+    rules: ['join-direction']
+  });
+
+  expect(report.issues.filter((issue) => issue.type === 'join-direction')).toEqual([]);
+});
+
+test('buildQueryLintReport skips left-join dogfood queries because preserving the parent row is intentional', () => {
+  const workspace = createJoinDirectionWorkspace('query-lint-join-direction-left');
+  writeJoinDirectionSchema(workspace.ddlDir);
+  writeFileSync(workspace.sqlFile, readJoinDirectionFixture('left-join.sql'), 'utf8');
+
+  const report = buildQueryLintReport(workspace.sqlFile, {
+    projectRoot: workspace.rootDir,
+    rules: ['join-direction']
+  });
+
+  expect(report.issues.filter((issue) => issue.type === 'join-direction')).toEqual([]);
+});
+
+test('buildQueryLintReport skips bridge-table dogfood queries because many-to-many paths are intentionally exempt in v1', () => {
+  const workspace = createJoinDirectionWorkspace('query-lint-join-direction-bridge');
+  writeJoinDirectionSchema(workspace.ddlDir);
+  writeFileSync(workspace.sqlFile, readJoinDirectionFixture('bridge.sql'), 'utf8');
+
+  const report = buildQueryLintReport(workspace.sqlFile, {
+    projectRoot: workspace.rootDir,
+    rules: ['join-direction']
+  });
+
+  expect(report.issues.filter((issue) => issue.type === 'join-direction')).toEqual([]);
+});
+
+test('buildQueryLintReport skips aggregate dogfood queries because the parent-shaped summary is intentionally ambiguous', () => {
+  const workspace = createJoinDirectionWorkspace('query-lint-join-direction-aggregate');
+  writeJoinDirectionSchema(workspace.ddlDir);
+  writeFileSync(workspace.sqlFile, readJoinDirectionFixture('aggregate.sql'), 'utf8');
 
   const report = buildQueryLintReport(workspace.sqlFile, {
     projectRoot: workspace.rootDir,
@@ -371,4 +425,43 @@ test('query lint command emits join-direction diagnostics in json mode', async (
       child_table: 'public.orders'
     })
   ]));
+});
+
+test('activeOrdersCatalog.sql stays clean because it already follows child-to-parent join direction', () => {
+  const workspace = createJoinDirectionWorkspace('query-lint-active-orders-repo-sql');
+  writeJoinDirectionUsersOrdersSchema(workspace.ddlDir);
+  writeFileSync(workspace.sqlFile, activeOrdersCatalog.sql, 'utf8');
+
+  const report = buildQueryLintReport(workspace.sqlFile, {
+    projectRoot: workspace.rootDir,
+    rules: ['join-direction']
+  });
+
+  expect(report.issues.filter((issue) => issue.type === 'join-direction')).toEqual([]);
+});
+
+test('usersListCatalog.sql is skipped because it has no join graph to evaluate', () => {
+  const workspace = createJoinDirectionWorkspace('query-lint-users-list-repo-sql');
+  writeJoinDirectionUsersOrdersSchema(workspace.ddlDir);
+  writeFileSync(workspace.sqlFile, usersListCatalog.sql, 'utf8');
+
+  const report = buildQueryLintReport(workspace.sqlFile, {
+    projectRoot: workspace.rootDir,
+    rules: ['join-direction']
+  });
+
+  expect(report.issues.filter((issue) => issue.type === 'join-direction')).toEqual([]);
+});
+
+test('tax allocation repo SQL is skipped because the parent-shaped aggregate and LEFT JOIN make the direction ambiguous by design', () => {
+  const workspace = createJoinDirectionWorkspace('query-lint-tax-allocation-repo-sql');
+  writeJoinDirectionInvoiceSchema(workspace.ddlDir);
+  writeFileSync(workspace.sqlFile, TAX_ALLOCATION_QUERY, 'utf8');
+
+  const report = buildQueryLintReport(workspace.sqlFile, {
+    projectRoot: workspace.rootDir,
+    rules: ['join-direction']
+  });
+
+  expect(report.issues.filter((issue) => issue.type === 'join-direction')).toEqual([]);
 });

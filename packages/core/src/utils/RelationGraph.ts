@@ -3,6 +3,8 @@ import { QualifiedName } from '../models/ValueComponent';
 import { normalizeTableName } from './TableNameUtils';
 
 export type RelationConstraintKind = 'column-reference' | 'table-foreign-key';
+export type RelationEvidenceKind = RelationConstraintKind | 'primary-key' | 'unique-key';
+export type RelationConfidence = 'confirmed' | 'inferred' | 'unknown';
 
 export interface RelationGraphEdge {
   childTable: string;
@@ -11,6 +13,16 @@ export interface RelationGraphEdge {
   parentColumns: string[];
   constraintKind: RelationConstraintKind;
   constraintName: string | null;
+  /**
+   * Evidence behind the relation edge. v1 uses FK evidence, but callers can
+   * keep the same edge shape when PK / UNIQUE inference is added later.
+   */
+  evidenceKind: RelationEvidenceKind;
+  /**
+   * Indicates whether the relation is directly confirmed or inferred from
+   * broader schema evidence.
+   */
+  confidence: RelationConfidence;
   isSelfReference: boolean;
 }
 
@@ -46,7 +58,9 @@ export function buildRelationGraphFromCreateTableQueries(queries: CreateTableQue
           childColumns: [column.name.name],
           parentColumns: constraint.reference.columns?.map((item) => item.name) ?? [],
           constraintKind: 'column-reference',
-          constraintName: constraint.constraintName?.name ?? null
+          constraintName: constraint.constraintName?.name ?? null,
+          evidenceKind: 'column-reference',
+          confidence: 'confirmed'
         });
         addEdge(relations, byChildTable, byParentTable, seen, tableNames, edge);
       }
@@ -56,14 +70,16 @@ export function buildRelationGraphFromCreateTableQueries(queries: CreateTableQue
       if (constraint.kind !== 'foreign-key' || !constraint.reference) {
         continue;
       }
-      const edge = createEdge({
-        childTable,
-        parentTable: normalizeRelationTableName(constraint.reference.targetTable.toString()),
-        childColumns: constraint.columns?.map((item) => item.name) ?? [],
-        parentColumns: constraint.reference.columns?.map((item) => item.name) ?? [],
-        constraintKind: 'table-foreign-key',
-        constraintName: constraint.constraintName?.name ?? null
-      });
+        const edge = createEdge({
+          childTable,
+          parentTable: normalizeRelationTableName(constraint.reference.targetTable.toString()),
+          childColumns: constraint.columns?.map((item) => item.name) ?? [],
+          parentColumns: constraint.reference.columns?.map((item) => item.name) ?? [],
+          constraintKind: 'table-foreign-key',
+          constraintName: constraint.constraintName?.name ?? null,
+          evidenceKind: 'table-foreign-key',
+          confidence: 'confirmed'
+        });
       addEdge(relations, byChildTable, byParentTable, seen, tableNames, edge);
     }
   }
@@ -136,6 +152,8 @@ function createEdge(params: Omit<RelationGraphEdge, 'isSelfReference'>): Relatio
     parentColumns: [...params.parentColumns],
     constraintKind: params.constraintKind,
     constraintName: params.constraintName,
+    evidenceKind: params.evidenceKind,
+    confidence: params.confidence,
     isSelfReference: params.childTable === params.parentTable
   };
 }

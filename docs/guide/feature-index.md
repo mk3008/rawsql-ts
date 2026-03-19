@@ -62,6 +62,7 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Query Uses Overview | [guide/query-uses-overview](./query-uses-overview.md) | Why static analysis beats grep, human vs machine output |
 | Query Uses Impact Checks | [guide/query-uses-impact-checks](./query-uses-impact-checks.md) | Full option reference, scenario playbook, troubleshooting |
 | SQL Tool Happy Paths | [guide/sql-tool-happy-paths](./sql-tool-happy-paths.md) | Decide whether to start with query plan, perf, query uses, telemetry, or SSSQL |
+| JOIN Direction Lint Specification | [guide/join-direction-lint-spec](./join-direction-lint-spec.md) | Review the FK-only v1 pattern table, warnings, skips, suppression, and future inference path |
 | Perf Tuning Decision Guide | [guide/perf-tuning-decision-guide](./perf-tuning-decision-guide.md) | Decide when QuerySpec scale hints should lead to indexes, pipeline tuning, or both |
 | What Is SSSQL? | [guide/sssql-overview](./sssql-overview.md) | Decide whether truthful optional-condition SQL is the right first move |
 | SSSQL for Humans | [guide/sssql-for-humans](./sssql-for-humans.md) | Understand why SSSQL exists, where it fits, and how it complements DynamicQueryBuilder |

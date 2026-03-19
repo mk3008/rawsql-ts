@@ -608,6 +608,12 @@ function inspectJoinDirectionQuery(
       break;
     }
 
+    if (isBridgeTableCandidate(relationGraph, currentSource.tableName) || isBridgeTableCandidate(relationGraph, joinSource.tableName)) {
+      // Bridge / many-to-many paths are intentionally skipped in v1 to avoid
+      // over-reporting on relationship tables that legitimately sit in the middle.
+      return [];
+    }
+
     const comparison = extractJoinComparison(join.condition, currentSource, joinSource);
     if (!comparison) {
       break;
@@ -908,6 +914,12 @@ function hasAmbiguousRelation(
   const forward = getOutgoingRelations(relationGraph, leftTable).filter((edge) => edge.parentTable === rightTable);
   const reverse = getOutgoingRelations(relationGraph, rightTable).filter((edge) => edge.parentTable === leftTable);
   return forward.length > 1 || reverse.length > 1;
+}
+
+function isBridgeTableCandidate(relationGraph: RelationGraph, tableName: string): boolean {
+  const outgoing = getOutgoingRelations(relationGraph, tableName);
+  const distinctParents = new Set(outgoing.map((edge) => edge.parentTable));
+  return distinctParents.size >= 2;
 }
 
 function buildJoinDirectionIssue(
