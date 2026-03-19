@@ -605,6 +605,8 @@ function inspectJoinDirectionQuery(
   for (const join of fromClause.joins) {
     const joinSource = resolveSourceTable(join.source);
     if (!joinSource || join.lateral || !isInspectableInnerJoin(join.joinType.value)) {
+      // Non-inner joins stay clean in v1 because preserving the parent row
+      // is often the intended readable pattern.
       break;
     }
 

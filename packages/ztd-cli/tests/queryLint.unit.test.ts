@@ -277,7 +277,7 @@ test('buildQueryLintReport keeps the forward join-direction dogfood query clean'
   expect(report.issues.filter((issue) => issue.type === 'join-direction')).toEqual([]);
 });
 
-test('buildQueryLintReport warns on the reverse join-direction dogfood query', () => {
+test('buildQueryLintReport warns on the reverse inner join dogfood query', () => {
   const workspace = createJoinDirectionWorkspace('query-lint-join-direction-reversed');
   writeJoinDirectionSchema(workspace.ddlDir);
   writeFileSync(workspace.sqlFile, readJoinDirectionFixture('reverse.sql'), 'utf8');
@@ -314,7 +314,7 @@ test('buildQueryLintReport suppresses join-direction when explicitly disabled in
   expect(report.issues.filter((issue) => issue.type === 'join-direction')).toEqual([]);
 });
 
-test('buildQueryLintReport skips left-join dogfood queries because preserving the parent row is intentional', () => {
+test('buildQueryLintReport keeps left-join parent-first intent clean', () => {
   const workspace = createJoinDirectionWorkspace('query-lint-join-direction-left');
   writeJoinDirectionSchema(workspace.ddlDir);
   writeFileSync(workspace.sqlFile, readJoinDirectionFixture('left-join.sql'), 'utf8');

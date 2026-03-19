@@ -12,6 +12,8 @@ The goal is not to prove that one query is semantically wrong. The goal is to re
 
 This lint looks for inner-join patterns where the query walks **from a parent table down to a child table** even though DDL already defines a clear FK path in the opposite direction.
 
+`parent -> child` is not a universal anti-pattern. In v1, only `INNER JOIN` in the reverse direction is treated as a warning. `LEFT JOIN` can be a clean parent-first pattern when the query intentionally preserves the parent row set.
+
 The preferred style in v1 is:
 
 - start from the child table
@@ -58,9 +60,9 @@ The lint does not infer relation direction from:
 | Pattern | v1 outcome | Why |
 |---|---|---|
 | `child -> parent` inner join | clean | This matches the preferred upward direction. |
-| `parent -> child` inner join | warning | The query walks against the preferred FK direction. |
+| `parent -> child` inner join | warning | The query walks against the preferred FK direction and deserves review attention. |
 | `child -> parent -> child` chain | warning if the chain reverses direction in a readable FK path | Direction flips increase cognitive load and review noise. |
-| `LEFT JOIN` that keeps the parent row | skip | v1 avoids flagging outer-join intent. |
+| `LEFT JOIN` that keeps the parent row | clean | v1 treats parent-first intent as readable and does not warn. |
 | Bridge / many-to-many path | skip | v1 conservatively avoids multi-hop inference that is often intentional. |
 | Aggregate or parent-shaped query | skip | The subject is often not the first table in the `FROM` clause, so direction is ambiguous. |
 | Explicit suppression comment | skip | The author has stated that the reverse path is intentional. |
@@ -95,9 +97,21 @@ join public.order_items oi2 on oi2.order_id = o.order_id
 
 The first join may be acceptable, but a direction flip inside the same chain makes the path harder to read. v1 warns only when the FK evidence is clear enough to avoid false positives.
 
-## Skip cases
+### 3. Reverse inner join with explicit review attention
 
-These cases are deliberately skipped in v1.
+Example:
+
+```sql
+select *
+from public.customers c
+join public.orders o on o.customer_id = c.customer_id
+```
+
+This is still a warning in v1, but the intent is more precise than "always non-preferred": the shape is acceptable when review should confirm that the reverse direction is truly intended.
+
+## Clean cases
+
+These cases are deliberately treated as clean in v1.
 
 ### LEFT JOIN
 
@@ -109,10 +123,16 @@ Real repo example:
 
 - `packages/ztd-cli/tests/utils/taxAllocationScenario.ts`
 
-Why skip:
+Why clean:
 
 - outer join intent is usually about preserving rows, not join direction style
 - many reporting queries intentionally keep the parent or fact table on the left
+
+This is the clean parent-first pattern in v1 when the query intentionally keeps the parent row set.
+
+## Skip cases
+
+These cases are deliberately skipped in v1.
 
 ### Bridge / many-to-many
 
