@@ -62,10 +62,10 @@ const listActiveUsersSpec: QuerySpec<[], UserProfileRow> = {
       }
     }),
     validate: (value) => {
-      const row = value as { userId: unknown; displayName: unknown };
+      const row = value as { user_id: unknown; display_name: unknown };
       return {
-        userId: String(row.userId),
-        displayName: String(row.displayName)
+        userId: String(row.user_id),
+        displayName: String(row.display_name)
       };
     },
     example: {
@@ -113,7 +113,10 @@ test('queryspec example keeps SQL, rowMapping, and CatalogExecutor aligned', asy
       displayName: 'Alice'
     }
   ]);
-  expect(listActiveUsersSpec.output.validate?.(listActiveUsersSpec.output.example)).toEqual(
-    listActiveUsersSpec.output.example
-  );
+  expect(
+    listActiveUsersSpec.output.validate?.({
+      user_id: 'user-1',
+      display_name: 'Alice'
+    })
+  ).toEqual(listActiveUsersSpec.output.example);
 });
