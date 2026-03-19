@@ -323,7 +323,7 @@ test('init webapi scaffold localizes ZTD guidance to persistence-oriented paths'
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('tests/queryspec.example.test.ts');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If this fails:');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If a command fails');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('does not read it automatically');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('explicit target inspection');
   expect(readNormalizedFile(path.join(workspace, 'src', 'domain', 'README.md'))).not.toContain('ztd');
@@ -1045,7 +1045,7 @@ test('init local-source mode links direct rawsql-ts dependencies from the monore
   expect(result.summary).toContain('Run pnpm ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('tests/queryspec.example.test.ts');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If this fails:');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If a command fails');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
     'The scaffold keeps `@rawsql-ts/sql-contract` as a normal package import even in local-source developer mode.'
   );

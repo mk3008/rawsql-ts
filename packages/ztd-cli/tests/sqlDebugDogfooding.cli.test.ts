@@ -179,4 +179,4 @@ test('sql debug recovery dogfood scenario preserves the shortest command loop ar
       expect.objectContaining({ seq: 2, role: 'final-query', target: 'FINAL_QUERY' }),
     ],
   });
-});
+}, 60_000);

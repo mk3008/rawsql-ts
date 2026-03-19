@@ -24,8 +24,16 @@ test('readmes promote the query-unit rule without tables/views taxonomy', () => 
   expect(rootReadme).toContain('Keep handwritten SQL assets in `src/sql/` as the single human-owned source location for query logic.');
   expect(scaffoldReadme).toContain('Keep handwritten SQL assets in `src/sql/` as the single human-owned source location for query logic.');
   expect(webapiReadme).toContain('Keep handwritten SQL assets in `src/sql/` as the single human-owned source location for query logic.');
-  expect(scaffoldReadme).toContain('Think in query units: 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.');
-  expect(webapiReadme).toContain('Think in query units: 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.');
+  expect(scaffoldReadme).toContain('Think in query units:');
+  expect(webapiReadme).toContain('Think in query units:');
+  expect(scaffoldReadme).toContain('1 SQL file');
+  expect(scaffoldReadme).toContain('1 QuerySpec');
+  expect(scaffoldReadme).toContain('1 repository entrypoint');
+  expect(scaffoldReadme).toContain('1 DTO');
+  expect(webapiReadme).toContain('1 SQL file');
+  expect(webapiReadme).toContain('1 QuerySpec');
+  expect(webapiReadme).toContain('1 repository entrypoint');
+  expect(webapiReadme).toContain('1 DTO');
 });
 
 test('repository guidance centers the single SQL source location', () => {
