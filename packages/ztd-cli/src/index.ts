@@ -5,6 +5,7 @@ import { registerAgentsCommand } from './commands/agents';
 import { CheckContractRuntimeError, registerCheckContractCommand } from './commands/checkContract';
 import { registerDescribeCommand } from './commands/describe';
 import { registerDdlCommands } from './commands/ddl';
+import { registerFindingRegistryCommand } from './commands/findings';
 import { registerInitCommand } from './commands/init';
 import { registerLintCommand } from './commands/lint';
 import { registerModelGenCommand } from './commands/modelGen';
@@ -89,6 +90,7 @@ export function buildProgram(): Command {
   registerPerfCommands(program);
   registerQueryCommands(program);
   registerCheckContractCommand(program);
+  registerFindingRegistryCommand(program);
   registerTestEvidenceCommand(program);
   registerZtdConfigCommand(program);
   registerDdlCommands(program);
@@ -101,6 +103,7 @@ Getting started:
   $ ztd init --yes --force     Allow non-interactive overwrite of scaffold-owned files
   $ ztd agents install         Materialize visible AGENTS.md files on demand
   $ ztd ztd-config             Generate TestRowMap types from DDL
+  $ ztd findings validate docs/guide/finding-registry.example.json
   $ ztd lint <path>            Lint SQL files against the schema
   $ ztd perf init             Scaffold the opt-in perf sandbox
   $ ztd perf run --query src/sql/report.sql --dry-run
