@@ -46,6 +46,8 @@ Keep SQL and QuerySpec work inside the persistence side of the project.
 
 Use this scaffold as a layered WebAPI project with query-unit persistence.
 
+Treat each query as one unit: 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.
+
 When asking an AI assistant to extend it, a natural request like the following usually works well:
 
 ```text
@@ -69,6 +71,29 @@ A few points matter when using AI with this scaffold:
 * Keep persistence-specific code under `src/infrastructure/persistence/`.
 * Keep `src/domain`, `src/application`, and `src/presentation/http` free from direct SQL or DDL concerns.
 * Start from the provided examples instead of creating a new structure first.
+
+Optional Docker helper:
+
+If you want a local PostgreSQL 18 instance for ZTD tests, use a tiny compose file like this:
+
+```yaml
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ztd
+      POSTGRES_PASSWORD: ztd
+      POSTGRES_DB: ztd
+    ports:
+      - "5432:5432"
+    volumes:
+      - ztd-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  ztd-postgres-data:
+```
+
+Then run `docker compose up -d` and point `ZTD_TEST_DATABASE_URL` at that database for the fixture-backed rewrite path.
 
 Good example files to start from:
 

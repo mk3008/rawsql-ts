@@ -131,6 +131,33 @@ Procedure: `DDL -> SQL -> generate -> wire -> test`.
 
 For a step-by-step example, see the SQL-first tutorial above.
 
+## Getting Started with AI
+
+If you are using an AI coding agent, start with a short prompt that sets only the minimum project shape and domain language. You do **not** need to explain package-manager setup in that prompt.
+
+Optional Docker helper:
+
+If you want a local PostgreSQL 18 instance for ZTD tests, use a tiny compose file like this:
+
+```yaml
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ztd
+      POSTGRES_PASSWORD: ztd
+      POSTGRES_DB: ztd
+    ports:
+      - "5432:5432"
+    volumes:
+      - ztd-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  ztd-postgres-data:
+```
+
+Then run `docker compose up -d` and point `ZTD_TEST_DATABASE_URL` at that database for the fixture-backed rewrite path.
+
 ## CLI Tool Routing Happy Paths
 
 - SQL pipeline / debug → `ztd query plan <sql-file>`

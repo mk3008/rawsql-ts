@@ -52,6 +52,8 @@ npm install -D @rawsql-ts/ztd-cli
 
 If you are using an AI coding agent, start with a short prompt that sets only the minimum project shape and domain language. You do **not** need to explain package-manager setup in that prompt — the agent handles `npm install` or `pnpm install` automatically.
 
+Treat each query as one unit: 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.
+
 Example prompt:
 
 ```text
@@ -59,12 +61,35 @@ I want to build a WebAPI application with @rawsql-ts/ztd-cli.
 Use Docker and Postgres.
 Start from the webapi scaffold.
 Model three tables: sales, sale_lines, and products.
-Keep domain, application, presentation, and persistence concerns separated.
-Prepare the initial DDL, scaffold the ZTD project, and explain what was created.
-Do not apply migrations automatically.
+  Keep domain, application, presentation, and persistence concerns separated.
+  Prepare the initial DDL, scaffold the ZTD project, and explain what was created.
+  Do not apply migrations automatically.
+  ```
+
+Optional Docker helper:
+
+If you want a local PostgreSQL 18 instance for ZTD tests, use a tiny compose file like this:
+
+```yaml
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ztd
+      POSTGRES_PASSWORD: ztd
+      POSTGRES_DB: ztd
+    ports:
+      - "5432:5432"
+    volumes:
+      - ztd-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  ztd-postgres-data:
 ```
 
-What a prompt at this level should usually guarantee:
+Then run `docker compose up -d` and point `ZTD_TEST_DATABASE_URL` at that database for the fixture-backed rewrite path.
+
+  What a prompt at this level should usually guarantee:
 
 * a `webapi`-shaped project layout
 * starter DDL under `ztd/ddl/`
