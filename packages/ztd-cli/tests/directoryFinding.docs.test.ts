@@ -11,10 +11,11 @@ function readNormalizedFile(relativePath: string): string {
 
 test('readmes promote the query-unit rule without tables/views taxonomy', () => {
   const rootReadme = readNormalizedFile('README.md');
+  const packageReadme = readNormalizedFile('packages/ztd-cli/README.md');
   const scaffoldReadme = readNormalizedFile('packages/ztd-cli/templates/README.md');
   const webapiReadme = readNormalizedFile('packages/ztd-cli/templates/README.webapi.md');
 
-  for (const doc of [rootReadme, scaffoldReadme, webapiReadme]) {
+  for (const doc of [rootReadme, packageReadme, scaffoldReadme, webapiReadme]) {
     expect(doc).toContain('1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO');
     expect(doc).toContain('src/sql');
     expect(doc).not.toContain('tables/views');
@@ -22,8 +23,20 @@ test('readmes promote the query-unit rule without tables/views taxonomy', () => 
   }
 
   expect(rootReadme).toContain('Keep handwritten SQL assets in `src/sql/` as the single human-owned source location for query logic.');
+  expect(packageReadme).toContain('Optional Docker helper:');
+  expect(packageReadme).toContain('postgres:18');
+  expect(packageReadme).toContain('docker compose up -d');
+  expect(packageReadme).toContain('ZTD_TEST_DATABASE_URL');
   expect(scaffoldReadme).toContain('Keep handwritten SQL assets in `src/sql/` as the single human-owned source location for query logic.');
+  expect(scaffoldReadme).toContain('Optional Docker helper:');
+  expect(scaffoldReadme).toContain('postgres:18');
+  expect(scaffoldReadme).toContain('docker compose up -d');
+  expect(scaffoldReadme).toContain('ZTD_TEST_DATABASE_URL');
   expect(webapiReadme).toContain('Keep handwritten SQL assets in `src/sql/` as the single human-owned source location for query logic.');
+  expect(webapiReadme).toContain('Optional Docker helper:');
+  expect(webapiReadme).toContain('postgres:18');
+  expect(webapiReadme).toContain('docker compose up -d');
+  expect(webapiReadme).toContain('ZTD_TEST_DATABASE_URL');
   expect(scaffoldReadme).toContain('Think in query units:');
   expect(webapiReadme).toContain('Think in query units:');
   expect(scaffoldReadme).toContain('1 SQL file');

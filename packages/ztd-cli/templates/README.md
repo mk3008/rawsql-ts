@@ -40,6 +40,8 @@ Keep handwritten SQL assets in `src/sql/` as the single human-owned source locat
 
 Use this scaffold as a query-unit project.
 
+Treat each query as one unit: 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.
+
 When asking an AI assistant to extend it, a natural request like the following usually works well:
 
 ```text
@@ -59,6 +61,29 @@ A few points matter when using AI with this scaffold:
 * For repository code, use `QuerySpec + CatalogExecutor`.
 * For tests, use fixture-backed ZTD rewrite through `tableFixture()` and the testkit client.
 * Start from the provided examples instead of inventing a different structure first.
+
+Optional Docker helper:
+
+If you want a local PostgreSQL 18 instance for ZTD tests, use a tiny compose file like this:
+
+```yaml
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ztd
+      POSTGRES_PASSWORD: ztd
+      POSTGRES_DB: ztd
+    ports:
+      - "5432:5432"
+    volumes:
+      - ztd-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  ztd-postgres-data:
+```
+
+Then run `docker compose up -d` and point `ZTD_TEST_DATABASE_URL` at that database for the fixture-backed rewrite path.
 
 Good example files to start from:
 
