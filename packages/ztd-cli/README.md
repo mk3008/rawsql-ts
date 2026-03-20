@@ -276,6 +276,8 @@ Reference docs:
 * [ztd-cli Agent Interface](../../docs/guide/ztd-cli-agent-interface.md)
 * [ztd-cli Describe Schema](../../docs/guide/ztd-cli-describe-schema.md)
 
+Validate a machine-readable finding registry with `npx ztd findings validate docs/guide/finding-registry.example.json`.
+
 ### Global JSON mode
 
 ```bash

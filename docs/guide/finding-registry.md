@@ -48,6 +48,8 @@ Recommended status progression:
 The example registry at [finding-registry.example.json](./finding-registry.example.json) contains representative findings from the ztd-cli dogfooding work.
 It is intentionally small and should be treated as a starting point, not as a complete audit log.
 
+Validate the example registry with `npx ztd findings validate docs/guide/finding-registry.example.json` when you want a deterministic CI check.
+
 ## How to use it
 
 When you add a new finding:
