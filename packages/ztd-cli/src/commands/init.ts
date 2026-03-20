@@ -197,7 +197,6 @@ export interface InitCommandOptions {
   appShape?: InitAppShape;
   starter?: boolean;
   postgresImage?: string;
-  withSqlClient?: boolean;
   withAiGuidance?: boolean;
   withDogfooding?: boolean;
   withAppInterface?: boolean;
@@ -327,9 +326,6 @@ const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
 const TSCONFIG_TEMPLATE = 'tsconfig.json';
 const SQL_CLIENT_TEMPLATE = 'src/db/sql-client.ts';
 const SQL_CLIENT_ADAPTERS_TEMPLATE = 'src/db/sql-client-adapters.ts';
-const REPOSITORY_TELEMETRY_TYPES_TEMPLATE = 'src/infrastructure/telemetry/types.ts';
-const REPOSITORY_TELEMETRY_CONSOLE_TEMPLATE = 'src/infrastructure/telemetry/consoleRepositoryTelemetry.ts';
-const REPOSITORY_TELEMETRY_ENTRY_TEMPLATE = 'src/infrastructure/telemetry/repositoryTelemetry.ts';
 const SQL_README_TEMPLATE = 'src/sql/README.md';
 const JOBS_README_TEMPLATE = 'src/jobs/README.md';
 const ZTD_README_TEMPLATE = 'ztd/README.md';
@@ -2312,7 +2308,6 @@ function buildInitDryRunPlan(rootDir: string, options: {
   postgresImage?: string;
   withAiGuidance?: boolean;
   withDogfooding?: boolean;
-  withSqlClient?: boolean;
   withAppInterface?: boolean;
   workflow: InitWorkflow;
   validator: ValidatorBackend;
@@ -2391,11 +2386,6 @@ function buildInitDryRunPlan(rootDir: string, options: {
   files.push(normalizeCliPath(path.relative(rootDir, scaffoldLayout.sqlClientPath)));
   files.push(normalizeCliPath(path.relative(rootDir, scaffoldLayout.sqlClientAdaptersPath)));
 
-  if (options.withSqlClient) {
-    files.push(path.join('src', 'infrastructure', 'telemetry', 'types.ts'));
-    files.push(path.join('src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'));
-    files.push(path.join('src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'));
-  }
   if (options.withAppInterface) {
     files.splice(0, files.length, 'AGENTS.md');
   }
@@ -2432,7 +2422,6 @@ export function registerInitCommand(program: Command): void {
     .option('--postgres-image <image>', 'Postgres image/tag to use in the starter compose file (default: postgres:18)')
     .option('--with-ai-guidance', 'Generate internal AI guidance files such as CONTEXT.md and .ztd/agents/*')
     .option('--with-dogfooding', 'Generate PROMPT_DOGFOOD.md for AI prompt dogfooding and debugging')
-    .option('--with-sqlclient', 'Generate a minimal SqlClient interface for repositories')
     .option('--with-app-interface', 'Append application interface guidance to AGENTS.md only')
     .option('--skip-install', 'Create the scaffold without installing dependencies')
     .option('--yes', 'Accept defaults without interactive prompts')
@@ -2451,7 +2440,6 @@ export function registerInitCommand(program: Command): void {
       postgresImage?: string;
       withAiGuidance?: boolean;
       withDogfooding?: boolean;
-      withSqlclient?: boolean;
       withAppInterface?: boolean;
       skipInstall?: boolean;
       yes?: boolean;
@@ -2473,7 +2461,6 @@ export function registerInitCommand(program: Command): void {
       validateJsonBooleanFlag(merged.starter, 'starter');
       validateJsonBooleanFlag(merged.withAiGuidance, 'with-ai-guidance');
       validateJsonBooleanFlag(merged.withDogfooding, 'with-dogfooding');
-      validateJsonBooleanFlag(merged.withSqlclient, 'with-sqlclient');
       validateJsonBooleanFlag(merged.withAppInterface, 'with-app-interface');
       validateJsonBooleanFlag(merged.skipInstall, 'skip-install');
       if (merged.postgresImage !== undefined && typeof merged.postgresImage !== 'string') {
@@ -2516,7 +2503,6 @@ export function registerInitCommand(program: Command): void {
           postgresImage,
           withAiGuidance: merged.withAiGuidance === true,
           withDogfooding: merged.withDogfooding === true,
-          withSqlClient: merged.withSqlclient === true,
           withAppInterface: merged.withAppInterface === true,
           workflow: workflow ?? 'demo',
           validator: validator ?? 'zod',
@@ -2538,7 +2524,6 @@ export function registerInitCommand(program: Command): void {
           postgresImage,
           withAiGuidance: merged.withAiGuidance === true,
           withDogfooding: merged.withDogfooding === true,
-          withSqlClient: merged.withSqlclient === true,
           withAppInterface: merged.withAppInterface === true,
           skipInstall: merged.skipInstall === true,
           forceOverwrite: merged.force === true,
