@@ -2,6 +2,7 @@
 
 This scenario preserves the shortest dogfooding loop for volume-sensitive SQL tuning.
 The goal is to keep the decision between **index tuning** and **pipeline tuning** explicit, reproducible, and backed by QuerySpec metadata plus local DDL.
+The main message is that both branches should tune the workload without breaking the SQL unless the evidence shows that SQL shape itself must change.
 
 ## Use this scenario when
 
@@ -27,6 +28,7 @@ A good dogfooding prompt for this scenario should say all of the following expli
 - whether the repo already has a saved perf run or whether the first task is evidence capture
 
 If the prompt omits those points, the scenario is not complete yet. The first repair is to gather the missing perf evidence, not to guess the tuning branch.
+This keeps the tuning loop on the CLI-evidence path instead of relying on AI guesswork.
 
 ## Happy-path loop
 

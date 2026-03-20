@@ -204,8 +204,12 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
 }
 
 function isGeneratedSpecPath(filePath: string, specsDir: string): boolean {
-  const generatedDir = path.resolve(specsDir, 'generated');
   const normalizedFilePath = path.resolve(filePath);
-  const relativePath = path.relative(generatedDir, normalizedFilePath);
-  return relativePath.length > 0 && !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
+  const relativePath = path.relative(path.resolve(specsDir), normalizedFilePath);
+  if (relativePath === '') {
+    return false;
+  }
+
+  const segments = relativePath.split(path.sep);
+  return segments.includes('generated') || path.basename(normalizedFilePath).includes('.generated.');
 }

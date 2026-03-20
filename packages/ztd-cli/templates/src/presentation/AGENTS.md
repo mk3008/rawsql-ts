@@ -1,6 +1,6 @@
 # Package Scope
 - Applies to `packages/ztd-cli/templates/src/presentation`.
-- Defines transport adapters for WebAPI-oriented scaffolds.
+- Defines transport adapters for feature-first scaffolds.
 
 # Policy
 ## REQUIRED

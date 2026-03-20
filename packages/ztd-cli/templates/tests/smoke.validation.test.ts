@@ -1,10 +1,9 @@
 import { expect, test } from 'vitest';
 
-import { ensureSmokeOutput } from '../src/catalog/runtime/_smoke.runtime.js';
+import { normalizeSmokeOutput } from '../src/features/smoke/domain/smoke-policy.js';
 
-// Keep this file as the smallest DB-free validation gate; the reusable QuerySpec sample lives in queryspec.example.test.ts.
 test('validator invariant smoke passes for valid runtime output', () => {
-  const output = ensureSmokeOutput({
+  const output = normalizeSmokeOutput({
     id: 1,
     createdAt: new Date('2025-01-01T00:00:00.000Z')
   });
@@ -16,7 +15,7 @@ test('validator invariant smoke passes for valid runtime output', () => {
 });
 
 test('validator invariant smoke normalizes valid timestamp strings', () => {
-  const output = ensureSmokeOutput({
+  const output = normalizeSmokeOutput({
     id: 1,
     createdAt: '2025-01-01T00:00:00.000Z'
   });
@@ -27,7 +26,7 @@ test('validator invariant smoke normalizes valid timestamp strings', () => {
 
 test('validator invariant smoke fails for invalid runtime output', () => {
   expect(() =>
-    ensureSmokeOutput({
+    normalizeSmokeOutput({
       id: 1,
       createdAt: 'not-a-date'
     })

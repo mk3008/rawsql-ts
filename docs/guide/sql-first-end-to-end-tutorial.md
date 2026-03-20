@@ -1,127 +1,146 @@
 ---
-title: SQL-first End-to-End Tutorial
+title: Starter First-End Tutorial
 outline: deep
 ---
 
-# SQL-first End-to-End Tutorial
+# Starter First-End Tutorial
 
-This tutorial shows the shortest path from DDL to the first passing test.
+This tutorial shows the shortest path from `ztd init --starter` to a small `users` feature that can be changed, broken, and repaired with AI help.
 
-It walks the sequence `DDL -> SQL -> ztd-config -> model-gen -> repository wiring -> first test` with one table, one SQL asset, one repository seam, and one smoke test.
+The tutorial uses one starter project, one `smoke` feature, and one `users` feature. The same project is reused for every scenario:
 
-It uses one table, one SQL asset, one repository seam, and one smoke test. The sequence stays aligned with the first-success path established by `ztd init`, `ztd-config`, `model-gen`, and `npm run test`.
+1. first run
+2. CRUD feature creation
+3. DDL change
+4. SQL change
+5. DTO change
+6. migration artifact creation
 
-## What you will build
+README gives the first-run copy-paste path. This tutorial gives the scenario-level flow and the preferred CLI for each repair loop.
 
-- `ztd/ddl/public.sql`
-- `src/sql/users/list_active_users.sql`
-- `src/catalog/specs/users/list_active_users.spec.ts`
-- `src/repositories/users/list-active-users.ts`
-- `tests/smoke.test.ts`
+## Scenario CLI at a glance
 
-## 1. Scaffold the project
+| Scenario | Primary CLI | Why |
+| --- | --- | --- |
+| DDL repair | `npx ztd query uses column users.email --sql-root src/features/users/persistence --specs-dir src/features/users/persistence --any-schema --view detail` | Find the impacted feature-local SQL files before editing them |
+| SQL repair | `npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts` | Regenerate the spec from the feature-local SQL asset |
+| DTO repair | `npx vitest run` after the DTO change | Verify the feature-local runtime and tests after the shape change |
+| migration | `npx ztd ztd-config` then `npx ztd ddl diff` or `npx ztd ddl pull` | Prepare a deployable migration without asking ztd-cli to deploy it |
+| tuning | `npx ztd query plan <sql-file>` and the perf guide under `docs/guide/` | Keep perf work in the separate tuning path, not in the starter tutorial |
 
-Start from a new project, install the CLI, and scaffold the default layout:
-
-```bash
-npm init -y
-npm install -D @rawsql-ts/ztd-cli vitest typescript
-npx ztd init --yes --workflow empty --validator zod
-```
-
-After `ztd init`, keep the generated `README.md`, `tests/`, `src/sql/`, and `src/repositories/` folders in place. This tutorial assumes the default scaffold so the repository seam stays simple and visible.
-
-## 2. Add one table
-
-Put the source of truth in `ztd/ddl/public.sql`:
-
-```sql
-create table public.users (
-  id integer primary key,
-  email text not null,
-  active boolean not null
-);
-```
-
-Keep the DDL intentionally small. The goal is to prove the lifecycle, not to design a complete schema.
-
-## 3. Add one SQL asset
-
-Create `src/sql/users/list_active_users.sql`:
-
-```sql
-select
-  id,
-  email
-from public.users
-where active = :active
-order by id
-```
-
-This keeps the handwritten SQL on the source-asset side of the boundary while the repository stays focused on orchestration.
-
-## 4. Regenerate the DDL-backed contract
+## 1. Create the starter project
 
 Run:
 
 ```bash
-npx ztd ztd-config
+npx ztd init --starter
 ```
 
-This refreshes the generated `TestRowMap` and layout metadata from the DDL snapshot. If this step fails, fix the schema first before moving on.
+The starter generates:
 
-## 5. Generate the QuerySpec scaffold
+- `src/features/smoke`
+- `ztd/ddl/demo.sql`
+- `compose.yaml`
+- visible `AGENTS.md` guidance
+- Vitest smoke tests
 
-Run:
+## 2. Start Postgres and run the smoke test
+
+Use the bundled compose file:
 
 ```bash
-npx ztd model-gen src/sql/users/list_active_users.sql --probe-mode ztd --out src/catalog/specs/users/list_active_users.spec.ts
+docker compose up -d
+export ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5432/ztd
+npx vitest run
 ```
 
-The generated file should stay under `src/catalog/specs/`. Review the resulting row mapping, nullability, and example values before treating it as ready.
-
-## 6. Wire the repository seam
-
-Create a small repository wrapper in `src/repositories/users/list-active-users.ts`.
-
-Keep the wrapper responsible for:
-
-- importing the generated QuerySpec scaffold
-- calling the SQL client or adapter boundary
-- hiding the SQL asset path from the rest of the app
-
-Keep the wrapper intentionally thin. The repository should not own DDL or query-shape generation; it should only connect the generated spec to the runtime seam.
-
-## 7. Keep the first test green
-
-Update or create the first smoke test in `tests/smoke.test.ts`.
-
-Use the test to prove that the repository seam is importable and that the scaffold still reaches a passing first test before any deeper integration work is added.
-
-Example:
-
-```ts
-import { expect, test } from 'vitest';
-import { listActiveUsers } from '../src/repositories/users/list-active-users';
-
-test('first smoke test', () => {
-  expect(listActiveUsers).toBeTypeOf('function');
-});
-```
-
-Run the first test with:
+If port `5432` is already in use, stop the conflicting process or run Postgres on another port and update `ZTD_TEST_DATABASE_URL`, for example:
 
 ```bash
-npm run test
+docker run -d --rm --name ztd-starter-pg -e POSTGRES_USER=ztd -e POSTGRES_PASSWORD=ztd -e POSTGRES_DB=ztd -p 5433:5432 postgres:18
+export ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5433/ztd
+npx vitest run
 ```
 
-This is the first test, not the full integration suite. It proves the consumer path can reach visible value before you add DB-backed coverage.
+If you are using PowerShell, keep the variable in the same shell before you run Vitest:
 
-## What to do next
+```powershell
+$env:ZTD_TEST_DATABASE_URL = 'postgres://ztd:ztd@localhost:5433/ztd'
+npx vitest run
+```
 
-- Expand the repository seam only after the first smoke test is green.
-- Add stronger SQL-backed coverage when the lifecycle needs it.
-- Re-run `npx ztd ztd-config` whenever the DDL changes.
-- Re-run `npx ztd model-gen` whenever the SQL asset changes.
+The smoke test proves the starter wiring is sound before you add real feature work.
 
-The tutorial is intentionally small so the first successful loop stays easy to understand and easy to repeat.
+## 3. Add the first real feature
+
+Use `src/features/smoke` as the teaching example and add `src/features/users` as the first real feature.
+
+Keep the feature local:
+
+- `src/features/users/domain`
+- `src/features/users/application`
+- `src/features/users/persistence`
+- `src/features/users/tests`
+
+The feature should own its SQL, spec, and tests instead of reaching for `src/catalog` as the starting place.
+
+## 4. Run the CRUD scenario
+
+Use the prompt from `packages/ztd-cli/README.md` or `PROMPT_DOGFOOD.md`:
+
+This prompt is meant to be copied into another AI instance so we can observe whether the scaffold and AGENTS guidance are enough on their own.
+
+```text
+Add a users feature to this feature-first project.
+Read the nearest AGENTS.md files first.
+Keep handwritten SQL, specs, and tests inside src/features/users.
+Do not apply migrations automatically.
+```
+
+Expected result:
+
+- the agent edits the `users` feature only
+- the agent keeps SQL, spec, and tests feature-local
+- the next command is a normal project test run
+
+## 5. Run the DDL / SQL / DTO change scenarios
+
+Use the same `users` project for each scenario:
+
+- change the DDL and let the agent repair the failures
+- change the SQL and let the agent repair the failures
+- change the DTO shape and let the agent repair the failures
+
+Each scenario should end with `vitest` passing again.
+
+For DDL repair, run `npx ztd query uses column users.email --sql-root src/features/users/persistence --specs-dir src/features/users/persistence --any-schema --view detail` first so the impacted SQL files come from the CLI, not from guesswork.
+
+For SQL repair, keep the SQL assets under the feature folder, keep the query on the starter DDL's `users` table, and pass that folder explicitly as `--sql-root` when you ask `model-gen` to refresh the spec.
+
+Tuning belongs to the separate performance guide and dogfooding set, not to the starter lifecycle in this tutorial. Keep the starter path focused on CRUD, DDL, SQL, DTO, and migration repair loops.
+
+## 6. Run the migration loop
+
+When the schema change needs a deployable migration, keep the flow explicit:
+
+Use a fresh AI prompt for this step so we can confirm the migration guidance works without human patching in the middle.
+
+1. Edit the DDL in `ztd/ddl/demo.sql` or the relevant schema file.
+2. Run `npx ztd ztd-config` to refresh the ZTD-generated artifacts.
+3. Run `npx ztd ddl diff` or `npx ztd ddl pull` against an explicit target when you need a migration plan.
+4. Apply the generated SQL outside `ztd-cli`.
+5. Re-run `npx vitest run` after the migration lands.
+
+This step belongs in the tutorial because the starter path should show not only how to add a feature, but also how to evolve the schema safely without asking `ztd-cli` to own deployment.
+
+## 7. What good looks like
+
+After the starter flow is green, the user should be able to answer these questions without guessing:
+
+- Where does the next feature live?
+- Which files should the agent read first?
+- Which command verifies the change?
+- Which files stay feature-local?
+- How do I prepare a migration without making `ztd-cli` deploy it for me?
+
+If the answer is unclear, fix the scaffold, the prompt, or the AGENTS guidance before adding more tutorial content.

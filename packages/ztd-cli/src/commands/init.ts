@@ -5,7 +5,7 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 
 import { ensureDirectory } from '../utils/fs';
-import { copyAgentsTemplate, writeInternalAgentsArtifacts } from '../utils/agents';
+import { copyAgentsTemplate, installVisibleAgents, writeInternalAgentsArtifacts } from '../utils/agents';
 import { DEFAULT_ZTD_CONFIG, writeZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConfig';
 import { runPullSchema, type PullSchemaOptions } from './pull';
@@ -115,17 +115,27 @@ export function createConsolePrompter(): Prompter {
 type FileKey =
   | 'schema'
   | 'config'
+  | 'starterCompose'
   | 'smokeSpec'
-  | 'smokeCoercions'
-  | 'smokeRuntime'
   | 'localSourceGuardScript'
   | 'smokeValidationTest'
-  | 'testsSmoke'
+  | 'smokeTest'
+  | 'featureRootReadme'
+  | 'smokeReadme'
+  | 'smokeApplicationReadme'
+  | 'smokeDomainReadme'
+  | 'smokePersistenceReadme'
+  | 'smokeTestsReadme'
+  | 'smokeDomain'
+  | 'smokeApplication'
+  | 'smokeSql'
   | 'querySpecExampleTest'
   | 'testkitClient'
   | 'globalSetup'
   | 'vitestConfig'
   | 'tsconfig'
+  | 'ztdDocsReadme'
+  | 'sqlReadme'
   | 'readme'
   | 'context'
   | 'promptDogfood'
@@ -134,19 +144,8 @@ type FileKey =
   | 'internalAgentsSrc'
   | 'internalAgentsTests'
   | 'internalAgentsZtd'
-  | 'ztdDocsReadme'
-  | 'sqlReadme'
-  | 'jobsReadme'
-  | 'domainReadme'
-  | 'applicationReadme'
-  | 'presentationHttpReadme'
-  | 'infrastructureReadme'
-  | 'persistenceReadme'
   | 'sqlClient'
   | 'sqlClientAdapters'
-  | 'repositoryTelemetryTypes'
-  | 'repositoryTelemetryConsole'
-  | 'repositoryTelemetryEntry'
   | 'gitignore'
   | 'editorconfig'
   | 'prettierignore'
@@ -196,8 +195,11 @@ export interface InitCommandOptions {
   rootDir?: string;
   dependencies?: Partial<ZtdConfigWriterDependencies>;
   appShape?: InitAppShape;
+  starter?: boolean;
+  postgresImage?: string;
   withSqlClient?: boolean;
   withAiGuidance?: boolean;
+  withDogfooding?: boolean;
   withAppInterface?: boolean;
   skipInstall?: boolean;
   forceOverwrite?: boolean;
@@ -215,6 +217,7 @@ type InitAppShape = 'default' | 'webapi';
 interface OptionalFeatures {
   validator: ValidatorBackend;
   aiGuidance: boolean;
+  dogfooding: boolean;
 }
 
 interface InitScaffoldProfile {
@@ -223,7 +226,6 @@ interface InitScaffoldProfile {
 }
 
 interface InitScaffoldLayout {
-  appShape: InitAppShape;
   readmeTemplate: string;
   contextTemplate: string;
   promptDogfoodPath: string | null;
@@ -231,23 +233,35 @@ interface InitScaffoldLayout {
   sqlClientTemplate: string;
   sqlClientAdaptersTemplate: string;
   testkitClientTemplate: string;
-  jobsReadmePath: string | null;
-  jobsReadmeTemplate: string | null;
-  domainReadmePath: string | null;
-  domainReadmeTemplate: string | null;
-  applicationReadmePath: string | null;
-  applicationReadmeTemplate: string | null;
-  presentationHttpReadmePath: string | null;
-  presentationHttpReadmeTemplate: string | null;
-  infrastructureReadmePath: string | null;
-  infrastructureReadmeTemplate: string | null;
-  persistenceReadmePath: string | null;
-  persistenceReadmeTemplate: string | null;
+  featureReadmePath: string;
+  featureReadmeTemplate: string;
+  smokeReadmePath: string;
+  smokeReadmeTemplate: string;
+  smokeApplicationReadmePath: string;
+  smokeApplicationReadmeTemplate: string;
+  smokeDomainReadmePath: string;
+  smokeDomainReadmeTemplate: string;
+  smokePersistenceReadmePath: string;
+  smokePersistenceReadmeTemplate: string;
+  smokeTestsReadmePath: string;
+  smokeTestsReadmeTemplate: string;
+  smokeDomainPath: string;
+  smokeDomainTemplate: string;
+  smokeApplicationPath: string;
+  smokeApplicationTemplate: string;
+  smokeSqlPath: string;
+  smokeSpecPath: string;
+  smokeSpecTemplate: string;
+  smokeValidationTestPath: string;
+  smokeValidationTestTemplate: string;
+  smokeTestPath: string;
+  smokeTestTemplate: string;
   sqlClientPath: string;
   sqlClientAdaptersPath: string;
 }
 
 const STACK_DEV_DEPENDENCIES: Record<string, string> = {
+  '@rawsql-ts/sql-contract': '^0.3.1',
   '@rawsql-ts/ztd-cli': '^0.20.3',
 };
 const LOCAL_SOURCE_STACK_PACKAGE_DIRS: Record<string, string> = {
@@ -264,12 +278,14 @@ async function gatherOptionalFeatures(
   prompter: Prompter,
   _dependencies: ZtdConfigWriterDependencies,
   validatorOverride?: ValidatorBackend,
-  aiGuidanceOverride?: boolean
+  aiGuidanceOverride?: boolean,
+  dogfoodingOverride?: boolean
 ): Promise<OptionalFeatures> {
   if (validatorOverride) {
     return {
       validator: validatorOverride,
-      aiGuidance: aiGuidanceOverride ?? false
+      aiGuidance: aiGuidanceOverride ?? false,
+      dogfooding: dogfoodingOverride ?? false
     };
   }
   const validatorChoice = await prompter.selectChoice(
@@ -279,43 +295,42 @@ async function gatherOptionalFeatures(
   const validator: ValidatorBackend = validatorChoice === 0 ? 'zod' : 'arktype';
   return {
     validator,
-    aiGuidance: aiGuidanceOverride ?? false
+    aiGuidance: aiGuidanceOverride ?? false,
+    dogfooding: dogfoodingOverride ?? false
   };
 }
 
 type InitWorkflow = 'pg_dump' | 'empty' | 'demo';
 
 const README_TEMPLATE = 'README.md';
-const README_WEBAPI_TEMPLATE = 'README.webapi.md';
 const CONTEXT_TEMPLATE = 'CONTEXT.md';
-const CONTEXT_WEBAPI_TEMPLATE = 'CONTEXT.webapi.md';
-const PROMPT_DOGFOOD_WEBAPI_TEMPLATE = 'PROMPT_DOGFOOD.webapi.md';
-const SMOKE_SPEC_ZOD_TEMPLATE = 'src/catalog/specs/_smoke.spec.zod.ts';
-const SMOKE_SPEC_ARKTYPE_TEMPLATE = 'src/catalog/specs/_smoke.spec.arktype.ts';
-const SMOKE_COERCIONS_TEMPLATE = 'src/catalog/runtime/_coercions.ts';
-const SMOKE_RUNTIME_TEMPLATE = 'src/catalog/runtime/_smoke.runtime.ts';
+const PROMPT_DOGFOOD_TEMPLATE = 'PROMPT_DOGFOOD.md';
+const DEFAULT_POSTGRES_IMAGE = 'postgres:18';
+const STARTER_COMPOSE_FILE = 'compose.yaml';
+const FEATURE_ROOT_README_TEMPLATE = 'src/features/README.md';
+const FEATURE_SMOKE_README_TEMPLATE = 'src/features/smoke/README.md';
+const FEATURE_SMOKE_APPLICATION_README_TEMPLATE = 'src/features/smoke/application/README.md';
+const FEATURE_SMOKE_DOMAIN_README_TEMPLATE = 'src/features/smoke/domain/README.md';
+const FEATURE_SMOKE_PERSISTENCE_README_TEMPLATE = 'src/features/smoke/persistence/README.md';
+const FEATURE_SMOKE_TESTS_README_TEMPLATE = 'src/features/smoke/tests/README.md';
+const FEATURE_SMOKE_DOMAIN_TEMPLATE = 'src/features/smoke/domain/smoke-policy.ts';
+const FEATURE_SMOKE_APPLICATION_TEMPLATE = 'src/features/smoke/application/smoke-workflow.ts';
+const FEATURE_SMOKE_SQL_TEMPLATE = 'src/features/smoke/persistence/smoke.sql';
+const FEATURE_SMOKE_SPEC_TEMPLATE = 'src/features/smoke/persistence/smoke.spec.ts';
+const FEATURE_SMOKE_VALIDATION_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.validation.test.ts';
+const FEATURE_SMOKE_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.test.ts';
 const LOCAL_SOURCE_GUARD_TEMPLATE = 'scripts/local-source-guard.mjs';
-const SMOKE_VALIDATION_TEST_TEMPLATE = 'tests/smoke.validation.test.ts';
-const TESTS_SMOKE_TEMPLATE = 'tests/smoke.test.ts';
 const QUERYSPEC_EXAMPLE_TEST_TEMPLATE = 'tests/queryspec.example.test.ts';
 const TESTKIT_CLIENT_TEMPLATE = 'tests/support/testkit-client.ts';
-const TESTKIT_CLIENT_WEBAPI_TEMPLATE = 'tests/support/testkit-client.webapi.ts';
 const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
 const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
 const TSCONFIG_TEMPLATE = 'tsconfig.json';
 const SQL_CLIENT_TEMPLATE = 'src/db/sql-client.ts';
 const SQL_CLIENT_ADAPTERS_TEMPLATE = 'src/db/sql-client-adapters.ts';
-const SQL_CLIENT_WEBAPI_TEMPLATE = 'src/infrastructure/db/sql-client.ts';
-const SQL_CLIENT_ADAPTERS_WEBAPI_TEMPLATE = 'src/infrastructure/db/sql-client-adapters.ts';
 const REPOSITORY_TELEMETRY_TYPES_TEMPLATE = 'src/infrastructure/telemetry/types.ts';
 const REPOSITORY_TELEMETRY_CONSOLE_TEMPLATE = 'src/infrastructure/telemetry/consoleRepositoryTelemetry.ts';
 const REPOSITORY_TELEMETRY_ENTRY_TEMPLATE = 'src/infrastructure/telemetry/repositoryTelemetry.ts';
 const SQL_README_TEMPLATE = 'src/sql/README.md';
-const WEBAPI_DOMAIN_README_TEMPLATE = 'src/domain/README.md';
-const WEBAPI_APPLICATION_README_TEMPLATE = 'src/application/README.md';
-const WEBAPI_PRESENTATION_HTTP_README_TEMPLATE = 'src/presentation/http/README.md';
-const WEBAPI_INFRASTRUCTURE_README_TEMPLATE = 'src/infrastructure/README.md';
-const WEBAPI_PERSISTENCE_README_TEMPLATE = 'src/infrastructure/persistence/README.md';
 const JOBS_README_TEMPLATE = 'src/jobs/README.md';
 const ZTD_README_TEMPLATE = 'ztd/README.md';
 const ZTD_DDL_DEMO_TEMPLATE = 'ztd/ddl/demo.sql';
@@ -327,59 +342,102 @@ const EMPTY_SCHEMA_COMMENT = (schemaName: string): string =>
     ''
   ].join('\n');
 
+const STARTER_SCHEMA_TEMPLATE = (schemaName: string): string =>
+  [
+    `-- Starter DDL for schema "${schemaName}".`,
+    '-- The starter flow begins with a single users table so the first feature stays obvious.',
+    '',
+    'create table users (',
+    '  user_id     serial8 primary key,',
+    '  user_name   text not null,',
+    '  email       text not null unique,',
+    '  created_at  timestamptz not null default current_timestamp',
+    ');',
+    '',
+    'comment on table users is',
+    "  'Starter user directory for the first CRUD feature.';",
+    '',
+    'comment on column users.user_id is',
+    "  'Primary key for a user.';",
+    'comment on column users.user_name is',
+    "  'Display name for the user.';",
+    'comment on column users.email is',
+    "  'Email address for the user.';",
+    'comment on column users.created_at is',
+    "  'Timestamp when the user row was created.';",
+    ''
+  ].join('\n');
+
+const STARTER_README_APPENDIX = (postgresImage: string): string =>
+  [
+    '## Starter Flow',
+    '',
+    '1. Start Postgres with `docker compose up -d`.',
+    `2. The bundled compose file uses \`${postgresImage}\`.`,
+    '3. Export `ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5432/ztd` before running Vitest.',
+    '4. Read `src/features/smoke/` first, then add `src/features/users/` as your first real feature.',
+    ''
+  ].join('\n');
+
+const STARTER_COMPOSE_TEMPLATE = (postgresImage: string): string =>
+  [
+    '# Starter Postgres environment for ZTD tests.',
+    '# Start it with: docker compose up -d',
+    '# After it is running, export ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5432/ztd',
+    '',
+    'services:',
+    '  postgres:',
+    `    image: ${postgresImage}`,
+    '    environment:',
+    '      POSTGRES_DB: ztd',
+    '      POSTGRES_PASSWORD: ztd',
+    '      POSTGRES_USER: ztd',
+    '    ports:',
+    '      - "5432:5432"',
+    ''
+  ].join('\n');
+
 const DEMO_SCHEMA_TEMPLATE = (_schemaName: string): string => {
   return loadTemplate(ZTD_DDL_DEMO_TEMPLATE);
 };
 
-function resolveInitScaffoldLayout(rootDir: string, appShape: InitAppShape): InitScaffoldLayout {
-  if (appShape === 'webapi') {
-    return {
-      appShape,
-      readmeTemplate: README_WEBAPI_TEMPLATE,
-      contextTemplate: CONTEXT_WEBAPI_TEMPLATE,
-      promptDogfoodPath: path.join(rootDir, 'PROMPT_DOGFOOD.md'),
-      promptDogfoodTemplate: PROMPT_DOGFOOD_WEBAPI_TEMPLATE,
-      sqlClientTemplate: SQL_CLIENT_WEBAPI_TEMPLATE,
-      sqlClientAdaptersTemplate: SQL_CLIENT_ADAPTERS_WEBAPI_TEMPLATE,
-      testkitClientTemplate: TESTKIT_CLIENT_WEBAPI_TEMPLATE,
-      jobsReadmePath: null,
-      jobsReadmeTemplate: null,
-      domainReadmePath: path.join(rootDir, 'src', 'domain', 'README.md'),
-      domainReadmeTemplate: WEBAPI_DOMAIN_README_TEMPLATE,
-      applicationReadmePath: path.join(rootDir, 'src', 'application', 'README.md'),
-      applicationReadmeTemplate: WEBAPI_APPLICATION_README_TEMPLATE,
-      presentationHttpReadmePath: path.join(rootDir, 'src', 'presentation', 'http', 'README.md'),
-      presentationHttpReadmeTemplate: WEBAPI_PRESENTATION_HTTP_README_TEMPLATE,
-      infrastructureReadmePath: path.join(rootDir, 'src', 'infrastructure', 'README.md'),
-      infrastructureReadmeTemplate: WEBAPI_INFRASTRUCTURE_README_TEMPLATE,
-      persistenceReadmePath: path.join(rootDir, 'src', 'infrastructure', 'persistence', 'README.md'),
-      persistenceReadmeTemplate: WEBAPI_PERSISTENCE_README_TEMPLATE,
-      sqlClientPath: path.join(rootDir, 'src', 'infrastructure', 'db', 'sql-client.ts'),
-      sqlClientAdaptersPath: path.join(rootDir, 'src', 'infrastructure', 'db', 'sql-client-adapters.ts')
-    };
-  }
+function buildStarterReadmeContents(postgresImage: string): string {
+  const base = loadTemplate(README_TEMPLATE).replace(/\r\n/g, '\n').trimEnd();
+  return `${base}\n\n${STARTER_README_APPENDIX(postgresImage)}`;
+}
 
+function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): InitScaffoldLayout {
   return {
-    appShape,
     readmeTemplate: README_TEMPLATE,
     contextTemplate: CONTEXT_TEMPLATE,
-    promptDogfoodPath: null,
-    promptDogfoodTemplate: null,
+    promptDogfoodPath: path.join(rootDir, 'PROMPT_DOGFOOD.md'),
+    promptDogfoodTemplate: PROMPT_DOGFOOD_TEMPLATE,
     sqlClientTemplate: SQL_CLIENT_TEMPLATE,
     sqlClientAdaptersTemplate: SQL_CLIENT_ADAPTERS_TEMPLATE,
     testkitClientTemplate: TESTKIT_CLIENT_TEMPLATE,
-    jobsReadmePath: path.join(rootDir, 'src', 'jobs', 'README.md'),
-    jobsReadmeTemplate: JOBS_README_TEMPLATE,
-    domainReadmePath: null,
-    domainReadmeTemplate: null,
-    applicationReadmePath: null,
-    applicationReadmeTemplate: null,
-    presentationHttpReadmePath: null,
-    presentationHttpReadmeTemplate: null,
-    infrastructureReadmePath: null,
-    infrastructureReadmeTemplate: null,
-    persistenceReadmePath: null,
-    persistenceReadmeTemplate: null,
+    featureReadmePath: path.join(rootDir, 'src', 'features', 'README.md'),
+    featureReadmeTemplate: FEATURE_ROOT_README_TEMPLATE,
+    smokeReadmePath: path.join(rootDir, 'src', 'features', 'smoke', 'README.md'),
+    smokeReadmeTemplate: FEATURE_SMOKE_README_TEMPLATE,
+    smokeApplicationReadmePath: path.join(rootDir, 'src', 'features', 'smoke', 'application', 'README.md'),
+    smokeApplicationReadmeTemplate: FEATURE_SMOKE_APPLICATION_README_TEMPLATE,
+    smokeDomainReadmePath: path.join(rootDir, 'src', 'features', 'smoke', 'domain', 'README.md'),
+    smokeDomainReadmeTemplate: FEATURE_SMOKE_DOMAIN_README_TEMPLATE,
+    smokePersistenceReadmePath: path.join(rootDir, 'src', 'features', 'smoke', 'persistence', 'README.md'),
+    smokePersistenceReadmeTemplate: FEATURE_SMOKE_PERSISTENCE_README_TEMPLATE,
+    smokeTestsReadmePath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'README.md'),
+    smokeTestsReadmeTemplate: FEATURE_SMOKE_TESTS_README_TEMPLATE,
+    smokeDomainPath: path.join(rootDir, 'src', 'features', 'smoke', 'domain', 'smoke-policy.ts'),
+    smokeDomainTemplate: FEATURE_SMOKE_DOMAIN_TEMPLATE,
+    smokeApplicationPath: path.join(rootDir, 'src', 'features', 'smoke', 'application', 'smoke-workflow.ts'),
+    smokeApplicationTemplate: FEATURE_SMOKE_APPLICATION_TEMPLATE,
+    smokeSqlPath: path.join(rootDir, 'src', 'features', 'smoke', 'persistence', 'smoke.sql'),
+    smokeSpecPath: path.join(rootDir, 'src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'),
+    smokeSpecTemplate: FEATURE_SMOKE_SPEC_TEMPLATE,
+    smokeValidationTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'),
+    smokeValidationTestTemplate: FEATURE_SMOKE_VALIDATION_TEST_TEMPLATE,
+    smokeTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'),
+    smokeTestTemplate: FEATURE_SMOKE_TEST_TEMPLATE,
     sqlClientPath: path.join(rootDir, 'src', 'db', 'sql-client.ts'),
     sqlClientAdaptersPath: path.join(rootDir, 'src', 'db', 'sql-client-adapters.ts')
   };
@@ -391,13 +449,13 @@ const APP_INTERFACE_SECTION_MARKER = '## Application Interface Guidance';
 const APP_INTERFACE_SECTION = `---
 ## Application Interface Guidance
 
-1. Repository interfaces follow Command in, Domain out so commands capture inputs and repositories return domain shapes.
-2. Command definitions and validation stay unified to prevent divergence between surface APIs and SQL expectations.
-3. Input validation relies on zod v4 or later and happens at the repository boundary before any SQL runs.
+1. Feature folders are the default change unit.
+2. Keep domain, application, persistence, and tests close to the feature they support.
+3. Input validation should happen at the feature boundary before SQL runs.
 4. Only validated inputs reach SQL execution; reject raw external objects as soon as possible.
-5. Domain models live under a dedicated src/domain location so semantics stay centralized.
-6. Build the CRUD behavior first and revisit repository interfaces during review, not before the SQL works.
-7. Guard every behavioral change with unit tests so regression risks stay low.
+5. Keep \`smoke\` small enough to delete after the first real feature is added.
+6. Build the slice first and revisit shared extraction during review, not before the feature works.
+7. Guard every behavioral change with feature-local tests so regression risks stay low.
 `;
 
 function resolveTemplateDirectory(): string {
@@ -507,22 +565,27 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     };
   }
 
-  // Determine workflow: use explicit flag, non-interactive default, or prompt.
+  // Determine workflow: use explicit flag, non-interactive default, starter preset, or prompt.
   let workflow: InitWorkflow;
+  let starter = options?.starter === true;
   if (options?.workflow) {
     workflow = options.workflow;
+  } else if (starter) {
+    workflow = 'demo';
   } else if (overwritePolicy.nonInteractive) {
     workflow = 'demo';
   } else {
     const workflowChoice = await prompter.selectChoice(
       'How do you want to start your database workflow?',
       [
+        'Starter (recommended): visible AGENTS, compose, smoke tests, and sample DDL',
         'Pull schema from Postgres (pg_dump)',
         'Create empty scaffold (I will write DDL)',
         'Create scaffold with demo DDL (no app code)'
       ]
     );
-    workflow = workflowChoice === 0 ? 'pg_dump' : workflowChoice === 1 ? 'empty' : 'demo';
+    starter = workflowChoice === 0;
+    workflow = workflowChoice === 0 ? 'demo' : workflowChoice === 1 ? 'pg_dump' : workflowChoice === 2 ? 'empty' : 'demo';
   }
 
   if (overwritePolicy.nonInteractive && workflow === 'pg_dump') {
@@ -534,17 +597,26 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   const schemaName = normalizeSchemaName(DEFAULT_ZTD_CONFIG.ddl.defaultSchema);
   const schemaFileName = `${sanitizeSchemaFileName(schemaName)}.sql`;
   const appShape: InitAppShape = options?.appShape ?? 'default';
+  const postgresImage = options?.postgresImage?.trim() || DEFAULT_POSTGRES_IMAGE;
   const scaffoldLayout = resolveInitScaffoldLayout(rootDir, appShape);
 
   const absolutePaths: Record<FileKey, string> = {
     schema: path.join(rootDir, DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
     config: path.join(rootDir, 'ztd.config.json'),
-    smokeSpec: path.join(rootDir, 'src', 'catalog', 'specs', '_smoke.spec.ts'),
-    smokeCoercions: path.join(rootDir, 'src', 'catalog', 'runtime', '_coercions.ts'),
-    smokeRuntime: path.join(rootDir, 'src', 'catalog', 'runtime', '_smoke.runtime.ts'),
+    starterCompose: path.join(rootDir, STARTER_COMPOSE_FILE),
     localSourceGuardScript: path.join(rootDir, 'scripts', 'local-source-guard.mjs'),
-    smokeValidationTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'smoke.validation.test.ts'),
-    testsSmoke: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'smoke.test.ts'),
+    featureRootReadme: scaffoldLayout.featureReadmePath,
+    smokeReadme: scaffoldLayout.smokeReadmePath,
+    smokeApplicationReadme: scaffoldLayout.smokeApplicationReadmePath,
+    smokeDomainReadme: scaffoldLayout.smokeDomainReadmePath,
+    smokePersistenceReadme: scaffoldLayout.smokePersistenceReadmePath,
+    smokeTestsReadme: scaffoldLayout.smokeTestsReadmePath,
+    smokeDomain: scaffoldLayout.smokeDomainPath,
+    smokeApplication: scaffoldLayout.smokeApplicationPath,
+    smokeSql: scaffoldLayout.smokeSqlPath,
+    smokeSpec: scaffoldLayout.smokeSpecPath,
+    smokeValidationTest: scaffoldLayout.smokeValidationTestPath,
+    smokeTest: scaffoldLayout.smokeTestPath,
     querySpecExampleTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'queryspec.example.test.ts'),
     readme: path.join(rootDir, 'README.md'),
     context: path.join(rootDir, 'CONTEXT.md'),
@@ -555,19 +627,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     internalAgentsTests: path.join(rootDir, '.ztd', 'agents', 'tests.md'),
     internalAgentsZtd: path.join(rootDir, '.ztd', 'agents', 'ztd.md'),
     sqlReadme: path.join(rootDir, 'src', 'sql', 'README.md'),
-    jobsReadme: scaffoldLayout.jobsReadmePath ?? path.join(rootDir, 'src', 'jobs', 'README.md'),
-    domainReadme: scaffoldLayout.domainReadmePath ?? path.join(rootDir, 'src', 'domain', 'README.md'),
-    applicationReadme: scaffoldLayout.applicationReadmePath ?? path.join(rootDir, 'src', 'application', 'README.md'),
-    presentationHttpReadme:
-      scaffoldLayout.presentationHttpReadmePath ?? path.join(rootDir, 'src', 'presentation', 'http', 'README.md'),
-    infrastructureReadme: scaffoldLayout.infrastructureReadmePath ?? path.join(rootDir, 'src', 'infrastructure', 'README.md'),
-    persistenceReadme:
-      scaffoldLayout.persistenceReadmePath ?? path.join(rootDir, 'src', 'infrastructure', 'persistence', 'README.md'),
     sqlClient: scaffoldLayout.sqlClientPath,
     sqlClientAdapters: scaffoldLayout.sqlClientAdaptersPath,
-    repositoryTelemetryTypes: path.join(rootDir, 'src', 'infrastructure', 'telemetry', 'types.ts'),
-    repositoryTelemetryConsole: path.join(rootDir, 'src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'),
-    repositoryTelemetryEntry: path.join(rootDir, 'src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'),
     testkitClient: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'testkit-client.ts'),
     globalSetup: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
     vitestConfig: path.join(rootDir, 'vitest.config.ts'),
@@ -638,7 +699,10 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
       overwritePolicy,
       async () => {
         dependencies.ensureDirectory(path.dirname(absolutePaths.schema));
-        dependencies.writeFile(absolutePaths.schema, DEMO_SCHEMA_TEMPLATE(schemaName));
+        dependencies.writeFile(
+          absolutePaths.schema,
+          starter ? STARTER_SCHEMA_TEMPLATE(schemaName) : DEMO_SCHEMA_TEMPLATE(schemaName)
+        );
       }
     );
 
@@ -663,27 +727,38 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   summaries.config = configSummary;
 
-  const validatorOverride = options?.validator ?? (overwritePolicy.nonInteractive ? 'zod' : undefined);
+  const validatorOverride = options?.validator ?? (starter || overwritePolicy.nonInteractive ? 'zod' : undefined);
   const optionalFeatures = await gatherOptionalFeatures(
     prompter,
     dependencies,
     validatorOverride,
-    options?.withAiGuidance
+    options?.withAiGuidance,
+    options?.withDogfooding
   );
 
   // Emit supporting documentation that describes the workflow for contributors.
-  const readmeSummary = await writeTemplateFile(
-    rootDir,
+  const readmeSummary = await writeDocFile(
     absolutePaths.readme,
     relativePath('readme'),
-    scaffoldLayout.readmeTemplate,
+    starter ? buildStarterReadmeContents(postgresImage) : loadTemplate(README_TEMPLATE),
     dependencies,
     prompter,
-    overwritePolicy,
-    true
+    overwritePolicy
   );
   if (readmeSummary) {
     summaries.readme = readmeSummary;
+  }
+
+  if (starter) {
+    const composeSummary = await writeDocFile(
+      absolutePaths.starterCompose,
+      relativePath('starterCompose'),
+      STARTER_COMPOSE_TEMPLATE(postgresImage),
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    summaries.starterCompose = composeSummary;
   }
 
   if (optionalFeatures.aiGuidance) {
@@ -702,7 +777,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     }
   }
 
-  if (optionalFeatures.aiGuidance && scaffoldLayout.promptDogfoodTemplate) {
+  if (optionalFeatures.dogfooding && scaffoldLayout.promptDogfoodTemplate) {
     const promptDogfoodSummary = await writeTemplateFile(
       rootDir,
       absolutePaths.promptDogfood,
@@ -734,129 +809,125 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     }
   }
 
-  const ztdDocsReadmeSummary = await writeTemplateFile(
+  const featureRootReadmeSummary = await writeTemplateFile(
     rootDir,
-    absolutePaths.ztdDocsReadme,
-    relativePath('ztdDocsReadme'),
-    ZTD_README_TEMPLATE,
+    absolutePaths.featureRootReadme,
+    relativePath('featureRootReadme'),
+    scaffoldLayout.featureReadmeTemplate,
     dependencies,
     prompter,
     overwritePolicy
   );
-  if (ztdDocsReadmeSummary) {
-    summaries.ztdDocsReadme = ztdDocsReadmeSummary;
+  if (featureRootReadmeSummary) {
+    summaries.featureRootReadme = featureRootReadmeSummary;
   }
 
-  const sqlReadmeSummary = await writeTemplateFile(
+  const smokeReadmeSummary = await writeTemplateFile(
     rootDir,
-    absolutePaths.sqlReadme,
-    relativePath('sqlReadme'),
-    SQL_README_TEMPLATE,
+    absolutePaths.smokeReadme,
+    relativePath('smokeReadme'),
+    scaffoldLayout.smokeReadmeTemplate,
     dependencies,
     prompter,
     overwritePolicy
   );
-  if (sqlReadmeSummary) {
-    summaries.sqlReadme = sqlReadmeSummary;
+  if (smokeReadmeSummary) {
+    summaries.smokeReadme = smokeReadmeSummary;
   }
 
-  if (scaffoldLayout.jobsReadmeTemplate) {
-    const jobsReadmeSummary = await writeTemplateFile(
-      rootDir,
-      absolutePaths.jobsReadme,
-      relativePath('jobsReadme'),
-      scaffoldLayout.jobsReadmeTemplate,
-      dependencies,
-      prompter,
-      overwritePolicy
-    );
-    if (jobsReadmeSummary) {
-      summaries.jobsReadme = jobsReadmeSummary;
-    }
+  const smokeApplicationReadmeSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.smokeApplicationReadme,
+    relativePath('smokeApplicationReadme'),
+    scaffoldLayout.smokeApplicationReadmeTemplate,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (smokeApplicationReadmeSummary) {
+    summaries.smokeApplicationReadme = smokeApplicationReadmeSummary;
   }
 
-  if (scaffoldLayout.domainReadmeTemplate) {
-    const domainReadmeSummary = await writeTemplateFile(
-      rootDir,
-      absolutePaths.domainReadme,
-      relativePath('domainReadme'),
-      scaffoldLayout.domainReadmeTemplate,
-      dependencies,
-      prompter,
-      overwritePolicy
-    );
-    if (domainReadmeSummary) {
-      summaries.domainReadme = domainReadmeSummary;
-    }
+  const smokeDomainReadmeSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.smokeDomainReadme,
+    relativePath('smokeDomainReadme'),
+    scaffoldLayout.smokeDomainReadmeTemplate,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (smokeDomainReadmeSummary) {
+    summaries.smokeDomainReadme = smokeDomainReadmeSummary;
   }
 
-  if (scaffoldLayout.applicationReadmeTemplate) {
-    const applicationReadmeSummary = await writeTemplateFile(
-      rootDir,
-      absolutePaths.applicationReadme,
-      relativePath('applicationReadme'),
-      scaffoldLayout.applicationReadmeTemplate,
-      dependencies,
-      prompter,
-      overwritePolicy
-    );
-    if (applicationReadmeSummary) {
-      summaries.applicationReadme = applicationReadmeSummary;
-    }
+  const smokePersistenceReadmeSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.smokePersistenceReadme,
+    relativePath('smokePersistenceReadme'),
+    scaffoldLayout.smokePersistenceReadmeTemplate,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (smokePersistenceReadmeSummary) {
+    summaries.smokePersistenceReadme = smokePersistenceReadmeSummary;
   }
 
-  if (scaffoldLayout.presentationHttpReadmeTemplate) {
-    const presentationHttpReadmeSummary = await writeTemplateFile(
-      rootDir,
-      absolutePaths.presentationHttpReadme,
-      relativePath('presentationHttpReadme'),
-      scaffoldLayout.presentationHttpReadmeTemplate,
-      dependencies,
-      prompter,
-      overwritePolicy
-    );
-    if (presentationHttpReadmeSummary) {
-      summaries.presentationHttpReadme = presentationHttpReadmeSummary;
-    }
+  const smokeTestsReadmeSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.smokeTestsReadme,
+    relativePath('smokeTestsReadme'),
+    scaffoldLayout.smokeTestsReadmeTemplate,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (smokeTestsReadmeSummary) {
+    summaries.smokeTestsReadme = smokeTestsReadmeSummary;
   }
 
-  if (scaffoldLayout.infrastructureReadmeTemplate) {
-    const infrastructureReadmeSummary = await writeTemplateFile(
-      rootDir,
-      absolutePaths.infrastructureReadme,
-      relativePath('infrastructureReadme'),
-      scaffoldLayout.infrastructureReadmeTemplate,
-      dependencies,
-      prompter,
-      overwritePolicy
-    );
-    if (infrastructureReadmeSummary) {
-      summaries.infrastructureReadme = infrastructureReadmeSummary;
-    }
+  const smokeDomainSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.smokeDomain,
+    relativePath('smokeDomain'),
+    scaffoldLayout.smokeDomainTemplate,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (smokeDomainSummary) {
+    summaries.smokeDomain = smokeDomainSummary;
   }
 
-  if (scaffoldLayout.persistenceReadmeTemplate) {
-    const persistenceReadmeSummary = await writeTemplateFile(
-      rootDir,
-      absolutePaths.persistenceReadme,
-      relativePath('persistenceReadme'),
-      scaffoldLayout.persistenceReadmeTemplate,
-      dependencies,
-      prompter,
-      overwritePolicy
-    );
-    if (persistenceReadmeSummary) {
-      summaries.persistenceReadme = persistenceReadmeSummary;
-    }
+  const smokeApplicationSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.smokeApplication,
+    relativePath('smokeApplication'),
+    scaffoldLayout.smokeApplicationTemplate,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (smokeApplicationSummary) {
+    summaries.smokeApplication = smokeApplicationSummary;
   }
 
-  const smokeSpecTemplate =
-    optionalFeatures.validator === 'zod' ? SMOKE_SPEC_ZOD_TEMPLATE : SMOKE_SPEC_ARKTYPE_TEMPLATE;
+  const smokeSqlSummary = writeOptionalTemplateFile(
+    absolutePaths.smokeSql,
+    relativePath('smokeSql'),
+    FEATURE_SMOKE_SQL_TEMPLATE,
+    dependencies
+  );
+  if (smokeSqlSummary) {
+    summaries.smokeSql = smokeSqlSummary;
+  }
+
   const smokeSpecSummary = await writeTemplateFile(
     rootDir,
     absolutePaths.smokeSpec,
     relativePath('smokeSpec'),
-    smokeSpecTemplate,
+    scaffoldLayout.smokeSpecTemplate,
     dependencies,
     prompter,
     overwritePolicy
@@ -865,17 +936,30 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.smokeSpec = smokeSpecSummary;
   }
 
-  const smokeCoercionsSummary = await writeTemplateFile(
+  const smokeValidationTestSummary = await writeTemplateFile(
     rootDir,
-    absolutePaths.smokeCoercions,
-    relativePath('smokeCoercions'),
-    SMOKE_COERCIONS_TEMPLATE,
+    absolutePaths.smokeValidationTest,
+    relativePath('smokeValidationTest'),
+    scaffoldLayout.smokeValidationTestTemplate,
     dependencies,
     prompter,
     overwritePolicy
   );
-  if (smokeCoercionsSummary) {
-    summaries.smokeCoercions = smokeCoercionsSummary;
+  if (smokeValidationTestSummary) {
+    summaries.smokeValidationTest = smokeValidationTestSummary;
+  }
+
+  const smokeTestSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.smokeTest,
+    relativePath('smokeTest'),
+    scaffoldLayout.smokeTestTemplate,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (smokeTestSummary) {
+    summaries.smokeTest = smokeTestSummary;
   }
 
   if (scaffoldProfile.dependencyProfile === 'local-source') {
@@ -892,31 +976,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     }
   }
 
-  const smokeRuntimeSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.smokeRuntime,
-    relativePath('smokeRuntime'),
-    SMOKE_RUNTIME_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (smokeRuntimeSummary) {
-    summaries.smokeRuntime = smokeRuntimeSummary;
-  }
-
-  const smokeValidationTestSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.smokeValidationTest,
-    relativePath('smokeValidationTest'),
-    SMOKE_VALIDATION_TEST_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (smokeValidationTestSummary) {
-    summaries.smokeValidationTest = smokeValidationTestSummary;
-  }
 
   const sqlClientSummary = writeOptionalTemplateFile(
     absolutePaths.sqlClient,
@@ -937,51 +996,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     if (sqlClientAdaptersSummary) {
       summaries.sqlClientAdapters = sqlClientAdaptersSummary;
     }
-
-    // Repository telemetry stays application-owned, but the scaffold can
-    // provide a default structured seam that repositories depend on.
-    const repositoryTelemetryTypesSummary = writeOptionalTemplateFile(
-      absolutePaths.repositoryTelemetryTypes,
-      relativePath('repositoryTelemetryTypes'),
-      REPOSITORY_TELEMETRY_TYPES_TEMPLATE,
-      dependencies
-    );
-    if (repositoryTelemetryTypesSummary) {
-      summaries.repositoryTelemetryTypes = repositoryTelemetryTypesSummary;
-    }
-
-    const repositoryTelemetryConsoleSummary = writeOptionalTemplateFile(
-      absolutePaths.repositoryTelemetryConsole,
-      relativePath('repositoryTelemetryConsole'),
-      REPOSITORY_TELEMETRY_CONSOLE_TEMPLATE,
-      dependencies
-    );
-    if (repositoryTelemetryConsoleSummary) {
-      summaries.repositoryTelemetryConsole = repositoryTelemetryConsoleSummary;
-    }
-
-    const repositoryTelemetryEntrySummary = writeOptionalTemplateFile(
-      absolutePaths.repositoryTelemetryEntry,
-      relativePath('repositoryTelemetryEntry'),
-      REPOSITORY_TELEMETRY_ENTRY_TEMPLATE,
-      dependencies
-    );
-    if (repositoryTelemetryEntrySummary) {
-      summaries.repositoryTelemetryEntry = repositoryTelemetryEntrySummary;
-    }
-  }
-
-  const testsSmokeSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.testsSmoke,
-    relativePath('testsSmoke'),
-    TESTS_SMOKE_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (testsSmokeSummary) {
-    summaries.testsSmoke = testsSmokeSummary;
   }
 
   const querySpecExampleTestSummary = await writeTemplateFile(
@@ -1021,6 +1035,13 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (globalSetupSummary) {
     summaries.globalSetup = globalSetupSummary;
+  }
+
+  if (starter) {
+    const visibleAgentSummaries = installVisibleAgents(rootDir);
+    if (visibleAgentSummaries.some((summary) => summary.relativePath === 'AGENTS.md')) {
+      dependencies.log('Visible AGENTS.md files installed for the starter flow.');
+    }
   }
 
   const vitestConfigSummary = await writeTemplateFile(
@@ -1116,14 +1137,17 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     workflow,
     rootDir,
     scaffoldProfile,
-    appShape,
-    shouldIncludeManualInstallStep
+    shouldIncludeManualInstallStep,
+    starter,
+    postgresImage
   );
   const summaryLines = buildSummaryLines(
     summaries as Record<FileKey, FileSummary>,
     optionalFeatures,
     nextSteps,
     scaffoldProfile,
+    starter,
+    postgresImage,
     installNote
   );
   summaryLines.forEach(dependencies.log);
@@ -2021,8 +2045,9 @@ function buildNextSteps(
   workflow: InitWorkflow,
   rootDir: string,
   scaffoldProfile: InitScaffoldProfile,
-  appShape: InitAppShape,
-  includeInstallStep: boolean
+  includeInstallStep: boolean,
+  starter: boolean,
+  postgresImage: string
 ): { nextSteps: string[]; fallbackSteps: string[] } {
   const packageManager = detectPackageManager(rootDir, defaultPackageManagerForScaffold(scaffoldProfile));
   const installStrategy = resolveInitInstallStrategy(rootDir, packageManager);
@@ -2033,35 +2058,42 @@ function buildNextSteps(
     packageManager === 'npm' ? 'npm run ztd --' : `${packageManager} ztd`;
   const ztdCommand =
     packageManager === 'npm' ? 'npx ztd' : packageManager === 'yarn' ? 'yarn exec ztd' : 'pnpm exec ztd';
-  const sqlAssetPath = appShape === 'webapi' ? 'src/sql/' : 'src/sql/';
-  const sqlClientPath = appShape === 'webapi' ? 'src/infrastructure/db/sql-client.ts' : 'src/db/sql-client.ts';
-  const repositoryTelemetryPath = 'src/infrastructure/telemetry/repositoryTelemetry.ts';
   const firstStep =
     workflow === 'pg_dump'
       ? `Review the dumped DDL in ${schemaRelativePath} and adjust it before generating downstream artifacts`
       : `If the schema file is empty, edit ${schemaRelativePath} before generating downstream artifacts`;
-  const sqlStep =
-    appShape === 'webapi'
-      ? `Add or edit your first SQL asset under ${sqlAssetPath} while keeping src/domain, src/application, and src/presentation/http free from direct SQL or DDL concerns`
-      : `Add or edit your first SQL asset under ${sqlAssetPath} so the happy path starts from a human-maintained query file`;
-  const aiGuidanceStep =
-    'Open README.md and follow the Getting Started With AI section before writing repository code';
+  const sqlStep = 'Start in src/features/smoke/ and copy that layout for your first real feature';
+  const aiGuidanceStep = 'Open README.md and follow the Getting Started With AI section before writing repository code';
   const generationSteps = [
     `Run ${ztdCommand} ztd-config to regenerate DDL-derived test rows and layout metadata`,
     `Run ${ztdCommand} model-gen --probe-mode ztd <sql-file> --out <spec-file> to scaffold a QuerySpec from that SQL file`
   ];
-  const wiringStep =
-    appShape === 'webapi'
-      ? `Review ${sqlClientPath} and ${repositoryTelemetryPath} so the first SQL-backed repository has a seam to plug into`
-      : `Review ${sqlClientPath} and ${repositoryTelemetryPath} so the first SQL-backed repository has a seam to plug into`;
-  const firstTestStep = `Run tests (${runScriptCommand('test')} or npx vitest run) to pass the generated smoke test before adding SQL-backed coverage`;
+  const wiringStep = 'Review src/features/smoke/application/smoke-workflow.ts and the persistence files so the first slice stays local';
+  const firstTestStep = `Run tests (${runScriptCommand('test')} or npx vitest run) to pass the generated smoke tests before adding more features`;
   const sampleTestStep =
-    'Open tests/queryspec.example.test.ts for the QuerySpec + CatalogExecutor sample, and tests/smoke.test.ts for the fixture-backed ZTD rewrite sample';
+    'Open src/features/smoke/tests/smoke.test.ts for the feature-local sample and tests/queryspec.example.test.ts for the repo-level support sample';
   const fallbackSteps = [
-    `If ${ztdCommand} ztd-config fails, keep editing ${schemaRelativePath} and ${sqlAssetPath} first, then rerun generation after the DDL is ready`,
+    `If ${ztdCommand} ztd-config fails, keep editing ${schemaRelativePath} and the feature-local SQL file first, then rerun generation after the DDL is ready`,
     `If ${ztdCommand} model-gen fails, keep the SQL file and rerun it after ${ztdCommand} ztd-config succeeds; the ztd probe path does not need DATABASE_URL`,
     'If you do not have ZTD_TEST_DATABASE_URL yet, use the generated smoke test as the first DB-free pass and wait to add SQL-backed tests until the connection is ready'
   ];
+
+  if (starter) {
+    const starterNextSteps = [
+      'Run docker compose up -d to start the bundled Postgres container',
+      `The bundled compose file uses ${postgresImage}; export ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5432/ztd before running Vitest`,
+      `Run tests (${runScriptCommand('test')} or npx vitest run) to confirm the smoke slice is green`,
+      'Read src/features/smoke/ first, then copy that layout for src/features/users/ as your first real feature',
+      ...generationSteps,
+      wiringStep,
+      sampleTestStep,
+      firstTestStep
+    ];
+    return {
+      nextSteps: starterNextSteps.map((step, index) => ` ${index + 1}. ${step}`),
+      fallbackSteps: fallbackSteps.map((step) => ` - ${step}`)
+    };
+  }
 
   if (scaffoldProfile.dependencyProfile === 'local-source') {
     const localSourceSteps = [
@@ -2154,11 +2186,14 @@ function buildSummaryLines(
   optionalFeatures: OptionalFeatures,
   nextSteps: { nextSteps: string[]; fallbackSteps: string[] },
   scaffoldProfile: InitScaffoldProfile,
+  starter: boolean,
+  postgresImage: string,
   installNote?: string | null
 ): string[] {
   const orderedKeys: FileKey[] = [
     'schema',
     'config',
+    'starterCompose',
     'readme',
     'context',
     'promptDogfood',
@@ -2169,24 +2204,22 @@ function buildSummaryLines(
     'internalAgentsZtd',
     'ztdDocsReadme',
     'sqlReadme',
-    'jobsReadme',
-    'domainReadme',
-    'applicationReadme',
-    'presentationHttpReadme',
-    'infrastructureReadme',
-    'persistenceReadme',
+    'featureRootReadme',
+    'smokeReadme',
+    'smokeApplicationReadme',
+    'smokeDomainReadme',
+    'smokePersistenceReadme',
+    'smokeTestsReadme',
+    'smokeDomain',
+    'smokeApplication',
+    'smokeSql',
     'smokeSpec',
-    'smokeCoercions',
-    'smokeRuntime',
     'localSourceGuardScript',
     'smokeValidationTest',
-    'testsSmoke',
+    'smokeTest',
     'querySpecExampleTest',
     'sqlClient',
     'sqlClientAdapters',
-    'repositoryTelemetryTypes',
-    'repositoryTelemetryConsole',
-    'repositoryTelemetryEntry',
     'testkitClient',
     'globalSetup',
     'vitestConfig',
@@ -2223,6 +2256,12 @@ function buildSummaryLines(
       ? 'Zod (zod, docs/recipes/validation-zod.md)'
       : 'ArkType (arktype, docs/recipes/validation-arktype.md)';
   lines.push(` - Validator backend: ${validatorLabel}`);
+  if (starter) {
+    lines.push('', 'Starter flow:');
+    lines.push(' - Visible AGENTS.md files are installed for the starter flow.');
+    lines.push(` - Bundled Postgres compose image: ${postgresImage}`);
+    lines.push(' - Run docker compose up -d before Vitest so the starter DB path is ready.');
+  }
   if (optionalFeatures.aiGuidance) {
     lines.push('', 'AI guidance:');
     lines.push(' - Internal guidance is managed under .ztd/agents/.');
@@ -2255,13 +2294,18 @@ interface InitDryRunPlan {
   schemaVersion: 1;
   workflow: InitWorkflow;
   validator: ValidatorBackend;
+  starter: boolean;
+  postgresImage: string;
   dryRun: true;
   files: string[];
 }
 
 function buildInitDryRunPlan(rootDir: string, options: {
   appShape: InitAppShape;
+  starter?: boolean;
+  postgresImage?: string;
   withAiGuidance?: boolean;
+  withDogfooding?: boolean;
   withSqlClient?: boolean;
   withAppInterface?: boolean;
   workflow: InitWorkflow;
@@ -2271,11 +2315,23 @@ function buildInitDryRunPlan(rootDir: string, options: {
   const schemaName = normalizeSchemaName(DEFAULT_ZTD_CONFIG.ddl.defaultSchema);
   const schemaFileName = `${sanitizeSchemaFileName(schemaName)}.sql`;
   const scaffoldLayout = resolveInitScaffoldLayout(rootDir, options.appShape);
+  const starter = options.starter === true;
+  const postgresImage = options.postgresImage?.trim() || DEFAULT_POSTGRES_IMAGE;
   const files = [
     'ztd.config.json',
     path.join(DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
-    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'smoke.test.ts'),
-    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'smoke.validation.test.ts'),
+    path.join('src', 'features', 'README.md'),
+    path.join('src', 'features', 'smoke', 'README.md'),
+    path.join('src', 'features', 'smoke', 'application', 'README.md'),
+    path.join('src', 'features', 'smoke', 'domain', 'README.md'),
+    path.join('src', 'features', 'smoke', 'persistence', 'README.md'),
+    path.join('src', 'features', 'smoke', 'tests', 'README.md'),
+    path.join('src', 'features', 'smoke', 'domain', 'smoke-policy.ts'),
+    path.join('src', 'features', 'smoke', 'application', 'smoke-workflow.ts'),
+    path.join('src', 'features', 'smoke', 'persistence', 'smoke.sql'),
+    path.join('src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'),
+    path.join('src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'),
+    path.join('src', 'features', 'smoke', 'tests', 'smoke.test.ts'),
     path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'testkit-client.ts'),
     path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
     path.join(DEFAULT_ZTD_CONFIG.testsDir, 'queryspec.example.test.ts'),
@@ -2287,26 +2343,42 @@ function buildInitDryRunPlan(rootDir: string, options: {
     'tsconfig.json'
   ];
 
+  if (starter) {
+    files.push(
+      STARTER_COMPOSE_FILE,
+      'AGENTS.md',
+      path.join('ztd', 'AGENTS.md'),
+      path.join('ztd', 'ddl', 'AGENTS.md'),
+      path.join('src', 'AGENTS.md'),
+      path.join('src', 'features', 'AGENTS.md'),
+      path.join('src', 'features', 'smoke', 'AGENTS.md'),
+      path.join('src', 'features', 'smoke', 'application', 'AGENTS.md'),
+      path.join('src', 'features', 'smoke', 'domain', 'AGENTS.md'),
+      path.join('src', 'features', 'smoke', 'persistence', 'AGENTS.md'),
+      path.join('src', 'features', 'smoke', 'tests', 'AGENTS.md'),
+      path.join('tests', 'AGENTS.md'),
+      path.join('tests', 'support', 'AGENTS.md'),
+      path.join('tests', 'generated', 'AGENTS.md')
+    );
+  }
+
   if (options.withAiGuidance) {
     files.push('.ztd/agents/manifest.json');
     files.push('.ztd/agents/root.md');
     files.push('.ztd/agents/src.md');
+    files.push('.ztd/agents/src-features.md');
+    files.push('.ztd/agents/src-features-smoke.md');
+    files.push('.ztd/agents/src-features-smoke-application.md');
+    files.push('.ztd/agents/src-features-smoke-domain.md');
+    files.push('.ztd/agents/src-features-smoke-persistence.md');
+    files.push('.ztd/agents/src-features-smoke-tests.md');
     files.push('.ztd/agents/tests.md');
     files.push('.ztd/agents/ztd.md');
     files.push('CONTEXT.md');
   }
 
-  if (options.appShape === 'webapi') {
-    if (options.withAiGuidance) {
-      files.push('PROMPT_DOGFOOD.md');
-    }
-    files.push('src/domain/README.md');
-    files.push('src/application/README.md');
-    files.push('src/presentation/http/README.md');
-    files.push('src/infrastructure/README.md');
-    files.push('src/infrastructure/persistence/README.md');
-  } else {
-    files.push('src/jobs/README.md');
+  if (options.withDogfooding) {
+    files.push('PROMPT_DOGFOOD.md');
   }
 
   files.push(normalizeCliPath(path.relative(rootDir, scaffoldLayout.sqlClientPath)));
@@ -2328,6 +2400,8 @@ function buildInitDryRunPlan(rootDir: string, options: {
     schemaVersion: 1,
     workflow: options.workflow,
     validator: options.validator,
+    starter,
+    postgresImage,
     dryRun: true,
     files: files.map((file) => normalizeCliPath(file))
   };
@@ -2346,8 +2420,11 @@ export function registerInitCommand(program: Command): void {
   program
     .command('init')
     .description('Automate project setup for Zero Table Dependency workflows')
-    .option('--app-shape <type>', 'Application scaffold shape: default or webapi (default: default)')
+    .option('--app-shape <type>', 'Deprecated compatibility option; the vertical scaffold ignores it')
+    .option('--starter', 'Generate the recommended starter flow with visible AGENTS, compose, and sample DDL')
+    .option('--postgres-image <image>', 'Postgres image/tag to use in the starter compose file (default: postgres:18)')
     .option('--with-ai-guidance', 'Generate internal AI guidance files such as CONTEXT.md and .ztd/agents/*')
+    .option('--with-dogfooding', 'Generate PROMPT_DOGFOOD.md for AI prompt dogfooding and debugging')
     .option('--with-sqlclient', 'Generate a minimal SqlClient interface for repositories')
     .option('--with-app-interface', 'Append application interface guidance to AGENTS.md only')
     .option('--skip-install', 'Create the scaffold without installing dependencies')
@@ -2363,7 +2440,10 @@ export function registerInitCommand(program: Command): void {
     )
     .action(async (options: {
       appShape?: string;
+      starter?: boolean;
+      postgresImage?: string;
       withAiGuidance?: boolean;
+      withDogfooding?: boolean;
       withSqlclient?: boolean;
       withAppInterface?: boolean;
       skipInstall?: boolean;
@@ -2383,10 +2463,16 @@ export function registerInitCommand(program: Command): void {
       validateJsonBooleanFlag(merged.yes, 'yes');
       validateJsonBooleanFlag(merged.dryRun, 'dry-run');
       validateJsonBooleanFlag(merged.force, 'force');
+      validateJsonBooleanFlag(merged.starter, 'starter');
       validateJsonBooleanFlag(merged.withAiGuidance, 'with-ai-guidance');
+      validateJsonBooleanFlag(merged.withDogfooding, 'with-dogfooding');
       validateJsonBooleanFlag(merged.withSqlclient, 'with-sqlclient');
       validateJsonBooleanFlag(merged.withAppInterface, 'with-app-interface');
       validateJsonBooleanFlag(merged.skipInstall, 'skip-install');
+      if (merged.postgresImage !== undefined && typeof merged.postgresImage !== 'string') {
+        console.error('Invalid --postgres-image value in --json payload. Expected a string.');
+        process.exit(1);
+      }
       // Validate --workflow value if provided.
       if (merged.workflow && !VALID_WORKFLOWS.includes(merged.workflow as InitWorkflow)) {
         console.error(`Invalid --workflow value: "${merged.workflow}". Must be one of: ${VALID_WORKFLOWS.join(', ')}`);
@@ -2408,6 +2494,8 @@ export function registerInitCommand(program: Command): void {
       const workflow = (merged.workflow as InitWorkflow | undefined) ?? (isNonInteractive ? 'demo' : undefined);
       const validator = (merged.validator as ValidatorBackend | undefined) ?? (isNonInteractive ? 'zod' : undefined);
       const appShape = (merged.appShape as InitAppShape | undefined) ?? 'default';
+      const starter = merged.starter === true;
+      const postgresImage = (merged.postgresImage as string | undefined) ?? DEFAULT_POSTGRES_IMAGE;
 
       if (isNonInteractive && workflow === 'pg_dump') {
         console.error('Non-interactive mode does not support the pg_dump workflow (requires connection string prompt).');
@@ -2417,7 +2505,10 @@ export function registerInitCommand(program: Command): void {
       if (merged.dryRun === true) {
         const plan = buildInitDryRunPlan(process.cwd(), {
           appShape,
+          starter,
+          postgresImage,
           withAiGuidance: merged.withAiGuidance === true,
+          withDogfooding: merged.withDogfooding === true,
           withSqlClient: merged.withSqlclient === true,
           withAppInterface: merged.withAppInterface === true,
           workflow: workflow ?? 'demo',
@@ -2436,7 +2527,10 @@ export function registerInitCommand(program: Command): void {
       try {
         await runInitCommand(prompter, {
           appShape,
+          starter,
+          postgresImage,
           withAiGuidance: merged.withAiGuidance === true,
+          withDogfooding: merged.withDogfooding === true,
           withSqlClient: merged.withSqlclient === true,
           withAppInterface: merged.withAppInterface === true,
           skipInstall: merged.skipInstall === true,

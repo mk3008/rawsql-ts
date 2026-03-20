@@ -1,6 +1,6 @@
 # Package Scope
 - Applies to `packages/ztd-cli/templates/src/application`.
-- Defines application-layer orchestration for WebAPI-oriented scaffolds.
+- Defines application-layer orchestration for feature-first scaffolds.
 
 # Policy
 ## REQUIRED

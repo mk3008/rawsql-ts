@@ -1,6 +1,6 @@
 # Package Scope
 - Applies to `packages/ztd-cli/templates/src/infrastructure/persistence/repositories`.
-- Defines repository responsibilities for WebAPI-oriented persistence query units.
+- Defines repository responsibilities for feature-first persistence query units.
 
 # Policy
 ## REQUIRED

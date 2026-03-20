@@ -6,6 +6,9 @@ A monorepo for **rawsql-ts**: a SQL-first toolkit for parsing, testing, inspecti
 
 By parsing SQL into abstract syntax trees, rawsql-ts enables type-safe query building, static validation, and transparent result mapping — all while preserving the expressiveness and control of handwritten SQL. AST-based rewriting also powers Zero Table Dependency (ZTD) testing, which transforms application queries to run against in-memory fixtures instead of physical tables, enabling deterministic unit tests without database setup overhead. The repo additionally covers AST-based impact analysis, deterministic test evidence, schema documentation, and `ztd-cli` workflows for inspection and SQL artifact generation.
 
+The `ztd init` scaffold now starts from a feature-first layout under `src/features/<feature>/` and includes `src/features/smoke/` as the removable teaching feature.
+`src/catalog` may still exist as internal support, but it is no longer the user-facing standard location.
+
 > [!Note]
 > This project is currently in beta. APIs may change until the v1.0 release.
 
@@ -118,6 +121,7 @@ See the [Core Package Documentation](./packages/core/README.md) for usage exampl
 ## Tutorials
 
 - [SQL-first End-to-End Tutorial](./docs/guide/sql-first-end-to-end-tutorial.md) - Walk from DDL to `ztd-config`, `model-gen`, repository wiring, and the first passing smoke test in one focused path.
+- [Migration Repair Loop](./docs/dogfooding/ztd-migration-lifecycle.md) - Repair DDL, SQL, DTO, and migration artifacts with AI after the starter flow is green.
 
 ## Intent and Procedure
 

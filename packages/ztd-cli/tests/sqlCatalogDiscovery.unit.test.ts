@@ -42,6 +42,33 @@ test('sql catalog discovery keeps deterministic ordering and excludes .test. fil
   expect(checkFiles.map((filePath) => path.basename(filePath))).toEqual(['a.spec.ts', 'b.spec.json']);
 });
 
+test('sql catalog discovery finds feature-local specs under src/features', () => {
+  const root = createWorkspace('sql-catalog-features');
+  mkdirSync(path.join(root, 'src', 'features', 'smoke', 'persistence', 'generated'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'),
+    "export const smoke = { id: 'features.smoke.persistence.smoke', sqlFile: './smoke.sql', params: { shape: 'named', example: { id: null } } };",
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'features', 'smoke', 'persistence', 'generated', 'smoke.generated.ts'),
+    "export const generated = { id: 'features.smoke.persistence.generated', sqlFile: './generated.sql', params: { shape: 'named' } };",
+    'utf8'
+  );
+
+  const allFiles = walkSqlCatalogSpecFiles(path.join(root, 'src', 'features'));
+  const checkFiles = walkSqlCatalogSpecFiles(path.join(root, 'src', 'features'), {
+    excludeTestFiles: true,
+    excludeGenerated: true
+  });
+
+  expect(allFiles.map((filePath) => path.basename(filePath))).toEqual([
+    'smoke.generated.ts',
+    'smoke.spec.ts'
+  ]);
+  expect(checkFiles.map((filePath) => path.basename(filePath))).toEqual(['smoke.spec.ts']);
+});
+
 test('sql catalog discovery preserves spec ids, ordering, sqlFile, and minimal extracted fields', () => {
   const root = createWorkspace('sql-catalog-minimal');
   writeFileSync(

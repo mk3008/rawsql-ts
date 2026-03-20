@@ -1,6 +1,6 @@
 # Package Scope
 - Applies to `packages/ztd-cli/templates/src/infrastructure/db`.
-- Defines SQL client seams and driver adapters for WebAPI-oriented scaffolds.
+- Defines SQL client seams and driver adapters for feature-first scaffolds.
 
 # Policy
 ## REQUIRED

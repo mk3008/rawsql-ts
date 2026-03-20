@@ -1,13 +1,13 @@
 # Package Scope
 - Applies to `packages/ztd-cli/templates/src`.
-- Governs runtime application code emitted by template generation across both generic and WebAPI-oriented layouts.
+- Governs runtime application code emitted by template generation across the feature-first layouts.
 
 # Policy
 ## REQUIRED
 - Runtime code under `src/` MUST remain independent from `tests/` and `tests/generated/` imports.
 - Runtime code MUST remain independent from ZTD internals.
 - Runtime modules MUST use explicit contracts and deterministic failure surfaces.
-- Domain, application, and presentation layers MUST stay free from direct SQL/DDL ownership when those directories exist.
+- Feature-local folders MUST stay close to the code they support.
 
 ## ALLOWED
 - Runtime modules MAY use project typecheck and filtered test commands for validation.

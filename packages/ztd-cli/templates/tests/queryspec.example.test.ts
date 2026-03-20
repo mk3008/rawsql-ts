@@ -40,43 +40,56 @@ function createCatalogExecutor({ loader, executor }: CatalogExecutorOptions) {
   };
 }
 
-type UserProfileRow = {
+type UserSummaryRow = {
   userId: string;
+  email: string;
   displayName: string;
+  isActive: boolean;
 };
 
-const listActiveUsersSpec: QuerySpec<[], UserProfileRow> = {
+const listActiveUsersSpec: QuerySpec<[boolean], UserSummaryRow> = {
   id: 'users.list-active',
   sqlFile: 'src/sql/users/list-active-users.sql',
   params: {
     shape: 'positional',
-    example: [] as []
+    example: [true] as [boolean]
   },
   output: {
     mapping: rowMapping({
-      name: 'UserProfile',
+      name: 'UserSummary',
       key: 'userId',
       columnMap: {
         userId: 'user_id',
-        displayName: 'display_name'
+        email: 'email',
+        displayName: 'display_name',
+        isActive: 'is_active'
       }
     }),
     validate: (value) => {
-      const row = value as { user_id: unknown; display_name: unknown };
+      const row = value as {
+        user_id: unknown;
+        email: unknown;
+        display_name: unknown;
+        is_active: unknown;
+      };
       return {
         userId: String(row.user_id),
-        displayName: String(row.display_name)
+        email: String(row.email),
+        displayName: String(row.display_name),
+        isActive: Boolean(row.is_active)
       };
     },
     example: {
       userId: 'user-1',
-      displayName: 'Alice'
+      email: 'alice@example.com',
+      displayName: 'Alice',
+      isActive: true
     }
   },
-  notes: 'Use this as the sample when you add the first repository-backed QuerySpec.'
+  notes: 'Use this as the sample when you add the first users QuerySpec.'
 };
 
-test('queryspec example keeps SQL, rowMapping, and CatalogExecutor aligned', async () => {
+test('queryspec example keeps users SQL, rowMapping, and CatalogExecutor aligned', async () => {
   const loadedSql: string[] = [];
   const executedSql: Array<{ sql: string; params: readonly unknown[] }> = [];
 
@@ -84,7 +97,7 @@ test('queryspec example keeps SQL, rowMapping, and CatalogExecutor aligned', asy
     loader: {
       async load(sqlFile: string) {
         loadedSql.push(sqlFile);
-        return 'select user_id, display_name from "user"';
+        return 'select user_id, email, display_name, is_active from users where is_active = :is_active order by user_id';
       }
     },
     executor: async (sql, params) => {
@@ -92,31 +105,37 @@ test('queryspec example keeps SQL, rowMapping, and CatalogExecutor aligned', asy
       return [
         {
           user_id: 'user-1',
-          display_name: 'Alice'
+          email: 'alice@example.com',
+          display_name: 'Alice',
+          is_active: true
         }
       ];
     }
   });
 
-  const rows = await executor.list(listActiveUsersSpec, []);
+  const rows = await executor.list(listActiveUsersSpec, [true]);
 
   expect(loadedSql).toEqual(['src/sql/users/list-active-users.sql']);
   expect(executedSql).toEqual([
     {
-      sql: 'select user_id, display_name from "user"',
-      params: []
+      sql: 'select user_id, email, display_name, is_active from users where is_active = :is_active order by user_id',
+      params: [true]
     }
   ]);
   expect(rows).toEqual([
     {
       userId: 'user-1',
-      displayName: 'Alice'
+      email: 'alice@example.com',
+      displayName: 'Alice',
+      isActive: true
     }
   ]);
   expect(
     listActiveUsersSpec.output.validate?.({
       user_id: 'user-1',
-      display_name: 'Alice'
+      email: 'alice@example.com',
+      display_name: 'Alice',
+      is_active: true
     })
   ).toEqual(listActiveUsersSpec.output.example);
 });
