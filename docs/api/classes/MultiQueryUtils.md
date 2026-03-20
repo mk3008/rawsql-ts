@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: MultiQueryUtils
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:381](https://github.com/mk3008/rawsql-ts/blob/1f5539f5ca8ae5592d6a0246b09ae3cb6fd0e095/packages/core/src/utils/MultiQuerySplitter.ts#L381)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:381](https://github.com/mk3008/rawsql-ts/blob/6cdd42af781c619cdff6eec095b8bfd090dff85e/packages/core/src/utils/MultiQuerySplitter.ts#L381)
 
 Utility functions for working with query collections
 
@@ -21,7 +21,7 @@ Utility functions for working with query collections
 
 > `static` **getContextAt**(`text`, `cursorPosition`): `undefined` \| \{ `query`: [`QueryInfo`](../interfaces/QueryInfo.md); `relativePosition`: `number`; \}
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:389](https://github.com/mk3008/rawsql-ts/blob/1f5539f5ca8ae5592d6a0246b09ae3cb6fd0e095/packages/core/src/utils/MultiQuerySplitter.ts#L389)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:389](https://github.com/mk3008/rawsql-ts/blob/6cdd42af781c619cdff6eec095b8bfd090dff85e/packages/core/src/utils/MultiQuerySplitter.ts#L389)
 
 Get context information for IntelliSense at a cursor position
 
@@ -51,7 +51,7 @@ Active query and position within that query
 
 > `static` **extractQueries**(`text`): `string`[]
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:415](https://github.com/mk3008/rawsql-ts/blob/1f5539f5ca8ae5592d6a0246b09ae3cb6fd0e095/packages/core/src/utils/MultiQuerySplitter.ts#L415)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:415](https://github.com/mk3008/rawsql-ts/blob/6cdd42af781c619cdff6eec095b8bfd090dff85e/packages/core/src/utils/MultiQuerySplitter.ts#L415)
 
 Extract all non-empty queries from multi-query text
 
