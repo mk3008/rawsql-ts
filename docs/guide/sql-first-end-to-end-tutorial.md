@@ -25,8 +25,10 @@ README gives the first-run copy-paste path. This tutorial gives the scenario-lev
 | DDL repair | `npx ztd query uses column users.email --sql-root src/features/users/persistence --specs-dir src/features/users/persistence --any-schema --view detail` | Find the impacted feature-local SQL files before editing them |
 | SQL repair | `npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts` | Regenerate the spec from the feature-local SQL asset |
 | DTO repair | `npx vitest run` after the DTO change | Verify the feature-local runtime and tests after the shape change |
-| migration | `npx ztd ztd-config` then `npx ztd ddl diff` or `npx ztd ddl pull` | Prepare a deployable migration without asking ztd-cli to deploy it |
+| migration | `npx ztd ztd-config`, then `npx ztd ddl pull --url <target-db-url>` if you need to inspect the target, and `npx ztd ddl diff --url <target-db-url>` to prepare a deployable migration | Prepare a deployable migration without asking ztd-cli to deploy it |
 | tuning | `npx ztd query plan <sql-file>` and the perf guide under `docs/guide/` | Keep perf work in the separate tuning path, not in the starter tutorial |
+
+`ZTD_TEST_DATABASE_URL` is the only implicit database owned by ztd-cli. Use `--url` or a complete `--db-*` flag set for `ddl pull` and `ddl diff` when you want to inspect any other target.
 
 ## 1. Create the starter project
 
@@ -116,6 +118,8 @@ Each scenario should end with `vitest` passing again.
 For DDL repair, run `npx ztd query uses column users.email --sql-root src/features/users/persistence --specs-dir src/features/users/persistence --any-schema --view detail` first so the impacted SQL files come from the CLI, not from guesswork.
 
 For SQL repair, keep the SQL assets under the feature folder, keep the query on the starter DDL's `users` table, and pass that folder explicitly as `--sql-root` when you ask `model-gen` to refresh the spec.
+
+For migration work, use an explicit `--url <target-db-url>` with `ddl pull` or `ddl diff` so the target database is never inferred from the starter test database by accident.
 
 Tuning belongs to the separate performance guide and dogfooding set, not to the starter lifecycle in this tutorial. Keep the starter path focused on CRUD, DDL, SQL, DTO, and migration repair loops.
 

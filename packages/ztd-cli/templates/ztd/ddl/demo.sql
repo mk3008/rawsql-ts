@@ -8,3 +8,10 @@ create table users (
 
 create index idx_users_is_active
   on users (is_active, user_id);
+
+comment on table users is 'Starter users table for the first feature.';
+comment on column users.user_id is 'Identity primary key for the user row.';
+comment on column users.email is 'Unique email address for the user.';
+comment on column users.display_name is 'Human-readable display name for the user.';
+comment on column users.is_active is 'Whether the user is active.';
+comment on column users.created_at is 'Creation timestamp for the user row.';

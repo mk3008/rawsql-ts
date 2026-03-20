@@ -30,6 +30,36 @@ function rowMapping(mapping: { name: string; key: string; columnMap: Record<stri
   return mapping;
 }
 
+function parseBoolean(value: unknown): boolean {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    if (value === 1) {
+      return true;
+    }
+
+    if (value === 0) {
+      return false;
+    }
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+
+    if (normalized === 'true' || normalized === '1') {
+      return true;
+    }
+
+    if (normalized === 'false' || normalized === '0') {
+      return false;
+    }
+  }
+
+  throw new Error('Invalid users.list-active is_active value');
+}
+
 function createCatalogExecutor({ loader, executor }: CatalogExecutorOptions) {
   return {
     async list<TParams extends readonly unknown[], TRow>(spec: QuerySpec<TParams, TRow>, params: TParams) {
@@ -76,7 +106,7 @@ const listActiveUsersSpec: QuerySpec<[boolean], UserSummaryRow> = {
         userId: String(row.user_id),
         email: String(row.email),
         displayName: String(row.display_name),
-        isActive: Boolean(row.is_active)
+        isActive: parseBoolean(row.is_active)
       };
     },
     example: {
@@ -138,4 +168,25 @@ test('queryspec example keeps users SQL, rowMapping, and CatalogExecutor aligned
       is_active: true
     })
   ).toEqual(listActiveUsersSpec.output.example);
+  expect(
+    listActiveUsersSpec.output.validate?.({
+      user_id: 'user-1',
+      email: 'alice@example.com',
+      display_name: 'Alice',
+      is_active: 'false'
+    })
+  ).toEqual({
+    userId: 'user-1',
+    email: 'alice@example.com',
+    displayName: 'Alice',
+    isActive: false
+  });
+  expect(() =>
+    listActiveUsersSpec.output.validate?.({
+      user_id: 'user-1',
+      email: 'alice@example.com',
+      display_name: 'Alice',
+      is_active: 'maybe'
+    })
+  ).toThrow('Invalid users.list-active is_active value');
 });

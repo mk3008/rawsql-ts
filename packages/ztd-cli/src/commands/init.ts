@@ -2371,10 +2371,11 @@ function buildInitDryRunPlan(rootDir: string, options: {
     files.push('.ztd/agents/src.md');
     files.push('.ztd/agents/src-features.md');
     files.push('.ztd/agents/src-features-smoke.md');
-    files.push('.ztd/agents/src-features-smoke-application.md');
-    files.push('.ztd/agents/src-features-smoke-domain.md');
-    files.push('.ztd/agents/src-features-smoke-persistence.md');
-    files.push('.ztd/agents/src-features-smoke-tests.md');
+    files.push('.ztd/agents/src-features-application.md');
+    files.push('.ztd/agents/src-features-domain.md');
+    files.push('.ztd/agents/src-features-persistence.md');
+    files.push('.ztd/agents/src-features-tests.md');
+    files.push('.ztd/agents/src-sql.md');
     files.push('.ztd/agents/tests.md');
     files.push('.ztd/agents/ztd.md');
     files.push('CONTEXT.md');

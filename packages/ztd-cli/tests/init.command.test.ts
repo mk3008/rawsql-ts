@@ -178,6 +178,11 @@ test('init can opt into AI guidance files when explicitly requested', async () =
   expect(readNormalizedFile(path.join(workspace, 'CONTEXT.md'))).toContain('Start with `ztd init --starter`');
   expect(readNormalizedFile(path.join(workspace, 'CONTEXT.md'))).toContain('src/features/smoke');
   expect(readNormalizedFile(path.join(workspace, 'CONTEXT.md'))).toContain('src/features/users');
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'src-features-application.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'src-features-domain.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'src-features-persistence.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'src-features-tests.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'src-sql.md'))).toBe(true);
 
   const manifest = JSON.parse(readNormalizedFile(path.join(workspace, '.ztd', 'agents', 'manifest.json'))) as {
     routing_rules: Array<{ paths: string[]; scope: string }>;
@@ -185,8 +190,9 @@ test('init can opt into AI guidance files when explicitly requested', async () =
   expect(manifest.routing_rules).toEqual(
     expect.arrayContaining([
       expect.objectContaining({ scope: 'src-features' }),
-      expect.objectContaining({ scope: 'src-features-smoke-persistence' }),
-      expect.objectContaining({ scope: 'src-features-smoke-tests' })
+      expect.objectContaining({ scope: 'src-features-persistence' }),
+      expect.objectContaining({ scope: 'src-features-tests' }),
+      expect.objectContaining({ scope: 'src-sql' })
     ])
   );
 });

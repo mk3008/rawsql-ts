@@ -85,15 +85,15 @@ test('writeInternalAgentsArtifacts creates managed payloads and sidecars unmanag
       expect.objectContaining({
         prompt: 'Convert this slice to a feature-first layout',
         preferred_scopes: expect.arrayContaining([
-          'src-features-smoke-application',
-          'src-features-smoke-domain',
-          'src-features-smoke-persistence',
-          'src-features-smoke-tests'
+          'src-features-application',
+          'src-features-domain',
+          'src-features-persistence',
+          'src-features-tests'
         ])
       }),
       expect.objectContaining({
         prompt: 'Add SQL and keep the feature local',
-        preferred_scopes: expect.arrayContaining(['src-features-smoke-persistence', 'src-features-smoke-tests'])
+        preferred_scopes: expect.arrayContaining(['src-sql', 'src-features-persistence', 'src-features-tests'])
       })
     ])
   );

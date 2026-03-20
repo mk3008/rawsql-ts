@@ -8,6 +8,7 @@
 - Runtime code MUST remain independent from ZTD internals.
 - Runtime modules MUST use explicit contracts and deterministic failure surfaces.
 - Feature-local folders MUST stay close to the code they support.
+- Domain, application, and presentation folders MUST stay free from direct SQL/DDL ownership when those folders exist.
 
 ## ALLOWED
 - Runtime modules MAY use project typecheck and filtered test commands for validation.
