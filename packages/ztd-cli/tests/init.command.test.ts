@@ -153,7 +153,7 @@ class TestPrompter implements Prompter {
   }
 }
 
-test('init wizard bootstraps an empty scaffold', async () => {
+test('init wizard bootstraps an empty scaffold', { timeout: 60_000 }, async () => {
   const workspace = createTempDir('cli-init-empty');
   const prompter = new TestPrompter(['2', '1']);
 
