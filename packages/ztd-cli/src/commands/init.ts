@@ -376,6 +376,9 @@ const STARTER_README_APPENDIX = (postgresImage: string): string =>
     `2. The bundled compose file uses \`${postgresImage}\`.`,
     '3. Export `ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5432/ztd` before running Vitest.',
     '4. Read `src/features/smoke/` first, then add `src/features/users/` as your first real feature.',
+    '5. Run `npx ztd ztd-config` to regenerate DDL-derived test rows and layout metadata.',
+    '6. Run `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` to scaffold a QuerySpec from that SQL file.',
+    '7. Run `npm run test` or `npx vitest run` to confirm the smoke slice is green.',
     ''
   ].join('\n');
 

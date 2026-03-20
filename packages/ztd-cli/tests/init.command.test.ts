@@ -148,6 +148,9 @@ test('init starter bootstraps visible AGENTS, compose, starter DDL, and smoke te
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Starter Flow');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('ZTD_TEST_DATABASE_URL');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/features/users');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd model-gen');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npm run test');
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
     devDependencies: Record<string, string>;
   };
