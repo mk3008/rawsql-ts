@@ -25,7 +25,7 @@ README gives the first-run copy-paste path. This tutorial gives the scenario-lev
 | DDL repair | `npx ztd query uses column users.email --sql-root src/features/users/persistence --specs-dir src/features/users/persistence --any-schema --view detail` | Find the impacted feature-local SQL files before editing them |
 | SQL repair | `npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts` | Regenerate the spec from the feature-local SQL asset |
 | DTO repair | `npx vitest run` after the DTO change | Verify the feature-local runtime and tests after the shape change |
-| migration | `npx ztd ztd-config`, then `npx ztd ddl pull --url <target-db-url>` if you need to inspect the target, and `npx ztd ddl diff --url <target-db-url>` to prepare a deployable migration | Prepare a deployable migration without asking ztd-cli to deploy it |
+| migration | `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url>` to prepare a deployable migration | Prepare a deployable migration without asking ztd-cli to deploy it |
 | tuning | `npx ztd query plan <sql-file>` and the perf guide under `docs/guide/` | Keep perf work in the separate tuning path, not in the starter tutorial |
 
 `ZTD_TEST_DATABASE_URL` is the only implicit database owned by ztd-cli. Use `--url` or a complete `--db-*` flag set for `ddl pull` and `ddl diff` when you want to inspect any other target.
@@ -131,7 +131,7 @@ Use a fresh AI prompt for this step so we can confirm the migration guidance wor
 
 1. Edit the DDL in `ztd/ddl/demo.sql` or the relevant schema file.
 2. Run `npx ztd ztd-config` to refresh the ZTD-generated artifacts.
-3. Run `npx ztd ddl diff` or `npx ztd ddl pull` against an explicit target when you need a migration plan.
+3. Optionally run `npx ztd ddl pull --url <target-db-url>` to inspect the target, then run `npx ztd ddl diff --url <target-db-url>` when you need a migration plan.
 4. Apply the generated SQL outside `ztd-cli`.
 5. Re-run `npx vitest run` after the migration lands.
 

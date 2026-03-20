@@ -20,7 +20,7 @@ These prompts are intended to be copied into a separate AI instance, so the tuto
 - DDL repair: `npx ztd query uses column users.email --sql-root src/features/users/persistence --specs-dir src/features/users/persistence --any-schema --view detail`
 - SQL repair: `npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts`
 - DTO repair: `npx vitest run`
-- migration artifact creation: `npx ztd ztd-config`, then `npx ztd ddl pull --url <target-db-url>` if you need to inspect the target, and `npx ztd ddl diff --url <target-db-url>` to generate or update the migration SQL
+- migration artifact creation: `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url>` to generate or update the migration SQL
 - tuning: use the separate perf guide, not this starter lifecycle
 
 `ZTD_TEST_DATABASE_URL` is the only implicit database owned by ztd-cli. Use `--url` or a full `--db-*` flag set for any other inspection target.
@@ -61,7 +61,7 @@ Do not apply migrations automatically.
 I changed the DDL for users and need a migration artifact.
 Read the nearest AGENTS.md files first.
 Run `npx ztd ztd-config`.
-If you need to inspect the target first, run `npx ztd ddl pull --url <target-db-url>`.
+Optionally run `npx ztd ddl pull --url <target-db-url>` to inspect the target first.
 Run `npx ztd ddl diff --url <target-db-url>` to generate or update the migration SQL, then fix the tests that fail.
 Do not apply migrations automatically.
 ```

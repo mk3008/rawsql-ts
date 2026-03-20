@@ -127,7 +127,7 @@ See the [Core Package Documentation](./packages/core/README.md) for usage exampl
 
 Treat each query as one unit: 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.
 
-Keep handwritten SQL assets in `src/sql/` as the single human-owned source location for query logic.
+Keep handwritten SQL assets close to each feature in `src/features/<feature>/persistence/` so the SQL, specs, and tests stay in one place.
 
 Use this repo by treating DDL and SQL as source assets, and generated specs, repositories, and tests as downstream artifacts that must stay in sync.
 

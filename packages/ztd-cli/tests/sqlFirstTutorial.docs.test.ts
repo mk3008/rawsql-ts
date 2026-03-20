@@ -34,7 +34,7 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
     'DDL repair | `npx ztd query uses column users.email --sql-root src/features/users/persistence --specs-dir src/features/users/persistence --any-schema --view detail`',
     'SQL repair | `npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts`',
     'DTO repair | `npx vitest run` after the DTO change',
-    'migration | `npx ztd ztd-config`, then `npx ztd ddl pull --url <target-db-url>` if you need to inspect the target, and `npx ztd ddl diff --url <target-db-url>` to prepare a deployable migration',
+    'migration | `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url>` to prepare a deployable migration',
     'tuning | `npx ztd query plan <sql-file>` and the perf guide under `docs/guide/`',
     'npx ztd init --starter',
     'src/features/smoke',
