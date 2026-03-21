@@ -388,7 +388,7 @@ function verifyPnpmStarterPath(packages) {
 
   // Rebind workspace packages to the freshly packed tarballs so the scaffold install exercises the published manifests.
   fs.writeFileSync(path.join(appDir, "package.json"), `${JSON.stringify(scaffoldPackageJson, null, 2)}\n`, "utf8");
-  runIn(appDir, PNPM, ["install"]);
+  runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
 
   return appDir;
 }
