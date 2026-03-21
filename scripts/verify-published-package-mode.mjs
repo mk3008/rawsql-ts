@@ -393,6 +393,54 @@ function verifyPnpmStarterPath(packages) {
   return appDir;
 }
 
+function verifyPnpmAdapterInstall(packages) {
+  const appDir = path.resolve(workspaceRoot, "..", "tmp", "published-package-check-standalone", "pnpm-adapter-path");
+  ensureCleanDir(appDir);
+
+  const tarballDependencies = createTarballDependencyMap(packages);
+  writePackageJson(appDir, {
+    name: "pnpm-adapter-path-check",
+    private: true,
+    version: "0.0.0",
+    devDependencies: {
+      "@rawsql-ts/ztd-cli": tarballDependencies["@rawsql-ts/ztd-cli"],
+    },
+    pnpm: {
+      overrides: tarballDependencies,
+    },
+  });
+
+  runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
+  runIn(appDir, PNPM, [
+    "exec",
+    "--",
+    "ztd",
+    "init",
+    "--starter",
+    "--with-ai-guidance",
+    "--with-dogfooding",
+    "--yes",
+    "--skip-install",
+  ]);
+
+  const scaffoldPackageJson = readPackageJson(appDir);
+  scaffoldPackageJson.devDependencies = {
+    ...(scaffoldPackageJson.devDependencies ?? {}),
+    "@rawsql-ts/adapter-node-pg": tarballDependencies["@rawsql-ts/adapter-node-pg"],
+  };
+  scaffoldPackageJson.pnpm = {
+    ...(scaffoldPackageJson.pnpm ?? {}),
+    overrides: tarballDependencies,
+  };
+  assertNoWorkspaceProtocols(scaffoldPackageJson, "adapter-scaffold");
+
+  // Rebind the generated scaffold to packed tarballs so the adapter install exercises the published manifests.
+  fs.writeFileSync(path.join(appDir, "package.json"), `${JSON.stringify(scaffoldPackageJson, null, 2)}\n`, "utf8");
+  runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
+
+  return appDir;
+}
+
 function verifyOverwriteSafety(packages) {
   const appDir = path.join(packageRoot, "overwrite-safety");
   ensureCleanDir(appDir);
@@ -452,6 +500,7 @@ function main() {
   const npmPrimaryPathApp = verifyNpmPrimaryPath(packedPackages);
   const npmSmokeApp = verifyNpmConsumerSmoke(npmPrimaryPathApp);
   const pnpmStarterApp = verifyPnpmStarterPath(packedPackages);
+  const pnpmAdapterApp = verifyPnpmAdapterInstall(packedPackages);
   const overwriteSafetyApp = verifyOverwriteSafety(packedPackages);
 
   writeJson(path.join(outputRoot, "summary.json"), {
@@ -463,6 +512,7 @@ function main() {
     firstTestGateApp: npmSmokeApp,
     npmSmokeApp,
     pnpmStarterApp,
+    pnpmAdapterApp,
     overwriteSafetyApp,
     packages: packedPackages.map((pkg) => ({
       name: pkg.name,
