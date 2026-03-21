@@ -1,5 +1,14 @@
 # @rawsql-ts/ddl-docs-vitepress
 
+## 0.2.3
+
+### Patch Changes
+
+- [#634](https://github.com/mk3008/rawsql-ts/pull/634) [`d0c63f2`](https://github.com/mk3008/rawsql-ts/commit/d0c63f22298f8ec1aa6e23d783e986c07cf0285d) Thanks [@mk3008](https://github.com/mk3008)! - Add repository metadata to the ddl-docs packages so npm Trusted Publishing provenance validation can verify the package source during release.
+
+- Updated dependencies [[`d0c63f2`](https://github.com/mk3008/rawsql-ts/commit/d0c63f22298f8ec1aa6e23d783e986c07cf0285d)]:
+  - @rawsql-ts/ddl-docs-cli@0.2.4
+
 ## 0.2.2
 
 ### Patch Changes
