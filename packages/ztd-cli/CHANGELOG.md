@@ -1,5 +1,21 @@
 # @rawsql-ts/ztd-cli
 
+## 0.22.0
+
+### Minor Changes
+
+- [#626](https://github.com/mk3008/rawsql-ts/pull/626) [`25fdcd3`](https://github.com/mk3008/rawsql-ts/commit/25fdcd321a239cfeb77d4a9b4fcaaff2f479d88a) Thanks [@mk3008](https://github.com/mk3008)! - Refresh the ztd-cli starter workflow and README so the feature-first starter scaffold, AI prompt, tutorial, and dogfooding guidance line up with the new first-run experience.
+
+### Patch Changes
+
+- [#621](https://github.com/mk3008/rawsql-ts/pull/621) [`ecd69d2`](https://github.com/mk3008/rawsql-ts/commit/ecd69d267ae959a65a92fc61b646d098e90ced74) Thanks [@mk3008](https://github.com/mk3008)! - Keep the generated QuerySpec sample aligned with the published consumer smoke path and add a contract guard for uncovered SQL assets so the scaffolded repository example validates raw rows correctly.
+
+- [#625](https://github.com/mk3008/rawsql-ts/pull/625) [`9a4aab3`](https://github.com/mk3008/rawsql-ts/commit/9a4aab3e59310d60c65794d373f071f7c3016ed7) Thanks [@mk3008](https://github.com/mk3008)! - Add `ztd findings validate` so machine-readable finding registries can be checked deterministically in CI or locally.
+
+- [#624](https://github.com/mk3008/rawsql-ts/pull/624) [`c6495af`](https://github.com/mk3008/rawsql-ts/commit/c6495afa7c2f18c25ebf33f31f434482ef44f453) Thanks [@mk3008](https://github.com/mk3008)! - Add a small PostgreSQL 18 Docker helper to the Getting Started with AI guidance so users can bootstrap a local ZTD test database more easily.
+
+- [#623](https://github.com/mk3008/rawsql-ts/pull/623) [`eedf9db`](https://github.com/mk3008/rawsql-ts/commit/eedf9db9bac9d4200d73bd67eb6dc9885b13873b) Thanks [@mk3008](https://github.com/mk3008)! - Add a machine-readable finding registry example, validation helper, and docs link so dogfooding findings can carry evidence and status consistently.
+
 ## 0.21.0
 
 ### Minor Changes
