@@ -360,7 +360,7 @@ function verifyPnpmStarterPath(packages) {
     },
   });
 
-  runIn(appDir, PNPM, ["install"]);
+  runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
   runIn(appDir, PNPM, [
     "exec",
     "--",
