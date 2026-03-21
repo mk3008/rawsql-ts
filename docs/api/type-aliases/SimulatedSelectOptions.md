@@ -3,5 +3,5 @@
 
 > **SimulatedSelectOptions** = [`InsertResultSelectOptions`](../interfaces/InsertResultSelectOptions.md) & [`UpdateResultSelectOptions`](../interfaces/UpdateResultSelectOptions.md) & [`DeleteResultSelectOptions`](../interfaces/DeleteResultSelectOptions.md) & [`MergeResultSelectOptions`](../interfaces/MergeResultSelectOptions.md) & [`SelectResultSelectOptions`](../interfaces/SelectResultSelectOptions.md)
 
-Defined in: [packages/core/src/transformers/SimulatedSelectConverter.ts:16](https://github.com/mk3008/rawsql-ts/blob/7108391e98aba0496784d65ee254f11bb7408229/packages/core/src/transformers/SimulatedSelectConverter.ts#L16)
+Defined in: [packages/core/src/transformers/SimulatedSelectConverter.ts:16](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/SimulatedSelectConverter.ts#L16)
 </div>
