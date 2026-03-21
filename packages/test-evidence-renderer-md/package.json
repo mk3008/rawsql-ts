@@ -38,7 +38,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/test-evidence-core": "workspace:*"
+    "@rawsql-ts/test-evidence-core": "^0.2.0"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

@@ -42,11 +42,11 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/sql-contract": "workspace:*",
+    "@rawsql-ts/sql-contract": "^0.3.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@rawsql-ts/test-evidence-core": "workspace:*",
+    "@rawsql-ts/test-evidence-core": "^0.2.0",
     "typescript": "^5.8.2",
     "vitest": "^4.0.7"
   },
