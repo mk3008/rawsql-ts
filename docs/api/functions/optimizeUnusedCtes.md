@@ -3,7 +3,7 @@
 
 > **optimizeUnusedCtes**(`query`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/OptimizeUnusedLeftJoins.ts:440](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/transformers/OptimizeUnusedLeftJoins.ts#L440)
+Defined in: [packages/core/src/transformers/OptimizeUnusedLeftJoins.ts:440](https://github.com/mk3008/rawsql-ts/blob/7108391e98aba0496784d65ee254f11bb7408229/packages/core/src/transformers/OptimizeUnusedLeftJoins.ts#L440)
 
 Removes unused SELECT-only CTEs from the query when AST references confirm they are never consumed.
 
