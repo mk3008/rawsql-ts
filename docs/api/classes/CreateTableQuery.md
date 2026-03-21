@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CreateTableQuery
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:156](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/CreateTableQuery.ts#L156)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:156](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/CreateTableQuery.ts#L156)
 
 ## Extends
 
@@ -13,7 +13,7 @@ Defined in: [packages/core/src/models/CreateTableQuery.ts:156](https://github.co
 
 > **new CreateTableQuery**(`params`): `CreateTableQuery`
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:170](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/CreateTableQuery.ts#L170)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:170](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/CreateTableQuery.ts#L170)
 
 #### Parameters
 
@@ -73,7 +73,7 @@ Defined in: [packages/core/src/models/CreateTableQuery.ts:170](https://github.co
 
 > `static` **kind**: `symbol`
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:157](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/CreateTableQuery.ts#L157)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:157](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/CreateTableQuery.ts#L157)
 
 #### Overrides
 
@@ -85,7 +85,7 @@ Defined in: [packages/core/src/models/CreateTableQuery.ts:157](https://github.co
 
 > **tableName**: [`IdentifierString`](IdentifierString.md)
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:158](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/CreateTableQuery.ts#L158)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:158](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/CreateTableQuery.ts#L158)
 
 ***
 
@@ -93,7 +93,7 @@ Defined in: [packages/core/src/models/CreateTableQuery.ts:158](https://github.co
 
 > **namespaces**: `null` \| `string`[]
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:159](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/CreateTableQuery.ts#L159)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:159](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/CreateTableQuery.ts#L159)
 
 ***
 
@@ -101,7 +101,7 @@ Defined in: [packages/core/src/models/CreateTableQuery.ts:159](https://github.co
 
 > **isTemporary**: `boolean`
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:160](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/CreateTableQuery.ts#L160)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:160](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/CreateTableQuery.ts#L160)
 
 ***
 
@@ -109,7 +109,7 @@ Defined in: [packages/core/src/models/CreateTableQuery.ts:160](https://github.co
 
 > **isUnlogged**: `boolean`
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:162](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/CreateTableQuery.ts#L162)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:162](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/CreateTableQuery.ts#L162)
 
 True when the table was declared with CREATE UNLOGGED TABLE (PostgreSQL).
 
@@ -119,7 +119,7 @@ True when the table was declared with CREATE UNLOGGED TABLE (PostgreSQL).
 
 > **ifNotExists**: `boolean`
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:163](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/CreateTableQuery.ts#L163)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:163](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/CreateTableQuery.ts#L163)
 
 ***
 
@@ -127,7 +127,7 @@ Defined in: [packages/core/src/models/CreateTableQuery.ts:163](https://github.co
 
 > **columns**: [`TableColumnDefinition`](TableColumnDefinition.md)[]
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:164](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/CreateTableQuery.ts#L164)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:164](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/CreateTableQuery.ts#L164)
 
 ***
 
@@ -135,7 +135,7 @@ Defined in: [packages/core/src/models/CreateTableQuery.ts:164](https://github.co
 
 > **tableConstraints**: [`TableConstraintDefinition`](TableConstraintDefinition.md)[]
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:165](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/CreateTableQuery.ts#L165)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:165](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/CreateTableQuery.ts#L165)
 
 ***
 
@@ -143,7 +143,7 @@ Defined in: [packages/core/src/models/CreateTableQuery.ts:165](https://github.co
 
 > `optional` **tableOptions**: `null` \| [`RawString`](RawString.md)
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:166](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/CreateTableQuery.ts#L166)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:166](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/CreateTableQuery.ts#L166)
 
 ***
 
@@ -151,7 +151,7 @@ Defined in: [packages/core/src/models/CreateTableQuery.ts:166](https://github.co
 
 > `optional` **asSelectQuery**: [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:167](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/CreateTableQuery.ts#L167)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:167](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/CreateTableQuery.ts#L167)
 
 ***
 
@@ -159,7 +159,7 @@ Defined in: [packages/core/src/models/CreateTableQuery.ts:167](https://github.co
 
 > **withDataOption**: `null` \| `"with-data"` \| `"with-no-data"`
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:168](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/CreateTableQuery.ts#L168)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:168](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/CreateTableQuery.ts#L168)
 
 ***
 
@@ -167,7 +167,7 @@ Defined in: [packages/core/src/models/CreateTableQuery.ts:168](https://github.co
 
 > **comments**: `null` \| `string`[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/SqlComponent.ts#L29)
+Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/SqlComponent.ts#L29)
 
 #### Inherited from
 
@@ -179,7 +179,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3
 
 > **positionedComments**: `null` \| [`PositionedComment`](../interfaces/PositionedComment.md)[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/SqlComponent.ts#L32)
+Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/SqlComponent.ts#L32)
 
 #### Inherited from
 
@@ -191,7 +191,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3
 
 > **getSelectQuery**(): [`SimpleSelectQuery`](SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:198](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/CreateTableQuery.ts#L198)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:198](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/CreateTableQuery.ts#L198)
 
 Returns a SelectQuery that selects all columns from this table.
 
@@ -205,7 +205,7 @@ Returns a SelectQuery that selects all columns from this table.
 
 > **getCountQuery**(): [`SimpleSelectQuery`](SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/models/CreateTableQuery.ts:237](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/CreateTableQuery.ts#L237)
+Defined in: [packages/core/src/models/CreateTableQuery.ts:237](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/CreateTableQuery.ts#L237)
 
 Returns a SelectQuery that counts all rows in this table.
 
@@ -219,7 +219,7 @@ Returns a SelectQuery that counts all rows in this table.
 
 > **getKind**(): `symbol`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/SqlComponent.ts#L15)
+Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/SqlComponent.ts#L15)
 
 #### Returns
 
@@ -235,7 +235,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3
 
 > **accept**&lt;`T`\&gt;(`visitor`): `T`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/SqlComponent.ts#L19)
+Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/SqlComponent.ts#L19)
 
 #### Type Parameters
 
@@ -263,7 +263,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3
 
 > **toSqlString**(`formatter`): `string`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/SqlComponent.ts#L23)
+Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/SqlComponent.ts#L23)
 
 #### Parameters
 
@@ -285,7 +285,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3
 
 > **addPositionedComments**(`position`, `comments`): `void`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/SqlComponent.ts#L37)
+Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/SqlComponent.ts#L37)
 
 Add comments at a specific position
 
@@ -313,7 +313,7 @@ Add comments at a specific position
 
 > **getPositionedComments**(`position`): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/SqlComponent.ts#L56)
+Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/SqlComponent.ts#L56)
 
 Get comments for a specific position
 
@@ -337,7 +337,7 @@ Get comments for a specific position
 
 > **getAllPositionedComments**(): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/SqlComponent.ts#L66)
+Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/SqlComponent.ts#L66)
 
 Get all positioned comments as a flat array in order (before, after)
 

@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: TypeProtectionConfig
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:55](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/transformers/EnhancedJsonMapping.ts#L55)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:55](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/transformers/EnhancedJsonMapping.ts#L55)
 
 Type protection configuration.
 
@@ -11,7 +11,7 @@ Type protection configuration.
 
 > **protectedStringFields**: `string`[]
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:57](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/transformers/EnhancedJsonMapping.ts#L57)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:57](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/transformers/EnhancedJsonMapping.ts#L57)
 
 Columns that should be treated as strings
 
@@ -21,7 +21,7 @@ Columns that should be treated as strings
 
 > `optional` **dateFields**: `string`[]
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:59](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/transformers/EnhancedJsonMapping.ts#L59)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:59](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/transformers/EnhancedJsonMapping.ts#L59)
 
 Columns that should be parsed as dates
 
@@ -31,7 +31,7 @@ Columns that should be parsed as dates
 
 > `optional` **numberFields**: `string`[]
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:61](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/transformers/EnhancedJsonMapping.ts#L61)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:61](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/transformers/EnhancedJsonMapping.ts#L61)
 
 Columns that should be parsed as numbers
 
@@ -41,7 +41,7 @@ Columns that should be parsed as numbers
 
 > `optional` **customTransforms**: `Record`&lt;`string`, `string`\&gt;
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:63](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/transformers/EnhancedJsonMapping.ts#L63)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:63](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/transformers/EnhancedJsonMapping.ts#L63)
 
 Custom type transformations
 </div>

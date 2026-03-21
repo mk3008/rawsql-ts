@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: CTEManagement
 
-Defined in: [packages/core/src/models/SelectQuery.ts:35](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/SelectQuery.ts#L35)
+Defined in: [packages/core/src/models/SelectQuery.ts:35](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/SelectQuery.ts#L35)
 
 Fluent API for managing Common Table Expressions on a select query.
 
@@ -14,7 +14,7 @@ packages/core/tests/models/SelectQuery.cte-management.test.ts.
 
 > **addCTE**(`name`, `query`, `options?`): `this`
 
-Defined in: [packages/core/src/models/SelectQuery.ts:36](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/SelectQuery.ts#L36)
+Defined in: [packages/core/src/models/SelectQuery.ts:36](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/SelectQuery.ts#L36)
 
 #### Parameters
 
@@ -40,7 +40,7 @@ Defined in: [packages/core/src/models/SelectQuery.ts:36](https://github.com/mk30
 
 > **removeCTE**(`name`): `this`
 
-Defined in: [packages/core/src/models/SelectQuery.ts:37](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/SelectQuery.ts#L37)
+Defined in: [packages/core/src/models/SelectQuery.ts:37](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/SelectQuery.ts#L37)
 
 #### Parameters
 
@@ -58,7 +58,7 @@ Defined in: [packages/core/src/models/SelectQuery.ts:37](https://github.com/mk30
 
 > **hasCTE**(`name`): `boolean`
 
-Defined in: [packages/core/src/models/SelectQuery.ts:38](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/SelectQuery.ts#L38)
+Defined in: [packages/core/src/models/SelectQuery.ts:38](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/SelectQuery.ts#L38)
 
 #### Parameters
 
@@ -76,7 +76,7 @@ Defined in: [packages/core/src/models/SelectQuery.ts:38](https://github.com/mk30
 
 > **getCTENames**(): `string`[]
 
-Defined in: [packages/core/src/models/SelectQuery.ts:39](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/SelectQuery.ts#L39)
+Defined in: [packages/core/src/models/SelectQuery.ts:39](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/SelectQuery.ts#L39)
 
 #### Returns
 
@@ -88,7 +88,7 @@ Defined in: [packages/core/src/models/SelectQuery.ts:39](https://github.com/mk30
 
 > **replaceCTE**(`name`, `query`, `options?`): `this`
 
-Defined in: [packages/core/src/models/SelectQuery.ts:40](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/SelectQuery.ts#L40)
+Defined in: [packages/core/src/models/SelectQuery.ts:40](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/SelectQuery.ts#L40)
 
 #### Parameters
 

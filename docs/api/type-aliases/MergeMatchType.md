@@ -3,5 +3,5 @@
 
 > **MergeMatchType** = `"matched"` \| `"not_matched"` \| `"not_matched_by_source"` \| `"not_matched_by_target"`
 
-Defined in: [packages/core/src/models/MergeQuery.ts:5](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/models/MergeQuery.ts#L5)
+Defined in: [packages/core/src/models/MergeQuery.ts:5](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/models/MergeQuery.ts#L5)
 </div>

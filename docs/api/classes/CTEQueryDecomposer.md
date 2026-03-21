@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CTEQueryDecomposer
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:87](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/transformers/CTEQueryDecomposer.ts#L87)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:87](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/transformers/CTEQueryDecomposer.ts#L87)
 
 Decomposes complex CTEs into executable standalone queries
 
@@ -43,7 +43,7 @@ console.log(restored.executableSql); // Standalone executable SQL with dependenc
 
 > **new CTEQueryDecomposer**(`options`): `CTEQueryDecomposer`
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:111](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/transformers/CTEQueryDecomposer.ts#L111)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:111](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/transformers/CTEQueryDecomposer.ts#L111)
 
 Creates a new CTEQueryDecomposer instance
 
@@ -65,7 +65,7 @@ Configuration options extending SqlFormatterOptions
 
 > **decompose**(`query`): [`DecomposedCTE`](../interfaces/DecomposedCTE.md)[]
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:148](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/transformers/CTEQueryDecomposer.ts#L148)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:148](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/transformers/CTEQueryDecomposer.ts#L148)
 
 Decomposes CTEs in a query into executable standalone queries
 
@@ -117,7 +117,7 @@ const result = decomposer.decompose(query);
 
 > **synchronize**(`editedCTEs`, `rootQuery`): [`DecomposedCTE`](../interfaces/DecomposedCTE.md)[]
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:190](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/transformers/CTEQueryDecomposer.ts#L190)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:190](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/transformers/CTEQueryDecomposer.ts#L190)
 
 Synchronizes edited CTEs back into a unified query and re-decomposes them
 
@@ -172,7 +172,7 @@ const synchronized = decomposer.synchronize(editedCTEs, 'select count(*) from ac
 
 > **extractCTE**(`query`, `cteName`): [`CTERestorationResult`](../interfaces/CTERestorationResult.md)
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:249](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/transformers/CTEQueryDecomposer.ts#L249)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:249](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/transformers/CTEQueryDecomposer.ts#L249)
 
 Restores executable SQL for a specific CTE by including all its dependencies
 
