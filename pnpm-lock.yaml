@@ -280,7 +280,7 @@ importers:
   packages/ddl-docs-cli:
     dependencies:
       rawsql-ts:
-        specifier: workspace:^
+        specifier: ^0.17.0
         version: link:../core
     devDependencies:
       '@types/node':
@@ -296,7 +296,7 @@ importers:
   packages/ddl-docs-vitepress:
     dependencies:
       '@rawsql-ts/ddl-docs-cli':
-        specifier: workspace:^
+        specifier: ^0.2.2
         version: link:../ddl-docs-cli
     devDependencies:
       '@types/node':
@@ -336,14 +336,14 @@ importers:
   packages/sql-contract-zod:
     dependencies:
       '@rawsql-ts/sql-contract':
-        specifier: workspace:*
+        specifier: ^0.3.1
         version: link:../sql-contract
       zod:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
       '@rawsql-ts/test-evidence-core':
-        specifier: workspace:*
+        specifier: ^0.2.0
         version: link:../test-evidence-core
       typescript:
         specifier: ^5.8.2
@@ -355,7 +355,7 @@ importers:
   packages/sql-grep-core:
     dependencies:
       rawsql-ts:
-        specifier: workspace:^
+        specifier: ^0.17.0
         version: link:../core
     devDependencies:
       typescript:
@@ -377,7 +377,7 @@ importers:
   packages/test-evidence-renderer-md:
     dependencies:
       '@rawsql-ts/test-evidence-core':
-        specifier: workspace:*
+        specifier: ^0.2.0
         version: link:../test-evidence-core
     devDependencies:
       typescript:
@@ -422,10 +422,10 @@ importers:
   packages/testkit-sqlite:
     dependencies:
       '@rawsql-ts/testkit-core':
-        specifier: workspace:^
+        specifier: ^0.16.1
         version: link:../testkit-core
       rawsql-ts:
-        specifier: workspace:^
+        specifier: ^0.17.0
         version: link:../core
     devDependencies:
       '@types/better-sqlite3':
