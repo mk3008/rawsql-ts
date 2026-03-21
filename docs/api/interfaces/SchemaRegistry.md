@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: SchemaRegistry
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:77](https://github.com/mk3008/rawsql-ts/blob/970a607ee52bc8905bdebb05d61516b74bf7448a/packages/core/src/utils/SchemaManager.ts#L77)
+Defined in: [packages/core/src/utils/SchemaManager.ts:77](https://github.com/mk3008/rawsql-ts/blob/f6baf229d3797b57b781ecce6f8f038d2b6458c2/packages/core/src/utils/SchemaManager.ts#L77)
 
 Schema registry containing all table definitions
 

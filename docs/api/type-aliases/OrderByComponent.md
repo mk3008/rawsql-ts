@@ -3,5 +3,5 @@
 
 > **OrderByComponent** = [`OrderByItem`](../classes/OrderByItem.md) \| [`ValueComponent`](ValueComponent.md)
 
-Defined in: [packages/core/src/models/Clause.ts:103](https://github.com/mk3008/rawsql-ts/blob/970a607ee52bc8905bdebb05d61516b74bf7448a/packages/core/src/models/Clause.ts#L103)
+Defined in: [packages/core/src/models/Clause.ts:103](https://github.com/mk3008/rawsql-ts/blob/f6baf229d3797b57b781ecce6f8f038d2b6458c2/packages/core/src/models/Clause.ts#L103)
 </div>
