@@ -30,7 +30,7 @@ jobs:
       - name: Create/Update Release PR
         uses: changesets/action@v1
         with:
-          version: pnpm changeset version
+          version: node ./scripts/version-packages-and-lockfile.mjs
           commit: "chore(release): version packages"
           title: "chore(release): version packages"
           # Use git commits to avoid GitHub Contents API limitations (e.g., executable file modes in the repo).
