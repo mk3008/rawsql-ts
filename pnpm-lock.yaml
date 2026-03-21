@@ -450,13 +450,13 @@ importers:
   packages/ztd-cli:
     dependencies:
       '@rawsql-ts/sql-grep-core':
-        specifier: ^0.1.3
+        specifier: ^0.1.4
         version: link:../sql-grep-core
       '@rawsql-ts/test-evidence-core':
         specifier: ^0.2.0
         version: link:../test-evidence-core
       '@rawsql-ts/test-evidence-renderer-md':
-        specifier: ^0.3.1
+        specifier: ^0.3.2
         version: link:../test-evidence-renderer-md
       chokidar:
         specifier: ^5.0.0
