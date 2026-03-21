@@ -28,7 +28,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "rawsql-ts": "workspace:^"
+    "rawsql-ts": "^0.17.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
