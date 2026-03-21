@@ -180,7 +180,7 @@ importers:
         specifier: ^0.16.1
         version: link:../../testkit-core
       '@rawsql-ts/testkit-postgres':
-        specifier: ^0.15.3
+        specifier: ^0.15.4
         version: link:../../testkit-postgres
       pg:
         specifier: ^8.13.1
