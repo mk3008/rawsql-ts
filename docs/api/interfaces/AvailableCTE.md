@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: AvailableCTE
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:32](https://github.com/mk3008/rawsql-ts/blob/f6baf229d3797b57b781ecce6f8f038d2b6458c2/packages/core/src/utils/ScopeResolver.ts#L32)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:32](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/utils/ScopeResolver.ts#L32)
 
 Information about a CTE available in the current scope
 
@@ -11,7 +11,7 @@ Information about a CTE available in the current scope
 
 > **name**: `string`
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:34](https://github.com/mk3008/rawsql-ts/blob/f6baf229d3797b57b781ecce6f8f038d2b6458c2/packages/core/src/utils/ScopeResolver.ts#L34)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:34](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/utils/ScopeResolver.ts#L34)
 
 CTE name
 
@@ -21,7 +21,7 @@ CTE name
 
 > `optional` **columns**: `string`[]
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:36](https://github.com/mk3008/rawsql-ts/blob/f6baf229d3797b57b781ecce6f8f038d2b6458c2/packages/core/src/utils/ScopeResolver.ts#L36)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:36](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/utils/ScopeResolver.ts#L36)
 
 Column names if determinable
 
@@ -31,7 +31,7 @@ Column names if determinable
 
 > **query**: [`CTEQuery`](../type-aliases/CTEQuery.md)
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:38](https://github.com/mk3008/rawsql-ts/blob/f6baf229d3797b57b781ecce6f8f038d2b6458c2/packages/core/src/utils/ScopeResolver.ts#L38)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:38](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/utils/ScopeResolver.ts#L38)
 
 The CTE query definition (SELECT or writable DML with RETURNING)
 
@@ -41,7 +41,7 @@ The CTE query definition (SELECT or writable DML with RETURNING)
 
 > `optional` **materialized**: `boolean`
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:40](https://github.com/mk3008/rawsql-ts/blob/f6baf229d3797b57b781ecce6f8f038d2b6458c2/packages/core/src/utils/ScopeResolver.ts#L40)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:40](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/utils/ScopeResolver.ts#L40)
 
 Whether the CTE is materialized
 </div>

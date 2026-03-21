@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CreateTableParser
 
-Defined in: [packages/core/src/parsers/CreateTableParser.ts:48](https://github.com/mk3008/rawsql-ts/blob/f6baf229d3797b57b781ecce6f8f038d2b6458c2/packages/core/src/parsers/CreateTableParser.ts#L48)
+Defined in: [packages/core/src/parsers/CreateTableParser.ts:48](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/parsers/CreateTableParser.ts#L48)
 
 Parses CREATE TABLE statements (DDL or AS SELECT) into CreateTableQuery models.
 
@@ -21,7 +21,7 @@ Parses CREATE TABLE statements (DDL or AS SELECT) into CreateTableQuery models.
 
 > `static` **parse**(`query`): [`CreateTableQuery`](CreateTableQuery.md)
 
-Defined in: [packages/core/src/parsers/CreateTableParser.ts:110](https://github.com/mk3008/rawsql-ts/blob/f6baf229d3797b57b781ecce6f8f038d2b6458c2/packages/core/src/parsers/CreateTableParser.ts#L110)
+Defined in: [packages/core/src/parsers/CreateTableParser.ts:110](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/parsers/CreateTableParser.ts#L110)
 
 Parse SQL string to CreateTableQuery AST.
 
@@ -41,7 +41,7 @@ Parse SQL string to CreateTableQuery AST.
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/CreateTableParser.ts:123](https://github.com/mk3008/rawsql-ts/blob/f6baf229d3797b57b781ecce6f8f038d2b6458c2/packages/core/src/parsers/CreateTableParser.ts#L123)
+Defined in: [packages/core/src/parsers/CreateTableParser.ts:123](https://github.com/mk3008/rawsql-ts/blob/0e6f6280921ceb8f72d155f28b906b2cad106dfe/packages/core/src/parsers/CreateTableParser.ts#L123)
 
 Parse from lexeme array (for internal use and tests).
 
