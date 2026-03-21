@@ -1,5 +1,11 @@
 # @rawsql-ts/testkit-postgres
 
+## 0.15.4
+
+### Patch Changes
+
+- [#639](https://github.com/mk3008/rawsql-ts/pull/639) [`a948119`](https://github.com/mk3008/rawsql-ts/commit/a948119b1fcc6ed884d1f939cdbf14132320b638) Thanks [@mk3008](https://github.com/mk3008)! - Fix the published dependency graph for the PostgreSQL adapter tutorial path so standalone consumers can install `@rawsql-ts/adapter-node-pg` without a `workspace:` protocol leak.
+
 ## 0.15.3
 
 ### Patch Changes

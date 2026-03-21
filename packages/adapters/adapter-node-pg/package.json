@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/adapter-node-pg",
-  "version": "0.15.4",
+  "version": "0.15.5",
   "description": "Node pg adapter that connects PostgreSQL fixtures to @rawsql-ts/testkit-postgres.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -32,7 +32,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/testkit-postgres": "^0.15.3",
+    "@rawsql-ts/testkit-postgres": "^0.15.4",
     "@rawsql-ts/testkit-core": "^0.16.1",
     "@rawsql-ts/shared-binder": "^0.0.1",
     "pg": "^8.13.1",
