@@ -1,6 +1,6 @@
 # Package Scope
 - Applies to `packages/ztd-cli/templates/src/infrastructure`.
-- Defines infrastructure adapters for WebAPI-oriented scaffolds.
+- Defines infrastructure adapters for feature-first scaffolds.
 
 # Policy
 ## REQUIRED

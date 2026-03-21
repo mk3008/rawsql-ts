@@ -1,0 +1,60 @@
+# Prompt Dogfooding
+
+Use this file when you want to test the starter tutorial with an AI coding agent.
+
+Run the prompts one at a time against a project created with `ztd init --starter`.
+
+## Prompt 1: Add a feature
+
+```text
+Add a users feature to this feature-first project.
+Read the nearest AGENTS.md files first.
+Keep handwritten SQL, specs, and tests inside src/features/users.
+Do not apply migrations automatically.
+```
+
+## Prompt 2: Fix a DDL change
+
+```text
+I changed the DDL for users.
+Read the nearest AGENTS.md files first.
+Fix the tests and feature code that now fail.
+Do not apply migrations automatically.
+```
+
+## Prompt 3: Fix a SQL change
+
+```text
+I changed the SQL for users.
+Read the nearest AGENTS.md files first.
+Update the feature-local spec and tests that now fail.
+Do not apply migrations automatically.
+```
+
+## Prompt 4: Fix a DTO change
+
+```text
+I changed the DTO shape for users.
+Read the nearest AGENTS.md files first.
+Update the application and tests that now fail.
+Do not apply migrations automatically.
+```
+
+## Prompt 5: Prepare a migration
+
+```text
+I changed the DDL for users and need a migration artifact.
+Read the nearest AGENTS.md files first.
+Generate or update the migration SQL, then fix the tests that fail.
+Do not apply migrations automatically.
+```
+
+Record:
+
+| Prompt | What changed | What the agent did | Notes |
+| --- | --- | --- | --- |
+| Add a feature | | | |
+| Fix a DDL change | | | |
+| Fix a SQL change | | | |
+| Fix a DTO change | | | |
+| Prepare a migration | | | |

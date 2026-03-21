@@ -43,14 +43,16 @@ test('copyAgentsTemplate writes AGENTS.md, falls back to AGENTS_ztd.md, then sto
 test('installVisibleAgents creates nested AGENTS templates without overwriting existing files', () => {
   const workspace = createTempDir('ztd-agents-visible-install');
   mkdirSync(path.join(workspace, 'src'), { recursive: true });
+  mkdirSync(path.join(workspace, 'src', 'features'), { recursive: true });
+  mkdirSync(path.join(workspace, 'src', 'features', 'smoke'), { recursive: true });
   mkdirSync(path.join(workspace, 'ztd'), { recursive: true });
-  mkdirSync(path.join(workspace, 'src', 'domain'), { recursive: true });
   writeFileSync(path.join(workspace, 'src', 'AGENTS.md'), '# existing\n', 'utf8');
 
   const written = installVisibleAgents(workspace);
   expect(written.some((summary) => summary.relativePath === 'AGENTS.md')).toBe(true);
   expect(written.some((summary) => summary.relativePath === 'ztd/AGENTS.md')).toBe(true);
-  expect(written.some((summary) => summary.relativePath === 'src/domain/AGENTS.md')).toBe(true);
+  expect(written.some((summary) => summary.relativePath === 'src/features/AGENTS.md')).toBe(true);
+  expect(written.some((summary) => summary.relativePath === 'src/features/smoke/AGENTS.md')).toBe(true);
   expect(written.some((summary) => summary.relativePath === 'src/AGENTS.md')).toBe(false);
   expect(readNormalized(path.join(workspace, 'src', 'AGENTS.md'))).toBe('# existing\n');
 });
@@ -77,16 +79,21 @@ test('writeInternalAgentsArtifacts creates managed payloads and sidecars unmanag
   expect(manifest.managed_by).toBe('ztd:agents');
   expect(manifest.template_version).toBe(AGENTS_TEMPLATE_VERSION);
   expect(manifest.security_notices).toContain('Never store secrets in instruction files.');
-  expect(manifest.routing_rules).toEqual(expect.arrayContaining([expect.objectContaining({ scope: 'src-domain' })]));
+  expect(manifest.routing_rules).toEqual(expect.arrayContaining([expect.objectContaining({ scope: 'src-features' })]));
   expect(manifest.prompt_examples).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
-        prompt: 'Convert to WebAPI',
-        preferred_scopes: expect.arrayContaining(['src-presentation', 'src-application', 'src-domain'])
+        prompt: 'Convert this slice to a feature-first layout',
+        preferred_scopes: expect.arrayContaining([
+          'src-features-application',
+          'src-features-domain',
+          'src-features-persistence',
+          'src-features-tests'
+        ])
       }),
       expect.objectContaining({
-        prompt: 'Add SQL and implement repository',
-        preferred_scopes: expect.arrayContaining(['src-infrastructure-persistence', 'ztd'])
+        prompt: 'Add SQL and keep the feature local',
+        preferred_scopes: expect.arrayContaining(['src-sql', 'src-features-persistence', 'src-features-tests'])
       })
     ])
   );

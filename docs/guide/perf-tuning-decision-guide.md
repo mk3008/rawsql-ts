@@ -6,6 +6,7 @@ outline: deep
 # Perf Tuning Decision Guide
 
 Use this guide when a query is already known to be performance-sensitive and the next question is whether to start with **index tuning** or **pipeline tuning**.
+The main promise of this path is that tuning stays evidence-driven and does not require breaking the SQL shape first.
 
 ## Start with QuerySpec metadata
 
@@ -59,6 +60,8 @@ If the winning fix is an index change:
 2. run `ztd perf db reset`
 3. rerun `ztd perf run`
 
+This path keeps SQL stable unless the evidence says the SQL itself should change.
+
 Do not keep sandbox-only index changes outside DDL.
 If the index matters for the benchmark, it must be preserved in the repository DDL.
 
@@ -78,6 +81,7 @@ ztd perf run --query src/sql/reports/sales.sql --strategy decomposed --material 
 ```
 
 Keep the same params and seed data when comparing the two runs.
+The point is to tune the execution path without needing to rewrite the SQL unless the comparison shows that SQL shape is the real problem.
 
 ## DDL and index rule for perf tests
 

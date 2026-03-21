@@ -1,191 +1,87 @@
 # Migration Lifecycle Dogfooding
 
-This guide records a practical migration dogfooding loop for `@rawsql-ts/ztd-cli` using a Docker-hosted PostgreSQL instance as the ZTD-owned test database plus an explicit target inspection workflow.
+This guide records the DDL, SQL, and DTO repair loops for the starter scaffold.
 
-The scenario was validated on:
+The goal is to confirm that a prompt can point an AI agent at the right files, let the agent repair the breakage, and keep the change local to the `users` feature.
 
-- Windows 11
-- Node.js `v22.14.0`
-- pnpm `10.19.0`
-- Docker Engine `27.3.1`
-- PostgreSQL image `18.1 (Debian 18.1-1.pgdg13+2)`
+## Scenario set
 
-## Goal
+Use one `users` project and try these prompts in order:
 
-Validate that the following lifecycle remains workable:
+1. DDL change
+2. SQL change
+3. DTO change
+4. migration artifact creation
 
-1. Scaffold a WebAPI-shaped app.
-2. Keep local DDL as the source of truth.
-3. Verify the ZTD-owned test database.
-4. Change the DDL.
-5. Regenerate ZTD artifacts.
-6. Generate or prepare an explicit migration artifact.
-7. Apply the migration outside `ztd-cli`.
-8. Inspect the target schema again.
+These prompts are intended to be copied into a separate AI instance, so the tutorial can verify whether the prompt wording and AGENTS guidance are sufficient without manual repair in between.
 
-## What `ztd-cli` owns and what it does not
+## Preferred CLI by scenario
 
-`ztd-cli` helps with:
+- DDL repair: `npx ztd query uses column users.email --sql-root src/features/users/persistence --specs-dir src/features/users/persistence --any-schema --view detail`
+- SQL repair: `npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts`
+- DTO repair: `npx vitest run`
+- migration artifact creation: `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url>` to generate or update the migration SQL
+- tuning: use the separate perf guide, not this starter lifecycle
 
-- Scaffolding a DDL-first project layout
-- Regenerating `TestRowMap` and layout files from `ztd/ddl/*.sql`
-- Inspecting explicit target schema state with `ddl pull` and `ddl diff` when `pg_dump` is available on the host
-- Generating migration SQL artifacts
+`ZTD_TEST_DATABASE_URL` is the only implicit database owned by ztd-cli. Use `--url` or a full `--db-*` flag set for any other inspection target.
 
-`ztd-cli` does not own:
+## DDL change prompt
 
-- Applying generated SQL to any non-ZTD target
-- Choosing a migration framework
-- Automatically transforming the textual DDL diff into a deploy-safe migration plan
-
-That separation is important. In this dogfood run, migration execution stayed explicit and reviewable.
-
-Inspection note:
-
-- `ddl pull` and `ddl diff` are inspection-oriented commands.
-- They help you understand target schema state and prepare follow-up artifacts.
-- They are not the migration apply step, and they are not a deployment executor.
-
-## Scenario summary
-
-The temporary app was created with:
-
-```bash
-node packages/ztd-cli/dist/index.js init \
-  --app-shape webapi \
-  --workflow demo \
-  --validator zod \
-  --local-source-root <REPO_ROOT> \
-  --yes
+```text
+I changed the DDL for users.
+Read the nearest AGENTS.md files first.
+Run `npx ztd query uses column users.email --sql-root src/features/users/persistence --specs-dir src/features/users/persistence --any-schema --view detail` to find the affected SQL files before you edit anything.
+Fix the tests and feature code that now fail.
+Do not apply migrations automatically.
 ```
 
-The baseline loop was:
+## SQL change prompt
 
-```bash
-pnpm ztd ztd-config
-pnpm typecheck
-pnpm test
-docker run --name ztd-webapi-lifecycle-pg \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=taskdogfood \
-  -p 55433:5432 \
-  -d postgres:18
-Get-Content .\ztd\ddl\public.sql |
-  docker exec -i ztd-webapi-lifecycle-pg psql -U postgres -d taskdogfood -v ON_ERROR_STOP=1
+```text
+I changed the SQL for users.
+Read the nearest AGENTS.md files first.
+The starter DDL uses the `users` table, so keep the SQL on that table and do not invent a `user` table.
+Use `npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts` to refresh the spec, then update the feature-local tests that now fail.
+Keep `ZTD_TEST_DATABASE_URL` set in the same shell when you run Vitest.
+Do not apply migrations automatically.
 ```
 
-Observed result:
+## DTO change prompt
 
-- `pnpm ztd ztd-config` succeeded and generated `4` ZTD rows after the schema change.
-- `pnpm typecheck` succeeded before and after the application-layer change.
-- `pnpm test` succeeded before and after the application-layer change.
-- Applying the DDL to Docker via `psql` succeeded.
-
-## Schema change used in the dogfood run
-
-The second loop introduced:
-
-- `task.description`
-- `task_comment`
-
-The deploy step stayed explicit:
-
-```sql
-alter table task
-  add column if not exists description text;
-
-create table if not exists task_comment (
-  task_comment_id bigserial primary key,
-  task_id         bigint not null references task(task_id),
-  body            text not null,
-  created_at      timestamptz not null default current_timestamp
-);
-
-create index if not exists idx_task_comment_task
-  on task_comment(task_id, created_at desc);
+```text
+I changed the DTO shape for users.
+Read the nearest AGENTS.md files first.
+Update the application and tests that now fail.
+Do not apply migrations automatically.
 ```
 
-Applied with:
+## Migration prompt
 
-```bash
-Get-Content .\artifacts\20260313_add_task_description_and_comments.sql |
-  docker exec -i ztd-webapi-lifecycle-pg psql -U postgres -d taskdogfood -v ON_ERROR_STOP=1
+```text
+I changed the DDL for users and need a migration artifact.
+Read the nearest AGENTS.md files first.
+Run `npx ztd ztd-config`.
+Optionally run `npx ztd ddl pull --url <target-db-url>` to inspect the target first.
+Run `npx ztd ddl diff --url <target-db-url>` to generate or update the migration SQL, then fix the tests that fail.
+Do not apply migrations automatically.
 ```
 
-Verification used `information_schema` queries:
+## What to verify
 
-```bash
-docker exec ztd-webapi-lifecycle-pg psql -U postgres -d taskdogfood \
-  -P format=unaligned -P tuples_only=on \
-  -c "select table_name || ':' || column_name
-      from information_schema.columns
-      where table_schema='public'
-        and table_name in ('task','task_assignment','task_comment','user')
-      order by table_name, ordinal_position;"
-```
+- the agent starts from the feature folder instead of `src/catalog`
+- the agent picks the right file type for the change
+- the agent repairs tests before widening the scope
+- the agent keeps the fix local to the `users` feature
+- the agent uses CLI output to identify the affected files instead of guessing them
+- `vitest` passes again after the repair
+- the agent can prepare a migration artifact without pretending to deploy it
 
-Observed result:
+## Evidence to capture
 
-- `task.description` appeared after the deploy step.
-- `task_comment` existed after the deploy step.
-- The application-layer tests still passed after the schema and API shape change.
-
-## Recommended migration loop
-
-Use this loop when local DDL is the source of truth:
-
-1. Edit `ztd/ddl/*.sql`.
-2. Run `ztd ztd-config`.
-3. Run `typecheck` and tests.
-4. Prepare an explicit migration SQL file for the live environment.
-5. Apply the migration with your deployment tool (`psql`, Flyway, Liquibase, etc.).
-6. Verify the live schema.
-
-This dogfood run supports the following recommendation:
-
-- Keep `ztd-cli` inside the authoring, verification, and inspection loop.
-- Keep migration execution outside `ztd-cli`, because deploy-time ordering, locking, rollback, and review policy belong to the application or platform owner.
-
-## Observed friction
-
-One important friction surfaced on Windows:
-
-- `ztd ddl diff` currently expects a host-launchable `pg_dump`.
-- A Docker-only `pg_dump` wrapper implemented as a `.cmd` file failed with `spawnSync ... EINVAL`.
-- The lifecycle itself still worked by using `docker exec ... pg_dump` and `docker exec ... psql` directly, but `ztd ddl diff` was not end-to-end usable in that exact setup.
-
-That means the inspection lifecycle is viable today, but Docker-only Windows users need a shell-capable `pg_dump` entrypoint.
-
-The recommended form is now:
-
-```bash
-ztd ddl diff \
-  --url postgres://postgres:postgres@localhost:5432/taskdogfood \
-  --pg-dump-path "docker exec ztd-webapi-lifecycle-pg pg_dump" \
-  --pg-dump-shell \
-  --out artifacts/schema.diff.sql
-```
-
-The same pattern works for `ztd ddl pull`.
-
-## Takeaway
-
-`ztd-cli` works well as the DDL-first inner-loop tool in a migration-aware backend project.
-
-It is strongest when used for:
-
-- scaffold creation
-- DDL-to-artifact regeneration
-- contract safety
-- drift-prep and schema inspection
-
-It should not be presented as a migration executor. The successful dogfood loop was:
-
-1. author DDL locally
-2. regenerate artifacts
-3. test locally
-4. inspect the target deliberately
-5. generate migration SQL artifacts deliberately
-6. apply the migration explicitly outside `ztd-cli`
-7. verify the target again
+- the generated project root path
+- the prompt that was used
+- the files the agent changed
+- the test command that was run
+- whether the agent asked for extra layout help
+- whether the scaffold vocabulary matched the prompt vocabulary
+- whether the migration prompt stayed explicit about not applying migrations automatically

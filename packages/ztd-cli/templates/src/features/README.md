@@ -1,0 +1,16 @@
+# Feature-First Layout
+
+This scaffold organizes application work under `src/features/<feature>/`.
+
+## Default shape
+
+- `domain`: pure business rules and invariants
+- `application`: orchestration and use-case flow
+- `persistence`: one SQL file, one spec, and the mapping helpers for that unit
+- `tests`: feature-local checks that keep the slice honest
+
+## Sample feature
+
+`smoke` is the removable teaching feature.
+Copy its shape for the first real feature, then delete it once the project has a real slice of its own.
+

@@ -1,6 +1,6 @@
 # Package Scope
 - Applies to `packages/ztd-cli/templates/src/domain`.
-- Defines the domain layer for WebAPI-oriented scaffolds.
+- Defines the domain layer for feature-first scaffolds.
 
 # Policy
 ## REQUIRED

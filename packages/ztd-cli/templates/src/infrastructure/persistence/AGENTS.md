@@ -1,6 +1,6 @@
 # Package Scope
 - Applies to `packages/ztd-cli/templates/src/infrastructure/persistence`.
-- Defines persistence-layer rules for WebAPI-oriented scaffolds and their query units.
+- Defines persistence-layer rules for feature-first scaffolds and their query units.
 
 # Policy
 ## REQUIRED

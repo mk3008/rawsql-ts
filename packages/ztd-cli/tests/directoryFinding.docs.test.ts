@@ -9,88 +9,90 @@ function readNormalizedFile(relativePath: string): string {
   return readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n');
 }
 
-test('readmes promote the query-unit rule without tables/views taxonomy', () => {
+test('readmes promote the feature-first layout without tables/views taxonomy', () => {
   const rootReadme = readNormalizedFile('README.md');
   const packageReadme = readNormalizedFile('packages/ztd-cli/README.md');
   const scaffoldReadme = readNormalizedFile('packages/ztd-cli/templates/README.md');
-  const webapiReadme = readNormalizedFile('packages/ztd-cli/templates/README.webapi.md');
+  const featuresReadme = readNormalizedFile('packages/ztd-cli/templates/src/features/README.md');
+  const smokeReadme = readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/README.md');
 
-  for (const doc of [rootReadme, packageReadme, scaffoldReadme, webapiReadme]) {
-    expect(doc).toContain('1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO');
-    expect(doc).toContain('src/sql');
+  for (const doc of [rootReadme, packageReadme, scaffoldReadme, featuresReadme, smokeReadme]) {
+    expect(doc).toContain('src/features');
+    expect(doc).toContain('smoke');
     expect(doc).not.toContain('tables/views');
-    expect(doc).not.toContain('lower-level implementation examples');
   }
 
-  expect(rootReadme).toContain('Keep handwritten SQL assets in `src/sql/` as the single human-owned source location for query logic.');
-  expect(packageReadme).toContain('Optional Docker helper:');
-  expect(packageReadme).toContain('postgres:18');
-  expect(packageReadme).toContain('docker compose up -d');
-  expect(packageReadme).toContain('ZTD_TEST_DATABASE_URL');
-  expect(scaffoldReadme).toContain('Keep handwritten SQL assets in `src/sql/` as the single human-owned source location for query logic.');
-  expect(scaffoldReadme).toContain('Optional Docker helper:');
-  expect(scaffoldReadme).toContain('postgres:18');
-  expect(scaffoldReadme).toContain('docker compose up -d');
-  expect(scaffoldReadme).toContain('ZTD_TEST_DATABASE_URL');
-  expect(webapiReadme).toContain('Keep handwritten SQL assets in `src/sql/` as the single human-owned source location for query logic.');
-  expect(webapiReadme).toContain('Optional Docker helper:');
-  expect(webapiReadme).toContain('postgres:18');
-  expect(webapiReadme).toContain('docker compose up -d');
-  expect(webapiReadme).toContain('ZTD_TEST_DATABASE_URL');
-  expect(scaffoldReadme).toContain('Think in query units:');
-  expect(webapiReadme).toContain('Think in query units:');
-  expect(scaffoldReadme).toContain('1 SQL file');
-  expect(scaffoldReadme).toContain('1 QuerySpec');
-  expect(scaffoldReadme).toContain('1 repository entrypoint');
-  expect(scaffoldReadme).toContain('1 DTO');
-  expect(webapiReadme).toContain('1 SQL file');
-  expect(webapiReadme).toContain('1 QuerySpec');
-  expect(webapiReadme).toContain('1 repository entrypoint');
-  expect(webapiReadme).toContain('1 DTO');
+  expect(rootReadme).toContain('feature-first');
+  expect(packageReadme).toContain('feature-first');
+  expect(scaffoldReadme).toContain('feature-first');
+  expect(featuresReadme).toContain('smoke');
+  expect(smokeReadme).toContain('removable teaching feature');
+  expect(rootReadme).toContain('Migration Repair Loop');
+  expect(packageReadme).toContain('Quickstart');
+  expect(packageReadme).toContain('Getting Started with AI');
+  expect(packageReadme).toContain('Core features');
+  expect(packageReadme).toContain('Commands');
+  expect(packageReadme).toContain('Glossary');
+  expect(packageReadme).toContain('Further Reading');
+  expect(readNormalizedFile('docs/guide/sql-first-end-to-end-tutorial.md')).toContain('Scenario CLI at a glance');
+  expect(readNormalizedFile('docs/dogfooding/ztd-migration-lifecycle.md')).toContain('Preferred CLI by scenario');
+  expect(packageReadme).toContain('Advanced validation, dogfooding, and tuning live in [Further Reading](#further-reading).');
+  expect(packageReadme).toContain('ztd ztd-config --watch');
+  expect(packageReadme).toContain('--dry-run');
+  expect(packageReadme).toContain('--output json');
+  expect(packageReadme).toContain('TestRowMap');
+  expect(packageReadme).toContain('QuerySpec');
+  expect(packageReadme).toContain('Run `npx ztd describe command <name>` for per-command flags and options.');
+  expect(readNormalizedFile('docs/guide/perf-tuning-decision-guide.md')).toContain(
+    'tuning stays evidence-driven and does not require breaking the SQL shape first'
+  );
+  expect(readNormalizedFile('docs/dogfooding/perf-scale-tuning.md')).toContain(
+    'without breaking the SQL unless the evidence shows that SQL shape itself must change'
+  );
 });
 
-test('repository guidance centers the single SQL source location', () => {
+test('feature guidance centers the sample feature and role-based folders', () => {
   const files = [
-    'packages/ztd-cli/templates/src/repositories/AGENTS.md',
-    'packages/ztd-cli/templates/src/infrastructure/persistence/AGENTS.md',
-    'packages/ztd-cli/templates/src/infrastructure/persistence/repositories/AGENTS.md'
+    'packages/ztd-cli/templates/src/features/AGENTS.md',
+    'packages/ztd-cli/templates/src/features/smoke/AGENTS.md',
+    'packages/ztd-cli/templates/src/features/smoke/application/AGENTS.md',
+    'packages/ztd-cli/templates/src/features/smoke/domain/AGENTS.md',
+    'packages/ztd-cli/templates/src/features/smoke/persistence/AGENTS.md',
+    'packages/ztd-cli/templates/src/features/smoke/tests/AGENTS.md'
   ];
 
   for (const file of files) {
     const contents = readNormalizedFile(file);
-    expect(contents).toContain('1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO');
-    expect(contents).toContain('src/sql');
+    expect(contents).toContain('feature');
+    expect(contents).toContain('smoke');
     expect(contents).not.toContain('tables/views');
   }
 
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/repositories/AGENTS.md')).toContain(
-    'Repositories MUST load SQL assets from `src/sql` through shared loader infrastructure.',
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/AGENTS.md')).toContain('domain');
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/persistence/AGENTS.md')).toContain(
+    'one SQL file and one spec'
   );
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/infrastructure/persistence/AGENTS.md')).toContain(
-    'ZTD-specific workflow rules apply here and in the related `src/sql`, `src/catalog`, and `ztd` assets.',
-  );
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/infrastructure/persistence/repositories/AGENTS.md')).toContain(
-    'Repositories MUST load SQL assets from `src/sql` through shared loader infrastructure.',
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/tests/AGENTS.md')).toContain(
+    'close to the feature'
   );
 });
 
-test('tables and views folders are absent from the scaffold templates', () => {
-  const removedPaths = [
-    'packages/ztd-cli/templates/src/repositories/tables',
-    'packages/ztd-cli/templates/src/repositories/views',
-    'packages/ztd-cli/templates/src/infrastructure/persistence/repositories/tables',
-    'packages/ztd-cli/templates/src/infrastructure/persistence/repositories/views'
+test('feature-first scaffold files exist in the template bundle', () => {
+  const requiredPaths = [
+    'packages/ztd-cli/templates/src/features/README.md',
+    'packages/ztd-cli/templates/src/features/AGENTS.md',
+    'packages/ztd-cli/templates/src/features/smoke/README.md',
+    'packages/ztd-cli/templates/src/features/smoke/application/README.md',
+    'packages/ztd-cli/templates/src/features/smoke/domain/README.md',
+    'packages/ztd-cli/templates/src/features/smoke/persistence/README.md',
+    'packages/ztd-cli/templates/src/features/smoke/tests/README.md',
+    'packages/ztd-cli/templates/src/features/smoke/persistence/smoke.sql',
+    'packages/ztd-cli/templates/src/features/smoke/persistence/smoke.spec.ts',
+    'packages/ztd-cli/templates/src/features/smoke/tests/smoke.test.ts',
+    'packages/ztd-cli/templates/src/features/smoke/tests/smoke.validation.test.ts'
   ];
 
-  for (const removedPath of removedPaths) {
-    expect(existsSync(path.join(repoRoot, removedPath))).toBe(false);
+  for (const requiredPath of requiredPaths) {
+    expect(existsSync(path.join(repoRoot, requiredPath))).toBe(true);
   }
-});
-
-test('catalog guidance keeps specs aligned with one query unit', () => {
-  const catalogAgents = readNormalizedFile('packages/ztd-cli/templates/src/catalog/AGENTS.md');
-
-  expect(catalogAgents).toContain('Each catalog spec MUST stay aligned with 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.');
-  expect(catalogAgents).toContain('`src/catalog/specs` MUST be treated as human-owned contracts.');
-  expect(catalogAgents).toContain('tests/queryspec.example.test.ts');
 });

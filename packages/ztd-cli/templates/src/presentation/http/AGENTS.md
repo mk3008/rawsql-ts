@@ -1,6 +1,6 @@
 # Package Scope
 - Applies to `packages/ztd-cli/templates/src/presentation/http`.
-- Defines HTTP-specific transport behavior for WebAPI-oriented scaffolds.
+- Defines HTTP-specific transport behavior for feature-first scaffolds.
 
 # Policy
 ## REQUIRED
