@@ -72,7 +72,7 @@ function collectManifestPathsFromExports(exportsField, entries = new Set()) {
 }
 
 function assertNoWorkspaceProtocols(manifest, packageName) {
-  const sections = ["dependencies", "optionalDependencies", "peerDependencies"];
+  const sections = ["dependencies", "optionalDependencies", "peerDependencies", "devDependencies"];
 
   for (const section of sections) {
     const record = manifest[section] ?? {};
@@ -343,6 +343,56 @@ function verifyNpmConsumerSmoke(phaseAResult) {
   return appDir;
 }
 
+function verifyPnpmStarterPath(packages) {
+  const appDir = path.resolve(workspaceRoot, "..", "tmp", "published-package-check-standalone", "pnpm-starter-path");
+  ensureCleanDir(appDir);
+
+  const tarballDependencies = createTarballDependencyMap(packages);
+  writePackageJson(appDir, {
+    name: "pnpm-starter-path-check",
+    private: true,
+    version: "0.0.0",
+    devDependencies: {
+      "@rawsql-ts/ztd-cli": tarballDependencies["@rawsql-ts/ztd-cli"],
+    },
+    pnpm: {
+      overrides: tarballDependencies,
+    },
+  });
+
+  runIn(appDir, PNPM, ["install"]);
+  runIn(appDir, PNPM, [
+    "exec",
+    "--",
+    "ztd",
+    "init",
+    "--starter",
+    "--with-ai-guidance",
+    "--with-dogfooding",
+    "--yes",
+    "--skip-install",
+  ]);
+
+  const scaffoldPackageJson = readPackageJson(appDir);
+  scaffoldPackageJson.devDependencies = Object.fromEntries(
+    Object.entries(scaffoldPackageJson.devDependencies ?? {}).map(([dependencyName, version]) => [
+      dependencyName,
+      tarballDependencies[dependencyName] ?? version,
+    ]),
+  );
+  scaffoldPackageJson.pnpm = {
+    ...(scaffoldPackageJson.pnpm ?? {}),
+    overrides: tarballDependencies,
+  };
+  assertNoWorkspaceProtocols(scaffoldPackageJson, "starter-scaffold");
+
+  // Rebind workspace packages to the freshly packed tarballs so the scaffold install exercises the published manifests.
+  fs.writeFileSync(path.join(appDir, "package.json"), `${JSON.stringify(scaffoldPackageJson, null, 2)}\n`, "utf8");
+  runIn(appDir, PNPM, ["install"]);
+
+  return appDir;
+}
+
 function verifyOverwriteSafety(packages) {
   const appDir = path.join(packageRoot, "overwrite-safety");
   ensureCleanDir(appDir);
@@ -401,6 +451,7 @@ function main() {
   const packedInstallApp = verifyPackedTarballInstall(packedPackages);
   const npmPrimaryPathApp = verifyNpmPrimaryPath(packedPackages);
   const npmSmokeApp = verifyNpmConsumerSmoke(npmPrimaryPathApp);
+  const pnpmStarterApp = verifyPnpmStarterPath(packedPackages);
   const overwriteSafetyApp = verifyOverwriteSafety(packedPackages);
 
   writeJson(path.join(outputRoot, "summary.json"), {
@@ -411,6 +462,7 @@ function main() {
     npmPrimaryPathApp: npmPrimaryPathApp.appDir,
     firstTestGateApp: npmSmokeApp,
     npmSmokeApp,
+    pnpmStarterApp,
     overwriteSafetyApp,
     packages: packedPackages.map((pkg) => ({
       name: pkg.name,
