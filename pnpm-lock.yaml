@@ -296,7 +296,7 @@ importers:
   packages/ddl-docs-vitepress:
     dependencies:
       '@rawsql-ts/ddl-docs-cli':
-        specifier: ^0.2.2
+        specifier: ^0.2.3
         version: link:../ddl-docs-cli
     devDependencies:
       '@types/node':
