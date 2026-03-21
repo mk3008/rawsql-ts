@@ -1,5 +1,11 @@
 # @rawsql-ts/sql-contract-zod
 
+## 0.1.5
+
+### Patch Changes
+
+- [#628](https://github.com/mk3008/rawsql-ts/pull/628) [`5d15113`](https://github.com/mk3008/rawsql-ts/commit/5d151130b492b0bfbb787a1410ceb1eeee0683e6) Thanks [@mk3008](https://github.com/mk3008)! - Replace workspace-only dependency ranges in published package manifests with publishable semver ranges so standalone consumers can install these packages without workspace resolution errors.
+
 ## 0.1.4
 
 ### Patch Changes
