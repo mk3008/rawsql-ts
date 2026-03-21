@@ -1,5 +1,15 @@
 # @rawsql-ts/ztd-cli
 
+## 0.22.1
+
+### Patch Changes
+
+- [#628](https://github.com/mk3008/rawsql-ts/pull/628) [`b579253`](https://github.com/mk3008/rawsql-ts/commit/b5792534c0f01934274c7db980fbe651c58fda4a) Thanks [@mk3008](https://github.com/mk3008)! - Fix the init scaffold so `@rawsql-ts/testkit-core` is installed automatically and `npx ztd ztd-config` works in a fresh standalone project.
+
+- Updated dependencies [[`5d15113`](https://github.com/mk3008/rawsql-ts/commit/5d151130b492b0bfbb787a1410ceb1eeee0683e6)]:
+  - @rawsql-ts/sql-grep-core@0.1.4
+  - @rawsql-ts/test-evidence-renderer-md@0.3.2
+
 ## 0.22.0
 
 ### Minor Changes

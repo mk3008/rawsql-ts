@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/ztd-cli",
-  "version": "0.22.0",
+  "version": "0.22.1",
   "description": "DB-agnostic scaffolding and DDL helpers for Zero Table Dependency projects",
   "main": "dist/index.js",
   "bin": {
@@ -36,14 +36,14 @@
   },
   "dependencies": {
     "@rawsql-ts/test-evidence-core": "^0.2.0",
-    "@rawsql-ts/test-evidence-renderer-md": "^0.3.1",
+    "@rawsql-ts/test-evidence-renderer-md": "^0.3.2",
     "chokidar": "^5.0.0",
     "commander": "^12.0.0",
     "diff": "^8.0.3",
     "fast-glob": "^3.3.3",
     "rawsql-ts": "^0.17.0",
     "yaml": "^2.8.2",
-    "@rawsql-ts/sql-grep-core": "^0.1.3"
+    "@rawsql-ts/sql-grep-core": "^0.1.4"
   },
   "peerDependencies": {
     "@rawsql-ts/adapter-node-pg": "^0.15.4"
