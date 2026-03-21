@@ -1,5 +1,11 @@
 # @rawsql-ts/testkit-core
 
+## 0.16.2
+
+### Patch Changes
+
+- [#636](https://github.com/mk3008/rawsql-ts/pull/636) [`849541e`](https://github.com/mk3008/rawsql-ts/commit/849541e001b3406eadf0da1637631ce670390950) Thanks [@mk3008](https://github.com/mk3008)! - Re-release `@rawsql-ts/testkit-core` with a corrected published manifest so standalone `ztd init --starter --with-ai-guidance --with-dogfooding --yes` consumers can complete `pnpm install` without a workspace protocol mismatch.
+
 ## 0.16.1
 
 ### Patch Changes

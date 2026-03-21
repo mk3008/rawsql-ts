@@ -3,7 +3,7 @@
 
 > **optimizeUnusedLeftJoinsToFixedPoint**(`query`, `schemaInfo`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/OptimizeUnusedLeftJoins.ts:325](https://github.com/mk3008/rawsql-ts/blob/22d14b0a2fa0bd6d408a2f00790e0cbe52204d1a/packages/core/src/transformers/OptimizeUnusedLeftJoins.ts#L325)
+Defined in: [packages/core/src/transformers/OptimizeUnusedLeftJoins.ts:325](https://github.com/mk3008/rawsql-ts/blob/7108391e98aba0496784d65ee254f11bb7408229/packages/core/src/transformers/OptimizeUnusedLeftJoins.ts#L325)
 
 Applies the unused left join optimizer until no further joins can be trimmed, ensuring cascading removals stabilize.
 
