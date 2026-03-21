@@ -21,6 +21,11 @@
   ],
   "author": "msugiura",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mk3008/rawsql-ts",
+    "directory": "packages/ddl-docs-cli"
+  },
   "publishConfig": {
     "access": "public"
   },
