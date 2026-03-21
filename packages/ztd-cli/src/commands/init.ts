@@ -261,10 +261,12 @@ interface InitScaffoldLayout {
 
 const STACK_DEV_DEPENDENCIES: Record<string, string> = {
   '@rawsql-ts/sql-contract': '^0.3.1',
+  '@rawsql-ts/testkit-core': '^0.16.1',
   '@rawsql-ts/ztd-cli': '^0.20.3',
 };
 const LOCAL_SOURCE_STACK_PACKAGE_DIRS: Record<string, string> = {
-  '@rawsql-ts/sql-contract': path.join('packages', 'sql-contract')
+  '@rawsql-ts/sql-contract': path.join('packages', 'sql-contract'),
+  '@rawsql-ts/testkit-core': path.join('packages', 'testkit-core')
 };
 const ZOD_DEPENDENCY: Record<string, string> = {
   zod: '^4.3.6'

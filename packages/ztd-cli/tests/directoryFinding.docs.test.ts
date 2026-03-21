@@ -34,6 +34,7 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('Commands');
   expect(packageReadme).toContain('Glossary');
   expect(packageReadme).toContain('Further Reading');
+  expect(packageReadme).toContain('@rawsql-ts/testkit-core');
   expect(readNormalizedFile('docs/guide/sql-first-end-to-end-tutorial.md')).toContain('Scenario CLI at a glance');
   expect(readNormalizedFile('docs/dogfooding/ztd-migration-lifecycle.md')).toContain('Preferred CLI by scenario');
   expect(packageReadme).toContain('Advanced validation, dogfooding, and tuning live in [Further Reading](#further-reading).');

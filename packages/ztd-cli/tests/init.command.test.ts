@@ -111,6 +111,11 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(existsSync(path.join(workspace, 'src', 'infrastructure'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'jobs'))).toBe(false);
   expect(existsSync(path.join(workspace, 'compose.yaml'))).toBe(false);
+  const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    devDependencies: Record<string, string>;
+  };
+  expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/sql-contract');
+  expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-core');
   expect(result.summary).toContain('src/features/smoke/tests/smoke.test.ts');
   expect(result.summary).toContain('src/features/README.md');
 });
@@ -155,6 +160,7 @@ test('init starter bootstraps visible AGENTS, compose, starter DDL, and smoke te
     devDependencies: Record<string, string>;
   };
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/sql-contract');
+  expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-core');
   expect(result.summary).toContain('compose.yaml');
 });
 
@@ -259,6 +265,9 @@ test('init local-source mode links rawsql-ts dependencies from the monorepo with
   expect(existsSync(localSourceGuardPath)).toBe(true);
   expect(packageJson.devDependencies['@rawsql-ts/sql-contract']).toBe(
     `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'sql-contract')).replace(/\\/g, '/')}`
+  );
+  expect(packageJson.devDependencies['@rawsql-ts/testkit-core']).toBe(
+    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'testkit-core')).replace(/\\/g, '/')}`
   );
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/ztd-cli');
 });

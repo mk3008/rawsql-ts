@@ -9,6 +9,7 @@ The starter keeps the first run simple:
 - visible `AGENTS.md` guidance
 - a Postgres compose path for `ZTD_TEST_DATABASE_URL`
 - Vitest-ready smoke tests
+- `@rawsql-ts/testkit-core` so `npx ztd ztd-config` works in a fresh standalone project
 
 src/catalog may still exist as internal support, but it is not the user-facing standard location.
 
