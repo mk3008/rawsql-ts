@@ -270,3 +270,125 @@ test('diff schema reports column and index rebuild risks from the apply plan', (
     spy.mockRestore();
   }
 });
+
+test('diff schema reports supplemental-only index changes without table rebuild risks', () => {
+  const ddlDir = path.join(createTempDir('cli-diff-supplemental-only'), 'ddl');
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'users.sql'),
+    `
+      CREATE TABLE public.users (
+        id serial PRIMARY KEY,
+        display_name text NOT NULL
+      );
+
+      CREATE INDEX idx_users_display_name ON public.users(display_name);
+    `,
+    'utf8'
+  );
+
+  const outputFile = path.join(createTempDir('cli-diff-supplemental-only-output'), 'users.diff.sql');
+  const remoteSql = `
+    CREATE TABLE public.users (
+      id serial PRIMARY KEY,
+      display_name text NOT NULL
+    );
+  `;
+
+  const spy = vi.spyOn(pgDumpUtil, 'runPgDump').mockReturnValue(remoteSql);
+  try {
+    const result = runDiffSchema({
+      directories: [ddlDir],
+      extensions: ['.sql'],
+      url: 'postgres://test:secret@cli-host:5432/diff-db',
+      out: outputFile
+    });
+
+    expect(result.hasChanges).toBe(true);
+    expect(result.summary).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          schema: 'public',
+          table: 'users',
+          changeKind: 'schema_change',
+          details: expect.objectContaining({
+            message: 'apply index idx_users_display_name'
+          })
+        })
+      ])
+    );
+    expect(result.applyPlan.operations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'reapply_statement',
+          target: 'idx_users_display_name'
+        }),
+        expect.objectContaining({
+          kind: 'index_rebuild_effect',
+          target: 'idx_users_display_name'
+        })
+      ])
+    );
+    expect(result.applyPlan.operations).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'recreate_table',
+          target: 'public.users'
+        })
+      ])
+    );
+    expect(result.risks.destructiveRisks).toEqual([]);
+    expect(result.risks.operationalRisks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'index_rebuild', target: 'idx_users_display_name' })
+      ])
+    );
+  } finally {
+    spy.mockRestore();
+  }
+});
+
+test('diff schema does not misparse commas inside column types or constraints', () => {
+  const ddlDir = path.join(createTempDir('cli-diff-top-level-comma'), 'ddl');
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'orders.sql'),
+    `
+      CREATE TABLE public.orders (
+        id serial PRIMARY KEY,
+        amount numeric(10,2) NOT NULL,
+        status text NOT NULL,
+        CONSTRAINT orders_status_check CHECK (status IN ('new', 'paid'))
+      );
+    `,
+    'utf8'
+  );
+
+  const outputFile = path.join(createTempDir('cli-diff-top-level-comma-output'), 'orders.diff.sql');
+  const remoteSql = `
+    CREATE TABLE public.orders (
+      id serial PRIMARY KEY,
+      amount numeric(10,2) NOT NULL,
+      status text NOT NULL,
+      CONSTRAINT orders_status_check CHECK (status IN ('new', 'paid'))
+    );
+  `;
+
+  const spy = vi.spyOn(pgDumpUtil, 'runPgDump').mockReturnValue(remoteSql);
+  try {
+    const result = runDiffSchema({
+      directories: [ddlDir],
+      extensions: ['.sql'],
+      url: 'postgres://test:secret@cli-host:5432/diff-db',
+      out: outputFile,
+      dryRun: true
+    });
+
+    expect(result.hasChanges).toBe(false);
+    expect(result.summary).toEqual([]);
+    expect(result.risks.destructiveRisks).toEqual([]);
+    expect(result.risks.operationalRisks).toEqual([]);
+  } finally {
+    spy.mockRestore();
+  }
+});

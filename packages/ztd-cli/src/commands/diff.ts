@@ -225,9 +225,9 @@ export function runDiffSchema(options: DiffSchemaOptions): DiffSchemaResult {
       writeFileSync(plan.artifacts.sql, plan.sql, 'utf8');
       writeFileSync(plan.artifacts.text, plan.text, 'utf8');
       writeFileSync(plan.artifacts.json, `${plan.json}\n`, 'utf8');
-      console.log(`DDL diff SQL written to ${plan.artifacts.sql}`);
-      console.log(`DDL diff review text written to ${plan.artifacts.text}`);
-      console.log(`DDL diff review JSON written to ${plan.artifacts.json}`);
+      console.error(`DDL diff SQL written to ${plan.artifacts.sql}`);
+      console.error(`DDL diff review text written to ${plan.artifacts.text}`);
+      console.error(`DDL diff review JSON written to ${plan.artifacts.json}`);
     }, {
       outFile: plan.artifacts.sql,
     });
@@ -339,9 +339,14 @@ function buildApplyPlan(
 ): DdlApplyPlan {
   const operations: ApplyPlanOperation[] = [];
   const summaryByTable = groupSummaryByTable(summary);
+  const remoteSchemas = collectKnownSchemas(remoteModel);
 
-  // Create schemas first so the generated SQL can be applied without extra setup.
+  // Create schemas first, but skip schemas the remote snapshot already knows about.
   for (const statement of localModel.createSchemaStatements) {
+    const schemaName = extractCreatedSchemaName(statement);
+    if (schemaName && remoteSchemas.has(schemaName)) {
+      continue;
+    }
     operations.push({
       kind: 'emit_schema_statement',
       sql: statement.trim().replace(/;?$/, ';')
@@ -425,6 +430,27 @@ function buildApplyPlan(
             target: statement.name ?? key
           });
         }
+      }
+      continue;
+    }
+
+    // Emit supplemental statements that are missing from the remote snapshot without forcing a table rebuild.
+    const supplementalToApply = diffSupplementalStatements(
+      localModel.supplementalStatementsByTable.get(key) ?? [],
+      remoteModel.supplementalStatementsByTable.get(key) ?? []
+    );
+    for (const statement of supplementalToApply) {
+      operations.push({
+        kind: 'reapply_statement',
+        target: statement.name ?? key,
+        sql: statement.sql.trim().replace(/;?$/, ';'),
+        statementKind: statement.kind
+      });
+      if (statement.kind === 'index') {
+        operations.push({
+          kind: 'index_rebuild_effect',
+          target: statement.name ?? key
+        });
       }
     }
   }
@@ -700,7 +726,7 @@ function parseColumns(statement: string): Map<string, ParsedColumn> {
   }
 
   const body = statement.slice(start + 1, end);
-  for (const rawLine of body.split(',')) {
+  for (const rawLine of splitTopLevelCommaSeparated(body)) {
     const line = rawLine.trim().replace(/\s+/g, ' ');
     if (line.length === 0 || /^(constraint|primary key|foreign key|unique|check)\b/i.test(line)) {
       continue;
@@ -760,6 +786,23 @@ function extractIndexName(statement: string): string | undefined {
 
 function buildSummary(localModel: ParsedSchemaModel, remoteModel: ParsedSchemaModel): DdlDiffSummaryEntry[] {
   const entries: DdlDiffSummaryEntry[] = [];
+  const remoteSchemas = collectKnownSchemas(remoteModel);
+
+  // Surface schema-level changes so schema-only diffs are not treated as no-ops.
+  for (const statement of localModel.createSchemaStatements) {
+    const schemaName = extractCreatedSchemaName(statement);
+    if (!schemaName || remoteSchemas.has(schemaName)) {
+      continue;
+    }
+    entries.push({
+      schema: schemaName,
+      table: '(schema)',
+      changeKind: 'schema_change',
+      details: {
+        message: `create schema ${schemaName}`
+      }
+    });
+  }
 
   for (const [key, localTable] of localModel.tableDefinitions.entries()) {
     const remoteTable = remoteModel.tableDefinitions.get(key);
@@ -774,6 +817,22 @@ function buildSummary(localModel: ParsedSchemaModel, remoteModel: ParsedSchemaMo
     }
 
     entries.push(...buildTableChangeSummary(localTable, remoteTable));
+
+    // Record supplemental-only changes for stable review output and hasChanges detection.
+    const supplementalChanges = diffSupplementalStatements(
+      localModel.supplementalStatementsByTable.get(key) ?? [],
+      remoteModel.supplementalStatementsByTable.get(key) ?? []
+    );
+    for (const statement of supplementalChanges) {
+      entries.push({
+        schema: localTable.schema,
+        table: localTable.table,
+        changeKind: 'schema_change',
+        details: {
+          message: `apply ${statement.kind} ${statement.name ?? key}`
+        }
+      });
+    }
   }
 
   for (const [key, remoteTable] of remoteModel.tableDefinitions.entries()) {
@@ -882,11 +941,100 @@ function extractConstraintLines(statement: string): string[] {
     return [];
   }
 
-  return statement
-    .slice(start + 1, end)
-    .split(',')
+  return splitTopLevelCommaSeparated(
+    statement.slice(start + 1, end)
+  )
     .map((line) => line.trim())
     .filter((line) => /^(constraint|primary key|foreign key|unique|check)\b/i.test(line));
+}
+
+function splitTopLevelCommaSeparated(body: string): string[] {
+  const segments: string[] = [];
+  let current = '';
+  let quote: '"' | "'" | undefined;
+  let parenDepth = 0;
+
+  for (let index = 0; index < body.length; index += 1) {
+    const character = body[index];
+    const next = body[index + 1];
+
+    if (quote) {
+      current += character;
+      if (character === quote && next === quote) {
+        current += next;
+        index += 1;
+        continue;
+      }
+      if (character === quote && body[index - 1] !== '\\') {
+        quote = undefined;
+      }
+      continue;
+    }
+
+    if (character === '\'' || character === '"') {
+      quote = character;
+      current += character;
+      continue;
+    }
+
+    if (character === '(') {
+      parenDepth += 1;
+      current += character;
+      continue;
+    }
+
+    if (character === ')' && parenDepth > 0) {
+      parenDepth -= 1;
+      current += character;
+      continue;
+    }
+
+    if (character === ',' && parenDepth === 0) {
+      segments.push(current);
+      current = '';
+      continue;
+    }
+
+    current += character;
+  }
+
+  if (current.length > 0) {
+    segments.push(current);
+  }
+
+  return segments;
+}
+
+function collectKnownSchemas(model: ParsedSchemaModel): Set<string> {
+  const schemas = new Set<string>();
+  for (const statement of model.createSchemaStatements) {
+    const schemaName = extractCreatedSchemaName(statement);
+    if (schemaName) {
+      schemas.add(schemaName);
+    }
+  }
+
+  for (const table of model.tableDefinitions.values()) {
+    schemas.add(table.schema);
+  }
+
+  return schemas;
+}
+
+function extractCreatedSchemaName(statement: string): string | undefined {
+  const match = statement.match(/^create\s+schema\s+(?:if\s+not\s+exists\s+)?("?[\w$]+"?)/i);
+  if (!match) {
+    return undefined;
+  }
+  return normalizeIdentifier(match[1]);
+}
+
+function diffSupplementalStatements(
+  localStatements: SupplementalStatement[],
+  remoteStatements: SupplementalStatement[]
+): SupplementalStatement[] {
+  const remoteSql = new Set(remoteStatements.map((statement) => normalizeSql(statement.sql)));
+  return localStatements.filter((statement) => !remoteSql.has(normalizeSql(statement.sql)));
 }
 
 function sortSummaryEntries(entries: DdlDiffSummaryEntry[]): DdlDiffSummaryEntry[] {
