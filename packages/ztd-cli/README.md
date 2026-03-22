@@ -19,12 +19,26 @@ The focus is SQL maintainability: keep schema, queries, specs, and tests close t
 
 ## Quickstart
 
+### macOS / Linux / Git Bash
+
 ```bash
 npm install -D @rawsql-ts/ztd-cli vitest typescript
 npx ztd init --starter
-# ↑ generates docker-compose.yml, starter DDL, config, and test stubs
+# generates docker-compose.yml, starter DDL, config, and test stubs
 docker compose up -d
 export ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5432/ztd
+npx ztd ztd-config
+npx vitest run
+```
+
+### PowerShell
+
+```powershell
+npm install -D @rawsql-ts/ztd-cli vitest typescript
+npx ztd init --starter
+# generates docker-compose.yml, starter DDL, config, and test stubs
+docker compose up -d
+$env:ZTD_TEST_DATABASE_URL='postgres://ztd:ztd@localhost:5432/ztd'
 npx ztd ztd-config
 npx vitest run
 ```
@@ -33,7 +47,22 @@ The starter scaffold includes `@rawsql-ts/testkit-core`, so `npx ztd ztd-config`
 
 > `ztd-cli` prepares the workflow, but it does not execute SQL by itself. Pair it with a database adapter and a DBMS-specific testkit such as `@rawsql-ts/adapter-node-pg` + `@rawsql-ts/testkit-postgres` for Postgres.
 
-If `5432` is busy, use another local port and update `ZTD_TEST_DATABASE_URL`. PowerShell example: `$env:ZTD_TEST_DATABASE_URL='postgres://ztd:ztd@localhost:5433/ztd'; npx vitest run`.
+If `5432` is busy, use another local port and update `ZTD_TEST_DATABASE_URL`.
+
+* macOS / Linux / Git Bash:
+
+  ```bash
+  export ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5433/ztd
+  npx vitest run
+  ```
+
+* PowerShell:
+
+  ```powershell
+  $env:ZTD_TEST_DATABASE_URL='postgres://ztd:ztd@localhost:5433/ztd'
+  npx vitest run
+  ```
+
 
 ## Getting Started with AI
 
