@@ -148,7 +148,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
       },
       "flags": [
         {
-          "description": "Compute the migration summary without writing the SQL or review artifacts.",
+          "description": "Compute the logical summary and structured risks without writing the SQL or review artifacts.",
           "name": "--dry-run",
         },
         {
@@ -159,11 +159,11 @@ exports[`describe command snapshots the top-level command catalog and every deta
       "name": "ddl diff",
       "output": {
         "files": [
-          "Specified --out SQL file plus companion .txt and .json review artifacts",
+          "Specified --out SQL file plus companion .txt and .json review artifacts with summary/risks",
         ],
-        "stdout": "Human migration summary in text mode, JSON envelope in global json mode.",
+        "stdout": "Human logical summary plus structured risks in text mode, JSON envelope in global json mode.",
       },
-      "summary": "Compare local DDL with a live database and emit review-first text/json summaries plus a pure SQL artifact.",
+      "summary": "Compare local DDL with a live database and emit logical summary, structured risks, and a pure SQL artifact.",
       "supportsDryRun": true,
       "supportsJsonPayload": true,
       "writesFiles": true,
@@ -306,7 +306,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
       },
       {
         "name": "ddl diff",
-        "summary": "Compare local DDL with a live database and emit review-first text/json summaries plus a pure SQL artifact.",
+        "summary": "Compare local DDL with a live database and emit logical summary, structured risks, and a pure SQL artifact.",
         "supportsDescribeOutput": false,
         "supportsDryRun": true,
         "supportsJsonPayload": true,

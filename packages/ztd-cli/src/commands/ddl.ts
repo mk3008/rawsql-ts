@@ -113,7 +113,7 @@ export function registerDdlCommands(program: Command): void {
 
   ddl
       .command('diff')
-      .description('Compare local DDL against an explicit target database and emit review-first text/json summaries plus pure SQL artifacts')
+      .description('Compare local DDL against an explicit target database and emit logical summary plus structured apply-plan risks alongside pure SQL artifacts')
       .option('--ddl-dir <directory>', 'DDL directory to scan (repeatable)', collectDirectories, [])
       .option('--extensions <list>', 'Comma-separated extensions to include', parseExtensions, DEFAULT_EXTENSIONS)
       .option('--url <databaseUrl>', 'Explicit target database URL for inspection workflows (preferred over --db-*)')
@@ -125,7 +125,7 @@ export function registerDdlCommands(program: Command): void {
       .option('--db-name <name>', 'Explicit target database name')
       .option('--pg-dump-path <path>', 'Custom pg_dump executable path')
       .option('--pg-dump-shell', 'Run the pg_dump path through a shell so wrapper commands like "docker exec <container> pg_dump" can be used')
-      .option('--dry-run', 'Compute the diff summary without writing the SQL/.txt/.json artifacts')
+      .option('--dry-run', 'Compute the logical summary and structured risks without writing the SQL/.txt/.json artifacts')
       .option('--json <payload>', 'Pass diff options as a JSON object')
       .action(async (options: DiffCommandOptions) => {
         const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
@@ -149,9 +149,10 @@ export function registerDdlCommands(program: Command): void {
             dryRun: result.dryRun,
             outFile: result.outFile,
             hasChanges: result.hasChanges,
+            applyPlan: result.applyPlan,
             artifacts: result.artifacts,
             summary: result.summary,
-            riskNotes: result.riskNotes,
+            risks: result.risks,
             sqlBytes: result.sql.length
           });
           return;

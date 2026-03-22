@@ -47,6 +47,8 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         '-p 5433:5432',
         'npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts',
         'Read the review summary first:',
+        '- the risks section lists destructive and operational apply-plan risks separately',
+        'current `ztd ddl diff` CLI does not expose the lower-level drop-avoidance options from core',
         'npx vitest run'
       ]
     },
@@ -58,6 +60,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'tmp/users.diff.sql',
         '`ZTD_TEST_DATABASE_URL` is the only implicit database owned by ztd-cli.',
         'Use `--url` or a full `--db-*` flag set for any other inspection target.',
+        'inspect the structured risks second',
         'Do not apply migrations automatically.'
       ]
     },
@@ -88,6 +91,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'Prefer `--dry-run` before commands that write files.',
         'Use `--json <payload>` on supported commands when nested option construction is easier than individual flags.',
         'Use `ztd agents status` to distinguish managed templates from user-owned instruction files.',
+        'treat `summary` as the logical diff, treat `risks` as the apply-plan risk list',
         'ZTD_TEST_DATABASE_URL',
         'Do not assume `DATABASE_URL` is a usable default target'
       ]

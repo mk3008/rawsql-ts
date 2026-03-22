@@ -131,10 +131,12 @@ For migration work, use an explicit `--url <target-db-url>` with `ddl pull` or `
 
 Read the review summary first:
 
-- the text output tells you which tables changed
-- warning notes tell you when drops, recreations, or downstream spec refreshes are likely
+- the summary tells you what changed logically
+- the risks section lists destructive and operational apply-plan risks separately
+- even a small summary can still carry destructive risks when the generated apply SQL rebuilds a table
 - the generated `.sql` file stays SQL-only so you can review or apply it separately
 - the companion `.json` file is for AI/tools that need structured migration metadata
+- current `ztd ddl diff` CLI does not expose the lower-level drop-avoidance options from core, so treat drop-related risks as mandatory review points
 
 Tuning belongs to the separate performance guide and dogfooding set, not to the starter lifecycle in this tutorial. Keep the starter path focused on CRUD, DDL, SQL, DTO, and migration repair loops.
 

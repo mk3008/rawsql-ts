@@ -1094,11 +1094,12 @@ test('ddl diff help explains review-first output and companion artifacts', () =>
   const result = runCli(['ddl', 'diff', '--help']);
 
   assertCliSuccess(result, 'ddl diff help');
-  expect(result.stdout).toContain('review-first');
-  expect(result.stdout).toContain('text/json summaries plus pure SQL artifacts');
+  expect(result.stdout).toContain('emit logical summary');
+  expect(result.stdout).toContain('structured apply-plan risks alongside pure SQL artifacts');
   expect(result.stdout).toContain('Output path for the generated SQL artifact;');
   expect(result.stdout).toContain('companion .txt/.json review files are written');
-  expect(result.stdout).toContain('Compute the diff summary without writing the');
+  expect(result.stdout).toContain('Compute the logical summary and structured risks');
+  expect(result.stdout).toContain('without writing the SQL/.txt/.json artifacts');
   expect(result.stdout).toContain('SQL/.txt/.json artifacts');
 });
 
@@ -1117,7 +1118,7 @@ test('describe command reports ddl diff review artifacts in global json mode', (
         supportsJsonPayload: true,
         writesFiles: true,
         output: {
-          files: ['Specified --out SQL file plus companion .txt and .json review artifacts']
+          files: ['Specified --out SQL file plus companion .txt and .json review artifacts with summary/risks']
         }
       }
     }

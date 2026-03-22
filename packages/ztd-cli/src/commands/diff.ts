@@ -35,15 +35,74 @@ export interface DdlDiffSummaryEntry {
   details: Record<string, unknown>;
 }
 
-export interface DdlDiffRiskNote {
-  level: 'info' | 'warning';
-  message: string;
+export type RiskGuidanceKind =
+  | 'review_if_required'
+  | 'avoid_if_possible'
+  | 'cli_option_not_exposed';
+
+export type DestructiveRiskKind =
+  | 'drop_table'
+  | 'drop_column'
+  | 'cascade_drop'
+  | 'alter_type'
+  | 'rename_candidate'
+  | 'nullability_tighten'
+  | 'semantic_constraint_change';
+
+export type OperationalRiskKind =
+  | 'table_rebuild'
+  | 'index_rebuild'
+  | 'full_table_copy';
+
+export interface DestructiveRisk {
+  kind: DestructiveRiskKind;
+  target?: string;
+  from?: string;
+  to?: string;
+  avoidable?: boolean;
+  guidance?: RiskGuidanceKind[];
+}
+
+export interface OperationalRisk {
+  kind: OperationalRiskKind;
+  target: string;
+}
+
+export interface DdlDiffRisks {
+  destructiveRisks: DestructiveRisk[];
+  operationalRisks: OperationalRisk[];
 }
 
 export interface DdlDiffArtifacts {
   sql: string;
   text: string;
   json: string;
+}
+
+export type ApplyPlanOperationKind =
+  | 'emit_schema_statement'
+  | 'drop_table_cascade'
+  | 'create_table'
+  | 'recreate_table'
+  | 'reapply_statement'
+  | 'drop_column_effect'
+  | 'alter_type_effect'
+  | 'nullability_tighten_effect'
+  | 'rename_candidate_effect'
+  | 'semantic_constraint_change_effect'
+  | 'index_rebuild_effect';
+
+export interface ApplyPlanOperation {
+  kind: ApplyPlanOperationKind;
+  target?: string;
+  from?: string;
+  to?: string;
+  sql?: string;
+  statementKind?: 'index' | 'other';
+}
+
+export interface DdlApplyPlan {
+  operations: ApplyPlanOperation[];
 }
 
 export interface DiffSchemaResult {
@@ -54,7 +113,8 @@ export interface DiffSchemaResult {
   dryRun: boolean;
   hasChanges: boolean;
   summary: DdlDiffSummaryEntry[];
-  riskNotes: DdlDiffRiskNote[];
+  applyPlan: DdlApplyPlan;
+  risks: DdlDiffRisks;
   artifacts: DdlDiffArtifacts;
 }
 
@@ -73,10 +133,16 @@ interface ParsedColumn {
   nullable: boolean;
 }
 
+interface SupplementalStatement {
+  sql: string;
+  kind: 'index' | 'other';
+  name?: string;
+}
+
 interface ParsedSchemaModel {
   tableDefinitions: Map<string, TableDefinition>;
   createSchemaStatements: string[];
-  supplementalStatementsByTable: Map<string, string[]>;
+  supplementalStatementsByTable: Map<string, SupplementalStatement[]>;
 }
 
 export const DDL_DIFF_SPAN_NAMES = {
@@ -114,15 +180,14 @@ export function runDiffSchema(options: DiffSchemaOptions): DiffSchemaResult {
     const localModel = parseSchemaModel(localSql);
     const remoteModel = parseSchemaModel(remoteSql);
     const summary = buildSummary(localModel, remoteModel);
-    const riskNotes = buildRiskNotes(summary);
+    const applyPlan = buildApplyPlan(localSql, localModel, remoteModel, summary);
+    const risks = buildRisks(applyPlan, summary);
     const hasChanges = summary.length > 0;
     const artifacts = deriveArtifactPaths(options.out);
-    const sql = hasChanges
-      ? buildApplySql(localSql, localModel, remoteModel)
-      : '-- No schema differences detected.\n';
+    const sql = hasChanges ? renderApplySql(localSql, applyPlan) : '-- No schema differences detected.\n';
     const text = buildTextSummary({
       summary,
-      riskNotes,
+      risks,
       sqlArtifactPath: artifacts.sql,
       databaseTarget,
       hasChanges
@@ -134,11 +199,10 @@ export function runDiffSchema(options: DiffSchemaOptions): DiffSchemaResult {
         connection: databaseTarget
       },
       summary,
-      riskNotes,
+      applyPlan,
+      risks,
       hasChanges,
-      artifacts: {
-        sql: artifacts.sql
-      }
+      artifacts
     }, null, 2);
 
     return {
@@ -148,7 +212,8 @@ export function runDiffSchema(options: DiffSchemaOptions): DiffSchemaResult {
       text,
       json,
       summary,
-      riskNotes
+      applyPlan,
+      risks
     };
   }, {
     localFileCount: localSources.length,
@@ -176,7 +241,8 @@ export function runDiffSchema(options: DiffSchemaOptions): DiffSchemaResult {
     dryRun: Boolean(options.dryRun),
     hasChanges: plan.hasChanges,
     summary: plan.summary,
-    riskNotes: plan.riskNotes,
+    applyPlan: plan.applyPlan,
+    risks: plan.risks,
     artifacts: plan.artifacts
   };
 }
@@ -199,7 +265,7 @@ function deriveArtifactPaths(outFile: string): DdlDiffArtifacts {
 
 function buildTextSummary(options: {
   summary: DdlDiffSummaryEntry[];
-  riskNotes: DdlDiffRiskNote[];
+  risks: DdlDiffRisks;
   sqlArtifactPath: string;
   databaseTarget: string;
   hasChanges: boolean;
@@ -214,17 +280,34 @@ function buildTextSummary(options: {
     }
   }
 
-  lines.push('', 'Risk notes');
-  if (options.riskNotes.length === 0) {
-    lines.push('- no additional review warnings');
-  } else {
-    for (const note of options.riskNotes) {
-      lines.push(`- ${note.level}: ${note.message}`);
-    }
-  }
+  lines.push('', 'Destructive risks');
+  lines.push(...formatRiskLines(options.risks.destructiveRisks));
+
+  lines.push('', 'Operational risks');
+  lines.push(...formatRiskLines(options.risks.operationalRisks));
 
   lines.push('', 'Generated SQL', `- ${options.sqlArtifactPath}`);
   return `${lines.join('\n')}\n`;
+}
+
+function formatRiskLines(risks: Array<DestructiveRisk | OperationalRisk>): string[] {
+  if (risks.length === 0) {
+    return ['- none'];
+  }
+
+  const lines: string[] = [];
+  for (const risk of risks) {
+    if ('from' in risk && risk.from && risk.to) {
+      lines.push(`- ${risk.kind}: ${risk.from} -> ${risk.to}`);
+    } else {
+      lines.push(`- ${risk.kind}: ${String(risk.target ?? 'unknown')}`);
+    }
+
+    if ('guidance' in risk && risk.guidance && risk.guidance.length > 0) {
+      lines.push(`  guidance: ${risk.guidance.join(', ')}`);
+    }
+  }
+  return lines;
 }
 
 function formatSummaryEntry(entry: DdlDiffSummaryEntry): string {
@@ -248,115 +331,302 @@ function formatSummaryEntry(entry: DdlDiffSummaryEntry): string {
   }
 }
 
-function buildRiskNotes(summary: DdlDiffSummaryEntry[]): DdlDiffRiskNote[] {
-  const notes: DdlDiffRiskNote[] = [];
+function buildApplyPlan(
+  localSql: string,
+  localModel: ParsedSchemaModel,
+  remoteModel: ParsedSchemaModel,
+  summary: DdlDiffSummaryEntry[]
+): DdlApplyPlan {
+  const operations: ApplyPlanOperation[] = [];
+  const summaryByTable = groupSummaryByTable(summary);
 
-  if (summary.some((entry) => entry.changeKind === 'drop_table' || entry.changeKind === 'drop_column')) {
-    notes.push({
-      level: 'warning',
-      message: 'Destructive drop detected: inspect downstream SQL/spec usage before applying the generated SQL.'
-    });
-  }
-
-  if (summary.some((entry) => entry.changeKind === 'table_rebuild' || entry.changeKind === 'alter_type')) {
-    notes.push({
-      level: 'warning',
-      message: 'Table recreation or type change detected: validate data backfill and application compatibility before applying the migration.'
-    });
-  }
-
-  const renameCandidates = findRenameCandidates(summary);
-  if (renameCandidates.length > 0) {
-    notes.push({
-      level: 'warning',
-      message: `Rename candidate detected: ${renameCandidates.join(', ')}. Regenerate affected SQL specs and re-run tests after the migration lands.`
-    });
-  }
-
-  if (summary.length > 0) {
-    notes.push({
-      level: 'info',
-      message: 'After applying the SQL manually, run npx ztd ztd-config and npx vitest run to verify the repair loop.'
-    });
-  }
-
-  return notes;
-}
-
-function findRenameCandidates(summary: DdlDiffSummaryEntry[]): string[] {
-  const addedByTable = new Map<string, DdlDiffSummaryEntry[]>();
-  const droppedByTable = new Map<string, DdlDiffSummaryEntry[]>();
-
-  for (const entry of summary) {
-    const key = `${entry.schema}.${entry.table}`;
-    if (entry.changeKind === 'add_column') {
-      const bucket = addedByTable.get(key) ?? [];
-      bucket.push(entry);
-      addedByTable.set(key, bucket);
-    } else if (entry.changeKind === 'drop_column') {
-      const bucket = droppedByTable.get(key) ?? [];
-      bucket.push(entry);
-      droppedByTable.set(key, bucket);
-    }
-  }
-
-  const candidates: string[] = [];
-  for (const [key, droppedEntries] of droppedByTable.entries()) {
-    const addedEntries = addedByTable.get(key) ?? [];
-    for (const dropped of droppedEntries) {
-      const matched = addedEntries.find((entry) => entry.details.type === dropped.details.type);
-      if (matched) {
-        candidates.push(`${key}.${String(dropped.details.column)} -> ${String(matched.details.column)}`);
-      }
-    }
-  }
-
-  return candidates;
-}
-
-function buildApplySql(localSql: string, localModel: ParsedSchemaModel, remoteModel: ParsedSchemaModel): string {
-  const lines: string[] = [];
-
-  // Create missing schemas before table recreation so the artifact can be applied directly.
+  // Create schemas first so the generated SQL can be applied without extra setup.
   for (const statement of localModel.createSchemaStatements) {
-    lines.push(statement.trim().replace(/;?$/, ';'));
+    operations.push({
+      kind: 'emit_schema_statement',
+      sql: statement.trim().replace(/;?$/, ';')
+    });
   }
 
-  const changedOrDroppedTables = new Set<string>();
+  // Decide which remote tables must be removed or rebuilt before replaying local DDL.
   for (const [key, remoteTable] of remoteModel.tableDefinitions.entries()) {
     const localTable = localModel.tableDefinitions.get(key);
     if (!localTable) {
-      changedOrDroppedTables.add(key);
-      lines.push(`DROP TABLE IF EXISTS ${quoteQualifiedName(remoteTable.schema, remoteTable.table)} CASCADE;`);
+      operations.push({
+        kind: 'drop_table_cascade',
+        target: key,
+        sql: `DROP TABLE IF EXISTS ${quoteQualifiedName(remoteTable.schema, remoteTable.table)} CASCADE;`
+      });
       continue;
     }
-    if (localTable.normalizedStatement !== remoteTable.normalizedStatement) {
-      changedOrDroppedTables.add(key);
-      lines.push(`DROP TABLE IF EXISTS ${quoteQualifiedName(localTable.schema, localTable.table)} CASCADE;`);
-    }
-  }
 
-  for (const [key, localTable] of localModel.tableDefinitions.entries()) {
-    const remoteTable = remoteModel.tableDefinitions.get(key);
-    if (!remoteTable || changedOrDroppedTables.has(key)) {
-      lines.push(localTable.statement.trim().replace(/;?$/, ';'));
-      const supplemental = localModel.supplementalStatementsByTable.get(key) ?? [];
-      for (const statement of supplemental) {
-        lines.push(statement.trim().replace(/;?$/, ';'));
+    if (localTable.normalizedStatement !== remoteTable.normalizedStatement) {
+      operations.push({
+        kind: 'drop_table_cascade',
+        target: key,
+        sql: `DROP TABLE IF EXISTS ${quoteQualifiedName(localTable.schema, localTable.table)} CASCADE;`
+      });
+      operations.push({
+        kind: 'recreate_table',
+        target: key
+      });
+
+      const tableEntries = summaryByTable.get(key) ?? [];
+      for (const entry of tableEntries) {
+        const columnTarget = entry.details.column ? `${key}.${String(entry.details.column)}` : key;
+        if (entry.changeKind === 'drop_column') {
+          operations.push({ kind: 'drop_column_effect', target: columnTarget });
+        } else if (entry.changeKind === 'alter_type') {
+          operations.push({ kind: 'alter_type_effect', target: columnTarget });
+        } else if (entry.changeKind === 'alter_nullability' && entry.details.from === 'nullable' && entry.details.to === 'not-null') {
+          operations.push({ kind: 'nullability_tighten_effect', target: columnTarget });
+        }
+      }
+
+      for (const candidate of findRenameCandidates(tableEntries)) {
+        operations.push({
+          kind: 'rename_candidate_effect',
+          from: candidate.from,
+          to: candidate.to
+        });
+      }
+
+      if (hasConstraintChange(localTable.statement, remoteTable.statement)) {
+        operations.push({
+          kind: 'semantic_constraint_change_effect',
+          target: key
+        });
       }
     }
   }
 
-  // Fall back to the local snapshot when no table-level parsing succeeded so the command still emits SQL only.
-  const rendered = lines.filter((line) => line.trim().length > 0).join('\n\n');
-  return rendered.length > 0 ? `${rendered}\n` : `${localSql.trim()}\n`;
+  // Replay local table definitions and supplemental statements after destructive operations.
+  for (const [key, localTable] of localModel.tableDefinitions.entries()) {
+    const remoteTable = remoteModel.tableDefinitions.get(key);
+    const recreated = operations.some((operation) => operation.kind === 'recreate_table' && operation.target === key);
+    if (!remoteTable || recreated) {
+      operations.push({
+        kind: 'create_table',
+        target: key,
+        sql: localTable.statement.trim().replace(/;?$/, ';')
+      });
+
+      const supplemental = localModel.supplementalStatementsByTable.get(key) ?? [];
+      for (const statement of supplemental) {
+        operations.push({
+          kind: 'reapply_statement',
+          target: statement.name ?? key,
+          sql: statement.sql.trim().replace(/;?$/, ';'),
+          statementKind: statement.kind
+        });
+        if (statement.kind === 'index') {
+          operations.push({
+            kind: 'index_rebuild_effect',
+            target: statement.name ?? key
+          });
+        }
+      }
+    }
+  }
+
+  // Fall back to the local snapshot when no table-level parsing succeeded so SQL output stays valid.
+  if (operations.length === 0 && localSql.trim().length > 0) {
+    return {
+      operations: [
+        {
+          kind: 'create_table',
+          target: 'local_snapshot',
+          sql: `${localSql.trim()}\n`
+        }
+      ]
+    };
+  }
+
+  return { operations };
+}
+
+function renderApplySql(localSql: string, applyPlan: DdlApplyPlan): string {
+  const sqlStatements = applyPlan.operations
+    .map((operation) => operation.sql?.trim())
+    .filter((statement): statement is string => Boolean(statement && statement.length > 0));
+
+  const rendered = sqlStatements.join('\n\n');
+  if (rendered.length > 0) {
+    return `${rendered}\n`;
+  }
+  return `${localSql.trim()}\n`;
+}
+
+function buildRisks(applyPlan: DdlApplyPlan, summary: DdlDiffSummaryEntry[]): DdlDiffRisks {
+  const destructiveRisks: DestructiveRisk[] = [];
+  const operationalRisks: OperationalRisk[] = [];
+  const summaryByTable = groupSummaryByTable(summary);
+  const rebuiltTables = new Set(
+    applyPlan.operations
+      .filter((operation) => operation.kind === 'recreate_table')
+      .map((operation) => operation.target)
+      .filter((target): target is string => Boolean(target))
+  );
+
+  for (const operation of applyPlan.operations) {
+    switch (operation.kind) {
+      case 'drop_table_cascade':
+        if (operation.target) {
+          destructiveRisks.push(createGuidedRisk('drop_table', operation.target));
+          destructiveRisks.push(createGuidedRisk('cascade_drop', operation.target));
+        }
+        break;
+      case 'drop_column_effect':
+        if (operation.target) {
+          destructiveRisks.push(createGuidedRisk('drop_column', operation.target));
+        }
+        break;
+      case 'alter_type_effect':
+        if (operation.target) {
+          destructiveRisks.push(createDestructiveRisk('alter_type', operation.target));
+        }
+        break;
+      case 'nullability_tighten_effect':
+        if (operation.target) {
+          destructiveRisks.push(createDestructiveRisk('nullability_tighten', operation.target));
+        }
+        break;
+      case 'rename_candidate_effect':
+        destructiveRisks.push(createDestructiveRisk('rename_candidate', undefined, operation.from, operation.to));
+        break;
+      case 'semantic_constraint_change_effect':
+        if (operation.target) {
+          destructiveRisks.push(createDestructiveRisk('semantic_constraint_change', operation.target));
+        }
+        break;
+      case 'recreate_table':
+        if (operation.target) {
+          operationalRisks.push({ kind: 'table_rebuild', target: operation.target });
+          operationalRisks.push({ kind: 'full_table_copy', target: operation.target });
+        }
+        break;
+      case 'index_rebuild_effect':
+        if (operation.target) {
+          operationalRisks.push({ kind: 'index_rebuild', target: operation.target });
+        }
+        break;
+    }
+  }
+
+  // Surface rename candidates and constraint changes even when only the logical summary knows them.
+  for (const [tableKey, entries] of summaryByTable.entries()) {
+    for (const candidate of findRenameCandidates(entries)) {
+      destructiveRisks.push(createDestructiveRisk('rename_candidate', undefined, candidate.from, candidate.to));
+    }
+    if (!rebuiltTables.has(tableKey)) {
+      continue;
+    }
+    if (entries.some((entry) => entry.changeKind === 'alter_type')) {
+      for (const entry of entries.filter((item) => item.changeKind === 'alter_type')) {
+        destructiveRisks.push(createDestructiveRisk('alter_type', `${tableKey}.${String(entry.details.column)}`));
+      }
+    }
+  }
+
+  return {
+    destructiveRisks: dedupeDestructiveRisks(destructiveRisks),
+    operationalRisks: dedupeOperationalRisks(operationalRisks)
+  };
+}
+
+function createGuidedRisk(kind: 'drop_table' | 'drop_column' | 'cascade_drop', target: string): DestructiveRisk {
+  return {
+    kind,
+    target,
+    avoidable: true,
+    guidance: ['review_if_required', 'avoid_if_possible', 'cli_option_not_exposed']
+  };
+}
+
+function createDestructiveRisk(kind: Exclude<DestructiveRiskKind, 'drop_table' | 'drop_column' | 'cascade_drop'>, target?: string, from?: string, to?: string): DestructiveRisk {
+  return {
+    kind,
+    target,
+    from,
+    to,
+    guidance: ['review_if_required']
+  };
+}
+
+function dedupeDestructiveRisks(risks: DestructiveRisk[]): DestructiveRisk[] {
+  const seen = new Map<string, DestructiveRisk>();
+  for (const risk of risks) {
+    const key = JSON.stringify({
+      kind: risk.kind,
+      target: risk.target ?? '',
+      from: risk.from ?? '',
+      to: risk.to ?? ''
+    });
+    if (!seen.has(key)) {
+      seen.set(key, risk);
+    }
+  }
+
+  return [...seen.values()].sort((left, right) => {
+    const leftKey = `${left.kind}:${left.target ?? left.from ?? ''}:${left.to ?? ''}`;
+    const rightKey = `${right.kind}:${right.target ?? right.from ?? ''}:${right.to ?? ''}`;
+    return leftKey.localeCompare(rightKey);
+  });
+}
+
+function dedupeOperationalRisks(risks: OperationalRisk[]): OperationalRisk[] {
+  const seen = new Map<string, OperationalRisk>();
+  for (const risk of risks) {
+    const key = `${risk.kind}:${risk.target}`;
+    if (!seen.has(key)) {
+      seen.set(key, risk);
+    }
+  }
+
+  return [...seen.values()].sort((left, right) => {
+    const leftKey = `${left.kind}:${left.target}`;
+    const rightKey = `${right.kind}:${right.target}`;
+    return leftKey.localeCompare(rightKey);
+  });
+}
+
+function groupSummaryByTable(summary: DdlDiffSummaryEntry[]): Map<string, DdlDiffSummaryEntry[]> {
+  const grouped = new Map<string, DdlDiffSummaryEntry[]>();
+  for (const entry of summary) {
+    const key = `${entry.schema}.${entry.table}`;
+    const bucket = grouped.get(key) ?? [];
+    bucket.push(entry);
+    grouped.set(key, bucket);
+  }
+  return grouped;
+}
+
+function findRenameCandidates(entries: DdlDiffSummaryEntry[]): Array<{ from: string; to: string }> {
+  const addedColumns = entries.filter((entry) => entry.changeKind === 'add_column');
+  const droppedColumns = entries.filter((entry) => entry.changeKind === 'drop_column');
+  const candidates: Array<{ from: string; to: string }> = [];
+
+  for (const dropped of droppedColumns) {
+    const matched = addedColumns.find((entry) => normalizeSql(String(entry.details.type)) === normalizeSql(String(dropped.details.type)));
+    if (!matched) {
+      continue;
+    }
+
+    const tableKey = `${dropped.schema}.${dropped.table}`;
+    candidates.push({
+      from: `${tableKey}.${String(dropped.details.column)}`,
+      to: `${tableKey}.${String(matched.details.column)}`
+    });
+  }
+
+  return candidates;
 }
 
 function parseSchemaModel(sql: string): ParsedSchemaModel {
   const statements = splitSqlStatements(sql);
   const tableDefinitions = new Map<string, TableDefinition>();
   const createSchemaStatements: string[] = [];
-  const supplementalStatementsByTable = new Map<string, string[]>();
+  const supplementalStatementsByTable = new Map<string, SupplementalStatement[]>();
 
   for (const statement of statements) {
     const trimmed = statement.trim();
@@ -378,7 +648,11 @@ function parseSchemaModel(sql: string): ParsedSchemaModel {
     const referencedTable = extractReferencedTable(trimmed);
     if (referencedTable) {
       const bucket = supplementalStatementsByTable.get(referencedTable) ?? [];
-      bucket.push(trimmed);
+      bucket.push({
+        sql: trimmed,
+        kind: isCreateIndexStatement(trimmed) ? 'index' : 'other',
+        name: extractIndexName(trimmed)
+      });
       supplementalStatementsByTable.set(referencedTable, bucket);
     }
   }
@@ -470,6 +744,18 @@ function extractReferencedTable(statement: string): string | undefined {
   }
 
   return undefined;
+}
+
+function isCreateIndexStatement(statement: string): boolean {
+  return /^create\s+(?:unique\s+)?index\b/i.test(statement);
+}
+
+function extractIndexName(statement: string): string | undefined {
+  const match = statement.match(/^create\s+(?:unique\s+)?index\s+(?:if\s+not\s+exists\s+)?("?[\w$]+"?)/i);
+  if (!match) {
+    return undefined;
+  }
+  return normalizeIdentifier(match[1]);
 }
 
 function buildSummary(localModel: ParsedSchemaModel, remoteModel: ParsedSchemaModel): DdlDiffSummaryEntry[] {
@@ -577,6 +863,30 @@ function buildTableChangeSummary(localTable: TableDefinition, remoteTable: Table
   }
 
   return entries;
+}
+
+function hasConstraintChange(localStatement: string, remoteStatement: string): boolean {
+  const localConstraints = extractConstraintLines(localStatement);
+  const remoteConstraints = extractConstraintLines(remoteStatement);
+  if (localConstraints.length === 0 && remoteConstraints.length === 0) {
+    return false;
+  }
+
+  return normalizeSql(localConstraints.join(' ')) !== normalizeSql(remoteConstraints.join(' '));
+}
+
+function extractConstraintLines(statement: string): string[] {
+  const start = statement.indexOf('(');
+  const end = statement.lastIndexOf(')');
+  if (start < 0 || end <= start) {
+    return [];
+  }
+
+  return statement
+    .slice(start + 1, end)
+    .split(',')
+    .map((line) => line.trim())
+    .filter((line) => /^(constraint|primary key|foreign key|unique|check)\b/i.test(line));
 }
 
 function sortSummaryEntries(entries: DdlDiffSummaryEntry[]): DdlDiffSummaryEntry[] {

@@ -77,11 +77,41 @@ test('diff schema writes pure SQL plus companion review artifacts', () => {
         })
       ])
     );
-    expect(result.riskNotes).toEqual(
+    expect(result.applyPlan.operations).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          level: 'info',
-          message: expect.stringContaining('run npx ztd ztd-config')
+          kind: 'drop_table_cascade',
+          target: 'public.users'
+        }),
+        expect.objectContaining({
+          kind: 'recreate_table',
+          target: 'public.users'
+        })
+      ])
+    );
+    expect(result.risks.destructiveRisks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'drop_table',
+          target: 'public.users',
+          avoidable: true,
+          guidance: expect.arrayContaining(['review_if_required', 'cli_option_not_exposed'])
+        }),
+        expect.objectContaining({
+          kind: 'cascade_drop',
+          target: 'public.users'
+        })
+      ])
+    );
+    expect(result.risks.operationalRisks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'table_rebuild',
+          target: 'public.users'
+        }),
+        expect.objectContaining({
+          kind: 'full_table_copy',
+          target: 'public.users'
         })
       ])
     );
@@ -101,6 +131,11 @@ test('diff schema writes pure SQL plus companion review artifacts', () => {
 
   expect(textContents).toContain('Migration summary');
   expect(textContents).toContain('public.users: add column last_login_at timestamptz null');
+  expect(textContents).toContain('Destructive risks');
+  expect(textContents).toContain('drop_table: public.users');
+  expect(textContents).toContain('guidance: review_if_required, avoid_if_possible, cli_option_not_exposed');
+  expect(textContents).toContain('Operational risks');
+  expect(textContents).toContain('table_rebuild: public.users');
   expect(textContents).toContain(outputFile);
 
   expect(jsonContents).toMatchObject({
@@ -108,6 +143,20 @@ test('diff schema writes pure SQL plus companion review artifacts', () => {
     hasChanges: true,
     artifacts: {
       sql: outputFile
+    },
+    risks: {
+      destructiveRisks: expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'drop_table',
+          target: 'public.users'
+        })
+      ]),
+      operationalRisks: expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'table_rebuild',
+          target: 'public.users'
+        })
+      ])
     },
     summary: expect.arrayContaining([
       expect.objectContaining({
@@ -151,9 +200,72 @@ test('diff schema dry-run returns review data without writing artifacts', () => 
     expect(result.dryRun).toBe(true);
     expect(result.hasChanges).toBe(false);
     expect(result.text).toContain('no schema differences detected');
+    expect(result.text).toContain('Destructive risks\n- none');
+    expect(result.text).toContain('Operational risks\n- none');
+    expect(result.risks.destructiveRisks).toEqual([]);
+    expect(result.risks.operationalRisks).toEqual([]);
     expect(existsSync(outputFile)).toBe(false);
     expect(existsSync(outputFile.replace(/\.sql$/, '.txt'))).toBe(false);
     expect(existsSync(outputFile.replace(/\.sql$/, '.json'))).toBe(false);
+  } finally {
+    spy.mockRestore();
+  }
+});
+
+test('diff schema reports column and index rebuild risks from the apply plan', () => {
+  const ddlDir = path.join(createTempDir('cli-diff-risk-matrix'), 'ddl');
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'users.sql'),
+    `
+      CREATE TABLE public.users (
+        id serial PRIMARY KEY,
+        display_name text NOT NULL,
+        nickname text NOT NULL
+      );
+
+      CREATE INDEX idx_users_display_name ON public.users(display_name);
+    `,
+    'utf8'
+  );
+
+  const outputFile = path.join(createTempDir('cli-diff-risk-matrix-output'), 'users.diff.sql');
+  const remoteSql = `
+    CREATE TABLE public.users (
+      id serial PRIMARY KEY,
+      name text,
+      nickname integer
+    );
+
+    CREATE INDEX idx_users_display_name ON public.users(name);
+  `;
+
+  const spy = vi.spyOn(pgDumpUtil, 'runPgDump').mockReturnValue(remoteSql);
+  try {
+    const result = runDiffSchema({
+      directories: [ddlDir],
+      extensions: ['.sql'],
+      url: 'postgres://test:secret@cli-host:5432/diff-db',
+      out: outputFile
+    });
+
+    expect(result.risks.destructiveRisks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'drop_column', target: 'public.users.name' }),
+        expect.objectContaining({ kind: 'alter_type', target: 'public.users.nickname' }),
+        expect.objectContaining({ kind: 'nullability_tighten', target: 'public.users.nickname' }),
+        expect.objectContaining({
+          kind: 'rename_candidate',
+          from: 'public.users.name',
+          to: 'public.users.display_name'
+        })
+      ])
+    );
+    expect(result.risks.operationalRisks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'index_rebuild', target: 'idx_users_display_name' })
+      ])
+    );
   } finally {
     spy.mockRestore();
   }

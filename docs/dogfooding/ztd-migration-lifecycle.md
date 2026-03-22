@@ -62,7 +62,7 @@ I changed the DDL for users and need a migration artifact.
 Read the nearest AGENTS.md files first.
 Run `npx ztd ztd-config`.
 Optionally run `npx ztd ddl pull --url <target-db-url>` to inspect the target first.
-Run `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to generate review output plus SQL, read the text summary first, then fix the tests that fail.
+Run `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to generate review output plus SQL, read the logical summary first, inspect the structured risks second, then fix the tests that fail.
 Do not apply migrations automatically.
 ```
 
