@@ -8,6 +8,11 @@ title: JOIN Direction Lint Specification
 
 The goal is not to prove that one query is semantically wrong. The goal is to reduce review noise, AI-generated drift, and cognitive load by making join paths easier to read and compare.
 
+Before you try the examples on a published CLI, run `npx ztd query lint --help` first and confirm that the help output includes `--rules <list>`.
+
+- If `--rules` is present, the published package surface is new enough for the examples in this guide.
+- If `--rules` is missing or `unknown option '--rules'` appears, you are on an older published `@rawsql-ts/ztd-cli` release and should upgrade before using this guide as-written.
+
 ## Purpose
 
 This lint looks for inner-join patterns where the query walks **from a parent table down to a child table** even though DDL already defines a clear FK path in the opposite direction.

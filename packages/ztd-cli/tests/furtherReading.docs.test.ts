@@ -144,6 +144,9 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       docPath: 'docs/guide/join-direction-lint-spec.md',
       phrases: [
         '`ztd query lint --rules join-direction`',
+        '`npx ztd query lint --help`',
+        '`--rules <list>`',
+        '`unknown option \'--rules\'`',
         '`parent -> child` is not a universal anti-pattern.',
         'v1 uses **FK-only** relation evidence.',
         '`LEFT JOIN` can be a clean parent-first pattern when the query intentionally preserves the parent row set.',

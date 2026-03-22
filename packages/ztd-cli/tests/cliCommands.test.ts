@@ -1103,6 +1103,15 @@ test('ddl diff help explains review-first output and companion artifacts', () =>
   expect(result.stdout).toContain('SQL/.txt/.json artifacts');
 });
 
+test('query lint help exposes the published join-direction command surface', () => {
+  const result = runCli(['query', 'lint', '--help']);
+
+  assertCliSuccess(result, 'query lint help');
+  expect(result.stdout).toContain('--rules <list>');
+  expect(result.stdout).toContain('join-direction');
+  expect(result.stdout).toContain('upgrade to a newer published ztd-cli release');
+});
+
 test('ddl risk help explains post-hoc evaluation for hand-edited migration SQL', () => {
   const result = runCli(['ddl', 'risk', '--help']);
 
