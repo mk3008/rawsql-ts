@@ -11,6 +11,9 @@ The starter keeps the first run simple:
 - Vitest-ready smoke tests
 - `@rawsql-ts/testkit-core` so `npx ztd ztd-config` works in a fresh standalone project
 
+Start Postgres with `docker compose up -d`, export `ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5432/ztd`, then run `npx vitest run`.
+If `5432` is already in use, stop the conflicting process or use another local port and update `ZTD_TEST_DATABASE_URL` before you run Vitest.
+
 src/catalog may still exist as internal support, but it is not the user-facing standard location.
 
 For DDL, SQL, DTO, and migration repair loops, read the tutorial and dogfooding docs under `docs/`.
