@@ -73,6 +73,14 @@ npx vitest run
 
 The smoke test proves the starter wiring is sound before you add real feature work.
 
+If the project was installed with `pnpm install`, keep using pnpm when you add the database adapter for the SQL repair loop:
+
+```bash
+pnpm add -D @rawsql-ts/adapter-node-pg
+```
+
+Avoid mixing `npm install -D` into a pnpm-managed starter project because that can fail before the adapter is added.
+
 ## 3. Add the first real feature
 
 Use `src/features/smoke` as the teaching example and add `src/features/users` as the first real feature.

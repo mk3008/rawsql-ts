@@ -152,6 +152,11 @@ test('init starter bootstraps visible AGENTS, compose, starter DDL, and smoke te
   ).toContain('Starter user directory for the first CRUD feature');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Starter Flow');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('ZTD_TEST_DATABASE_URL');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If `5432` is already in use');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('docker run -d --rm --name ztd-starter-pg');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('localhost:5433/ztd');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If you generated the starter with `pnpm install`, keep using pnpm for extra packages');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm add -D @rawsql-ts/adapter-node-pg');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/features/users');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd model-gen');

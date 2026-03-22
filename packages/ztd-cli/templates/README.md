@@ -11,6 +11,22 @@ The starter keeps the first run simple:
 - Vitest-ready smoke tests
 - `@rawsql-ts/testkit-core` so `npx ztd ztd-config` works in a fresh standalone project
 
+Start Postgres with `docker compose up -d`, export `ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5432/ztd`, then run `npx vitest run`.
+If `5432` is already in use, stop the conflicting process or run Postgres on another local port and update `ZTD_TEST_DATABASE_URL` before you run Vitest, for example:
+
+```bash
+docker run -d --rm --name ztd-starter-pg -e POSTGRES_USER=ztd -e POSTGRES_PASSWORD=ztd -e POSTGRES_DB=ztd -p 5433:5432 postgres:18
+export ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5433/ztd
+npx vitest run
+```
+
+If you generated the starter with `pnpm install`, keep using pnpm for extra packages:
+
+```bash
+pnpm add -D @rawsql-ts/adapter-node-pg
+npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts
+```
+
 src/catalog may still exist as internal support, but it is not the user-facing standard location.
 
 For DDL, SQL, DTO, and migration repair loops, read the tutorial and dogfooding docs under `docs/`.
