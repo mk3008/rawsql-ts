@@ -3,6 +3,7 @@ import path from 'node:path';
 import { expect, test, vi } from 'vitest';
 import * as pgDumpUtil from '../src/utils/pgDump';
 import { runDiffSchema } from '../src/commands/diff';
+import { analyzeMigrationPlanRisks, analyzeMigrationSqlRisks } from '../src/commands/ddlRiskEvaluator';
 
 const repoRoot = path.resolve(__dirname, '../../..');
 const tempRoot = path.join(repoRoot, 'tmp');
@@ -269,4 +270,76 @@ test('diff schema reports column and index rebuild risks from the apply plan', (
   } finally {
     spy.mockRestore();
   }
+});
+
+test('plan-based evaluator preserves ddl diff structured risks independently from rendering', () => {
+  const plan = {
+    operations: [
+      { kind: 'drop_table_cascade', target: 'public.users' },
+      { kind: 'recreate_table', target: 'public.users' },
+      { kind: 'drop_column_effect', target: 'public.users.legacy_name' },
+      { kind: 'index_rebuild_effect', target: 'idx_users_display_name' }
+    ]
+  } as const;
+
+  const summary = [
+    {
+      schema: 'public',
+      table: 'users',
+      changeKind: 'drop_column' as const,
+      details: { column: 'legacy_name', type: 'text' }
+    }
+  ];
+
+  const risks = analyzeMigrationPlanRisks(plan, summary);
+  expect(risks.destructiveRisks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        kind: 'drop_table',
+        target: 'public.users',
+        avoidable: true,
+        guidance: expect.arrayContaining(['cli_option_not_exposed'])
+      }),
+      expect.objectContaining({
+        kind: 'drop_column',
+        target: 'public.users.legacy_name'
+      })
+    ])
+  );
+  expect(risks.operationalRisks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ kind: 'table_rebuild', target: 'public.users' }),
+      expect.objectContaining({ kind: 'index_rebuild', target: 'idx_users_display_name' })
+    ])
+  );
+});
+
+test('sql-based evaluator can re-evaluate hand-edited migration SQL', () => {
+  const handEditedSql = `
+    DROP TABLE IF EXISTS public.users CASCADE;
+    CREATE TABLE public.users (
+      id serial PRIMARY KEY,
+      display_name text NOT NULL
+    );
+    ALTER TABLE public.orders ALTER COLUMN total_amount TYPE numeric(12,2);
+    ALTER TABLE public.client DROP COLUMN client_name;
+    CREATE INDEX idx_users_display_name ON public.users(display_name);
+  `;
+
+  const risks = analyzeMigrationSqlRisks(handEditedSql);
+  expect(risks.destructiveRisks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ kind: 'drop_table', target: 'public.users' }),
+      expect.objectContaining({ kind: 'cascade_drop', target: 'public.users' }),
+      expect.objectContaining({ kind: 'alter_type', target: 'public.orders.total_amount' }),
+      expect.objectContaining({ kind: 'drop_column', target: 'public.client.client_name' })
+    ])
+  );
+  expect(risks.operationalRisks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ kind: 'table_rebuild', target: 'public.users' }),
+      expect.objectContaining({ kind: 'full_table_copy', target: 'public.users' }),
+      expect.objectContaining({ kind: 'index_rebuild', target: 'idx_users_display_name' })
+    ])
+  );
 });
