@@ -45,6 +45,8 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'If port `5432` is already in use, stop the conflicting process or run Postgres on another port and update `ZTD_TEST_DATABASE_URL`, for example:',
         'docker run -d --rm --name ztd-starter-pg',
         '-p 5433:5432',
+        'npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail',
+        'Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.',
         'npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts',
         'Read the review summary first:',
         '- the risks section lists destructive and operational apply-plan risks separately',
@@ -62,8 +64,18 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'npx ztd ddl risk --file tmp/users.diff.sql',
         '`ZTD_TEST_DATABASE_URL` is the only implicit database owned by ztd-cli.',
         'Use `--url` or a full `--db-*` flag set for any other inspection target.',
+        'The feature folder is one narrowed spec set inside the normal project-wide discovery flow.',
         'inspect the structured risks second',
         'Do not apply migrations automatically.'
+      ]
+    },
+    {
+      docPath: 'docs/guide/query-uses-impact-checks.md',
+      phrases: [
+        'The active scan set is **project-wide by default**.',
+        'Use `--specs-dir` only when you want to narrow the scan to one slice or sub-tree.',
+        'prefers feature-local spec-relative paths, then tries project-relative paths',
+        'npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail'
       ]
     },
     {

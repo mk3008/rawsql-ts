@@ -31,7 +31,7 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
   expectInOrder(tutorial, [
     'This tutorial shows the shortest path from `ztd init --starter` to a small `users` feature that can be changed, broken, and repaired with AI help.',
     'The tutorial uses one starter project, one `smoke` feature, and one `users` feature.',
-    'DDL repair | `npx ztd query uses column users.email --sql-root src/features/users/persistence --specs-dir src/features/users/persistence --any-schema --view detail`',
+    'DDL repair | `npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail`',
     'SQL repair | `npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts`',
     'DTO repair | `npx vitest run` after the DTO change',
     'migration | `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to prepare review output plus apply SQL',
@@ -49,7 +49,8 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
     'src/features/users/application',
     'src/features/users/persistence',
     'src/features/users/tests',
-    'npx ztd query uses column users.email --sql-root src/features/users/persistence --specs-dir src/features/users/persistence --any-schema --view detail',
+    'npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail',
+    'Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.',
     'For SQL repair, keep the SQL assets under the feature folder, keep the query on the starter DDL\'s `users` table, and pass that folder explicitly as `--sql-root` when you ask `model-gen` to refresh the spec.',
     'npx ztd ztd-config',
     'npx ztd ddl diff'

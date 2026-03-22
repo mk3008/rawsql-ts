@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import {
+  discoverProjectSqlCatalogSpecFiles,
   loadSqlCatalogSpecsFromFile,
   walkSqlCatalogSpecFiles,
 } from '../utils/sqlCatalogDiscovery';
@@ -53,13 +54,15 @@ function runSpan<T>(withSpanSync: QueryUsageSpanRunner | undefined, name: string
 }
 
 /**
- * Build a deterministic impact or detail investigation report from catalog specs.
+ * Build a deterministic impact or detail investigation report from discovered QuerySpec entries.
  */
 export function buildQueryUsageReport(params: BuildQueryUsageReportParams): QueryUsageReport {
   const rootDir = path.resolve(params.rootDir ?? process.cwd());
-  const specsDir = params.specsDir ? path.resolve(rootDir, params.specsDir) : path.resolve(rootDir, 'src', 'catalog', 'specs');
-  const sqlRoot = params.sqlRoot ? path.resolve(rootDir, params.sqlRoot) : path.resolve(rootDir, 'src', 'sql');
-  const normalizedSqlRoot = normalizePath(path.relative(rootDir, sqlRoot) || '.');
+  const specsDir = params.specsDir ? path.resolve(rootDir, params.specsDir) : rootDir;
+  const sqlRoot = params.sqlRoot ? path.resolve(rootDir, params.sqlRoot) : null;
+  const legacySqlRoot = path.resolve(rootDir, 'src', 'sql');
+  const normalizedSqlRoot = sqlRoot ? normalizePath(path.relative(rootDir, sqlRoot) || '.') : null;
+  const normalizedLegacySqlRoot = normalizePath(path.relative(rootDir, legacySqlRoot) || '.');
   const view = params.view ?? 'impact';
   const parsedTarget = parseQueryTarget({
     kind: params.kind,
@@ -72,7 +75,15 @@ export function buildQueryUsageReport(params: BuildQueryUsageReportParams): Quer
     const warnings: QueryUsageReport['warnings'] = [];
     const discovery = runSpan(params.withSpanSync, QUERY_USES_REPORT_SPANS.specDiscovery, () => {
       const specFiles = existsSync(specsDir)
-        ? walkSqlCatalogSpecFiles(specsDir, { excludeGenerated: params.excludeGenerated })
+        ? params.specsDir
+          ? walkSqlCatalogSpecFiles(specsDir, {
+            excludeGenerated: params.excludeGenerated,
+            excludeTestFiles: true,
+          })
+          : discoverProjectSqlCatalogSpecFiles(rootDir, {
+            excludeGenerated: params.excludeGenerated,
+            excludeTestFiles: true,
+          })
         : [];
       const loadedSpecs = specFiles.flatMap((filePath) => {
         try {
@@ -100,10 +111,16 @@ export function buildQueryUsageReport(params: BuildQueryUsageReportParams): Quer
     let fallbackMatches = 0;
 
     if (discovery.loadedSpecs.length === 0) {
+      const activeScope = params.specsDir
+        ? normalizePath(path.relative(rootDir, specsDir) || '.')
+        : '.';
       warnings.push({
         code: 'no-catalog-specs-found',
-        message: `No catalog specs found under ${normalizePath(path.relative(rootDir, specsDir) || '.')}.
-Hint: run "ztd init" or pass "--specs-dir".`,
+        message: params.specsDir
+          ? `No QuerySpec entries found under ${activeScope}.
+Hint: pass a narrower --specs-dir only when you need to limit the active spec set.`
+          : `No QuerySpec entries were discovered under ${activeScope}.
+Hint: run "ztd init" or place feature-local specs under your project tree. Use --specs-dir only when you need to narrow the scan.`,
       });
     }
 
@@ -129,23 +146,33 @@ Hint: run "ztd init" or pass "--specs-dir".`,
       }
 
       const resolvedSqlFile = resolveCatalogSqlFile({
+        rootDir,
         sqlRoot,
+        legacySqlRoot,
         specFilePath: loaded.filePath,
         sqlFile,
       });
       if (!resolvedSqlFile) {
         unresolvedSqlFiles += 1;
-        const projectRootCandidate = normalizePath(path.relative(rootDir, path.resolve(sqlRoot, sqlFile)));
         const specRelativeCandidate = normalizePath(path.relative(rootDir, path.resolve(path.dirname(loaded.filePath), sqlFile)));
+        const projectRelativeCandidate = normalizePath(path.relative(rootDir, path.resolve(rootDir, sqlFile)));
+        const sqlRootCandidate = sqlRoot
+          ? normalizePath(path.relative(rootDir, path.resolve(sqlRoot, sqlFile)))
+          : null;
+        const legacySqlRootCandidate = normalizePath(path.relative(rootDir, path.resolve(legacySqlRoot, sqlFile)));
         warnings.push({
           catalog_id: catalogId,
-          sql_file: projectRootCandidate,
+          sql_file: specRelativeCandidate,
           code: 'unresolved-sql-file',
           message: [
             `SQL file does not exist: ${sqlFile}`,
-            `Tried project SQL root (${normalizedSqlRoot}): ${projectRootCandidate}`,
-            `Tried spec-relative fallback: ${specRelativeCandidate}`,
-            `Hint: keep existing sqlFile values unchanged and re-run with --sql-root ${normalizedSqlRoot} if your project stores SQL under a shared root.`,
+            `Tried spec-relative path: ${specRelativeCandidate}`,
+            `Tried project-relative path: ${projectRelativeCandidate}`,
+            ...(sqlRootCandidate && normalizedSqlRoot
+              ? [`Tried --sql-root (${normalizedSqlRoot}): ${sqlRootCandidate}`]
+              : []),
+            `Tried legacy shared root (${normalizedLegacySqlRoot}): ${legacySqlRootCandidate}`,
+            `Hint: prefer feature-local spec-relative sqlFile values. Use --sql-root only when your specs intentionally point into a shared SQL root.`,
           ].join('\n'),
         });
         continue;
@@ -417,20 +444,36 @@ function normalizePath(input: string): string {
 }
 
 function resolveCatalogSqlFile(params: {
-  sqlRoot: string;
+  rootDir: string;
+  sqlRoot: string | null;
+  legacySqlRoot: string;
   specFilePath: string;
   sqlFile: string;
 }): string | null {
-  // Prefer the project-level SQL root because existing QuerySpec sqlFile values are root-relative by convention.
-  const projectRootCandidate = path.resolve(params.sqlRoot, params.sqlFile);
-  if (existsSync(projectRootCandidate)) {
-    return projectRootCandidate;
-  }
-
-  // Preserve backward compatibility for specs that stored sqlFile relative to the spec file itself.
+  // Prefer spec-local ownership so feature-first projects do not need one shared SQL root.
   const specRelativeCandidate = path.resolve(path.dirname(params.specFilePath), params.sqlFile);
   if (existsSync(specRelativeCandidate)) {
     return specRelativeCandidate;
+  }
+
+  // Allow project-relative sqlFile values for repos that keep specs and SQL in separate trees.
+  const projectRelativeCandidate = path.resolve(params.rootDir, params.sqlFile);
+  if (existsSync(projectRelativeCandidate)) {
+    return projectRelativeCandidate;
+  }
+
+  // Preserve the older shared-root escape hatch when callers opt into --sql-root explicitly.
+  if (params.sqlRoot) {
+    const sharedRootCandidate = path.resolve(params.sqlRoot, params.sqlFile);
+    if (existsSync(sharedRootCandidate)) {
+      return sharedRootCandidate;
+    }
+  }
+
+  // Keep older src/sql-based projects working while spec-relative layouts become the preferred contract.
+  const legacySharedRootCandidate = path.resolve(params.legacySqlRoot, params.sqlFile);
+  if (existsSync(legacySharedRootCandidate)) {
+    return legacySharedRootCandidate;
   }
 
   return null;

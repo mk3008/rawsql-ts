@@ -5,6 +5,7 @@ import { expect, test } from 'vitest';
 import { runCheckContract } from '../src/commands/checkContract';
 import { runTestEvidenceSpecification } from '../src/commands/testEvidence';
 import {
+  discoverProjectSqlCatalogSpecFiles,
   loadSqlCatalogSpecsFromFile,
   walkSqlCatalogSpecFiles
 } from '../src/utils/sqlCatalogDiscovery';
@@ -67,6 +68,35 @@ test('sql catalog discovery finds feature-local specs under src/features', () =>
     'smoke.spec.ts'
   ]);
   expect(checkFiles.map((filePath) => path.basename(filePath))).toEqual(['smoke.spec.ts']);
+});
+
+test('project-wide spec discovery finds feature-local QuerySpecs without a fixed catalog root', () => {
+  const root = createWorkspace('sql-catalog-project-wide');
+  mkdirSync(path.join(root, 'src', 'features', 'users', 'persistence'), { recursive: true });
+  mkdirSync(path.join(root, 'src', 'features', 'orders', 'persistence'), { recursive: true });
+  mkdirSync(path.join(root, 'tests', 'fixtures'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'features', 'users', 'persistence', 'users.spec.ts'),
+    "export const usersSpec = { id: 'features.users.persistence.users', sqlFile: './users.sql', params: { shape: 'named', example: { id: 1 } } };",
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'features', 'orders', 'persistence', 'orders.spec.ts'),
+    "export const ordersSpec = { id: 'features.orders.persistence.orders', sqlFile: './orders.sql', params: { shape: 'named', example: { id: 1 } } };",
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'tests', 'fixtures', 'fake.spec.ts'),
+    "export const fake = { id: 'tests.fake', sqlFile: './fake.sql', params: { shape: 'named' } };",
+    'utf8'
+  );
+
+  const discovered = discoverProjectSqlCatalogSpecFiles(root, { excludeTestFiles: true });
+
+  expect(discovered.map((filePath) => path.relative(root, filePath).replace(/\\/g, '/'))).toEqual([
+    'src/features/orders/persistence/orders.spec.ts',
+    'src/features/users/persistence/users.spec.ts'
+  ]);
 });
 
 test('sql catalog discovery preserves spec ids, ordering, sqlFile, and minimal extracted fields', () => {
