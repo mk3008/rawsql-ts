@@ -24,15 +24,15 @@ test('package README links every Further Reading guide from the public index', (
   expectInOrder(readme, [
     '## Further Reading',
     '[SQL-first End-to-End Tutorial](../../docs/guide/sql-first-end-to-end-tutorial.md)',
-    '[Migration Lifecycle Dogfooding](../../docs/dogfooding/ztd-migration-lifecycle.md)',
-    '[Perf Tuning Decision Guide](../../docs/guide/perf-tuning-decision-guide.md)',
     '[SQL Tool Happy Paths](../../docs/guide/sql-tool-happy-paths.md)',
-    '[ztd-cli Agent Interface](../../docs/guide/ztd-cli-agent-interface.md)',
+    '[Perf Tuning Decision Guide](../../docs/guide/perf-tuning-decision-guide.md)',
+    '[JOIN Direction Lint Specification](../../docs/guide/join-direction-lint-spec.md)',
+    '[ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md)',
+    '[Migration Lifecycle Dogfooding](../../docs/dogfooding/ztd-migration-lifecycle.md)',
     '[Perf Scale Tuning Dogfooding](../../docs/dogfooding/perf-scale-tuning.md)',
     '[Published-Package Verification Before Release](../../docs/guide/published-package-verification.md)',
     '[Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md)',
-    '[ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md)',
-    '[JOIN Direction Lint Specification](../../docs/guide/join-direction-lint-spec.md)'
+    '[ztd-cli Agent Interface](../../docs/guide/ztd-cli-agent-interface.md)'
   ]);
 });
 

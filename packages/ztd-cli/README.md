@@ -85,16 +85,24 @@ Run `npx ztd describe command <name>` for per-command flags and options.
 
 ## Further Reading
 
+### User Guides
+
 - [SQL-first End-to-End Tutorial](../../docs/guide/sql-first-end-to-end-tutorial.md) - starter flow, repair loops, and scenario-specific CLI guidance
-- [Migration Lifecycle Dogfooding](../../docs/dogfooding/ztd-migration-lifecycle.md) - separate-AI prompts for DDL, SQL, DTO, and migration repair
-- [Perf Tuning Decision Guide](../../docs/guide/perf-tuning-decision-guide.md) - index tuning vs pipeline tuning
 - [SQL Tool Happy Paths](../../docs/guide/sql-tool-happy-paths.md) - choose between query plan, perf, query uses, and telemetry
-- [ztd-cli Agent Interface](../../docs/guide/ztd-cli-agent-interface.md) - machine-readable command surface
+- [Perf Tuning Decision Guide](../../docs/guide/perf-tuning-decision-guide.md) - index tuning vs pipeline tuning
+- [JOIN Direction Lint Specification](../../docs/guide/join-direction-lint-spec.md) - readable FK-aware JOIN guidance
+
+### Advanced User Guides
+
+- [ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md) - opt-in telemetry guidance
+
+### Developer Guides
+
+- [Migration Lifecycle Dogfooding](../../docs/dogfooding/ztd-migration-lifecycle.md) - separate-AI prompts for DDL, SQL, DTO, and migration repair
 - [Perf Scale Tuning Dogfooding](../../docs/dogfooding/perf-scale-tuning.md) - separate-AI tuning dogfood
 - [Published-Package Verification Before Release](../../docs/guide/published-package-verification.md) - pack and smoke-test the published-package path
 - [Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md) - unpublished local checkout workflow
-- [ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md) - opt-in telemetry guidance
-- [JOIN Direction Lint Specification](../../docs/guide/join-direction-lint-spec.md) - readable FK-aware JOIN guidance
+- [ztd-cli Agent Interface](../../docs/guide/ztd-cli-agent-interface.md) - machine-readable command surface
 
 ## License
 

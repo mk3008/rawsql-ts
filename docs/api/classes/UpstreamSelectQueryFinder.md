@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: UpstreamSelectQueryFinder
 
-Defined in: [packages/core/src/transformers/UpstreamSelectQueryFinder.ts:20](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/UpstreamSelectQueryFinder.ts#L20)
+Defined in: [packages/core/src/transformers/UpstreamSelectQueryFinder.ts:20](https://github.com/mk3008/rawsql-ts/blob/93e13cd77a71b8ce48bfa99c612638e88e31251f/packages/core/src/transformers/UpstreamSelectQueryFinder.ts#L20)
 
 UpstreamSelectQueryFinder searches upstream queries for the specified columns.
 If a query (including its upstream CTEs or subqueries) contains all columns,
@@ -18,7 +18,7 @@ while maintaining compatibility with compound query structures.
 
 > **new UpstreamSelectQueryFinder**(`tableColumnResolver?`, `options?`): `UpstreamSelectQueryFinder`
 
-Defined in: [packages/core/src/transformers/UpstreamSelectQueryFinder.ts:25](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/UpstreamSelectQueryFinder.ts#L25)
+Defined in: [packages/core/src/transformers/UpstreamSelectQueryFinder.ts:25](https://github.com/mk3008/rawsql-ts/blob/93e13cd77a71b8ce48bfa99c612638e88e31251f/packages/core/src/transformers/UpstreamSelectQueryFinder.ts#L25)
 
 #### Parameters
 
@@ -42,7 +42,7 @@ Defined in: [packages/core/src/transformers/UpstreamSelectQueryFinder.ts:25](htt
 
 > **find**(`query`, `columnNames`): [`SimpleSelectQuery`](SimpleSelectQuery.md)[]
 
-Defined in: [packages/core/src/transformers/UpstreamSelectQueryFinder.ts:43](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/UpstreamSelectQueryFinder.ts#L43)
+Defined in: [packages/core/src/transformers/UpstreamSelectQueryFinder.ts:43](https://github.com/mk3008/rawsql-ts/blob/93e13cd77a71b8ce48bfa99c612638e88e31251f/packages/core/src/transformers/UpstreamSelectQueryFinder.ts#L43)
 
 Finds the highest SelectQuery containing all specified columns.
 

@@ -333,6 +333,23 @@ function verifyNpmConsumerSmoke(phaseAResult) {
   // Phase B proves the first generated smoke test can pass on the npm-first consumer path.
   runIn(appDir, NPM, ["exec", "--", "ztd", "ztd-config"]);
 
+  // Keep the published command surface aligned with Further Reading docs by
+  // exercising the opt-in join-direction flag from the packed CLI artifact.
+  fs.mkdirSync(path.join(appDir, "tmp"), { recursive: true });
+  fs.writeFileSync(path.join(appDir, "tmp", "join-direction-smoke.sql"), "select 1;\n", "utf8");
+  const lintHelp = runIn(appDir, NPM, ["exec", "--", "ztd", "query", "lint", "--help"]);
+  assertIncludes(lintHelp.stdout, "--rules <list>", "phase-b query-lint-help-surface");
+  runIn(appDir, NPM, [
+    "exec",
+    "--",
+    "ztd",
+    "query",
+    "lint",
+    "--rules",
+    "join-direction",
+    "tmp/join-direction-smoke.sql",
+  ]);
+
   setPackageTypeModule(appDir);
   writeNode16Tsconfig(appDir);
 

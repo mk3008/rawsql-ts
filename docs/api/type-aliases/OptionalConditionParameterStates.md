@@ -3,5 +3,5 @@
 
 > **OptionalConditionParameterStates** = `Record`&lt;`string`, [`OptionalConditionParameterState`](OptionalConditionParameterState.md)\&gt;
 
-Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:18](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L18)
+Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:18](https://github.com/mk3008/rawsql-ts/blob/93e13cd77a71b8ce48bfa99c612638e88e31251f/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L18)
 </div>

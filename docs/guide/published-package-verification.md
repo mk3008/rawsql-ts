@@ -18,6 +18,8 @@ This is not a perfect substitute for a real registry publish. It is a local veri
   - follow-up `npm install` still works
 - Phase B proves the first test quality gate:
   - `npx ztd ztd-config`
+  - `npx ztd query lint --help` still exposes `--rules`
+  - `npx ztd query lint --rules join-direction <sql-file>` parses on the packed CLI path
   - `npm run test`
   - the generated scaffold reaches a passing first smoke test on the npm-first consumer path
   - TypeScript compile checks for both default and Node16 settings as follow-up smoke coverage
@@ -43,7 +45,7 @@ The script will:
 3. Inspect each packed `package.json` for leaked `workspace:` references
 4. Create a standalone app under `tmp/published-package-check/packages/npm-primary-path`
 5. Run Phase A: `npm install`, `npx ztd init --yes`, completion-message assertions, and follow-up `npm install`
-6. Run Phase B: `npx ztd ztd-config`, `npm run test`, and TypeScript compile checks
+6. Run Phase B: `npx ztd ztd-config`, `npx ztd query lint --help`, `npx ztd query lint --rules join-direction <sql-file>`, `npm run test`, and TypeScript compile checks
 7. Write a machine-readable summary to `tmp/published-package-check/summary.json`
 
 ## How to interpret failures
@@ -54,6 +56,7 @@ The script will:
   - Treat this as a packaging or npm-primary-path regression.
 - Phase B fails after the npm-first setup completed.
   - Treat this as a first test quality gate regression on the published-package path.
+  - This now includes command-surface regressions where docs mention `query lint --rules join-direction` but the packed CLI no longer accepts `--rules`.
   - The local-source developer path may still be healthy.
 - The standalone smoke app passes, but local-source dogfooding fails.
   - Treat that as a developer-mode problem, not a packaging problem.
