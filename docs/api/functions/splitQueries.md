@@ -3,7 +3,7 @@
 
 > **splitQueries**(`sql`): [`QueryCollection`](../interfaces/QueryCollection.md)
 
-Defined in: [packages/core/src/utils/IntelliSenseApi.ts:109](https://github.com/mk3008/rawsql-ts/blob/93e13cd77a71b8ce48bfa99c612638e88e31251f/packages/core/src/utils/IntelliSenseApi.ts#L109)
+Defined in: [packages/core/src/utils/IntelliSenseApi.ts:109](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/IntelliSenseApi.ts#L109)
 
 Split multi-query SQL text into individual queries
 

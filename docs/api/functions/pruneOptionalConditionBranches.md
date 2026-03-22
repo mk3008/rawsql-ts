@@ -3,7 +3,7 @@
 
 > **pruneOptionalConditionBranches**(`query`, `pruningParameters`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:279](https://github.com/mk3008/rawsql-ts/blob/93e13cd77a71b8ce48bfa99c612638e88e31251f/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L279)
+Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:279](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L279)
 
 Prunes supported optional WHERE branches when an explicitly targeted parameter is absent-equivalent.
 For the MVP, only `null` and `undefined` are treated as absent and unsupported shapes remain exact no-op.
