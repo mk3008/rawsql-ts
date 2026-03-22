@@ -203,6 +203,7 @@ Notes:
       'after',
       `
 Notes:
+  - If your installed CLI does not list --rules in this help output, upgrade to a newer published ztd-cli release before trying join-direction examples from Further Reading.
   - Use --rules join-direction to enable the FK-aware JOIN direction readability check.
   - Suppress a specific query with "-- ztd-lint-disable join-direction" when the reverse path is intentional.
   - The rule is opt-in in v1 and currently focuses on top-level inner joins with explicit FK evidence.

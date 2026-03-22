@@ -29,6 +29,7 @@ This is not a perfect substitute for a real registry publish. It is a local veri
 - This check does **not** fully emulate npm registry resolution for every unpublished transitive dependency.
 - A real post-publish smoke check is still required.
 - Do not use this to claim that every package combination is already registry-valid.
+- When Further Reading docs mention `query lint --rules join-direction`, a real post-publish smoke check should also confirm that `npx ztd query lint --help` exposes `--rules <list>` on the published package.
 
 ## Canonical command
 
