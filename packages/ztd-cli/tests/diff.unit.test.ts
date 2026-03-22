@@ -444,6 +444,7 @@ test('sql-based evaluator can re-evaluate hand-edited migration SQL', () => {
       display_name text NOT NULL
     );
     ALTER TABLE public.orders ALTER COLUMN total_amount TYPE numeric(12,2);
+    ALTER TABLE public.orders ADD CONSTRAINT orders_total_amount_positive CHECK (total_amount > 0);
     ALTER TABLE public.client DROP COLUMN client_name;
     CREATE INDEX idx_users_display_name ON public.users(display_name);
   `;
@@ -454,7 +455,8 @@ test('sql-based evaluator can re-evaluate hand-edited migration SQL', () => {
       expect.objectContaining({ kind: 'drop_table', target: 'public.users' }),
       expect.objectContaining({ kind: 'cascade_drop', target: 'public.users' }),
       expect.objectContaining({ kind: 'alter_type', target: 'public.orders.total_amount' }),
-      expect.objectContaining({ kind: 'drop_column', target: 'public.client.client_name' })
+      expect.objectContaining({ kind: 'drop_column', target: 'public.client.client_name' }),
+      expect.objectContaining({ kind: 'semantic_constraint_change', target: 'public.orders' })
     ])
   );
   expect(risks.operationalRisks).toEqual(
@@ -462,6 +464,26 @@ test('sql-based evaluator can re-evaluate hand-edited migration SQL', () => {
       expect.objectContaining({ kind: 'table_rebuild', target: 'public.users' }),
       expect.objectContaining({ kind: 'full_table_copy', target: 'public.users' }),
       expect.objectContaining({ kind: 'index_rebuild', target: 'idx_users_display_name' })
+    ])
+  );
+});
+
+test('sql-based evaluator supports same-line statements and rebuilt table constraints', () => {
+  const risks = analyzeMigrationSqlRisks(
+    'DROP TABLE public.users CASCADE; CREATE TABLE public.users (id serial PRIMARY KEY, email text NOT NULL, CONSTRAINT users_email_unique UNIQUE (email));'
+  );
+
+  expect(risks.destructiveRisks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ kind: 'drop_table', target: 'public.users' }),
+      expect.objectContaining({ kind: 'cascade_drop', target: 'public.users' }),
+      expect.objectContaining({ kind: 'semantic_constraint_change', target: 'public.users' })
+    ])
+  );
+  expect(risks.operationalRisks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ kind: 'table_rebuild', target: 'public.users' }),
+      expect.objectContaining({ kind: 'full_table_copy', target: 'public.users' })
     ])
   );
 });

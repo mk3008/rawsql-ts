@@ -1195,6 +1195,44 @@ test('ddl risk evaluates a hand-edited migration SQL file through the public CLI
   });
 });
 
+test('ddl risk accepts --json payload for the migration file path', () => {
+  const workspace = createTempDir('ddl-risk-cli-json');
+  const sqlFile = path.join(workspace, 'hand-edited.sql');
+  writeFileSync(
+    sqlFile,
+    'DROP TABLE public.users CASCADE; CREATE TABLE public.users (id serial PRIMARY KEY, CONSTRAINT users_pkey PRIMARY KEY (id));',
+    'utf8'
+  );
+
+  const result = runCli([
+    '--output',
+    'json',
+    'ddl',
+    'risk',
+    '--json',
+    JSON.stringify({ file: sqlFile })
+  ], {}, workspace);
+
+  assertCliSuccess(result, 'ddl risk json');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed).toMatchObject({
+    command: 'ddl risk',
+    ok: true,
+    data: {
+      file: sqlFile,
+      risks: {
+        destructiveRisks: expect.arrayContaining([
+          expect.objectContaining({ kind: 'drop_table', target: 'public.users' }),
+          expect.objectContaining({ kind: 'semantic_constraint_change', target: 'public.users' })
+        ]),
+        operationalRisks: expect.arrayContaining([
+          expect.objectContaining({ kind: 'table_rebuild', target: 'public.users' })
+        ])
+      }
+    }
+  });
+});
+
 pullTest('pull CLI dry-run validates dump without writing files', async () => {
   const connectionString = process.env.TEST_PG_URI!;
   const client = new Client({ connectionString });

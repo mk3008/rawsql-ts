@@ -171,7 +171,7 @@ export function registerDdlCommands(program: Command): void {
   ddl
       .command('risk')
       .description('Analyze a generated or hand-edited migration SQL file and emit the shared structured risk contract')
-      .requiredOption('--file <path>', 'Migration SQL file to analyze with the shared structured risk contract')
+      .option('--file <path>', 'Migration SQL file to analyze with the shared structured risk contract')
       .option('--json <payload>', 'Pass risk options as a JSON object')
       .action(async (options: RiskCommandOptions) => {
         const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;

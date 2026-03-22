@@ -89,13 +89,15 @@ export function analyzeMigrationSqlRisks(sql: string): DdlDiffRisks {
   const operationalRisks: OperationalRisk[] = [];
   const normalized = sql.replace(/\r\n/g, '\n');
   const statements = normalized
-    .split(/;\s*(?:\r?\n|$)/)
+    .split(/;\s*/)
     .map((statement) => statement.trim())
     .filter((statement) => statement.length > 0);
 
   const droppedTables = new Set<string>();
   const createdTables = new Set<string>();
   const rebuiltTables = new Set<string>();
+  const createTablesWithConstraints = new Set<string>();
+  const alteredConstraintTables = new Set<string>();
 
   for (const statement of statements) {
     const dropTableMatch = statement.match(/^drop\s+table\s+(?:if\s+exists\s+)?((?:"[^"]+"|[a-zA-Z_][\w$]*)(?:\.(?:"[^"]+"|[a-zA-Z_][\w$]*))?)(?:\s+cascade)?$/i);
@@ -111,7 +113,13 @@ export function analyzeMigrationSqlRisks(sql: string): DdlDiffRisks {
 
     const createTableMatch = statement.match(/^create\s+table\s+(?:if\s+not\s+exists\s+)?((?:"[^"]+"|[a-zA-Z_][\w$]*)(?:\.(?:"[^"]+"|[a-zA-Z_][\w$]*))?)/i);
     if (createTableMatch) {
-      createdTables.add(normalizeQualifiedTarget(createTableMatch[1]));
+      const table = normalizeQualifiedTarget(createTableMatch[1]);
+      createdTables.add(table);
+
+      // Rebuilt CREATE TABLE statements can reintroduce or tighten constraints without explicit ALTER CONSTRAINT steps.
+      if (hasConstraintLikeClause(statement)) {
+        createTablesWithConstraints.add(table);
+      }
       continue;
     }
 
@@ -130,6 +138,22 @@ export function analyzeMigrationSqlRisks(sql: string): DdlDiffRisks {
     const setNotNullMatch = statement.match(/^alter\s+table\s+(?:only\s+)?((?:"[^"]+"|[a-zA-Z_][\w$]*)(?:\.(?:"[^"]+"|[a-zA-Z_][\w$]*))?)\s+alter\s+column\s+("?[\w$]+"?)\s+set\s+not\s+null\b/i);
     if (setNotNullMatch) {
       destructiveRisks.push(createDestructiveRisk('nullability_tighten', `${normalizeQualifiedTarget(setNotNullMatch[1])}.${normalizeIdentifier(setNotNullMatch[2])}`));
+      continue;
+    }
+
+    const addConstraintMatch = statement.match(/^alter\s+table\s+(?:only\s+)?((?:"[^"]+"|[a-zA-Z_][\w$]*)(?:\.(?:"[^"]+"|[a-zA-Z_][\w$]*))?)\s+add\s+constraint\s+("?[\w$]+"?)/i);
+    if (addConstraintMatch) {
+      const table = normalizeQualifiedTarget(addConstraintMatch[1]);
+      alteredConstraintTables.add(table);
+      destructiveRisks.push(createDestructiveRisk('semantic_constraint_change', table));
+      continue;
+    }
+
+    const dropConstraintMatch = statement.match(/^alter\s+table\s+(?:only\s+)?((?:"[^"]+"|[a-zA-Z_][\w$]*)(?:\.(?:"[^"]+"|[a-zA-Z_][\w$]*))?)\s+drop\s+constraint\s+(?:if\s+exists\s+)?("?[\w$]+"?)/i);
+    if (dropConstraintMatch) {
+      const table = normalizeQualifiedTarget(dropConstraintMatch[1]);
+      alteredConstraintTables.add(table);
+      destructiveRisks.push(createDestructiveRisk('semantic_constraint_change', table));
       continue;
     }
 
@@ -152,6 +176,10 @@ export function analyzeMigrationSqlRisks(sql: string): DdlDiffRisks {
   for (const table of rebuiltTables) {
     operationalRisks.push({ kind: 'table_rebuild', target: table });
     operationalRisks.push({ kind: 'full_table_copy', target: table });
+
+    if (createTablesWithConstraints.has(table) || alteredConstraintTables.has(table)) {
+      destructiveRisks.push(createDestructiveRisk('semantic_constraint_change', table));
+    }
   }
 
   return {
@@ -269,6 +297,17 @@ function normalizeIdentifier(value: string): string {
 
 function normalizeSql(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function hasConstraintLikeClause(statement: string): boolean {
+  const bodyStart = statement.indexOf('(');
+  const bodyEnd = statement.lastIndexOf(')');
+  if (bodyStart === -1 || bodyEnd <= bodyStart) {
+    return false;
+  }
+
+  const body = statement.slice(bodyStart + 1, bodyEnd);
+  return /\bconstraint\b|\bprimary\s+key\b|\bforeign\s+key\b|\breferences\b|\bcheck\b|\bunique\b/i.test(body);
 }
 
 // Re-exporting the shape keeps future SQL re-evaluation entrypoints on the same contract.
