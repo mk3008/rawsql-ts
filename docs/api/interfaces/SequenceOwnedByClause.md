@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: SequenceOwnedByClause
 
-Defined in: [packages/core/src/models/DDLStatements.ts:457](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/models/DDLStatements.ts#L457)
+Defined in: [packages/core/src/models/DDLStatements.ts:457](https://github.com/mk3008/rawsql-ts/blob/93e13cd77a71b8ce48bfa99c612638e88e31251f/packages/core/src/models/DDLStatements.ts#L457)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:457](https://github.com/m
 
 > **kind**: `"ownedBy"`
 
-Defined in: [packages/core/src/models/DDLStatements.ts:458](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/models/DDLStatements.ts#L458)
+Defined in: [packages/core/src/models/DDLStatements.ts:458](https://github.com/mk3008/rawsql-ts/blob/93e13cd77a71b8ce48bfa99c612638e88e31251f/packages/core/src/models/DDLStatements.ts#L458)
 
 ***
 
@@ -17,7 +17,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:458](https://github.com/m
 
 > `optional` **target**: [`QualifiedName`](../classes/QualifiedName.md)
 
-Defined in: [packages/core/src/models/DDLStatements.ts:459](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/models/DDLStatements.ts#L459)
+Defined in: [packages/core/src/models/DDLStatements.ts:459](https://github.com/mk3008/rawsql-ts/blob/93e13cd77a71b8ce48bfa99c612638e88e31251f/packages/core/src/models/DDLStatements.ts#L459)
 
 ***
 
@@ -25,5 +25,5 @@ Defined in: [packages/core/src/models/DDLStatements.ts:459](https://github.com/m
 
 > `optional` **none**: `boolean`
 
-Defined in: [packages/core/src/models/DDLStatements.ts:460](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/models/DDLStatements.ts#L460)
+Defined in: [packages/core/src/models/DDLStatements.ts:460](https://github.com/mk3008/rawsql-ts/blob/93e13cd77a71b8ce48bfa99c612638e88e31251f/packages/core/src/models/DDLStatements.ts#L460)
 </div>
