@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: FixtureCteBuilder
 
-Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:22](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/FixtureCteBuilder.ts#L22)
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:22](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/FixtureCteBuilder.ts#L22)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:22](https://git
 
 > `static` **fromSQL**(`sql`): [`FixtureTableDefinition`](../interfaces/FixtureTableDefinition.md)[]
 
-Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:29](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/FixtureCteBuilder.ts#L29)
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:29](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/FixtureCteBuilder.ts#L29)
 
 Creates fixture definitions from a SQL string containing DDL (CREATE TABLE) and INSERT statements.
 
@@ -43,7 +43,7 @@ An array of FixtureTableDefinition objects.
 
 > `static` **fromJSON**(`jsonDefinitions`): [`FixtureTableDefinition`](../interfaces/FixtureTableDefinition.md)[]
 
-Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:58](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/FixtureCteBuilder.ts#L58)
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:58](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/FixtureCteBuilder.ts#L58)
 
 Converts JSON fixture definitions to FixtureTableDefinition format.
 Accepts an object where keys are table names and values contain columns and rows.
@@ -86,7 +86,7 @@ const fixtures = FixtureCteBuilder.fromJSON(json);
 
 > `static` **buildFixtures**(`fixtures`): [`CommonTable`](CommonTable.md)[]
 
-Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:95](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/FixtureCteBuilder.ts#L95)
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:95](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/FixtureCteBuilder.ts#L95)
 
 Builds CommonTable representations for the provided fixtures.
 

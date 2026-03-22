@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: MergeResultSelectOptions
 
-Defined in: [packages/core/src/transformers/MergeResultSelectConverter.ts:11](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/MergeResultSelectConverter.ts#L11)
+Defined in: [packages/core/src/transformers/MergeResultSelectConverter.ts:11](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/MergeResultSelectConverter.ts#L11)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/transformers/MergeResultSelectConverter.ts:11](ht
 
 > `optional` **fixtureTables**: [`FixtureTableDefinition`](FixtureTableDefinition.md)[]
 
-Defined in: [packages/core/src/transformers/MergeResultSelectConverter.ts:12](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/MergeResultSelectConverter.ts#L12)
+Defined in: [packages/core/src/transformers/MergeResultSelectConverter.ts:12](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/MergeResultSelectConverter.ts#L12)
 
 ***
 
@@ -17,5 +17,5 @@ Defined in: [packages/core/src/transformers/MergeResultSelectConverter.ts:12](ht
 
 > `optional` **missingFixtureStrategy**: [`MissingFixtureStrategy`](../type-aliases/MissingFixtureStrategy.md)
 
-Defined in: [packages/core/src/transformers/MergeResultSelectConverter.ts:13](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/MergeResultSelectConverter.ts#L13)
+Defined in: [packages/core/src/transformers/MergeResultSelectConverter.ts:13](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/MergeResultSelectConverter.ts#L13)
 </div>

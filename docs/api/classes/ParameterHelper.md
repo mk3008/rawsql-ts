@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: ParameterHelper
 
-Defined in: [packages/core/src/utils/ParameterHelper.ts:7](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/utils/ParameterHelper.ts#L7)
+Defined in: [packages/core/src/utils/ParameterHelper.ts:7](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/utils/ParameterHelper.ts#L7)
 
 Utility class for parameter operations on SQL queries.
 
@@ -21,7 +21,7 @@ Utility class for parameter operations on SQL queries.
 
 > `static` **set**(`query`, `name`, `value`): `void`
 
-Defined in: [packages/core/src/utils/ParameterHelper.ts:15](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/utils/ParameterHelper.ts#L15)
+Defined in: [packages/core/src/utils/ParameterHelper.ts:15](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/utils/ParameterHelper.ts#L15)
 
 Sets the value of a parameter by name in the given query.
 Throws an error if the parameter is not found.

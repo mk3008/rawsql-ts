@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: JsonMapping
 
-Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:15](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L15)
+Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:15](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L15)
 
 Universal JSON mapping definition for creating any level of JSON structures.
 Supports flat arrays, nested objects, and unlimited hierarchical structures.
@@ -12,7 +12,7 @@ Supports flat arrays, nested objects, and unlimited hierarchical structures.
 
 > **rootName**: `string`
 
-Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:16](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L16)
+Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:16](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L16)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:16](http
 
 > **rootEntity**: `object`
 
-Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:17](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L17)
+Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:17](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L17)
 
 #### id
 
@@ -44,7 +44,7 @@ Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:17](http
 
 > **nestedEntities**: `object`[]
 
-Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:22](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L22)
+Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:22](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L22)
 
 #### id
 
@@ -80,7 +80,7 @@ Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:22](http
 
 > `optional` **resultFormat**: `"array"` \| `"single"`
 
-Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:30](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L30)
+Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:30](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L30)
 
 ***
 
@@ -88,5 +88,5 @@ Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:30](http
 
 > `optional` **emptyResult**: `string`
 
-Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:31](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L31)
+Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:31](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L31)
 </div>

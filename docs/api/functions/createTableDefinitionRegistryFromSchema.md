@@ -3,7 +3,7 @@
 
 > **createTableDefinitionRegistryFromSchema**(`schema`): [`TableDefinitionRegistry`](../type-aliases/TableDefinitionRegistry.md)
 
-Defined in: [packages/core/src/models/TableDefinitionModel.ts:42](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/models/TableDefinitionModel.ts#L42)
+Defined in: [packages/core/src/models/TableDefinitionModel.ts:42](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/models/TableDefinitionModel.ts#L42)
 
 Helper to reformat a SchemaManager registry into the format consumed
 by the insert-to-select transformer.

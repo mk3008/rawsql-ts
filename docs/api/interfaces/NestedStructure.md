@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: NestedStructure
 
-Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:27](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L27)
+Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:27](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L27)
 
 Nested object or array structure definition.
 
@@ -11,7 +11,7 @@ Nested object or array structure definition.
 
 > **type**: `"object"` \| `"array"`
 
-Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:28](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L28)
+Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:28](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L28)
 
 ***
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:28](https:
 
 > **from**: `string`
 
-Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:29](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L29)
+Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:29](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L29)
 
 ***
 
@@ -27,5 +27,5 @@ Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:29](https:
 
 > **structure**: [`StructureFields`](../type-aliases/StructureFields.md)
 
-Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:30](https://github.com/mk3008/rawsql-ts/blob/955e84e7de04fba60ecd2103c7f0ef97b23ed887/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L30)
+Defined in: [packages/core/src/transformers/ModelDrivenJsonMapping.ts:30](https://github.com/mk3008/rawsql-ts/blob/efd33da9a02be68ec71c71191ea27d47aff097ce/packages/core/src/transformers/ModelDrivenJsonMapping.ts#L30)
 </div>
