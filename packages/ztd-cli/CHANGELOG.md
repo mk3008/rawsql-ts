@@ -1,5 +1,15 @@
 # @rawsql-ts/ztd-cli
 
+## 0.22.3
+
+### Patch Changes
+
+- [#647](https://github.com/mk3008/rawsql-ts/pull/647) [`bbdae2c`](https://github.com/mk3008/rawsql-ts/commit/bbdae2cadcbd8668fb5f823168c4f1b5eff8a02f) Thanks [@mk3008](https://github.com/mk3008)! - Improve `ztd ddl diff` reviewability by emitting review-first text/json summaries alongside a SQL artifact, and update the migration docs to explain how to inspect and apply the generated files.
+
+- [#646](https://github.com/mk3008/rawsql-ts/pull/646) [`fe400bc`](https://github.com/mk3008/rawsql-ts/commit/fe400bcdbdb1e71de85b6f65a15de46738480730) Thanks [@mk3008](https://github.com/mk3008)! - Add a published-package verification gate that checks `ztd query lint --help` still exposes `--rules` and that `ztd query lint --rules join-direction <sql-file>` runs on the packed CLI path. This keeps the release contract aligned with the Further Reading docs for the join-direction lint command surface.
+
+- [#649](https://github.com/mk3008/rawsql-ts/pull/649) [`6991c7e`](https://github.com/mk3008/rawsql-ts/commit/6991c7e018f10bb2fc5d3d64ba3641aa7ef0219e) Thanks [@mk3008](https://github.com/mk3008)! - Extract the DDL diff risk analyzer into reusable plan-based and SQL-based evaluators so generated and hand-edited migration SQL can be assessed through the same structured risk contract.
+
 ## 0.22.2
 
 ### Patch Changes
