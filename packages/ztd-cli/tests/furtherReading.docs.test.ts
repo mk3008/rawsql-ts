@@ -46,6 +46,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'docker run -d --rm --name ztd-starter-pg',
         '-p 5433:5432',
         'npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts',
+        'Read the review summary first:',
         'npx vitest run'
       ]
     },
@@ -54,6 +55,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       phrases: [
         'The goal is to confirm that a prompt can point an AI agent at the right files',
         'migration artifact creation',
+        'tmp/users.diff.sql',
         '`ZTD_TEST_DATABASE_URL` is the only implicit database owned by ztd-cli.',
         'Use `--url` or a full `--db-*` flag set for any other inspection target.',
         'Do not apply migrations automatically.'
