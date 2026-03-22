@@ -1103,6 +1103,16 @@ test('ddl diff help explains review-first output and companion artifacts', () =>
   expect(result.stdout).toContain('SQL/.txt/.json artifacts');
 });
 
+test('ddl risk help explains post-hoc evaluation for hand-edited migration SQL', () => {
+  const result = runCli(['ddl', 'risk', '--help']);
+
+  assertCliSuccess(result, 'ddl risk help');
+  expect(result.stdout).toContain('hand-edited migration SQL file');
+  expect(result.stdout).toContain('emit the shared');
+  expect(result.stdout).toContain('structured risk contract');
+  expect(result.stdout).toContain('--file <path>');
+});
+
 test('describe command reports ddl diff review artifacts in global json mode', () => {
   const result = runCli(['--output', 'json', 'describe', 'command', 'ddl diff']);
 
@@ -1120,6 +1130,66 @@ test('describe command reports ddl diff review artifacts in global json mode', (
         output: {
           files: ['Specified --out SQL file plus companion .txt and .json review artifacts with summary/risks']
         }
+      }
+    }
+  });
+});
+
+test('describe command reports ddl risk metadata in global json mode', () => {
+  const result = runCli(['--output', 'json', 'describe', 'command', 'ddl risk']);
+
+  assertCliSuccess(result, 'describe ddl risk');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed).toMatchObject({
+    command: 'describe command',
+    ok: true,
+    data: {
+      command: {
+        name: 'ddl risk',
+        supportsDryRun: false,
+        supportsJsonPayload: true,
+        writesFiles: false,
+        flags: expect.arrayContaining([
+          expect.objectContaining({ name: '--file' }),
+          expect.objectContaining({ name: '--json' })
+        ])
+      }
+    }
+  });
+});
+
+test('ddl risk evaluates a hand-edited migration SQL file through the public CLI', () => {
+  const workspace = createTempDir('ddl-risk-cli');
+  const sqlFile = path.join(workspace, 'hand-edited.sql');
+  writeFileSync(
+    sqlFile,
+    [
+      'DROP TABLE IF EXISTS public.users CASCADE;',
+      'CREATE TABLE public.users (id integer primary key, display_name text not null);',
+      'CREATE INDEX idx_users_display_name ON public.users(display_name);',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+
+  const result = runCli(['--output', 'json', 'ddl', 'risk', '--file', sqlFile], {}, workspace);
+
+  assertCliSuccess(result, 'ddl risk');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed).toMatchObject({
+    command: 'ddl risk',
+    ok: true,
+    data: {
+      file: sqlFile,
+      risks: {
+        destructiveRisks: expect.arrayContaining([
+          expect.objectContaining({ kind: 'drop_table', target: 'public.users', avoidable: true }),
+          expect.objectContaining({ kind: 'cascade_drop', target: 'public.users', avoidable: true })
+        ]),
+        operationalRisks: expect.arrayContaining([
+          expect.objectContaining({ kind: 'table_rebuild', target: 'public.users' }),
+          expect.objectContaining({ kind: 'index_rebuild', target: 'idx_users_display_name' })
+        ])
       }
     }
   });

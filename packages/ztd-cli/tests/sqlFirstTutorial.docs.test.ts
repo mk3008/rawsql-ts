@@ -54,6 +54,8 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
     'npx ztd ztd-config',
     'npx ztd ddl diff'
   ]);
+
+  expect(tutorial).toContain('npx ztd ddl risk --file tmp/users.diff.sql');
 });
 
 test('guide navigation and feature index surface the tutorial', () => {
