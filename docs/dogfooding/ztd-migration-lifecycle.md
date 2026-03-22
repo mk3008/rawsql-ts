@@ -20,7 +20,7 @@ These prompts are intended to be copied into a separate AI instance, so the tuto
 - DDL repair: `npx ztd query uses column users.email --sql-root src/features/users/persistence --specs-dir src/features/users/persistence --any-schema --view detail`
 - SQL repair: `npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts`
 - DTO repair: `npx vitest run`
-- migration artifact creation: `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to generate review output plus SQL
+- migration artifact creation: `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to generate review output plus SQL; if you hand-edit the migration afterward, run `npx ztd ddl risk --file tmp/users.diff.sql` to re-evaluate the final SQL with the same structured risk contract
 - tuning: use the separate perf guide, not this starter lifecycle
 
 `ZTD_TEST_DATABASE_URL` is the only implicit database owned by ztd-cli. Use `--url` or a full `--db-*` flag set for any other inspection target.
@@ -62,7 +62,7 @@ I changed the DDL for users and need a migration artifact.
 Read the nearest AGENTS.md files first.
 Run `npx ztd ztd-config`.
 Optionally run `npx ztd ddl pull --url <target-db-url>` to inspect the target first.
-Run `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to generate review output plus SQL, read the logical summary first, inspect the structured risks second, then fix the tests that fail.
+Run `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to generate review output plus SQL, read the logical summary first, inspect the structured risks second, and if you hand-edit the SQL run `npx ztd ddl risk --file tmp/users.diff.sql` before you fix the tests that fail.
 Do not apply migrations automatically.
 ```
 
@@ -85,3 +85,4 @@ Do not apply migrations automatically.
 - whether the agent asked for extra layout help
 - whether the scaffold vocabulary matched the prompt vocabulary
 - whether the migration prompt stayed explicit about not applying migrations automatically
+- whether the final hand-edited SQL was re-evaluated with `ztd ddl risk --file ...`

@@ -154,6 +154,24 @@ const COMMANDS: CommandDescriptor[] = [
     ]
   },
   {
+    name: 'ddl risk',
+    summary: 'Analyze a generated or hand-edited migration SQL file and emit the same structured risk contract used by ddl diff.',
+    writesFiles: false,
+    supportsDryRun: false,
+    supportsJsonPayload: true,
+    output: {
+      stdout: 'Human structured risk report in text mode, JSON envelope in global json mode.'
+    },
+    exitCodes: {
+      '0': 'Risk report emitted.',
+      '1': 'Validation or file loading failed.'
+    },
+    flags: [
+      { name: '--file', description: 'Migration SQL file to analyze.' },
+      { name: '--json', description: 'Pass risk options as a JSON object.' }
+    ]
+  },
+  {
     name: 'ddl gen-entities',
     summary: 'Generate helper interfaces from DDL metadata.',
     writesFiles: true,

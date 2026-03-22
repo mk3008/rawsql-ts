@@ -11,6 +11,8 @@
 - Read `.ztd/agents/manifest.json` first when you need project guidance without repo-visible `AGENTS.md` files.
 - Use `ztd agents status` to distinguish managed templates from user-owned instruction files.
 - For `ztd ddl diff`, treat `summary` as the logical diff, treat `risks` as the apply-plan risk list, use the `.json` artifact for automation when needed, and keep the `.sql` output as the apply-target artifact.
+- Use `ztd ddl risk --file <migration.sql>` when you need to evaluate a generated or hand-edited migration SQL file directly; it emits the same `risks` contract without regenerating the migration.
+- Treat the migration generator and the risk evaluator as separate responsibilities: `ddl diff` builds a migration plus review artifacts, while `ddl risk` evaluates the migration SQL itself after human edits.
 - When a request is "add an optional filter" to a SQL asset, prefer SSSQL-style truthful SQL branches before suggesting string-built SQL assembly outside the file.
 - The default response pattern for those requests is: update `src/sql/...`, rerun `ztd model-gen --probe-mode ztd` if needed, rerun `ztd lint` plus tests, and only then wire `optionalConditionParameters` for runtime pruning.
 - Do not route routine optional predicates toward redundant `LEFT JOIN` scaffolding plus `removeUnusedLeftJoins` cleanup.

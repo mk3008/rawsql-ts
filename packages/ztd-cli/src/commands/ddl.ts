@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
 import { runDiffSchema } from './diff';
+import { analyzeMigrationSqlRisks } from './ddlRiskEvaluator';
 import { runGenerateEntities } from './genEntities';
 import { runPullSchema } from './pull';
 import { resolveExplicitCliConnection, type ConnectionCliOptions } from './connectionOptions';
@@ -33,6 +35,11 @@ interface DiffCommandOptions extends ConnectionCliOptions {
   extensions?: string[];
   out?: string;
   dryRun?: boolean;
+  json?: string;
+}
+
+interface RiskCommandOptions {
+  file?: string;
   json?: string;
 }
 
@@ -160,6 +167,33 @@ export function registerDdlCommands(program: Command): void {
 
         process.stdout.write(result.text);
       });
+
+  ddl
+      .command('risk')
+      .description('Analyze a generated or hand-edited migration SQL file and emit the shared structured risk contract')
+      .option('--file <path>', 'Migration SQL file to analyze with the shared structured risk contract')
+      .option('--json <payload>', 'Pass risk options as a JSON object')
+      .action(async (options: RiskCommandOptions) => {
+        const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+        const filePath = resolveRequiredProjectPath(merged.file, '--file');
+        const sql = readFileSync(filePath, 'utf8');
+        const risks = analyzeMigrationSqlRisks(sql);
+
+        if (isJsonOutput()) {
+          writeCommandEnvelope('ddl risk', {
+            schemaVersion: 1,
+            file: filePath,
+            risks
+          });
+          return;
+        }
+
+        const lines = ['Migration SQL risks', `- file: ${filePath}`, '', 'Destructive risks'];
+        lines.push(...formatRiskLines(risks.destructiveRisks));
+        lines.push('', 'Operational risks');
+        lines.push(...formatRiskLines(risks.operationalRisks));
+        process.stdout.write(`${lines.join('\n')}\n`);
+      });
 }
 
 export { collectDirectories, parseExtensions, DEFAULT_EXTENSIONS, DEFAULT_DDL_DIRECTORY } from './options';
@@ -170,4 +204,27 @@ function resolveRequiredProjectPath(value: unknown, label: string): string {
   }
 
   return validateProjectPath(value, label);
+}
+
+function formatRiskLines(
+  risks: Array<{ kind: string; target?: string; from?: string; to?: string; guidance?: string[] }>
+): string[] {
+  if (risks.length === 0) {
+    return ['- none'];
+  }
+
+  const lines: string[] = [];
+  for (const risk of risks) {
+    if ('from' in risk && risk.from && 'to' in risk && risk.to) {
+      lines.push(`- ${risk.kind}: ${risk.from} -> ${risk.to}`);
+    } else {
+      lines.push(`- ${risk.kind}: ${String(risk.target ?? 'unknown')}`);
+    }
+
+    if (risk.guidance && risk.guidance.length > 0) {
+      lines.push(`  guidance: ${risk.guidance.join(', ')}`);
+    }
+  }
+
+  return lines;
 }

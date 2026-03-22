@@ -136,6 +136,7 @@ Read the review summary first:
 - even a small summary can still carry destructive risks when the generated apply SQL rebuilds a table
 - the generated `.sql` file stays SQL-only so you can review or apply it separately
 - the companion `.json` file is for AI/tools that need structured migration metadata
+- if you hand-edit the generated migration SQL, run `npx ztd ddl risk --file tmp/users.diff.sql` so the final SQL is re-evaluated with the same structured risk contract
 - current `ztd ddl diff` CLI does not expose the lower-level drop-avoidance options from core, so treat drop-related risks as mandatory review points
 
 Tuning belongs to the separate performance guide and dogfooding set, not to the starter lifecycle in this tutorial. Keep the starter path focused on CRUD, DDL, SQL, DTO, and migration repair loops.

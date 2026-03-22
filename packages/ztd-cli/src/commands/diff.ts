@@ -6,6 +6,17 @@ import type { DbConnectionContext } from '../utils/dbConnection';
 import { ensureDirectory } from '../utils/fs';
 import { runPgDump } from '../utils/pgDump';
 import { withSpanSync } from '../utils/telemetry';
+import { analyzeMigrationPlanRisks } from './ddlRiskEvaluator';
+import type {
+  ApplyPlanOperation,
+  DdlApplyPlan,
+  DdlDiffArtifacts,
+  DdlDiffRisks,
+  DdlDiffSummaryEntry,
+  DdlDiffChangeKind,
+  DestructiveRisk,
+  OperationalRisk,
+} from './ddlDiffContracts';
 
 export interface DiffSchemaOptions {
   directories: string[];
@@ -16,93 +27,6 @@ export interface DiffSchemaOptions {
   pgDumpShell?: boolean;
   connectionContext?: DbConnectionContext;
   dryRun?: boolean;
-}
-
-export type DdlDiffChangeKind =
-  | 'create_table'
-  | 'drop_table'
-  | 'add_column'
-  | 'drop_column'
-  | 'alter_type'
-  | 'alter_nullability'
-  | 'table_rebuild'
-  | 'schema_change';
-
-export interface DdlDiffSummaryEntry {
-  schema: string;
-  table: string;
-  changeKind: DdlDiffChangeKind;
-  details: Record<string, unknown>;
-}
-
-export type RiskGuidanceKind =
-  | 'review_if_required'
-  | 'avoid_if_possible'
-  | 'cli_option_not_exposed';
-
-export type DestructiveRiskKind =
-  | 'drop_table'
-  | 'drop_column'
-  | 'cascade_drop'
-  | 'alter_type'
-  | 'rename_candidate'
-  | 'nullability_tighten'
-  | 'semantic_constraint_change';
-
-export type OperationalRiskKind =
-  | 'table_rebuild'
-  | 'index_rebuild'
-  | 'full_table_copy';
-
-export interface DestructiveRisk {
-  kind: DestructiveRiskKind;
-  target?: string;
-  from?: string;
-  to?: string;
-  avoidable?: boolean;
-  guidance?: RiskGuidanceKind[];
-}
-
-export interface OperationalRisk {
-  kind: OperationalRiskKind;
-  target: string;
-}
-
-export interface DdlDiffRisks {
-  destructiveRisks: DestructiveRisk[];
-  operationalRisks: OperationalRisk[];
-}
-
-export interface DdlDiffArtifacts {
-  sql: string;
-  text: string;
-  json: string;
-}
-
-export type ApplyPlanOperationKind =
-  | 'emit_schema_statement'
-  | 'drop_table_cascade'
-  | 'create_table'
-  | 'recreate_table'
-  | 'reapply_statement'
-  | 'drop_column_effect'
-  | 'alter_type_effect'
-  | 'nullability_tighten_effect'
-  | 'rename_candidate_effect'
-  | 'semantic_constraint_change_effect'
-  | 'index_rebuild_effect';
-
-export interface ApplyPlanOperation {
-  kind: ApplyPlanOperationKind;
-  target?: string;
-  from?: string;
-  to?: string;
-  sql?: string;
-  statementKind?: 'index' | 'other';
-}
-
-export interface DdlApplyPlan {
-  operations: ApplyPlanOperation[];
 }
 
 export interface DiffSchemaResult {
@@ -181,7 +105,7 @@ export function runDiffSchema(options: DiffSchemaOptions): DiffSchemaResult {
     const remoteModel = parseSchemaModel(remoteSql);
     const summary = buildSummary(localModel, remoteModel);
     const applyPlan = buildApplyPlan(localSql, localModel, remoteModel, summary);
-    const risks = buildRisks(applyPlan, summary);
+    const risks = analyzeMigrationPlanRisks(applyPlan, summary);
     const hasChanges = summary.length > 0;
     const artifacts = deriveArtifactPaths(options.out);
     const sql = hasChanges ? renderApplySql(localSql, applyPlan) : '-- No schema differences detected.\n';
@@ -308,6 +232,17 @@ function formatRiskLines(risks: Array<DestructiveRisk | OperationalRisk>): strin
     }
   }
   return lines;
+}
+
+function groupSummaryByTable(summary: DdlDiffSummaryEntry[]): Map<string, DdlDiffSummaryEntry[]> {
+  const grouped = new Map<string, DdlDiffSummaryEntry[]>();
+  for (const entry of summary) {
+    const key = `${entry.schema}.${entry.table}`;
+    const bucket = grouped.get(key) ?? [];
+    bucket.push(entry);
+    grouped.set(key, bucket);
+  }
+  return grouped;
 }
 
 function formatSummaryEntry(entry: DdlDiffSummaryEntry): string {
@@ -481,150 +416,6 @@ function renderApplySql(localSql: string, applyPlan: DdlApplyPlan): string {
     return `${rendered}\n`;
   }
   return `${localSql.trim()}\n`;
-}
-
-function buildRisks(applyPlan: DdlApplyPlan, summary: DdlDiffSummaryEntry[]): DdlDiffRisks {
-  const destructiveRisks: DestructiveRisk[] = [];
-  const operationalRisks: OperationalRisk[] = [];
-  const summaryByTable = groupSummaryByTable(summary);
-  const rebuiltTables = new Set(
-    applyPlan.operations
-      .filter((operation) => operation.kind === 'recreate_table')
-      .map((operation) => operation.target)
-      .filter((target): target is string => Boolean(target))
-  );
-
-  for (const operation of applyPlan.operations) {
-    switch (operation.kind) {
-      case 'drop_table_cascade':
-        if (operation.target) {
-          destructiveRisks.push(createGuidedRisk('drop_table', operation.target));
-          destructiveRisks.push(createGuidedRisk('cascade_drop', operation.target));
-        }
-        break;
-      case 'drop_column_effect':
-        if (operation.target) {
-          destructiveRisks.push(createGuidedRisk('drop_column', operation.target));
-        }
-        break;
-      case 'alter_type_effect':
-        if (operation.target) {
-          destructiveRisks.push(createDestructiveRisk('alter_type', operation.target));
-        }
-        break;
-      case 'nullability_tighten_effect':
-        if (operation.target) {
-          destructiveRisks.push(createDestructiveRisk('nullability_tighten', operation.target));
-        }
-        break;
-      case 'rename_candidate_effect':
-        destructiveRisks.push(createDestructiveRisk('rename_candidate', undefined, operation.from, operation.to));
-        break;
-      case 'semantic_constraint_change_effect':
-        if (operation.target) {
-          destructiveRisks.push(createDestructiveRisk('semantic_constraint_change', operation.target));
-        }
-        break;
-      case 'recreate_table':
-        if (operation.target) {
-          operationalRisks.push({ kind: 'table_rebuild', target: operation.target });
-          operationalRisks.push({ kind: 'full_table_copy', target: operation.target });
-        }
-        break;
-      case 'index_rebuild_effect':
-        if (operation.target) {
-          operationalRisks.push({ kind: 'index_rebuild', target: operation.target });
-        }
-        break;
-    }
-  }
-
-  // Surface rename candidates and constraint changes even when only the logical summary knows them.
-  for (const [tableKey, entries] of summaryByTable.entries()) {
-    for (const candidate of findRenameCandidates(entries)) {
-      destructiveRisks.push(createDestructiveRisk('rename_candidate', undefined, candidate.from, candidate.to));
-    }
-    if (!rebuiltTables.has(tableKey)) {
-      continue;
-    }
-    if (entries.some((entry) => entry.changeKind === 'alter_type')) {
-      for (const entry of entries.filter((item) => item.changeKind === 'alter_type')) {
-        destructiveRisks.push(createDestructiveRisk('alter_type', `${tableKey}.${String(entry.details.column)}`));
-      }
-    }
-  }
-
-  return {
-    destructiveRisks: dedupeDestructiveRisks(destructiveRisks),
-    operationalRisks: dedupeOperationalRisks(operationalRisks)
-  };
-}
-
-function createGuidedRisk(kind: 'drop_table' | 'drop_column' | 'cascade_drop', target: string): DestructiveRisk {
-  return {
-    kind,
-    target,
-    avoidable: true,
-    guidance: ['review_if_required', 'avoid_if_possible', 'cli_option_not_exposed']
-  };
-}
-
-function createDestructiveRisk(kind: Exclude<DestructiveRiskKind, 'drop_table' | 'drop_column' | 'cascade_drop'>, target?: string, from?: string, to?: string): DestructiveRisk {
-  return {
-    kind,
-    target,
-    from,
-    to,
-    guidance: ['review_if_required']
-  };
-}
-
-function dedupeDestructiveRisks(risks: DestructiveRisk[]): DestructiveRisk[] {
-  const seen = new Map<string, DestructiveRisk>();
-  for (const risk of risks) {
-    const key = JSON.stringify({
-      kind: risk.kind,
-      target: risk.target ?? '',
-      from: risk.from ?? '',
-      to: risk.to ?? ''
-    });
-    if (!seen.has(key)) {
-      seen.set(key, risk);
-    }
-  }
-
-  return [...seen.values()].sort((left, right) => {
-    const leftKey = `${left.kind}:${left.target ?? left.from ?? ''}:${left.to ?? ''}`;
-    const rightKey = `${right.kind}:${right.target ?? right.from ?? ''}:${right.to ?? ''}`;
-    return leftKey.localeCompare(rightKey);
-  });
-}
-
-function dedupeOperationalRisks(risks: OperationalRisk[]): OperationalRisk[] {
-  const seen = new Map<string, OperationalRisk>();
-  for (const risk of risks) {
-    const key = `${risk.kind}:${risk.target}`;
-    if (!seen.has(key)) {
-      seen.set(key, risk);
-    }
-  }
-
-  return [...seen.values()].sort((left, right) => {
-    const leftKey = `${left.kind}:${left.target}`;
-    const rightKey = `${right.kind}:${right.target}`;
-    return leftKey.localeCompare(rightKey);
-  });
-}
-
-function groupSummaryByTable(summary: DdlDiffSummaryEntry[]): Map<string, DdlDiffSummaryEntry[]> {
-  const grouped = new Map<string, DdlDiffSummaryEntry[]>();
-  for (const entry of summary) {
-    const key = `${entry.schema}.${entry.table}`;
-    const bucket = grouped.get(key) ?? [];
-    bucket.push(entry);
-    grouped.set(key, bucket);
-  }
-  return grouped;
 }
 
 function findRenameCandidates(entries: DdlDiffSummaryEntry[]): Array<{ from: string; to: string }> {

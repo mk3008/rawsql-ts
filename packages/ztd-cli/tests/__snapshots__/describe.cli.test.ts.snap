@@ -251,6 +251,41 @@ exports[`describe command snapshots the top-level command catalog and every deta
 }
 `;
 
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > ddl risk 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Risk report emitted.",
+        "1": "Validation or file loading failed.",
+      },
+      "flags": [
+        {
+          "description": "Migration SQL file to analyze.",
+          "name": "--file",
+        },
+        {
+          "description": "Pass risk options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "ddl risk",
+      "output": {
+        "stdout": "Human structured risk report in text mode, JSON envelope in global json mode.",
+      },
+      "summary": "Analyze a generated or hand-edited migration SQL file and emit the same structured risk contract used by ddl diff.",
+      "supportsDryRun": false,
+      "supportsJsonPayload": true,
+      "writesFiles": false,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
 exports[`describe command snapshots the top-level command catalog and every detailed descriptor > describe-root 1`] = `
 {
   "command": "describe",
@@ -311,6 +346,14 @@ exports[`describe command snapshots the top-level command catalog and every deta
         "supportsDryRun": true,
         "supportsJsonPayload": true,
         "writesFiles": true,
+      },
+      {
+        "name": "ddl risk",
+        "summary": "Analyze a generated or hand-edited migration SQL file and emit the same structured risk contract used by ddl diff.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": false,
+        "supportsJsonPayload": true,
+        "writesFiles": false,
       },
       {
         "name": "ddl gen-entities",
