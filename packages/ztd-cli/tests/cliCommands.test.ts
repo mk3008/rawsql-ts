@@ -1090,6 +1090,41 @@ test('ddl pull rejects partial explicit target flags', () => {
   expect(result.stderr).toContain('Incomplete explicit target database flags');
 });
 
+test('ddl diff help explains review-first output and companion artifacts', () => {
+  const result = runCli(['ddl', 'diff', '--help']);
+
+  assertCliSuccess(result, 'ddl diff help');
+  expect(result.stdout).toContain('emit logical summary');
+  expect(result.stdout).toContain('structured apply-plan risks alongside pure SQL artifacts');
+  expect(result.stdout).toContain('Output path for the generated SQL artifact;');
+  expect(result.stdout).toContain('companion .txt/.json review files are written');
+  expect(result.stdout).toContain('Compute the logical summary and structured risks');
+  expect(result.stdout).toContain('without writing the SQL/.txt/.json artifacts');
+  expect(result.stdout).toContain('SQL/.txt/.json artifacts');
+});
+
+test('describe command reports ddl diff review artifacts in global json mode', () => {
+  const result = runCli(['--output', 'json', 'describe', 'command', 'ddl diff']);
+
+  assertCliSuccess(result, 'describe ddl diff');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed).toMatchObject({
+    command: 'describe command',
+    ok: true,
+    data: {
+      command: {
+        name: 'ddl diff',
+        supportsDryRun: true,
+        supportsJsonPayload: true,
+        writesFiles: true,
+        output: {
+          files: ['Specified --out SQL file plus companion .txt and .json review artifacts with summary/risks']
+        }
+      }
+    }
+  });
+});
+
 pullTest('pull CLI dry-run validates dump without writing files', async () => {
   const connectionString = process.env.TEST_PG_URI!;
   const client = new Client({ connectionString });

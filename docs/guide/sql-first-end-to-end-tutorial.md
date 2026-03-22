@@ -25,7 +25,7 @@ README gives the first-run copy-paste path. This tutorial gives the scenario-lev
 | DDL repair | `npx ztd query uses column users.email --sql-root src/features/users/persistence --specs-dir src/features/users/persistence --any-schema --view detail` | Find the impacted feature-local SQL files before editing them |
 | SQL repair | `npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts` | Regenerate the spec from the feature-local SQL asset |
 | DTO repair | `npx vitest run` after the DTO change | Verify the feature-local runtime and tests after the shape change |
-| migration | `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url>` to prepare a deployable migration | Prepare a deployable migration without asking ztd-cli to deploy it |
+| migration | `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to prepare review output plus apply SQL | Prepare a manually applied migration without asking ztd-cli to deploy it |
 | tuning | `npx ztd query plan <sql-file>` and the perf guide under `docs/guide/` | Keep perf work in the separate tuning path, not in the starter tutorial |
 
 `ZTD_TEST_DATABASE_URL` is the only implicit database owned by ztd-cli. Use `--url` or a complete `--db-*` flag set for `ddl pull` and `ddl diff` when you want to inspect any other target.
@@ -129,6 +129,15 @@ For SQL repair, keep the SQL assets under the feature folder, keep the query on 
 
 For migration work, use an explicit `--url <target-db-url>` with `ddl pull` or `ddl diff` so the target database is never inferred from the starter test database by accident.
 
+Read the review summary first:
+
+- the summary tells you what changed logically
+- the risks section lists destructive and operational apply-plan risks separately
+- even a small summary can still carry destructive risks when the generated apply SQL rebuilds a table
+- the generated `.sql` file stays SQL-only so you can review or apply it separately
+- the companion `.json` file is for AI/tools that need structured migration metadata
+- current `ztd ddl diff` CLI does not expose the lower-level drop-avoidance options from core, so treat drop-related risks as mandatory review points
+
 Tuning belongs to the separate performance guide and dogfooding set, not to the starter lifecycle in this tutorial. Keep the starter path focused on CRUD, DDL, SQL, DTO, and migration repair loops.
 
 ## 6. Run the migration loop
@@ -139,9 +148,9 @@ Use a fresh AI prompt for this step so we can confirm the migration guidance wor
 
 1. Edit the DDL in `ztd/ddl/demo.sql` or the relevant schema file.
 2. Run `npx ztd ztd-config` to refresh the ZTD-generated artifacts.
-3. Optionally run `npx ztd ddl pull --url <target-db-url>` to inspect the target, then run `npx ztd ddl diff --url <target-db-url>` when you need a migration plan.
-4. Apply the generated SQL outside `ztd-cli`.
-5. Re-run `npx vitest run` after the migration lands.
+3. Optionally run `npx ztd ddl pull --url <target-db-url>` to inspect the target, then run `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` when you need a migration plan.
+4. Read the text summary first, inspect the generated SQL second, and apply the SQL outside `ztd-cli`.
+5. Re-run `npx ztd ztd-config` and `npx vitest run` after the migration lands.
 
 This step belongs in the tutorial because the starter path should show not only how to add a feature, but also how to evolve the schema safely without asking `ztd-cli` to own deployment.
 

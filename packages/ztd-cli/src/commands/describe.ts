@@ -136,20 +136,20 @@ const COMMANDS: CommandDescriptor[] = [
   },
   {
     name: 'ddl diff',
-    summary: 'Compare local DDL with a live database and emit a diff plan.',
+    summary: 'Compare local DDL with a live database and emit logical summary, structured risks, and a pure SQL artifact.',
     writesFiles: true,
     supportsDryRun: true,
     supportsJsonPayload: true,
     output: {
-      stdout: 'Status or JSON envelope.',
-      files: ['Specified --out patch file']
+      stdout: 'Human logical summary plus structured risks in text mode, JSON envelope in global json mode.',
+      files: ['Specified --out SQL file plus companion .txt and .json review artifacts with summary/risks']
     },
     exitCodes: {
-      '0': 'Diff completed or dry-run plan emitted.',
+      '0': 'Diff completed or dry-run review emitted.',
       '1': 'Local discovery or pg_dump failed.'
     },
     flags: [
-      { name: '--dry-run', description: 'Compute the patch without writing the plan file.' },
+      { name: '--dry-run', description: 'Compute the logical summary and structured risks without writing the SQL or review artifacts.' },
       { name: '--json', description: 'Pass diff options as a JSON object.' }
     ]
   },

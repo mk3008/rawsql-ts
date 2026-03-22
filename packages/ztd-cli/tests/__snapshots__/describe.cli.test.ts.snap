@@ -143,12 +143,12 @@ exports[`describe command snapshots the top-level command catalog and every deta
   "data": {
     "command": {
       "exitCodes": {
-        "0": "Diff completed or dry-run plan emitted.",
+        "0": "Diff completed or dry-run review emitted.",
         "1": "Local discovery or pg_dump failed.",
       },
       "flags": [
         {
-          "description": "Compute the patch without writing the plan file.",
+          "description": "Compute the logical summary and structured risks without writing the SQL or review artifacts.",
           "name": "--dry-run",
         },
         {
@@ -159,11 +159,11 @@ exports[`describe command snapshots the top-level command catalog and every deta
       "name": "ddl diff",
       "output": {
         "files": [
-          "Specified --out patch file",
+          "Specified --out SQL file plus companion .txt and .json review artifacts with summary/risks",
         ],
-        "stdout": "Status or JSON envelope.",
+        "stdout": "Human logical summary plus structured risks in text mode, JSON envelope in global json mode.",
       },
-      "summary": "Compare local DDL with a live database and emit a diff plan.",
+      "summary": "Compare local DDL with a live database and emit logical summary, structured risks, and a pure SQL artifact.",
       "supportsDryRun": true,
       "supportsJsonPayload": true,
       "writesFiles": true,
@@ -306,7 +306,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
       },
       {
         "name": "ddl diff",
-        "summary": "Compare local DDL with a live database and emit a diff plan.",
+        "summary": "Compare local DDL with a live database and emit logical summary, structured risks, and a pure SQL artifact.",
         "supportsDescribeOutput": false,
         "supportsDryRun": true,
         "supportsJsonPayload": true,

@@ -112,12 +112,12 @@ export function registerDdlCommands(program: Command): void {
     });
 
   ddl
-    .command('diff')
-      .description('Compare local DDL against an explicit target database for inspection purposes')
+      .command('diff')
+      .description('Compare local DDL against an explicit target database and emit logical summary plus structured apply-plan risks alongside pure SQL artifacts')
       .option('--ddl-dir <directory>', 'DDL directory to scan (repeatable)', collectDirectories, [])
       .option('--extensions <list>', 'Comma-separated extensions to include', parseExtensions, DEFAULT_EXTENSIONS)
       .option('--url <databaseUrl>', 'Explicit target database URL for inspection workflows (preferred over --db-*)')
-      .option('--out <file>', 'Output path for the generated plan file')
+      .option('--out <file>', 'Output path for the generated SQL artifact; companion .txt/.json review files are written alongside it')
       .option('--db-host <host>', 'Explicit target database host when --url is not used')
       .option('--db-port <port>', 'Explicit target database port (defaults to 5432)')
       .option('--db-user <user>', 'Explicit target database user')
@@ -125,7 +125,7 @@ export function registerDdlCommands(program: Command): void {
       .option('--db-name <name>', 'Explicit target database name')
       .option('--pg-dump-path <path>', 'Custom pg_dump executable path')
       .option('--pg-dump-shell', 'Run the pg_dump path through a shell so wrapper commands like "docker exec <container> pg_dump" can be used')
-      .option('--dry-run', 'Compute the diff plan without writing the patch file')
+      .option('--dry-run', 'Compute the logical summary and structured risks without writing the SQL/.txt/.json artifacts')
       .option('--json <payload>', 'Pass diff options as a JSON object')
       .action(async (options: DiffCommandOptions) => {
         const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
@@ -149,9 +149,16 @@ export function registerDdlCommands(program: Command): void {
             dryRun: result.dryRun,
             outFile: result.outFile,
             hasChanges: result.hasChanges,
-            patchBytes: result.patch.length
+            applyPlan: result.applyPlan,
+            artifacts: result.artifacts,
+            summary: result.summary,
+            risks: result.risks,
+            sqlBytes: result.sql.length
           });
+          return;
         }
+
+        process.stdout.write(result.text);
       });
 }
 
