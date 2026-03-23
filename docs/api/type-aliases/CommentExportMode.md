@@ -3,7 +3,7 @@
 
 > **CommentExportMode** = `"none"` \| `"full"` \| `"header-only"` \| `"top-header-only"`
 
-Defined in: [packages/core/src/types/Formatting.ts:8](https://github.com/mk3008/rawsql-ts/blob/bf233ef509d00f69676b75c8f8c8e92d586cdb39/packages/core/src/types/Formatting.ts#L8)
+Defined in: [packages/core/src/types/Formatting.ts:8](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/types/Formatting.ts#L8)
 
 Comment export modes controlling which comments are emitted.
 - 'full': emit every comment (legacy `true` behaviour)

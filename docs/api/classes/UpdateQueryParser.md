@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: UpdateQueryParser
 
-Defined in: [packages/core/src/parsers/UpdateQueryParser.ts:14](https://github.com/mk3008/rawsql-ts/blob/bf233ef509d00f69676b75c8f8c8e92d586cdb39/packages/core/src/parsers/UpdateQueryParser.ts#L14)
+Defined in: [packages/core/src/parsers/UpdateQueryParser.ts:14](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/parsers/UpdateQueryParser.ts#L14)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/parsers/UpdateQueryParser.ts:14](https://github.c
 
 > `static` **parse**(`query`): [`UpdateQuery`](UpdateQuery.md)
 
-Defined in: [packages/core/src/parsers/UpdateQueryParser.ts:19](https://github.com/mk3008/rawsql-ts/blob/bf233ef509d00f69676b75c8f8c8e92d586cdb39/packages/core/src/parsers/UpdateQueryParser.ts#L19)
+Defined in: [packages/core/src/parsers/UpdateQueryParser.ts:19](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/parsers/UpdateQueryParser.ts#L19)
 
 Parse SQL string to UpdateQuery AST.
 
@@ -41,7 +41,7 @@ SQL string
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/UpdateQueryParser.ts:32](https://github.com/mk3008/rawsql-ts/blob/bf233ef509d00f69676b75c8f8c8e92d586cdb39/packages/core/src/parsers/UpdateQueryParser.ts#L32)
+Defined in: [packages/core/src/parsers/UpdateQueryParser.ts:32](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/parsers/UpdateQueryParser.ts#L32)
 
 Parse from lexeme array (for internal use and tests)
 

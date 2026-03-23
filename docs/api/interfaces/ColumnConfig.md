@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: ColumnConfig
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:14](https://github.com/mk3008/rawsql-ts/blob/bf233ef509d00f69676b75c8f8c8e92d586cdb39/packages/core/src/transformers/EnhancedJsonMapping.ts#L14)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:14](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/transformers/EnhancedJsonMapping.ts#L14)
 
 Enhanced column configuration that supports both simple and complex mappings.
 
@@ -11,7 +11,7 @@ Enhanced column configuration that supports both simple and complex mappings.
 
 > **column**: `string`
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:16](https://github.com/mk3008/rawsql-ts/blob/bf233ef509d00f69676b75c8f8c8e92d586cdb39/packages/core/src/transformers/EnhancedJsonMapping.ts#L16)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:16](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/transformers/EnhancedJsonMapping.ts#L16)
 
 Source column name
 
@@ -21,7 +21,7 @@ Source column name
 
 > `optional` **type**: [`ColumnType`](../type-aliases/ColumnType.md)
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:18](https://github.com/mk3008/rawsql-ts/blob/bf233ef509d00f69676b75c8f8c8e92d586cdb39/packages/core/src/transformers/EnhancedJsonMapping.ts#L18)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:18](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/transformers/EnhancedJsonMapping.ts#L18)
 
 Type enforcement for this column
 
@@ -31,7 +31,7 @@ Type enforcement for this column
 
 > `optional` **nullable**: `boolean`
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:20](https://github.com/mk3008/rawsql-ts/blob/bf233ef509d00f69676b75c8f8c8e92d586cdb39/packages/core/src/transformers/EnhancedJsonMapping.ts#L20)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:20](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/transformers/EnhancedJsonMapping.ts#L20)
 
 Whether this field is nullable
 
@@ -41,7 +41,7 @@ Whether this field is nullable
 
 > `optional` **transform**: `string`
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:22](https://github.com/mk3008/rawsql-ts/blob/bf233ef509d00f69676b75c8f8c8e92d586cdb39/packages/core/src/transformers/EnhancedJsonMapping.ts#L22)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:22](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/transformers/EnhancedJsonMapping.ts#L22)
 
 Custom transformation function
 </div>

@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: ModificationInfo
 
-Defined in: [packages/core/src/models/FormattingLexeme.ts:26](https://github.com/mk3008/rawsql-ts/blob/bf233ef509d00f69676b75c8f8c8e92d586cdb39/packages/core/src/models/FormattingLexeme.ts#L26)
+Defined in: [packages/core/src/models/FormattingLexeme.ts:26](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/models/FormattingLexeme.ts#L26)
 
 Metadata for tracking modifications during AST transformations
 
@@ -11,7 +11,7 @@ Metadata for tracking modifications during AST transformations
 
 > **renames**: `Map`&lt;`string`, `string`\&gt;
 
-Defined in: [packages/core/src/models/FormattingLexeme.ts:30](https://github.com/mk3008/rawsql-ts/blob/bf233ef509d00f69676b75c8f8c8e92d586cdb39/packages/core/src/models/FormattingLexeme.ts#L30)
+Defined in: [packages/core/src/models/FormattingLexeme.ts:30](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/models/FormattingLexeme.ts#L30)
 
 Map of original values to new values for renamed items
 
@@ -21,7 +21,7 @@ Map of original values to new values for renamed items
 
 > **insertions**: `object`[]
 
-Defined in: [packages/core/src/models/FormattingLexeme.ts:35](https://github.com/mk3008/rawsql-ts/blob/bf233ef509d00f69676b75c8f8c8e92d586cdb39/packages/core/src/models/FormattingLexeme.ts#L35)
+Defined in: [packages/core/src/models/FormattingLexeme.ts:35](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/models/FormattingLexeme.ts#L35)
 
 Positions where new content was inserted
 
@@ -39,7 +39,7 @@ Positions where new content was inserted
 
 > **deletions**: `object`[]
 
-Defined in: [packages/core/src/models/FormattingLexeme.ts:40](https://github.com/mk3008/rawsql-ts/blob/bf233ef509d00f69676b75c8f8c8e92d586cdb39/packages/core/src/models/FormattingLexeme.ts#L40)
+Defined in: [packages/core/src/models/FormattingLexeme.ts:40](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/models/FormattingLexeme.ts#L40)
 
 Ranges that were deleted from original content
 
