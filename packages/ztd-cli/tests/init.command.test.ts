@@ -139,6 +139,7 @@ test('init starter bootstraps visible AGENTS, compose, starter DDL, and smoke te
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('starter-only sample feature');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/features/smoke/tests/smoke.queryspec.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('ZTD_TEST_DATABASE_URL');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Docker Desktop or another Docker daemon is already running');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx vitest run src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If `5432` is already in use');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('docker run -d --rm --name ztd-starter-pg');
@@ -152,6 +153,9 @@ test('init starter bootstraps visible AGENTS, compose, starter DDL, and smoke te
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('smoke.queryspec.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('ZTD_TEST_DATABASE_URL');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'persistence', 'smoke.sql'))).toContain(':v1::integer + :v2::integer as result');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'))).toContain(
+    "sqlFile: './smoke.sql'"
+  );
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'))).toContain("shape: 'named'");
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'))).toContain('buildSmokeWorkflow');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'))).toContain('../domain/smoke-policy.js');

@@ -1,11 +1,15 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { createCatalogExecutor, type Binder } from '@rawsql-ts/sql-contract';
 import { Pool } from 'pg';
 import { expect, test } from 'vitest';
 
 import { smokeSpec } from '../persistence/smoke.spec.js';
+
+const testFileDir = path.dirname(fileURLToPath(import.meta.url));
+const featurePersistenceDir = path.resolve(testFileDir, '..', 'persistence');
 
 const namedParameterBinder: Binder = {
   name: 'smoke-named-parameter-binder',
@@ -43,7 +47,7 @@ test('smoke QuerySpec connects to the configured DB and runs the minimal named-p
   const catalog = createCatalogExecutor({
     loader: {
       async load(sqlFile) {
-        return readFile(path.join(process.cwd(), sqlFile), 'utf8');
+        return readFile(path.resolve(featurePersistenceDir, sqlFile), 'utf8');
       }
     },
     binders: [namedParameterBinder],
