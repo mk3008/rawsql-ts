@@ -235,7 +235,10 @@ Notes:
           command: 'model-gen',
           fileRules: {
             supportsFeatureLocalSql: true,
-            sqlResolutionOrder: [
+            // This array documents the recommended VSA mental model exposed to users.
+            // resolveRenderedSqlFileReference may still check explicitSqlRoot first
+            // for shared-layout compatibility before falling back to these defaults.
+            sqlResolutionConceptualOrder: [
               'spec-relative-from-out',
               'project-relative',
               'explicit-sql-root',
