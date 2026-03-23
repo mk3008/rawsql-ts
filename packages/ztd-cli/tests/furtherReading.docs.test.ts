@@ -167,9 +167,8 @@ test('quickstart and tutorial spell out the common 5432 collision fallback', () 
 
   expect(packageReadme).toContain('If `5432` is busy, use another local port and update `ZTD_TEST_DATABASE_URL`.');
   expect(scaffoldReadme).toContain(
-    'If `5432` is already in use, stop the conflicting process or run Postgres on another local port and update `ZTD_TEST_DATABASE_URL` before you run Vitest, for example:'
+    'If `5432` is already in use, stop the conflicting process or run Postgres on another local port and update `ZTD_TEST_DATABASE_URL` before you run those suites, for example:'
   );
-  expect(scaffoldReadme).toContain('pnpm add -D @rawsql-ts/adapter-node-pg');
   expect(tutorial).toContain('If port `5432` is already in use, stop the conflicting process or run Postgres on another port and update `ZTD_TEST_DATABASE_URL`, for example:');
   expect(tutorial).toContain('docker run -d --rm --name ztd-starter-pg');
   expect(tutorial).toContain('-p 5433:5432');

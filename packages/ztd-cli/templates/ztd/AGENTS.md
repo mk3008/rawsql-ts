@@ -14,10 +14,7 @@
 - Modifying `ztd/README.md` without explicit instruction.
 
 # Mandatory Workflow
-- DDL-related rule updates MUST be made in `ztd/ddl/AGENTS.md`.
+- DDL-related rule updates MUST stay at the `ztd` / `ztd/ddl` boundary and avoid deeper agent-file fanout.
 
 # Hygiene
 - Keep runtime code independent from `ztd` subtree dependencies.
-
-# References
-- DDL policy: [./ddl/AGENTS.md](./ddl/AGENTS.md)

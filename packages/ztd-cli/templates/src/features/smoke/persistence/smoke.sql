@@ -1,4 +1,3 @@
 select
-  :id::integer as id,
-  :createdAt::timestamptz as created_at;
+  :v1::integer + :v2::integer as result;
 
