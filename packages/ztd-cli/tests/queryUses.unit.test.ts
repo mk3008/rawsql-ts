@@ -117,6 +117,71 @@ test('impact view aggregates table usage by statement', () => {
   expect(formatQueryUsageReport(report, 'text')).toContain('Affected queries:');
 });
 
+test('project-wide discovery finds feature-local specs across multiple slices without sql-root flags', () => {
+  const root = createWorkspace('query-uses-vsa-project-wide');
+  mkdirSync(path.join(root, 'src', 'features', 'users', 'persistence'), { recursive: true });
+  mkdirSync(path.join(root, 'src', 'features', 'orders', 'persistence'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'features', 'users', 'persistence', 'users.spec.ts'),
+    [
+      'export const usersSpec = {',
+      "  id: 'features.users.persistence.users',",
+      "  sqlFile: './users.sql',",
+      "  params: { shape: 'named', example: { id: 1 } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'features', 'orders', 'persistence', 'orders.spec.ts'),
+    [
+      'export const ordersSpec = {',
+      "  id: 'features.orders.persistence.orders',",
+      "  sqlFile: './orders.sql',",
+      "  params: { shape: 'named', example: { id: 1 } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'features', 'users', 'persistence', 'users.sql'),
+    'SELECT u.email FROM public.users u;',
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'features', 'orders', 'persistence', 'orders.sql'),
+    'SELECT o.id FROM public.orders o JOIN public.users u ON u.id = o.user_id;',
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.users',
+    rootDir: root,
+  });
+
+  expect(report.summary).toMatchObject({
+    catalogsScanned: 2,
+    statementsScanned: 2,
+    matches: 2,
+    unresolvedSqlFiles: 0,
+  });
+  expect(report.matches).toEqual([
+    expect.objectContaining({
+      kind: 'impact',
+      catalog_id: 'features.orders.persistence.orders',
+      sql_file: 'src/features/orders/persistence/orders.sql',
+      usageKindCounts: { join: 1 },
+    }),
+    expect.objectContaining({
+      kind: 'impact',
+      catalog_id: 'features.users.persistence.users',
+      sql_file: 'src/features/users/persistence/users.sql',
+      usageKindCounts: { from: 1 },
+    }),
+  ]);
+});
+
 test('impact view resolves sql-root-relative sqlFile values before the legacy spec-relative fallback', () => {
   const root = createWorkspace('query-uses-sql-root-relative');
   mkdirSync(path.join(root, 'src', 'sql', 'sales'), { recursive: true });
@@ -663,12 +728,14 @@ test('detail view emits parse warnings, fallback rows, and no-catalog guidance d
       catalog_id: 'catalog.b',
       code: 'unresolved-sql-file',
       message: expect.stringContaining('SQL file does not exist: ../../sql/missing.sql'),
-      sql_file: 'sql/missing.sql'
+      sql_file: 'src/sql/missing.sql'
     }
   ]);
-  expect(tableReport.warnings[1]?.message).toContain('Tried project SQL root (src/sql): sql/missing.sql');
-  expect(tableReport.warnings[1]?.message).toContain('Tried spec-relative fallback: src/sql/missing.sql');
-  expect(tableReport.warnings[1]?.message).toContain('re-run with --sql-root src/sql');
+  expect(tableReport.warnings[1]?.message).toContain('Tried spec-relative path: src/sql/missing.sql');
+  expect(tableReport.warnings[1]?.message).toContain(
+    'Tried project-relative path: ../../sql/missing.sql'
+  );
+  expect(tableReport.warnings[1]?.message).toContain('prefer feature-local spec-relative sqlFile values');
   expect(formatQueryUsageReport(tableReport, 'text')).toContain('Fallback-derived matches:');
 
   const emptyRoot = createWorkspace('query-uses-empty');
@@ -681,10 +748,10 @@ test('detail view emits parse warnings, fallback rows, and no-catalog guidance d
   expect(emptyReport.warnings).toEqual([
     {
       code: 'no-catalog-specs-found',
-      message: expect.stringContaining('Hint: run "ztd init" or pass "--specs-dir".')
+      message: expect.stringContaining('No QuerySpec entries were discovered under .')
     }
   ]);
-  expect(formatQueryUsageReport(emptyReport, 'text')).toContain('No catalog specs found under');
+  expect(formatQueryUsageReport(emptyReport, 'text')).toContain('No QuerySpec entries were discovered under .');
 });
 
 test('table impact finds tables referenced from EXISTS subqueries through their FROM nodes', () => {

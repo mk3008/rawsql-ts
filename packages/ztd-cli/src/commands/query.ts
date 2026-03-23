@@ -74,7 +74,7 @@ export const QUERY_USES_COMMAND_SPANS = {
  * Register strict-first impact investigation commands on the CLI root.
  */
 export function registerQueryCommands(program: Command): void {
-  const query = program.command('query').description('Impact investigation for SQL catalog assets');
+  const query = program.command('query').description('Impact investigation for project QuerySpec-backed SQL assets');
   query.addHelpText(
     'after',
     `
@@ -95,7 +95,10 @@ Notes:
   - Strict mode is the default. Relaxed modes are explicit opt-in only.
   - Impact is the default view. Use --view detail for edit-ready locations/snippets.
   - Impact representatives may omit select snippets; use --view detail for edit-ready SELECT occurrences.
-  - Use --exclude-generated to skip specs under src/catalog/specs/generated when those files are review-only noise.
+  - Project-wide discovery is the default. query uses scans QuerySpec entries discovered under the current project root.
+  - Use --specs-dir only to narrow the active spec set to one slice or sub-tree.
+  - Use --sql-root only when specs intentionally point into a shared SQL root instead of staying feature-local.
+  - Use --exclude-generated to skip QuerySpec files under generated directories when those files are review-only noise.
   - Static column analysis is inherently uncertain and labels ambiguity via confidence/notes.
   - exprHints: best-effort only. Absence of exprHints does not imply the feature is not present.
   - statement_fingerprint is stable across formatting/comment changes under the current normalization contract.
@@ -112,9 +115,9 @@ Notes:
     .description('Find statements that use a table target')
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--view <view>', 'Investigation view (impact|detail)', 'impact')
-    .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
-    .option('--sql-root <path>', 'Resolve sqlFile paths relative to the project SQL root first (default: src/sql)')
-    .option('--exclude-generated', 'Exclude specs under src/catalog/specs/generated from scan targets')
+    .option('--specs-dir <path>', 'Limit discovery to one QuerySpec subtree instead of scanning the whole project')
+    .option('--sql-root <path>', 'Optional fallback root for shared sqlFile layouts when specs are not feature-local')
+    .option('--exclude-generated', 'Exclude QuerySpec files under generated directories from scan targets')
     .option('--out <path>', 'Write output to file')
     .option('--summary-only', 'Emit summary counts without per-match details')
     .option('--limit <count>', 'Limit returned matches and warnings in the output')
@@ -130,9 +133,9 @@ Notes:
     .description('Find statements that use a column target')
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--view <view>', 'Investigation view (impact|detail)', 'impact')
-    .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
-    .option('--sql-root <path>', 'Resolve sqlFile paths relative to the project SQL root first (default: src/sql)')
-    .option('--exclude-generated', 'Exclude specs under src/catalog/specs/generated from scan targets')
+    .option('--specs-dir <path>', 'Limit discovery to one QuerySpec subtree instead of scanning the whole project')
+    .option('--sql-root <path>', 'Optional fallback root for shared sqlFile layouts when specs are not feature-local')
+    .option('--exclude-generated', 'Exclude QuerySpec files under generated directories from scan targets')
     .option('--out <path>', 'Write output to file')
     .option('--summary-only', 'Emit summary counts without per-match details')
     .option('--limit <count>', 'Limit returned matches and warnings in the output')
@@ -145,6 +148,8 @@ Notes:
 Notes:
   - Impact is the default view. Use --view detail if you need edit-ready locations/snippets.
   - Impact representatives may omit select snippets; use --view detail for edit-ready SELECT occurrences.
+  - Project-wide discovery is the default. Use --specs-dir only when you want to narrow the active spec set.
+  - Feature-local spec-relative sqlFile values are the preferred contract. Use --sql-root only for shared-root fallback.
   - exprHints: best-effort only. Absence of exprHints does not imply the feature is not present.
 `
     )

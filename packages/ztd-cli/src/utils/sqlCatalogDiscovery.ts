@@ -1,6 +1,22 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
+const DEFAULT_DISCOVERY_IGNORED_DIRS = new Set([
+  '.git',
+  'node_modules',
+  'dist',
+  'build',
+  'coverage',
+  'tmp',
+  'test',
+  'tests',
+  '__tests__',
+  '.turbo',
+  '.next',
+  '.nuxt',
+  'out',
+]);
+
 /**
  * Minimal SQL catalog spec shape shared across command-layer discovery flows.
  */
@@ -38,8 +54,27 @@ export function walkSqlCatalogSpecFiles(
   rootDir: string,
   options?: { excludeTestFiles?: boolean; excludeGenerated?: boolean }
 ): string[] {
+  return collectSqlCatalogSpecFiles(rootDir, rootDir, options);
+}
+
+/**
+ * Discover QuerySpec-like files from the project root without assuming one fixed specs directory.
+ */
+export function discoverProjectSqlCatalogSpecFiles(
+  projectRoot: string,
+  options?: { excludeTestFiles?: boolean; excludeGenerated?: boolean }
+): string[] {
+  return collectSqlCatalogSpecFiles(projectRoot, projectRoot, options, true);
+}
+
+function collectSqlCatalogSpecFiles(
+  walkRoot: string,
+  generatedScopeRoot: string,
+  options?: { excludeTestFiles?: boolean; excludeGenerated?: boolean },
+  useProjectWideIgnores = false
+): string[] {
   const files: string[] = [];
-  const stack = [rootDir];
+  const stack = [walkRoot];
   while (stack.length > 0) {
     const current = stack.pop()!;
     const entries = readdirSync(current, { withFileTypes: true })
@@ -47,6 +82,9 @@ export function walkSqlCatalogSpecFiles(
     for (const entry of entries) {
       const absolute = path.join(current, entry.name);
       if (entry.isDirectory()) {
+        if (useProjectWideIgnores && shouldIgnoreDiscoveryDirectory(entry.name)) {
+          continue;
+        }
         stack.push(absolute);
         continue;
       }
@@ -68,7 +106,7 @@ export function walkSqlCatalogSpecFiles(
       if (options?.excludeTestFiles && lowered.includes('.test.')) {
         continue;
       }
-      if (options?.excludeGenerated && isGeneratedSpecPath(absolute, rootDir)) {
+      if (options?.excludeGenerated && isGeneratedSpecPath(absolute, generatedScopeRoot)) {
         continue;
       }
       files.push(absolute);
@@ -86,9 +124,14 @@ export function loadSqlCatalogSpecsFromFile(
 ): LoadedSqlCatalogSpec[] {
   const ext = path.extname(filePath).toLowerCase();
   if (ext === '.json') {
+    const source = readFileSync(filePath, 'utf8');
+    if (!looksLikeSpecFile(filePath) && !source.includes('"sqlFile"') && !source.includes('sqlFile')) {
+      return [];
+    }
+
     let parsed: unknown;
     try {
-      parsed = JSON.parse(readFileSync(filePath, 'utf8'));
+      parsed = JSON.parse(source);
     } catch (error) {
       throw createError(
         `Failed to parse spec file ${filePath}: ${error instanceof Error ? error.message : String(error)}`
@@ -96,20 +139,26 @@ export function loadSqlCatalogSpecsFromFile(
     }
 
     if (Array.isArray(parsed)) {
-      return parsed.map((spec) => ({ spec: spec as SqlCatalogSpecLike, filePath }));
+      return parsed
+        .filter(isSpecLikeRecord)
+        .map((spec) => ({ spec: spec as SqlCatalogSpecLike, filePath }));
     }
     if (isPlainObject(parsed) && Array.isArray((parsed as Record<string, unknown>).specs)) {
       const specs = (parsed as { specs: unknown[] }).specs;
-      return specs.map((spec) => ({ spec: spec as SqlCatalogSpecLike, filePath }));
+      return specs
+        .filter(isSpecLikeRecord)
+        .map((spec) => ({ spec: spec as SqlCatalogSpecLike, filePath }));
     }
-    if (isPlainObject(parsed)) {
+    if (isSpecLikeRecord(parsed)) {
       return [{ spec: parsed as SqlCatalogSpecLike, filePath }];
     }
-
-    throw createError(`Unsupported spec format in ${filePath}`);
+    return [];
   }
 
   const source = readFileSync(filePath, 'utf8');
+  if (!looksLikeSpecFile(filePath) && !source.includes('sqlFile')) {
+    return [];
+  }
   const blocks = extractTsJsSpecBlocks(source);
   return blocks.map((block) => {
     const id = block.match(/id\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
@@ -206,10 +255,23 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
 function isGeneratedSpecPath(filePath: string, specsDir: string): boolean {
   const normalizedFilePath = path.resolve(filePath);
   const relativePath = path.relative(path.resolve(specsDir), normalizedFilePath);
-  if (relativePath === '') {
+  if (relativePath === '' || relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
     return false;
   }
 
   const segments = relativePath.split(path.sep);
-  return segments.includes('generated') || path.basename(normalizedFilePath).includes('.generated.');
+  return segments.some((segment) => segment.trim().toLowerCase() === 'generated');
+}
+
+function shouldIgnoreDiscoveryDirectory(dirName: string): boolean {
+  return DEFAULT_DISCOVERY_IGNORED_DIRS.has(dirName.toLowerCase());
+}
+
+function isSpecLikeRecord(value: unknown): value is Record<string, unknown> {
+  return isPlainObject(value) && typeof value.sqlFile === 'string' && value.sqlFile.trim().length > 0;
+}
+
+function looksLikeSpecFile(filePath: string): boolean {
+  const normalized = path.basename(filePath).toLowerCase();
+  return normalized.includes('.spec.') || normalized.includes('.generated.');
 }

@@ -10,24 +10,28 @@ The command-line UX is provided by `@rawsql-ts/ztd-cli`, and the reusable analys
 
 ## Prerequisites
 
-`ztd query uses` scans **SQL catalog spec files** — the JSON or TypeScript specs that `ztd init` generates under `src/catalog/specs/`. Each spec references a SQL file via its `sqlFile` field, and the command parses those SQL files for analysis.
+`ztd query uses` scans the active **QuerySpec set** for the project. By default it discovers JSON or TypeScript specs recursively under the current project root, then follows each spec's `sqlFile` field and parses the referenced SQL for analysis.
 
-**Minimum project structure:**
+**Common project shapes:**
 
 ```text
 project-root/
 ├── src/
-│   ├── catalog/
-│   │   └── specs/           ← spec files live here (default)
-│   │       └── users.spec.json
-│   └── sql/                 ← SQL files live here (default)
-│       └── users/
-│           └── list.sql
+│   └── features/
+│       ├── users/
+│       │   └── persistence/
+│       │       ├── users.spec.ts
+│       │       └── users.sql
+│       └── orders/
+│           └── persistence/
+│               ├── orders.spec.ts
+│               └── orders.sql
 ```
 
 - **Spec files are required.** Plain `.sql` files without a spec are not scanned. If you have not run `ztd init` yet, start there.
-- **Subdirectories are scanned recursively.** All specs under the specs directory (including nested folders) are discovered automatically.
-- **Default paths are convention-based.** Specs default to `src/catalog/specs`, SQL root defaults to `src/sql`. Both can be overridden with `--specs-dir` and `--sql-root`.
+- **Project-wide discovery is the default.** QuerySpec files are discovered recursively under the project root unless you narrow the scan with `--specs-dir`.
+- **Feature-local specs are first-class.** The preferred contract is a spec that keeps `sqlFile` relative to the spec itself, for example `./users.sql`.
+- **Shared SQL roots still work.** If your project intentionally keeps SQL in one shared tree, you can still use `--sql-root` as a fallback resolver.
 - **No database connection is needed.** The analysis is purely static. It parses SQL text, not a live schema.
 
 ## Why not grep?
@@ -90,6 +94,8 @@ npx ztd query uses table public.sale_lines --exclude-generated --format json
 Use `--out <path>` to write the result to a file instead of stdout, which is useful for piping into downstream tools or archiving evidence.
 
 If you need the same AST-based impact analysis in your own tooling, import `@rawsql-ts/sql-grep-core` directly and call the report builder without the rest of the CLI.
+
+The command does **not** scan every `.sql` file in the repository blindly. It scans the SQL files referenced by the active QuerySpec set, so unregistered SQL stays outside the impact report until it has a spec.
 
 ## When to use it
 

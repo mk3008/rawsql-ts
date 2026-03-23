@@ -14,6 +14,8 @@ This page covers the `table` and `column` impact checks with examples based on a
 
 Implementation note: the CLI command is provided by `@rawsql-ts/ztd-cli`, while the reusable analysis engine now lives in `@rawsql-ts/sql-grep-core`.
 
+The active scan set is **project-wide by default**. `query uses` discovers QuerySpec entries under the current project root and follows each spec's `sqlFile`. Use `--specs-dir` only when you want to narrow the scan to one slice or sub-tree.
+
 ## Quick start
 
 The default view is `impact`, which is the fastest first pass for "used or not, and by which queries?".
@@ -40,7 +42,7 @@ npx ztd query uses column public.sale_items.quantity --exclude-generated
 npx ztd query uses table public.sale_lines --view detail --exclude-generated
 ```
 
-`--exclude-generated` only excludes specs under `src/catalog/specs/generated`. The flag is optional, and the default scan set is unchanged.
+`--exclude-generated` only excludes QuerySpec files under `generated` directories. The flag is optional, and the default scan set is unchanged.
 
 ## When to use which command
 
@@ -225,12 +227,18 @@ Expected pattern:
 
 ### `unresolved sql files` is not zero
 
-Check that your `spec.sqlFile` values still point at the project SQL root. `query uses` resolves `spec.sqlFile` against `src/sql` first and then falls back to the legacy spec-relative behavior for backward compatibility.
+Check that your `spec.sqlFile` values still resolve from the spec itself first. `query uses` prefers feature-local spec-relative paths, then tries project-relative paths, and only uses `--sql-root` as an explicit shared-root fallback.
 
 If needed, be explicit:
 
 ```bash
 npx ztd query uses table public.users --sql-root src/sql
+```
+
+For feature-local layouts, keep the spec and SQL together and let the default resolver work without `--sql-root`:
+
+```bash
+npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail
 ```
 
 ### Matches look noisy
@@ -251,5 +259,6 @@ npx ztd query uses table public.sale_items --view detail --exclude-generated
 
 1. Start with the default `impact` view.
 2. Add `--exclude-generated` for rename or type-change checks.
-3. Use `--view detail` only when you need line-level evidence.
-4. Treat `unresolved sql files` as a signal that the scan setup needs attention before you trust the result.
+3. Use `--specs-dir` only when you need to narrow a project-wide search to one feature.
+4. Use `--view detail` only when you need line-level evidence.
+5. Treat `unresolved sql files` as a signal that the scan setup needs attention before you trust the result.
