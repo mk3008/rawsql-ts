@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: DynamicQueryBuilderOptions
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:175](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/transformers/DynamicQueryBuilder.ts#L175)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:175](https://github.com/mk3008/rawsql-ts/blob/a45f608a15cc8ced8747bae6b0475a2e503fab71/packages/core/src/transformers/DynamicQueryBuilder.ts#L175)
 
 Builder-level configuration that can be reused across multiple build calls.
 
@@ -11,7 +11,7 @@ Builder-level configuration that can be reused across multiple build calls.
 
 > `optional` **tableColumnResolver**: (`tableName`) => `string`[]
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:177](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/transformers/DynamicQueryBuilder.ts#L177)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:177](https://github.com/mk3008/rawsql-ts/blob/a45f608a15cc8ced8747bae6b0475a2e503fab71/packages/core/src/transformers/DynamicQueryBuilder.ts#L177)
 
 Optional resolver for table column names (retains backward compatibility).
 
@@ -31,7 +31,7 @@ Optional resolver for table column names (retains backward compatibility).
 
 > `optional` **schemaInfo**: [`SchemaInfo`](../type-aliases/SchemaInfo.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:182](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/transformers/DynamicQueryBuilder.ts#L182)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:182](https://github.com/mk3008/rawsql-ts/blob/a45f608a15cc8ced8747bae6b0475a2e503fab71/packages/core/src/transformers/DynamicQueryBuilder.ts#L182)
 
 Schema metadata that may be applied by default when the optimizer is enabled.
 Schema info provided via QueryBuildOptions takes precedence.

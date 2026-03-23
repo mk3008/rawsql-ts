@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: ColumnDefinition
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:32](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/utils/SchemaManager.ts#L32)
+Defined in: [packages/core/src/utils/SchemaManager.ts:32](https://github.com/mk3008/rawsql-ts/blob/a45f608a15cc8ced8747bae6b0475a2e503fab71/packages/core/src/utils/SchemaManager.ts#L32)
 
 Database column metadata for schema mapping
 
@@ -15,7 +15,7 @@ Database column metadata for schema mapping
 
 > **name**: `string`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:34](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/utils/SchemaManager.ts#L34)
+Defined in: [packages/core/src/utils/SchemaManager.ts:34](https://github.com/mk3008/rawsql-ts/blob/a45f608a15cc8ced8747bae6b0475a2e503fab71/packages/core/src/utils/SchemaManager.ts#L34)
 
 Column name in database
 
@@ -25,7 +25,7 @@ Column name in database
 
 > `optional` **isPrimaryKey**: `boolean`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:36](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/utils/SchemaManager.ts#L36)
+Defined in: [packages/core/src/utils/SchemaManager.ts:36](https://github.com/mk3008/rawsql-ts/blob/a45f608a15cc8ced8747bae6b0475a2e503fab71/packages/core/src/utils/SchemaManager.ts#L36)
 
 Primary key indicator - used for UPDATE/DELETE query WHERE conditions
 
@@ -35,7 +35,7 @@ Primary key indicator - used for UPDATE/DELETE query WHERE conditions
 
 > `optional` **foreignKey**: `object`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:38](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/utils/SchemaManager.ts#L38)
+Defined in: [packages/core/src/utils/SchemaManager.ts:38](https://github.com/mk3008/rawsql-ts/blob/a45f608a15cc8ced8747bae6b0475a2e503fab71/packages/core/src/utils/SchemaManager.ts#L38)
 
 Foreign key reference
 
@@ -53,7 +53,7 @@ Foreign key reference
 
 > `optional` **jsonAlias**: `string`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:43](https://github.com/mk3008/rawsql-ts/blob/9a43510a16e39bf2c2a913e6d2e5ec12b36391e6/packages/core/src/utils/SchemaManager.ts#L43)
+Defined in: [packages/core/src/utils/SchemaManager.ts:43](https://github.com/mk3008/rawsql-ts/blob/a45f608a15cc8ced8747bae6b0475a2e503fab71/packages/core/src/utils/SchemaManager.ts#L43)
 
 Alias for JSON output (useful for avoiding conflicts)
 </div>
