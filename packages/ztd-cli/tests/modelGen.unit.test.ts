@@ -3,6 +3,7 @@ import {
   bindProbeSql,
   loadModelGenZtdFixtureState,
   normalizeCliPath,
+  resolveModelGenInputs,
   resolveSqlContractImportSpecifier,
   resolveModelGenZtdProbeOptions,
   resolveCliConnectionWithProbeGuidance,
@@ -82,6 +83,49 @@ test('deriveModelGenNames builds stable sql-contract identifiers from sql-root r
     mappingName: 'getSalesHeaderMapping',
     specName: 'getSalesHeaderSpec',
     specId: 'sales.getSalesHeader'
+  });
+});
+
+test('resolveModelGenInputs derives VSA feature-local ids and spec-relative sqlFile values without --sql-root', () => {
+  const workspace = mkdtempSync(path.join(os.tmpdir(), 'model-gen-vsa-inputs-'));
+  const sqlDir = path.join(workspace, 'src', 'features', 'users', 'persistence');
+  mkdirSync(sqlDir, { recursive: true });
+  const sqlFile = path.join(sqlDir, 'users.sql');
+  const outFile = path.join(sqlDir, 'users.spec.ts');
+  writeFileSync(sqlFile, 'select 1 as value', 'utf8');
+
+  expect(
+    resolveModelGenInputs(sqlFile, {
+      rootDir: workspace,
+      out: path.relative(workspace, outFile),
+    })
+  ).toMatchObject({
+    relativeSqlFile: './users.sql',
+    derivedNames: {
+      specId: 'features.users.persistence.users',
+      specName: 'usersSpec',
+    },
+  });
+});
+
+test('resolveModelGenInputs keeps shared-root ids stable when --sql-root is used as a compatibility helper', () => {
+  const workspace = mkdtempSync(path.join(os.tmpdir(), 'model-gen-shared-root-'));
+  const sqlDir = path.join(workspace, 'src', 'sql', 'sales');
+  mkdirSync(sqlDir, { recursive: true });
+  const sqlFile = path.join(sqlDir, 'get_sales_header.sql');
+  writeFileSync(sqlFile, 'select 1 as value', 'utf8');
+
+  expect(
+    resolveModelGenInputs(sqlFile, {
+      rootDir: workspace,
+      sqlRoot: path.join('src', 'sql'),
+    })
+  ).toMatchObject({
+    relativeSqlFile: 'sales/get_sales_header.sql',
+    derivedNames: {
+      specId: 'sales.getSalesHeader',
+      specName: 'getSalesHeaderSpec',
+    },
   });
 });
 

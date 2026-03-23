@@ -47,7 +47,8 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         '-p 5433:5432',
         'npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail',
         'Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.',
-        'npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts',
+        'npx ztd model-gen --probe-mode ztd src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts',
+        'model-gen` now treats the SQL file location as the primary contract source',
         'Read the review summary first:',
         '- the risks section lists destructive and operational apply-plan risks separately',
         'npx ztd ddl risk --file tmp/users.diff.sql',
@@ -62,6 +63,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'migration artifact creation',
         'tmp/users.diff.sql',
         'npx ztd ddl risk --file tmp/users.diff.sql',
+        'npx ztd model-gen --probe-mode ztd src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts',
         '`ZTD_TEST_DATABASE_URL` is the only implicit database owned by ztd-cli.',
         'Use `--url` or a full `--db-*` flag set for any other inspection target.',
         'The feature folder is one narrowed spec set inside the normal project-wide discovery flow.',
@@ -107,6 +109,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'Use `ztd agents status` to distinguish managed templates from user-owned instruction files.',
         'treat `summary` as the logical diff, treat `risks` as the apply-plan risk list',
         'Use `ztd ddl risk --file <migration.sql>` when you need to evaluate a generated or hand-edited migration SQL file directly',
+        '`ztd model-gen` now treats feature-local SQL files as the primary contract source',
         'ZTD_TEST_DATABASE_URL',
         'Do not assume `DATABASE_URL` is a usable default target'
       ]
@@ -138,6 +141,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       phrases: [
         'throwaway project under `tmp/`',
         '`ztd init --local-source-root <monorepo-root>`',
+        'ztd model-gen src/features/users/persistence/list_users.sql \\',
         '`pnpm install --ignore-workspace`',
         'Do not use it to claim that the published npm consumer flow is already healthy',
         'Use this mode to answer: `can we dogfood the unreleased CLI from source?`'

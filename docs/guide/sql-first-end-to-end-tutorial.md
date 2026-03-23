@@ -23,7 +23,7 @@ README gives the first-run copy-paste path. This tutorial gives the scenario-lev
 | Scenario | Primary CLI | Why |
 | --- | --- | --- |
 | DDL repair | `npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail` | Find the impacted feature-local SQL files before editing them |
-| SQL repair | `npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts` | Regenerate the spec from the feature-local SQL asset |
+| SQL repair | `npx ztd model-gen --probe-mode ztd src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts` | Regenerate the spec from the feature-local SQL asset |
 | DTO repair | `npx vitest run` after the DTO change | Verify the feature-local runtime and tests after the shape change |
 | migration | `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to prepare review output plus apply SQL | Prepare a manually applied migration without asking ztd-cli to deploy it |
 | tuning | `npx ztd query plan <sql-file>` and the perf guide under `docs/guide/` | Keep perf work in the separate tuning path, not in the starter tutorial |
@@ -125,7 +125,7 @@ Each scenario should end with `vitest` passing again.
 
 For DDL repair, run `npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail` first so the impacted SQL files come from the CLI, not from guesswork. Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.
 
-For SQL repair, keep the SQL assets under the feature folder, keep the query on the starter DDL's `users` table, and pass that folder explicitly as `--sql-root` when you ask `model-gen` to refresh the spec.
+For SQL repair, keep the SQL assets under the feature folder, keep the query on the starter DDL's `users` table, and rerun `model-gen` against the feature-local SQL file directly. In VSA layouts, `model-gen` now treats the SQL file location as the primary contract source, so `--sql-root` is only needed for older shared-root layouts.
 
 For migration work, use an explicit `--url <target-db-url>` with `ddl pull` or `ddl diff` so the target database is never inferred from the starter test database by accident.
 

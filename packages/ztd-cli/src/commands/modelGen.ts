@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
 import {
@@ -18,6 +18,10 @@ import {
   type ModelGenFormat
 } from '../utils/modelGenRender';
 import { ModelGenSqlScanError, scanModelGenSql, type PlaceholderMode, type SqlScanResult } from '../utils/modelGenScanner';
+import {
+  discoverProjectSqlCatalogSpecFiles,
+  loadSqlCatalogSpecsFromFile,
+} from '../utils/sqlCatalogDiscovery';
 import {
   resolveExplicitCliConnection,
   resolveZtdOwnedCliConnection,
@@ -60,6 +64,19 @@ interface ModelGenZtdFixtureState {
   }>;
 }
 
+interface ResolvedModelGenInputs {
+  derivedNames: {
+    interfaceName: string;
+    mappingName: string;
+    specName: string;
+    specId: string;
+  };
+  format: ModelGenFormat;
+  probeMode: ModelGenProbeMode;
+  relativeSqlFile: string;
+  sqlFile: string;
+}
+
 export const MODEL_GEN_SPAN_NAMES = {
   resolveInputs: 'resolve-model-gen-inputs',
   placeholderScan: 'placeholder-scan',
@@ -77,24 +94,7 @@ interface ModelGenZtdProbeInput {
 
 export async function runModelGen(sqlFilePath: string, options: ModelGenCommandOptions): Promise<string> {
   const resolved = withSpanSync(MODEL_GEN_SPAN_NAMES.resolveInputs, () => {
-    const format = normalizeFormat(options.format);
-    const sqlRoot = normalizeRealPath(options.sqlRoot ?? path.join('src', 'sql'));
-    const sqlFile = normalizeRealPath(sqlFilePath);
-    assertWithinSqlRoot(sqlRoot, sqlFile);
-
-    const relativeSqlFile = normalizeGeneratedSqlFile(path.relative(sqlRoot, sqlFile));
-    const derivedNames = deriveModelGenNames(relativeSqlFile);
-    ensureSpecIdAvailable(path.resolve(process.cwd(), 'src', 'catalog', 'specs'), derivedNames.specId, sqlFile);
-
-    const probeMode = normalizeProbeMode(options.probeMode);
-
-    return {
-      derivedNames,
-      format,
-      probeMode,
-      relativeSqlFile,
-      sqlFile,
-    };
+    return resolveModelGenInputs(sqlFilePath, options);
   }, {
     format: options.format ?? 'spec',
     hasOut: Boolean(options.out),
@@ -199,10 +199,10 @@ export async function runModelGen(sqlFilePath: string, options: ModelGenCommandO
 export function registerModelGenCommand(program: Command): void {
   program
     .command('model-gen <sql-file>')
-    .description('Generate QuerySpec output scaffolds from ZTD-backed inspection or explicit target inspection metadata (prefer --probe-mode ztd for the fast loop; positional requires --allow-positional)')
+    .description('Generate QuerySpec output scaffolds from feature-local or shared SQL assets using ZTD-backed inspection or explicit target inspection metadata')
     .option('--out <file>', 'Write the generated scaffold to a TypeScript file')
     .option('--format <format>', 'Output format (spec, row-mapping, interface)', 'spec')
-    .option('--sql-root <dir>', 'SQL root used to derive sqlFile and spec id', path.join('src', 'sql'))
+    .option('--sql-root <dir>', 'Compatibility helper for shared SQL roots; feature-local SQL resolves naturally without it')
     .option('--allow-positional', 'Allow legacy positional placeholders ($1, $2, ...) for this run')
     .option('--probe-mode <mode>', 'Inspection source: live or ztd (default: live for backward compatibility; prefer ztd for the fast loop)', 'live')
     .option('--ddl-dir <dir>', 'DDL directory override for --probe-mode ztd (default: ztd.config.json ddlDir)')
@@ -218,6 +218,15 @@ export function registerModelGenCommand(program: Command): void {
     .option('--db-user <user>', 'Explicit target database user')
     .option('--db-password <password>', 'Explicit target database password')
     .option('--db-name <name>', 'Explicit target database name')
+    .addHelpText(
+      'after',
+      `
+Notes:
+  - In VSA layouts, pass the feature-local SQL file directly and keep the generated spec next to it.
+  - model-gen derives sqlFile/spec id from the SQL file location by default.
+  - Use --sql-root only when the project intentionally keeps SQL under a shared compatibility root.
+`
+    )
     .action(async (sqlFile: string, options: ModelGenCommandOptions) => {
       const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
       if (merged.describeOutput) {
@@ -225,7 +234,17 @@ export function registerModelGenCommand(program: Command): void {
           schemaVersion: 1,
           command: 'model-gen',
           fileRules: {
-            requiresSqlRootContainment: true,
+            supportsFeatureLocalSql: true,
+            // This array documents the recommended VSA mental model exposed to users.
+            // resolveRenderedSqlFileReference may still check explicitSqlRoot first
+            // for shared-layout compatibility before falling back to these defaults.
+            sqlResolutionConceptualOrder: [
+              'spec-relative-from-out',
+              'project-relative',
+              'explicit-sql-root',
+              'legacy-src-sql'
+            ],
+            explicitSqlRootIsCompatibilityHelper: true,
             detectsStableSpecIdCollisions: true
           },
           outputs: {
@@ -349,15 +368,109 @@ function normalizeRealPath(targetPath: string): string {
   return realpathSync(absolute);
 }
 
-function assertWithinSqlRoot(sqlRoot: string, sqlFile: string): void {
+function assertWithinExplicitSqlRoot(sqlRoot: string, sqlFile: string): void {
   const relative = path.relative(sqlRoot, sqlFile);
   if (relative.startsWith('..') || path.isAbsolute(relative)) {
     throw new Error([
       `The SQL file is outside the configured sql root: ${sqlFile}.`,
-      'model-gen derives sqlFile and spec id relative to --sql-root by policy.',
-      `Move the file under ${sqlRoot} or pass the correct --sql-root value.`
+      'model-gen only uses --sql-root as a compatibility helper for shared SQL layouts.',
+      'For feature-local SQL, omit --sql-root and let model-gen derive the contract from the file location.',
+      `Move the file under ${sqlRoot} or remove --sql-root for feature-local discovery.`
     ].join('\n'));
   }
+}
+
+export function resolveModelGenInputs(
+  sqlFilePath: string,
+  options: Pick<ModelGenCommandOptions, 'format' | 'probeMode' | 'sqlRoot' | 'out'> & { rootDir?: string }
+): ResolvedModelGenInputs {
+  const rootDir = options.rootDir ?? process.cwd();
+  const format = normalizeFormat(options.format);
+  const sqlFile = normalizeRealPath(path.isAbsolute(sqlFilePath) ? sqlFilePath : path.resolve(rootDir, sqlFilePath));
+  const explicitSqlRoot = options.sqlRoot
+    ? normalizeRealPath(path.isAbsolute(options.sqlRoot) ? options.sqlRoot : path.resolve(rootDir, options.sqlRoot))
+    : undefined;
+  if (explicitSqlRoot) {
+    assertWithinExplicitSqlRoot(explicitSqlRoot, sqlFile);
+  }
+
+  // Prefer spec-relative sqlFile values when we know where the generated spec
+  // will live so VSA slices naturally emit ./query.sql contracts.
+  const relativeSqlFile = resolveRenderedSqlFileReference({
+    rootDir,
+    sqlFile,
+    outFile: options.out,
+    explicitSqlRoot,
+  });
+
+  // Preserve stable names across VSA and shared-root layouts by deriving the
+  // identity from the SQL path inside the project instead of a fixed src/sql root.
+  const derivedNames = deriveModelGenNames(
+    resolveModelGenIdentityPath({
+      rootDir,
+      sqlFile,
+      explicitSqlRoot,
+    })
+  );
+  ensureSpecIdAvailable(rootDir, derivedNames.specId, sqlFile);
+
+  return {
+    derivedNames,
+    format,
+    probeMode: normalizeProbeMode(options.probeMode),
+    relativeSqlFile,
+    sqlFile,
+  };
+}
+
+function resolveRenderedSqlFileReference(params: {
+  rootDir: string;
+  sqlFile: string;
+  outFile?: string;
+  explicitSqlRoot?: string;
+}): string {
+  if (params.explicitSqlRoot) {
+    return normalizeGeneratedSqlFile(path.relative(params.explicitSqlRoot, params.sqlFile));
+  }
+
+  if (params.outFile) {
+    const outAbsolute = path.isAbsolute(params.outFile)
+      ? params.outFile
+      : path.resolve(params.rootDir, params.outFile);
+    return normalizeRelativeSpecPath(path.relative(path.dirname(outAbsolute), params.sqlFile));
+  }
+
+  return normalizeGeneratedSqlFile(resolveModelGenIdentityPath(params));
+}
+
+function resolveModelGenIdentityPath(params: {
+  rootDir: string;
+  sqlFile: string;
+  explicitSqlRoot?: string;
+}): string {
+  if (params.explicitSqlRoot) {
+    return normalizeGeneratedSqlFile(path.relative(params.explicitSqlRoot, params.sqlFile));
+  }
+
+  const projectRelative = normalizeGeneratedSqlFile(path.relative(params.rootDir, params.sqlFile));
+  if (projectRelative.startsWith('src/features/')) {
+    return projectRelative.slice('src/'.length);
+  }
+  if (projectRelative.startsWith('src/sql/')) {
+    return projectRelative.slice('src/sql/'.length);
+  }
+  if (projectRelative.startsWith('src/')) {
+    return projectRelative.slice('src/'.length);
+  }
+  return projectRelative;
+}
+
+function normalizeRelativeSpecPath(relativePath: string): string {
+  const normalized = normalizeGeneratedSqlFile(relativePath);
+  if (normalized.startsWith('./') || normalized.startsWith('../')) {
+    return normalized;
+  }
+  return `./${normalized}`;
 }
 
 function scanOrThrow(sqlSource: string, sqlFile: string, allowPositional: boolean) {
@@ -658,34 +771,37 @@ export function normalizeCliPath(filePath: string): string {
   return filePath.replace(/\\/g, '/');
 }
 
-function ensureSpecIdAvailable(specsRoot: string, specId: string, sourceSqlFile: string): void {
-  if (!existsSync(specsRoot)) {
-    return;
-  }
-  const stack = [specsRoot];
-  while (stack.length > 0) {
-    const current = stack.pop()!;
-    const entries = readdirSync(current);
-    for (const entry of entries) {
-      const absolute = path.join(current, entry);
-      const stat = statSync(absolute);
-      if (stat.isDirectory()) {
-        stack.push(absolute);
-        continue;
-      }
-      if (!/\.(?:ts|js|mts|cts|json)$/iu.test(entry) || /\.test\./iu.test(entry)) {
-        continue;
-      }
-      const matches = readFileSync(absolute, 'utf8').matchAll(/id\s*:\s*['"`]([^'"`]+)['"`]/g);
-      for (const match of matches) {
-        if (match[1] === specId) {
-          throw new Error([
-            `Generated spec id "${specId}" conflicts with an existing spec.`,
-            'model-gen keeps spec ids stable and does not auto-rename collisions.',
-            `Rename the SQL file or adjust the --sql-root layout and rerun ztd model-gen for ${sourceSqlFile}.`
-          ].join('\n'));
+function ensureSpecIdAvailable(projectRoot: string, specId: string, sourceSqlFile: string): void {
+  const specFiles = discoverProjectSqlCatalogSpecFiles(projectRoot, { excludeTestFiles: true });
+  for (const specFile of specFiles) {
+    const loadedSpecs = loadSqlCatalogSpecsFromFile(specFile, (message) => new Error(message));
+    if (loadedSpecs.length > 0) {
+      for (const entry of loadedSpecs) {
+        if (entry.spec.id !== specId) {
+          continue;
         }
+        throw new Error([
+          `Generated spec id "${specId}" conflicts with an existing spec in ${entry.filePath}.`,
+          'model-gen keeps spec ids stable and does not auto-rename collisions.',
+          `Rename the SQL file or adjust the --sql-root layout and rerun ztd model-gen for ${sourceSqlFile}.`
+        ].join('\n'));
       }
+      continue;
+    }
+
+    // Preserve the old collision guard for partial/manual spec stubs that may
+    // define an id before they become full QuerySpec entries with sqlFile.
+    const source = readFileSync(specFile, 'utf8');
+    const matches = source.matchAll(/id\s*:\s*['"`]([^'"`]+)['"`]/g);
+    for (const match of matches) {
+      if (match[1] !== specId) {
+        continue;
+      }
+      throw new Error([
+        `Generated spec id "${specId}" conflicts with an existing spec in ${specFile}.`,
+        'model-gen keeps spec ids stable and does not auto-rename collisions.',
+        `Rename the SQL file or adjust the --sql-root layout and rerun ztd model-gen for ${sourceSqlFile}.`
+      ].join('\n'));
     }
   }
 }

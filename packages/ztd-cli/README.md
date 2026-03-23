@@ -83,7 +83,7 @@ Advanced validation, dogfooding, and tuning live in [Further Reading](#further-r
 - `ztd init --starter` creates a feature-first starter scaffold with `smoke`, starter DDL, AGENTS, and local Postgres wiring.
 - `ztd ztd-config --watch` keeps generated `TestRowMap` types aligned with DDL as files change.
 - `ztd lint` checks SQL against a temporary Postgres before you ship it.
-- `ztd model-gen` and `ztd query uses` keep QuerySpec scaffolding and impacted-file discovery close to the feature.
+- `ztd model-gen` and `ztd query uses` keep QuerySpec scaffolding and impacted-file discovery close to the feature-first slice.
 - `ztd perf init` / `ztd perf run` support tuning without forcing SQL rewrites first.
 - `--dry-run` / `--output json` make the workflow reviewable and machine-readable.
 

@@ -996,9 +996,34 @@ test('model-gen describe-output emits contract metadata without probing', () => 
   const parsed = JSON.parse(result.stdout);
   expect(parsed.data).toMatchObject({
     command: 'model-gen',
+    fileRules: expect.objectContaining({
+      supportsFeatureLocalSql: true,
+      explicitSqlRootIsCompatibilityHelper: true,
+    }),
     outputs: {
       spec: 'TypeScript QuerySpec scaffold'
     }
+  });
+});
+
+test('model-gen derives feature-local contracts without --sql-root in VSA layouts', () => {
+  const workspace = createSqlWorkspace(
+    'model-gen-vsa-describe-output',
+    path.join('src', 'features', 'users', 'persistence', 'users.sql')
+  );
+  writeFileSync(workspace.sqlFile, 'select 1 as value', 'utf8');
+
+  const outFile = path.join(workspace.rootDir, 'src', 'features', 'users', 'persistence', 'users.spec.ts');
+  const result = runCli(
+    ['--output', 'json', 'model-gen', workspace.sqlFile, '--out', outFile, '--describe-output'],
+    {},
+    workspace.rootDir
+  );
+
+  assertCliSuccess(result, 'model-gen vsa describe-output');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data.writeBehavior).toMatchObject({
+    writesTo: outFile,
   });
 });
 

@@ -102,11 +102,10 @@ order by p.product_name
 Then run the normal ZTD loop:
 
 ```bash
-ztd model-gen src/sql/products/list_products.sql \
+ztd model-gen src/features/products/persistence/list_products.sql \
   --probe-mode ztd \
-  --sql-root src/sql \
-  --out src/catalog/specs/products/list-products.spec.ts
-ztd lint src/sql/products/list_products.sql
+  --out src/features/products/persistence/list_products.spec.ts
+ztd lint src/features/products/persistence/list_products.sql
 vitest run
 ```
 
