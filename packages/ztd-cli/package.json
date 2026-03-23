@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/ztd-cli",
-  "version": "0.22.3",
+  "version": "0.22.4",
   "description": "DB-agnostic scaffolding and DDL helpers for Zero Table Dependency projects",
   "main": "dist/index.js",
   "bin": {
@@ -43,7 +43,7 @@
     "fast-glob": "^3.3.3",
     "rawsql-ts": "^0.17.0",
     "yaml": "^2.8.2",
-    "@rawsql-ts/sql-grep-core": "^0.1.4"
+    "@rawsql-ts/sql-grep-core": "^0.1.5"
   },
   "peerDependencies": {
     "@rawsql-ts/adapter-node-pg": "^0.15.4"

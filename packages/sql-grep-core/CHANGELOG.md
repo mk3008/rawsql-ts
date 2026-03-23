@@ -1,5 +1,11 @@
 # @rawsql-ts/sql-grep-core
 
+## 0.1.5
+
+### Patch Changes
+
+- [#653](https://github.com/mk3008/rawsql-ts/pull/653) [`4540a22`](https://github.com/mk3008/rawsql-ts/commit/4540a22a57c600cbd4f4dbe2fe160cd8da1fb12e) Thanks [@mk3008](https://github.com/mk3008)! - Improve `query uses` for feature-local VSA projects by discovering QuerySpec files from the project tree, preferring spec-relative SQL resolution, and clarifying the VSA-first impact-analysis contract in docs and CLI help.
+
 ## 0.1.4
 
 ### Patch Changes
