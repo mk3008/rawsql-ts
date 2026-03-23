@@ -20,10 +20,12 @@
 
 ## Generating initial output types
 
-Use `npx ztd model-gen <sql-file> --probe-mode ztd --out src/catalog/specs/<spec-file>.ts` to derive the first QuerySpec scaffold from the local DDL snapshot.
+Use `npx ztd model-gen <sql-file> --probe-mode ztd --out <spec-file>.ts` to derive the first QuerySpec scaffold from the local DDL snapshot.
 
 - SQL assets are expected to use named parameters (`:name`).
-- `ztd model-gen` is names-first and derives `sqlFile` / `spec id` from the SQL path under `src/sql` by default.
+- `ztd model-gen` is names-first and treats the SQL file location as the primary contract source in feature-local layouts.
+- In VSA layouts, prefer keeping the generated spec next to the SQL asset so the scaffold emits a local `./query.sql` contract naturally.
+- Use `--sql-root` only when the project intentionally keeps SQL under a shared root and you need compatibility with that older layout.
 - `ztd model-gen --probe-mode ztd` is the recommended fast-loop path when the referenced schema already exists in `ztd/ddl/*.sql`.
 - In `--probe-mode ztd`, unqualified table references follow the configured `defaultSchema` / `searchPath` priority from `ztd.config.json`.
 - The CLI default remains `--probe-mode live` for backward compatibility, but project guidance should treat `--probe-mode ztd` as the preferred inner-loop mode.

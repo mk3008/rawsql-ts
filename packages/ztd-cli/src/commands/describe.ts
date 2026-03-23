@@ -96,7 +96,7 @@ const COMMANDS: CommandDescriptor[] = [
   },
   {
     name: 'model-gen',
-    summary: 'Probe SQL metadata and generate QuerySpec scaffolding.',
+    summary: 'Probe SQL metadata and generate QuerySpec scaffolding from feature-local or shared SQL assets.',
     writesFiles: true,
     supportsDryRun: true,
     supportsJsonPayload: true,
@@ -112,7 +112,8 @@ const COMMANDS: CommandDescriptor[] = [
     flags: [
       { name: '--dry-run', description: 'Validate probing and show the planned output file without writing it.' },
       { name: '--json', description: 'Pass model-gen options as a JSON object.' },
-      { name: '--describe-output', description: 'Print the generated artifact contract instead of probing.' }
+      { name: '--describe-output', description: 'Print the generated artifact contract instead of probing.' },
+      { name: '--sql-root', description: 'Compatibility helper for shared SQL roots; feature-local SQL resolves naturally without it.' }
     ]
   },
   {

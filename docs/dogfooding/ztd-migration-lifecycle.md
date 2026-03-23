@@ -41,7 +41,7 @@ Do not apply migrations automatically.
 I changed the SQL for users.
 Read the nearest AGENTS.md files first.
 The starter DDL uses the `users` table, so keep the SQL on that table and do not invent a `user` table.
-Use `npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts` to refresh the spec, then update the feature-local tests that now fail.
+Use `npx ztd model-gen --probe-mode ztd src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts` to refresh the spec, then update the feature-local tests that now fail. In VSA layouts, `model-gen` derives the contract from the SQL file location first, so `--sql-root` is only a compatibility helper for older shared SQL roots.
 Keep `ZTD_TEST_DATABASE_URL` set in the same shell when you run Vitest.
 Do not apply migrations automatically.
 ```

@@ -107,6 +107,8 @@ These commands support `--dry-run`:
 
 Dry-run validates inputs, resolves paths, and computes outputs without writing repo files.
 
+For SQL-backed scaffolding, `ztd model-gen` now treats feature-local SQL files as the primary contract source. In VSA layouts, omit `--sql-root` unless the project intentionally keeps SQL under a shared compatibility root.
+
 ## Output Controls
 
 For large reports, prefer these controls:

@@ -22,6 +22,10 @@ exports[`describe command emits JSON envelope when global output is json 1`] = `
           "description": "Print the generated artifact contract instead of probing.",
           "name": "--describe-output",
         },
+        {
+          "description": "Compatibility helper for shared SQL roots; feature-local SQL resolves naturally without it.",
+          "name": "--sql-root",
+        },
       ],
       "name": "model-gen",
       "output": {
@@ -30,7 +34,7 @@ exports[`describe command emits JSON envelope when global output is json 1`] = `
         ],
         "stdout": "Generated TypeScript when --out is omitted; JSON envelope in global json mode.",
       },
-      "summary": "Probe SQL metadata and generate QuerySpec scaffolding.",
+      "summary": "Probe SQL metadata and generate QuerySpec scaffolding from feature-local or shared SQL assets.",
       "supportsDescribeOutput": true,
       "supportsDryRun": true,
       "supportsJsonPayload": true,
@@ -325,7 +329,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
       },
       {
         "name": "model-gen",
-        "summary": "Probe SQL metadata and generate QuerySpec scaffolding.",
+        "summary": "Probe SQL metadata and generate QuerySpec scaffolding from feature-local or shared SQL assets.",
         "supportsDescribeOutput": true,
         "supportsDryRun": true,
         "supportsJsonPayload": true,
@@ -577,6 +581,10 @@ exports[`describe command snapshots the top-level command catalog and every deta
           "description": "Print the generated artifact contract instead of probing.",
           "name": "--describe-output",
         },
+        {
+          "description": "Compatibility helper for shared SQL roots; feature-local SQL resolves naturally without it.",
+          "name": "--sql-root",
+        },
       ],
       "name": "model-gen",
       "output": {
@@ -585,7 +593,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
         ],
         "stdout": "Generated TypeScript when --out is omitted; JSON envelope in global json mode.",
       },
-      "summary": "Probe SQL metadata and generate QuerySpec scaffolding.",
+      "summary": "Probe SQL metadata and generate QuerySpec scaffolding from feature-local or shared SQL assets.",
       "supportsDescribeOutput": true,
       "supportsDryRun": true,
       "supportsJsonPayload": true,

@@ -42,18 +42,18 @@ pnpm install --ignore-workspace
 When `model-gen` output should import a local shim instead of `@rawsql-ts/sql-contract`, pass an explicit import target:
 
 ```bash
-ztd model-gen src/sql/users/list_users.sql \
+ztd model-gen src/features/users/persistence/list_users.sql \
   --probe-mode ztd \
-  --out src/catalog/specs/generated/list-users.spec.ts \
+  --out src/features/users/persistence/list_users.spec.ts \
   --import-from src/local/sql-contract.ts
 ```
 
 If you prefer a relative import and your project keeps a shim at `src/local/sql-contract.ts`, you can also use:
 
 ```bash
-ztd model-gen src/sql/users/list_users.sql \
+ztd model-gen src/features/users/persistence/list_users.sql \
   --probe-mode ztd \
-  --out src/catalog/specs/generated/list-users.spec.ts \
+  --out src/features/users/persistence/list_users.spec.ts \
   --import-style relative
 ```
 
