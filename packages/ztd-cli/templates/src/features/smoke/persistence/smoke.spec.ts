@@ -1,6 +1,6 @@
 export const smokeSpec = {
   id: 'features.smoke.persistence.smoke',
-  sqlFile: 'src/features/smoke/persistence/smoke.sql',
+  sqlFile: './smoke.sql',
   params: {
     shape: 'named',
     example: {
