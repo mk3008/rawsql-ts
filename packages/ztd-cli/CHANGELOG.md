@@ -1,5 +1,18 @@
 # @rawsql-ts/ztd-cli
 
+## 0.22.4
+
+### Patch Changes
+
+- [#653](https://github.com/mk3008/rawsql-ts/pull/653) [`4540a22`](https://github.com/mk3008/rawsql-ts/commit/4540a22a57c600cbd4f4dbe2fe160cd8da1fb12e) Thanks [@mk3008](https://github.com/mk3008)! - Improve `query uses` for feature-local VSA projects by discovering QuerySpec files from the project tree, preferring spec-relative SQL resolution, and clarifying the VSA-first impact-analysis contract in docs and CLI help.
+
+- [#652](https://github.com/mk3008/rawsql-ts/pull/652) [`303a549`](https://github.com/mk3008/rawsql-ts/commit/303a549ce713d4bd53cfa5d30ec1c2515cf9ea06) Thanks [@mk3008](https://github.com/mk3008)! - Republish `@rawsql-ts/ztd-cli` so the published CLI surface for `ztd query lint --rules join-direction` stays aligned with the current Further Reading docs.
+
+  Clarify the public help and guide text so users can confirm that their installed CLI exposes `--rules` before trying the join-direction examples.
+
+- Updated dependencies [[`4540a22`](https://github.com/mk3008/rawsql-ts/commit/4540a22a57c600cbd4f4dbe2fe160cd8da1fb12e)]:
+  - @rawsql-ts/sql-grep-core@0.1.5
+
 ## 0.22.3
 
 ### Patch Changes
