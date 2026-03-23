@@ -42,6 +42,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       docPath: 'docs/guide/sql-first-end-to-end-tutorial.md',
       phrases: [
         'This tutorial shows the shortest path from `ztd init --starter` to a small `users` feature',
+        'Docker Desktop or another Docker daemon is already running',
         'If port `5432` is already in use, stop the conflicting process or run Postgres on another port and update `ZTD_TEST_DATABASE_URL`, for example:',
         'docker run -d --rm --name ztd-starter-pg',
         '-p 5433:5432',
@@ -185,6 +186,7 @@ test('quickstart and tutorial spell out the common 5432 collision fallback', () 
   const tutorial = readNormalizedFile('docs/guide/sql-first-end-to-end-tutorial.md');
 
   expect(packageReadme).toContain('If `5432` is busy, use another local port and update `ZTD_TEST_DATABASE_URL`.');
+  expect(packageReadme).toContain('Docker Desktop or another Docker daemon is already running');
   expect(scaffoldReadme).toContain(
     'If `5432` is already in use, stop the conflicting process or run Postgres on another local port and update `ZTD_TEST_DATABASE_URL` before you run those suites, for example:'
   );

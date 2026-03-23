@@ -998,6 +998,12 @@ test('model-gen describe-output emits contract metadata without probing', () => 
     command: 'model-gen',
     fileRules: expect.objectContaining({
       supportsFeatureLocalSql: true,
+      sqlResolutionConceptualOrder: [
+        'spec-relative-from-out',
+        'project-relative',
+        'explicit-sql-root',
+        'legacy-src-sql'
+      ],
       explicitSqlRootIsCompatibilityHelper: true,
     }),
     outputs: {

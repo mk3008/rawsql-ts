@@ -39,6 +39,7 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
     'npx ztd init --starter',
     'src/features/smoke',
     'ztd/ddl/demo.sql',
+    'Docker Desktop or another Docker daemon is already running',
     'docker compose up -d',
     'npx vitest run',
     'docker run -d --rm --name ztd-starter-pg',

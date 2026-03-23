@@ -17,6 +17,7 @@ npx vitest run src/features/**/*.test.ts
 ```
 
 When you add SQL-backed tests, start Postgres, export `ZTD_TEST_DATABASE_URL`, and then run the corresponding Vitest suites.
+Make sure Docker Desktop or another Docker daemon is already running before you start the compose path, because `docker compose up -d` only launches the stack.
 If `5432` is already in use, stop the conflicting process or run Postgres on another local port and update `ZTD_TEST_DATABASE_URL` before you run those suites, for example:
 
 ```bash

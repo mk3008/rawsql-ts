@@ -50,6 +50,8 @@ The starter generates:
 
 Use the bundled compose file:
 
+Make sure Docker Desktop or another Docker daemon is already running before you start the compose path, because `docker compose up -d` only launches the stack.
+
 ```bash
 docker compose up -d
 export ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5432/ztd
