@@ -45,6 +45,7 @@ test('installVisibleAgents creates nested AGENTS templates without overwriting e
   mkdirSync(path.join(workspace, 'src'), { recursive: true });
   mkdirSync(path.join(workspace, 'src', 'features'), { recursive: true });
   mkdirSync(path.join(workspace, 'src', 'features', 'smoke'), { recursive: true });
+  mkdirSync(path.join(workspace, 'tests'), { recursive: true });
   mkdirSync(path.join(workspace, 'ztd'), { recursive: true });
   writeFileSync(path.join(workspace, 'src', 'AGENTS.md'), '# existing\n', 'utf8');
 
@@ -52,7 +53,8 @@ test('installVisibleAgents creates nested AGENTS templates without overwriting e
   expect(written.some((summary) => summary.relativePath === 'AGENTS.md')).toBe(true);
   expect(written.some((summary) => summary.relativePath === 'ztd/AGENTS.md')).toBe(true);
   expect(written.some((summary) => summary.relativePath === 'src/features/AGENTS.md')).toBe(true);
-  expect(written.some((summary) => summary.relativePath === 'src/features/smoke/AGENTS.md')).toBe(true);
+  expect(written.some((summary) => summary.relativePath === 'tests/AGENTS.md')).toBe(true);
+  expect(written.some((summary) => summary.relativePath === 'src/features/smoke/AGENTS.md')).toBe(false);
   expect(written.some((summary) => summary.relativePath === 'src/AGENTS.md')).toBe(false);
   expect(readNormalized(path.join(workspace, 'src', 'AGENTS.md'))).toBe('# existing\n');
 });
@@ -84,16 +86,11 @@ test('writeInternalAgentsArtifacts creates managed payloads and sidecars unmanag
     expect.arrayContaining([
       expect.objectContaining({
         prompt: 'Convert this slice to a feature-first layout',
-        preferred_scopes: expect.arrayContaining([
-          'src-features-application',
-          'src-features-domain',
-          'src-features-persistence',
-          'src-features-tests'
-        ])
+        preferred_scopes: expect.arrayContaining(['src-features', 'src', 'tests'])
       }),
       expect.objectContaining({
         prompt: 'Add SQL and keep the feature local',
-        preferred_scopes: expect.arrayContaining(['src-sql', 'src-features-persistence', 'src-features-tests'])
+        preferred_scopes: expect.arrayContaining(['src-features', 'tests'])
       })
     ])
   );

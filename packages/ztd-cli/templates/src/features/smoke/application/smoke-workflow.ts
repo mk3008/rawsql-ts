@@ -1,4 +1,4 @@
-import { normalizeSmokeOutput, type SmokeInput, type SmokeOutput } from '../domain/smoke-policy.js';
+import { addSmokeNumbers, type SmokeInput, type SmokeOutput } from '../domain/smoke-policy.js';
 
 export interface SmokeWorkflowResult {
   feature: 'smoke';
@@ -8,6 +8,6 @@ export interface SmokeWorkflowResult {
 export function buildSmokeWorkflow(input: SmokeInput): SmokeWorkflowResult {
   return {
     feature: 'smoke',
-    output: normalizeSmokeOutput(input)
+    output: addSmokeNumbers(input)
   };
 }

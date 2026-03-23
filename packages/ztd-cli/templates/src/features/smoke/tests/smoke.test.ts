@@ -2,13 +2,12 @@ import { expect, test } from 'vitest';
 
 import { buildSmokeWorkflow } from '../application/smoke-workflow.js';
 
-test('smoke feature keeps the sample workflow aligned', () => {
+test('smoke feature adds two numbers through the application workflow', () => {
   const result = buildSmokeWorkflow({
-    id: 1,
-    createdAt: '2025-01-01T00:00:00.000Z'
+    left: 2,
+    right: 3
   });
 
   expect(result.feature).toBe('smoke');
-  expect(result.output.createdAt).toBeInstanceOf(Date);
-  expect(result.output.createdAt.toISOString()).toBe('2025-01-01T00:00:00.000Z');
+  expect(result.output).toEqual({ sum: 5 });
 });

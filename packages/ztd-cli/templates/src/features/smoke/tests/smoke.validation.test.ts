@@ -1,22 +1,21 @@
 import { expect, test } from 'vitest';
 
-import { normalizeSmokeOutput } from '../domain/smoke-policy.js';
+import { addSmokeNumbers } from '../domain/smoke-policy.js';
 
-test('smoke feature normalizes valid timestamp strings', () => {
-  const output = normalizeSmokeOutput({
-    id: 1,
-    createdAt: '2025-01-01T00:00:00.000Z'
+test('smoke feature adds positive numbers in the domain layer', () => {
+  const output = addSmokeNumbers({
+    left: 1,
+    right: 4
   });
 
-  expect(output.createdAt).toBeInstanceOf(Date);
-  expect(output.createdAt.toISOString()).toBe('2025-01-01T00:00:00.000Z');
+  expect(output).toEqual({ sum: 5 });
 });
 
-test('smoke feature rejects invalid timestamps', () => {
-  expect(() =>
-    normalizeSmokeOutput({
-      id: 1,
-      createdAt: 'not-a-date'
-    })
-  ).toThrow(/Invalid timestamp string/);
+test('smoke feature adds negative numbers in the domain layer', () => {
+  const output = addSmokeNumbers({
+    left: -2,
+    right: 5
+  });
+
+  expect(output).toEqual({ sum: 3 });
 });

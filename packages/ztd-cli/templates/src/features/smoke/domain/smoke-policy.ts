@@ -1,22 +1,14 @@
 export interface SmokeInput {
-  id: number;
-  createdAt: string | Date;
+  left: number;
+  right: number;
 }
 
 export interface SmokeOutput {
-  id: number;
-  createdAt: Date;
+  sum: number;
 }
 
-export function normalizeSmokeOutput(input: SmokeInput): SmokeOutput {
-  const createdAt = input.createdAt instanceof Date ? input.createdAt : new Date(input.createdAt);
-  if (Number.isNaN(createdAt.getTime())) {
-    throw new Error('Invalid timestamp string.');
-  }
-
+export function addSmokeNumbers(input: SmokeInput): SmokeOutput {
   return {
-    id: input.id,
-    createdAt
+    sum: input.left + input.right
   };
 }
-

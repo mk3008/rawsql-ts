@@ -56,47 +56,13 @@ const VISIBLE_AGENT_TEMPLATES: readonly VisibleAgentTemplate[] = [
   { relativePath: 'ztd/ddl/AGENTS.md', templateName: 'ztd/ddl/AGENTS.md', scope: 'ztd-ddl', purposeTags: ['ddl', 'schema'], requiredDirectory: 'ztd/ddl' },
   { relativePath: 'src/AGENTS.md', templateName: 'src/AGENTS.md', scope: 'src', purposeTags: ['runtime', 'root'], requiredDirectory: 'src' },
   { relativePath: 'src/features/AGENTS.md', templateName: 'src/features/AGENTS.md', scope: 'src-features', purposeTags: ['features', 'root'], requiredDirectory: 'src/features' },
-  { relativePath: 'src/features/smoke/AGENTS.md', templateName: 'src/features/smoke/AGENTS.md', scope: 'src-features-smoke', purposeTags: ['features', 'smoke'], requiredDirectory: 'src/features/smoke' },
-  { relativePath: 'src/features/smoke/application/AGENTS.md', templateName: 'src/features/smoke/application/AGENTS.md', scope: 'src-features-smoke-application', purposeTags: ['features', 'application'], requiredDirectory: 'src/features/smoke/application' },
-  { relativePath: 'src/features/smoke/domain/AGENTS.md', templateName: 'src/features/smoke/domain/AGENTS.md', scope: 'src-features-smoke-domain', purposeTags: ['features', 'domain'], requiredDirectory: 'src/features/smoke/domain' },
-  { relativePath: 'src/features/smoke/persistence/AGENTS.md', templateName: 'src/features/smoke/persistence/AGENTS.md', scope: 'src-features-smoke-persistence', purposeTags: ['features', 'persistence'], requiredDirectory: 'src/features/smoke/persistence' },
-  { relativePath: 'src/features/smoke/tests/AGENTS.md', templateName: 'src/features/smoke/tests/AGENTS.md', scope: 'src-features-smoke-tests', purposeTags: ['features', 'tests'], requiredDirectory: 'src/features/smoke/tests' },
-  { relativePath: 'src/sql/AGENTS.md', templateName: 'src/sql/AGENTS.md', scope: 'src-sql', purposeTags: ['sql', 'authoring'], requiredDirectory: 'src/sql' },
-  { relativePath: 'tests/AGENTS.md', templateName: 'tests/AGENTS.md', scope: 'tests', purposeTags: ['tests', 'root'], requiredDirectory: 'tests' },
-  { relativePath: 'tests/support/AGENTS.md', templateName: 'tests/support/AGENTS.md', scope: 'tests-support', purposeTags: ['tests', 'support'], requiredDirectory: 'tests/support' },
-  { relativePath: 'tests/generated/AGENTS.md', templateName: 'tests/generated/AGENTS.md', scope: 'tests-generated', purposeTags: ['tests', 'generated'], requiredDirectory: 'tests/generated' }
+  { relativePath: 'tests/AGENTS.md', templateName: 'tests/AGENTS.md', scope: 'tests', purposeTags: ['tests', 'root'], requiredDirectory: 'tests' }
 ] as const;
 
 const INTERNAL_AGENT_TEMPLATES: readonly InternalAgentTemplate[] = [
   { relativePath: path.join(INTERNAL_AGENTS_DIR, 'root.md'), templateName: 'AGENTS.md', scope: 'root' },
   { relativePath: path.join(INTERNAL_AGENTS_DIR, 'src.md'), templateName: 'src/AGENTS.md', scope: 'src' },
   { relativePath: path.join(INTERNAL_AGENTS_DIR, 'src-features.md'), templateName: 'src/features/AGENTS.md', scope: 'src-features' },
-  { relativePath: path.join(INTERNAL_AGENTS_DIR, 'src-features-smoke.md'), templateName: 'src/features/smoke/AGENTS.md', scope: 'src-features-smoke' },
-  {
-    relativePath: path.join(INTERNAL_AGENTS_DIR, 'src-features-application.md'),
-    templateName: 'src/features/smoke/application/AGENTS.md',
-    scope: 'src-features-application'
-  },
-  {
-    relativePath: path.join(INTERNAL_AGENTS_DIR, 'src-features-domain.md'),
-    templateName: 'src/features/smoke/domain/AGENTS.md',
-    scope: 'src-features-domain'
-  },
-  {
-    relativePath: path.join(INTERNAL_AGENTS_DIR, 'src-features-persistence.md'),
-    templateName: 'src/features/smoke/persistence/AGENTS.md',
-    scope: 'src-features-persistence'
-  },
-  {
-    relativePath: path.join(INTERNAL_AGENTS_DIR, 'src-features-tests.md'),
-    templateName: 'src/features/smoke/tests/AGENTS.md',
-    scope: 'src-features-tests'
-  },
-  {
-    relativePath: path.join(INTERNAL_AGENTS_DIR, 'src-sql.md'),
-    templateName: 'src/sql/AGENTS.md',
-    scope: 'src-sql'
-  },
   { relativePath: path.join(INTERNAL_AGENTS_DIR, 'tests.md'), templateName: 'tests/AGENTS.md', scope: 'tests' },
   { relativePath: path.join(INTERNAL_AGENTS_DIR, 'ztd.md'), templateName: 'ztd/AGENTS.md', scope: 'ztd' }
 ] as const;
@@ -164,23 +130,19 @@ function buildInternalManifest(): string {
     prompt_examples: [
       {
         prompt: 'Convert this slice to a feature-first layout',
-        preferred_scopes: ['src-features-application', 'src-features-domain', 'src-features-persistence', 'src-features-tests'],
+        preferred_scopes: ['src-features', 'src', 'tests'],
         avoid_scopes: ['ztd']
       },
       {
         prompt: 'Add SQL and keep the feature local',
-        preferred_scopes: ['src-sql', 'src-features-persistence', 'src-features-tests'],
-        avoid_scopes: ['src-features-domain']
+        preferred_scopes: ['src-features', 'tests'],
+        avoid_scopes: ['ztd']
       }
     ],
     recommended_entrypoints: INTERNAL_AGENT_TEMPLATES.map((target) => target.scope),
     routing_rules: [
       { paths: ['src/features/**'], scope: 'src-features' },
-      { paths: ['src/features/*/domain/**'], scope: 'src-features-domain' },
-      { paths: ['src/features/*/application/**'], scope: 'src-features-application' },
-      { paths: ['src/features/*/persistence/**'], scope: 'src-features-persistence' },
-      { paths: ['src/features/*/tests/**'], scope: 'src-features-tests' },
-      { paths: ['src/sql/**'], scope: 'src-sql' },
+      { paths: ['src/**'], scope: 'src' },
       { paths: ['tests/**'], scope: 'tests' },
       { paths: ['ztd/**'], scope: 'ztd' }
     ]

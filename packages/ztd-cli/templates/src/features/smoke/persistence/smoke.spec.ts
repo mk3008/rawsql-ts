@@ -4,18 +4,13 @@ export const smokeSpec = {
   params: {
     shape: 'named',
     example: {
-      id: null,
-      createdAt: null
+      v1: 2,
+      v2: 3
     }
   },
   output: {
-    mapping: {
-      prefix: 'smoke',
-      columnMap: {
-        id: 'id',
-        createdAt: 'created_at'
-      }
-    }
+    validate: (value: unknown) => Number(value),
+    example: 5
   }
 } as const;
 

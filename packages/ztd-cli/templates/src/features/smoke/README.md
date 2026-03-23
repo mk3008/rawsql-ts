@@ -1,13 +1,12 @@
 # Smoke Feature
 
-`smoke` is the smallest removable teaching feature in the scaffold.
-It lives at `src/features/smoke` and shows how a real feature should be laid out.
+`smoke` is the starter-only sample feature in the scaffold.
+It lives at `src/features/smoke` and is safe to delete once the first real feature exists.
 
-Use it as a pattern for the next real feature:
+This feature intentionally contains two narrow paths:
 
-- start from the `domain` rule
-- wire the `application` flow
-- keep the `persistence` unit small and local
-- place the feature tests next to the feature
+- a DB-free sample function with feature-local unit tests
+- a DB-backed QuerySpec test that also checks `ZTD_TEST_DATABASE_URL` connectivity
+- a minimal named-parameter SQL example that uses `:v1` and `:v2`
 
-Once the project has a real feature of its own, `smoke` can be deleted without extra shared cleanup.
+Use it as a pattern for the next real feature, then remove the whole folder when the starter sample is no longer useful.

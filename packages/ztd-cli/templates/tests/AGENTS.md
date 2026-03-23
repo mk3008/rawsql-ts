@@ -24,7 +24,3 @@
 
 # Hygiene
 - Regenerate `tests/generated` artifacts before diagnosing missing generated module errors.
-
-# References
-- Generated tests policy: [./generated/AGENTS.md](./generated/AGENTS.md)
-- Shared support policy: [./support/AGENTS.md](./support/AGENTS.md)

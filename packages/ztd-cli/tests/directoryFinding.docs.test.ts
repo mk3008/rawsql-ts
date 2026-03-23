@@ -26,7 +26,7 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('feature-first');
   expect(scaffoldReadme).toContain('feature-first');
   expect(featuresReadme).toContain('smoke');
-  expect(smokeReadme).toContain('removable teaching feature');
+  expect(smokeReadme).toContain('starter-only sample feature');
   expect(rootReadme).toContain('Migration Repair Loop');
   expect(packageReadme).toContain('Quickstart');
   expect(packageReadme).toContain('Getting Started with AI');
@@ -55,26 +55,25 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
 test('feature guidance centers the sample feature and role-based folders', () => {
   const files = [
     'packages/ztd-cli/templates/src/features/AGENTS.md',
-    'packages/ztd-cli/templates/src/features/smoke/AGENTS.md',
-    'packages/ztd-cli/templates/src/features/smoke/application/AGENTS.md',
-    'packages/ztd-cli/templates/src/features/smoke/domain/AGENTS.md',
-    'packages/ztd-cli/templates/src/features/smoke/persistence/AGENTS.md',
-    'packages/ztd-cli/templates/src/features/smoke/tests/AGENTS.md'
+    'packages/ztd-cli/templates/src/features/README.md',
+    'packages/ztd-cli/templates/src/features/smoke/README.md',
+    'packages/ztd-cli/templates/src/features/smoke/persistence/README.md',
+    'packages/ztd-cli/templates/src/features/smoke/tests/README.md'
   ];
 
   for (const file of files) {
     const contents = readNormalizedFile(file);
     expect(contents).toContain('feature');
-    expect(contents).toContain('smoke');
+    expect(contents.toLowerCase()).toContain('smoke');
     expect(contents).not.toContain('tables/views');
   }
 
   expect(readNormalizedFile('packages/ztd-cli/templates/src/features/AGENTS.md')).toContain('domain');
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/persistence/AGENTS.md')).toContain(
-    'one SQL file and one spec'
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/persistence/README.md')).toContain(
+    'named-parameter'
   );
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/tests/AGENTS.md')).toContain(
-    'close to the feature'
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/tests/README.md')).toContain(
+    'smoke.queryspec.test.ts'
   );
 });
 
@@ -90,7 +89,8 @@ test('feature-first scaffold files exist in the template bundle', () => {
     'packages/ztd-cli/templates/src/features/smoke/persistence/smoke.sql',
     'packages/ztd-cli/templates/src/features/smoke/persistence/smoke.spec.ts',
     'packages/ztd-cli/templates/src/features/smoke/tests/smoke.test.ts',
-    'packages/ztd-cli/templates/src/features/smoke/tests/smoke.validation.test.ts'
+    'packages/ztd-cli/templates/src/features/smoke/tests/smoke.validation.test.ts',
+    'packages/ztd-cli/templates/src/features/smoke/tests/smoke.queryspec.test.ts'
   ];
 
   for (const requiredPath of requiredPaths) {
