@@ -311,14 +311,18 @@ function verifyNpmPrimaryPath(packages) {
   assertExcludes(initResult.stdout, "pnpm test", "phase-a packaging-npm-primary-path-gate");
 
   const readme = fs.readFileSync(path.join(appDir, "README.md"), "utf8");
-  assertIncludes(readme, "This scaffold starts from `ztd init --starter`.", "phase-a scaffold-readme");
-  assertIncludes(readme, "The starter keeps the first run simple:", "phase-a scaffold-readme");
-  assertIncludes(readme, "`src/features/smoke` for the first green path", "phase-a scaffold-readme");
+  assertIncludes(readme, "This scaffold starts from `ztd init`.", "phase-a scaffold-readme");
+  assertIncludes(readme, "The project is feature-first by default:", "phase-a scaffold-readme");
+  assertIncludes(
+    readme,
+    "Generate the starter flow with `ztd init --starter` when you want the removable `src/features/smoke/` sample feature",
+    "phase-a scaffold-readme"
+  );
   assertIncludes(readme, "For DDL, SQL, DTO, and migration repair loops, read the tutorial and dogfooding docs under `docs/`.", "phase-a scaffold-readme");
   assertIncludes(readme, "Use this short prompt:", "phase-a scaffold-readme");
-  assertIncludes(readme, "Start from src/features/smoke and add a users feature next.", "phase-a scaffold-readme");
+  assertIncludes(readme, "Choose ztd init or ztd init --starter based on whether I want the removable starter sample.", "phase-a scaffold-readme");
   assertIncludes(readme, "Add `--with-dogfooding` if you want `PROMPT_DOGFOOD.md` for prompt review.", "phase-a scaffold-readme");
-  assertIncludes(readme, "The starter path is successful when:", "phase-a scaffold-readme");
+  assertIncludes(readme, "The feature-first path is successful when:", "phase-a scaffold-readme");
   assertExcludes(readme, "pnpm exec ztd ztd-config", "phase-a scaffold-readme");
 
   restoreTarballDependencies(appDir, tarballDependencies);
