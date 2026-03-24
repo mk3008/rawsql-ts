@@ -5,93 +5,79 @@ import { createPostgresTestkitClient, type QueryExecutor } from '../packages/tes
 import type { TableDefinitionModel } from '../packages/core/dist/src/models/TableDefinitionModel';
 
 type BenchmarkSample = {
-  label: string;
+  label: 'raw-ddl' | 'generated';
   durationMs: number;
+};
+
+type BenchmarkRun = BenchmarkSample & {
+  ddlBytes?: number;
 };
 
 const TABLE_COUNT = resolveNumberEnv('ZTD_RUNTIME_METADATA_BENCH_TABLES', 1000);
 const COLUMN_COUNT = resolveNumberEnv('ZTD_RUNTIME_METADATA_BENCH_COLUMNS', 8);
-const WARMUP_RUNS = resolveNumberEnv('ZTD_RUNTIME_METADATA_BENCH_WARMUPS', 1);
 const MEASURED_RUNS = resolveNumberEnv('ZTD_RUNTIME_METADATA_BENCH_RUNS', 5);
 const ROOT_DIR = path.join(process.cwd(), 'tmp', 'testkit-postgres-runtime-metadata-benchmark');
-const DDL_DIR = path.join(ROOT_DIR, 'ddl');
+const RAW_ROOT_DIR = path.join(ROOT_DIR, 'raw-ddl');
 const REPORT_PATH = path.join(ROOT_DIR, 'report.md');
 
 async function main(): Promise<void> {
   fs.rmSync(ROOT_DIR, { recursive: true, force: true });
-  fs.mkdirSync(DDL_DIR, { recursive: true });
+  fs.mkdirSync(RAW_ROOT_DIR, { recursive: true });
 
   try {
     const tableDefinitions = buildSyntheticTableDefinitions(TABLE_COUNT, COLUMN_COUNT);
-    writeSyntheticDdlFiles(DDL_DIR, tableDefinitions);
+    const samples: BenchmarkRun[] = [];
+    for (let runIndex = 0; runIndex < MEASURED_RUNS; runIndex += 1) {
+      samples.push(await measureRawDdlColdStart(tableDefinitions, runIndex));
+      samples.push(measureGeneratedColdStart(tableDefinitions));
+    }
 
-    const samples: BenchmarkSample[] = [];
-    await runWarmups(tableDefinitions);
-    samples.push(...(await runMeasuredRuns(tableDefinitions)));
-
-    const report = buildReport(samples, tableDefinitions, DDL_DIR);
+    const report = buildReport(samples, tableDefinitions);
     fs.writeFileSync(REPORT_PATH, report, 'utf8');
     console.log(report);
   } finally {
-    fs.rmSync(DDL_DIR, { recursive: true, force: true });
+    fs.rmSync(ROOT_DIR, { recursive: true, force: true });
   }
 }
 
-async function runWarmups(tableDefinitions: TableDefinitionModel[]): Promise<void> {
-  for (let index = 0; index < WARMUP_RUNS; index += 1) {
-    measureColdStart('raw-ddl', () =>
-      createPostgresTestkitClient({
-        queryExecutor: noopExecutor,
-        ddl: {
-          directories: [DDL_DIR],
-          extensions: ['.sql'],
-        },
-      })
-    );
-    measureColdStart('generated', () =>
-      createPostgresTestkitClient({
-        queryExecutor: noopExecutor,
-        generated: {
-          tableDefinitions,
-        },
-      })
-    );
-  }
-}
+async function measureRawDdlColdStart(
+  tableDefinitions: TableDefinitionModel[],
+  runIndex: number
+): Promise<BenchmarkRun> {
+  const runDir = path.join(RAW_ROOT_DIR, `run-${String(runIndex + 1).padStart(2, '0')}`);
+  fs.rmSync(runDir, { recursive: true, force: true });
+  fs.mkdirSync(runDir, { recursive: true });
+  writeSyntheticDdlFiles(runDir, tableDefinitions);
+  const ddlBytes = sumFileBytes(runDir);
 
-async function runMeasuredRuns(tableDefinitions: TableDefinitionModel[]): Promise<BenchmarkSample[]> {
-  const samples: BenchmarkSample[] = [];
-  for (let index = 0; index < MEASURED_RUNS; index += 1) {
-    samples.push(
-      measureColdStart('raw-ddl', () =>
-        createPostgresTestkitClient({
-          queryExecutor: noopExecutor,
-          ddl: {
-            directories: [DDL_DIR],
-            extensions: ['.sql'],
-          },
-        })
-      )
-    );
-    samples.push(
-      measureColdStart('generated', () =>
-        createPostgresTestkitClient({
-          queryExecutor: noopExecutor,
-          generated: {
-            tableDefinitions,
-          },
-        })
-      )
-    );
-  }
-  return samples;
-}
-
-function measureColdStart(label: string, factory: () => unknown): BenchmarkSample {
   const start = performance.now();
-  factory();
+  createPostgresTestkitClient({
+    queryExecutor: noopExecutor,
+    ddl: {
+      directories: [runDir],
+      extensions: ['.sql'],
+      ddlLint: 'strict',
+    },
+  });
+  const durationMs = performance.now() - start;
+
   return {
-    label,
+    label: 'raw-ddl',
+    durationMs,
+    ddlBytes,
+  };
+}
+
+function measureGeneratedColdStart(tableDefinitions: TableDefinitionModel[]): BenchmarkRun {
+  const start = performance.now();
+  createPostgresTestkitClient({
+    queryExecutor: noopExecutor,
+    generated: {
+      tableDefinitions,
+    },
+  });
+  return {
+    label: 'generated',
     durationMs: performance.now() - start,
   };
 }
@@ -151,17 +137,13 @@ function buildCommentBlock(tableName: string): string {
   return `${lines.join('\n')}\n`;
 }
 
-function buildReport(
-  samples: BenchmarkSample[],
-  tableDefinitions: TableDefinitionModel[],
-  ddlDir: string
-): string {
+function buildReport(samples: BenchmarkRun[], tableDefinitions: TableDefinitionModel[]): string {
   const rawSamples = samples.filter((sample) => sample.label === 'raw-ddl').map((sample) => sample.durationMs);
   const generatedSamples = samples.filter((sample) => sample.label === 'generated').map((sample) => sample.durationMs);
   const rawAvg = average(rawSamples);
   const generatedAvg = average(generatedSamples);
   const improvement = rawAvg > 0 ? ((rawAvg - generatedAvg) / rawAvg) * 100 : 0;
-  const ddlBytes = sumFileBytes(ddlDir);
+  const ddlBytes = samples.find((sample) => sample.label === 'raw-ddl')?.ddlBytes ?? 0;
 
   return [
     '# testkit-postgres runtime metadata benchmark',
@@ -170,8 +152,13 @@ function buildReport(
     `- Columns per table: ${tableDefinitions[0]?.columns.length ?? 0}`,
     `- DDL files: ${tableDefinitions.length}`,
     `- DDL size: ${formatBytes(ddlBytes)}`,
-    `- Warmup runs: ${WARMUP_RUNS}`,
     `- Measured runs: ${MEASURED_RUNS}`,
+    '',
+    '## Measurement Notes',
+    '',
+    '- The raw DDL path uses a unique on-disk directory per run so the loader cache does not mask the cold-start cost.',
+    '- The measurement covers client construction only, which is where generated metadata can skip raw DDL discovery entirely.',
+    '- DDL parser and lint costs are still in scope for the raw path because the loader runs them during construction.',
     '',
     '| Path | Avg cold start (ms) | Samples |',
     '| --- | --- | --- |',
