@@ -41,7 +41,7 @@ export function resolveFixtureState(
     ...(options.tableDefinitions ?? []),
   ];
 
-  // Merge caller-supplied fixtures ahead of legacy DDL-derived rows.
+  // DDL-derived rows come first; caller-supplied fixtures follow and can override at consumption.
   const tableRows: TableRowsFixture[] = [
     ...ddlFixtures.flatMap((fixture: DdlProcessedFixture) =>
       fixture.rows && fixture.rows.length

@@ -28,7 +28,7 @@ async function main(): Promise<void> {
     const tableDefinitions = buildSyntheticTableDefinitions(TABLE_COUNT, COLUMN_COUNT);
     const samples: BenchmarkRun[] = [];
     for (let runIndex = 0; runIndex < MEASURED_RUNS; runIndex += 1) {
-      samples.push(await measureRawDdlColdStart(tableDefinitions, runIndex));
+      samples.push(measureRawDdlColdStart(tableDefinitions, runIndex));
       samples.push(measureGeneratedColdStart(tableDefinitions));
     }
 
@@ -40,10 +40,10 @@ async function main(): Promise<void> {
   }
 }
 
-async function measureRawDdlColdStart(
+function measureRawDdlColdStart(
   tableDefinitions: TableDefinitionModel[],
   runIndex: number
-): Promise<BenchmarkRun> {
+): BenchmarkRun {
   const runDir = path.join(RAW_ROOT_DIR, `run-${String(runIndex + 1).padStart(2, '0')}`);
   fs.rmSync(runDir, { recursive: true, force: true });
   fs.mkdirSync(runDir, { recursive: true });
