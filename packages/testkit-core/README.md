@@ -9,6 +9,7 @@ Pure TypeScript utilities for rewriting SELECT statements with fixture-backed CT
 
 - Validates fixture rows against declarative schemas (or registry lookups)
 - Injects rewritten `WITH` clauses without touching the original query shape
+- Uses collision-aware internal aliases for schema-qualified tables and other conflicting source names
 - Supports fail-fast, passthrough, or warn-on-missing fixture strategies
 - Supplies building blocks for driver adapters (see `@rawsql-ts/testkit-sqlite`, `@rawsql-ts/testkit-postgres`)
 
@@ -40,6 +41,8 @@ const rewriter = new SelectFixtureRewriter({
 
 const { sql } = rewriter.rewrite('SELECT id, name FROM users');
 ```
+
+When a table name needs to be rewritten into an internal alias, the alias is chosen deterministically and may shift if it collides with an existing CTE name or source alias.
 
 ## CatalogExecutor Adapter
 
