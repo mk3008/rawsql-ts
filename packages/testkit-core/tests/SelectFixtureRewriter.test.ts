@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SelectFixtureRewriter } from '../src/rewriter/SelectFixtureRewriter';
+import { SelectAnalyzer } from '../src/rewriter/SelectAnalyzer';
 import type { SchemaRegistry, TableSchemaDefinition } from '../src/types';
 
 const schema: Record<string, TableSchemaDefinition> = {
@@ -22,6 +23,10 @@ const registry: SchemaRegistry = {
 };
 
 describe('SelectFixtureRewriter', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('injects fixture CTE definitions for referenced tables', () => {
     const rewriter = new SelectFixtureRewriter({
       fixtures: [
@@ -368,6 +373,36 @@ SELECT id, name FROM users -- trailing`;
     expect(result.sql).toContain('"orders" AS');
     expect(result.sql.toLowerCase()).toContain('insert into audit_log');
     expect(result.fixturesApplied).toEqual(['users', 'orders']);
+  });
+
+  it('fails fast for SELECT-style analyzer failures even when inject is enabled', () => {
+    vi.spyOn(SelectAnalyzer.prototype, 'analyze').mockImplementation(() => {
+      throw new Error('analyzer exploded');
+    });
+
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'app.users',
+          rows: [{ id: 1, name: 'Alice' }],
+          schema: {
+            columns: {
+              id: 'INTEGER',
+              name: 'TEXT',
+            },
+          },
+        },
+      ],
+      analyzerFailureBehavior: 'inject',
+    });
+
+    const sql = `
+      SELECT u.id, o.total
+      FROM app.users u
+      JOIN orders o ON u.id = o.user_id
+    `;
+
+    expect(() => rewriter.rewrite(sql)).toThrowError(/fail-fast/i);
   });
 
   it('bypasses DCL statements but still rewrites subsequent SELECT statements', () => {

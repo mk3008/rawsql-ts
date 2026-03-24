@@ -146,6 +146,14 @@ export class SelectFixtureRewriter {
         );
       }
 
+      if (this.isSelectStyleStatement(sql)) {
+        const cause = analyzerError instanceof Error ? analyzerError : undefined;
+        throw new QueryRewriteError(
+          'Analyzer failed to process a SELECT-style statement; fail-fast is required instead of regex fallback.',
+          cause
+        );
+      }
+
       const cteDefinitions = [...fixtureMap.values()].map((fixture) =>
         SqliteValuesBuilder.buildCTE(fixture)
       );
@@ -278,6 +286,18 @@ export class SelectFixtureRewriter {
       return false;
     }
     return /^(set|reset|grant|revoke)\b/.test(normalized);
+  }
+
+  /**
+   * Detects SELECT-style statements that must not fall back to regex injection when analysis fails.
+   * This keeps source rewrites and alias planning on the AST path for queries that need structural handling.
+   */
+  private isSelectStyleStatement(sql: string): boolean {
+    const normalized = sql.trim().toLowerCase();
+    if (!normalized) {
+      return false;
+    }
+    return /^(with|select|values)\b/.test(normalized);
   }
 
   private isPassthrough(tableName: string): boolean {
