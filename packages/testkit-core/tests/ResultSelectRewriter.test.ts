@@ -58,4 +58,29 @@ describe('ResultSelectRewriter', () => {
     expect(normalized).not.toContain('public.category');
     expect(normalized).toContain('public_category');
   });
+
+  it('avoids alias collisions for schema-qualified fixtures', () => {
+    const resolver = new TableNameResolver({ defaultSchema: 'public' });
+    const fixtures = new DefaultFixtureProvider(
+      tableDefinitions,
+      baseRows,
+      resolver
+    );
+    const rewriter = new ResultSelectRewriter(
+      fixtures,
+      'error',
+      undefined,
+      resolver
+    );
+
+    const sql = `
+      WITH public_category AS (SELECT 1 AS category_id)
+      SELECT c.category_id
+      FROM public.category c
+    `;
+    const result = rewriter.rewrite(sql);
+
+    expect(result.sql.toLowerCase()).toContain('with "public__category" as');
+    expect(result.sql).toContain('from "public__category" as "c"');
+  });
 });

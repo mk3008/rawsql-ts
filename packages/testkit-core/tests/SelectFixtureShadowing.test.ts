@@ -37,6 +37,78 @@ describe('SelectFixtureRewriter fixture shadowing', () => {
     expect(result.fixturesApplied).toEqual(['users']);
   });
 
+  it('uses a collision-aware alias for schema-qualified fixtures', () => {
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'app.users',
+          rows: [{ id: 1, name: 'Alice' }],
+          schema: {
+            columns: {
+              id: 'INTEGER',
+              name: 'TEXT',
+            },
+          },
+        },
+      ],
+    });
+
+    const sql = `
+      WITH app_users AS (SELECT 99 AS id)
+      SELECT app.users.id, app.users.name
+      FROM app.users
+    `;
+    const result = rewriter.rewrite(sql);
+
+    expect(result.sql.toLowerCase()).toContain('with "app__users" as');
+    expect(result.sql).toContain('select "app__users"."id", "app__users"."name" from "app__users"');
+    expect(result.fixturesApplied).toEqual(['app.users']);
+  });
+
+  it('rewrites schema-qualified joins while preserving explicit source aliases', () => {
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'app.users',
+          rows: [
+            { id: 1, name: 'Alice' },
+            { id: 2, name: 'Bob' },
+          ],
+          schema: {
+            columns: {
+              id: 'INTEGER',
+              name: 'TEXT',
+            },
+          },
+        },
+        {
+          tableName: 'orders',
+          rows: [{ id: 10, user_id: 1, total: 99.5 }],
+          schema: {
+            columns: {
+              id: 'INTEGER',
+              user_id: 'INTEGER',
+              total: 'REAL',
+            },
+          },
+        },
+      ],
+    });
+
+    const sql = `
+      WITH app_users AS (SELECT 99 AS id)
+      SELECT u.name, o.total
+      FROM app.users u
+      JOIN orders o ON u.id = o.user_id
+    `;
+    const result = rewriter.rewrite(sql);
+
+    expect(result.sql.toLowerCase()).toContain('with "app__users" as');
+    expect(result.sql).toContain(
+      'select "u"."name", "o"."total" from "app__users" as "u" join "orders" as "o" on "u"."id" = "o"."user_id"'
+    );
+  });
+
   it('produces predictable SQL for the entire rewritten statement', () => {
     const rewriter = new SelectFixtureRewriter({
       fixtures: [
