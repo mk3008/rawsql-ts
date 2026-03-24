@@ -76,13 +76,17 @@ const COMMANDS: CommandDescriptor[] = [
   },
   {
     name: 'ztd-config',
-    summary: 'Generate TestRowMap and layout metadata from local DDL.',
+    summary: 'Generate TestRowMap, runtime fixture metadata, and layout metadata from local DDL.',
     writesFiles: true,
     supportsDryRun: true,
     supportsJsonPayload: true,
     output: {
       stdout: 'Status or JSON envelope.',
-      files: ['tests/generated/ztd-row-map.generated.ts', 'tests/generated/ztd-layout.generated.ts']
+      files: [
+        'tests/generated/ztd-row-map.generated.ts',
+        'tests/generated/ztd-fixture-manifest.generated.ts',
+        'tests/generated/ztd-layout.generated.ts'
+      ]
     },
     exitCodes: {
       '0': 'Generation completed or dry-run plan emitted.',

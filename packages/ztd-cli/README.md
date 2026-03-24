@@ -45,7 +45,8 @@ npx ztd ztd-config
 npx vitest run
 ```
 
-The starter scaffold includes `@rawsql-ts/testkit-core`, so `npx ztd ztd-config` works in a fresh standalone project.
+The starter scaffold includes `@rawsql-ts/testkit-core`, so `npx ztd ztd-config` works in a fresh standalone project and writes the generated runtime manifest to `tests/generated/ztd-fixture-manifest.generated.ts`.
+That manifest carries `tableDefinitions` schema metadata only; test rows stay explicit fixtures outside the generated contract.
 
 Make sure Docker Desktop or another Docker daemon is already running before you start the compose path, because `docker compose up -d` only launches the stack.
 The generated Vitest setup derives `ZTD_TEST_DATABASE_URL` from `.env`, so the test runtime sees the same port setting as the compose file.
@@ -90,7 +91,7 @@ Advanced validation, dogfooding, and tuning live in [Further Reading](#further-r
 ## Core features
 
 - `ztd init --starter` creates a feature-first starter scaffold with `smoke`, starter DDL, AGENTS, and local Postgres wiring.
-- `ztd ztd-config --watch` keeps generated `TestRowMap` types aligned with DDL as files change.
+- `ztd ztd-config --watch` keeps generated `TestRowMap` types and runtime fixture metadata aligned with DDL as files change.
 - `ztd lint` checks SQL against a temporary Postgres before you ship it.
 - `ztd model-gen` and `ztd query uses` keep QuerySpec scaffolding and impacted-file discovery close to the feature-first slice.
 - `ztd perf init` / `ztd perf run` support tuning without forcing SQL rewrites first.
@@ -101,7 +102,7 @@ Advanced validation, dogfooding, and tuning live in [Further Reading](#further-r
 | Command | Purpose |
 |---|---|
 | `ztd init --starter` | Scaffold the recommended first-run project. |
-| `ztd ztd-config` | Regenerate `TestRowMap` and layout metadata from DDL; add `--watch` for live updates. |
+| `ztd ztd-config` | Regenerate `TestRowMap`, runtime fixture metadata, and layout metadata from DDL; add `--watch` for live updates. |
 | `ztd lint` | Lint SQL files against a temporary Postgres. |
 | `ztd model-gen` | Generate QuerySpec scaffolding from SQL assets. |
 | `ztd query uses` | Find impacted SQL before changing a table or column. |
@@ -109,7 +110,7 @@ Advanced validation, dogfooding, and tuning live in [Further Reading](#further-r
 | `ztd perf *` | Run the tuning loop (`init`, `db reset`, `run`) for index or pipeline investigation. |
 | `ztd describe` | Inspect commands in machine-readable form, including `--output json`. |
 
-After DDL or schema changes, rerun `ztd ztd-config`, `ztd lint`, and `npx vitest run`. Use `ztd ddl diff` or `ztd ddl pull` when you need a migration plan.
+After DDL or schema changes, rerun `ztd ztd-config`, `ztd lint`, and `npx vitest run`. Use `ztd ddl diff` or `ztd ddl pull` when you need a migration plan. The generated runtime manifest is the preferred input for `@rawsql-ts/testkit-postgres`; raw DDL directories remain a fallback for legacy layouts.
 Run `npx ztd describe command <name>` for per-command flags and options.
 
 ## Glossary

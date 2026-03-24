@@ -43,6 +43,7 @@ export class PostgresTestkitClient<RowType extends Row = Row> {
     });
     const fixturesState = resolveFixtureState(
       {
+        generated: options.generated,
         ddl: options.ddl,
         tableDefinitions: options.tableDefinitions,
         tableRows: options.tableRows,

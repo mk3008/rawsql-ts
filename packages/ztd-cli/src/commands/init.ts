@@ -391,7 +391,7 @@ const STARTER_README_APPENDIX = (postgresImage: string): string =>
     '3. Copy `.env.example` to `.env` and update `ZTD_DB_PORT` if 5432 is already in use.',
     '4. Start Postgres with `docker compose up -d` when you are ready for the DB-backed smoke path.',
     `5. The bundled compose file uses \`${postgresImage}\`, and the generated Vitest setup derives \`ZTD_TEST_DATABASE_URL\` from \`ZTD_DB_PORT\`.`,
-    '6. Run `npx ztd ztd-config` to regenerate DDL-derived test rows and layout metadata.',
+    '6. Run `npx ztd ztd-config` to regenerate the runtime fixture manifest, DDL-derived test rows, and layout metadata.',
     '7. Run `npx vitest run` to exercise the DB-free and DB-backed smoke tests with the values from `.env`.',
     '8. Run `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` to scaffold a QuerySpec from that SQL file.',
     '9. Start your first real feature under `src/features/users/`, then delete `src/features/smoke/` when you no longer need the sample.',

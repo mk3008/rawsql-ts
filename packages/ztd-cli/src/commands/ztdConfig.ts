@@ -4,7 +4,9 @@ import {
   createTableDefinitionFromCreateTableQuery,
   CreateTableQuery,
   MultiQuerySplitter,
-  SqlParser
+  SqlFormatter,
+  SqlParser,
+  type ValueComponent
 } from 'rawsql-ts';
 import type { DdlLintMode, TableNameResolver } from '@rawsql-ts/testkit-core';
 import { ensureTestkitCoreModule } from '../utils/optionalDependencies';
@@ -26,6 +28,9 @@ export interface ColumnMetadata {
   name: string;
   typeName?: string;
   isNullable: boolean;
+  required: boolean;
+  defaultValue: string | null;
+  isNotNull: boolean;
 }
 
 export interface TableMetadata {
@@ -37,7 +42,9 @@ export interface TableMetadata {
 export interface ZtdConfigGenerationResult {
   tables: TableMetadata[];
   rendered: string;
+  manifestRendered: string;
   outFile: string;
+  manifestOutFile: string;
   dryRun: boolean;
 }
 
@@ -82,15 +89,20 @@ export async function runGenerateZtdConfig(options: ZtdConfigGenerationOptions):
   }
 
   const output = renderZtdConfigFile(tables);
+  const manifestOutFile = path.join(path.dirname(options.out), 'ztd-fixture-manifest.generated.ts');
+  const manifestOutput = renderZtdFixtureManifestFile(tables);
   if (!options.dryRun) {
     ensureDirectory(path.dirname(options.out));
     writeFileSync(options.out, output, 'utf8');
-    console.log(`Generated ${tables.length} ZTD test rows at ${options.out}`);
+    writeFileSync(manifestOutFile, manifestOutput, 'utf8');
+    console.log(`Generated ${tables.length} ZTD test rows at ${options.out} and ${manifestOutFile}`);
   }
   return {
     tables,
     rendered: output,
+    manifestRendered: manifestOutput,
     outFile: options.out,
+    manifestOutFile,
     dryRun: Boolean(options.dryRun)
   };
 }
@@ -130,21 +142,15 @@ export function snapshotTableMetadata(sources: SqlSource[], resolver?: TableName
         continue;
       }
 
-      // Match column metadata by name so AST-driven nullability honors both DDL and constraints.
-      const columns = ast.columns.map((column) => {
-        const columnMeta = definition.columns.find((candidate) => candidate.name === column.name.name);
-        if (!columnMeta) {
-          throw new Error(`Missing metadata for ${column.name.name} in ${definition.name}`);
-        }
-        const constraintKinds = new Set(column.constraints.map((constraint) => constraint.kind));
-        const hasNotNull = constraintKinds.has('not-null') || constraintKinds.has('primary-key');
-
-        return {
-          name: column.name.name,
-          typeName: columnMeta.typeName,
-          isNullable: !hasNotNull
-        };
-      });
+      // Reuse the runtime-ready table definition model so the generated metadata can feed testkit directly.
+      const columns = definition.columns.map((column) => ({
+        name: column.name,
+        typeName: column.typeName,
+        isNullable: !column.isNotNull,
+        required: Boolean(column.required),
+        defaultValue: formatDefaultValue(column.defaultValue),
+        isNotNull: Boolean(column.isNotNull)
+      }));
 
       registry.set(canonicalName, {
         name: canonicalName,
@@ -155,6 +161,25 @@ export function snapshotTableMetadata(sources: SqlSource[], resolver?: TableName
   }
 
   return Array.from(registry.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function formatDefaultValue(value: string | ValueComponent | null | undefined): string | null {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  try {
+    // Render DDL defaults as SQL text so the generated manifest stays readable and deterministic.
+    const formatter = new SqlFormatter({ keywordCase: 'none' });
+    const { formattedSql } = formatter.format(value);
+    return formattedSql;
+  } catch (_error) {
+    return String(value);
+  }
 }
 
 function buildTestRowInterfaceName(tableName: string): string {
@@ -276,4 +301,52 @@ export function renderZtdConfigFile(tables: TableMetadata[]): string {
   ].join('\n');
 
   return `${header}export interface TestRowMap {\n${entries}\n}\n\n${definitions}\n${footer}`;
+}
+
+export function renderZtdFixtureManifestFile(tables: TableMetadata[]): string {
+  const tableDefinitions = tables
+    .map((table) => {
+      const columns = table.columns
+        .map((column) => {
+          const parts = [
+            `      name: ${JSON.stringify(column.name)},`,
+          ];
+          if (column.typeName !== undefined) {
+            parts.push(`      typeName: ${JSON.stringify(column.typeName)},`);
+          }
+          parts.push(`      required: ${column.required},`);
+          // The snapshot phase already normalizes DDL defaults, so the renderer only serializes the stable value.
+          parts.push(`      defaultValue: ${JSON.stringify(column.defaultValue)},`);
+          parts.push(`      isNotNull: ${column.isNotNull},`);
+          return [
+            '    {',
+            ...parts,
+            '    },'
+          ].join('\n');
+        })
+        .join('\n');
+      return `  {\n    name: ${JSON.stringify(table.name)},\n    columns: [\n${columns}\n    ]\n  },`;
+    })
+    .join('\n');
+
+  return [
+    '// GENERATED FILE. DO NOT EDIT.',
+    '// ZTD GENERATED FIXTURE MANIFEST',
+    '// This file is synchronized with DDL using ztd-config.',
+    '',
+    "import type { TableDefinitionModel } from 'rawsql-ts';",
+    '',
+    'export interface GeneratedFixtureManifest {',
+    '  tableDefinitions: TableDefinitionModel[];',
+    '}',
+    '',
+    'export const tableDefinitions: TableDefinitionModel[] = [',
+    tableDefinitions,
+    '];',
+    '',
+    'export const generatedFixtureManifest: GeneratedFixtureManifest = {',
+    '  tableDefinitions,',
+    '};',
+    ''
+  ].join('\n');
 }

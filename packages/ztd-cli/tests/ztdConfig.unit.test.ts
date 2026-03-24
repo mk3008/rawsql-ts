@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { renderZtdConfigFile, snapshotTableMetadata } from '../src/commands/ztdConfig';
+import { renderZtdConfigFile, renderZtdFixtureManifestFile, snapshotTableMetadata } from '../src/commands/ztdConfig';
 import { resolveZtdConfigCommandOptions } from '../src/commands/ztdConfigCommand';
 import type { SqlSource } from '../src/utils/collectSqlFiles';
 import { normalizeLineEndings } from './utils/normalize';
@@ -31,6 +31,28 @@ test('generates ZTD row map from CREATE TABLE statements', () => {
   // Normalize line endings so snapshots remain stable across platforms.
   const output = normalizeLineEndings(renderZtdConfigFile(tables));
 
+  expect(output).toMatchSnapshot();
+});
+
+test('generates a runtime fixture manifest alongside the row map', () => {
+  const sources: SqlSource[] = [
+    {
+      path: 'DDL/users.sql',
+      sql: `
+        CREATE TABLE public.users (
+          id serial PRIMARY KEY,
+          email text NOT NULL,
+          created_at timestamptz NOT NULL DEFAULT now()
+        );
+      `
+    }
+  ];
+
+  const tables = snapshotTableMetadata(sources);
+  const output = normalizeLineEndings(renderZtdFixtureManifestFile(tables));
+
+  expect(output).toContain("import type { TableDefinitionModel } from 'rawsql-ts';");
+  expect(output).not.toContain('tableRows:');
   expect(output).toMatchSnapshot();
 });
 

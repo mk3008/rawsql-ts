@@ -321,7 +321,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
       },
       {
         "name": "ztd-config",
-        "summary": "Generate TestRowMap and layout metadata from local DDL.",
+        "summary": "Generate TestRowMap, runtime fixture metadata, and layout metadata from local DDL.",
         "supportsDescribeOutput": false,
         "supportsDryRun": true,
         "supportsJsonPayload": true,
@@ -914,11 +914,12 @@ exports[`describe command snapshots the top-level command catalog and every deta
       "output": {
         "files": [
           "tests/generated/ztd-row-map.generated.ts",
+          "tests/generated/ztd-fixture-manifest.generated.ts",
           "tests/generated/ztd-layout.generated.ts",
         ],
         "stdout": "Status or JSON envelope.",
       },
-      "summary": "Generate TestRowMap and layout metadata from local DDL.",
+      "summary": "Generate TestRowMap, runtime fixture metadata, and layout metadata from local DDL.",
       "supportsDryRun": true,
       "supportsJsonPayload": true,
       "writesFiles": true,

@@ -90,6 +90,52 @@ export function tableFixtureWithSchema<K extends ZtdTableName>(
 "
 `;
 
+exports[`generates a runtime fixture manifest alongside the row map 1`] = `
+"// GENERATED FILE. DO NOT EDIT.
+// ZTD GENERATED FIXTURE MANIFEST
+// This file is synchronized with DDL using ztd-config.
+
+import type { TableDefinitionModel } from 'rawsql-ts';
+
+export interface GeneratedFixtureManifest {
+  tableDefinitions: TableDefinitionModel[];
+}
+
+export const tableDefinitions: TableDefinitionModel[] = [
+  {
+    name: "public.users",
+    columns: [
+    {
+      name: "id",
+      typeName: "serial",
+      required: true,
+      defaultValue: null,
+      isNotNull: true,
+    },
+    {
+      name: "email",
+      typeName: "text",
+      required: true,
+      defaultValue: null,
+      isNotNull: true,
+    },
+    {
+      name: "created_at",
+      typeName: "timestamptz",
+      required: false,
+      defaultValue: "now()",
+      isNotNull: true,
+    },
+    ]
+  },
+];
+
+export const generatedFixtureManifest: GeneratedFixtureManifest = {
+  tableDefinitions,
+};
+"
+`;
+
 exports[`handles multiple sources with composite keys and cross-schema references 1`] = `
 "// GENERATED FILE. DO NOT EDIT.
 // ZTD TEST ROW MAP

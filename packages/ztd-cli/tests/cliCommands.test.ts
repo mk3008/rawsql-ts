@@ -151,12 +151,17 @@ test(
 
   const outDir = createTempDir('cli-gen-out');
   const outputFile = path.join(outDir, 'ztd-row-map.generated.ts');
+  const manifestFile = path.join(outDir, 'ztd-fixture-manifest.generated.ts');
 
   const result = runCli(['ztd-config', '--ddl-dir', ddlDir, '--extensions', '.sql', '--out', outputFile]);
   assertCliSuccess(result, 'ztd-config');
 
   const content = readNormalizedFile(outputFile);
   expect(content).toMatchSnapshot();
+  const manifestContent = readNormalizedFile(manifestFile);
+  expect(manifestContent).toContain("import type { TableDefinitionModel } from 'rawsql-ts';");
+  expect(manifestContent).toContain('export const generatedFixtureManifest');
+  expect(manifestContent).not.toContain('tableRows:');
   },
   60000,
 );
@@ -178,6 +183,7 @@ test(
 
   const outDir = createTempDir('cli-gen-out-json');
   const outputFile = path.join(outDir, 'ztd-row-map.generated.ts');
+  const manifestFile = path.join(outDir, 'ztd-fixture-manifest.generated.ts');
   const result = runCli([
     '--output',
     'json',
@@ -199,11 +205,16 @@ test(
     data: {
       dryRun: true,
       outputs: expect.arrayContaining([
-        expect.objectContaining({ path: outputFile, written: false })
+        expect.objectContaining({ path: outputFile, written: false }),
+        expect.objectContaining({
+          path: manifestFile,
+          written: false
+        })
       ])
     }
   });
   expect(existsSync(outputFile)).toBe(false);
+  expect(existsSync(manifestFile)).toBe(false);
   },
   60000,
 );
