@@ -244,7 +244,7 @@ export class ResultSelectRewriter {
     const aliasMap = this.buildCollisionAwareAliasMap(select, targetedFixtures);
     const ctes = FixtureCteBuilder.buildFixtures(targetedFixtures);
     this.applyFixtureAliases(ctes, aliasMap);
-    rewriteSelectFixtureReferences(select, aliasMap);
+    rewriteSelectFixtureReferences(select, aliasMap, this.tableNameResolver);
     if (!select.withClause) {
       select.appendWith(ctes);
       return select;
@@ -284,7 +284,8 @@ export class ResultSelectRewriter {
         };
     return createCollisionAwareFixtureAliasMap(
       fixtures.map((fixture) => fixture.tableName),
-      reservedNames
+      reservedNames,
+      this.tableNameResolver
     );
   }
 
@@ -371,7 +372,7 @@ export class ResultSelectRewriter {
 
 
   private rewriteSchemaQualifiers(component: SqlComponent, aliasMap: Map<string, string>): void {
-    rewriteSelectFixtureReferences(component, aliasMap);
+    rewriteSelectFixtureReferences(component, aliasMap, this.tableNameResolver);
   }
 
   private rewriteColumnReferencesInQuery(query: SimpleSelectQuery, aliasMap: Map<string, string>): void {

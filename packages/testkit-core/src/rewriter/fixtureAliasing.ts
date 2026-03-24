@@ -34,8 +34,12 @@ import {
   normalizeTableName,
 } from 'rawsql-ts';
 import type { FixtureTableDefinition } from 'rawsql-ts';
+import { TableNameResolver } from '../fixtures/TableNameResolver';
 
 const normalizeKey = (value: string): string => normalizeTableName(value);
+
+const resolveAliasKey = (value: string, resolver?: TableNameResolver): string =>
+  resolver ? resolver.resolve(value) : normalizeKey(value);
 
 const collectAliasNames = (query: SimpleSelectQuery): Set<string> => {
   const reserved = new Set<string>();
@@ -69,8 +73,8 @@ const buildAliasCandidate = (parts: string[], level: number): string => {
   return parts.join('_'.repeat(level));
 };
 
-const allocateAlias = (tableName: string, reserved: Set<string>): string => {
-  const canonical = normalizeKey(tableName);
+const allocateAlias = (tableName: string, reserved: Set<string>, resolver?: TableNameResolver): string => {
+  const canonical = resolveAliasKey(tableName, resolver);
   const parts = canonical.split('.').filter((part) => part.length > 0);
   const normalizedParts = parts.length > 0 ? parts : [canonical];
 
@@ -88,7 +92,8 @@ export const createCollisionAwareFixtureAliasMap = (
     sourceNames: Iterable<string>;
     sourceAliases: Iterable<string>;
     cteNames: Iterable<string>;
-  }
+  },
+  resolver?: TableNameResolver
 ): Map<string, string> => {
   const sourceNames = new Set<string>();
   for (const name of reservedNames.sourceNames) {
@@ -107,7 +112,7 @@ export const createCollisionAwareFixtureAliasMap = (
 
   const aliasMap = new Map<string, string>();
   for (const tableName of tableNames) {
-    const key = normalizeKey(tableName);
+    const key = resolveAliasKey(tableName, resolver);
     if (aliasMap.has(key)) {
       continue;
     }
@@ -126,7 +131,7 @@ export const createCollisionAwareFixtureAliasMap = (
       reserved.add(name);
     }
 
-    const alias = allocateAlias(tableName, reserved);
+    const alias = allocateAlias(tableName, reserved, resolver);
     aliasMap.set(key, alias);
     sourceNames.add(normalizeKey(alias));
   }
@@ -175,7 +180,8 @@ export const collectSelectReservationNames = (query: SimpleSelectQuery): SelectR
 
 export const rewriteSelectFixtureReferences = (
   component: SqlComponent | null,
-  aliasMap: Map<string, string>
+  aliasMap: Map<string, string>,
+  resolver?: TableNameResolver
 ): void => {
   if (!component || aliasMap.size === 0) {
     return;
@@ -215,7 +221,7 @@ export const rewriteSelectFixtureReferences = (
 
   const rewriteSourceExpression = (source: SourceExpression): void => {
     if (source.datasource instanceof TableSource) {
-      const referencedName = normalizeKey(source.datasource.getSourceName());
+      const referencedName = resolveAliasKey(source.datasource.getSourceName(), resolver);
       const alias = aliasMap.get(referencedName);
       if (alias) {
         source.datasource.qualifiedName.namespaces = null;
@@ -364,7 +370,7 @@ export const rewriteSelectFixtureReferences = (
       return;
     }
 
-    const alias = aliasMap.get(normalizeKey(namespaceKey));
+    const alias = aliasMap.get(resolveAliasKey(namespaceKey, resolver));
     if (!alias) {
       return;
     }
@@ -375,7 +381,7 @@ export const rewriteSelectFixtureReferences = (
   const rewriteColumnReferencesInQuery = (query: SimpleSelectQuery): void => {
     if (query.withClause?.tables) {
       for (const cte of query.withClause.tables) {
-        const alias = aliasMap.get(normalizeKey(cte.aliasExpression.table.name));
+        const alias = aliasMap.get(resolveAliasKey(cte.aliasExpression.table.name, resolver));
         if (alias) {
           cte.aliasExpression.table = new IdentifierString(alias);
         }

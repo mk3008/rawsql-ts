@@ -8,6 +8,7 @@ import {
 import type { MissingFixtureColumnDetail } from '../errors';
 import { FixtureStore } from '../fixtures/FixtureStore';
 import type { NormalizedFixture } from '../fixtures/FixtureStore';
+import { TableNameResolver } from '../fixtures/TableNameResolver';
 import { normalizeIdentifier } from '../fixtures/naming';
 import { createLogger } from '../logger/NoopLogger';
 import type {
@@ -48,9 +49,11 @@ export class SelectFixtureRewriter {
   private readonly formatterOptions: SqlFormatterOptions;
   private readonly cteConflictBehavior: 'error' | 'override';
   private readonly analyzerFailureBehavior: AnalyzerFailureBehavior;
+  private readonly tableNameResolver?: TableNameResolver;
 
   constructor(options: SelectRewriterOptions = {}) {
-    this.fixtureStore = new FixtureStore(options.fixtures ?? [], options.schema, options.tableNameResolver);
+    this.tableNameResolver = options.tableNameResolver;
+    this.fixtureStore = new FixtureStore(options.fixtures ?? [], options.schema, this.tableNameResolver);
     this.logger = createLogger(options.logger);
     this.missingFixtureStrategy = options.missingFixtureStrategy ?? 'error';
     const passthrough = options.passthroughTables ?? [];
@@ -221,17 +224,19 @@ export class SelectFixtureRewriter {
     const aliasedTargets = fixtureTargets.filter((target) => !target.exactConflict);
     const aliasMap = createCollisionAwareFixtureAliasMap(
       aliasedTargets.map((target) => target.table),
-      collectSelectReservationNames(parsedQuery)
+      collectSelectReservationNames(parsedQuery),
+      this.tableNameResolver
     );
     const cteDefinitions: FixtureCteDefinition[] = aliasedTargets.map((target) => {
-      const alias = aliasMap.get(normalizeTableName(target.table)) ?? target.fixture.name;
+      const alias = aliasMap.get(this.tableNameResolver?.resolve(target.table) ?? normalizeTableName(target.table))
+        ?? target.fixture.name;
       return SqliteValuesBuilder.buildCTE({
         ...target.fixture,
         name: alias,
       });
     });
 
-    rewriteSelectFixtureReferences(parsedQuery, aliasMap);
+    rewriteSelectFixtureReferences(parsedQuery, aliasMap, this.tableNameResolver);
     for (const target of fixtureTargets) {
       if (!target.exactConflict) {
         continue;
