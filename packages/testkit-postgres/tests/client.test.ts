@@ -20,6 +20,9 @@ describe('Postgres testkit client', () => {
       generated: {
         tableDefinitions: [usersTableDefinition],
       },
+      ddl: {
+        directories: ['__intentionally_missing_dir__'],
+      },
       tableRows: [{ tableName: 'users', rows: [{ id: 1, email: 'alice@example.com' }] }],
     });
 
