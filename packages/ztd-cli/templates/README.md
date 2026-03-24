@@ -16,13 +16,15 @@ Use feature-local tests as the default shape:
 npx vitest run src/features/**/*.test.ts
 ```
 
-When you add SQL-backed tests, start Postgres, export `ZTD_TEST_DATABASE_URL`, and then run the corresponding Vitest suites.
+When you add SQL-backed tests, copy `.env.example` to `.env`, update `ZTD_DB_PORT` if needed, start Postgres, and then run the corresponding Vitest suites.
 Make sure Docker Desktop or another Docker daemon is already running before you start the compose path, because `docker compose up -d` only launches the stack.
-If `5432` is already in use, stop the conflicting process or run Postgres on another local port and update `ZTD_TEST_DATABASE_URL` before you run those suites, for example:
+The generated Vitest setup derives `ZTD_TEST_DATABASE_URL` from `.env`, so the test runtime sees the same port setting as the compose file.
+If `5432` is already in use, change `ZTD_DB_PORT` in `.env` before you run those suites, for example:
 
 ```bash
-docker run -d --rm --name ztd-starter-pg -e POSTGRES_USER=ztd -e POSTGRES_PASSWORD=ztd -e POSTGRES_DB=ztd -p 5433:5432 postgres:18
-export ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5433/ztd
+cp .env.example .env
+# edit ZTD_DB_PORT=5433 if needed
+docker compose up -d
 npx vitest run
 ```
 

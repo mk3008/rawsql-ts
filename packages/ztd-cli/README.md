@@ -25,8 +25,9 @@ The focus is SQL maintainability: keep schema, queries, specs, and tests close t
 npm install -D @rawsql-ts/ztd-cli vitest typescript
 npx ztd init --starter
 # generates docker-compose.yml, starter DDL, config, and test stubs
+cp .env.example .env
+# edit ZTD_DB_PORT=5433 if needed
 docker compose up -d
-export ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5432/ztd
 npx ztd ztd-config
 npx vitest run
 ```
@@ -37,8 +38,9 @@ npx vitest run
 npm install -D @rawsql-ts/ztd-cli vitest typescript
 npx ztd init --starter
 # generates docker-compose.yml, starter DDL, config, and test stubs
+Copy-Item .env.example .env
+# edit ZTD_DB_PORT=5433 if needed
 docker compose up -d
-$env:ZTD_TEST_DATABASE_URL='postgres://ztd:ztd@localhost:5432/ztd'
 npx ztd ztd-config
 npx vitest run
 ```
@@ -46,22 +48,27 @@ npx vitest run
 The starter scaffold includes `@rawsql-ts/testkit-core`, so `npx ztd ztd-config` works in a fresh standalone project.
 
 Make sure Docker Desktop or another Docker daemon is already running before you start the compose path, because `docker compose up -d` only launches the stack.
+The generated Vitest setup derives `ZTD_TEST_DATABASE_URL` from `.env`, so the test runtime sees the same port setting as the compose file.
 
 > `ztd-cli` prepares the workflow, but it does not execute SQL by itself. Pair it with a database adapter and a DBMS-specific testkit such as `@rawsql-ts/adapter-node-pg` + `@rawsql-ts/testkit-postgres` for Postgres.
 
-If `5432` is busy, use another local port and update `ZTD_TEST_DATABASE_URL`.
+If `5432` is busy, use another local port and update `ZTD_DB_PORT` in `.env`.
 
 * macOS / Linux / Git Bash:
 
   ```bash
-  export ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5433/ztd
+  cp .env.example .env
+  # edit ZTD_DB_PORT=5433 if needed
+  docker compose up -d
   npx vitest run
   ```
 
 * PowerShell:
 
   ```powershell
-  $env:ZTD_TEST_DATABASE_URL='postgres://ztd:ztd@localhost:5433/ztd'
+  Copy-Item .env.example .env
+  # edit ZTD_DB_PORT=5433 if needed
+  docker compose up -d
   npx vitest run
   ```
 
