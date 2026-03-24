@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: SqlParamInjectorOptions
 
-Defined in: [packages/core/src/transformers/SqlParamInjector.ts:15](https://github.com/mk3008/rawsql-ts/blob/8637887aca8b46430532f3553cf2145cb5876663/packages/core/src/transformers/SqlParamInjector.ts#L15)
+Defined in: [packages/core/src/transformers/SqlParamInjector.ts:15](https://github.com/mk3008/rawsql-ts/blob/53a4678e9dcaab6a1a32847e97ab7f00de4d5867/packages/core/src/transformers/SqlParamInjector.ts#L15)
 
 Options for SqlParamInjector
 
@@ -11,7 +11,7 @@ Options for SqlParamInjector
 
 > `optional` **ignoreCaseAndUnderscore**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlParamInjector.ts:17](https://github.com/mk3008/rawsql-ts/blob/8637887aca8b46430532f3553cf2145cb5876663/packages/core/src/transformers/SqlParamInjector.ts#L17)
+Defined in: [packages/core/src/transformers/SqlParamInjector.ts:17](https://github.com/mk3008/rawsql-ts/blob/53a4678e9dcaab6a1a32847e97ab7f00de4d5867/packages/core/src/transformers/SqlParamInjector.ts#L17)
 
 Whether to ignore case and underscore differences when matching column names
 
@@ -21,7 +21,7 @@ Whether to ignore case and underscore differences when matching column names
 
 > `optional` **allowAllUndefined**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlParamInjector.ts:19](https://github.com/mk3008/rawsql-ts/blob/8637887aca8b46430532f3553cf2145cb5876663/packages/core/src/transformers/SqlParamInjector.ts#L19)
+Defined in: [packages/core/src/transformers/SqlParamInjector.ts:19](https://github.com/mk3008/rawsql-ts/blob/53a4678e9dcaab6a1a32847e97ab7f00de4d5867/packages/core/src/transformers/SqlParamInjector.ts#L19)
 
 Whether to allow injection when all parameters are undefined (defaults to false for safety)
 
@@ -31,7 +31,7 @@ Whether to allow injection when all parameters are undefined (defaults to false 
 
 > `optional` **ignoreNonExistentColumns**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlParamInjector.ts:21](https://github.com/mk3008/rawsql-ts/blob/8637887aca8b46430532f3553cf2145cb5876663/packages/core/src/transformers/SqlParamInjector.ts#L21)
+Defined in: [packages/core/src/transformers/SqlParamInjector.ts:21](https://github.com/mk3008/rawsql-ts/blob/53a4678e9dcaab6a1a32847e97ab7f00de4d5867/packages/core/src/transformers/SqlParamInjector.ts#L21)
 
 Whether to ignore non-existent columns instead of throwing errors (defaults to false for safety)
 </div>
