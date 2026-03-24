@@ -156,10 +156,10 @@ When the schema change needs a deployable migration, keep the flow explicit:
 Use a fresh AI prompt for this step so we can confirm the migration guidance works without human patching in the middle.
 
 1. Edit the DDL in `ztd/ddl/demo.sql` or the relevant schema file.
-2. Run `npx ztd ztd-config` to refresh the ZTD-generated artifacts, including `tests/generated/ztd-fixture-manifest.generated.ts` for runtime metadata.
+2. Run `npx ztd ztd-config` to refresh the ZTD-generated artifacts, including `tests/generated/ztd-fixture-manifest.generated.ts` for runtime schema metadata (`tableDefinitions` only).
 3. Optionally run `npx ztd ddl pull --url <target-db-url>` to inspect the target, then run `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` when you need a migration plan.
 4. Read the text summary first, inspect the generated SQL second, and apply the SQL outside `ztd-cli`.
-5. Re-run `npx ztd ztd-config` and `npx vitest run` after the migration lands so the generated runtime manifest stays in sync with the schema.
+5. Re-run `npx ztd ztd-config` and `npx vitest run` after the migration lands so the generated runtime manifest stays in sync with the schema metadata.
 
 This step belongs in the tutorial because the starter path should show not only how to add a feature, but also how to evolve the schema safely without asking `ztd-cli` to own deployment.
 

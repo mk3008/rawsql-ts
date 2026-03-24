@@ -6,7 +6,7 @@ The project is feature-first by default:
 
 - keep SQL, specs, and tests close to each feature
 - use `@rawsql-ts/sql-contract` for QuerySpec contracts
-- `@rawsql-ts/testkit-core` so `npx ztd ztd-config` works in a fresh standalone project and writes the generated runtime manifest to `tests/generated/ztd-fixture-manifest.generated.ts`
+- `@rawsql-ts/testkit-core` so `npx ztd ztd-config` works in a fresh standalone project and writes the generated runtime manifest to `tests/generated/ztd-fixture-manifest.generated.ts` with `tableDefinitions` schema metadata only
 
 Generate the starter flow with `ztd init --starter` when you want the removable `src/features/smoke/` sample feature, a named-parameter SQL example, and the bundled Postgres compose path.
 
@@ -28,7 +28,7 @@ docker compose up -d
 npx vitest run
 ```
 
-The generated runtime manifest is the preferred input for `@rawsql-ts/testkit-postgres`; raw DDL directories remain a fallback for legacy layouts.
+The generated runtime manifest is the preferred input for `@rawsql-ts/testkit-postgres`; raw DDL directories remain a fallback for legacy layouts. The generated contract itself is schema metadata only (`tableDefinitions`), so test rows stay explicit.
 
 src/catalog may still exist as internal support, but it is not the user-facing standard location.
 

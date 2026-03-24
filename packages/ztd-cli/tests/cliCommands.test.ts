@@ -158,7 +158,10 @@ test(
 
   const content = readNormalizedFile(outputFile);
   expect(content).toMatchSnapshot();
-  expect(readNormalizedFile(manifestFile)).toContain('export const generatedFixtureManifest');
+  const manifestContent = readNormalizedFile(manifestFile);
+  expect(manifestContent).toContain("import type { TableDefinitionModel } from 'rawsql-ts';");
+  expect(manifestContent).toContain('export const generatedFixtureManifest');
+  expect(manifestContent).not.toContain('tableRows:');
   },
   60000,
 );

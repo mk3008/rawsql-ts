@@ -95,30 +95,13 @@ exports[`generates a runtime fixture manifest alongside the row map 1`] = `
 // ZTD GENERATED FIXTURE MANIFEST
 // This file is synchronized with DDL using ztd-config.
 
-export interface GeneratedFixtureColumnDefinition {
-  name: string;
-  typeName?: string;
-  required?: boolean;
-  defaultValue?: string | null;
-  isNotNull?: boolean;
-}
-
-export interface GeneratedFixtureTableDefinition {
-  name: string;
-  columns: GeneratedFixtureColumnDefinition[];
-}
-
-export interface GeneratedFixtureTableRows {
-  tableName: string;
-  rows: Array<Record<string, unknown>>;
-}
+import type { TableDefinitionModel } from 'rawsql-ts';
 
 export interface GeneratedFixtureManifest {
-  tableDefinitions: GeneratedFixtureTableDefinition[];
-  tableRows: GeneratedFixtureTableRows[];
+  tableDefinitions: TableDefinitionModel[];
 }
 
-export const tableDefinitions: GeneratedFixtureTableDefinition[] = [
+export const tableDefinitions: TableDefinitionModel[] = [
   {
     name: "public.users",
     columns: [
@@ -147,11 +130,8 @@ export const tableDefinitions: GeneratedFixtureTableDefinition[] = [
   },
 ];
 
-export const tableRows: GeneratedFixtureTableRows[] = [];
-
 export const generatedFixtureManifest: GeneratedFixtureManifest = {
   tableDefinitions,
-  tableRows,
 };
 "
 `;

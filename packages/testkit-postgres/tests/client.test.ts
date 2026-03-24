@@ -19,8 +19,8 @@ describe('Postgres testkit client', () => {
       queryExecutor: executor,
       generated: {
         tableDefinitions: [usersTableDefinition],
-        tableRows: [{ tableName: 'users', rows: [{ id: 1, email: 'alice@example.com' }] }],
       },
+      tableRows: [{ tableName: 'users', rows: [{ id: 1, email: 'alice@example.com' }] }],
     });
 
     const response = await client.query('select id, email from users where id = $1', [1]);

@@ -51,6 +51,8 @@ test('generates a runtime fixture manifest alongside the row map', () => {
   const tables = snapshotTableMetadata(sources);
   const output = normalizeLineEndings(renderZtdFixtureManifestFile(tables));
 
+  expect(output).toContain("import type { TableDefinitionModel } from 'rawsql-ts';");
+  expect(output).not.toContain('tableRows:');
   expect(output).toMatchSnapshot();
 });
 

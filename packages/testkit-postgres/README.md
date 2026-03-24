@@ -44,12 +44,14 @@ The package does not close connections or hold onto drivers — the executor you
 
 Fixtures combine in deterministic layers:
 
-1. **Generated fixture manifests** from `ztd-config` populate schema metadata first
+1. **Generated fixture manifests** from `ztd-config` populate schema metadata (`tableDefinitions`) first
 2. **`tableDefinitions` / `tableRows`** passed to `createPostgresTestkitClient` override or augment the generated metadata
 3. **`client.withFixtures([...])`** layers scenario-specific rows on top before each query
 4. **`ddl.directories`** remains available as a legacy fallback when no generated manifest is supplied
 
 DDL directories are only scanned when no generated manifest is supplied. In the normal path, `createPostgresTestkitClient` uses generated metadata directly and skips raw DDL scanning altogether.
+
+Representative benchmark after a workspace build: `pnpm bench:testkit-postgres-runtime-metadata` compares the generated-manifest cold start with the legacy `ddl.directories` path on a synthetic large schema.
 
 ## QueryExecutor Contract
 

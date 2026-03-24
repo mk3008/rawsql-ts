@@ -306,7 +306,7 @@ export function renderZtdConfigFile(tables: TableMetadata[]): string {
 export function renderZtdFixtureManifestFile(tables: TableMetadata[]): string {
   const tableDefinitions = tables
     .map((table) => {
-          const columns = table.columns
+      const columns = table.columns
         .map((column) => {
           const parts = [
             `      name: ${JSON.stringify(column.name)},`,
@@ -315,7 +315,8 @@ export function renderZtdFixtureManifestFile(tables: TableMetadata[]): string {
             parts.push(`      typeName: ${JSON.stringify(column.typeName)},`);
           }
           parts.push(`      required: ${column.required},`);
-          parts.push(`      defaultValue: ${JSON.stringify(formatDefaultValue(column.defaultValue))},`);
+          // The snapshot phase already normalizes DDL defaults, so the renderer only serializes the stable value.
+          parts.push(`      defaultValue: ${JSON.stringify(column.defaultValue)},`);
           parts.push(`      isNotNull: ${column.isNotNull},`);
           return [
             '    {',
@@ -333,38 +334,18 @@ export function renderZtdFixtureManifestFile(tables: TableMetadata[]): string {
     '// ZTD GENERATED FIXTURE MANIFEST',
     '// This file is synchronized with DDL using ztd-config.',
     '',
-    'export interface GeneratedFixtureColumnDefinition {',
-    '  name: string;',
-    '  typeName?: string;',
-    '  required?: boolean;',
-    '  defaultValue?: string | null;',
-    '  isNotNull?: boolean;',
-    '}',
-    '',
-    'export interface GeneratedFixtureTableDefinition {',
-    '  name: string;',
-    '  columns: GeneratedFixtureColumnDefinition[];',
-    '}',
-    '',
-    'export interface GeneratedFixtureTableRows {',
-    '  tableName: string;',
-    '  rows: Array<Record<string, unknown>>;',
-    '}',
+    "import type { TableDefinitionModel } from 'rawsql-ts';",
     '',
     'export interface GeneratedFixtureManifest {',
-    '  tableDefinitions: GeneratedFixtureTableDefinition[];',
-    '  tableRows: GeneratedFixtureTableRows[];',
+    '  tableDefinitions: TableDefinitionModel[];',
     '}',
     '',
-    'export const tableDefinitions: GeneratedFixtureTableDefinition[] = [',
+    'export const tableDefinitions: TableDefinitionModel[] = [',
     tableDefinitions,
     '];',
     '',
-    'export const tableRows: GeneratedFixtureTableRows[] = [];',
-    '',
     'export const generatedFixtureManifest: GeneratedFixtureManifest = {',
     '  tableDefinitions,',
-    '  tableRows,',
     '};',
     ''
   ].join('\n');

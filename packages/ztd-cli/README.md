@@ -46,6 +46,7 @@ npx vitest run
 ```
 
 The starter scaffold includes `@rawsql-ts/testkit-core`, so `npx ztd ztd-config` works in a fresh standalone project and writes the generated runtime manifest to `tests/generated/ztd-fixture-manifest.generated.ts`.
+That manifest carries `tableDefinitions` schema metadata only; test rows stay explicit fixtures outside the generated contract.
 
 Make sure Docker Desktop or another Docker daemon is already running before you start the compose path, because `docker compose up -d` only launches the stack.
 The generated Vitest setup derives `ZTD_TEST_DATABASE_URL` from `.env`, so the test runtime sees the same port setting as the compose file.
