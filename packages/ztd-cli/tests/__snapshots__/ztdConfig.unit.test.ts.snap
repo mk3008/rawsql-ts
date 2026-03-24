@@ -90,6 +90,72 @@ export function tableFixtureWithSchema<K extends ZtdTableName>(
 "
 `;
 
+exports[`generates a runtime fixture manifest alongside the row map 1`] = `
+"// GENERATED FILE. DO NOT EDIT.
+// ZTD GENERATED FIXTURE MANIFEST
+// This file is synchronized with DDL using ztd-config.
+
+export interface GeneratedFixtureColumnDefinition {
+  name: string;
+  typeName?: string;
+  required?: boolean;
+  defaultValue?: string | null;
+  isNotNull?: boolean;
+}
+
+export interface GeneratedFixtureTableDefinition {
+  name: string;
+  columns: GeneratedFixtureColumnDefinition[];
+}
+
+export interface GeneratedFixtureTableRows {
+  tableName: string;
+  rows: Array<Record<string, unknown>>;
+}
+
+export interface GeneratedFixtureManifest {
+  tableDefinitions: GeneratedFixtureTableDefinition[];
+  tableRows: GeneratedFixtureTableRows[];
+}
+
+export const tableDefinitions: GeneratedFixtureTableDefinition[] = [
+  {
+    name: "public.users",
+    columns: [
+    {
+      name: "id",
+      typeName: "serial",
+      required: true,
+      defaultValue: null,
+      isNotNull: true,
+    },
+    {
+      name: "email",
+      typeName: "text",
+      required: true,
+      defaultValue: null,
+      isNotNull: true,
+    },
+    {
+      name: "created_at",
+      typeName: "timestamptz",
+      required: false,
+      defaultValue: "now()",
+      isNotNull: true,
+    },
+    ]
+  },
+];
+
+export const tableRows: GeneratedFixtureTableRows[] = [];
+
+export const generatedFixtureManifest: GeneratedFixtureManifest = {
+  tableDefinitions,
+  tableRows,
+};
+"
+`;
+
 exports[`handles multiple sources with composite keys and cross-schema references 1`] = `
 "// GENERATED FILE. DO NOT EDIT.
 // ZTD TEST ROW MAP

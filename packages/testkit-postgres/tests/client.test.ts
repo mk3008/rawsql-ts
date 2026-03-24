@@ -13,6 +13,22 @@ const usersTableDefinition: TableDefinitionModel = {
 const resultExecutor: QueryExecutor = async (_sql, _params) => [{ id: 1, email: 'alice@example.com' }];
 
 describe('Postgres testkit client', () => {
+  it('accepts generated fixture manifests without scanning ddl.directories', async () => {
+    const executor: QueryExecutor = async (_sql, _params) => [{ id: 1, email: 'alice@example.com' }];
+    const client = createPostgresTestkitClient({
+      queryExecutor: executor,
+      generated: {
+        tableDefinitions: [usersTableDefinition],
+        tableRows: [{ tableName: 'users', rows: [{ id: 1, email: 'alice@example.com' }] }],
+      },
+    });
+
+    const response = await client.query('select id, email from users where id = $1', [1]);
+
+    expect(response.rows).toEqual([{ id: 1, email: 'alice@example.com' }]);
+    expect(response.rowCount).toBe(1);
+  });
+
   it('executes rewritten SQL via the provided executor and reports fixtures', async () => {
     const executed: Array<{ sql: string; params: readonly unknown[] }> = [];
     const fixturesApplied: string[][] = [];

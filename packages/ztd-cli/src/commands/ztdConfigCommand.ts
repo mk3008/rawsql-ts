@@ -125,6 +125,7 @@ export function registerZtdConfigCommand(program: Command): void {
         );
         const output = merged.out ?? defaultOut;
         const layoutOut = path.join(path.dirname(output), 'ztd-layout.generated.ts');
+        const manifestOut = path.join(path.dirname(output), 'ztd-fixture-manifest.generated.ts');
 
         const ddlOverrides: ZtdProjectConfig['ddl'] = { ...projectConfig.ddl };
         let shouldUpdateConfig = false;
@@ -141,6 +142,7 @@ export function registerZtdConfigCommand(program: Command): void {
 
         const validatedOutput = validateProjectPath(output, '--out');
         const validatedLayoutOut = validateProjectPath(layoutOut, 'generated layout output');
+        const validatedManifestOut = validateProjectPath(manifestOut, 'generated runtime manifest output');
         const generationOptions: ZtdConfigGenerationOptions = {
           directories,
           extensions,
@@ -166,6 +168,7 @@ export function registerZtdConfigCommand(program: Command): void {
           ddlOverrides,
           validatedOutput,
           validatedLayoutOut,
+          validatedManifestOut,
           generationOptions,
           layoutConfig,
         };
@@ -202,6 +205,7 @@ export function registerZtdConfigCommand(program: Command): void {
             configUpdated: commandState.shouldUpdateConfig && !commandState.merged.dryRun,
             outputs: [
               { path: commandState.validatedOutput, bytes: generation.rendered.length, written: !commandState.merged.dryRun },
+              { path: commandState.validatedManifestOut, bytes: generation.manifestRendered.length, written: !commandState.merged.dryRun },
               { path: commandState.validatedLayoutOut, written: !commandState.merged.dryRun }
             ],
             tables: generation.tables.map((table) => ({ name: table.name, columns: table.columns.length }))
@@ -212,12 +216,16 @@ export function registerZtdConfigCommand(program: Command): void {
         if (commandState.merged.watch) {
           console.log(`[watch] Initial generation complete: ${commandState.generationOptions.out}`);
           emitDecisionEvent('watch.enabled');
-          await watchZtdConfig(commandState.generationOptions, commandState.validatedLayoutOut, commandState.layoutConfig);
+          await watchZtdConfig(
+            commandState.generationOptions,
+            commandState.validatedLayoutOut,
+            commandState.layoutConfig
+          );
         } else if (!commandState.merged.quiet) {
           if (commandState.merged.dryRun) {
             emitDiagnostic({
               code: 'ztd-config.dry-run',
-              message: `Dry-run validated generation for ${commandState.validatedOutput} and ${commandState.validatedLayoutOut}.`
+              message: `Dry-run validated generation for ${commandState.validatedOutput}, ${commandState.validatedManifestOut}, and ${commandState.validatedLayoutOut}.`
             });
             emitDecisionEvent('output.dry-run-diagnostic');
           } else {
@@ -282,7 +290,7 @@ async function watchZtdConfig(
     const relativePath = changedPath ? path.relative(cwd, changedPath) : 'unknown';
     console.log(`[watch] DDL changed: ${relativePath}`);
     try {
-      await runGenerateZtdConfig(options);
+      const generation = await runGenerateZtdConfig(options);
       writeZtdLayoutFile(layoutOut, layoutConfig);
       console.log(`[watch] Updated: ${options.out}`);
     } catch (error) {
