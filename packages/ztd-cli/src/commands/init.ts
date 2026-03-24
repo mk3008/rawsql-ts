@@ -1154,6 +1154,10 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   if (gitignoreSummary) {
     summaries.gitignore = gitignoreSummary;
   }
+  const gitignoreEnvSummary = ensureGitignoreEnvEntries(rootDir, dependencies);
+  if (gitignoreEnvSummary) {
+    summaries.gitignore = gitignoreEnvSummary;
+  }
 
   const prettierignoreSummary = copyTemplateFileIfMissing(
     rootDir,
@@ -1680,6 +1684,39 @@ function copyTemplateFileIfMissing(
   // Emit the template content so the generated project gets the same formatting defaults.
   dependencies.writeFile(targetPath, readFileSync(templatePath, 'utf8'));
   return { relativePath: relative, outcome: 'created' };
+}
+
+function ensureGitignoreEnvEntries(
+  rootDir: string,
+  dependencies: ZtdConfigWriterDependencies
+): FileSummary | null {
+  const absolutePath = path.join(rootDir, '.gitignore');
+  if (!dependencies.fileExists(absolutePath)) {
+    return null;
+  }
+
+  const current = readFileSync(absolutePath, 'utf8').replace(/\r\n/g, '\n');
+  const requiredEntries = ['.env', '.env.*', '!.env.example'];
+  const preservedLines = current
+    .split('\n')
+    .filter((line) => !requiredEntries.includes(line));
+
+  while (preservedLines.length > 0 && preservedLines[preservedLines.length - 1].trim() === '') {
+    preservedLines.pop();
+  }
+
+  const normalizedLines =
+    preservedLines.length > 0
+      ? [...preservedLines, '', ...requiredEntries]
+      : [...requiredEntries];
+  const updated = `${normalizedLines.join('\n')}\n`;
+
+  if (updated === current) {
+    return null;
+  }
+
+  dependencies.writeFile(absolutePath, updated);
+  return { relativePath: '.gitignore', outcome: 'overwritten' };
 }
 
 function writeOptionalTemplateFile(

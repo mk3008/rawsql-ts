@@ -98,7 +98,10 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(existsSync(path.join(workspace, 'compose.yaml'))).toBe(false);
   expect(existsSync(path.join(workspace, '.env.example'))).toBe(true);
   expect(existsSync(path.join(workspace, '.gitignore'))).toBe(true);
-  expect(readNormalizedFile(path.join(workspace, '.gitignore'))).toContain('.env');
+  const gitignore = readNormalizedFile(path.join(workspace, '.gitignore'));
+  expect(gitignore).toMatch(/^\.env$/m);
+  expect(gitignore).toMatch(/^\.env\.\*$/m);
+  expect(gitignore).toMatch(/^!\.env\.example$/m);
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('copy `.env.example` to `.env`');
   expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain('setupFiles');
   expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain(
@@ -142,7 +145,10 @@ test('init starter bootstraps visible AGENTS, compose, starter DDL, and smoke te
   expect(existsSync(path.join(workspace, 'compose.yaml'))).toBe(true);
   expect(existsSync(path.join(workspace, '.env.example'))).toBe(true);
   expect(existsSync(path.join(workspace, '.gitignore'))).toBe(true);
-  expect(readNormalizedFile(path.join(workspace, '.gitignore'))).toContain('.env');
+  const starterGitignore = readNormalizedFile(path.join(workspace, '.gitignore'));
+  expect(starterGitignore).toMatch(/^\.env$/m);
+  expect(starterGitignore).toMatch(/^\.env\.\*$/m);
+  expect(starterGitignore).toMatch(/^!\.env\.example$/m);
   expect(readNormalizedFile(path.join(workspace, 'compose.yaml'))).toContain('image: postgres:17');
   expect(readNormalizedFile(path.join(workspace, 'compose.yaml'))).toContain('ZTD_DB_PORT');
   expect(readNormalizedFile(path.join(workspace, 'compose.yaml'))).toContain(
