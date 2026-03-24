@@ -1,2 +1,11 @@
+node_modules/
+dist/
+coverage/
+*.log
+
+.env
+.env.*
+!.env.example
+
 tests/generated/**
 !tests/generated/AGENTS.md

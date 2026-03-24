@@ -53,23 +53,29 @@ Use the bundled compose file:
 Make sure Docker Desktop or another Docker daemon is already running before you start the compose path, because `docker compose up -d` only launches the stack.
 
 ```bash
+cp .env.example .env
+# edit ZTD_DB_PORT=5433 if needed
 docker compose up -d
-export ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5432/ztd
 npx vitest run
 ```
 
-If port `5432` is already in use, stop the conflicting process or run Postgres on another port and update `ZTD_TEST_DATABASE_URL`, for example:
+The starter setup derives `ZTD_TEST_DATABASE_URL` from `.env`, so changing `ZTD_DB_PORT` changes both the compose port and the test runtime.
+
+If port `5432` is already in use, update `ZTD_DB_PORT` in `.env` before you rerun the compose path, for example:
 
 ```bash
-docker run -d --rm --name ztd-starter-pg -e POSTGRES_USER=ztd -e POSTGRES_PASSWORD=ztd -e POSTGRES_DB=ztd -p 5433:5432 postgres:18
-export ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5433/ztd
+cp .env.example .env
+# edit ZTD_DB_PORT=5433
+docker compose up -d
 npx vitest run
 ```
 
-If you are using PowerShell, keep the variable in the same shell before you run Vitest:
+If you are using PowerShell, the same `.env` file works:
 
 ```powershell
-$env:ZTD_TEST_DATABASE_URL = 'postgres://ztd:ztd@localhost:5433/ztd'
+Copy-Item .env.example .env
+# edit ZTD_DB_PORT=5433
+docker compose up -d
 npx vitest run
 ```
 

@@ -1,7 +1,7 @@
 /**
  * Vitest global setup.
  *
- * The generated scaffold starts with DB-free smoke tests.
+ * Environment loading happens in tests/support/setup-env.ts.
  * Keep this hook available for teams that later add SQL-backed integration setup.
  */
 export default async function globalSetup() {

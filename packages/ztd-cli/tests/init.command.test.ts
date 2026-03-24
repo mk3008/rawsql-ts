@@ -96,13 +96,30 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(existsSync(path.join(workspace, 'src', 'infrastructure'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'jobs'))).toBe(false);
   expect(existsSync(path.join(workspace, 'compose.yaml'))).toBe(false);
+  expect(existsSync(path.join(workspace, '.env.example'))).toBe(true);
+  expect(existsSync(path.join(workspace, '.gitignore'))).toBe(true);
+  const gitignore = readNormalizedFile(path.join(workspace, '.gitignore'));
+  expect(gitignore).toMatch(/^\.env$/m);
+  expect(gitignore).toMatch(/^\.env\.\*$/m);
+  expect(gitignore).toMatch(/^!\.env\.example$/m);
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('copy `.env.example` to `.env`');
+  expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain('setupFiles');
+  expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain(
+    "tests/support/setup-env.ts"
+  );
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'setup-env.ts'))).toContain(
+    'ZTD_DB_PORT'
+  );
+  expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_PORT=5432');
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
     devDependencies: Record<string, string>;
   };
+  expect(packageJson.devDependencies).toHaveProperty('dotenv');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/sql-contract');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-core');
   expect(result.summary).not.toContain('src/features/smoke/tests/smoke.test.ts');
   expect(result.summary).toContain('src/features/README.md');
+  expect(result.summary).toContain('.env.example');
 });
 
 test('init starter bootstraps visible AGENTS, compose, starter DDL, and smoke tests', { timeout: 60_000 }, async () => {
@@ -126,8 +143,18 @@ test('init starter bootstraps visible AGENTS, compose, starter DDL, and smoke te
   expect(existsSync(path.join(workspace, 'tests', 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'compose.yaml'))).toBe(true);
+  expect(existsSync(path.join(workspace, '.env.example'))).toBe(true);
+  expect(existsSync(path.join(workspace, '.gitignore'))).toBe(true);
+  const starterGitignore = readNormalizedFile(path.join(workspace, '.gitignore'));
+  expect(starterGitignore).toMatch(/^\.env$/m);
+  expect(starterGitignore).toMatch(/^\.env\.\*$/m);
+  expect(starterGitignore).toMatch(/^!\.env\.example$/m);
   expect(readNormalizedFile(path.join(workspace, 'compose.yaml'))).toContain('image: postgres:17');
-  expect(readNormalizedFile(path.join(workspace, 'compose.yaml'))).toContain('ZTD_TEST_DATABASE_URL');
+  expect(readNormalizedFile(path.join(workspace, 'compose.yaml'))).toContain('ZTD_DB_PORT');
+  expect(readNormalizedFile(path.join(workspace, 'compose.yaml'))).toContain(
+    '${ZTD_DB_PORT:-5432}:5432'
+  );
+  expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_PORT=5432');
   expect(ddlFiles.length).toBeGreaterThan(0);
   expect(
     readNormalizedFile(path.join(workspace, 'ztd', 'ddl', ddlFiles[0]))
@@ -137,34 +164,40 @@ test('init starter bootstraps visible AGENTS, compose, starter DDL, and smoke te
   ).toContain('Starter user directory for the first CRUD feature');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Starter Flow');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('starter-only sample feature');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/features/smoke/tests/smoke.queryspec.test.ts');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('ZTD_TEST_DATABASE_URL');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Copy `.env.example` to `.env`');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('ZTD_DB_PORT');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
+    'derives `ZTD_TEST_DATABASE_URL` from `ZTD_DB_PORT`'
+  );
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Docker Desktop or another Docker daemon is already running');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx vitest run src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If `5432` is already in use');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('docker run -d --rm --name ztd-starter-pg');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('localhost:5433/ztd');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('fail before `ZTD_TEST_DATABASE_URL` is configured');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('change `ZTD_DB_PORT` in `.env`');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('delete `src/features/smoke/`');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/features/users');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd model-gen');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'README.md'))).toContain('starter-only sample feature');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('smoke.queryspec.test.ts');
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('ZTD_TEST_DATABASE_URL');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('setup-env.ts');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('ZTD_DB_PORT');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'persistence', 'smoke.sql'))).toContain(':v1::integer + :v2::integer as result');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'))).toContain(
     "sqlFile: './smoke.sql'"
   );
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'))).toContain("shape: 'named'");
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'setup-env.ts'))).toContain('ZTD_DB_PORT');
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'setup-env.ts'))).toContain('ZTD_TEST_DATABASE_URL');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'))).toContain('buildSmokeWorkflow');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'))).toContain('../domain/smoke-policy.js');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'))).toContain('catalog.scalar(smokeSpec');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'))).toContain('ZTD_TEST_DATABASE_URL');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'))).toContain('ZTD_DB_PORT');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'))).toContain('throw new Error');
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
     devDependencies: Record<string, string>;
   };
+  expect(packageJson.devDependencies).toHaveProperty('dotenv');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/sql-contract');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-core');
   expect(packageJson.devDependencies).toHaveProperty('pg');
@@ -172,6 +205,8 @@ test('init starter bootstraps visible AGENTS, compose, starter DDL, and smoke te
   expect(existsSync(path.join(workspace, 'tests', 'support', 'testkit-client.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'))).toBe(true);
   expect(result.summary).toContain('compose.yaml');
+  expect(result.summary).toContain('.env.example');
+  expect(result.summary).toContain('tests/support/setup-env.ts');
   expect(result.summary).toContain('src/features/smoke/tests/smoke.queryspec.test.ts');
   expect(result.summary).toContain('starter-only sample feature');
   expect(result.summary).toContain('Delete src/features/smoke/');

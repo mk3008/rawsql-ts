@@ -116,11 +116,13 @@ type FileKey =
   | 'schema'
   | 'config'
   | 'starterCompose'
+  | 'envExample'
   | 'smokeSpec'
   | 'localSourceGuardScript'
   | 'smokeValidationTest'
   | 'smokeTest'
   | 'smokeQuerySpecTest'
+  | 'setupEnv'
   | 'featureRootReadme'
   | 'smokeReadme'
   | 'smokeApplicationReadme'
@@ -231,6 +233,8 @@ interface InitScaffoldLayout {
   promptDogfoodTemplate: string | null;
   sqlClientTemplate: string;
   sqlClientAdaptersTemplate: string;
+  envExamplePath: string;
+  envExampleTemplate: string;
   featureReadmePath: string;
   featureReadmeTemplate: string;
   smokeReadmePath: string;
@@ -256,6 +260,8 @@ interface InitScaffoldLayout {
   smokeTestTemplate: string;
   smokeQuerySpecTestPath: string;
   smokeQuerySpecTestTemplate: string;
+  setupEnvPath: string;
+  setupEnvTemplate: string;
   sqlClientPath: string;
   sqlClientAdaptersPath: string;
 }
@@ -313,6 +319,7 @@ const CONTEXT_TEMPLATE = 'CONTEXT.md';
 const PROMPT_DOGFOOD_TEMPLATE = 'PROMPT_DOGFOOD.md';
 const DEFAULT_POSTGRES_IMAGE = 'postgres:18';
 const STARTER_COMPOSE_FILE = 'compose.yaml';
+const ENV_EXAMPLE_TEMPLATE = '.env.example';
 const FEATURE_ROOT_README_TEMPLATE = 'src/features/README.md';
 const FEATURE_SMOKE_README_TEMPLATE = 'src/features/smoke/README.md';
 const FEATURE_SMOKE_APPLICATION_README_TEMPLATE = 'src/features/smoke/application/README.md';
@@ -329,6 +336,7 @@ const FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.qu
 const LOCAL_SOURCE_GUARD_TEMPLATE = 'scripts/local-source-guard.mjs';
 const QUERYSPEC_EXAMPLE_TEST_TEMPLATE = 'tests/queryspec.example.test.ts';
 const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
+const SETUP_ENV_TEMPLATE = 'tests/support/setup-env.ts';
 const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
 const TSCONFIG_TEMPLATE = 'tsconfig.json';
 const SQL_CLIENT_TEMPLATE = 'src/db/sql-client.ts';
@@ -380,11 +388,11 @@ const STARTER_README_APPENDIX = (postgresImage: string): string =>
     '',
     '1. Start by reading `src/features/smoke/` as the starter-only sample feature.',
     '2. Run the DB-free smoke tests first with `npx vitest run src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts`.',
-    '3. Start Postgres with `docker compose up -d` when you are ready for the DB-backed smoke path.',
-    `4. The bundled compose file uses \`${postgresImage}\`.`,
-    '5. Export `ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5432/ztd` before running `src/features/smoke/tests/smoke.queryspec.test.ts`.',
-    '6. Expect the DB-backed smoke test to fail before `ZTD_TEST_DATABASE_URL` is configured; that failure is normal for the starter flow.',
-    '7. Run `npx ztd ztd-config` to regenerate DDL-derived test rows and layout metadata.',
+    '3. Copy `.env.example` to `.env` and update `ZTD_DB_PORT` if 5432 is already in use.',
+    '4. Start Postgres with `docker compose up -d` when you are ready for the DB-backed smoke path.',
+    `5. The bundled compose file uses \`${postgresImage}\`, and the generated Vitest setup derives \`ZTD_TEST_DATABASE_URL\` from \`ZTD_DB_PORT\`.`,
+    '6. Run `npx ztd ztd-config` to regenerate DDL-derived test rows and layout metadata.',
+    '7. Run `npx vitest run` to exercise the DB-free and DB-backed smoke tests with the values from `.env`.',
     '8. Run `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` to scaffold a QuerySpec from that SQL file.',
     '9. Start your first real feature under `src/features/users/`, then delete `src/features/smoke/` when you no longer need the sample.',
     ''
@@ -394,7 +402,8 @@ const STARTER_COMPOSE_TEMPLATE = (postgresImage: string): string =>
   [
     '# Starter Postgres environment for ZTD tests.',
     '# Start it with: docker compose up -d',
-    '# After it is running, export ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5432/ztd',
+    '# Copy .env.example to .env and update ZTD_DB_PORT if 5432 is already in use.',
+    '# docker compose reads .env from the project root for variable substitution.',
     '',
     'services:',
     '  postgres:',
@@ -404,7 +413,7 @@ const STARTER_COMPOSE_TEMPLATE = (postgresImage: string): string =>
     '      POSTGRES_PASSWORD: ztd',
     '      POSTGRES_USER: ztd',
     '    ports:',
-    '      - "5432:5432"',
+    '      - "${ZTD_DB_PORT:-5432}:5432"',
     ''
   ].join('\n');
 
@@ -425,6 +434,8 @@ function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): In
     promptDogfoodTemplate: PROMPT_DOGFOOD_TEMPLATE,
     sqlClientTemplate: SQL_CLIENT_TEMPLATE,
     sqlClientAdaptersTemplate: SQL_CLIENT_ADAPTERS_TEMPLATE,
+    envExamplePath: path.join(rootDir, '.env.example'),
+    envExampleTemplate: ENV_EXAMPLE_TEMPLATE,
     featureReadmePath: path.join(rootDir, 'src', 'features', 'README.md'),
     featureReadmeTemplate: FEATURE_ROOT_README_TEMPLATE,
     smokeReadmePath: path.join(rootDir, 'src', 'features', 'smoke', 'README.md'),
@@ -450,6 +461,8 @@ function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): In
     smokeTestTemplate: FEATURE_SMOKE_TEST_TEMPLATE,
     smokeQuerySpecTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'),
     smokeQuerySpecTestTemplate: FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE,
+    setupEnvPath: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'setup-env.ts'),
+    setupEnvTemplate: SETUP_ENV_TEMPLATE,
     sqlClientPath: path.join(rootDir, 'src', 'db', 'sql-client.ts'),
     sqlClientAdaptersPath: path.join(rootDir, 'src', 'db', 'sql-client-adapters.ts')
   };
@@ -616,6 +629,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     schema: path.join(rootDir, DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
     config: path.join(rootDir, 'ztd.config.json'),
     starterCompose: path.join(rootDir, STARTER_COMPOSE_FILE),
+    envExample: path.join(rootDir, '.env.example'),
+    setupEnv: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'setup-env.ts'),
     localSourceGuardScript: path.join(rootDir, 'scripts', 'local-source-guard.mjs'),
     featureRootReadme: scaffoldLayout.featureReadmePath,
     smokeReadme: scaffoldLayout.smokeReadmePath,
@@ -1038,6 +1053,19 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.querySpecExampleTest = querySpecExampleTestSummary;
   }
 
+  const envExampleSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.envExample,
+    relativePath('envExample'),
+    ENV_EXAMPLE_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (envExampleSummary) {
+    summaries.envExample = envExampleSummary;
+  }
+
   const globalSetupSummary = await writeTemplateFile(
     rootDir,
     absolutePaths.globalSetup,
@@ -1049,6 +1077,19 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (globalSetupSummary) {
     summaries.globalSetup = globalSetupSummary;
+  }
+
+  const setupEnvSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.setupEnv,
+    relativePath('setupEnv'),
+    SETUP_ENV_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (setupEnvSummary) {
+    summaries.setupEnv = setupEnvSummary;
   }
 
   if (starter) {
@@ -1112,6 +1153,10 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (gitignoreSummary) {
     summaries.gitignore = gitignoreSummary;
+  }
+  const gitignoreEnvSummary = ensureGitignoreEnvEntries(rootDir, dependencies);
+  if (gitignoreEnvSummary) {
+    summaries.gitignore = gitignoreEnvSummary;
   }
 
   const prettierignoreSummary = copyTemplateFileIfMissing(
@@ -1641,6 +1686,39 @@ function copyTemplateFileIfMissing(
   return { relativePath: relative, outcome: 'created' };
 }
 
+function ensureGitignoreEnvEntries(
+  rootDir: string,
+  dependencies: ZtdConfigWriterDependencies
+): FileSummary | null {
+  const absolutePath = path.join(rootDir, '.gitignore');
+  if (!dependencies.fileExists(absolutePath)) {
+    return null;
+  }
+
+  const current = readFileSync(absolutePath, 'utf8').replace(/\r\n/g, '\n');
+  const requiredEntries = ['.env', '.env.*', '!.env.example'];
+  const preservedLines = current
+    .split('\n')
+    .filter((line) => !requiredEntries.includes(line));
+
+  while (preservedLines.length > 0 && preservedLines[preservedLines.length - 1].trim() === '') {
+    preservedLines.pop();
+  }
+
+  const normalizedLines =
+    preservedLines.length > 0
+      ? [...preservedLines, '', ...requiredEntries]
+      : [...requiredEntries];
+  const updated = `${normalizedLines.join('\n')}\n`;
+
+  if (updated === current) {
+    return null;
+  }
+
+  dependencies.writeFile(absolutePath, updated);
+  return { relativePath: '.gitignore', outcome: 'overwritten' };
+}
+
 function writeOptionalTemplateFile(
   absolutePath: string,
   relative: string,
@@ -1736,6 +1814,7 @@ function ensurePackageJsonFormatting(
     'simple-git-hooks': '^2.13.1'
   };
   const testingDeps: Record<string, string> = {
+    dotenv: '^16.6.1',
     vitest: '^4.0.7',
     typescript: '^5.8.2',
     '@types/node': '^22.13.10'
@@ -2094,7 +2173,7 @@ function buildNextSteps(
   const fallbackSteps = [
     `If ${ztdCommand} ztd-config fails, keep editing ${schemaRelativePath} and the feature-local SQL file first, then rerun generation after the DDL is ready`,
     `If ${ztdCommand} model-gen fails, keep the SQL file and rerun it after ${ztdCommand} ztd-config succeeds; the ztd probe path does not need DATABASE_URL`,
-    'If you do not have ZTD_TEST_DATABASE_URL yet, keep the work DB-free until the connection is ready'
+    'If you do not have .env yet, keep the work DB-free until the connection is ready'
   ];
 
   if (starter) {
@@ -2103,8 +2182,8 @@ function buildNextSteps(
       `Run tests (${runScriptCommand('test')} or npx vitest run src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts) to confirm the DB-free smoke path is green`,
       'Read src/features/smoke/tests/smoke.queryspec.test.ts to see the DB-backed QuerySpec path that also checks connectivity',
       'Run docker compose up -d to start the bundled Postgres container before the DB-backed smoke path',
-      `The bundled compose file uses ${postgresImage}; export ZTD_TEST_DATABASE_URL=postgres://ztd:ztd@localhost:5432/ztd before running src/features/smoke/tests/smoke.queryspec.test.ts`,
-      'Expect src/features/smoke/tests/smoke.queryspec.test.ts to fail until ZTD_TEST_DATABASE_URL is configured; that failure is part of the starter guidance',
+      `The bundled compose file uses ${postgresImage}; copy .env.example to .env and keep ZTD_DB_PORT aligned before running src/features/smoke/tests/smoke.queryspec.test.ts`,
+      'Expect src/features/smoke/tests/smoke.queryspec.test.ts to fail until .env is present or the DB is running; that failure is part of the starter guidance',
       ...generationSteps,
       'Start your first real feature under src/features/users/ after the smoke sample makes sense',
       'Delete src/features/smoke/ once you no longer need the starter sample'
@@ -2112,7 +2191,7 @@ function buildNextSteps(
     const starterFallbackSteps = [
       `If ${ztdCommand} ztd-config fails, keep editing ${schemaRelativePath} and src/features/smoke/persistence/smoke.sql first, then rerun generation after the DDL is ready`,
       `If ${ztdCommand} model-gen fails, keep src/features/smoke/persistence/smoke.sql and rerun it after ${ztdCommand} ztd-config succeeds; the ztd probe path does not need DATABASE_URL`,
-      'If the DB-backed smoke path fails before ZTD_TEST_DATABASE_URL is configured, finish the DB-free smoke path first and come back after the database is ready'
+      'If the DB-backed smoke path fails before .env is configured, finish the DB-free smoke path first and come back after the database is ready'
     ];
     return {
       nextSteps: starterNextSteps.map((step, index) => ` ${index + 1}. ${step}`),
@@ -2219,6 +2298,7 @@ function buildSummaryLines(
     'schema',
     'config',
     'starterCompose',
+    'envExample',
     'readme',
     'context',
     'promptDogfood',
@@ -2243,6 +2323,7 @@ function buildSummaryLines(
     'smokeValidationTest',
     'smokeTest',
     'smokeQuerySpecTest',
+    'setupEnv',
     'querySpecExampleTest',
     'sqlClient',
     'sqlClientAdapters',
@@ -2346,10 +2427,13 @@ function buildInitDryRunPlan(rootDir: string, options: {
     path.join(DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
     path.join('src', 'features', 'README.md'),
     path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
+    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'setup-env.ts'),
     path.join(DEFAULT_ZTD_CONFIG.testsDir, 'queryspec.example.test.ts'),
     path.join(DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-row-map.generated.ts'),
     path.join(DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-layout.generated.ts'),
     'README.md',
+    '.env.example',
+    '.gitignore',
     'src/sql/README.md',
     'vitest.config.ts',
     'tsconfig.json'

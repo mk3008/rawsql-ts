@@ -43,9 +43,12 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       phrases: [
         'This tutorial shows the shortest path from `ztd init --starter` to a small `users` feature',
         'Docker Desktop or another Docker daemon is already running',
-        'If port `5432` is already in use, stop the conflicting process or run Postgres on another port and update `ZTD_TEST_DATABASE_URL`, for example:',
-        'docker run -d --rm --name ztd-starter-pg',
-        '-p 5433:5432',
+        'cp .env.example .env',
+        '# edit ZTD_DB_PORT=5433',
+        'docker compose up -d',
+        'The starter setup derives `ZTD_TEST_DATABASE_URL` from `.env`',
+        'If port `5432` is already in use, update `ZTD_DB_PORT` in `.env` before you rerun the compose path, for example:',
+        'Copy-Item .env.example .env',
         'npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail',
         'Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.',
         'npx ztd model-gen --probe-mode ztd src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts',
@@ -185,13 +188,15 @@ test('quickstart and tutorial spell out the common 5432 collision fallback', () 
   const scaffoldReadme = readNormalizedFile('packages/ztd-cli/templates/README.md');
   const tutorial = readNormalizedFile('docs/guide/sql-first-end-to-end-tutorial.md');
 
-  expect(packageReadme).toContain('If `5432` is busy, use another local port and update `ZTD_TEST_DATABASE_URL`.');
+  expect(packageReadme).toContain('.env.example');
+  expect(packageReadme).toContain('ZTD_DB_PORT');
+  expect(packageReadme).toContain('The generated Vitest setup derives `ZTD_TEST_DATABASE_URL` from `.env`');
   expect(packageReadme).toContain('Docker Desktop or another Docker daemon is already running');
   expect(scaffoldReadme).toContain(
-    'If `5432` is already in use, stop the conflicting process or run Postgres on another local port and update `ZTD_TEST_DATABASE_URL` before you run those suites, for example:'
+    'If `5432` is already in use, change `ZTD_DB_PORT` in `.env` before you run those suites, for example:'
   );
-  expect(tutorial).toContain('If port `5432` is already in use, stop the conflicting process or run Postgres on another port and update `ZTD_TEST_DATABASE_URL`, for example:');
-  expect(tutorial).toContain('docker run -d --rm --name ztd-starter-pg');
-  expect(tutorial).toContain('-p 5433:5432');
-  expect(tutorial).toContain('$env:ZTD_TEST_DATABASE_URL = \'postgres://ztd:ztd@localhost:5433/ztd\'');
+  expect(scaffoldReadme).toContain('The generated Vitest setup derives `ZTD_TEST_DATABASE_URL` from `.env`');
+  expect(tutorial).toContain('If port `5432` is already in use, update `ZTD_DB_PORT` in `.env` before you rerun the compose path, for example:');
+  expect(tutorial).toContain('cp .env.example .env');
+  expect(tutorial).toContain('Copy-Item .env.example .env');
 });

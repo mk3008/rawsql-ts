@@ -39,7 +39,7 @@ test('smoke QuerySpec connects to the configured DB and runs the minimal named-p
   const connectionString = process.env.ZTD_TEST_DATABASE_URL;
   if (!connectionString) {
     throw new Error(
-      'Set ZTD_TEST_DATABASE_URL before running src/features/smoke/tests/smoke.queryspec.test.ts.'
+      'Set ZTD_DB_PORT in .env before running src/features/smoke/tests/smoke.queryspec.test.ts.'
     );
   }
 
