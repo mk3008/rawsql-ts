@@ -119,17 +119,18 @@ function isDdlLintMode(value?: string): value is DdlLintMode {
  */
 export function writeZtdProjectConfig(
   rootDir: string,
-  overrides: Partial<ZtdProjectConfig> = {}
-): void {
-  const baseConfig = loadZtdProjectConfig(rootDir);
-  const finalConfig: ZtdProjectConfig = {
-    ...baseConfig,
-    ...overrides,
-    ddl: {
-      ...baseConfig.ddl,
-      ...(overrides.ddl ?? {})
-    }
-  };
+  overrides: Partial<ZtdProjectConfig> = {},
+  baseConfig: ZtdProjectConfig = loadZtdProjectConfig(rootDir)
+): boolean {
+  const finalConfig = mergeProjectConfig(baseConfig, overrides);
+  const existingPath = resolveZtdConfigPath(rootDir);
+  const existingConfigPresent = existsSync(existingPath);
+  const baseSerialized = `${JSON.stringify(baseConfig, null, 2)}\n`;
+  const finalSerialized = `${JSON.stringify(finalConfig, null, 2)}\n`;
+  if (existingConfigPresent && baseSerialized === finalSerialized) {
+    return false;
+  }
+
   const resolvedConnection = mergeConnectionConfig(baseConfig.connection, overrides.connection);
   if (resolvedConnection) {
     finalConfig.connection = resolvedConnection;
@@ -137,8 +138,8 @@ export function writeZtdProjectConfig(
     delete finalConfig.connection;
   }
 
-  const serialized = `${JSON.stringify(finalConfig, null, 2)}\n`;
-  writeFileSync(resolveZtdConfigPath(rootDir), serialized, 'utf8');
+  writeFileSync(existingPath, `${JSON.stringify(finalConfig, null, 2)}\n`, 'utf8');
+  return true;
 }
 
 /**
@@ -215,6 +216,20 @@ function mergeConnectionConfig(
   }
 
   return merged;
+}
+
+function mergeProjectConfig(
+  baseConfig: ZtdProjectConfig,
+  overrides: Partial<ZtdProjectConfig>
+): ZtdProjectConfig {
+  return {
+    ...baseConfig,
+    ...overrides,
+    ddl: {
+      ...baseConfig.ddl,
+      ...(overrides.ddl ?? {})
+    }
+  };
 }
 
 function emitLegacyConnectionConfigWarning(filePath: string): void {

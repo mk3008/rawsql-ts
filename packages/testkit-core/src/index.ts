@@ -11,6 +11,7 @@ export { TableNameResolver, type TableNameResolverOptions, type TableLookup } fr
 export type { DdlProcessedFixture } from './fixtures/DdlFixtureLoader';
 export {
   DEFAULT_DDL_LINT_MODE,
+  analyzeDdlSources,
   applyDdlLintMode,
   formatDdlLintDiagnostics,
   lintDdlSources,
@@ -21,6 +22,7 @@ export type {
   DdlLintMode,
   DdlLintOptions,
   DdlLintSource,
+  DdlSourceAnalysis,
 } from './fixtures/ddlLint';
 export { ResultSelectRewriter } from './rewriter/ResultSelectRewriter';
 export { alignRewrittenParameters, applyCountWrapper, extractCountValue, CountableResult } from './utils/queryHelpers';
