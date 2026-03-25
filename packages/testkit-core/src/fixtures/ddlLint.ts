@@ -65,6 +65,16 @@ export interface DdlLintOptions {
 }
 
 /**
+ * Parsed DDL statements grouped by kind, plus the diagnostics computed from them.
+ */
+export interface DdlSourceAnalysis {
+  createStatements: Array<{ ast: CreateTableQuery; context: StatementContext }>;
+  alterStatements: Array<{ ast: AlterTableStatement; context: StatementContext }>;
+  indexStatements: Array<{ ast: CreateIndexStatement; context: StatementContext }>;
+  diagnostics: DdlLintDiagnostic[];
+}
+
+/**
  * Default lint mode used when none is specified.
  */
 export const DEFAULT_DDL_LINT_MODE: DdlLintMode = 'strict';
@@ -109,8 +119,23 @@ export function lintDdlSources(
   sources: DdlLintSource[],
   options: DdlLintOptions = {}
 ): DdlLintDiagnostic[] {
+  return analyzeDdlSources(sources, options).diagnostics;
+}
+
+/**
+ * Parses and analyzes DDL sources once so linting and metadata consumers can reuse the same statement stream.
+ */
+export function analyzeDdlSources(
+  sources: DdlLintSource[],
+  options: DdlLintOptions = {}
+): DdlSourceAnalysis {
   if (sources.length === 0) {
-    return [];
+    return {
+      createStatements: [],
+      alterStatements: [],
+      indexStatements: [],
+      diagnostics: []
+    };
   }
 
   const resolver = options.tableNameResolver ?? new TableNameResolver();
@@ -423,7 +448,12 @@ export function lintDdlSources(
     }
   }
 
-  return sortDiagnostics(diagnostics);
+  return {
+    createStatements,
+    alterStatements,
+    indexStatements,
+    diagnostics: sortDiagnostics(diagnostics)
+  };
 }
 
 /**

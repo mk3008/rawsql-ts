@@ -53,9 +53,9 @@ export async function runGenerateZtdConfig(options: ZtdConfigGenerationOptions):
   const {
     TableNameResolver,
     DdlLintError,
+    analyzeDdlSources,
     applyDdlLintMode,
     formatDdlLintDiagnostics,
-    lintDdlSources,
     normalizeDdlLintMode
   } = testkitCore;
 
@@ -72,8 +72,9 @@ export async function runGenerateZtdConfig(options: ZtdConfigGenerationOptions):
 
   // Validate the DDL sources up front so fixture metadata is generated from a consistent schema.
   const lintMode = normalizeDdlLintMode(options.ddlLint);
+  const analysis = analyzeDdlSources(sources, { tableNameResolver: resolver });
   if (lintMode !== 'off') {
-    const diagnostics = lintDdlSources(sources, { tableNameResolver: resolver });
+    const diagnostics = analysis.diagnostics;
     if (diagnostics.length > 0) {
       const adjusted = applyDdlLintMode(diagnostics, lintMode);
       if (lintMode === 'strict') {
@@ -83,7 +84,10 @@ export async function runGenerateZtdConfig(options: ZtdConfigGenerationOptions):
     }
   }
 
-  const tables = snapshotTableMetadata(sources, resolver);
+  const tables = buildTableMetadataFromCreateStatements(
+    analysis.createStatements.map((entry) => entry.ast),
+    resolver
+  );
   if (tables.length === 0) {
     throw new Error('The provided DDL sources did not contain any CREATE TABLE statements.');
   }
@@ -108,8 +112,12 @@ export async function runGenerateZtdConfig(options: ZtdConfigGenerationOptions):
 }
 
 export function snapshotTableMetadata(sources: SqlSource[], resolver?: TableNameResolver): TableMetadata[] {
-  const registry = new Map<string, TableMetadata>();
-  // Track tables by their SQL name so each definition is emitted only once.
+  const createStatements = collectCreateTableStatements(sources);
+  return buildTableMetadataFromCreateStatements(createStatements, resolver);
+}
+
+function collectCreateTableStatements(sources: SqlSource[]): CreateTableQuery[] {
+  const createStatements: CreateTableQuery[] = [];
   for (const source of sources) {
     // Split multi-statement files so each CREATE TABLE can be processed independently.
     const batch = MultiQuerySplitter.split(source.sql);
@@ -119,45 +127,53 @@ export function snapshotTableMetadata(sources: SqlSource[], resolver?: TableName
         continue;
       }
 
-      let ast: CreateTableQuery | undefined;
       try {
         const parsed = SqlParser.parse(query.sql);
         if (parsed instanceof CreateTableQuery) {
-          ast = parsed;
+          createStatements.push(parsed);
         }
       } catch (_error) {
         continue;
       }
+    }
+  }
 
-      if (!ast) {
-        continue;
-      }
+  return createStatements;
+}
 
-      const definition = createTableDefinitionFromCreateTableQuery(ast);
+function buildTableMetadataFromCreateStatements(
+  createStatements: CreateTableQuery[],
+  resolver?: TableNameResolver
+): TableMetadata[] {
+  const registry = new Map<string, TableMetadata>();
+  // Track tables by their SQL name so each definition is emitted only once.
+  for (const ast of createStatements) {
+    const definition = createTableDefinitionFromCreateTableQuery(ast);
 
-      // Normalize table names so the generated config mirrors resolver expectations.
-      const canonicalName = resolver?.resolve(definition.name) ?? definition.name;
+    // Normalize table names so the generated config mirrors resolver expectations.
+    const canonicalName = resolver?.resolve(definition.name) ?? definition.name;
 
-      if (registry.has(canonicalName)) {
-        continue;
-      }
+    if (registry.has(canonicalName)) {
+      continue;
+    }
 
-      // Reuse the runtime-ready table definition model so the generated metadata can feed testkit directly.
-      const columns = definition.columns.map((column) => ({
+    // Reuse the runtime-ready table definition model so the generated metadata can feed testkit directly.
+    const columns = definition.columns.map((column) => {
+      return {
         name: column.name,
         typeName: column.typeName,
         isNullable: !column.isNotNull,
         required: Boolean(column.required),
         defaultValue: formatDefaultValue(column.defaultValue),
         isNotNull: Boolean(column.isNotNull)
-      }));
+      };
+    });
 
-      registry.set(canonicalName, {
-        name: canonicalName,
-        testRowInterfaceName: buildTestRowInterfaceName(canonicalName),
-        columns
-      });
-    }
+    registry.set(canonicalName, {
+      name: canonicalName,
+      testRowInterfaceName: buildTestRowInterfaceName(canonicalName),
+      columns
+    });
   }
 
   return Array.from(registry.values()).sort((a, b) => a.name.localeCompare(b.name));

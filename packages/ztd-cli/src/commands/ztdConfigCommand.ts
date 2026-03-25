@@ -164,6 +164,7 @@ export function registerZtdConfigCommand(program: Command): void {
 
         return {
           merged,
+          projectConfig,
           shouldUpdateConfig,
           ddlOverrides,
           validatedOutput,
@@ -176,11 +177,18 @@ export function registerZtdConfigCommand(program: Command): void {
         command: 'ztd-config',
       });
 
+      let configUpdated = false;
       if (commandState.shouldUpdateConfig && !commandState.merged.dryRun) {
         await withSpan('persist-project-config', async () => {
-          writeZtdProjectConfig(process.cwd(), { ddl: commandState.ddlOverrides });
-          emitDiagnostic({ code: 'ztd-config.config-updated', message: 'ztd.config.json ddl schema settings updated.' });
-          emitDecisionEvent('config.updated');
+          configUpdated = writeZtdProjectConfig(
+            process.cwd(),
+            { ddl: commandState.ddlOverrides },
+            commandState.projectConfig
+          );
+          if (configUpdated) {
+            emitDiagnostic({ code: 'ztd-config.config-updated', message: 'ztd.config.json ddl schema settings updated.' });
+            emitDecisionEvent('config.updated');
+          }
         });
       }
 
@@ -202,7 +210,7 @@ export function registerZtdConfigCommand(program: Command): void {
           writeCommandEnvelope('ztd-config', {
             schemaVersion: 1,
             dryRun: commandState.merged.dryRun,
-            configUpdated: commandState.shouldUpdateConfig && !commandState.merged.dryRun,
+            configUpdated,
             outputs: [
               { path: commandState.validatedOutput, bytes: generation.rendered.length, written: !commandState.merged.dryRun },
               { path: commandState.validatedManifestOut, bytes: generation.manifestRendered.length, written: !commandState.merged.dryRun },

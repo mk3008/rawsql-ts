@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -16,6 +16,38 @@ async function loadConfigModule() {
   vi.resetModules();
   return import('../src/utils/ztdProjectConfig');
 }
+
+test('writeZtdProjectConfig skips rewriting when the effective config is unchanged', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-config-write-noop-'));
+  tempDirs.push(rootDir);
+
+  writeFileSync(
+    path.join(rootDir, 'ztd.config.json'),
+    JSON.stringify(
+      {
+        dialect: 'postgres',
+        ddlDir: 'ztd/ddl',
+        testsDir: 'tests',
+        ddl: { defaultSchema: 'public', searchPath: ['public'] },
+        ddlLint: 'strict'
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+
+  const { loadZtdProjectConfig, writeZtdProjectConfig } = await loadConfigModule();
+  const config = loadZtdProjectConfig(rootDir);
+  const beforeContents = readFileSync(path.join(rootDir, 'ztd.config.json'), 'utf8');
+  const beforeStat = statSync(path.join(rootDir, 'ztd.config.json'));
+
+  const didWrite = writeZtdProjectConfig(rootDir, {}, config);
+
+  expect(didWrite).toBe(false);
+  expect(readFileSync(path.join(rootDir, 'ztd.config.json'), 'utf8')).toBe(beforeContents);
+  expect(statSync(path.join(rootDir, 'ztd.config.json')).mtimeMs).toBe(beforeStat.mtimeMs);
+});
 
 test('loadZtdProjectConfig warns when legacy connection config is present', async () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-config-legacy-'));
