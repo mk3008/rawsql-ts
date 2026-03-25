@@ -27,5 +27,7 @@ test('analyzeDdlSources reuses the same parsed stream for lint diagnostics and t
   const analysis = analyzeDdlSources(sources);
 
   expect(analysis.createStatements).toHaveLength(1);
+  expect(analysis.indexStatements).toHaveLength(1);
+  expect(analysis.alterStatements).toHaveLength(0);
   expect(analysis.diagnostics).toEqual(lintDdlSources(sources));
 });
