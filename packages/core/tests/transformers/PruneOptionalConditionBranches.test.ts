@@ -175,7 +175,7 @@ describe('pruneOptionalConditionBranches', () => {
         expect(afterSql).toBe(beforeSql);
     });
 
-    it('is exact no-op for unsupported patterns', () => {
+    it('prunes richer single-parameter branches without rewriting their inner predicate shape', () => {
         const sql = `
             SELECT p.product_id
             FROM products p
@@ -187,10 +187,21 @@ describe('pruneOptionalConditionBranches', () => {
               )
         `;
 
-        const beforeSql = formatSql(sql);
         const afterSql = formatSql(sql, { brand_name: null });
 
-        expect(afterSql).toBe(beforeSql);
+        expect(afterSql).toBe('select "p"."product_id" from "products" as "p"');
+    });
+
+    it('prunes LIKE-based optional branches that only depend on the targeted parameter', () => {
+        const sql = `
+            SELECT p.product_id
+            FROM products p
+            WHERE (:brand_name IS NULL OR lower(p.brand_name) LIKE lower(:brand_name))
+        `;
+
+        const formattedSql = formatSql(sql, { brand_name: null });
+
+        expect(formattedSql).toBe('select "p"."product_id" from "products" as "p"');
     });
 
     it('leaves non-top-level optional branches untouched', () => {

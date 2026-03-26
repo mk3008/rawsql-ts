@@ -11,9 +11,10 @@ Use it when the problem is not "how do I use every command?" but "which command 
 | I suspect the optimizer is confused by a predicate or CTE | `ztd query plan <sql-file>` | `ztd perf run --dry-run ...` and the perf tuning decision guide | `query uses` |
 | I need to decide between index tuning and pipeline tuning for a high-volume query | `ztd query plan <sql-file>` plus QuerySpec `metadata.perf` | `ztd perf db reset --dry-run`, then `ztd perf run ...`, then direct vs decomposed comparison | Telemetry before plan or perf evidence exists |
 | I need to confirm where a table or column is used before changing it | `ztd query uses <target>` | `ztd query lint <path>` | Telemetry |
+| I have an observed SQL statement from logs and need to find the original asset | `ztd query match-observed --sql-file <path>` | `ztd query uses` if the observed SQL later reveals a stable `queryId` path | `query uses` as the first step |
 | I need timing, trace export, or machine-readable execution evidence | Telemetry mode for the command under investigation | The structural command that produced the suspicious result | Starting with telemetry before the SQL shape is known |
 | I need to inspect generated SQL or rewritten predicates | `ztd query plan <sql-file>` plus the focused SQL/debug workflow for the scenario | Integration or DB-backed verification | `query uses` |
-| I need to add optional search filters without falling back to SQL concatenation | SSSQL truthful branches plus `optionalConditionParameters` | Focused pruning verification in unit tests | Telemetry, `query uses` |
+| I need to add optional search filters without falling back to SQL concatenation | `ztd query sssql scaffold` / `ztd query sssql refresh` plus truthful branches and `optionalConditionParameters` | Focused pruning verification in unit tests | Telemetry, `query uses` |
 | I need to decide whether an optional filter belongs in DynamicQueryBuilder or SSSQL | [Dynamic Filter Routing](./dynamic-filter-routing.md) | Add the focused routing dogfooding test | Guessing from prompt wording alone |
 
 ## Recommended dogfooding loop for SQL pipeline work
@@ -64,6 +65,21 @@ Good fits include:
 
 If the task is about runtime semantics, plan shape, or optimizer-facing SQL simplification, `query uses` is usually not the first tool.
 
+### `query match-observed`
+
+Use `query match-observed` when you only have observed SQL from a DB log, tracing system, or load monitor and you need to guess which `.sql` asset most likely produced it.
+It is the structural reverse lookup for cases where `queryId` is missing.
+
+Look for:
+
+- projection overlap
+- FROM / JOIN graph overlap
+- predicate family overlap
+- ORDER BY overlap
+- LIMIT / OFFSET presence
+
+This command is intentionally SELECT-first and does not try to prove semantic equivalence.
+
 ### Telemetry
 
 Telemetry is an opt-in branch after the structural path is known.
@@ -74,6 +90,7 @@ Use it when you need:
 - evidence that the command boundary or export path is wrong
 
 Telemetry is intentionally not the default happy path for normal SQL dogfooding.
+When `queryId` is available, telemetry should be your first stop; when it is not, use `query match-observed` first and telemetry second.
 
 Saved telemetry regression scenarios live in [Telemetry Dogfooding Scenarios](../dogfooding/telemetry-dogfooding.md).
 
@@ -91,7 +108,7 @@ The current routing now has saved regression scenarios for the following previou
 |-----------|----------------|----------------|
 | Telemetry | `query uses`, `model-gen`, and `perf run --dry-run` timelines | Keeps phase attribution stable when the command result is correct but the boundary between phases is not. |
 | SQL/debug flow | Long-CTE recovery loop with `query outline`, `query lint`, `query slice`, `query patch apply`, and `perf run` | Preserves the shortest command sequence that is enough to decide the next repair or tuning step. |
-| SSSQL authoring | Optional-condition request -> truthful SQL branch -> explicit pruning parameters | Keeps optional-filter requests on the SQL-first path instead of regressing to string-built WHERE assembly. |
+| SSSQL authoring | Optional-condition request -> `query sssql scaffold` / `query sssql refresh` -> explicit pruning parameters | Keeps optional-filter requests on the SQL-first path instead of regressing to string-built WHERE assembly. Runtime no longer injects new filter predicates. |
 | Perf scale tuning | QuerySpec perf metadata -> DDL/index inventory -> index-vs-pipeline guidance | Keeps high-volume tuning loops explicit about whether the next step is DDL/index work or SQL decomposition. |
 
 When a tool keeps existing but does not become the natural first step in dogfooding, add a scenario that makes its happy path unavoidable.

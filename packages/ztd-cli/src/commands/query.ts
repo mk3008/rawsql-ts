@@ -8,6 +8,10 @@ import {
   type QueryPipelinePlanFormat
 } from '../query/planner';
 import { buildQueryUsageReport, writeQueryUsageOutput } from '../query/report';
+import {
+  buildObservedSqlMatchReport,
+  formatObservedSqlMatchReport
+} from '@rawsql-ts/sql-grep-core';
 import { buildQuerySliceReport } from '../query/slice';
 import {
   buildQueryStructureReport,
@@ -16,6 +20,8 @@ import {
 } from '../query/structure';
 import { getAgentOutputFormat, isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
 import { withSpanSync } from '../utils/telemetry';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { SssqlQueryTransformer, type SssqlScaffoldFilters, SqlFormatter } from 'rawsql-ts';
 
 interface QueryUsesOptions {
   format?: string;
@@ -59,6 +65,26 @@ interface QueryPatchApplyOptions {
   preview?: boolean;
 }
 
+interface QuerySssqlScaffoldOptions {
+  format?: string;
+  out?: string;
+  json?: string;
+  filter?: Record<string, unknown>;
+  filters?: Record<string, unknown>;
+}
+
+interface QuerySssqlRefreshOptions {
+  format?: string;
+  out?: string;
+}
+
+interface QueryMatchObservedOptions {
+  format?: string;
+  out?: string;
+  sql?: string;
+  sqlFile?: string;
+}
+
 interface QueryLintOptions {
   format?: string;
   out?: string;
@@ -90,6 +116,7 @@ Examples:
   $ ztd query plan large_query.sql --material base_cte --scalar-filter-column sale_date --format json
   $ ztd query patch apply large_query.sql --cte purchase_summary --from edited_slice.sql --preview
   $ ztd query lint large_query.sql --format json
+  $ ztd query match-observed --sql-file observed.sql --format json
 
 Notes:
   - Strict mode is the default. Relaxed modes are explicit opt-in only.
@@ -216,6 +243,38 @@ Notes:
     )
     .action((sqlFile: string, options: QueryLintOptions) => {
       runQueryLintCommand(sqlFile, options);
+    });
+
+  query
+    .command('match-observed')
+    .description('Rank candidate SQL assets for an observed SELECT statement')
+    .option('--sql <sql>', 'Observed SQL text to rank')
+    .option('--sql-file <path>', 'Read the observed SQL text from a file')
+    .option('--format <format>', 'Output format (text|json)', 'text')
+    .option('--out <path>', 'Write output to file')
+    .action((options: QueryMatchObservedOptions) => {
+      runQueryMatchObservedCommand(options);
+    });
+
+  const sssql = query.command('sssql').description('Generate and refresh SQL-first optional filter scaffolds');
+
+  sssql
+    .command('scaffold <sqlFile>')
+    .description('Generate SSSQL optional filter scaffolds near the closest source query')
+    .option('--format <format>', 'Output format (text|json)', 'text')
+    .option('--json <payload>', 'Pass command options as a JSON object')
+    .option('--out <path>', 'Write output to file')
+    .action((sqlFile: string, options: QuerySssqlScaffoldOptions) => {
+      runQuerySssqlScaffoldCommand(sqlFile, options);
+    });
+
+  sssql
+    .command('refresh <sqlFile>')
+    .description('Refresh existing SSSQL optional filter scaffolds without changing predicate meaning')
+    .option('--format <format>', 'Output format (text|json)', 'text')
+    .option('--out <path>', 'Write output to file')
+    .action((sqlFile: string, options: QuerySssqlRefreshOptions) => {
+      runQuerySssqlRefreshCommand(sqlFile, options);
     });
 
   query
@@ -349,6 +408,29 @@ function runQueryLintCommand(sqlFile: string, options: QueryLintOptions): void {
   console.log(contents.trimEnd());
 }
 
+function runQueryMatchObservedCommand(options: QueryMatchObservedOptions): void {
+  const format = normalizeFormat(normalizeStringOption(options.format) ?? getAgentOutputFormat());
+  const observedSql = resolveObservedSqlInput(options);
+  const report = buildObservedSqlMatchReport({
+    observedSql,
+    rootDir: process.env.ZTD_PROJECT_ROOT ?? process.cwd()
+  });
+  const contents = formatObservedSqlMatchReport(report, format);
+
+  if (options.out) {
+    writeQueryUsageOutput(options.out, contents);
+  } else if (format === 'json') {
+    process.stdout.write(contents);
+  } else {
+    console.log(contents.trimEnd());
+  }
+
+  if (report.matches.length === 0) {
+    console.error('No candidate SELECT assets were found for the observed SQL.');
+    process.exitCode = 1;
+  }
+}
+
 function normalizeRuleList(value: unknown): Array<'join-direction'> | undefined {
   if (value === undefined || value === null || value === '') {
     return undefined;
@@ -419,6 +501,64 @@ function runQueryPatchApplyCommand(sqlFile: string, options: QueryPatchApplyOpti
   process.stdout.write('\n');
 }
 
+function runQuerySssqlScaffoldCommand(sqlFile: string, options: QuerySssqlScaffoldOptions): void {
+  const resolved = options.json
+    ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') }
+    : options;
+  const filters = normalizeSssqlFilters(resolved.filter ?? resolved.filters);
+  const sql = readFileSync(sqlFile, 'utf8');
+  const result = new SssqlQueryTransformer().scaffold(sql, filters);
+  const formatted = new SqlFormatter().format(result.query).formattedSql;
+  const outputFile = normalizeStringOption(resolved.out);
+  const format = normalizeFormat(normalizeStringOption(resolved.format) ?? getAgentOutputFormat());
+
+  if (outputFile) {
+    writeFileSync(outputFile, `${formatted}\n`, 'utf8');
+    if (format !== 'json') {
+      return;
+    }
+  }
+
+  if (format === 'json') {
+    writeCommandEnvelope('query sssql scaffold', {
+      file: sqlFile,
+      output_file: outputFile ?? null,
+      written: Boolean(outputFile),
+      sql: formatted,
+    });
+    return;
+  }
+
+  process.stdout.write(`${formatted}\n`);
+}
+
+function runQuerySssqlRefreshCommand(sqlFile: string, options: QuerySssqlRefreshOptions): void {
+  const sql = readFileSync(sqlFile, 'utf8');
+  const result = new SssqlQueryTransformer().refresh(sql);
+  const formatted = new SqlFormatter().format(result.query).formattedSql;
+  const outputFile = normalizeStringOption(options.out);
+  const format = normalizeFormat(normalizeStringOption(options.format) ?? getAgentOutputFormat());
+
+  if (outputFile) {
+    writeFileSync(outputFile, `${formatted}\n`, 'utf8');
+    if (format !== 'json') {
+      return;
+    }
+  }
+
+  if (format === 'json') {
+    writeCommandEnvelope('query sssql refresh', {
+      file: sqlFile,
+      output_file: outputFile ?? null,
+      written: Boolean(outputFile),
+      sql: formatted,
+    });
+    return;
+  }
+
+  process.stdout.write(`${formatted}\n`);
+}
+
 function normalizeLimit(value: unknown): number | undefined {
   if (value === undefined) {
     return undefined;
@@ -484,6 +624,44 @@ function normalizeListOption(value: unknown, label: string): string[] | undefine
   }
 
   return normalized.length > 0 ? normalized : undefined;
+}
+
+function normalizeSssqlFilters(value: unknown): SssqlScaffoldFilters {
+  if (value === undefined || value === null) {
+    return {};
+  }
+
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`Expected SSSQL filters to be a JSON object but received ${typeof value}.`);
+  }
+
+  const filters = value as Record<string, unknown>;
+  const normalized: SssqlScaffoldFilters = {};
+
+  for (const [key, rawValue] of Object.entries(filters)) {
+    normalized[key] = rawValue as SssqlScaffoldFilters[string];
+  }
+
+  return normalized;
+}
+
+function resolveObservedSqlInput(options: QueryMatchObservedOptions): string {
+  const sqlText = normalizeStringOption(options.sql);
+  const sqlFile = normalizeStringOption(options.sqlFile);
+
+  if (sqlText && sqlFile) {
+    throw new Error('Use either --sql or --sql-file, not both.');
+  }
+
+  if (sqlText) {
+    return sqlText;
+  }
+
+  if (sqlFile) {
+    return readFileSync(sqlFile, 'utf8');
+  }
+
+  throw new Error('Provide observed SQL with --sql or --sql-file.');
 }
 
 function normalizeFormat(format: string): 'text' | 'json' {

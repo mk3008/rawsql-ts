@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { DynamicQueryBuilder } from '../../src/transformers/DynamicQueryBuilder';
+import { SSSQLFilterBuilder } from '../../src/transformers/SSSQLFilterBuilder';
 import { SqlFormatter } from '../../src/transformers/SqlFormatter';
 
 const normalizeSql = (sql: string): string => sql.replace(/\s+/g, ' ').trim().toLowerCase();
 
 describe('Dynamic filter routing dogfooding', () => {
-  it('dogfood: dynamic filters stay on DynamicQueryBuilder when the query already exposes the target columns', () => {
+  it('dogfood: runtime DynamicQueryBuilder no longer injects new filter predicates', () => {
     const builder = new DynamicQueryBuilder();
-    const query = builder.buildQuery(`
+
+    expect(() => builder.buildQuery(`
       SELECT u.id, p.name
       FROM users u
       JOIN profiles p
@@ -17,54 +19,32 @@ describe('Dynamic filter routing dogfooding', () => {
       filter: {
         'profiles.name': 'Alice'
       }
-    });
-
-    const { formattedSql, params } = new SqlFormatter().format(query);
-    const normalized = normalizeSql(formattedSql);
-
-    expect(normalized).toContain('where "u"."active" = true and "p"."name" = :profiles_name');
-    expect(params).toEqual({ profiles_name: 'Alice' });
+    })).toThrow(/ztd query sssql scaffold/i);
   });
 
-  it('dogfood: SSSQL covers optional filters that need tables outside the current query graph', () => {
-    const builder = new DynamicQueryBuilder();
+  it('dogfood: SSSQL scaffold owns optional filter authoring before runtime pruning', () => {
+    const scaffoldBuilder = new SSSQLFilterBuilder();
+    const runtimeBuilder = new DynamicQueryBuilder();
     const baseSql = `
       SELECT p.product_id, p.product_name
       FROM products p
       WHERE p.active = true
     `;
 
-    expect(() => builder.buildQuery(baseSql, {
-      filter: {
-        'categories.category_name': 'shoes'
-      }
-    })).toThrow(/category_name/i);
+    const scaffolded = scaffoldBuilder.scaffold(baseSql, {
+      'products.product_name': 'shoe'
+    });
 
-    const sssqlQuery = builder.buildQuery(`
-      SELECT p.product_id, p.product_name
-      FROM products p
-      WHERE p.active = true
-        AND (
-          :category_name IS NULL
-          OR EXISTS (
-            SELECT 1
-            FROM product_categories pc
-            JOIN categories c
-              ON c.category_id = pc.category_id
-            WHERE pc.product_id = p.product_id
-              AND c.category_name = :category_name
-          )
-        )
-    `, {
+    const query = runtimeBuilder.buildQuery(new SqlFormatter().format(scaffolded).formattedSql, {
       optionalConditionParameters: {
-        category_name: null
+        products_product_name: null
       }
     });
 
-    const normalized = normalizeSql(new SqlFormatter().format(sssqlQuery).formattedSql);
+    const normalized = normalizeSql(new SqlFormatter().format(query).formattedSql);
     expect(normalized).toContain('from "products" as "p"');
-    expect(normalized).not.toContain(':category_name');
-    expect(normalized).not.toContain('categories');
+    expect(normalized).not.toContain(':products_product_name');
+    expect(normalized).not.toContain('is null or "p"."product_name" = :products_product_name');
   });
 
   it('dogfood: hardcoded predicates stay mandatory while removable SSSQL branches prune on null', () => {
