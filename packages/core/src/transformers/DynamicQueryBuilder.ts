@@ -106,7 +106,10 @@ export type FilterConditions = Record<string, FilterConditionValue>;
  * Options for dynamic query building
  */
 export interface QueryBuildOptions {
-    /** Filter conditions to inject into WHERE clause */
+    /**
+     * Legacy filter input for named-parameter binding only.
+     * Dynamic predicate injection is no longer supported and will fail fast.
+     */
     filter?: FilterConditions;
     /** Sort conditions to inject into ORDER BY clause */
     sort?: SortConditions;
@@ -432,12 +435,12 @@ export class DynamicQueryBuilder {
     }
 
     /**
-     * Builds a SelectQuery with only filtering applied.
-     * Convenience method for when you only need dynamic WHERE conditions.
+     * Legacy helper for binding existing named parameters without adding new runtime predicates.
+     * Dynamic WHERE-condition injection is no longer supported; use SSSQL scaffold/refresh instead.
      *
      * @param sqlContent Raw SQL string to parse and modify
-     * @param filter Filter conditions to apply
-     * @returns Modified SelectQuery with filter conditions applied
+     * @param filter Named parameters to bind when they already exist in the SQL
+     * @returns Modified SelectQuery after binding existing named parameters
      */
     buildFilteredQuery(sqlContent: string, filter: FilterConditions): SelectQuery {
         return this.buildQuery(sqlContent, { filter });
