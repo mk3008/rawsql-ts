@@ -37,7 +37,10 @@ test('smoke starter DB path connects through testkit-postgres and resolves the s
     const result = await client.query('select id, email from users where id = $1', [1]);
     expect(result.rows).toEqual([{ id: 1, email: 'alice@example.com' }]);
   } finally {
-    await client.close();
-    await pool.end();
+    try {
+      await client.close();
+    } finally {
+      await pool.end();
+    }
   }
 });
