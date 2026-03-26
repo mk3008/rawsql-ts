@@ -54,7 +54,7 @@ export function loadStarterPostgresDefaults(rootDir: string = process.cwd()): St
   const projectConfig = loadStarterProjectConfig(rootDir);
   const resolvedProjectRootDir = path.resolve(rootDir, projectConfig.ztdRootDir ?? '.');
   const resolvedDdl = typeof projectConfig.ddl === 'object' && projectConfig.ddl !== null ? projectConfig.ddl : undefined;
-  // Prefer config-driven schema defaults so later DB-backed tests can reuse the same setup.
+  // Prefer top-level config defaults first, then fall back to the legacy ddl block.
   const defaultSchema =
     typeof projectConfig.defaultSchema === 'string' && projectConfig.defaultSchema.length > 0
       ? projectConfig.defaultSchema

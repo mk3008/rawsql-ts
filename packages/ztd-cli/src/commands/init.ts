@@ -754,6 +754,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     () => {
       writeZtdProjectConfig(rootDir, {
         ztdRootDir: '.',
+        defaultSchema: schemaName,
+        searchPath: [schemaName],
         ddl: {
           defaultSchema: schemaName,
           searchPath: [schemaName]

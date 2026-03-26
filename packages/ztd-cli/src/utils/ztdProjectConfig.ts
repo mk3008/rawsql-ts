@@ -16,6 +16,8 @@ export interface ZtdProjectConfig {
   dialect: string;
   ddlDir: string;
   testsDir: string;
+  defaultSchema: string;
+  searchPath: string[];
   ddl: {
     defaultSchema: string;
     searchPath: string[];
@@ -39,6 +41,8 @@ export const DEFAULT_ZTD_CONFIG: ZtdProjectConfig = {
   dialect: 'postgres',
   ddlDir: 'ztd/ddl',
   testsDir: 'tests',
+  defaultSchema: 'public',
+  searchPath: ['public'],
   ddl: { ...DEFAULT_DDL_PROPERTIES },
   ddlLint: 'strict'
 };
@@ -69,20 +73,16 @@ export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjec
     const rawDdl = typeof raw.ddl === 'object' && raw.ddl !== null ? raw.ddl : undefined;
     const rawConnection = typeof raw.connection === 'object' && raw.connection !== null ? raw.connection : undefined;
     const rawLintMode = typeof raw.ddlLint === 'string' ? raw.ddlLint.trim().toLowerCase() : undefined;
-    // Treat only non-empty ddl.searchPath arrays as explicit overrides.
-    const rawSearchPath = Array.isArray(rawDdl?.searchPath) ? rawDdl.searchPath : undefined;
-    // Detect override intent only when a non-empty searchPath array is provided.
-    let hasSearchPathOverrides = false;
-    if (rawSearchPath && rawSearchPath.length > 0) {
-      hasSearchPathOverrides = true;
-    }
-    let resolvedSearchPath: string[] = [...DEFAULT_ZTD_CONFIG.ddl.searchPath];
-    if (hasSearchPathOverrides && rawSearchPath) {
-      resolvedSearchPath = rawSearchPath.filter(
-        (schema: unknown): schema is string =>
-          typeof schema === 'string' && schema.length > 0
-      );
-    }
+    const resolvedDefaultSchema = resolveSchemaName(
+      typeof raw.defaultSchema === 'string' ? raw.defaultSchema : undefined,
+      typeof rawDdl?.defaultSchema === 'string' ? rawDdl.defaultSchema : undefined,
+      DEFAULT_ZTD_CONFIG.defaultSchema
+    );
+    const resolvedSearchPath = resolveSearchPath(
+      raw.searchPath,
+      rawDdl?.searchPath,
+      resolvedDefaultSchema
+    );
     const normalizedConnection = normalizeConnectionConfig(rawConnection);
     if (normalizedConnection) {
       emitLegacyConnectionConfigWarning(filePath);
@@ -94,14 +94,12 @@ export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjec
       ddlDir: typeof raw.ddlDir === 'string' && raw.ddlDir.length ? raw.ddlDir : DEFAULT_ZTD_CONFIG.ddlDir,
       testsDir:
         typeof raw.testsDir === 'string' && raw.testsDir.length ? raw.testsDir : DEFAULT_ZTD_CONFIG.testsDir,
+      defaultSchema: resolvedDefaultSchema,
+      searchPath: resolvedSearchPath,
       ddl: {
-        defaultSchema:
-          typeof rawDdl?.defaultSchema === 'string' && rawDdl.defaultSchema.length
-            ? rawDdl.defaultSchema
-            : DEFAULT_ZTD_CONFIG.ddl.defaultSchema,
+        defaultSchema: resolvedDefaultSchema,
         searchPath: resolvedSearchPath
-      }
-      ,
+      },
       ddlLint: isDdlLintMode(rawLintMode) ? rawLintMode : DEFAULT_ZTD_CONFIG.ddlLint,
       connection: normalizedConnection
     };
@@ -112,6 +110,37 @@ export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjec
 
 function isDdlLintMode(value?: string): value is DdlLintMode {
   return value === 'strict' || value === 'warn' || value === 'off';
+}
+
+function resolveSchemaName(primary?: string, fallback?: string, defaultValue = DEFAULT_ZTD_CONFIG.defaultSchema): string {
+  const candidate = [primary, fallback].find((value): value is string => typeof value === 'string' && value.length > 0);
+  return candidate ?? defaultValue;
+}
+
+function resolveSearchPath(
+  primary: unknown,
+  fallback: unknown,
+  defaultSchema: string
+): string[] {
+  const primaryPath = normalizeSchemaList(primary);
+  if (primaryPath.length > 0) {
+    return primaryPath;
+  }
+
+  const fallbackPath = normalizeSchemaList(fallback);
+  if (fallbackPath.length > 0) {
+    return fallbackPath;
+  }
+
+  return [defaultSchema];
+}
+
+function normalizeSchemaList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
 }
 
 /**
@@ -224,12 +253,28 @@ function mergeProjectConfig(
   baseConfig: ZtdProjectConfig,
   overrides: Partial<ZtdProjectConfig>
 ): ZtdProjectConfig {
+  const defaultSchema =
+    typeof overrides.defaultSchema === 'string' && overrides.defaultSchema.length > 0
+      ? overrides.defaultSchema
+      : typeof overrides.ddl?.defaultSchema === 'string' && overrides.ddl.defaultSchema.length > 0
+        ? overrides.ddl.defaultSchema
+        : baseConfig.defaultSchema;
+  const searchPath =
+    normalizeSchemaList(overrides.searchPath).length > 0
+      ? normalizeSchemaList(overrides.searchPath)
+      : normalizeSchemaList(overrides.ddl?.searchPath).length > 0
+        ? normalizeSchemaList(overrides.ddl?.searchPath)
+        : baseConfig.searchPath;
   return {
     ...baseConfig,
     ...overrides,
+    defaultSchema,
+    searchPath,
     ddl: {
       ...baseConfig.ddl,
-      ...(overrides.ddl ?? {})
+      ...(overrides.ddl ?? {}),
+      defaultSchema,
+      searchPath
     }
   };
 }
