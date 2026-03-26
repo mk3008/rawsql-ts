@@ -21,7 +21,13 @@ import {
 import { getAgentOutputFormat, isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
 import { withSpanSync } from '../utils/telemetry';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { SssqlQueryTransformer, type SssqlScaffoldFilters, SqlFormatter } from 'rawsql-ts';
+import {
+  collectSupportedOptionalConditionBranches,
+  SelectQueryParser,
+  SSSQLFilterBuilder,
+  type SssqlScaffoldFilters,
+  SqlFormatter
+} from 'rawsql-ts';
 
 interface QueryUsesOptions {
   format?: string;
@@ -507,8 +513,8 @@ function runQuerySssqlScaffoldCommand(sqlFile: string, options: QuerySssqlScaffo
     : options;
   const filters = normalizeSssqlFilters(resolved.filter ?? resolved.filters);
   const sql = readFileSync(sqlFile, 'utf8');
-  const result = new SssqlQueryTransformer().scaffold(sql, filters);
-  const formatted = new SqlFormatter().format(result.query).formattedSql;
+  const result = new SSSQLFilterBuilder().scaffold(sql, filters);
+  const formatted = new SqlFormatter().format(result).formattedSql;
   const outputFile = normalizeStringOption(resolved.out);
   const format = normalizeFormat(normalizeStringOption(resolved.format) ?? getAgentOutputFormat());
 
@@ -534,8 +540,11 @@ function runQuerySssqlScaffoldCommand(sqlFile: string, options: QuerySssqlScaffo
 
 function runQuerySssqlRefreshCommand(sqlFile: string, options: QuerySssqlRefreshOptions): void {
   const sql = readFileSync(sqlFile, 'utf8');
-  const result = new SssqlQueryTransformer().refresh(sql);
-  const formatted = new SqlFormatter().format(result.query).formattedSql;
+  const parsed = SelectQueryParser.parse(sql);
+  const existingBranches = collectSupportedOptionalConditionBranches(parsed);
+  const filters = Object.fromEntries(existingBranches.map((branch) => [branch.parameterName, null]));
+  const result = new SSSQLFilterBuilder().refresh(parsed, filters);
+  const formatted = new SqlFormatter().format(result).formattedSql;
   const outputFile = normalizeStringOption(options.out);
   const format = normalizeFormat(normalizeStringOption(options.format) ?? getAgentOutputFormat());
 
