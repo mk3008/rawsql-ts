@@ -2374,3 +2374,82 @@ test('perf run accepts material arrays in --json payloads', () => {
     ]
   });
 });
+
+test('query match-observed ranks the likely source asset for observed SELECT SQL', () => {
+  const workspace = createSqlWorkspace('query-match-observed', path.join('src', 'sql', 'users', 'list.sql'));
+  const previousProjectRoot = process.env.ZTD_PROJECT_ROOT;
+  process.env.ZTD_PROJECT_ROOT = workspace.rootDir;
+  try {
+    writeSqlWorkspaceFile(
+      workspace.sqlFile,
+      `
+        SELECT account.user_id, account.email
+        FROM public.users account
+        WHERE (:active IS NULL OR account.active = :active)
+        ORDER BY account.created_at DESC
+        LIMIT :limit
+      `
+    );
+    writeSqlWorkspaceFile(
+      path.join(workspace.rootDir, 'src', 'sql', 'products', 'list.sql'),
+      `
+        SELECT product.product_id, product.name
+        FROM public.products product
+        WHERE product.active = true
+        ORDER BY product.created_at DESC
+      `
+    );
+    writeSqlWorkspaceFile(
+      path.join(workspace.rootDir, 'src', 'sql', 'users', 'list-with-join.sql'),
+      `
+        SELECT account.user_id, account.email
+        FROM public.users account
+        JOIN public.orders ord ON ord.user_id = account.user_id
+        WHERE account.active = true
+      `
+    );
+
+    const result = runCli(
+      [
+        'query',
+        'match-observed',
+        '--sql',
+        `
+          SELECT u.user_id, u.email
+          FROM public.users u
+          WHERE u.active = true
+          ORDER BY u.created_at DESC
+          LIMIT 25
+        `,
+        '--format',
+        'json'
+      ],
+      { ZTD_PROJECT_ROOT: workspace.rootDir },
+      workspace.rootDir
+    );
+
+    assertCliSuccess(result, 'query match-observed');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      schemaVersion: 1,
+      observedQueries: 1,
+    });
+    expect(parsed.matches[0]).toMatchObject({
+      sql_file: 'src/sql/users/list.sql',
+      section_scores: expect.objectContaining({
+        projection: expect.any(Number),
+        source: expect.any(Number),
+        where: expect.any(Number),
+        order: expect.any(Number),
+        paging: expect.any(Number)
+      })
+    });
+    expect(parsed.matches[0].reasons.length).toBeGreaterThan(0);
+  } finally {
+    if (previousProjectRoot === undefined) {
+      delete process.env.ZTD_PROJECT_ROOT;
+    } else {
+      process.env.ZTD_PROJECT_ROOT = previousProjectRoot;
+    }
+  }
+}, 60000);

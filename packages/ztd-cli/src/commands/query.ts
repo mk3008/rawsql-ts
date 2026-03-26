@@ -436,7 +436,19 @@ function runQueryMatchObservedCommand(options: QueryMatchObservedOptions): void 
     process.exitCode = 1;
   }
 }
+function resolveObservedSqlInput(options: QueryMatchObservedOptions): string {
+  const sql = normalizeStringOption(options.sql);
+  if (sql) {
+    return sql;
+  }
 
+  const sqlFile = normalizeStringOption(options.sqlFile);
+  if (sqlFile) {
+    return readFileSync(sqlFile, 'utf8');
+  }
+
+  throw new Error('Provide observed SQL with --sql or --sql-file.');
+}
 function normalizeRuleList(value: unknown): Array<'join-direction'> | undefined {
   if (value === undefined || value === null || value === '') {
     return undefined;
