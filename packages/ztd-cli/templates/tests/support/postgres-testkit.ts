@@ -76,6 +76,8 @@ export function loadStarterPostgresDefaults(rootDir: string = process.cwd()): St
 /**
  * Create a reusable starter Postgres testkit client for DB-backed smoke tests.
  *
+ * Call this helper once per DB context so a workflow can hold multiple clients at the same time.
+ *
  * The helper keeps the setup defaults in one place, but leaves table definitions
  * and rows next to the individual test so the sample stays readable.
  */

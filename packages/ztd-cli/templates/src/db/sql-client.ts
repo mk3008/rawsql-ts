@@ -13,7 +13,8 @@ export type SqlQueryRows<T> = Promise<T[]>;
  * - Tests: replace the implementation with a mock, a fixture helper, or an adapter that follows this contract.
  *
  * Connection strategy note:
- * - Prefer a shared client per worker process for better performance.
+ * - Prefer one live client per DB context or worker process for better performance.
+ * - Multiple clients can coexist in the same workflow as long as each one owns its own lifecycle.
  * - Do not share a live client across parallel workers without proper synchronization.
  */
 export type SqlClient = {
