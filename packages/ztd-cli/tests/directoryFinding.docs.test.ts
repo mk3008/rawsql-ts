@@ -80,7 +80,7 @@ test('feature guidance centers the sample feature and role-based folders', () =>
     'smoke.queryspec.test.ts'
   );
   expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/tests/README.md')).toContain(
-    'createPostgresTestkitClient'
+    'createStarterPostgresTestkitClient'
   );
 });
 

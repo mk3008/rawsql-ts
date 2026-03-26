@@ -12,6 +12,7 @@ export interface ZtdConnectionConfig {
 }
 
 export interface ZtdProjectConfig {
+  ztdRootDir?: string;
   dialect: string;
   ddlDir: string;
   testsDir: string;
@@ -88,6 +89,7 @@ export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjec
     }
 
     return {
+      ztdRootDir: typeof raw.ztdRootDir === 'string' && raw.ztdRootDir.length ? raw.ztdRootDir : undefined,
       dialect: typeof raw.dialect === 'string' ? raw.dialect : DEFAULT_ZTD_CONFIG.dialect,
       ddlDir: typeof raw.ddlDir === 'string' && raw.ddlDir.length ? raw.ddlDir : DEFAULT_ZTD_CONFIG.ddlDir,
       testsDir:

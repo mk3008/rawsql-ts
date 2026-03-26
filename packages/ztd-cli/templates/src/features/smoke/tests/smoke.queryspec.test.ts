@@ -1,6 +1,6 @@
-import { createPostgresTestkitClient } from '@rawsql-ts/testkit-postgres';
-import { Pool } from 'pg';
 import { expect, test } from 'vitest';
+
+import { createStarterPostgresTestkitClient } from '../../../../tests/support/postgres-testkit.js';
 
 const usersTableDefinitions = [
   {
@@ -17,18 +17,7 @@ const usersTableRows = [
 ];
 
 test('smoke starter DB path connects through testkit-postgres and resolves the starter schema', async () => {
-  const connectionString = process.env.ZTD_TEST_DATABASE_URL;
-  if (!connectionString) {
-    throw new Error(
-      'Set ZTD_DB_PORT in .env before running src/features/smoke/tests/smoke.queryspec.test.ts.'
-    );
-  }
-
-  const pool = new Pool({ connectionString });
-  const client = createPostgresTestkitClient({
-    queryExecutor: (sql, params) => pool.query(sql, params as unknown[]),
-    defaultSchema: 'public',
-    searchPath: ['public'],
+  const client = createStarterPostgresTestkitClient({
     tableDefinitions: usersTableDefinitions,
     tableRows: [{ tableName: 'public.users', rows: usersTableRows }]
   });
@@ -37,10 +26,6 @@ test('smoke starter DB path connects through testkit-postgres and resolves the s
     const result = await client.query('select id, email from users where id = $1', [1]);
     expect(result.rows).toEqual([{ id: 1, email: 'alice@example.com' }]);
   } finally {
-    try {
-      await client.close();
-    } finally {
-      await pool.end();
-    }
+    await client.close();
   }
 });

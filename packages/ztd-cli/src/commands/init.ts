@@ -123,6 +123,7 @@ type FileKey =
   | 'smokeTest'
   | 'smokeQuerySpecTest'
   | 'setupEnv'
+  | 'starterPostgresTestkit'
   | 'featureRootReadme'
   | 'smokeReadme'
   | 'smokeApplicationReadme'
@@ -262,6 +263,8 @@ interface InitScaffoldLayout {
   smokeQuerySpecTestTemplate: string;
   setupEnvPath: string;
   setupEnvTemplate: string;
+  starterPostgresTestkitPath: string;
+  starterPostgresTestkitTemplate: string;
   sqlClientPath: string;
   sqlClientAdaptersPath: string;
 }
@@ -393,7 +396,7 @@ const STARTER_README_APPENDIX = (postgresImage: string): string =>
     '4. Start Postgres with `docker compose up -d` when you are ready for the DB-backed smoke path.',
     `5. The bundled compose file uses \`${postgresImage}\`, and the generated Vitest setup derives \`ZTD_TEST_DATABASE_URL\` from \`ZTD_DB_PORT\`.`,
     '6. Run `npx ztd ztd-config` to regenerate the runtime fixture manifest, DDL-derived test rows, and layout metadata.',
-    '7. Read `src/features/smoke/tests/smoke.queryspec.test.ts` to see the DB-backed starter smoke path through `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`.',
+    '7. Read `tests/support/postgres-testkit.ts` and `src/features/smoke/tests/smoke.queryspec.test.ts` to see the DB-backed starter smoke path through `createStarterPostgresTestkitClient` and the underlying `@rawsql-ts/testkit-postgres` API.',
     '8. Run `npx vitest run` to exercise the DB-free and DB-backed smoke tests with the values from `.env`.',
     '9. Run `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` to scaffold a QuerySpec from that SQL file.',
     '10. Start your first real feature under `src/features/users/`, then delete `src/features/smoke/` when you no longer need the sample.',
@@ -465,6 +468,8 @@ function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): In
     smokeQuerySpecTestTemplate: FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE,
     setupEnvPath: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'setup-env.ts'),
     setupEnvTemplate: SETUP_ENV_TEMPLATE,
+    starterPostgresTestkitPath: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'postgres-testkit.ts'),
+    starterPostgresTestkitTemplate: 'tests/support/postgres-testkit.ts',
     sqlClientPath: path.join(rootDir, 'src', 'db', 'sql-client.ts'),
     sqlClientAdaptersPath: path.join(rootDir, 'src', 'db', 'sql-client-adapters.ts')
   };
@@ -648,6 +653,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     smokeTest: scaffoldLayout.smokeTestPath,
     smokeQuerySpecTest: scaffoldLayout.smokeQuerySpecTestPath,
     querySpecExampleTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'queryspec.example.test.ts'),
+    starterPostgresTestkit: scaffoldLayout.starterPostgresTestkitPath,
     readme: path.join(rootDir, 'README.md'),
     context: path.join(rootDir, 'CONTEXT.md'),
     promptDogfood: scaffoldLayout.promptDogfoodPath ?? path.join(rootDir, 'PROMPT_DOGFOOD.md'),
@@ -747,6 +753,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     overwritePolicy,
     () => {
       writeZtdProjectConfig(rootDir, {
+        ztdRootDir: '.',
         ddl: {
           defaultSchema: schemaName,
           searchPath: [schemaName]
@@ -1003,6 +1010,19 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     );
     if (smokeQuerySpecTestSummary) {
       summaries.smokeQuerySpecTest = smokeQuerySpecTestSummary;
+    }
+
+    const starterPostgresTestkitSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.starterPostgresTestkit,
+      relativePath('starterPostgresTestkit'),
+      scaffoldLayout.starterPostgresTestkitTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (starterPostgresTestkitSummary) {
+      summaries.starterPostgresTestkit = starterPostgresTestkitSummary;
     }
   }
 
@@ -2326,6 +2346,7 @@ function buildSummaryLines(
     'smokeTest',
     'smokeQuerySpecTest',
     'setupEnv',
+    'starterPostgresTestkit',
     'querySpecExampleTest',
     'sqlClient',
     'sqlClientAdapters',
@@ -2369,7 +2390,9 @@ function buildSummaryLines(
     lines.push(' - Visible AGENTS.md files are installed for the starter flow.');
     lines.push(` - Bundled Postgres compose image: ${postgresImage}`);
     lines.push(' - Run docker compose up -d before the DB-backed smoke test so the starter DB path is ready.');
-    lines.push(' - The starter smoke test uses @rawsql-ts/testkit-postgres and createPostgresTestkitClient to fail fast on setup problems.');
+    lines.push(
+      ' - The starter smoke test uses tests/support/postgres-testkit.ts, @rawsql-ts/testkit-postgres, and createStarterPostgresTestkitClient to fail fast on setup problems.'
+    );
   }
   if (optionalFeatures.aiGuidance) {
     lines.push('', 'AI guidance:');
@@ -2457,6 +2480,7 @@ function buildInitDryRunPlan(rootDir: string, options: {
       path.join('src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'),
       path.join('src', 'features', 'smoke', 'tests', 'smoke.test.ts'),
       path.join('src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'),
+      path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'postgres-testkit.ts'),
       'AGENTS.md',
       path.join('ztd', 'AGENTS.md'),
       path.join('ztd', 'ddl', 'AGENTS.md'),
