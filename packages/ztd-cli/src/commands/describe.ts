@@ -337,6 +337,27 @@ const COMMANDS: CommandDescriptor[] = [
     ]
   },
   {
+    name: 'query match-observed',
+    summary: 'Rank likely source SQL assets for an observed SELECT statement.',
+    writesFiles: true,
+    supportsDryRun: false,
+    supportsJsonPayload: false,
+    output: {
+      stdout: 'Text ranking report or JSON report for observed SQL candidates.',
+      files: ['Specified --out file when present']
+    },
+    exitCodes: {
+      '0': 'Report emitted.',
+      '1': 'Validation failed or no candidate SELECT assets were found.'
+    },
+    flags: [
+      { name: '--sql', description: 'Observed SQL text to rank.' },
+      { name: '--sql-file', description: 'Read the observed SQL text from a file.' },
+      { name: '--format json', description: 'Emit a machine-readable JSON ranking report.' },
+      { name: '--out', description: 'Write output to a file.' }
+    ]
+  },
+  {
     name: 'lint',
     summary: 'Lint SQL files with fixture-backed validation.',
     writesFiles: false,

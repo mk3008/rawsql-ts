@@ -3,12 +3,51 @@ export type RepositoryTelemetryEventKind =
   | 'query.execute.success'
   | 'query.execute.error';
 
+export type RepositoryTelemetryParameterKind = 'scalar' | 'array' | 'null' | 'unknown';
+export type RepositoryTelemetryNullability = 'null' | 'non-null' | 'mixed';
+export type RepositoryTelemetryArrayLength = 'empty' | 'single' | 'few' | 'many' | 'unknown';
+
+export interface RepositoryTelemetryParameterShape {
+  name: string;
+  kind: RepositoryTelemetryParameterKind;
+  nullability: RepositoryTelemetryNullability;
+  arrayLength?: RepositoryTelemetryArrayLength;
+}
+
+export interface RepositoryTelemetryOptionalPredicatePruning {
+  enabled: boolean;
+  prunedPredicateCount?: number;
+}
+
+export interface RepositoryTelemetryPagingTransformation {
+  enabled: boolean;
+  hasLimit?: boolean;
+  hasOffset?: boolean;
+}
+
+export interface RepositoryTelemetrySortTransformation {
+  enabled: boolean;
+  orderByCount?: number;
+}
+
+export interface RepositoryTelemetryPipelineTransformation {
+  enabled: boolean;
+  stageCount?: number;
+}
+
+export interface RepositoryTelemetryTransformations {
+  optionalPredicatePruning?: RepositoryTelemetryOptionalPredicatePruning;
+  paging?: RepositoryTelemetryPagingTransformation;
+  sort?: RepositoryTelemetrySortTransformation;
+  pipelineDecomposition?: RepositoryTelemetryPipelineTransformation;
+}
+
 export interface RepositoryTelemetryContext {
+  queryId: string;
   repositoryName: string;
   methodName: string;
-  queryName?: string;
-  sqlText?: string;
-  fallback?: boolean;
+  paramsShape: RepositoryTelemetryParameterShape[];
+  transformations: RepositoryTelemetryTransformations;
 }
 
 interface RepositoryTelemetryEventBase extends RepositoryTelemetryContext {
@@ -43,6 +82,5 @@ export interface RepositoryTelemetry {
 }
 
 export interface RepositoryTelemetryConsoleOptions {
-  includeSqlText?: boolean;
   logger?: Pick<Console, 'info' | 'error'>;
 }

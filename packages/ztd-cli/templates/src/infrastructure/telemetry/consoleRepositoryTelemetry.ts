@@ -7,8 +7,8 @@ import type {
 /**
  * Create a conservative console-backed telemetry hook for repositories.
  *
- * The default policy keeps SQL text disabled so applications opt in before
- * query text is emitted to logs or forwarded to another sink.
+ * The emitted payload stays on the safe side of the boundary: it includes the
+ * runtime contract metadata, but never SQL text or bind values.
  */
 export function createConsoleRepositoryTelemetry(
   options: RepositoryTelemetryConsoleOptions = {},
@@ -17,7 +17,7 @@ export function createConsoleRepositoryTelemetry(
 
   return {
     emit(event: RepositoryTelemetryEvent): void {
-      const payload = serializeEvent(event, options.includeSqlText === true);
+      const payload = serializeEvent(event);
       if (event.kind === 'query.execute.error') {
         logger.error('[repository-telemetry]', payload);
         return;
@@ -30,26 +30,16 @@ export function createConsoleRepositoryTelemetry(
 
 function serializeEvent(
   event: RepositoryTelemetryEvent,
-  includeSqlText: boolean,
 ): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     kind: event.kind,
     timestamp: event.timestamp,
+    queryId: event.queryId,
     repositoryName: event.repositoryName,
     methodName: event.methodName,
+    paramsShape: event.paramsShape,
+    transformations: event.transformations
   };
-
-  if (event.queryName) {
-    payload.queryName = event.queryName;
-  }
-  if (event.fallback !== undefined) {
-    payload.fallback = event.fallback;
-  }
-
-  // Keep SQL text out of default logs so applications make that policy choice.
-  if (includeSqlText && event.sqlText) {
-    payload.sqlText = event.sqlText;
-  }
 
   if (event.kind !== 'query.execute.start') {
     payload.durationMs = event.durationMs;
