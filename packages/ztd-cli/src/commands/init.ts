@@ -273,7 +273,8 @@ const STACK_DEV_DEPENDENCIES: Record<string, string> = {
 };
 const STARTER_DEV_DEPENDENCIES: Record<string, string> = {
   pg: '^8.13.1',
-  '@types/pg': '^8.15.6'
+  '@types/pg': '^8.15.6',
+  '@rawsql-ts/testkit-postgres': '^0.15.4'
 };
 const LOCAL_SOURCE_STACK_PACKAGE_DIRS: Record<string, string> = {
   '@rawsql-ts/sql-contract': path.join('packages', 'sql-contract'),
@@ -392,9 +393,10 @@ const STARTER_README_APPENDIX = (postgresImage: string): string =>
     '4. Start Postgres with `docker compose up -d` when you are ready for the DB-backed smoke path.',
     `5. The bundled compose file uses \`${postgresImage}\`, and the generated Vitest setup derives \`ZTD_TEST_DATABASE_URL\` from \`ZTD_DB_PORT\`.`,
     '6. Run `npx ztd ztd-config` to regenerate the runtime fixture manifest, DDL-derived test rows, and layout metadata.',
-    '7. Run `npx vitest run` to exercise the DB-free and DB-backed smoke tests with the values from `.env`.',
-    '8. Run `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` to scaffold a QuerySpec from that SQL file.',
-    '9. Start your first real feature under `src/features/users/`, then delete `src/features/smoke/` when you no longer need the sample.',
+    '7. Read `src/features/smoke/tests/smoke.queryspec.test.ts` to see the DB-backed starter smoke path through `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`.',
+    '8. Run `npx vitest run` to exercise the DB-free and DB-backed smoke tests with the values from `.env`.',
+    '9. Run `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` to scaffold a QuerySpec from that SQL file.',
+    '10. Start your first real feature under `src/features/users/`, then delete `src/features/smoke/` when you no longer need the sample.',
     ''
   ].join('\n');
 
@@ -2367,6 +2369,7 @@ function buildSummaryLines(
     lines.push(' - Visible AGENTS.md files are installed for the starter flow.');
     lines.push(` - Bundled Postgres compose image: ${postgresImage}`);
     lines.push(' - Run docker compose up -d before the DB-backed smoke test so the starter DB path is ready.');
+    lines.push(' - The starter smoke test uses @rawsql-ts/testkit-postgres and createPostgresTestkitClient to fail fast on setup problems.');
   }
   if (optionalFeatures.aiGuidance) {
     lines.push('', 'AI guidance:');

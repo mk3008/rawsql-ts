@@ -13,5 +13,5 @@ This scaffold organizes application work under `src/features/<feature>/`.
 
 `smoke` is the removable teaching feature.
 Copy its shape for the first real feature, then delete it once the project has a real slice of its own.
-In the starter flow, `smoke` also shows the preferred named-parameter SQL style through its feature-local QuerySpec test.
+In the starter flow, `smoke` also shows the DB-backed path through `@rawsql-ts/testkit-postgres` and the preferred named-parameter SQL style through its feature-local SQL sample.
 

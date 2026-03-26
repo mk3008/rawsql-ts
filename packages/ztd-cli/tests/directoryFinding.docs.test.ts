@@ -35,6 +35,7 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('Glossary');
   expect(packageReadme).toContain('Further Reading');
   expect(packageReadme).toContain('@rawsql-ts/testkit-core');
+  expect(packageReadme).toContain('@rawsql-ts/testkit-postgres');
   expect(readNormalizedFile('docs/guide/sql-first-end-to-end-tutorial.md')).toContain('Scenario CLI at a glance');
   expect(readNormalizedFile('docs/dogfooding/ztd-migration-lifecycle.md')).toContain('Preferred CLI by scenario');
   expect(packageReadme).toContain('Advanced validation, dogfooding, and tuning live in [Further Reading](#further-reading).');
@@ -72,8 +73,14 @@ test('feature guidance centers the sample feature and role-based folders', () =>
   expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/persistence/README.md')).toContain(
     'named-parameter'
   );
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/README.md')).toContain(
+    '@rawsql-ts/testkit-postgres'
+  );
   expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/tests/README.md')).toContain(
     'smoke.queryspec.test.ts'
+  );
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/tests/README.md')).toContain(
+    'createPostgresTestkitClient'
   );
 });
 

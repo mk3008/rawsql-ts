@@ -29,6 +29,7 @@ npx vitest run
 ```
 
 The generated runtime manifest is the preferred input for `@rawsql-ts/testkit-postgres`; raw DDL directories remain a fallback for legacy layouts. The generated contract itself is schema metadata only (`tableDefinitions`), so test rows stay explicit.
+The removable starter smoke test shows the DB-backed path through `createPostgresTestkitClient`, so the starter can fail fast when setup is incomplete.
 
 src/catalog may still exist as internal support, but it is not the user-facing standard location.
 
