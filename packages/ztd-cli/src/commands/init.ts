@@ -124,6 +124,10 @@ type FileKey =
   | 'smokeQuerySpecTest'
   | 'setupEnv'
   | 'starterPostgresTestkit'
+  | 'infrastructureReadme'
+  | 'telemetryTypes'
+  | 'telemetryRepository'
+  | 'telemetryConsoleRepository'
   | 'featureRootReadme'
   | 'smokeReadme'
   | 'smokeApplicationReadme'
@@ -265,6 +269,14 @@ interface InitScaffoldLayout {
   setupEnvTemplate: string;
   starterPostgresTestkitPath: string;
   starterPostgresTestkitTemplate: string;
+  infrastructureReadmePath: string;
+  infrastructureReadmeTemplate: string;
+  telemetryTypesPath: string;
+  telemetryTypesTemplate: string;
+  telemetryRepositoryPath: string;
+  telemetryRepositoryTemplate: string;
+  telemetryConsoleRepositoryPath: string;
+  telemetryConsoleRepositoryTemplate: string;
   sqlClientPath: string;
   sqlClientAdaptersPath: string;
 }
@@ -345,6 +357,10 @@ const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
 const TSCONFIG_TEMPLATE = 'tsconfig.json';
 const SQL_CLIENT_TEMPLATE = 'src/db/sql-client.ts';
 const SQL_CLIENT_ADAPTERS_TEMPLATE = 'src/db/sql-client-adapters.ts';
+const INFRASTRUCTURE_README_TEMPLATE = 'src/infrastructure/README.md';
+const TELEMETRY_TYPES_TEMPLATE = 'src/infrastructure/telemetry/types.ts';
+const TELEMETRY_REPOSITORY_TEMPLATE = 'src/infrastructure/telemetry/repositoryTelemetry.ts';
+const TELEMETRY_CONSOLE_REPOSITORY_TEMPLATE = 'src/infrastructure/telemetry/consoleRepositoryTelemetry.ts';
 const SQL_README_TEMPLATE = 'src/sql/README.md';
 const JOBS_README_TEMPLATE = 'src/jobs/README.md';
 const ZTD_README_TEMPLATE = 'ztd/README.md';
@@ -470,6 +486,14 @@ function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): In
     setupEnvTemplate: SETUP_ENV_TEMPLATE,
     starterPostgresTestkitPath: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'postgres-testkit.ts'),
     starterPostgresTestkitTemplate: 'tests/support/postgres-testkit.ts',
+    infrastructureReadmePath: path.join(rootDir, 'src', 'infrastructure', 'README.md'),
+    infrastructureReadmeTemplate: INFRASTRUCTURE_README_TEMPLATE,
+    telemetryTypesPath: path.join(rootDir, 'src', 'infrastructure', 'telemetry', 'types.ts'),
+    telemetryTypesTemplate: TELEMETRY_TYPES_TEMPLATE,
+    telemetryRepositoryPath: path.join(rootDir, 'src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'),
+    telemetryRepositoryTemplate: TELEMETRY_REPOSITORY_TEMPLATE,
+    telemetryConsoleRepositoryPath: path.join(rootDir, 'src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'),
+    telemetryConsoleRepositoryTemplate: TELEMETRY_CONSOLE_REPOSITORY_TEMPLATE,
     sqlClientPath: path.join(rootDir, 'src', 'db', 'sql-client.ts'),
     sqlClientAdaptersPath: path.join(rootDir, 'src', 'db', 'sql-client-adapters.ts')
   };
@@ -652,6 +676,10 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     smokeValidationTest: scaffoldLayout.smokeValidationTestPath,
     smokeTest: scaffoldLayout.smokeTestPath,
     smokeQuerySpecTest: scaffoldLayout.smokeQuerySpecTestPath,
+    infrastructureReadme: scaffoldLayout.infrastructureReadmePath,
+    telemetryTypes: scaffoldLayout.telemetryTypesPath,
+    telemetryRepository: scaffoldLayout.telemetryRepositoryPath,
+    telemetryConsoleRepository: scaffoldLayout.telemetryConsoleRepositoryPath,
     querySpecExampleTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'queryspec.example.test.ts'),
     starterPostgresTestkit: scaffoldLayout.starterPostgresTestkitPath,
     readme: path.join(rootDir, 'README.md'),
@@ -1012,6 +1040,58 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     );
     if (smokeQuerySpecTestSummary) {
       summaries.smokeQuerySpecTest = smokeQuerySpecTestSummary;
+    }
+
+    const infrastructureReadmeSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.infrastructureReadme,
+      relativePath('infrastructureReadme'),
+      scaffoldLayout.infrastructureReadmeTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (infrastructureReadmeSummary) {
+      summaries.infrastructureReadme = infrastructureReadmeSummary;
+    }
+
+    const telemetryTypesSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.telemetryTypes,
+      relativePath('telemetryTypes'),
+      scaffoldLayout.telemetryTypesTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (telemetryTypesSummary) {
+      summaries.telemetryTypes = telemetryTypesSummary;
+    }
+
+    const telemetryRepositorySummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.telemetryRepository,
+      relativePath('telemetryRepository'),
+      scaffoldLayout.telemetryRepositoryTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (telemetryRepositorySummary) {
+      summaries.telemetryRepository = telemetryRepositorySummary;
+    }
+
+    const telemetryConsoleRepositorySummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.telemetryConsoleRepository,
+      relativePath('telemetryConsoleRepository'),
+      scaffoldLayout.telemetryConsoleRepositoryTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (telemetryConsoleRepositorySummary) {
+      summaries.telemetryConsoleRepository = telemetryConsoleRepositorySummary;
     }
 
     const starterPostgresTestkitSummary = await writeTemplateFile(
@@ -2349,6 +2429,10 @@ function buildSummaryLines(
     'smokeQuerySpecTest',
     'setupEnv',
     'starterPostgresTestkit',
+    'infrastructureReadme',
+    'telemetryTypes',
+    'telemetryRepository',
+    'telemetryConsoleRepository',
     'querySpecExampleTest',
     'sqlClient',
     'sqlClientAdapters',
@@ -2482,6 +2566,10 @@ function buildInitDryRunPlan(rootDir: string, options: {
       path.join('src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'),
       path.join('src', 'features', 'smoke', 'tests', 'smoke.test.ts'),
       path.join('src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'),
+      path.join('src', 'infrastructure', 'README.md'),
+      path.join('src', 'infrastructure', 'telemetry', 'types.ts'),
+      path.join('src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'),
+      path.join('src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'),
       path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'postgres-testkit.ts'),
       'AGENTS.md',
       path.join('ztd', 'AGENTS.md'),
