@@ -588,11 +588,11 @@ function normalizePredicateOperand(value: ValueComponent, aliasMap: Map<string, 
   }
 
   if (candidate instanceof ParameterExpression) {
-    return 'value:bound';
+    return 'value:param';
   }
 
   if (candidate instanceof LiteralValue) {
-    return candidate.value === null ? 'value:null' : 'value:bound';
+    return `value:${literalKind(candidate.value)}`;
   }
 
   if (candidate instanceof FunctionCall) {

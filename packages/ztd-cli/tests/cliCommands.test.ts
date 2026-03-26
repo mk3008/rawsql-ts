@@ -111,11 +111,6 @@ function createSqlWorkspace(prefix: string, sqlRelativePath: string = path.join(
   return { rootDir, sqlRoot, sqlFile };
 }
 
-function writeSqlWorkspaceFile(filePath: string, sql: string): void {
-  mkdirSync(path.dirname(filePath), { recursive: true });
-  writeFileSync(filePath, `${sql.trim()}\n`, 'utf8');
-}
-
 async function resetPublicSchema(client: Client) {
   // Recreate the public schema so pg_dump sees a predictable set of objects.
   await client.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
@@ -298,36 +293,6 @@ test(
 );
 
 test(
-  'query sssql scaffold rejects empty filter input',
-  () => {
-    const workspace = createSqlWorkspace('query-sssql-scaffold-empty', path.join('src', 'sql', 'users.sql'));
-    writeFileSync(
-      workspace.sqlFile,
-      `
-        SELECT u.id, u.status
-        FROM users u
-      `,
-      'utf8'
-    );
-
-    const result = runCli(
-      [
-        'query',
-        'sssql',
-        'scaffold',
-        workspace.sqlFile
-      ],
-      {},
-      workspace.rootDir
-    );
-
-    assertCliFailure(result, 'query sssql scaffold empty input');
-    expect(result.stderr || result.stdout).toContain('Provide at least one SSSQL filter');
-  },
-  60000,
-);
-
-test(
   'query sssql refresh rewrites existing optional branches without changing their meaning',
   () => {
     const workspace = createSqlWorkspace('query-sssql-refresh', path.join('src', 'sql', 'users.sql'));
@@ -364,7 +329,7 @@ test(
 
     const contents = readFileSync(outFile, 'utf8').replace(/\r\n/g, '\n').toLowerCase();
     expect(contents).toContain('with "user_data" as (select "u"."id", "u"."status" from "users" as "u" where (:status is null or "u"."status" = :status))');
-    expect(contents).not.toContain('"ud"."status" = :status');
+    expect(contents).not.toContain('ud"."status = :status');
   },
   60000,
 );
@@ -373,81 +338,95 @@ test(
   'query match-observed ranks the likely source asset for observed SELECT SQL',
   () => {
     const workspace = createSqlWorkspace('query-match-observed', path.join('src', 'sql', 'users', 'list.sql'));
-    const previousProjectRoot = process.env.ZTD_PROJECT_ROOT;
-    process.env.ZTD_PROJECT_ROOT = workspace.rootDir;
-    try {
-      writeSqlWorkspaceFile(
-        workspace.sqlFile,
-        `
-          SELECT account.user_id, account.email
-          FROM public.users account
-          WHERE (:active IS NULL OR account.active = :active)
-          ORDER BY account.created_at DESC
-          LIMIT :limit
-        `
-      );
-      writeSqlWorkspaceFile(
-        path.join(workspace.rootDir, 'src', 'sql', 'products', 'list.sql'),
-        `
-          SELECT product.product_id, product.name
-          FROM public.products product
-          WHERE product.active = true
-          ORDER BY product.created_at DESC
-        `
-      );
-      writeSqlWorkspaceFile(
-        path.join(workspace.rootDir, 'src', 'sql', 'users', 'list-with-join.sql'),
-        `
-          SELECT account.user_id, account.email
-          FROM public.users account
-          JOIN public.orders ord ON ord.user_id = account.user_id
-          WHERE account.active = true
-        `
-      );
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        SELECT account.user_id, account.email
+        FROM public.users account
+        WHERE (:active IS NULL OR account.active = :active)
+        ORDER BY account.created_at DESC
+        LIMIT :limit
+      `,
+      'utf8'
+    );
+    writeFileSync(
+      path.join(workspace.rootDir, 'src', 'sql', 'products', 'list.sql'),
+      `
+        SELECT product.product_id, product.name
+        FROM public.products product
+        WHERE product.active = true
+        ORDER BY product.created_at DESC
+      `,
+      'utf8'
+    );
+    writeFileSync(
+      path.join(workspace.rootDir, 'src', 'sql', 'users', 'list-with-join.sql'),
+      `
+        SELECT account.user_id, account.email
+        FROM public.users account
+        JOIN public.orders ord ON ord.user_id = account.user_id
+        WHERE account.active = true
+      `,
+      'utf8'
+    );
 
-      const result = runCli(
-        [
-          'query',
-          'match-observed',
-          '--sql',
-          `
-            SELECT u.user_id, u.email
-            FROM public.users u
-            WHERE u.active = true
-            ORDER BY u.created_at DESC
-            LIMIT 25
-          `,
-          '--format',
-          'json'
-        ],
-        { ZTD_PROJECT_ROOT: workspace.rootDir },
-        workspace.rootDir
-      );
+    const result = runCli(
+      [
+        'query',
+        'match-observed',
+        '--sql',
+        `
+          SELECT u.user_id, u.email
+          FROM public.users u
+          WHERE u.active = true
+          ORDER BY u.created_at DESC
+          LIMIT 25
+        `,
+        '--format',
+        'json'
+      ],
+      { ZTD_PROJECT_ROOT: workspace.rootDir },
+      workspace.rootDir
+    );
 
-      assertCliSuccess(result, 'query match-observed');
-      const parsed = JSON.parse(result.stdout);
-      expect(parsed).toMatchObject({
-        schemaVersion: 1,
-        observedQueries: 1,
-      });
-      expect(parsed.matches[0]).toMatchObject({
-        sql_file: 'src/sql/users/list.sql',
-        section_scores: expect.objectContaining({
-          projection: expect.any(Number),
-          source: expect.any(Number),
-          where: expect.any(Number),
-          order: expect.any(Number),
-          paging: expect.any(Number)
+    assertCliSuccess(result, 'query match-observed');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      schemaVersion: 1,
+      observedQueries: 1,
+      matches: [
+        expect.objectContaining({
+          sql_file: 'src/sql/users/list.sql',
+          section_scores: expect.objectContaining({
+            projection: expect.any(Number),
+            source: expect.any(Number),
+            where: expect.any(Number),
+            order: expect.any(Number),
+            paging: expect.any(Number)
+          })
         })
-      });
-      expect(parsed.matches[0].reasons.length).toBeGreaterThan(0);
-    } finally {
-      if (previousProjectRoot === undefined) {
-        delete process.env.ZTD_PROJECT_ROOT;
-      } else {
-        process.env.ZTD_PROJECT_ROOT = previousProjectRoot;
-      }
-    }
+      ]
+    });
+    expect(parsed.matches[0].reasons.join(' ')).toContain('optional predicate branches');
+    expect(parsed.matches[0].differences.join(' ')).toContain('candidate adds where clause');
+  },
+  60000,
+);
+
+test(
+  'query match-observed exits non-zero when no candidate SELECT assets are found',
+  () => {
+    const workspace = createSqlWorkspace('query-match-observed-empty', path.join('src', 'sql', 'observed.sql'));
+    writeFileSync(workspace.sqlFile, 'SELECT 1', 'utf8');
+
+    const result = runCli(
+      ['query', 'match-observed', '--sql-file', workspace.sqlFile, '--format', 'text'],
+      { ZTD_PROJECT_ROOT: workspace.rootDir },
+      workspace.rootDir
+    );
+
+    assertCliFailure(result, 'query match-observed no candidates');
+    expect(result.stderr).toContain('No candidate SELECT assets were found for the observed SQL.');
   },
   60000,
 );

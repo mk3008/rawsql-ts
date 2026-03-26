@@ -6,7 +6,6 @@
 Low-dependency SQL usage analysis engine extracted from `@rawsql-ts/ztd-cli`.
 
 `@rawsql-ts/sql-grep-core` powers `ztd query uses` and exposes the reusable AST-based schema impact analysis primitives behind that command. It scans SQL catalog specs, resolves their SQL files, parses statements with `rawsql-ts`, and reports table or column usage with deterministic machine-readable output.
-It also powers `ztd query match-observed`, which ranks candidate `.sql` assets from observed SELECT text when `queryId` is unavailable.
 
 ## What it provides
 
@@ -14,7 +13,6 @@ It also powers `ztd query match-observed`, which ranks candidate `.sql` assets f
 - SQL catalog spec discovery and lightweight spec loading
 - Statement fingerprint generation for stable machine output
 - Table and column usage analysis over `rawsql-ts` ASTs
-- Observed SQL ranking for source-asset reverse lookup
 - Impact and detail report formatting
 - Optional span injection for host applications that want telemetry
 

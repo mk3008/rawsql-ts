@@ -19,7 +19,6 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Watch mode | `ztd ztd-config --watch` | Continuous type regeneration while editing DDL |
 | Quiet mode | `ztd ztd-config --quiet` | Suppress next-step hints in scripts |
 | SQL linting | `ztd lint <path>` | Validate SQL files against the schema |
-| Observed SQL matching | `ztd query match-observed --sql-file <path>` | Rank likely source SQL assets when a DB log has no `queryId` |
 | Contract check | `ztd check-contract` | Verify catalog contract integrity |
 | Test evidence export | `ztd evidence --mode specification` | Generate specification reports from tests |
 | Entity generation | `ztd ddl gen-entities` | Create `entities.ts` for ad-hoc schema inspection |
@@ -62,7 +61,6 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Spec-Change Scenarios | [guide/spec-change-scenarios](./spec-change-scenarios.md) | Quick reference for common changes |
 | Query Uses Overview | [guide/query-uses-overview](./query-uses-overview.md) | Why static analysis beats grep, human vs machine output |
 | Query Uses Impact Checks | [guide/query-uses-impact-checks](./query-uses-impact-checks.md) | Full option reference, scenario playbook, troubleshooting |
-| Observed SQL Matching | [guide/observed-sql-matching](./observed-sql-matching.md) | Rank source SQL assets from observed SQL when the stable queryId is missing |
 | SQL Tool Happy Paths | [guide/sql-tool-happy-paths](./sql-tool-happy-paths.md) | Decide whether to start with query plan, perf, query uses, telemetry, or SSSQL |
 | JOIN Direction Lint Specification | [guide/join-direction-lint-spec](./join-direction-lint-spec.md) | Review the FK-only v1 pattern table, warnings, skips, suppression, and future inference path |
 | Perf Tuning Decision Guide | [guide/perf-tuning-decision-guide](./perf-tuning-decision-guide.md) | Decide when QuerySpec scale hints should lead to indexes, pipeline tuning, or both |
