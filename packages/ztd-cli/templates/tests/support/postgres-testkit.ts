@@ -45,8 +45,11 @@ function loadStarterProjectConfig(rootDir: string = process.cwd()): StarterProje
 
   try {
     return JSON.parse(readFileSync(configPath, 'utf8')) as StarterProjectConfigFile;
-  } catch {
-    return {};
+  } catch (error) {
+    if (isMissingConfigFileError(error)) {
+      return {};
+    }
+    throw error;
   }
 }
 
@@ -81,7 +84,9 @@ export function createStarterPostgresTestkitClient<RowType extends Record<string
 ): PostgresTestkitClient<RowType> {
   const connectionString = options.connectionString ?? process.env.ZTD_TEST_DATABASE_URL;
   if (!connectionString) {
-    throw new Error('Set ZTD_DB_PORT in .env before running src/features/smoke/tests/smoke.queryspec.test.ts.');
+    throw new Error(
+      'Set options.connectionString or ZTD_TEST_DATABASE_URL before creating a starter Postgres testkit client.'
+    );
   }
 
   const defaults = loadStarterPostgresDefaults(options.rootDir);
@@ -98,4 +103,8 @@ export function createStarterPostgresTestkitClient<RowType extends Record<string
       await pool.end();
     }
   });
+}
+
+function isMissingConfigFileError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'ENOENT';
 }

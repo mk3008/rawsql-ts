@@ -139,7 +139,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       phrases: [
         '@rawsql-ts/testkit-postgres',
         'createPostgresTestkitClient',
-        'packages/testkit-postgres/README.md'
+        'the `@rawsql-ts/testkit-postgres` package README'
       ]
     },
     {
