@@ -39,6 +39,8 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
     'npx ztd init --starter',
     'src/features/smoke',
     'ztd/ddl/demo.sql',
+    'The smallest DB-backed starter example lives in `src/features/smoke/tests/smoke.queryspec.test.ts`.',
+    'It uses `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`',
     'Docker Desktop or another Docker daemon is already running',
     'cp .env.example .env',
     '# edit ZTD_DB_PORT=5433 if needed',
@@ -64,6 +66,9 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
   ]);
 
   expect(tutorial).toContain('npx ztd ddl risk --file tmp/users.diff.sql');
+  expect(tutorial).toContain('generated `tableDefinitions` are the normal runtime path after `ztd-config`');
+  expect(tutorial).toContain('explicit `tableDefinitions` / `tableRows` are for local tests that want direct fixtures');
+  expect(tutorial).toContain('`ddl.directories` is the fallback only when no generated manifest exists');
 });
 
 test('guide navigation and feature index surface the tutorial', () => {

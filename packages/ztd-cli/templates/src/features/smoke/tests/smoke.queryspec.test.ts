@@ -1,67 +1,31 @@
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-import { createCatalogExecutor, type Binder } from '@rawsql-ts/sql-contract';
-import { Pool } from 'pg';
 import { expect, test } from 'vitest';
 
-import { smokeSpec } from '../persistence/smoke.spec.js';
+import { createStarterPostgresTestkitClient } from '../../../../tests/support/postgres-testkit.js';
 
-const testFileDir = path.dirname(fileURLToPath(import.meta.url));
-const featurePersistenceDir = path.resolve(testFileDir, '..', 'persistence');
-
-const namedParameterBinder: Binder = {
-  name: 'smoke-named-parameter-binder',
-  bind({ specId, sql, params }) {
-    if (Array.isArray(params)) {
-      throw new Error(`Spec "${specId}" expected named parameters for the smoke QuerySpec test.`);
-    }
-
-    const values: unknown[] = [];
-    const compiledSql = sql.replace(/(?<!:):([A-Za-z][A-Za-z0-9_]*)\b/g, (_match, parameterName: string) => {
-      if (!(parameterName in params)) {
-        throw new Error(`Spec "${specId}" is missing the named parameter "${parameterName}".`);
-      }
-
-      values.push(params[parameterName]);
-      return `$${values.length}`;
-    });
-
-    return {
-      sql: compiledSql,
-      params: values
-    };
+const usersTableDefinitions = [
+  {
+    name: 'public.users',
+    columns: [
+      { name: 'id', typeName: 'int', required: true },
+      { name: 'email', typeName: 'text', required: true }
+    ]
   }
-};
+];
 
-test('smoke QuerySpec connects to the configured DB and runs the minimal named-parameter query', async () => {
-  const connectionString = process.env.ZTD_TEST_DATABASE_URL;
-  if (!connectionString) {
-    throw new Error(
-      'Set ZTD_DB_PORT in .env before running src/features/smoke/tests/smoke.queryspec.test.ts.'
-    );
-  }
+const usersTableRows = [
+  { id: 1, email: 'alice@example.com' }
+];
 
-  const pool = new Pool({ connectionString });
-  const catalog = createCatalogExecutor({
-    loader: {
-      async load(sqlFile) {
-        return readFile(path.resolve(featurePersistenceDir, sqlFile), 'utf8');
-      }
-    },
-    binders: [namedParameterBinder],
-    executor: (sql, params) => pool.query(sql, params as unknown[])
+test('smoke starter DB path connects through testkit-postgres and resolves the starter schema', async () => {
+  const client = createStarterPostgresTestkitClient({
+    tableDefinitions: usersTableDefinitions,
+    tableRows: [{ tableName: 'public.users', rows: usersTableRows }]
   });
 
   try {
-    const result = await catalog.scalar(smokeSpec, {
-      v1: 2,
-      v2: 3
-    });
-
-    expect(result).toBe(5);
+    const result = await client.query('select id, email from users where id = $1', [1]);
+    expect(result.rows).toEqual([{ id: 1, email: 'alice@example.com' }]);
   } finally {
-    await pool.end();
+    await client.close();
   }
 });

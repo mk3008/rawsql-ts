@@ -42,6 +42,8 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       docPath: 'docs/guide/sql-first-end-to-end-tutorial.md',
       phrases: [
         'This tutorial shows the shortest path from `ztd init --starter` to a small `users` feature',
+        'The smallest DB-backed starter example lives in `src/features/smoke/tests/smoke.queryspec.test.ts`.',
+        '`@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`',
         'Docker Desktop or another Docker daemon is already running',
         'cp .env.example .env',
         '# edit ZTD_DB_PORT=5433',
@@ -57,7 +59,21 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         '- the risks section lists destructive and operational apply-plan risks separately',
         'npx ztd ddl risk --file tmp/users.diff.sql',
         'current `ztd ddl diff` CLI does not expose the lower-level drop-avoidance options from core',
-        'npx vitest run'
+        'npx vitest run',
+        'generated `tableDefinitions` are the normal runtime path after `ztd-config`',
+        'explicit `tableDefinitions` / `tableRows` are for local tests that want direct fixtures',
+        '`ddl.directories` is the fallback only when no generated manifest exists'
+      ]
+    },
+    {
+      docPath: 'packages/testkit-postgres/README.md',
+      phrases: [
+        'createPostgresTestkitClient',
+        'defaultSchema',
+        'searchPath',
+        'public.users',
+        'Generated fixture manifests',
+        'ddl.directories'
       ]
     },
     {
@@ -116,6 +132,14 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         '`ztd model-gen` now treats feature-local SQL files as the primary contract source',
         'ZTD_TEST_DATABASE_URL',
         'Do not assume `DATABASE_URL` is a usable default target'
+      ]
+    },
+    {
+      docPath: 'packages/ztd-cli/README.md',
+      phrases: [
+        '@rawsql-ts/testkit-postgres',
+        'createPostgresTestkitClient',
+        'the `@rawsql-ts/testkit-postgres` package README'
       ]
     },
     {

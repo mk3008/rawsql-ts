@@ -28,6 +28,8 @@ test('writeZtdProjectConfig skips rewriting when the effective config is unchang
         dialect: 'postgres',
         ddlDir: 'ztd/ddl',
         testsDir: 'tests',
+        defaultSchema: 'public',
+        searchPath: ['public'],
         ddl: { defaultSchema: 'public', searchPath: ['public'] },
         ddlLint: 'strict'
       },
@@ -45,6 +47,8 @@ test('writeZtdProjectConfig skips rewriting when the effective config is unchang
   const didWrite = writeZtdProjectConfig(rootDir, {}, config);
 
   expect(didWrite).toBe(false);
+  expect(config.defaultSchema).toBe('public');
+  expect(config.searchPath).toEqual(['public']);
   expect(readFileSync(path.join(rootDir, 'ztd.config.json'), 'utf8')).toBe(beforeContents);
   expect(statSync(path.join(rootDir, 'ztd.config.json')).mtimeMs).toBe(beforeStat.mtimeMs);
 });
@@ -60,6 +64,8 @@ test('loadZtdProjectConfig warns when legacy connection config is present', asyn
         dialect: 'postgres',
         ddlDir: 'ztd/ddl',
         testsDir: 'tests',
+        defaultSchema: 'public',
+        searchPath: ['public'],
         ddl: { defaultSchema: 'public', searchPath: ['public'] },
         ddlLint: 'strict',
         connection: {
@@ -84,6 +90,8 @@ test('loadZtdProjectConfig warns when legacy connection config is present', asyn
     user: 'legacy-user',
     database: 'legacy-db'
   });
+  expect(config.defaultSchema).toBe('public');
+  expect(config.searchPath).toEqual(['public']);
   expect(emitWarning).toHaveBeenCalledTimes(1);
   expect(emitWarning.mock.calls[0]?.[0]).toContain('ztd.config.json.connection');
   expect(emitWarning.mock.calls[0]?.[1]).toMatchObject({ code: 'ZTD_LEGACY_CONNECTION_CONFIG' });
@@ -100,6 +108,8 @@ test('loadZtdProjectConfig does not warn when legacy connection config is absent
         dialect: 'postgres',
         ddlDir: 'ztd/ddl',
         testsDir: 'tests',
+        defaultSchema: 'public',
+        searchPath: ['public'],
         ddl: { defaultSchema: 'public', searchPath: ['public'] },
         ddlLint: 'strict'
       },
@@ -115,5 +125,7 @@ test('loadZtdProjectConfig does not warn when legacy connection config is absent
   const config = loadZtdProjectConfig(rootDir);
 
   expect(config.connection).toBeUndefined();
+  expect(config.defaultSchema).toBe('public');
+  expect(config.searchPath).toEqual(['public']);
   expect(emitWarning).not.toHaveBeenCalled();
 });

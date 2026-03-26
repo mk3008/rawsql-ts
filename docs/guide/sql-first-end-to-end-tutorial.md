@@ -46,6 +46,10 @@ The starter generates:
 - visible `AGENTS.md` guidance
 - Vitest smoke tests
 
+The smallest DB-backed starter example lives in `src/features/smoke/tests/smoke.queryspec.test.ts`.
+It uses `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`, so a missing `ZTD_TEST_DATABASE_URL`, a stopped Postgres container, or a schema mismatch fails before you build a larger feature.
+If you want the fixture-loading details, read `packages/testkit-postgres/README.md` after the starter smoke test.
+
 ## 2. Start Postgres and run the smoke test
 
 Use the bundled compose file:
@@ -80,6 +84,7 @@ npx vitest run
 ```
 
 The smoke test proves the starter wiring is sound before you add real feature work.
+It also proves the DB-backed ZTD path is reachable from the starter, not just the DB-free sample path.
 
 If the project was installed with `pnpm install`, keep using pnpm when you add the database adapter for the SQL repair loop:
 
@@ -160,6 +165,12 @@ Use a fresh AI prompt for this step so we can confirm the migration guidance wor
 3. Optionally run `npx ztd ddl pull --url <target-db-url>` to inspect the target, then run `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` when you need a migration plan.
 4. Read the text summary first, inspect the generated SQL second, and apply the SQL outside `ztd-cli`.
 5. Re-run `npx ztd ztd-config` and `npx vitest run` after the migration lands so the generated runtime manifest stays in sync with the schema metadata.
+
+The fixture contract is intentionally split:
+
+- generated `tableDefinitions` are the normal runtime path after `ztd-config`
+- explicit `tableDefinitions` / `tableRows` are for local tests that want direct fixtures
+- `ddl.directories` is the fallback only when no generated manifest exists
 
 This step belongs in the tutorial because the starter path should show not only how to add a feature, but also how to evolve the schema safely without asking `ztd-cli` to own deployment.
 
