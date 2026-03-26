@@ -414,7 +414,7 @@ function runQueryLintCommand(sqlFile: string, options: QueryLintOptions): void {
   console.log(contents.trimEnd());
 }
 
-function runQueryMatchObservedCommand(options: QueryMatchObservedOptions): void {
+export function runQueryMatchObservedCommand(options: QueryMatchObservedOptions): void {
   const format = normalizeFormat(normalizeStringOption(options.format) ?? getAgentOutputFormat());
   const observedSql = resolveObservedSqlInput(options);
   const report = buildObservedSqlMatchReport({
@@ -512,6 +512,9 @@ function runQuerySssqlScaffoldCommand(sqlFile: string, options: QuerySssqlScaffo
     ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') }
     : options;
   const filters = normalizeSssqlFilters(resolved.filter ?? resolved.filters);
+  if (Object.keys(filters).length === 0) {
+    throw new Error('Provide at least one SSSQL filter via --json {"filters": {...}}.');
+  }
   const sql = readFileSync(sqlFile, 'utf8');
   const result = new SSSQLFilterBuilder().scaffold(sql, filters);
   const formatted = new SqlFormatter().format(result).formattedSql;
