@@ -10,6 +10,8 @@ The project is feature-first by default:
 
 Generate the starter flow with `ztd init --starter` when you want the removable `src/features/smoke/` sample feature, a named-parameter SQL example, and the bundled Postgres compose path.
 
+If you need the repository telemetry seam that comes with the starter, use [Repository Telemetry Setup](../../../docs/guide/repository-telemetry-setup.md) for the edit points, logging examples, and queryId-based flow.
+
 Use feature-local tests as the default shape:
 
 ```bash
@@ -35,7 +37,8 @@ The starter keeps `ztdRootDir`, `ddlDir`, `defaultSchema`, and `searchPath` in `
 
 src/catalog may still exist as internal support, but it is not the user-facing standard location.
 
-For DDL, SQL, DTO, and migration repair loops, read the tutorial and dogfooding docs under `docs/`.
+For `queryId`-based investigation, read [Repository Telemetry Setup](../../../docs/guide/repository-telemetry-setup.md).
+For reverse lookup from observed SQL, read [Observed SQL Investigation](../../../docs/guide/observed-sql-investigation.md).
 
 ## Getting Started with AI
 

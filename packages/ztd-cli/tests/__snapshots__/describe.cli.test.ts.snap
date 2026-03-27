@@ -464,6 +464,14 @@ exports[`describe command snapshots the top-level command catalog and every deta
         "writesFiles": true,
       },
       {
+        "name": "query match-observed",
+        "summary": "Rank likely source SQL assets for an observed SELECT statement.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": false,
+        "supportsJsonPayload": false,
+        "writesFiles": true,
+      },
+      {
         "name": "lint",
         "summary": "Lint SQL files with fixture-backed validation.",
         "supportsDescribeOutput": false,
@@ -875,6 +883,52 @@ exports[`describe command snapshots the top-level command catalog and every deta
       "supportsDryRun": true,
       "supportsJsonPayload": true,
       "writesFiles": false,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > query match-observed 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Report emitted.",
+        "1": "Validation failed or no candidate SELECT assets were found.",
+      },
+      "flags": [
+        {
+          "description": "Observed SQL text to rank.",
+          "name": "--sql",
+        },
+        {
+          "description": "Read the observed SQL text from a file.",
+          "name": "--sql-file",
+        },
+        {
+          "description": "Emit a machine-readable JSON ranking report.",
+          "name": "--format json",
+        },
+        {
+          "description": "Write output to a file.",
+          "name": "--out",
+        },
+      ],
+      "name": "query match-observed",
+      "output": {
+        "files": [
+          "Specified --out file when present",
+        ],
+        "stdout": "Text ranking report or JSON report for observed SQL candidates.",
+      },
+      "summary": "Rank likely source SQL assets for an observed SELECT statement.",
+      "supportsDryRun": false,
+      "supportsJsonPayload": false,
+      "writesFiles": true,
     },
     "schemaVersion": 1,
   },

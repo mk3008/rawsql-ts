@@ -94,7 +94,6 @@ Do not apply migrations automatically.
 
 Run `npx ztd agents init` afterward if you want visible `AGENTS.md` files for the project.
 Add `--with-dogfooding` if you want `PROMPT_DOGFOOD.md` for debugging or prompt review.
-Advanced validation, dogfooding, and tuning live in [Further Reading](#further-reading).
 
 ## Core features
 
@@ -104,7 +103,7 @@ Advanced validation, dogfooding, and tuning live in [Further Reading](#further-r
 - `ztd lint` checks SQL against a temporary Postgres before you ship it.
 - `ztd model-gen` and `ztd query uses` keep QuerySpec scaffolding and impacted-file discovery close to the feature-first slice.
 - `ztd query sssql scaffold` and `ztd query sssql refresh` move optional filters into SQL-first authoring and keep runtime pruning explicit. Runtime no longer injects new filter predicates.
-- `ztd query match-observed` ranks likely source SQL assets for an observed SELECT statement when `queryId` is missing.
+- `ztd query match-observed` ranks likely source SQL assets for an observed SELECT statement when `queryId` is missing. See the investigation guide for the full flow.
 - `ztd perf init` / `ztd perf run` support tuning without forcing SQL rewrites first.
 - `--dry-run` / `--output json` make the workflow reviewable and machine-readable.
 
@@ -144,11 +143,13 @@ Run `npx ztd describe command <name>` for per-command flags and options.
 - [SQL Tool Happy Paths](../../docs/guide/sql-tool-happy-paths.md) - choose between query plan, perf, query uses, and telemetry
 - [Perf Tuning Decision Guide](../../docs/guide/perf-tuning-decision-guide.md) - index tuning vs pipeline tuning
 - [JOIN Direction Lint Specification](../../docs/guide/join-direction-lint-spec.md) - readable FK-aware JOIN guidance
+- [Repository Telemetry Setup](../../docs/guide/repository-telemetry-setup.md) - how to edit the scaffold, emit logs, and investigate with `queryId`
+- [Observed SQL Investigation](../../docs/guide/observed-sql-investigation.md) - how to use `ztd query match-observed` when `queryId` is missing
 
 ### Advanced User Guides
 
 - [ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md) - opt-in telemetry guidance
-- [Observed SQL Matching](../../docs/guide/observed-sql-matching.md) - find source SQL from DB logs when `queryId` is missing
+- [Observed SQL Matching](../../docs/guide/observed-sql-matching.md) - why reverse lookup exists and where it fits
 
 #### Multiple DB Clients in One Workflow
 

@@ -318,7 +318,21 @@ function verifyNpmPrimaryPath(packages) {
     "Generate the starter flow with `ztd init --starter` when you want the removable `src/features/smoke/` sample feature",
     "phase-a scaffold-readme"
   );
-  assertIncludes(readme, "For DDL, SQL, DTO, and migration repair loops, read the tutorial and dogfooding docs under `docs/`.", "phase-a scaffold-readme");
+  assertIncludes(
+    readme,
+    "If you need the repository telemetry seam that comes with the starter, use [Repository Telemetry Setup]",
+    "phase-a scaffold-readme"
+  );
+  assertIncludes(
+    readme,
+    "For `queryId`-based investigation, read [Repository Telemetry Setup]",
+    "phase-a scaffold-readme"
+  );
+  assertIncludes(
+    readme,
+    "For reverse lookup from observed SQL, read [Observed SQL Investigation]",
+    "phase-a scaffold-readme"
+  );
   assertIncludes(readme, "Use this short prompt:", "phase-a scaffold-readme");
   assertIncludes(readme, "Choose ztd init or ztd init --starter based on whether I want the removable starter sample.", "phase-a scaffold-readme");
   assertIncludes(readme, "Add `--with-dogfooding` if you want `PROMPT_DOGFOOD.md` for prompt review.", "phase-a scaffold-readme");

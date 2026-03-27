@@ -3,6 +3,7 @@ import path from 'node:path';
 import { expect, test } from 'vitest';
 
 import {
+  buildInitDryRunPlan,
   runInitCommand,
   buildPackageManagerArgs,
   findAncestorPnpmWorkspaceRoot,
@@ -180,6 +181,10 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd model-gen');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('@rawsql-ts/testkit-postgres');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('tests/support/postgres-testkit.ts');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('repository telemetry');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('queryId');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('paramsShape');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('transformations');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'README.md'))).toContain('starter-only sample feature');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('smoke.queryspec.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('setup-env.ts');
@@ -203,6 +208,20 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'))).toContain('../domain/smoke-policy.js');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'))).toContain('createStarterPostgresTestkitClient');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'))).toContain('public.users');
+  expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'README.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'types.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'))).toBe(true);
+  expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'README.md'))).toContain('default repository telemetry seam is no-op');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'README.md'))).toContain('queryId');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'))).toContain('createNoopRepositoryTelemetry');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'))).toContain('defaultRepositoryTelemetry');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'))).not.toContain('sqlText');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'types.ts'))).toContain('paramsShape');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'types.ts'))).toContain('transformations');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'types.ts'))).not.toContain('parameterValues');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'))).toContain('queryId');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'))).not.toContain('sqlText');
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
     devDependencies: Record<string, string>;
   };
@@ -222,6 +241,37 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(result.summary).toContain('starter-only sample feature');
   expect(result.summary).toContain('ztd agents init');
   expect(result.summary).toContain('Delete src/features/smoke/');
+});
+
+test('init dry-run plan matches starter outputs without AGENTS files', () => {
+  const workspace = createTempDir('cli-init-dry-run-plan');
+  const plan = buildInitDryRunPlan(workspace, {
+    appShape: 'default',
+    starter: true,
+    postgresImage: 'postgres:17',
+    withAiGuidance: false,
+    withDogfooding: false,
+    withAppInterface: false,
+    workflow: 'demo',
+    validator: 'zod',
+    localSourceRoot: null
+  });
+
+  expect(plan.dryRun).toBe(true);
+  expect(plan.files).toEqual(expect.arrayContaining([
+    'compose.yaml',
+    'src/features/smoke/tests/smoke.test.ts',
+    'src/infrastructure/telemetry/types.ts',
+    'tests/support/postgres-testkit.ts'
+  ]));
+  expect(plan.files).not.toEqual(expect.arrayContaining([
+    'AGENTS.md',
+    'ztd/AGENTS.md',
+    'ztd/ddl/AGENTS.md',
+    'src/AGENTS.md',
+    'src/features/AGENTS.md',
+    'tests/AGENTS.md'
+  ]));
 });
 
 test('init starter keeps visible AGENTS out even when internal AI guidance is enabled', { timeout: 60_000 }, async () => {
