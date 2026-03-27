@@ -43,7 +43,7 @@ The starter generates:
 - `src/features/smoke`
 - `ztd/ddl/demo.sql`
 - `compose.yaml`
-- visible `AGENTS.md` guidance
+- optional visible `AGENTS.md` guidance if you run `npx ztd agents init`
 - Vitest smoke tests
 
 The smallest DB-backed starter example lives in `src/features/smoke/tests/smoke.queryspec.test.ts`.

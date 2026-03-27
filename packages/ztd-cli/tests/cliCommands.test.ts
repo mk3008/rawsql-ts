@@ -609,7 +609,7 @@ test('agents install emits the visible AGENTS plan and materializes the files', 
   assertCliSuccess(result, 'agents install');
   expect(result.stdout).toContain('About to create:');
   expect(result.stdout).toContain('No files will be overwritten.');
-  expect(result.stdout).toContain('Disable with: skip `ztd agents install`');
+  expect(result.stdout).toContain('Omit `ztd agents install` if you do not want visible AGENTS files.');
   expect(result.stdout).toContain('AGENTS.md');
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);

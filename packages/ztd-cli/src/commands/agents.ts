@@ -19,7 +19,7 @@ export function registerAgentsCommand(program: Command): void {
         }
       }
       lines.push('No files will be overwritten.');
-      lines.push('Disable with: skip `ztd agents install` (visible AGENTS are disabled by default).');
+      lines.push('Omit `ztd agents install` if you do not want visible AGENTS files.');
 
       const written = installVisibleAgents(process.cwd());
       if (isJsonOutput()) {

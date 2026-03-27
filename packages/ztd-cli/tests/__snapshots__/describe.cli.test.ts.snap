@@ -61,7 +61,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
       "output": {
         "files": [
           "AGENTS.md or AGENTS_ztd.md",
-          "ztd/AGENTS.md",
+          "ztd/**/AGENTS.md",
           "src/**/AGENTS.md",
           "tests/**/AGENTS.md",
         ],

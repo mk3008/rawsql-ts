@@ -51,7 +51,7 @@ const COMMANDS: CommandDescriptor[] = [
     supportsJsonPayload: false,
     output: {
       stdout: 'Human install summary in text mode, JSON envelope in global json mode.',
-      files: ['AGENTS.md or AGENTS_ztd.md', 'ztd/AGENTS.md', 'src/**/AGENTS.md', 'tests/**/AGENTS.md']
+      files: ['AGENTS.md or AGENTS_ztd.md', 'ztd/**/AGENTS.md', 'src/**/AGENTS.md', 'tests/**/AGENTS.md']
     },
     exitCodes: {
       '0': 'Visible AGENTS installation completed or was already up to date.',
