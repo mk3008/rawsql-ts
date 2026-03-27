@@ -40,6 +40,7 @@ src/catalog may still exist as internal support, but it is not the user-facing s
 The starter scaffold also includes a no-op repository telemetry seam under `src/infrastructure/telemetry/`.
 Use `queryId` as the stable lookup key when you are correlating runtime events, and treat `repositoryName` and `methodName` as human-readable hints that can be renamed later.
 The event contract keeps `paramsShape` and `transformations` safe to export because they describe shape, not raw SQL or bind values.
+The starter contract intentionally omits raw error text; if you need richer failure detail, add that only in a custom sink-specific extension.
 
 `paramsShape` stays intentionally coarse:
 

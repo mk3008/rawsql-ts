@@ -527,19 +527,6 @@ test(
   60000,
 );
 
-test('init dry-run emits scaffold plan without writing files', { timeout: 60_000 }, () => {
-  const workspace = createTempDir('init-dry-run');
-  const result = runCli(['--output', 'json', 'init', '--dry-run', '--workflow', 'demo', '--validator', 'zod'], {}, workspace);
-  assertCliSuccess(result, 'init dry-run');
-  const parsed = JSON.parse(result.stdout);
-  expect(parsed.data).toMatchObject({
-    dryRun: true,
-    workflow: 'demo',
-    validator: 'zod'
-  });
-  expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(false);
-});
-
 test('init rejects non-boolean dryRun in --json payload', { timeout: 60_000 }, () => {
   const workspace = createTempDir('init-json-dryrun-boolean-validation');
   const result = runCli([

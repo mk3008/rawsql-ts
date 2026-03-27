@@ -96,7 +96,6 @@ export interface RepositoryQueryExecuteErrorEvent extends RepositoryTelemetryEve
   kind: 'query.execute.error';
   durationMs: number;
   errorName: string;
-  errorMessage: string;
 }
 
 export type RepositoryTelemetryEvent =

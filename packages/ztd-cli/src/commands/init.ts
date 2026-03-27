@@ -2501,7 +2501,7 @@ const VALID_WORKFLOWS: readonly InitWorkflow[] = ['pg_dump', 'empty', 'demo'] as
 const VALID_VALIDATORS: readonly ValidatorBackend[] = ['zod', 'arktype'] as const;
 const VALID_APP_SHAPES: readonly InitAppShape[] = ['default', 'webapi'] as const;
 
-interface InitDryRunPlan {
+export interface InitDryRunPlan {
   schemaVersion: 1;
   workflow: InitWorkflow;
   validator: ValidatorBackend;
@@ -2511,7 +2511,7 @@ interface InitDryRunPlan {
   files: string[];
 }
 
-function buildInitDryRunPlan(rootDir: string, options: {
+export function buildInitDryRunPlan(rootDir: string, options: {
   appShape: InitAppShape;
   starter?: boolean;
   postgresImage?: string;
@@ -2563,13 +2563,7 @@ function buildInitDryRunPlan(rootDir: string, options: {
       path.join('src', 'infrastructure', 'telemetry', 'types.ts'),
       path.join('src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'),
       path.join('src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'),
-      path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'postgres-testkit.ts'),
-      'AGENTS.md',
-      path.join('ztd', 'AGENTS.md'),
-      path.join('ztd', 'ddl', 'AGENTS.md'),
-      path.join('src', 'AGENTS.md'),
-      path.join('src', 'features', 'AGENTS.md'),
-      path.join('tests', 'AGENTS.md')
+      path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'postgres-testkit.ts')
     );
   }
 

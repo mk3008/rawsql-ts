@@ -3,6 +3,7 @@ import path from 'node:path';
 import { expect, test } from 'vitest';
 
 import {
+  buildInitDryRunPlan,
   runInitCommand,
   buildPackageManagerArgs,
   findAncestorPnpmWorkspaceRoot,
@@ -237,6 +238,37 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(result.summary).toContain('starter-only sample feature');
   expect(result.summary).toContain('ztd agents init');
   expect(result.summary).toContain('Delete src/features/smoke/');
+});
+
+test('init dry-run plan matches starter outputs without AGENTS files', () => {
+  const workspace = createTempDir('cli-init-dry-run-plan');
+  const plan = buildInitDryRunPlan(workspace, {
+    appShape: 'default',
+    starter: true,
+    postgresImage: 'postgres:17',
+    withAiGuidance: false,
+    withDogfooding: false,
+    withAppInterface: false,
+    workflow: 'demo',
+    validator: 'zod',
+    localSourceRoot: null
+  });
+
+  expect(plan.dryRun).toBe(true);
+  expect(plan.files).toEqual(expect.arrayContaining([
+    'compose.yaml',
+    'src/features/smoke/tests/smoke.test.ts',
+    'src/infrastructure/telemetry/types.ts',
+    'tests/support/postgres-testkit.ts'
+  ]));
+  expect(plan.files).not.toEqual(expect.arrayContaining([
+    'AGENTS.md',
+    'ztd/AGENTS.md',
+    'ztd/ddl/AGENTS.md',
+    'src/AGENTS.md',
+    'src/features/AGENTS.md',
+    'tests/AGENTS.md'
+  ]));
 });
 
 test('init starter keeps visible AGENTS out even when internal AI guidance is enabled', { timeout: 60_000 }, async () => {
