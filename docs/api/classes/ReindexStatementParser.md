@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: ReindexStatementParser
 
-Defined in: [packages/core/src/parsers/ReindexStatementParser.ts:4](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/parsers/ReindexStatementParser.ts#L4)
+Defined in: [packages/core/src/parsers/ReindexStatementParser.ts:4](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/parsers/ReindexStatementParser.ts#L4)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/parsers/ReindexStatementParser.ts:4](https://gith
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/ReindexStatementParser.ts:5](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/parsers/ReindexStatementParser.ts#L5)
+Defined in: [packages/core/src/parsers/ReindexStatementParser.ts:5](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/parsers/ReindexStatementParser.ts#L5)
 
 #### Parameters
 

@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: PaginationOptions
 
-Defined in: [packages/core/src/transformers/SqlPaginationInjector.ts:9](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/SqlPaginationInjector.ts#L9)
+Defined in: [packages/core/src/transformers/SqlPaginationInjector.ts:9](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/transformers/SqlPaginationInjector.ts#L9)
 
 Options for pagination injection
 
@@ -11,7 +11,7 @@ Options for pagination injection
 
 > **page**: `number`
 
-Defined in: [packages/core/src/transformers/SqlPaginationInjector.ts:11](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/SqlPaginationInjector.ts#L11)
+Defined in: [packages/core/src/transformers/SqlPaginationInjector.ts:11](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/transformers/SqlPaginationInjector.ts#L11)
 
 Page number (1-based)
 
@@ -21,7 +21,7 @@ Page number (1-based)
 
 > **pageSize**: `number`
 
-Defined in: [packages/core/src/transformers/SqlPaginationInjector.ts:13](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/SqlPaginationInjector.ts#L13)
+Defined in: [packages/core/src/transformers/SqlPaginationInjector.ts:13](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/transformers/SqlPaginationInjector.ts#L13)
 
 Number of items per page
 </div>

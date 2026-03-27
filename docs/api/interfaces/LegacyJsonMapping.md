@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: LegacyJsonMapping
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:101](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/EnhancedJsonMapping.ts#L101)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:101](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/transformers/EnhancedJsonMapping.ts#L101)
 
 Legacy JSON mapping interface (from PostgresJsonQueryBuilder).
 
@@ -11,7 +11,7 @@ Legacy JSON mapping interface (from PostgresJsonQueryBuilder).
 
 > **rootName**: `string`
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:102](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/EnhancedJsonMapping.ts#L102)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:102](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/transformers/EnhancedJsonMapping.ts#L102)
 
 ***
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:102](https://
 
 > **rootEntity**: `object`
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:103](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/EnhancedJsonMapping.ts#L103)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:103](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/transformers/EnhancedJsonMapping.ts#L103)
 
 #### id
 
@@ -43,7 +43,7 @@ Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:103](https://
 
 > **nestedEntities**: `object`[]
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:108](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/EnhancedJsonMapping.ts#L108)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:108](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/transformers/EnhancedJsonMapping.ts#L108)
 
 #### id
 
@@ -79,7 +79,7 @@ Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:108](https://
 
 > `optional` **resultFormat**: `"array"` \| `"single"`
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:116](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/EnhancedJsonMapping.ts#L116)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:116](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/transformers/EnhancedJsonMapping.ts#L116)
 
 ***
 
@@ -87,5 +87,5 @@ Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:116](https://
 
 > `optional` **emptyResult**: `string`
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:117](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/EnhancedJsonMapping.ts#L117)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:117](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/transformers/EnhancedJsonMapping.ts#L117)
 </div>

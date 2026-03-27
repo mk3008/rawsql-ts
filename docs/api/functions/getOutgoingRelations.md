@@ -3,7 +3,7 @@
 
 > **getOutgoingRelations**(`graph`, `childTable`): [`RelationGraphEdge`](../interfaces/RelationGraphEdge.md)[]
 
-Defined in: [packages/core/src/utils/RelationGraph.ts:98](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/utils/RelationGraph.ts#L98)
+Defined in: [packages/core/src/utils/RelationGraph.ts:98](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/utils/RelationGraph.ts#L98)
 
 Return the known parent relations for a child table.
 

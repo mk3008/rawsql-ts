@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: SupportedOptionalConditionBranch
 
-Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:19](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L19)
+Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:19](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L19)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:19
 
 > **query**: [`SimpleSelectQuery`](../classes/SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:20](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L20)
+Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:20](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L20)
 
 ***
 
@@ -17,7 +17,7 @@ Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:20
 
 > **parameterName**: `string`
 
-Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:21](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L21)
+Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:21](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L21)
 
 ***
 
@@ -25,7 +25,7 @@ Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:21
 
 > **expression**: [`ValueComponent`](../type-aliases/ValueComponent.md)
 
-Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:22](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L22)
+Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:22](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L22)
 
 ***
 
@@ -33,5 +33,5 @@ Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:22
 
 > **kind**: `"expression"`
 
-Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:23](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L23)
+Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:23](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L23)
 </div>

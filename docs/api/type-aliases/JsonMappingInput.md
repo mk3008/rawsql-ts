@@ -3,7 +3,7 @@
 
 > **JsonMappingInput** = [`EnhancedJsonMapping`](../interfaces/EnhancedJsonMapping.md) \| [`ModelDrivenJsonMapping`](../interfaces/ModelDrivenJsonMapping.md) \| [`LegacyJsonMapping`](../interfaces/LegacyJsonMapping.md)
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:13](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/JsonMappingConverter.ts#L13)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:13](https://github.com/mk3008/rawsql-ts/blob/2205890b4ad14cdd6f006dd2c83aff89c3062b76/packages/core/src/transformers/JsonMappingConverter.ts#L13)
 
 Input format types that the converter can handle.
 </div>
