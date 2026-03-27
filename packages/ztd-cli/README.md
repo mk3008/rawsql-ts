@@ -52,8 +52,8 @@ That manifest carries `tableDefinitions` schema metadata only; test rows stay ex
 The removable starter smoke path also shows `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient` for the DB-backed test that catches setup problems early.
 If you want the fixture-resolution details, read the `@rawsql-ts/testkit-postgres` package README after the starter smoke path.
 
-The starter scaffold also includes a no-op repository telemetry seam under `src/infrastructure/telemetry/`. Use `queryId` as the stable lookup key, and keep `repositoryName`, `methodName`, `paramsShape`, and `transformations` as safe execution metadata only.
-The seam does not emit SQL text or bind values by default, so you can decide explicitly when to connect console, pino, or OpenTelemetry sinks.
+If you add a no-op repository telemetry seam under `src/infrastructure/telemetry/`, use `queryId` as the stable lookup key, and keep `repositoryName`, `methodName`, `paramsShape`, and `transformations` as safe execution metadata only.
+That seam does not emit SQL text or bind values by default, so you can decide explicitly when to connect console, pino, or OpenTelemetry sinks.
 
 Make sure Docker Desktop or another Docker daemon is already running before you start the compose path, because `docker compose up -d` only launches the stack.
 The generated Vitest setup derives `ZTD_TEST_DATABASE_URL` from `.env`, so the test runtime sees the same port setting as the compose file.

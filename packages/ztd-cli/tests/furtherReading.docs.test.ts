@@ -45,6 +45,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'npx ztd agents init',
         'The smallest DB-backed starter example lives in `src/features/smoke/tests/smoke.queryspec.test.ts`.',
         '`@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`',
+        'optional visible `AGENTS.md` guidance if you run `npx ztd agents init`',
         'Docker Desktop or another Docker daemon is already running',
         'cp .env.example .env',
         '# edit ZTD_DB_PORT=5433',
@@ -158,7 +159,8 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'npx ztd agents init',
         '@rawsql-ts/testkit-postgres',
         'createPostgresTestkitClient',
-        'the `@rawsql-ts/testkit-postgres` package README'
+        'the `@rawsql-ts/testkit-postgres` package README',
+        'If you add a no-op repository telemetry seam under `src/infrastructure/telemetry/`'
       ]
     },
     {

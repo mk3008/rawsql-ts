@@ -612,7 +612,7 @@ test('agents init emits the visible AGENTS plan and materializes the files', { t
   assertCliSuccess(result, 'agents init');
   expect(result.stdout).toContain('About to create:');
   expect(result.stdout).toContain('No files will be overwritten.');
-  expect(result.stdout).toContain('Disable with: skip `ztd agents init`');
+  expect(result.stdout).toContain('Omit `ztd agents init` if you do not want visible AGENTS files.');
   expect(result.stdout).toContain('AGENTS.md');
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
@@ -625,7 +625,7 @@ test('agents install remains a backwards-compatible alias for agents init', { ti
 
   const result = runCli(['agents', 'install'], {}, workspace);
   assertCliSuccess(result, 'agents install alias');
-  expect(result.stdout).toContain('Disable with: skip `ztd agents init`');
+  expect(result.stdout).toContain('Omit `ztd agents init` if you do not want visible AGENTS files.');
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
 });

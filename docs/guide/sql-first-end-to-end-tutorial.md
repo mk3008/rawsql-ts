@@ -44,6 +44,7 @@ The starter generates:
 - `src/features/smoke`
 - `ztd/ddl/demo.sql`
 - `compose.yaml`
+- optional visible `AGENTS.md` guidance if you run `npx ztd agents init`
 - Vitest smoke tests
 
 Run `npx ztd agents init` if you want visible `AGENTS.md` guidance after the starter scaffold exists.
