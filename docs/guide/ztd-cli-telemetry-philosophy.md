@@ -6,6 +6,8 @@ title: ztd-cli Telemetry Philosophy
 
 `ztd-cli` telemetry exists to help maintainers and advanced users inspect command behavior during investigation, dogfooding, and performance work. It is intentionally **not** part of the default happy path.
 
+If you are looking for the starter repository telemetry setup and concrete logging flow, read [Repository Telemetry Setup](./repository-telemetry-setup.md).
+
 ## Why telemetry exists
 
 Telemetry is useful when you need to answer questions like these:

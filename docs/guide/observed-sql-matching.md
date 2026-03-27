@@ -11,6 +11,8 @@ This workflow is intentionally different from repository telemetry:
 - telemetry is for cases where `queryId` is already available
 - observed SQL matching is for cases where `queryId` is missing
 
+For the step-by-step investigation flow, read [Observed SQL Investigation](./observed-sql-investigation.md).
+
 ## When to use it
 
 Use `ztd query match-observed` when you need to answer questions like:
