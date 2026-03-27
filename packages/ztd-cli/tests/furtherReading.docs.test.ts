@@ -42,8 +42,10 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       docPath: 'docs/guide/sql-first-end-to-end-tutorial.md',
       phrases: [
         'This tutorial shows the shortest path from `ztd init --starter` to a small `users` feature',
+        'npx ztd agents init',
         'The smallest DB-backed starter example lives in `src/features/smoke/tests/smoke.queryspec.test.ts`.',
         '`@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`',
+        'optional visible `AGENTS.md` guidance if you run `npx ztd agents init`',
         'Docker Desktop or another Docker daemon is already running',
         'cp .env.example .env',
         '# edit ZTD_DB_PORT=5433',
@@ -126,20 +128,39 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'Use `ztd --output json ...` to request a JSON envelope on stdout.',
         'Prefer `--dry-run` before commands that write files.',
         'Use `--json <payload>` on supported commands when nested option construction is easier than individual flags.',
+        'Use `ztd init --with-ai-guidance` to write managed internal guidance under `.ztd/agents/`',
         'Use `ztd agents status` to distinguish managed templates from user-owned instruction files.',
         'treat `summary` as the logical diff, treat `risks` as the apply-plan risk list',
         'Use `ztd ddl risk --file <migration.sql>` when you need to evaluate a generated or hand-edited migration SQL file directly',
         '`ztd model-gen` now treats feature-local SQL files as the primary contract source',
         'ZTD_TEST_DATABASE_URL',
-        'Do not assume `DATABASE_URL` is a usable default target'
+        'Do not assume `DATABASE_URL` is a usable default target',
+        'Visible `AGENTS.md` files are opt-in via `ztd agents init`'
+      ]
+    },
+    {
+      docPath: 'docs/guide/feature-index.md',
+      phrases: [
+        'Visible AGENTS init',
+        'ztd agents init'
+      ]
+    },
+    {
+      docPath: 'docs/dogfooding/ztd-application-lifecycle.md',
+      phrases: [
+        'confirm that an AI agent can read `AGENTS.md` after you opt in with `ztd agents init`',
+        '`ztd agents init`',
+        'after visible AGENTS are installed'
       ]
     },
     {
       docPath: 'packages/ztd-cli/README.md',
       phrases: [
+        'npx ztd agents init',
         '@rawsql-ts/testkit-postgres',
         'createPostgresTestkitClient',
-        'the `@rawsql-ts/testkit-postgres` package README'
+        'the `@rawsql-ts/testkit-postgres` package README',
+        'If you add a no-op repository telemetry seam under `src/infrastructure/telemetry/`'
       ]
     },
     {

@@ -2,46 +2,51 @@ import { Command } from 'commander';
 import { getAgentsStatus, getVisibleAgentsInstallPaths, installVisibleAgents } from '../utils/agents';
 import { isJsonOutput, writeCommandEnvelope } from '../utils/agentCli';
 
+function runVisibleAgentsInit(commandName: 'agents init' | 'agents install'): void {
+  const plannedPaths = getVisibleAgentsInstallPaths(process.cwd());
+  const lines = ['About to create:'];
+  if (plannedPaths.length === 0) {
+    lines.push(' - (none)');
+  } else {
+    for (const targetPath of plannedPaths) {
+      lines.push(` - ${targetPath}`);
+    }
+  }
+  lines.push('No files will be overwritten.');
+  lines.push(`Omit \`ztd ${commandName}\` if you do not want visible AGENTS files.`);
+
+  const written = installVisibleAgents(process.cwd());
+  if (isJsonOutput()) {
+    writeCommandEnvelope(commandName, {
+      schemaVersion: 1,
+      plannedPaths,
+      createdPaths: written.map((summary) => summary.relativePath),
+      messageLines: lines
+    });
+    return;
+  }
+
+  const finalLines = [...lines];
+  if (written.length === 0) {
+    finalLines.push('Visible AGENTS guidance is already installed or intentionally preserved.');
+  } else {
+    finalLines.push('Installed visible AGENTS guidance:');
+    for (const summary of written) {
+      finalLines.push(` - ${summary.relativePath}`);
+    }
+  }
+  process.stdout.write(`${finalLines.join('\n')}\n`);
+}
+
 export function registerAgentsCommand(program: Command): void {
   const agents = program.command('agents').description('Manage internal and visible AGENTS guidance for ztd projects');
 
   agents
-    .command('install')
-    .description('Install visible AGENTS.md files from the managed templates')
+    .command('init')
+    .alias('install')
+    .description('Initialize visible AGENTS.md files from the managed templates')
     .action(() => {
-      const plannedPaths = getVisibleAgentsInstallPaths(process.cwd());
-      const lines = ['About to create:'];
-      if (plannedPaths.length === 0) {
-        lines.push(' - (none)');
-      } else {
-        for (const targetPath of plannedPaths) {
-          lines.push(` - ${targetPath}`);
-        }
-      }
-      lines.push('No files will be overwritten.');
-      lines.push('Disable with: skip `ztd agents install` (visible AGENTS are disabled by default).');
-
-      const written = installVisibleAgents(process.cwd());
-      if (isJsonOutput()) {
-        writeCommandEnvelope('agents install', {
-          schemaVersion: 1,
-          plannedPaths,
-          createdPaths: written.map((summary) => summary.relativePath),
-          messageLines: lines
-        });
-        return;
-      }
-
-      const finalLines = [...lines];
-      if (written.length === 0) {
-        finalLines.push('Visible AGENTS guidance is already installed or intentionally preserved.');
-      } else {
-        finalLines.push('Installed visible AGENTS guidance:');
-        for (const summary of written) {
-          finalLines.push(` - ${summary.relativePath}`);
-        }
-      }
-      process.stdout.write(`${finalLines.join('\n')}\n`);
+      runVisibleAgentsInit('agents init');
     });
 
   agents

@@ -47,13 +47,45 @@ exports[`describe command emits JSON envelope when global output is json 1`] = `
 }
 `;
 
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > agents init 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Visible AGENTS initialization completed or was already up to date.",
+        "1": "Filesystem or validation error.",
+      },
+      "flags": [],
+      "name": "agents init",
+      "output": {
+        "files": [
+          "AGENTS.md or AGENTS_ztd.md",
+          "ztd/**/AGENTS.md",
+          "src/**/AGENTS.md",
+          "tests/**/AGENTS.md",
+        ],
+        "stdout": "Human init summary in text mode, JSON envelope in global json mode.",
+      },
+      "summary": "Initialize visible AGENTS.md files from the managed templates.",
+      "supportsDryRun": false,
+      "supportsJsonPayload": false,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
 exports[`describe command snapshots the top-level command catalog and every detailed descriptor > agents install 1`] = `
 {
   "command": "describe command",
   "data": {
     "command": {
       "exitCodes": {
-        "0": "Visible AGENTS installation completed or was already up to date.",
+        "0": "Visible AGENTS initialization completed or was already up to date.",
         "1": "Filesystem or validation error.",
       },
       "flags": [],
@@ -65,9 +97,9 @@ exports[`describe command snapshots the top-level command catalog and every deta
           "src/**/AGENTS.md",
           "tests/**/AGENTS.md",
         ],
-        "stdout": "Human install summary in text mode, JSON envelope in global json mode.",
+        "stdout": "Human init summary in text mode, JSON envelope in global json mode.",
       },
-      "summary": "Install visible AGENTS.md files from the managed templates.",
+      "summary": "Alias for agents init.",
       "supportsDryRun": false,
       "supportsJsonPayload": false,
       "writesFiles": true,
@@ -304,8 +336,16 @@ exports[`describe command snapshots the top-level command catalog and every deta
         "writesFiles": true,
       },
       {
+        "name": "agents init",
+        "summary": "Initialize visible AGENTS.md files from the managed templates.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": false,
+        "supportsJsonPayload": false,
+        "writesFiles": true,
+      },
+      {
         "name": "agents install",
-        "summary": "Install visible AGENTS.md files from the managed templates.",
+        "summary": "Alias for agents init.",
         "supportsDescribeOutput": false,
         "supportsDryRun": false,
         "supportsJsonPayload": false,

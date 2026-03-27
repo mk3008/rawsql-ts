@@ -24,6 +24,7 @@ The focus is SQL maintainability: keep schema, queries, specs, and tests close t
 ```bash
 npm install -D @rawsql-ts/ztd-cli vitest typescript
 npx ztd init --starter
+npx ztd agents init
 # generates docker-compose.yml, starter DDL, config, and test stubs
 cp .env.example .env
 # edit ZTD_DB_PORT=5433 if needed
@@ -37,6 +38,7 @@ npx vitest run
 ```powershell
 npm install -D @rawsql-ts/ztd-cli vitest typescript
 npx ztd init --starter
+npx ztd agents init
 # generates docker-compose.yml, starter DDL, config, and test stubs
 Copy-Item .env.example .env
 # edit ZTD_DB_PORT=5433 if needed
@@ -50,8 +52,8 @@ That manifest carries `tableDefinitions` schema metadata only; test rows stay ex
 The removable starter smoke path also shows `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient` for the DB-backed test that catches setup problems early.
 If you want the fixture-resolution details, read the `@rawsql-ts/testkit-postgres` package README after the starter smoke path.
 
-The starter scaffold also includes a no-op repository telemetry seam under `src/infrastructure/telemetry/`. Use `queryId` as the stable lookup key, and keep `repositoryName`, `methodName`, `paramsShape`, and `transformations` as safe execution metadata only.
-The seam does not emit SQL text or bind values by default, so you can decide explicitly when to connect console, pino, or OpenTelemetry sinks.
+If you add a no-op repository telemetry seam under `src/infrastructure/telemetry/`, use `queryId` as the stable lookup key, and keep `repositoryName`, `methodName`, `paramsShape`, and `transformations` as safe execution metadata only.
+That seam does not emit SQL text or bind values by default, so you can decide explicitly when to connect console, pino, or OpenTelemetry sinks.
 
 Make sure Docker Desktop or another Docker daemon is already running before you start the compose path, because `docker compose up -d` only launches the stack.
 The generated Vitest setup derives `ZTD_TEST_DATABASE_URL` from `.env`, so the test runtime sees the same port setting as the compose file.
@@ -90,12 +92,14 @@ Keep handwritten SQL, spec, and tests inside src/features/<feature>.
 Do not apply migrations automatically.
 ```
 
+Run `npx ztd agents init` afterward if you want visible `AGENTS.md` files for the project.
 Add `--with-dogfooding` if you want `PROMPT_DOGFOOD.md` for debugging or prompt review.
 Advanced validation, dogfooding, and tuning live in [Further Reading](#further-reading).
 
 ## Core features
 
-- `ztd init --starter` creates a feature-first starter scaffold with `smoke`, starter DDL, AGENTS, and local Postgres wiring.
+- `ztd init --starter` creates a feature-first starter scaffold with `smoke`, starter DDL, and local Postgres wiring.
+- `ztd agents init` adds visible `AGENTS.md` files on demand.
 - `ztd ztd-config --watch` keeps generated `TestRowMap` types and runtime fixture metadata aligned with DDL as files change.
 - `ztd lint` checks SQL against a temporary Postgres before you ship it.
 - `ztd model-gen` and `ztd query uses` keep QuerySpec scaffolding and impacted-file discovery close to the feature-first slice.
@@ -109,6 +113,7 @@ Advanced validation, dogfooding, and tuning live in [Further Reading](#further-r
 | Command | Purpose |
 |---|---|
 | `ztd init --starter` | Scaffold the recommended first-run project. |
+| `ztd agents init` | Add visible `AGENTS.md` files after starter setup. |
 | `ztd ztd-config` | Regenerate `TestRowMap`, runtime fixture metadata, and layout metadata from DDL; add `--watch` for live updates. |
 | `ztd lint` | Lint SQL files against a temporary Postgres. |
 | `ztd model-gen` | Generate QuerySpec scaffolding from SQL assets. |

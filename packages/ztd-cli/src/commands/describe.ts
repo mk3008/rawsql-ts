@@ -44,17 +44,33 @@ const COMMANDS: CommandDescriptor[] = [
     ]
   },
   {
-    name: 'agents install',
-    summary: 'Install visible AGENTS.md files from the managed templates.',
+    name: 'agents init',
+    summary: 'Initialize visible AGENTS.md files from the managed templates.',
     writesFiles: true,
     supportsDryRun: false,
     supportsJsonPayload: false,
     output: {
-      stdout: 'Human install summary in text mode, JSON envelope in global json mode.',
+      stdout: 'Human init summary in text mode, JSON envelope in global json mode.',
+      files: ['AGENTS.md or AGENTS_ztd.md', 'ztd/**/AGENTS.md', 'src/**/AGENTS.md', 'tests/**/AGENTS.md']
+    },
+    exitCodes: {
+      '0': 'Visible AGENTS initialization completed or was already up to date.',
+      '1': 'Filesystem or validation error.'
+    },
+    flags: []
+  },
+  {
+    name: 'agents install',
+    summary: 'Alias for agents init.',
+    writesFiles: true,
+    supportsDryRun: false,
+    supportsJsonPayload: false,
+    output: {
+      stdout: 'Human init summary in text mode, JSON envelope in global json mode.',
       files: ['AGENTS.md or AGENTS_ztd.md', 'ztd/AGENTS.md', 'src/**/AGENTS.md', 'tests/**/AGENTS.md']
     },
     exitCodes: {
-      '0': 'Visible AGENTS installation completed or was already up to date.',
+      '0': 'Visible AGENTS initialization completed or was already up to date.',
       '1': 'Filesystem or validation error.'
     },
     flags: []
