@@ -666,13 +666,15 @@ function scoreSummaries(observed: ObservedSqlQuerySummary, candidate: ObservedSq
   const where = compareTokenSets(observedWhereTokens, candidateWhereTokens);
   const order = compareTokenSets(observedOrderTokens, candidateOrderTokens);
   const paging = comparePagingTokens(observedPagingTokens, candidatePagingTokens);
+  const setOperation = compareTokenSets(observedSetOperationTokens, candidateSetOperationTokens);
 
   const score =
-    projection.score * 36 +
-    source.score * 34 +
-    where.score * 20 +
-    order.score * 7 +
-    paging.score * 3;
+    projection.score * 33 +
+    source.score * 30 +
+    where.score * 18 +
+    order.score * 6 +
+    paging.score * 3 +
+    setOperation.score * 10;
 
   const reasons: string[] = [];
   const differences: string[] = [];
@@ -682,6 +684,7 @@ function scoreSummaries(observed: ObservedSqlQuerySummary, candidate: ObservedSq
   appendSectionNarrative('where clause', where, observedWhereTokens, candidateWhereTokens, reasons, differences);
   appendSectionNarrative('order by', order, observedOrderTokens, candidateOrderTokens, reasons, differences);
   appendPagingNarrative(observedPagingTokens, candidatePagingTokens, paging, reasons, differences);
+  appendSectionNarrative('set operations', setOperation, observedSetOperationTokens, candidateSetOperationTokens, reasons, differences);
 
   if (candidateWhereFamilies.includes('optional-predicate') && !observedWhereFamilies.includes('optional-predicate')) {
     reasons.push('candidate preserves optional predicate branches that are absent from the observed statement');
