@@ -39,7 +39,7 @@ export const defaultRepositoryTelemetry = createNoopRepositoryTelemetry();
  * Resolve the repository telemetry hook that application code wants to use.
  *
  * Repository constructors can accept an optional telemetry dependency and call
- * this helper so the default console hook works without extra setup.
+ * this helper so the default no-op hook works without extra setup.
  */
 export function resolveRepositoryTelemetry(
   telemetry?: RepositoryTelemetry,

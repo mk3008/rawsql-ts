@@ -60,14 +60,20 @@ To connect a sink, replace the default no-op export with your own adapter.
 ```ts
 import { createConsoleRepositoryTelemetry, resolveRepositoryTelemetry } from './src/infrastructure/telemetry/repositoryTelemetry.js';
 
+const logger = console;
+
 const repositoryTelemetry = resolveRepositoryTelemetry(
   createConsoleRepositoryTelemetry({
-    logger: console
+    logger
   })
 );
 ```
 
 ```ts
+import { trace } from '@opentelemetry/api';
+
+const logger = console;
+
 const repositoryTelemetry = {
   emit(event) {
     logger.info({ repositoryTelemetry: event }, 'repository telemetry');
@@ -76,6 +82,8 @@ const repositoryTelemetry = {
 ```
 
 ```ts
+import { trace } from '@opentelemetry/api';
+
 const repositoryTelemetry = {
   emit(event) {
     const span = trace.getActiveSpan();

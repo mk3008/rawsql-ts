@@ -7,12 +7,39 @@ export type RepositoryTelemetryParameterKind = 'scalar' | 'array' | 'null' | 'un
 export type RepositoryTelemetryNullability = 'null' | 'non-null' | 'mixed';
 export type RepositoryTelemetryArrayLength = 'empty' | 'single' | 'few' | 'many' | 'unknown';
 
-export interface RepositoryTelemetryParameterShape {
+type RepositoryTelemetryScalarParameterShape = {
   name: string;
-  kind: RepositoryTelemetryParameterKind;
+  kind: 'scalar';
+  nullability: Exclude<RepositoryTelemetryNullability, 'null'>;
+  arrayLength?: never;
+};
+
+type RepositoryTelemetryArrayParameterShape = {
+  name: string;
+  kind: 'array';
+  nullability: Exclude<RepositoryTelemetryNullability, 'null'>;
+  arrayLength: RepositoryTelemetryArrayLength;
+};
+
+type RepositoryTelemetryNullParameterShape = {
+  name: string;
+  kind: 'null';
+  nullability: 'null';
+  arrayLength?: never;
+};
+
+type RepositoryTelemetryUnknownParameterShape = {
+  name: string;
+  kind: 'unknown';
   nullability: RepositoryTelemetryNullability;
   arrayLength?: RepositoryTelemetryArrayLength;
-}
+};
+
+export type RepositoryTelemetryParameterShape =
+  | RepositoryTelemetryScalarParameterShape
+  | RepositoryTelemetryArrayParameterShape
+  | RepositoryTelemetryNullParameterShape
+  | RepositoryTelemetryUnknownParameterShape;
 
 export interface RepositoryTelemetryOptionalPredicatePruning {
   enabled: boolean;

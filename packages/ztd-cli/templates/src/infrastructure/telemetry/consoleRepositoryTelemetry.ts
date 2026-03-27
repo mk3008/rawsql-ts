@@ -49,7 +49,6 @@ function serializeEvent(
   }
   if (event.kind === 'query.execute.error') {
     payload.errorName = event.errorName;
-    payload.errorMessage = event.errorMessage;
   }
 
   return payload;
