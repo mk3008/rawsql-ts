@@ -216,9 +216,12 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'README.md'))).toContain('queryId');
   expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'))).toContain('createNoopRepositoryTelemetry');
   expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'))).toContain('defaultRepositoryTelemetry');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'))).not.toContain('sqlText');
   expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'types.ts'))).toContain('paramsShape');
   expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'types.ts'))).toContain('transformations');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'types.ts'))).not.toContain('parameterValues');
   expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'))).toContain('queryId');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'))).not.toContain('sqlText');
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
     devDependencies: Record<string, string>;
   };

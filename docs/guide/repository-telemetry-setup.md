@@ -52,7 +52,14 @@ export class UsersRepository {
       repositoryName: 'UsersRepository',
       methodName: 'listActiveUsers',
       paramsShape: [
-        { name: 'active', kind: 'scalar', nullability: 'non-null' }
+        {
+          name: 'active',
+          presence: 'present',
+          kind: 'scalar',
+          isNull: false,
+          nullability: 'non-null',
+          booleanValue: 'true'
+        }
       ],
       transformations: {
         paging: { enabled: true, hasLimit: true },
@@ -87,7 +94,14 @@ The starter contract keeps the payload intentionally small:
   "repositoryName": "UsersRepository",
   "methodName": "listActiveUsers",
   "paramsShape": [
-    { "name": "active", "kind": "scalar", "nullability": "non-null" }
+    {
+      "name": "active",
+      "presence": "present",
+      "kind": "scalar",
+      "isNull": false,
+      "nullability": "non-null",
+      "booleanValue": "true"
+    }
   ],
   "transformations": {
     "paging": { "enabled": true, "hasLimit": true },

@@ -2,6 +2,7 @@ import type { RepositoryTelemetry } from './types.js';
 
 export type {
   RepositoryTelemetry,
+  RepositoryTelemetryBooleanValue,
   RepositoryTelemetryConsoleOptions,
   RepositoryTelemetryArrayLength,
   RepositoryTelemetryContext,
@@ -12,6 +13,7 @@ export type {
   RepositoryTelemetryPagingTransformation,
   RepositoryTelemetryParameterKind,
   RepositoryTelemetryParameterShape,
+  RepositoryTelemetryPresence,
   RepositoryTelemetryPipelineTransformation,
   RepositoryTelemetrySortTransformation,
   RepositoryTelemetryTransformations,

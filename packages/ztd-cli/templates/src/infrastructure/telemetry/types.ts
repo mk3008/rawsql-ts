@@ -3,37 +3,89 @@ export type RepositoryTelemetryEventKind =
   | 'query.execute.success'
   | 'query.execute.error';
 
-export type RepositoryTelemetryParameterKind = 'scalar' | 'array' | 'null' | 'unknown';
-export type RepositoryTelemetryNullability = 'null' | 'non-null' | 'mixed';
+export type RepositoryTelemetryPresence = 'present' | 'absent';
+export type RepositoryTelemetryParameterKind = 'scalar' | 'array' | 'object' | 'unknown';
+export type RepositoryTelemetryNullability = 'null' | 'non-null' | 'mixed' | 'unknown';
 export type RepositoryTelemetryArrayLength = 'empty' | 'single' | 'few' | 'many' | 'unknown';
+export type RepositoryTelemetryBooleanValue = 'true' | 'false';
 
 type RepositoryTelemetryScalarParameterShape = {
   name: string;
+  presence: 'present';
   kind: 'scalar';
-  nullability: Exclude<RepositoryTelemetryNullability, 'null'>;
+  isNull: false;
+  nullability: 'non-null';
+  isEmptyString?: boolean;
+  booleanValue?: RepositoryTelemetryBooleanValue;
   arrayLength?: never;
+  isEmptyArray?: never;
+  operator?: string;
 };
 
-type RepositoryTelemetryArrayParameterShape = {
-  name: string;
-  kind: 'array';
-  nullability: Exclude<RepositoryTelemetryNullability, 'null'>;
-  arrayLength: RepositoryTelemetryArrayLength;
-};
+type RepositoryTelemetryArrayParameterShape =
+  | {
+      name: string;
+      presence: 'present';
+      kind: 'array';
+      isNull: false;
+      nullability: Exclude<RepositoryTelemetryNullability, 'null' | 'unknown'>;
+      arrayLength: RepositoryTelemetryArrayLength;
+      isEmptyArray: boolean;
+      isEmptyString?: never;
+      booleanValue?: never;
+      operator?: string;
+    }
+  | {
+      name: string;
+      presence: 'present';
+      kind: 'array';
+      isNull: true;
+      nullability: 'null';
+      arrayLength?: never;
+      isEmptyArray?: never;
+      isEmptyString?: never;
+      booleanValue?: never;
+      operator?: string;
+    };
 
 type RepositoryTelemetryNullParameterShape = {
   name: string;
-  kind: 'null';
+  presence: 'present';
+  kind: 'scalar' | 'object' | 'unknown';
+  isNull: true;
   nullability: 'null';
   arrayLength?: never;
+  isEmptyArray?: never;
+  isEmptyString?: never;
+  booleanValue?: never;
+  operator?: string;
 };
 
-type RepositoryTelemetryUnknownParameterShape = {
-  name: string;
-  kind: 'unknown';
-  nullability: RepositoryTelemetryNullability;
-  arrayLength?: RepositoryTelemetryArrayLength;
-};
+type RepositoryTelemetryUnknownParameterShape =
+  | {
+      name: string;
+      presence: 'absent';
+      kind: 'unknown';
+      isNull: false;
+      nullability: 'unknown';
+      arrayLength?: never;
+      isEmptyArray?: never;
+      isEmptyString?: never;
+      booleanValue?: never;
+      operator?: string;
+    }
+  | {
+      name: string;
+      presence: 'present';
+      kind: 'object' | 'unknown';
+      isNull: false;
+      nullability: Exclude<RepositoryTelemetryNullability, 'null'>;
+      arrayLength?: never;
+      isEmptyArray?: never;
+      isEmptyString?: never;
+      booleanValue?: never;
+      operator?: string;
+    };
 
 export type RepositoryTelemetryParameterShape =
   | RepositoryTelemetryScalarParameterShape
