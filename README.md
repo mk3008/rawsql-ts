@@ -37,6 +37,7 @@ These capabilities are important at the repo level even though they are mostly e
 |----------|-------------|----------------|
 | SQL pipeline planning and dry-run optimization analysis | `ztd query plan`, `ztd perf run --dry-run` | Explains how SQL may be decomposed into stages before execution. |
 | SQL impact analysis before schema changes | `ztd query uses` | Supports rename/type-change investigations using AST-based usage analysis. |
+| SQL-first optional filter authoring | `ztd query sssql scaffold`, `ztd query sssql refresh` | Keeps optional filters visible in SQL while runtime pruning stays explicit. Runtime no longer injects new filter predicates. |
 | SQL debug and recovery for long CTE queries | `ztd query outline`, `ztd query lint`, `ztd query slice`, `ztd query patch apply` | Helps isolate and repair problematic query shapes; `ztd query lint --rules join-direction` adds a FK-aware JOIN readability guard. |
 | Explicit-target schema inspection and migration-prep workflow | `ztd ddl diff`, `ztd ddl pull` | Supports safe inspection against explicit target databases and generation of diff / patch SQL artifacts. Applying generated SQL is intentionally out of scope. |
 | Machine-readable CLI automation and telemetry | `ztd --output json`, `ztd describe`, telemetry export modes | Supports AI/tooling integration and timing investigation. |
@@ -166,6 +167,7 @@ Then run `docker compose up -d` and point `ZTD_TEST_DATABASE_URL` at that databa
 
 - SQL pipeline / debug → `ztd query plan <sql-file>`
 - Impact analysis → `ztd query uses <target>`
+- SQL-first optional filters → `ztd query sssql scaffold <sql-file>` / `ztd query sssql refresh <sql-file>`
 - Schema inspection → `ztd ddl diff --url <target>`
 
 For the full routing guide and decision table, see [SQL Tool Happy Paths](./docs/guide/sql-tool-happy-paths.md).

@@ -74,6 +74,7 @@ export { DuplicateDetectionMode } from './transformers/SelectableColumnCollector
 export * from './transformers/FilterableItemCollector';
 export { FixtureCteBuilder, FixtureTableDefinition, FixtureColumnDefinition } from './transformers/FixtureCteBuilder';
 export * from './transformers/DynamicQueryBuilder';
+export * from './transformers/SSSQLFilterBuilder';
 export * from './transformers/PruneOptionalConditionBranches';
 export {
     SchemaInfo,

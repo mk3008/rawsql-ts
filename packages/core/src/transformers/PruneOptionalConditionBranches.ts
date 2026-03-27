@@ -2,13 +2,11 @@ import { WhereClause } from '../models/Clause';
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery } from '../models/SelectQuery';
 import {
     BinaryExpression,
-    InlineQuery,
     LiteralValue,
     ParameterExpression,
     ParenExpression,
     RawString,
     SqlParameterValue,
-    UnaryExpression,
     ValueComponent
 } from '../models/ValueComponent';
 import { ParameterCollector } from './ParameterCollector';
@@ -16,8 +14,14 @@ import { ParameterCollector } from './ParameterCollector';
 export type OptionalConditionPruningParameters = Record<string, SqlParameterValue>;
 export type OptionalConditionParameterState = 'absent' | 'present' | 'unknown';
 export type OptionalConditionParameterStates = Record<string, OptionalConditionParameterState>;
+export type SupportedOptionalConditionBranchKind = 'expression';
 
-const SUPPORTED_COMPARISON_OPERATORS = new Set(['=', '<>', '!=', '>', '>=', '<', '<=']);
+export interface SupportedOptionalConditionBranch {
+    query: SimpleSelectQuery;
+    parameterName: string;
+    expression: ValueComponent;
+    kind: SupportedOptionalConditionBranchKind;
+}
 
 const isBinaryOperator = (expression: ValueComponent, operator: string): expression is BinaryExpression => {
     return expression instanceof BinaryExpression && expression.operator.value.trim().toLowerCase() === operator;
@@ -43,6 +47,18 @@ const collectTopLevelAndTerms = (expression: ValueComponent): ValueComponent[] =
     return [
         ...collectTopLevelAndTerms(candidate.left),
         ...collectTopLevelAndTerms(candidate.right)
+    ];
+};
+
+const collectTopLevelOrTerms = (expression: ValueComponent): ValueComponent[] => {
+    const candidate = unwrapSingleOuterParen(expression);
+    if (!isBinaryOperator(candidate, 'or')) {
+        return [expression];
+    }
+
+    return [
+        ...collectTopLevelOrTerms(candidate.left),
+        ...collectTopLevelOrTerms(candidate.right)
     ];
 };
 
@@ -88,39 +104,19 @@ const getUniqueParameterNames = (expression: ValueComponent): Set<string> => {
     return new Set(ParameterCollector.collect(expression).map(parameter => parameter.name.value));
 };
 
-const isSupportedScalarPredicate = (expression: ValueComponent, parameterName: string): boolean => {
+const isSupportedMeaningfulBranch = (expression: ValueComponent, parameterName: string): boolean => {
     const candidate = unwrapSingleOuterParen(expression);
-    if (!(candidate instanceof BinaryExpression)) {
+    if (candidate instanceof ParameterExpression) {
         return false;
     }
 
-    const operator = candidate.operator.value.trim().toLowerCase();
-    if (!SUPPORTED_COMPARISON_OPERATORS.has(operator)) {
+    const parameterNames = getUniqueParameterNames(candidate);
+    if (parameterNames.size !== 1 || !parameterNames.has(parameterName)) {
         return false;
     }
 
-    const leftIsTargetParameter = candidate.left instanceof ParameterExpression && candidate.left.name.value === parameterName;
-    const rightIsTargetParameter = candidate.right instanceof ParameterExpression && candidate.right.name.value === parameterName;
-
-    if (leftIsTargetParameter === rightIsTargetParameter) {
-        return false;
-    }
-
-    return getUniqueParameterNames(candidate).size === 1;
-};
-
-const isSupportedExistsPredicate = (expression: ValueComponent, parameterName: string): boolean => {
-    const candidate = unwrapSingleOuterParen(expression);
-    if (!(candidate instanceof UnaryExpression) || candidate.operator.value.trim().toLowerCase() !== 'exists') {
-        return false;
-    }
-
-    if (!(candidate.expression instanceof InlineQuery)) {
-        return false;
-    }
-
-    const parameterNames = getUniqueParameterNames(candidate.expression);
-    return parameterNames.size === 1 && parameterNames.has(parameterName);
+    // Keep the matcher conservative enough to avoid pruning tautologies or half-authored branches.
+    return !(candidate instanceof LiteralValue || candidate instanceof RawString);
 };
 
 const isExplicitPruningTarget = (
@@ -146,25 +142,8 @@ const shouldPruneOptionalBranch = (
     expression: ValueComponent,
     pruningParameters: OptionalConditionPruningParameters
 ): boolean => {
-    const candidate = unwrapSingleOuterParen(expression);
-    if (!isBinaryOperator(candidate, 'or')) {
-        return false;
-    }
-
-    const parameterName = getGuardedParameterName(candidate.left);
-    if (!parameterName) {
-        return false;
-    }
-
-    const supportedMeaningfulBranch =
-        isSupportedScalarPredicate(candidate.right, parameterName) ||
-        isSupportedExistsPredicate(candidate.right, parameterName);
-
-    if (!supportedMeaningfulBranch) {
-        return false;
-    }
-
-    return isKnownAbsentTarget(pruningParameters, parameterName);
+    const branch = getSupportedOptionalConditionBranch(expression);
+    return branch !== null && isKnownAbsentTarget(pruningParameters, branch.parameterName);
 };
 
 const rebuildAndCondition = (terms: ValueComponent[]): ValueComponent | null => {
@@ -272,6 +251,112 @@ const traverseSelectQuery = (
     return false;
 };
 
+const getSupportedOptionalConditionBranch = (
+    expression: ValueComponent
+): Omit<SupportedOptionalConditionBranch, 'query' | 'expression'> | null => {
+    const orTerms = collectTopLevelOrTerms(expression);
+    if (orTerms.length < 2) {
+        return null;
+    }
+
+    const guardTerms = orTerms
+        .map(term => ({ term, parameterName: getGuardedParameterName(term) }))
+        .filter((candidate): candidate is { term: ValueComponent; parameterName: string } => candidate.parameterName !== null);
+
+    if (guardTerms.length !== 1) {
+        return null;
+    }
+
+    const [{ term: guardTerm, parameterName }] = guardTerms;
+    const meaningfulTerms = orTerms.filter(term => term !== guardTerm);
+    if (meaningfulTerms.length === 0) {
+        return null;
+    }
+
+    if (!meaningfulTerms.every(term => isSupportedMeaningfulBranch(term, parameterName))) {
+        return null;
+    }
+
+    return {
+        parameterName,
+        kind: 'expression'
+    };
+};
+
+const collectSupportedBranchesFromSimpleQuery = (
+    query: SimpleSelectQuery,
+    branches: SupportedOptionalConditionBranch[]
+): void => {
+    if (!query.whereClause) {
+        return;
+    }
+
+    const topLevelTerms = collectTopLevelAndTerms(query.whereClause.condition);
+    for (const term of topLevelTerms) {
+        const branch = getSupportedOptionalConditionBranch(term);
+        if (!branch) {
+            continue;
+        }
+
+        branches.push({
+            query,
+            parameterName: branch.parameterName,
+            expression: term,
+            kind: branch.kind
+        });
+    }
+};
+
+const collectSupportedBranchesFromSelectQuery = (
+    query: SelectQuery,
+    branches: SupportedOptionalConditionBranch[]
+): void => {
+    if (query instanceof SimpleSelectQuery) {
+        collectSupportedBranchesFromSimpleQuery(query, branches);
+        traverseNestedSelectQueriesForCollection(query, branches);
+        return;
+    }
+
+    if (query instanceof BinarySelectQuery) {
+        collectSupportedBranchesFromSelectQuery(query.left, branches);
+        collectSupportedBranchesFromSelectQuery(query.right, branches);
+    }
+};
+
+const traverseNestedSelectQueriesForCollection = (
+    root: SelectQuery,
+    branches: SupportedOptionalConditionBranch[]
+): void => {
+    const visited = new WeakSet<object>();
+
+    const walk = (value: unknown): void => {
+        if (!value || typeof value !== 'object') {
+            return;
+        }
+
+        if (visited.has(value as object)) {
+            return;
+        }
+        visited.add(value as object);
+
+        if (value !== root && isSelectQueryNode(value)) {
+            collectSupportedBranchesFromSelectQuery(value, branches);
+            return;
+        }
+
+        if (Array.isArray(value)) {
+            value.forEach(walk);
+            return;
+        }
+
+        for (const child of Object.values(value as Record<string, unknown>)) {
+            walk(child);
+        }
+    };
+
+    walk(root);
+};
+
 /**
  * Prunes supported optional WHERE branches when an explicitly targeted parameter is absent-equivalent.
  * For the MVP, only `null` and `undefined` are treated as absent and unsupported shapes remain exact no-op.
@@ -286,4 +371,16 @@ export const pruneOptionalConditionBranches = (
 
     traverseSelectQuery(query, pruningParameters);
     return query;
+};
+
+/**
+ * Collects supported top-level optional condition branches from the query graph.
+ * The returned branch expressions keep object identity so callers can move them without re-rendering.
+ */
+export const collectSupportedOptionalConditionBranches = (
+    query: SelectQuery
+): SupportedOptionalConditionBranch[] => {
+    const branches: SupportedOptionalConditionBranch[] = [];
+    collectSupportedBranchesFromSelectQuery(query, branches);
+    return branches;
 };

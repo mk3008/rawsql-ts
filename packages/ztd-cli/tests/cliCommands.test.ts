@@ -230,6 +230,208 @@ test(
 );
 
 test(
+  'query help exposes the new sssql scaffold and refresh commands',
+  () => {
+    const result = runCli(['query', 'sssql', '--help']);
+    assertCliSuccess(result, 'query sssql --help');
+    expect(result.stdout).toContain('scaffold [options] <sqlFile>');
+    expect(result.stdout).toContain('refresh [options] <sqlFile>');
+  },
+  60000,
+);
+
+test(
+  'query sssql scaffold emits JSON output and writes the formatted SQL file',
+  () => {
+    const workspace = createSqlWorkspace('query-sssql-scaffold', path.join('src', 'sql', 'users.sql'));
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        SELECT u.id, u.status
+        FROM users u
+        WHERE u.active = true
+      `,
+      'utf8'
+    );
+
+    const outFile = path.join(workspace.rootDir, 'users.sssql.sql');
+    const result = runCli(
+      [
+        'query',
+        'sssql',
+        'scaffold',
+        workspace.sqlFile,
+        '--format',
+        'json',
+        '--json',
+        JSON.stringify({
+          filters: { status: 'premium' }
+        }),
+        '--out',
+        outFile
+      ],
+      {},
+      workspace.rootDir
+    );
+
+    assertCliSuccess(result, 'query sssql scaffold');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      command: 'query sssql scaffold',
+      ok: true,
+      data: {
+        file: workspace.sqlFile,
+        output_file: outFile,
+        written: true
+      }
+    });
+
+    const contents = readFileSync(outFile, 'utf8').replace(/\r\n/g, '\n').trim().toLowerCase();
+    expect(contents).toContain('(:status is null or "u"."status" = :status)');
+  },
+  60000,
+);
+
+test(
+  'query sssql refresh rewrites existing optional branches without changing their meaning',
+  () => {
+    const workspace = createSqlWorkspace('query-sssql-refresh', path.join('src', 'sql', 'users.sql'));
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        WITH user_data AS (
+          SELECT u.id, u.status
+          FROM users u
+        )
+        SELECT ud.id
+        FROM user_data ud
+        WHERE (:status IS NULL OR ud.status = :status)
+      `,
+      'utf8'
+    );
+
+    const outFile = path.join(workspace.rootDir, 'users.refreshed.sql');
+    const result = runCli(
+      [
+        'query',
+        'sssql',
+        'refresh',
+        workspace.sqlFile,
+        '--out',
+        outFile
+      ],
+      {},
+      workspace.rootDir
+    );
+
+    assertCliSuccess(result, 'query sssql refresh');
+    expect(result.stdout.trim()).toBe('');
+
+    const contents = readFileSync(outFile, 'utf8').replace(/\r\n/g, '\n').toLowerCase();
+    expect(contents).toContain('with "user_data" as (select "u"."id", "u"."status" from "users" as "u" where (:status is null or "u"."status" = :status))');
+    expect(contents).not.toContain('ud"."status = :status');
+  },
+  60000,
+);
+
+test(
+  'query match-observed ranks the likely source asset for observed SELECT SQL',
+  () => {
+    const workspace = createSqlWorkspace('query-match-observed', path.join('src', 'sql', 'users', 'list.sql'));
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        SELECT account.user_id, account.email
+        FROM public.users account
+        WHERE (:active IS NULL OR account.active = :active)
+        ORDER BY account.created_at DESC
+        LIMIT :limit
+      `,
+      'utf8'
+    );
+    writeFileSync(
+      path.join(workspace.rootDir, 'src', 'sql', 'products', 'list.sql'),
+      `
+        SELECT product.product_id, product.name
+        FROM public.products product
+        WHERE product.active = true
+        ORDER BY product.created_at DESC
+      `,
+      'utf8'
+    );
+    writeFileSync(
+      path.join(workspace.rootDir, 'src', 'sql', 'users', 'list-with-join.sql'),
+      `
+        SELECT account.user_id, account.email
+        FROM public.users account
+        JOIN public.orders ord ON ord.user_id = account.user_id
+        WHERE account.active = true
+      `,
+      'utf8'
+    );
+
+    const result = runCli(
+      [
+        'query',
+        'match-observed',
+        '--sql',
+        `
+          SELECT u.user_id, u.email
+          FROM public.users u
+          WHERE u.active = true
+          ORDER BY u.created_at DESC
+          LIMIT 25
+        `,
+        '--format',
+        'json'
+      ],
+      { ZTD_PROJECT_ROOT: workspace.rootDir },
+      workspace.rootDir
+    );
+
+    assertCliSuccess(result, 'query match-observed');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      schemaVersion: 1,
+      observedQueries: 1,
+      matches: [
+        expect.objectContaining({
+          sql_file: 'src/sql/users/list.sql',
+          section_scores: expect.objectContaining({
+            projection: expect.any(Number),
+            source: expect.any(Number),
+            where: expect.any(Number),
+            order: expect.any(Number),
+            paging: expect.any(Number)
+          })
+        })
+      ]
+    });
+    expect(parsed.matches[0].reasons.join(' ')).toContain('optional predicate branches');
+    expect(parsed.matches[0].differences.join(' ')).toContain('candidate adds where clause');
+  },
+  60000,
+);
+
+test(
+  'query match-observed exits non-zero when no candidate SELECT assets are found',
+  () => {
+    const workspace = createSqlWorkspace('query-match-observed-empty', path.join('src', 'sql', 'observed.sql'));
+    writeFileSync(workspace.sqlFile, 'SELECT 1', 'utf8');
+
+    const result = runCli(
+      ['query', 'match-observed', '--sql-file', workspace.sqlFile, '--format', 'text'],
+      { ZTD_PROJECT_ROOT: workspace.rootDir },
+      workspace.rootDir
+    );
+
+    assertCliFailure(result, 'query match-observed no candidates');
+    expect(result.stderr).toContain('No candidate SELECT assets were found for the observed SQL.');
+  },
+  60000,
+);
+
+test(
   'describe command returns machine-readable metadata with global json output',
   () => {
     const result = runCli(['--output', 'json', 'describe', 'command', 'model-gen']);

@@ -50,6 +50,9 @@ That manifest carries `tableDefinitions` schema metadata only; test rows stay ex
 The removable starter smoke path also shows `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient` for the DB-backed test that catches setup problems early.
 If you want the fixture-resolution details, read the `@rawsql-ts/testkit-postgres` package README after the starter smoke path.
 
+The starter scaffold also includes a no-op repository telemetry seam under `src/infrastructure/telemetry/`. Use `queryId` as the stable lookup key, and keep `repositoryName`, `methodName`, `paramsShape`, and `transformations` as safe execution metadata only.
+The seam does not emit SQL text or bind values by default, so you can decide explicitly when to connect console, pino, or OpenTelemetry sinks.
+
 Make sure Docker Desktop or another Docker daemon is already running before you start the compose path, because `docker compose up -d` only launches the stack.
 The generated Vitest setup derives `ZTD_TEST_DATABASE_URL` from `.env`, so the test runtime sees the same port setting as the compose file.
 
@@ -96,6 +99,8 @@ Advanced validation, dogfooding, and tuning live in [Further Reading](#further-r
 - `ztd ztd-config --watch` keeps generated `TestRowMap` types and runtime fixture metadata aligned with DDL as files change.
 - `ztd lint` checks SQL against a temporary Postgres before you ship it.
 - `ztd model-gen` and `ztd query uses` keep QuerySpec scaffolding and impacted-file discovery close to the feature-first slice.
+- `ztd query sssql scaffold` and `ztd query sssql refresh` move optional filters into SQL-first authoring and keep runtime pruning explicit. Runtime no longer injects new filter predicates.
+- `ztd query match-observed` ranks likely source SQL assets for an observed SELECT statement when `queryId` is missing.
 - `ztd perf init` / `ztd perf run` support tuning without forcing SQL rewrites first.
 - `--dry-run` / `--output json` make the workflow reviewable and machine-readable.
 
@@ -108,6 +113,8 @@ Advanced validation, dogfooding, and tuning live in [Further Reading](#further-r
 | `ztd lint` | Lint SQL files against a temporary Postgres. |
 | `ztd model-gen` | Generate QuerySpec scaffolding from SQL assets. |
 | `ztd query uses` | Find impacted SQL before changing a table or column. |
+| `ztd query match-observed` | Rank likely source SQL assets from observed SELECT text. |
+| `ztd query sssql scaffold` / `ztd query sssql refresh` | Author and refresh SQL-first optional filter branches. |
 | `ztd ddl pull` / `ztd ddl diff` | Inspect an explicit target and prepare migration SQL. |
 | `ztd perf *` | Run the tuning loop (`init`, `db reset`, `run`) for index or pipeline investigation. |
 | `ztd describe` | Inspect commands in machine-readable form, including `--output json`. |
@@ -136,6 +143,7 @@ Run `npx ztd describe command <name>` for per-command flags and options.
 ### Advanced User Guides
 
 - [ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md) - opt-in telemetry guidance
+- [Observed SQL Matching](../../docs/guide/observed-sql-matching.md) - find source SQL from DB logs when `queryId` is missing
 
 #### Multiple DB Clients in One Workflow
 
