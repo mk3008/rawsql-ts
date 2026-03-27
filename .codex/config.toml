@@ -1,0 +1,17 @@
+schema_version = 1
+
+[project]
+name = "mk3008/rawsql-ts"
+root_guidance = "AGENTS.md"
+subagents_dir = ".codex/agents"
+skills_dir = ".agents/skills"
+
+[workflow]
+developer_only = true
+preferred_workflows = ["planning", "verification", "reporting"]
+required_reporting_fields = ["acceptance_items", "verification_methods", "attainment_status"]
+
+[routing]
+planning = ".codex/agents/planning.md"
+verification = ".codex/agents/verification.md"
+reporting = ".codex/agents/reporting.md"

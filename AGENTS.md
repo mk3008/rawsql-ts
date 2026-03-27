@@ -1,138 +1,76 @@
-# Package Scope
-- Applies to the entire repository subtree rooted at `./`.
-- Defines repository-wide contract rules for SQL rewriting, ZTD testing, and contribution safety.
-- Serves as the fallback contract when no deeper `AGENTS.md` overrides a rule.
-- Serves as the canonical source for task routing and token-efficiency policy in this repository.
+# Repository Scope
 
-# Task Routing
+- Applies to the entire repository root.
+- This repository guidance is for rawsql-ts developers only.
+- Customer-facing guidance is out of scope here and belongs to Issue #685.
+- Follow the nearest deeper `AGENTS.md` first when editing package-owned code.
+- Use the repo-local Codex guidance under `.codex/agents/` and `.agents/skills/` for planning, verification, and reporting.
 
-## Default entrypoint
-- Human requests SHOULD be handled through the `orchestrator` agent.
-- Specialist agents SHOULD NOT be invoked directly by humans unless debugging the orchestration itself.
-- The `orchestrator` agent MAY be invoked from either plan mode or normal prompt mode.
-
-## Routing policy
-- For code changes, bug fixes, refactors, parser behavior, SQL rewrite behavior, package behavior, or test failures:
-  1. `pr_explorer`
-  2. `implementer` if changes are needed
-  3. `reviewer`
-- For docs UX, first-run flows, self-usage, or ztd-cli workflow friction:
-  1. `dogfooder`
-  2. `reviewer` only if correctness or regression risk is involved
-- For simple read-only questions, answer directly without spawning specialists unless scope is unclear.
-
-## Scope discipline
-- The first pass MUST identify the smallest affected package and nearest verification scope before broad repo reads.
-- Root-wide verification MUST NOT be the first step unless the task is explicitly repo-wide.
-
-# Token Efficiency
-
-## REQUIRED
-- Start from the smallest affected package, nearest tests, and nearest docs.
-- Prefer `pnpm --filter <package>` scoped commands before workspace-wide commands.
-- Summaries MUST name touched package(s), touched files, and chosen verification scope.
-- Do not restate repository architecture unless it is necessary for the current task.
-- Do not read broad docs sets when a package README or nearby test already answers the question.
-
-## ESCALATION
-- Escalate from scoped verification to root-wide verification only when:
-  - multiple packages are changed
-  - a shared package contract is changed
-  - release-readiness is being claimed
-  - scoped verification is insufficient to support the claim
-
-## OUTPUT SHAPE
-- Default reports SHOULD be concise and use:
-  - Summary
-  - Scope
-  - Actions
-  - Verification
-  - Risks or Assumptions
-
-# Plan Mode Guidance
-
-- For non-trivial work, plan mode SHOULD use `orchestrator` as the entrypoint.
-- Plan mode SHOULD stay read-only and produce the smallest defensible plan before execution.
-- Specialist names SHOULD remain internal unless orchestration debugging is requested.
-
-# INTENT
-- Source assets stay human-owned so the repository keeps a clear edit surface.
-- Downstream artifacts exist to match the source assets, not to replace their intent.
-- These rules explain why the repository is arranged the way it is, not only what is forbidden.
-
-# procedure
-- Follow `DDL -> SQL -> generate -> wire -> test` when moving from source assets to downstream artifacts.
-- Keep generated files and tests aligned with the source asset they were derived from.
-- Use the shortest path that preserves that causality.
-
-# Policy
 ## Interpretation
+
 - `MUST` and `REQUIRED` define completion criteria.
 - `ALLOWED` means permitted but not required.
 - `PROHIBITED` means disallowed unless a narrower rule explicitly allows it.
-- User requests can add context, but they do not relax a `MUST` or `REQUIRED` rule by default.
+- User requests can add task-specific context, but they do not relax a `MUST` or `REQUIRED` rule by default.
 - When this file and a deeper `AGENTS.md` both apply, the deeper file may narrow scope only if it does not weaken a completion criterion.
 
-## Completion Example
-- Repository implementation is only complete when the required verification and tests that the policy calls for are included in the same change.
-- A change that skips required tests is not complete, even if the implementation itself is otherwise correct.
+## Global Guardrails
 
-## REQUIRED
-- Claims in task reports MUST be backed by direct observation.
-- Each reported observation MUST include the executed command, exit code, and key output excerpt.
-- A failing behavior MUST be reproduced before applying a fix.
-- Fix scope MUST follow one-hypothesis/one-fix.
-- Reports for troubleshooting and recovery MUST use: `Observations`, `Changes`, `Verification`, `Assumptions`.
-- SQL rewrites MUST use AST utilities (`SelectQueryParser`, `SelectAnalyzer`, `splitQueries`) when an AST path is available.
-- Regex fallback for SQL rewrite MUST include an inline limitation comment and a tracking issue reference.
-- Repository and application SQL MAY use CRUD statements when execution flows through the rewriter.
-- Library code MUST NOT bypass rewrite pipelines.
-- DDL files, fixtures, and row maps MUST stay consistent with `ztd.config.json` schema settings.
-- Changes to schema/search-path behavior MUST update `ztd.config.json`.
-- Contributions MUST use `pnpm` and `pnpm --filter <package>` for scoped commands.
-- Identifiers, code comments, and documentation content MUST be written in English.
-- Throwaway assets MUST be created under `./tmp`.
-- Release-worthy changes MUST include a changeset.
+- Keep generated artifacts, fixtures, and derived docs aligned with their source assets.
+- Do not weaken completion criteria or skip required verification.
+- Prefer `pnpm` and scoped commands when working in a package.
+- Keep documentation and comments in English.
+- All assistant-user conversation in this repository must be in Japanese.
+- Do not mix customer-oriented guidance into this repository policy.
 
-## ALLOWED
-- Test code MAY import deterministic, side-effect-free normalization/sanitization helpers from source modules.
-- Application SQL MAY omit schema qualifiers when schema resolution is configured in `ztd.config.json`.
+## Guidance Roles
 
-## PROHIBITED
-- Guessing unobserved facts in analysis or reports.
-- Bundling unrelated fixes into a single hypothesis/fix step.
-- Executing physical schema mutations (`CREATE TABLE`, `ALTER TABLE`, seed `INSERT`) against pg-testkit connections.
-- Hand-constructing `QueryResult` objects or mocking `Client#query` to bypass rewrite flow.
-- Allowing demo helpers to accept non-array query params or drop named bindings silently.
-- Manual formatting edits that bypass configured format/lint scripts.
-- Editing package versions directly in `package.json`.
-- Leaving debug statements in committed code.
+- Root `AGENTS.md` defines repository-wide guardrails, reporting discipline, and routing.
+- Subagents under `.codex/agents/` provide task-oriented support for planning, verification, and reporting.
+- Skills under `.agents/skills/` provide repeatable workflows for writing acceptance items, verification methods, and attainment summaries.
 
-# Mandatory Workflow
-- Before opening or updating a PR, these commands MUST pass:
-  - `pnpm lint`
-  - `pnpm test` or `pnpm --filter <pkg> test`
-  - `pnpm build`
-- If SQL rewrite logic changes, benchmark commands MUST also run.
-- When parser/formatter behavior changes, browser and docs demo bundle update workflow MUST run.
+## Routing
 
-# Hygiene
-- Temporary files under `./tmp` MUST be removed before completion unless converted into tracked tests.
-- `CONTINUITY.md` MUST stay untracked, MUST be listed in `.gitignore`, and MUST NOT be staged or committed.
+- Use `.codex/agents/planning.md` for plan shaping and acceptance-item decomposition.
+- Use `.codex/agents/verification.md` for evidence gathering and verification planning.
+- Use `.codex/agents/reporting.md` for attainment summaries and PR closeout.
+- Use `.agents/skills/acceptance-planning/SKILL.md` when writing acceptance items or verification methods.
+- Use `.agents/skills/attainment-reporting/SKILL.md` when writing per-item attainment reporting.
 
-# AI SQL Tool Happy Paths
-- Start SQL pipeline investigations with pnpm --filter @rawsql-ts/ztd-cli exec node -r ts-node/register -r tsconfig-paths/register packages/ztd-cli/src/index.ts query plan <sql-file>.
-- If the question is optimizer-facing (materialization, scalar filter binding, stage ordering), run query plan before any telemetry or grep-style command.
-- Follow with pnpm --filter @rawsql-ts/ztd-cli exec node -r ts-node/register -r tsconfig-paths/register packages/ztd-cli/src/index.ts perf run --dry-run ... when you need candidate recommendations or before/after evidence.
-- Use query uses only for impact analysis and refactors. It is not the default path for runtime or optimizer debugging.
-- Use telemetry only after the structural path is known and you need timing, export, or trace evidence. Telemetry is opt-in investigation tooling, not the first command.
-- When dogfooding SQL pipeline behavior, prefer this order:
-  1. query plan
-  2. perf run --dry-run
-  3. focused SQL/debug or integration verification
-  4. query uses if the task expands into refactor impact
-- Add or update dogfooding scenarios when a tool remains underused even though it exists. Current priority targets are telemetry and SQL/debug flows; query uses should grow through refactor-impact scenarios rather than optimizer scenarios.
+## Plan-Time Requirements
 
-# References
-- Rationale and architecture: [DESIGN.md](./DESIGN.md)
-- Operational procedures and troubleshooting: [DEV_NOTES.md](./DEV_NOTES.md)
+- Plans MUST make acceptance items explicit.
+- Plans MUST make verification methods explicit for each acceptance item.
+- Plans MUST define completion in terms of attainment, not only file creation or code modification.
+- If scope is limited, out-of-scope items MUST be stated explicitly.
+
+## Reporting Requirements
+
+- Reports MUST use an itemized structure with:
+  - `acceptance item`
+  - `status`
+  - `evidence`
+  - `gap`
+- Status values MUST be:
+  - `done`
+  - `partial`
+  - `not done`
+- Reports MUST NOT collapse multiple acceptance items into one vague summary.
+- If a task is incomplete, the gap MUST be explicit.
+- If a task is blocked by environment or tooling, the blocker MUST be stated in `evidence` or `gap`, and the item MUST be marked `partial` or `not done`.
+
+## Final Attainment Reporting
+
+- Final PRs and implementation reports MUST show per-item attainment for the acceptance items defined at plan time.
+- Final attainment reporting MUST identify which items are `done`, `partial`, or `not done`.
+- If an item is not fully complete, the remaining gap and the reason MUST be stated explicitly.
+- Required dogfooding or real-task validation MUST be reported explicitly as satisfied, partial, or not done.
+
+## Completion
+
+- A change is only complete when:
+  - its acceptance items are explicit,
+  - its verification methods are explicit,
+  - required checks have been run or justified as inapplicable,
+  - and final reporting states per-item attainment.
+  
