@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SqlFormatter
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:123](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/transformers/SqlFormatter.ts#L123)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:123](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/SqlFormatter.ts#L123)
 
 High level facade that parses a SqlComponent, applies formatting rules, and prints the final SQL text.
 
@@ -20,7 +20,7 @@ Related tests: packages/core/tests/transformers/SqlFormatter.case.test.ts
 
 > **new SqlFormatter**(`options`): `SqlFormatter`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:127](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/transformers/SqlFormatter.ts#L127)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:127](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/SqlFormatter.ts#L127)
 
 #### Parameters
 
@@ -38,7 +38,7 @@ Defined in: [packages/core/src/transformers/SqlFormatter.ts:127](https://github.
 
 > **format**(`sql`): `object`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:190](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/transformers/SqlFormatter.ts#L190)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:190](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/SqlFormatter.ts#L190)
 
 Formats a SQL query string with the given parameters.
 

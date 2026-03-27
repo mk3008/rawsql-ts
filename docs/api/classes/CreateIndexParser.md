@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CreateIndexParser
 
-Defined in: [packages/core/src/parsers/CreateIndexParser.ts:17](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/parsers/CreateIndexParser.ts#L17)
+Defined in: [packages/core/src/parsers/CreateIndexParser.ts:17](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/parsers/CreateIndexParser.ts#L17)
 
 Parses CREATE INDEX statements.
 
@@ -21,7 +21,7 @@ Parses CREATE INDEX statements.
 
 > `static` **parse**(`sql`): [`CreateIndexStatement`](CreateIndexStatement.md)
 
-Defined in: [packages/core/src/parsers/CreateIndexParser.ts:18](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/parsers/CreateIndexParser.ts#L18)
+Defined in: [packages/core/src/parsers/CreateIndexParser.ts:18](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/parsers/CreateIndexParser.ts#L18)
 
 #### Parameters
 
@@ -39,7 +39,7 @@ Defined in: [packages/core/src/parsers/CreateIndexParser.ts:18](https://github.c
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/CreateIndexParser.ts:28](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/parsers/CreateIndexParser.ts#L28)
+Defined in: [packages/core/src/parsers/CreateIndexParser.ts:28](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/parsers/CreateIndexParser.ts#L28)
 
 #### Parameters
 

@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: DynamicQueryBuilder
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:193](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/transformers/DynamicQueryBuilder.ts#L193)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:191](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/DynamicQueryBuilder.ts#L191)
 
 DynamicQueryBuilder combines SQL parsing with dynamic condition injection (filters, sorts, paging, JSON serialization).
 
@@ -16,7 +16,7 @@ Key behaviours verified in packages/core/tests/transformers/DynamicQueryBuilder.
 
 > **new DynamicQueryBuilder**(`resolverOrOptions?`): `DynamicQueryBuilder`
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:203](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/transformers/DynamicQueryBuilder.ts#L203)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:201](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/DynamicQueryBuilder.ts#L201)
 
 Creates a new DynamicQueryBuilder instance.
 Accepts either the legacy table resolver or an options object that can provide schema metadata.
@@ -39,7 +39,7 @@ Optional resolver or configuration object
 
 > **buildQuery**(`sqlContent`, `options`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:234](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/transformers/DynamicQueryBuilder.ts#L234)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:232](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/DynamicQueryBuilder.ts#L232)
 
 Builds a SelectQuery from SQL content with dynamic conditions.
 This is a pure function that does not perform any I/O operations.
@@ -85,10 +85,10 @@ const query = builder.buildQuery(
 
 > **buildFilteredQuery**(`sqlContent`, `filter`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:563](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/transformers/DynamicQueryBuilder.ts#L563)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:445](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/DynamicQueryBuilder.ts#L445)
 
-Builds a SelectQuery with only filtering applied.
-Convenience method for when you only need dynamic WHERE conditions.
+Legacy helper for binding existing named parameters without adding new runtime predicates.
+Dynamic WHERE-condition injection is no longer supported; use SSSQL scaffold/refresh instead.
 
 #### Parameters
 
@@ -102,13 +102,13 @@ Raw SQL string to parse and modify
 
 [`FilterConditions`](../type-aliases/FilterConditions.md)
 
-Filter conditions to apply
+Named parameters to bind when they already exist in the SQL
 
 #### Returns
 
 [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Modified SelectQuery with filter conditions applied
+Modified SelectQuery after binding existing named parameters
 
 ***
 
@@ -116,7 +116,7 @@ Modified SelectQuery with filter conditions applied
 
 > **buildSortedQuery**(`sqlContent`, `sort`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:575](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/transformers/DynamicQueryBuilder.ts#L575)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:457](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/DynamicQueryBuilder.ts#L457)
 
 Builds a SelectQuery with only sorting applied.
 Convenience method for when you only need dynamic ORDER BY clauses.
@@ -147,7 +147,7 @@ Modified SelectQuery with sort conditions applied
 
 > **buildPaginatedQuery**(`sqlContent`, `paging`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:585](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/transformers/DynamicQueryBuilder.ts#L585)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:467](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/DynamicQueryBuilder.ts#L467)
 
 #### Parameters
 
@@ -169,7 +169,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:585](https://
 
 > **buildSerializedQuery**(`sqlContent`, `serialize`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:597](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/transformers/DynamicQueryBuilder.ts#L597)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:479](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/DynamicQueryBuilder.ts#L479)
 
 Builds a SelectQuery with only JSON serialization applied.
 Convenience method for when you only need hierarchical JSON transformation.
@@ -200,7 +200,7 @@ Modified SelectQuery with JSON serialization applied
 
 > **validateSql**(`sqlContent`): `boolean`
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:609](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/transformers/DynamicQueryBuilder.ts#L609)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:491](https://github.com/mk3008/rawsql-ts/blob/c91e9fb79026c72cdb2e714bfb7a8f3421f758ab/packages/core/src/transformers/DynamicQueryBuilder.ts#L491)
 
 Validates SQL content by attempting to parse it.
 Useful for testing SQL validity without applying any modifications.
