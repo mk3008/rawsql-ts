@@ -2380,7 +2380,7 @@ test('query match-observed ranks the likely source asset for observed SELECT SQL
   const previousProjectRoot = process.env.ZTD_PROJECT_ROOT;
   process.env.ZTD_PROJECT_ROOT = workspace.rootDir;
   try {
-    writeSqlWorkspaceFile(
+    writeFileSync(
       workspace.sqlFile,
       `
         SELECT account.user_id, account.email
@@ -2388,25 +2388,30 @@ test('query match-observed ranks the likely source asset for observed SELECT SQL
         WHERE (:active IS NULL OR account.active = :active)
         ORDER BY account.created_at DESC
         LIMIT :limit
-      `
+      `,
+      'utf8'
     );
-    writeSqlWorkspaceFile(
+    mkdirSync(path.dirname(path.join(workspace.rootDir, 'src', 'sql', 'products', 'list.sql')), { recursive: true });
+    writeFileSync(
       path.join(workspace.rootDir, 'src', 'sql', 'products', 'list.sql'),
       `
         SELECT product.product_id, product.name
         FROM public.products product
         WHERE product.active = true
         ORDER BY product.created_at DESC
-      `
+      `,
+      'utf8'
     );
-    writeSqlWorkspaceFile(
+    mkdirSync(path.dirname(path.join(workspace.rootDir, 'src', 'sql', 'users', 'list-with-join.sql')), { recursive: true });
+    writeFileSync(
       path.join(workspace.rootDir, 'src', 'sql', 'users', 'list-with-join.sql'),
       `
         SELECT account.user_id, account.email
         FROM public.users account
         JOIN public.orders ord ON ord.user_id = account.user_id
         WHERE account.active = true
-      `
+      `,
+      'utf8'
     );
 
     const result = runCli(
