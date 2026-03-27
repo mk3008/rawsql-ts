@@ -3,7 +3,7 @@
 
 > **processJsonMapping**(`input`): `MappingProcessResult`
 
-Defined in: [packages/core/src/transformers/JsonMappingUnifier.ts:163](https://github.com/mk3008/rawsql-ts/blob/06d5964a56c30f3e254ac250e147c844132633df/packages/core/src/transformers/JsonMappingUnifier.ts#L163)
+Defined in: [packages/core/src/transformers/JsonMappingUnifier.ts:163](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/transformers/JsonMappingUnifier.ts#L163)
 
 Main processor that unifies all JSON mapping formats into a consistent JsonMapping.
 

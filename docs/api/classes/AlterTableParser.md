@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: AlterTableParser
 
-Defined in: [packages/core/src/parsers/AlterTableParser.ts:29](https://github.com/mk3008/rawsql-ts/blob/06d5964a56c30f3e254ac250e147c844132633df/packages/core/src/parsers/AlterTableParser.ts#L29)
+Defined in: [packages/core/src/parsers/AlterTableParser.ts:29](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/parsers/AlterTableParser.ts#L29)
 
 Parses ALTER TABLE statements focused on constraint operations.
 
@@ -21,7 +21,7 @@ Parses ALTER TABLE statements focused on constraint operations.
 
 > `static` **parse**(`sql`): [`AlterTableStatement`](AlterTableStatement.md)
 
-Defined in: [packages/core/src/parsers/AlterTableParser.ts:62](https://github.com/mk3008/rawsql-ts/blob/06d5964a56c30f3e254ac250e147c844132633df/packages/core/src/parsers/AlterTableParser.ts#L62)
+Defined in: [packages/core/src/parsers/AlterTableParser.ts:62](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/parsers/AlterTableParser.ts#L62)
 
 #### Parameters
 
@@ -39,7 +39,7 @@ Defined in: [packages/core/src/parsers/AlterTableParser.ts:62](https://github.co
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/AlterTableParser.ts:72](https://github.com/mk3008/rawsql-ts/blob/06d5964a56c30f3e254ac250e147c844132633df/packages/core/src/parsers/AlterTableParser.ts#L72)
+Defined in: [packages/core/src/parsers/AlterTableParser.ts:72](https://github.com/mk3008/rawsql-ts/blob/a3f396a2c74f506b11c5fb5f852c6172b759da68/packages/core/src/parsers/AlterTableParser.ts#L72)
 
 #### Parameters
 
