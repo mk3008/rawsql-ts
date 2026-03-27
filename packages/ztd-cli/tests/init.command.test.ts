@@ -122,7 +122,7 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(result.summary).toContain('.env.example');
 });
 
-test('init starter bootstraps visible AGENTS, compose, starter DDL, and smoke tests', { timeout: 60_000 }, async () => {
+test('init starter bootstraps compose, starter DDL, and smoke tests without visible AGENTS', { timeout: 60_000 }, async () => {
   const workspace = createTempDir('cli-init-starter');
   const prompter = new TestPrompter([]);
 
@@ -137,10 +137,11 @@ test('init starter bootstraps visible AGENTS, compose, starter DDL, and smoke te
   });
 
   const ddlFiles = readdirSync(path.join(workspace, 'ztd', 'ddl')).filter((entry) => entry.endsWith('.sql'));
-  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'src', 'AGENTS.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'src', 'features', 'AGENTS.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'tests', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'src', 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'src', 'features', 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'tests', 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'compose.yaml'))).toBe(true);
   expect(existsSync(path.join(workspace, '.env.example'))).toBe(true);
@@ -219,7 +220,33 @@ test('init starter bootstraps visible AGENTS, compose, starter DDL, and smoke te
   expect(result.summary).toContain('tests/support/postgres-testkit.ts');
   expect(result.summary).toContain('src/features/smoke/tests/smoke.queryspec.test.ts');
   expect(result.summary).toContain('starter-only sample feature');
+  expect(result.summary).toContain('ztd agents init');
   expect(result.summary).toContain('Delete src/features/smoke/');
+});
+
+test('init starter keeps visible AGENTS out even when internal AI guidance is enabled', { timeout: 60_000 }, async () => {
+  const workspace = createTempDir('cli-init-starter-ai-guidance');
+  const prompter = new TestPrompter([]);
+
+  const result = await runInitCommand(prompter, {
+    rootDir: workspace,
+    nonInteractive: true,
+    forceOverwrite: true,
+    workflow: 'demo',
+    validator: 'zod',
+    starter: true,
+    withAiGuidance: true
+  });
+
+  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'src', 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'tests', 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'CONTEXT.md'))).toBe(true);
+  expect(result.summary).toContain('Internal guidance is managed under .ztd/agents/.');
+  expect(result.summary).toContain('Visible AGENTS.md files are separate. Enable them with: ztd agents init');
+  expect(result.summary).not.toContain('Visible AGENTS.md files are installed for the starter flow.');
 });
 
 test('init can opt into AI guidance files when explicitly requested', async () => {

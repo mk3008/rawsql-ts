@@ -595,34 +595,48 @@ test('init CLI can opt into internal AI guidance explicitly', { timeout: 60_000 
 
   assertCliSuccess(result, 'init with ai guidance');
   expect(result.stdout).toContain('Internal guidance is managed under .ztd/agents/.');
-  expect(result.stdout).toContain('Enable with: ztd agents install');
+  expect(result.stdout).toContain('Visible AGENTS.md files are separate. Enable them with: ztd agents init');
   expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(true);
   expect(existsSync(path.join(workspace, '.ztd', 'agents', 'root.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'CONTEXT.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(false);
 });
 
-test('agents install emits the visible AGENTS plan and materializes the files', { timeout: 60_000 }, () => {
-  const workspace = createTempDir('agents-install');
-  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before install');
+test('agents init emits the visible AGENTS plan and materializes the files', { timeout: 60_000 }, () => {
+  const workspace = createTempDir('agents-init');
+  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before init-agents');
 
-  const result = runCli(['agents', 'install'], {}, workspace);
-  assertCliSuccess(result, 'agents install');
+  const result = runCli(['agents', 'init'], {}, workspace);
+  assertCliSuccess(result, 'agents init');
   expect(result.stdout).toContain('About to create:');
   expect(result.stdout).toContain('No files will be overwritten.');
-  expect(result.stdout).toContain('Disable with: skip `ztd agents install`');
+  expect(result.stdout).toContain('Disable with: skip `ztd agents init`');
   expect(result.stdout).toContain('AGENTS.md');
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(false);
 });
 
-test('agents install preserves an existing root AGENTS.md and falls back to AGENTS_ztd.md', { timeout: 60_000 }, () => {
-  const workspace = createTempDir('agents-install-root-fallback');
+test('agents install remains a backwards-compatible alias for agents init', { timeout: 60_000 }, () => {
+  const workspace = createTempDir('agents-install-alias');
+  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before alias');
+
+  const result = runCli(['agents', 'install'], {}, workspace);
+  assertCliSuccess(result, 'agents install alias');
+  expect(result.stdout).toContain('Disable with: skip `ztd agents init`');
+  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
+});
+
+test('agents init preserves an existing root AGENTS.md and falls back to AGENTS_ztd.md', { timeout: 60_000 }, () => {
+  const workspace = createTempDir('agents-init-root-fallback');
   assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before fallback install');
   writeFileSync(path.join(workspace, 'AGENTS.md'), '# existing root\n', 'utf8');
 
-  const result = runCli(['agents', 'install'], {}, workspace);
-  assertCliSuccess(result, 'agents install fallback');
+  const result = runCli(['agents', 'init'], {}, workspace);
+  assertCliSuccess(result, 'agents init fallback');
   expect(result.stdout).toContain('AGENTS_ztd.md');
   expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toBe('# existing root\n');
   expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(true);

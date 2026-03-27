@@ -36,6 +36,7 @@ Run:
 
 ```bash
 npx ztd init --starter
+npx ztd agents init
 ```
 
 The starter generates:
@@ -43,8 +44,9 @@ The starter generates:
 - `src/features/smoke`
 - `ztd/ddl/demo.sql`
 - `compose.yaml`
-- visible `AGENTS.md` guidance
 - Vitest smoke tests
+
+Run `npx ztd agents init` if you want visible `AGENTS.md` guidance after the starter scaffold exists.
 
 The smallest DB-backed starter example lives in `src/features/smoke/tests/smoke.queryspec.test.ts`.
 It uses `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`, so a missing `ZTD_TEST_DATABASE_URL`, a stopped Postgres container, or a schema mismatch fails before you build a larger feature.

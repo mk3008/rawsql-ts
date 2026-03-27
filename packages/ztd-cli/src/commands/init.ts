@@ -5,7 +5,7 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 
 import { ensureDirectory } from '../utils/fs';
-import { copyAgentsTemplate, installVisibleAgents, writeInternalAgentsArtifacts } from '../utils/agents';
+import { copyAgentsTemplate, writeInternalAgentsArtifacts } from '../utils/agents';
 import { DEFAULT_ZTD_CONFIG, writeZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConfig';
 import { runPullSchema, type PullSchemaOptions } from './pull';
@@ -610,7 +610,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     const workflowChoice = await prompter.selectChoice(
       'How do you want to start your database workflow?',
       [
-        'Starter (recommended): visible AGENTS, compose, smoke tests, and sample DDL',
+        'Starter (recommended): compose, smoke tests, and sample DDL',
         'Pull schema from Postgres (pg_dump)',
         'Create empty scaffold (I will write DDL)',
         'Create scaffold with demo DDL (no app code)'
@@ -1114,13 +1114,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (setupEnvSummary) {
     summaries.setupEnv = setupEnvSummary;
-  }
-
-  if (starter) {
-    const visibleAgentSummaries = installVisibleAgents(rootDir);
-    if (visibleAgentSummaries.some((summary) => summary.relativePath === 'AGENTS.md')) {
-      dependencies.log('Visible AGENTS.md files installed for the starter flow.');
-    }
   }
 
   const vitestConfigSummary = await writeTemplateFile(
@@ -2389,7 +2382,7 @@ function buildSummaryLines(
   lines.push(` - Validator backend: ${validatorLabel}`);
   if (starter) {
     lines.push('', 'Starter flow:');
-    lines.push(' - Visible AGENTS.md files are installed for the starter flow.');
+    lines.push(' - Visible AGENTS.md files are optional. Add them later with: ztd agents init');
     lines.push(` - Bundled Postgres compose image: ${postgresImage}`);
     lines.push(' - Run docker compose up -d before the DB-backed smoke test so the starter DB path is ready.');
     lines.push(
@@ -2399,7 +2392,7 @@ function buildSummaryLines(
   if (optionalFeatures.aiGuidance) {
     lines.push('', 'AI guidance:');
     lines.push(' - Internal guidance is managed under .ztd/agents/.');
-    lines.push(' - Visible AGENTS.md files are disabled by default. Enable with: ztd agents install');
+    lines.push(' - Visible AGENTS.md files are separate. Enable them with: ztd agents init');
   }
   if (installNote) {
     lines.push('', 'Dependency installation:');
@@ -2482,13 +2475,7 @@ function buildInitDryRunPlan(rootDir: string, options: {
       path.join('src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'),
       path.join('src', 'features', 'smoke', 'tests', 'smoke.test.ts'),
       path.join('src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'),
-      path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'postgres-testkit.ts'),
-      'AGENTS.md',
-      path.join('ztd', 'AGENTS.md'),
-      path.join('ztd', 'ddl', 'AGENTS.md'),
-      path.join('src', 'AGENTS.md'),
-      path.join('src', 'features', 'AGENTS.md'),
-      path.join('tests', 'AGENTS.md')
+      path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'postgres-testkit.ts')
     );
   }
 
@@ -2541,7 +2528,7 @@ export function registerInitCommand(program: Command): void {
     .command('init')
     .description('Automate project setup for Zero Table Dependency workflows')
     .option('--app-shape <type>', 'Deprecated compatibility option; the vertical scaffold ignores it')
-    .option('--starter', 'Generate the recommended starter flow with visible AGENTS, compose, and sample DDL')
+    .option('--starter', 'Generate the recommended starter flow with compose, smoke tests, and sample DDL')
     .option('--postgres-image <image>', 'Postgres image/tag to use in the starter compose file (default: postgres:18)')
     .option('--with-ai-guidance', 'Generate internal AI guidance files such as CONTEXT.md and .ztd/agents/*')
     .option('--with-dogfooding', 'Generate PROMPT_DOGFOOD.md for AI prompt dogfooding and debugging')

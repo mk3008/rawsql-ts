@@ -76,7 +76,7 @@ ztd lint --json '{"path":"src/sql/**/*.sql"}'
 
 ## Agent Guidance Discovery
 
-`ztd init` now writes managed internal guidance under `.ztd/agents/` by default:
+Use `ztd init --with-ai-guidance` to write managed internal guidance under `.ztd/agents/`:
 
 - `.ztd/agents/manifest.json`
 - `.ztd/agents/root.md`
@@ -84,7 +84,7 @@ ztd lint --json '{"path":"src/sql/**/*.sql"}'
 - `.ztd/agents/tests.md`
 - `.ztd/agents/ztd.md`
 
-Visible `AGENTS.md` files are opt-in via `ztd agents install`.
+Visible `AGENTS.md` files are opt-in via `ztd agents init` (with `ztd agents install` retained as a compatibility alias).
 
 The manifest includes:
 
