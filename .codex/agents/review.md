@@ -31,6 +31,7 @@ Use this subagent after verification and reporting but before human review. Its 
 - Check required field coverage.
 - Check GitHub-safe references.
 - Check per-item final form.
+- Check that repository evidence and supplementary evidence are not collapsed into one undifferentiated evidence claim.
 - Check the distinction between `tests were updated`, `tests passed`, and execution blockers.
 
 ## Review Cycle 2: Human Acceptance Review
@@ -44,6 +45,7 @@ Use this subagent after verification and reporting but before human review. Its 
 ## Triage Rules
 
 - `blocker`: prevents acceptance judgment or leaves correctness, contract, evidence, or guarantee unclear.
+- Treat unsupported `done` claims based only on supplementary evidence as a blocker.
 - `follow-up`: has clear value but does not prevent acceptance now.
 - `nit`: wording or readability only.
 - Do not escalate a nit to a blocker unless it actually prevents acceptance judgment.

@@ -13,6 +13,7 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
 - State the source request or source issue and why it matters before item-level reporting begins.
 - Summarize what changed in human-facing terms before file-level detail.
 - Record the evidence and verification basis that supports each status.
+- Separate reviewer-checkable repository evidence from supplementary evidence when both exist.
 - Make the remaining gap explicit for every incomplete item.
 - State the guarantee limits when evidence is partial, indirect, or environment-dependent.
 - Call out what changed for humans, not only what changed in files.
@@ -29,6 +30,8 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
 - Acceptance items
 - Decision points
 - Verification basis
+- Repository evidence
+- Supplementary evidence
 - Guarantee limits
 - Outstanding gaps
 - Acceptance items status
@@ -53,6 +56,11 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
   - `gap`
 - The final PR text must leave those fields visible per item instead of requiring the reviewer to map a global summary back onto the acceptance list.
 - The same per-item final form is required for normal Codex work reports when they claim completion or attainment.
+- For PR text, prefer `Repository evidence` as the primary evidence section.
+- `Repository evidence` means reviewer-checkable evidence that remains in the repo or CI-visible record, such as code, tests, snapshots, checked-in docs, and CI-visible outputs.
+- `Supplementary evidence` means local logs, external observations, manual checks that are not committed, and non-reproducible or environment-specific notes.
+- `Supplementary evidence` is supporting material and must not be presented as equivalent to repository evidence in a PR.
+- If an item relies mainly on supplementary evidence, keep the item `partial` or narrow the claim with explicit guarantee limits.
 - Add `verification basis` when the evidence needs explanation.
 - In `Verification basis`, state what observation was treated as enough to conclude the reporting shape or acceptance item was satisfied.
 - Add `guarantee limits` when the evidence does not fully guarantee the item.

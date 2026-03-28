@@ -73,6 +73,14 @@
 - If a GitHub-facing report contains a local filesystem path, final form is incomplete.
 - Reports MUST distinguish `tests were updated` from `tests passed`.
 - If execution is blocked or not run, the affected item MUST remain `partial` or `not done`.
+- Reports MUST distinguish `Repository evidence` from `Supplementary evidence` when both appear.
+- `Repository evidence` means reviewer-checkable evidence that remains in the repo or CI-visible record, such as code, tests, snapshots, checked-in docs, and CI-visible outputs.
+- `Supplementary evidence` means local logs, external observations, manual checks that are not committed, and non-reproducible or environment-specific notes.
+- PR reports MUST treat `Repository evidence` as the primary basis for acceptance judgment.
+- PR reports MUST treat `Supplementary evidence` as supporting material, not as the same class of evidence as `Repository evidence`.
+- `Supplementary evidence` alone MUST NOT justify a strong `done` claim unless the guarantee limits explicitly narrow the claim and the reviewer can still judge the accepted scope.
+- If an item relies mainly on `Supplementary evidence`, the report MUST keep the item `partial` or make the guarantee limits explicit enough to narrow the claim.
+- Normal Codex work reports MAY include more supplementary operational detail than PR reports, but they MUST still label it as supplementary when it is not reviewer-checkable.
 - Status values MUST be:
   - `done`
   - `partial`

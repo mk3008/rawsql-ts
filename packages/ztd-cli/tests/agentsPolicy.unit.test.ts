@@ -24,6 +24,8 @@ const SHARED_POLICY_ASSERTIONS = [
   'Reports MUST state `What changed` before file inventory or file lists.',
   'Final PR text and final implementation reports MUST pass two-cycle self-review before human review.',
   'Review findings MUST be triaged as `blocker`, `follow-up`, or `nit`.',
+  'Reports MUST distinguish `Repository evidence` from `Supplementary evidence` when both appear.',
+  'PR reports MUST treat `Repository evidence` as the primary basis for acceptance judgment.',
   'Reports MUST end with `What the human should decide next`.',
   '`What changed` MUST describe user-facing or reviewer-facing meaning before implementation detail or file names.',
   '`Verification basis` MUST state what observation was treated as sufficient to call the shape or item satisfied.',
@@ -57,6 +59,7 @@ test('root AGENTS.md defines global guardrails and routing', () => {
   expect(contents).toContain('Reports MUST state `Outstanding gaps` explicitly.');
   expect(contents).toContain('Consistency review MUST check literal drift, mirror / test / policy mismatch, required field coverage, GitHub-safe references, per-item final form, and `tests were updated` versus `tests passed` wording.');
   expect(contents).toContain('Human acceptance review MUST check whether a reviewer can judge the result from the text alone without reconstructing the issue, value, evidence, guarantee limits, or gaps from memory.');
+  expect(contents).toContain('`Supplementary evidence` alone MUST NOT justify a strong `done` claim');
   assertPolicyContains(contents, SHARED_POLICY_ASSERTIONS);
   expect(contents).toContain('.codex/agents/planning.md');
   expect(contents).toContain('.codex/agents/review.md');
@@ -72,6 +75,7 @@ test('.agent/AGENTS.md mirrors the routing and guardrail policy', () => {
   expect(contents).toContain('repository root policy remains canonical');
   expect(contents).toContain('Reports MUST make `Verification basis`, `Guarantee limits`, and `Outstanding gaps` visible when needed.');
   expect(contents).toContain('Consistency review MUST check literal drift, mirror / test / policy mismatch, required field coverage, GitHub-safe references, per-item final form, and `tests were updated` versus `tests passed` wording.');
+  expect(contents).toContain('`Supplementary evidence` alone MUST NOT justify a strong `done` claim');
   assertPolicyContains(contents, SHARED_POLICY_ASSERTIONS);
   expect(contents).toContain('.codex/agents/planning.md');
   expect(contents).toContain('.codex/agents/review.md');

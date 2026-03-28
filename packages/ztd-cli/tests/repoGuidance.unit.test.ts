@@ -66,6 +66,9 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reportingSkill).toContain('keep the affected item `partial` or `not done`');
   expect(reportingSkill).toContain('pass consistency review and human acceptance review');
   expect(reportingSkill).toContain('Review findings MUST be triaged as `blocker`, `follow-up`, or `nit`.');
+  expect(reportingSkill).toContain('`Repository evidence` MUST be the primary evidence class for acceptance judgment.');
+  expect(reportingSkill).toContain('`Supplementary evidence` means local logs, external observations');
+  expect(reportingSkill).toContain('`Supplementary evidence` alone MUST NOT justify a strong `done` claim');
   expect(reportingSkill).toContain('Map each acceptance item to `done`, `partial`, or `not done`.');
   expect(reportingAgent).toContain('normal Codex work report are decision documents, not work logs.');
   expect(reportingAgent).toContain('Source request or source issue');
@@ -86,6 +89,9 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reportingAgent).toContain('Keep `tests were updated`, `tests passed`, and `execution remains partial` separate');
   expect(reportingAgent).toContain('pass consistency review and human acceptance review');
   expect(reportingAgent).toContain('Review findings must be triaged as `blocker`, `follow-up`, or `nit`.');
+  expect(reportingAgent).toContain('`Repository evidence` means reviewer-checkable evidence');
+  expect(reportingAgent).toContain('`Supplementary evidence` means local logs, external observations');
+  expect(reportingAgent).toContain('keep the item `partial` or narrow the claim with explicit guarantee limits');
   expect(reportingAgent).toContain('Map each acceptance item to `done`, `partial`, or `not done`.');
   expect(reviewSkill).toContain('consistency review');
   expect(reviewSkill).toContain('human acceptance review');
@@ -94,15 +100,22 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reviewAgent).toContain('Review Cycle 1: Consistency Review');
   expect(reviewAgent).toContain('Review Cycle 2: Human Acceptance Review');
   expect(reviewAgent).toContain('Triage Rules');
+  expect(reviewAgent).toContain('unsupported `done` claims based only on supplementary evidence');
   expect(reviewAgent).toContain('mark the review as not ready for human review');
   expect(rootAgents).toContain('All assistant-user conversation in this repository must be in Japanese.');
   expect(rootAgents).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
   expect(rootAgents).toContain('Final PR text and final implementation reports MUST pass two-cycle self-review before human review.');
   expect(rootAgents).toContain('Review findings MUST be triaged as `blocker`, `follow-up`, or `nit`.');
+  expect(rootAgents).toContain('Reports MUST distinguish `Repository evidence` from `Supplementary evidence` when both appear.');
+  expect(rootAgents).toContain('PR reports MUST treat `Repository evidence` as the primary basis for acceptance judgment.');
+  expect(rootAgents).toContain('`Supplementary evidence` alone MUST NOT justify a strong `done` claim');
   expect(mirrorAgents).toContain('All assistant-user conversation in this repository must be in Japanese.');
   expect(mirrorAgents).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
   expect(mirrorAgents).toContain('Final PR text and final implementation reports MUST pass two-cycle self-review before human review.');
   expect(mirrorAgents).toContain('Review findings MUST be triaged as `blocker`, `follow-up`, or `nit`.');
+  expect(mirrorAgents).toContain('Reports MUST distinguish `Repository evidence` from `Supplementary evidence` when both appear.');
+  expect(mirrorAgents).toContain('PR reports MUST treat `Repository evidence` as the primary basis for acceptance judgment.');
+  expect(mirrorAgents).toContain('`Supplementary evidence` alone MUST NOT justify a strong `done` claim');
 });
 
 test('reporting guidance fixes the decision-oriented order', () => {
@@ -129,7 +142,7 @@ test('.codex/config.toml routes developer workflows to repo-local guidance', () 
 
   expect(config).toContain('developer_only = true');
   expect(config).toContain('preferred_workflows = ["planning", "verification", "review", "reporting"]');
-  expect(config).toContain('required_reporting_fields = ["acceptance_items", "verification_methods", "review_triage", "attainment_status"]');
+  expect(config).toContain('required_reporting_fields = ["acceptance_items", "verification_methods", "repository_evidence", "supplementary_evidence", "review_triage", "attainment_status"]');
   expect(config).toContain('planning = ".codex/agents/planning.md"');
   expect(config).toContain('verification = ".codex/agents/verification.md"');
   expect(config).toContain('review = ".codex/agents/review.md"');
