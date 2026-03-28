@@ -51,5 +51,10 @@ Use this skill when a rawsql-ts developer task is ready to be summarized in a PR
 - In `Verification basis`, state what observation was treated as sufficient to call the reporting shape satisfied.
 - In `What the human should decide next`, prefer a narrow accept-or-defer style choice over an open-ended question.
 - The final report form MUST include every acceptance item as `acceptance item`, `status`, `evidence`, and `gap`.
+- The final PR text and normal work report MUST show those per-item fields directly in the final output, not only in draft notes or plan artifacts.
 - Do not leave evidence and gaps only in a global summary when the reader must map them back to items manually.
-- For GitHub PR text, do not use local filesystem links such as `/C:/...`; use repo-relative references or plain text.
+- Global `Verification basis`, `Guarantee limits`, and `Outstanding gaps` are supporting sections and MUST NOT replace per-item status.
+- For GitHub-facing text, do not use local filesystem links such as `/C:/...`; use repo-relative references or plain text.
+- If a local filesystem path appears in GitHub-facing text, treat the final form as incomplete.
+- Distinguish `tests were updated` from `tests passed`.
+- If execution is blocked, environment-dependent, or not run, keep the affected item `partial` or `not done` and state the blocker explicitly.

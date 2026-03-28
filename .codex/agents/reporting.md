@@ -50,6 +50,7 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
   - `evidence`
   - `gap`
 - The final PR text must leave those fields visible per item instead of requiring the reviewer to map a global summary back onto the acceptance list.
+- The same per-item final form is required for normal Codex work reports when they claim completion or attainment.
 - Add `verification basis` when the evidence needs explanation.
 - In `Verification basis`, state what observation was treated as enough to conclude the reporting shape or acceptance item was satisfied.
 - Add `guarantee limits` when the evidence does not fully guarantee the item.
@@ -60,10 +61,12 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
 - `Attainment level` is the overall summary of how fully the task met its intended value, not a replacement for per-item status.
 - If verification was incomplete, blocked, or environment-dependent, state that explicitly instead of overstating completion.
 - If dogfooding or real-task validation was required, report whether it was satisfied, partial, or not done.
+- Keep `tests were updated`, `tests passed`, and `execution remains partial` separate when they differ.
 - Do not bury missing guarantees inside a narrative paragraph.
 - Do not make the reviewer infer why the change matters from the diff alone.
 - End the report with `What the human should decide next`, phrased as a narrow choice whenever possible.
 - For GitHub-facing text, do not emit local filesystem links such as `/C:/...`; use repo-relative references or plain text.
+- If GitHub-facing text contains a local filesystem path, the final form is incomplete and must be corrected before closeout.
 
 ## Do Not
 

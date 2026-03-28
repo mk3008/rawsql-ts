@@ -53,7 +53,11 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reportingSkill).toContain('what observation was treated as sufficient');
   expect(reportingSkill).toContain('prefer a narrow accept-or-defer style choice');
   expect(reportingSkill).toContain('The final report form MUST include every acceptance item as `acceptance item`, `status`, `evidence`, and `gap`.');
+  expect(reportingSkill).toContain('The final PR text and normal work report MUST show those per-item fields directly');
   expect(reportingSkill).toContain('do not use local filesystem links such as `/C:/...`');
+  expect(reportingSkill).toContain('treat the final form as incomplete');
+  expect(reportingSkill).toContain('Distinguish `tests were updated` from `tests passed`.');
+  expect(reportingSkill).toContain('keep the affected item `partial` or `not done`');
   expect(reportingSkill).toContain('Map each acceptance item to `done`, `partial`, or `not done`.');
   expect(reportingAgent).toContain('normal Codex work report are decision documents, not work logs.');
   expect(reportingAgent).toContain('Source request or source issue');
@@ -68,7 +72,10 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reportingAgent).toContain('what observation was treated as enough');
   expect(reportingAgent).toContain('phrased as a narrow choice whenever possible.');
   expect(reportingAgent).toContain('The final PR text must leave those fields visible per item');
+  expect(reportingAgent).toContain('The same per-item final form is required for normal Codex work reports');
   expect(reportingAgent).toContain('do not emit local filesystem links such as `/C:/...`');
+  expect(reportingAgent).toContain('the final form is incomplete and must be corrected');
+  expect(reportingAgent).toContain('Keep `tests were updated`, `tests passed`, and `execution remains partial` separate');
   expect(reportingAgent).toContain('Map each acceptance item to `done`, `partial`, or `not done`.');
   expect(readText('AGENTS.md')).toContain('All assistant-user conversation in this repository must be in Japanese.');
   expect(readText('AGENTS.md')).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');

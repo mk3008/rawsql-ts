@@ -21,7 +21,11 @@ test('root AGENTS.md defines global guardrails and routing', () => {
   expect(contents).toContain('All assistant-user conversation in this repository must be in Japanese.');
   expect(contents).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
   expect(contents).toContain('Final PR text and final implementation reports MUST keep those fields visible per acceptance item.');
+  expect(contents).toContain('Global summary sections MUST NOT replace per-item status, evidence, or gap.');
   expect(contents).toContain('GitHub-facing reports MUST NOT use local filesystem links such as `/C:/...`; use repo-relative references or plain text.');
+  expect(contents).toContain('If a GitHub-facing report contains a local filesystem path, final form is incomplete.');
+  expect(contents).toContain('Reports MUST distinguish `tests were updated` from `tests passed`.');
+  expect(contents).toContain('If execution is blocked or not run, the affected item MUST remain `partial` or `not done`.');
   expect(contents).toContain('Plans MUST state the `Source issue` and `Why it matters`.');
   expect(contents).toContain('Reports MUST state the `Source request` or `Source issue` and `Why it matters` before item-level status.');
   expect(contents).toContain('Reports MUST state `What changed` before file inventory or file lists.');
@@ -44,7 +48,11 @@ test('.agent/AGENTS.md mirrors the routing and guardrail policy', () => {
   expect(contents).toContain('All assistant-user conversation in this repository must be in Japanese.');
   expect(contents).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
   expect(contents).toContain('Final PR text and final implementation reports MUST keep those fields visible per acceptance item.');
+  expect(contents).toContain('Global summary sections MUST NOT replace per-item status, evidence, or gap.');
   expect(contents).toContain('GitHub-facing reports MUST NOT use local filesystem links such as `/C:/...`; use repo-relative references or plain text.');
+  expect(contents).toContain('If a GitHub-facing report contains a local filesystem path, final form is incomplete.');
+  expect(contents).toContain('Reports MUST distinguish `tests were updated` from `tests passed`.');
+  expect(contents).toContain('If execution is blocked or not run, the affected item MUST remain `partial` or `not done`.');
   expect(contents).toContain('Plans MUST state the `Source issue` and `Why it matters`.');
   expect(contents).toContain('Reports MUST state the `Source request` or `Source issue` and `Why it matters` before item-level status.');
   expect(contents).toContain('Reports MUST state `What changed` before file inventory or file lists.');

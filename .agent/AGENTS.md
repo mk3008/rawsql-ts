@@ -33,7 +33,11 @@
 - Reports MUST state `What changed` before file inventory or file lists.
 - Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.
 - Final PR text and final implementation reports MUST keep those fields visible per acceptance item.
+- Global summary sections MUST NOT replace per-item status, evidence, or gap.
 - GitHub-facing reports MUST NOT use local filesystem links such as `/C:/...`; use repo-relative references or plain text.
+- If a GitHub-facing report contains a local filesystem path, final form is incomplete.
+- Reports MUST distinguish `tests were updated` from `tests passed`.
+- If execution is blocked or not run, the affected item MUST remain `partial` or `not done`.
 - Status values MUST be `done`, `partial`, or `not done`.
 - If a task is incomplete, the gap MUST be explicit.
 - Reports MUST make `Verification basis`, `Guarantee limits`, and `Outstanding gaps` visible when needed.

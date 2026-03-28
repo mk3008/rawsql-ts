@@ -65,7 +65,11 @@
   - `evidence`
   - `gap`
 - Final PR text and final implementation reports MUST keep those fields visible per acceptance item.
+- Global summary sections MUST NOT replace per-item status, evidence, or gap.
 - GitHub-facing reports MUST NOT use local filesystem links such as `/C:/...`; use repo-relative references or plain text.
+- If a GitHub-facing report contains a local filesystem path, final form is incomplete.
+- Reports MUST distinguish `tests were updated` from `tests passed`.
+- If execution is blocked or not run, the affected item MUST remain `partial` or `not done`.
 - Status values MUST be:
   - `done`
   - `partial`
