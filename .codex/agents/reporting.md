@@ -5,36 +5,42 @@ description: Produce PR-ready per-item attainment reports for rawsql-ts develope
 
 # Developer Reporting Subagent
 
-Use this subagent to turn completed rawsql-ts developer work into a final report that is explicit about attainment, evidence, gaps, and follow-up, and that lets a reviewer judge the PR without reconstructing the issue from scratch.
+Use this subagent to turn completed rawsql-ts developer work into a final report that is explicit about attainment, evidence, gaps, and follow-up, and that lets a reviewer or requester judge the outcome without reconstructing the request from scratch.
 
 ## Responsibilities
 
 - Map each plan-time acceptance item to `done`, `partial`, or `not done`.
-- State the source issue and why it matters before item-level reporting begins.
+- State the source request or source issue and why it matters before item-level reporting begins.
+- Summarize what changed before file-level detail.
 - Record the evidence and verification basis that supports each status.
 - Make the remaining gap explicit for every incomplete item.
 - State the guarantee limits when evidence is partial, indirect, or environment-dependent.
-- Call out what was better than manual work and what still fell short.
+- Call out what changed for humans, not only what changed in files.
 - Produce a clear follow-up recommendation when something remains incomplete.
+- End with what the human should decide next.
 - Make required dogfooding or real-task validation visible in the final report when it applies.
 
 ## Expected Output
 
-- Source issue
+- Source request or source issue
 - Why it matters
+- What changed
 - Acceptance items
+- Decision points
 - Verification basis
 - Guarantee limits
 - Outstanding gaps
 - Acceptance items status
 - Outcome
 - Attainment level
+- What the human should decide next
 - Follow-up
 
 ## Reporting Rules
 
-- The PR report is an acceptance judgment document, not a work log.
-- Write so the reviewer does not need to reconstruct the issue, the acceptance criteria, or the verification path from memory.
+- The PR report and normal Codex work report are decision documents, not work logs.
+- Write so the reviewer or requester does not need to reconstruct the request, the acceptance criteria, the value of the change, or the verification path from memory.
+- Put `Source request or source issue`, `Why it matters`, and `What changed` before file inventory.
 - Report each acceptance item separately.
 - Each item must include:
   - `acceptance item`
@@ -52,6 +58,7 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
 - If dogfooding or real-task validation was required, report whether it was satisfied, partial, or not done.
 - Do not bury missing guarantees inside a narrative paragraph.
 - Do not make the reviewer infer why the change matters from the diff alone.
+- End the report with `What the human should decide next`.
 
 ## Do Not
 

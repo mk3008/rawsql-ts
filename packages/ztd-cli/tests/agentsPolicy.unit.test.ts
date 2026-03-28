@@ -21,8 +21,11 @@ test('root AGENTS.md defines global guardrails and routing', () => {
   expect(contents).toContain('All assistant-user conversation in this repository must be in Japanese.');
   expect(contents).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
   expect(contents).toContain('Plans MUST state the `Source issue` and `Why it matters`.');
+  expect(contents).toContain('Reports MUST state the `Source request` or `Source issue` and `Why it matters` before item-level status.');
+  expect(contents).toContain('Reports MUST state `What changed` before file inventory or file lists.');
   expect(contents).toContain('Reports MUST state the `Verification basis` and `Guarantee limits` when evidence does not fully close an item.');
   expect(contents).toContain('Reports MUST state `Outstanding gaps` explicitly.');
+  expect(contents).toContain('Reports MUST end with `What the human should decide next`.');
   expect(contents).toContain('.codex/agents/planning.md');
   expect(contents).toContain('.agents/skills/acceptance-planning/SKILL.md');
 });
@@ -36,7 +39,10 @@ test('.agent/AGENTS.md mirrors the routing and guardrail policy', () => {
   expect(contents).toContain('All assistant-user conversation in this repository must be in Japanese.');
   expect(contents).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
   expect(contents).toContain('Plans MUST state the `Source issue` and `Why it matters`.');
+  expect(contents).toContain('Reports MUST state the `Source request` or `Source issue` and `Why it matters` before item-level status.');
+  expect(contents).toContain('Reports MUST state `What changed` before file inventory or file lists.');
   expect(contents).toContain('Reports MUST make `Verification basis`, `Guarantee limits`, and `Outstanding gaps` visible when needed.');
+  expect(contents).toContain('Reports MUST end with `What the human should decide next`.');
   expect(contents).toContain('.codex/agents/planning.md');
   expect(contents).toContain('.agents/skills/attainment-reporting/SKILL.md');
 });

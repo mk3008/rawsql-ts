@@ -25,36 +25,41 @@ test('planning guidance covers acceptance items and verification methods', () =>
   expect(planningSkill).toContain('Source issue');
   expect(planningSkill).toContain('Why it matters');
   expect(planningSkill).toContain('Acceptance items');
+  expect(planningSkill).toContain('Decision points');
   expect(planningSkill).toContain('Verification methods');
   expect(planningAgent).toContain('Identify the source issue and explain why it matters.');
   expect(planningAgent).toContain('Source issue');
   expect(planningAgent).toContain('Why it matters');
+  expect(planningAgent).toContain('Decision points, when relevant');
   expect(planningAgent).toContain('Write acceptance items that are specific, testable, and narrow enough for per-item completion judgment.');
   expect(planningAgent).toContain('Attach a verification method to every acceptance item.');
   expect(verificationAgent).toContain('Translate the evidence into a clear verification basis when the report needs it.');
   expect(verificationAgent).toContain('Do not replace plan-time verification methods; instead confirm whether the planned methods were actually satisfied.');
 });
 
-test('reporting guidance covers per-item attainment', () => {
+test('reporting guidance covers reviewer-facing and operator-facing reporting shape', () => {
   const reportingSkill = readText('.agents/skills/attainment-reporting/SKILL.md');
   const reportingAgent = readText('.codex/agents/reporting.md');
 
-  expect(reportingSkill).toContain('Source issue');
+  expect(reportingSkill).toContain('Source request or source issue');
   expect(reportingSkill).toContain('Why it matters');
+  expect(reportingSkill).toContain('What changed');
+  expect(reportingSkill).toContain('Decision points');
   expect(reportingSkill).toContain('Verification basis');
   expect(reportingSkill).toContain('Guarantee limits');
   expect(reportingSkill).toContain('Outstanding gaps');
+  expect(reportingSkill).toContain('What the human should decide next');
   expect(reportingSkill).toContain('Map each acceptance item to `done`, `partial`, or `not done`.');
-  expect(reportingSkill).toContain('what was better than manual work');
-  expect(reportingSkill).toContain('what remained insufficient');
-  expect(reportingAgent).toContain('PR report is an acceptance judgment document, not a work log.');
-  expect(reportingAgent).toContain('Source issue');
+  expect(reportingAgent).toContain('normal Codex work report are decision documents, not work logs.');
+  expect(reportingAgent).toContain('Source request or source issue');
   expect(reportingAgent).toContain('Why it matters');
+  expect(reportingAgent).toContain('What changed');
+  expect(reportingAgent).toContain('Decision points');
   expect(reportingAgent).toContain('Verification basis');
   expect(reportingAgent).toContain('Guarantee limits');
   expect(reportingAgent).toContain('Outstanding gaps');
+  expect(reportingAgent).toContain('What the human should decide next');
   expect(reportingAgent).toContain('Map each acceptance item to `done`, `partial`, or `not done`.');
-  expect(reportingAgent).toContain('Produce a clear follow-up recommendation when something remains incomplete.');
   expect(readText('AGENTS.md')).toContain('All assistant-user conversation in this repository must be in Japanese.');
   expect(readText('AGENTS.md')).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
 });
