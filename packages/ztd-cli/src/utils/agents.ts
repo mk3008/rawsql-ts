@@ -40,6 +40,8 @@ export interface AgentsStatusEntry {
 }
 
 export interface AgentsStatusReport {
+  bootstrapTargets: AgentsStatusEntry[];
+  internalTargets: AgentsStatusEntry[];
   targets: AgentsStatusEntry[];
   recommendedActions: string[];
 }
@@ -480,16 +482,18 @@ export function writeInternalAgentsArtifacts(projectRoot: string): FileSummaryLi
 }
 
 export function getAgentsStatus(projectRoot: string): AgentsStatusReport {
-  const targets: AgentsStatusEntry[] = [];
+  const internalTargets: AgentsStatusEntry[] = [];
+  const bootstrapTargets = getBootstrapStatusEntries(projectRoot);
 
-  targets.push(buildStatusEntry(projectRoot, INTERNAL_MANIFEST_PATH, buildInternalManifest()));
+  internalTargets.push(buildStatusEntry(projectRoot, INTERNAL_MANIFEST_PATH, buildInternalManifest()));
   for (const target of INTERNAL_AGENT_TEMPLATES) {
-    targets.push(buildStatusEntry(projectRoot, target.relativePath, renderInternalTarget(target.relativePath)));
+    internalTargets.push(buildStatusEntry(projectRoot, target.relativePath, renderInternalTarget(target.relativePath)));
   }
-  targets.push(...getBootstrapStatusEntries(projectRoot));
+
+  const targets = [...bootstrapTargets, ...internalTargets];
 
   const recommendedActions: string[] = [];
-  if (targets.some((target) => !target.path.startsWith('.ztd/agents/') && target.status === 'missing')) {
+  if (bootstrapTargets.some((target) => target.status === 'missing')) {
     recommendedActions.push('install-codex-bootstrap');
   }
   if (targets.some((target) => target.status === 'customized')) {
@@ -499,7 +503,7 @@ export function getAgentsStatus(projectRoot: string): AgentsStatusReport {
     recommendedActions.push('inspect-unmanaged-guidance');
   }
 
-  return { targets, recommendedActions };
+  return { bootstrapTargets, internalTargets, targets, recommendedActions };
 }
 
 export function getVisibleAgentsInstallPaths(projectRoot: string): string[] {

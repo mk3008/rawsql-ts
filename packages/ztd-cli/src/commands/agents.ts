@@ -93,14 +93,22 @@ export function registerAgentsCommand(program: Command): void {
       if (isJsonOutput()) {
         writeCommandEnvelope('agents status', {
           schemaVersion: 1,
+          bootstrap_targets: report.bootstrapTargets,
+          internal_targets: report.internalTargets,
           targets: report.targets,
           recommended_actions: report.recommendedActions
         });
         return;
       }
 
-      const lines = ['AGENTS status:'];
-      for (const target of report.targets) {
+      const lines = ['AGENTS status:', 'Customer bootstrap targets:'];
+      for (const target of report.bootstrapTargets) {
+        lines.push(
+          `- ${target.path}: status=${target.status} installed=${target.installed} managed=${target.managed} installed_version=${target.installedVersion ?? 'null'} template_version=${target.templateVersion} drift=${target.drift}`
+        );
+      }
+      lines.push('Internal .ztd guidance targets (written by `ztd init --with-ai-guidance`):');
+      for (const target of report.internalTargets) {
         lines.push(
           `- ${target.path}: status=${target.status} installed=${target.installed} managed=${target.managed} installed_version=${target.installedVersion ?? 'null'} template_version=${target.templateVersion} drift=${target.drift}`
         );

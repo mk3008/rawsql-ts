@@ -34,7 +34,8 @@ test('package README links every Further Reading guide from the public index', (
     '[Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md)',
     '[ztd-cli Agent Interface](../../docs/guide/ztd-cli-agent-interface.md)',
     '[Codex Bootstrap Verification](../../docs/dogfooding/ztd-codex-bootstrap-verification.md)',
-    '[ztd-cli spawn EPERM Investigation](../../docs/dogfooding/ztd-cli-spawn-eperm-investigation.md)'
+    '[ztd-cli spawn EPERM Investigation](../../docs/dogfooding/ztd-cli-spawn-eperm-investigation.md)',
+    '[ztd Onboarding Dogfooding](../../docs/dogfooding/ztd-onboarding-dogfooding.md)'
   ]);
 });
 
@@ -47,7 +48,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'npx ztd agents init',
         'The smallest DB-backed starter example lives in `src/features/smoke/tests/smoke.queryspec.test.ts`.',
         '`@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`',
-        'optional visible `AGENTS.md` guidance if you run `npx ztd agents init`',
+        'optional customer-facing Codex bootstrap if you run `npx ztd agents init`',
         'Docker Desktop or another Docker daemon is already running',
         'cp .env.example .env',
         '# edit ZTD_DB_PORT=5433',
@@ -131,7 +132,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'Prefer `--dry-run` before commands that write files.',
         'Use `--json <payload>` on supported commands when nested option construction is easier than individual flags.',
         'Use `ztd init --with-ai-guidance` to write managed internal guidance under `.ztd/agents/`',
-        'Use `ztd agents status` to distinguish managed templates from user-owned instruction files.',
+        'Use `ztd agents status` to inspect customer-facing bootstrap targets separately from internal `.ztd` guidance, and to distinguish managed templates from user-owned instruction files.',
         'Use `ztd agents init --dry-run` when you want the planned customer-facing bootstrap set before writing files.',
         'treat `summary` as the logical diff, treat `risks` as the apply-plan risk list',
         'Use `ztd ddl risk --file <migration.sql>` when you need to evaluate a generated or hand-edited migration SQL file directly',
@@ -169,6 +170,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'If you add a no-op repository telemetry seam under `src/infrastructure/telemetry/`',
         '.codex/config.toml',
         '.agents/skills/',
+        'customer bootstrap targets separately from internal `.ztd` guidance',
         'Read the nearest AGENTS files, inspect src/features/smoke, and plan the next users feature.'
       ]
     },
@@ -206,6 +208,26 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'Local Windows environment reproduces `spawn EPERM` below the Issue #685 change layer.',
         'Current evidence is insufficient to mark acceptance items 1-3 as done.',
         'Next decision depends on CI or alternate-environment verification.'
+      ]
+    },
+    {
+      docPath: 'docs/dogfooding/ztd-onboarding-dogfooding.md',
+      phrases: [
+        '### What was run',
+        '### Exact order',
+        '### README Quickstart step-by-step outcome',
+        '### Where the new bootstrap helped',
+        '### Where the new bootstrap was redundant or confusing',
+        '### What remains unverified',
+        'npm install -D @rawsql-ts/ztd-cli vitest typescript',
+        'npx ztd init --starter',
+        'npx ztd agents init',
+        '.env.example',
+        'docker compose up -d',
+        'npx ztd ztd-config',
+        'npx vitest run',
+        'published package: `@rawsql-ts/ztd-cli@0.22.5`',
+        'The onboarding order introduced by Issue #685 is coherent'
       ]
     },
     {

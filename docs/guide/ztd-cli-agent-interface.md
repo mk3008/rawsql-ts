@@ -9,7 +9,7 @@
 - Prefer `--dry-run` before commands that write files.
 - Use `--json <payload>` on supported commands when nested option construction is easier than individual flags.
 - Read `.ztd/agents/manifest.json` first when you need project guidance without repo-visible `AGENTS.md` files.
-- Use `ztd agents status` to distinguish managed templates from user-owned instruction files.
+- Use `ztd agents status` to inspect customer-facing bootstrap targets separately from internal `.ztd` guidance, and to distinguish managed templates from user-owned instruction files.
 - Use `ztd agents init --dry-run` when you want the planned customer-facing bootstrap set before writing files.
 - For `ztd ddl diff`, treat `summary` as the logical diff, treat `risks` as the apply-plan risk list, use the `.json` artifact for automation when needed, and keep the `.sql` output as the apply-target artifact.
 - Use `ztd ddl risk --file <migration.sql>` when you need to evaluate a generated or hand-edited migration SQL file directly; it emits the same `risks` contract without regenerating the migration.
@@ -118,7 +118,7 @@ These commands support `--dry-run`:
 
 Dry-run validates inputs, resolves paths, and computes outputs without writing repo files.
 
-`ztd agents status` now distinguishes these states for bootstrap-managed files:
+`ztd agents status` reports customer bootstrap targets and internal `.ztd` guidance in separate sections, then distinguishes these states for managed files:
 
 - `managed`
 - `missing`

@@ -92,7 +92,8 @@ Keep handwritten SQL, spec, and tests inside src/features/<feature>.
 Do not apply migrations automatically.
 ```
 
-Run `npx ztd agents init` afterward if you want the opt-in Codex bootstrap for the project.
+Quickstart already places `npx ztd agents init` immediately after starter scaffold creation.
+If you skipped that step and still want the opt-in Codex bootstrap for the project, run it before asking Codex to inspect `src/features/smoke`.
 Add `--with-dogfooding` if you want `PROMPT_DOGFOOD.md` for debugging or prompt review.
 
 `ztd agents init` adds:
@@ -102,7 +103,7 @@ Add `--with-dogfooding` if you want `PROMPT_DOGFOOD.md` for debugging or prompt 
 - `.codex/agents/`
 - `.agents/skills/`
 
-Existing user-owned guidance files are preserved; use `npx ztd agents status` if you need to review managed, customized, or unmanaged-conflict files.
+Existing user-owned guidance files are preserved; use `npx ztd agents status` if you need to review customer bootstrap targets separately from internal `.ztd` guidance, including managed, customized, or unmanaged-conflict files.
 
 A good first request after setup is:
 
@@ -195,6 +196,7 @@ This is the minimum runtime step needed for multi-DB workflows. It is not saga o
 - [ztd-cli Agent Interface](../../docs/guide/ztd-cli-agent-interface.md) - machine-readable command surface
 - [Codex Bootstrap Verification](../../docs/dogfooding/ztd-codex-bootstrap-verification.md) - reviewer-checkable fresh-project verification for `ztd agents init`
 - [ztd-cli spawn EPERM Investigation](../../docs/dogfooding/ztd-cli-spawn-eperm-investigation.md) - reviewer-checkable root-cause investigation for the local Vitest startup blocker
+- [ztd Onboarding Dogfooding](../../docs/dogfooding/ztd-onboarding-dogfooding.md) - reviewer-checkable README Quickstart and tutorial verification for the customer-facing onboarding path
 
 ## License
 

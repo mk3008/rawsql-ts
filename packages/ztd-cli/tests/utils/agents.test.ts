@@ -99,6 +99,24 @@ test('install plan reports unmanaged conflicts and customized managed files sepa
   expect(plan.customizedPaths).toContain('AGENTS.md');
 
   const report = getAgentsStatus(workspace);
+  expect(report.bootstrapTargets.find((target) => target.path === '.codex/config.toml')).toMatchObject({
+    status: 'unmanaged-conflict',
+    installed: true,
+    managed: false,
+    drift: 'unknown'
+  });
+  expect(report.bootstrapTargets.find((target) => target.path === 'AGENTS.md')).toMatchObject({
+    status: 'customized',
+    installed: true,
+    managed: true,
+    drift: 'modified'
+  });
+  expect(report.internalTargets.find((target) => target.path === '.ztd/agents/manifest.json')).toMatchObject({
+    status: 'missing',
+    installed: false,
+    managed: false,
+    drift: 'none'
+  });
   expect(report.targets.find((target) => target.path === '.codex/config.toml')).toMatchObject({
     status: 'unmanaged-conflict',
     installed: true,
@@ -113,6 +131,7 @@ test('install plan reports unmanaged conflicts and customized managed files sepa
   });
   expect(report.recommendedActions).toContain('review-customized-guidance');
   expect(report.recommendedActions).toContain('inspect-unmanaged-guidance');
+  expect(report.recommendedActions).not.toContain('install-codex-bootstrap');
 });
 
 test('writeInternalAgentsArtifacts creates managed payloads and sidecars unmanaged collisions', () => {

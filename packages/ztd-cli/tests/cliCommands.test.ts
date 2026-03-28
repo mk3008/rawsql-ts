@@ -664,6 +664,31 @@ test('agents status reports bootstrap files and install recommendation before in
   const parsed = JSON.parse(result.stdout);
   expect(parsed.data).toMatchObject({
     recommended_actions: expect.arrayContaining(['install-codex-bootstrap']),
+    bootstrap_targets: expect.arrayContaining([
+      expect.objectContaining({
+        path: 'AGENTS.md',
+        installed: false,
+        status: 'missing',
+        managed: false,
+        drift: 'none'
+      }),
+      expect.objectContaining({
+        path: '.codex/config.toml',
+        installed: false,
+        status: 'missing',
+        managed: false,
+        drift: 'none'
+      })
+    ]),
+    internal_targets: expect.arrayContaining([
+      expect.objectContaining({
+        path: '.ztd/agents/manifest.json',
+        installed: false,
+        status: 'missing',
+        managed: false,
+        drift: 'none'
+      })
+    ]),
     targets: expect.arrayContaining([
       expect.objectContaining({
         path: '.ztd/agents/manifest.json',
@@ -688,6 +713,18 @@ test('agents status reports bootstrap files and install recommendation before in
       })
     ])
   });
+});
+
+test('agents status text output separates customer bootstrap targets from internal guidance', { timeout: 60_000 }, () => {
+  const workspace = createTempDir('agents-status-text');
+  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before status text');
+
+  const result = runCli(['agents', 'status'], {}, workspace);
+  assertCliSuccess(result, 'agents status text');
+  expect(result.stdout).toContain('Customer bootstrap targets:');
+  expect(result.stdout).toContain('Internal .ztd guidance targets (written by `ztd init --with-ai-guidance`):');
+  expect(result.stdout).toContain('- AGENTS.md: status=missing');
+  expect(result.stdout).toContain('- .ztd/agents/manifest.json: status=missing');
 });
 
 
