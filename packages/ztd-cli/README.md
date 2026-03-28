@@ -142,6 +142,23 @@ Read the nearest AGENTS files, inspect src/features/smoke, and plan the next use
 After DDL or schema changes, rerun `ztd ztd-config`, `ztd lint`, and `npx vitest run`. Use `ztd ddl diff` or `ztd ddl pull` when you need a migration plan. The generated runtime manifest is the preferred input for `@rawsql-ts/testkit-postgres`; raw DDL directories remain a fallback for legacy layouts.
 Run `npx ztd describe command <name>` for per-command flags and options.
 
+## ztd.config.json
+
+`ztd.config.json` now keeps schema resolution at the top level:
+
+```json
+{
+  "dialect": "postgres",
+  "ddlDir": "ztd/ddl",
+  "testsDir": "tests",
+  "defaultSchema": "public",
+  "searchPath": ["public"],
+  "ddlLint": "strict"
+}
+```
+
+`ddl.defaultSchema` and `ddl.searchPath` are no longer read. If an older project still keeps schema settings under `ddl`, move them to the top-level `defaultSchema` and `searchPath` fields.
+
 ## Glossary
 
 | Term | Meaning |

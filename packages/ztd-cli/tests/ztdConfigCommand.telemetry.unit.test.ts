@@ -119,7 +119,8 @@ test('ztd-config does not emit a config.updated decision when the effective conf
         dialect: 'postgres',
         ddlDir: 'ztd/ddl',
         testsDir: 'tests',
-        ddl: { defaultSchema: 'public', searchPath: ['public'] },
+        defaultSchema: 'public',
+        searchPath: ['public'],
         ddlLint: 'strict'
       },
       null,

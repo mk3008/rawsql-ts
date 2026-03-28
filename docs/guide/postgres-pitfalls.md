@@ -70,12 +70,12 @@ PostgreSQL sorts `NULL` values last in ascending order and first in descending o
 
 ## 7. Schema search path affects table resolution
 
-PostgreSQL uses `search_path` to resolve unqualified table names. ZTD's `ztd.config.json` has `ddl.searchPath` to match this behavior.
+PostgreSQL uses `search_path` to resolve unqualified table names. ZTD's `ztd.config.json` has `searchPath` to match this behavior.
 
 **Symptom:** `ztd-config` generates types for the wrong schema or misses tables.
 
 **Mitigation:**
-- Set `ddl.defaultSchema` and `ddl.searchPath` in `ztd.config.json` to match your database's `search_path`.
+- Set `defaultSchema` and `searchPath` in `ztd.config.json` to match your database's `search_path`.
 - Use `ztd ztd-config --default-schema <name> --search-path <list>` to override.
 
 ## Further reading

@@ -650,7 +650,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     );
   }
 
-  const schemaName = normalizeSchemaName(DEFAULT_ZTD_CONFIG.ddl.defaultSchema);
+  const schemaName = normalizeSchemaName(DEFAULT_ZTD_CONFIG.defaultSchema);
   const schemaFileName = `${sanitizeSchemaFileName(schemaName)}.sql`;
   const appShape: InitAppShape = options?.appShape ?? 'default';
   const postgresImage = options?.postgresImage?.trim() || DEFAULT_POSTGRES_IMAGE;
@@ -1245,7 +1245,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   const gitignoreSummary = copyTemplateFileIfMissing(
     rootDir,
     relativePath('gitignore'),
-    '.gitignore',
+    // npm pack can omit dotfile templates from the published bundle, so keep a non-dotfile fallback.
+    ['.gitignore', 'gitignore.template'],
     dependencies
   );
   if (gitignoreSummary) {
@@ -1759,15 +1760,28 @@ async function ensureTemplateDependenciesInstalled(
   return null;
 }
 
+function resolveTemplatePath(templateNames: string[]): string | null {
+  for (const templateName of templateNames) {
+    const templatePath = path.join(TEMPLATE_DIRECTORY, templateName);
+    if (existsSync(templatePath)) {
+      return templatePath;
+    }
+  }
+
+  return null;
+}
+
 function copyTemplateFileIfMissing(
   rootDir: string,
   relative: string,
-  templateName: string,
+  templateName: string | string[],
   dependencies: ZtdConfigWriterDependencies
 ): FileSummary | null {
-  const templatePath = path.join(TEMPLATE_DIRECTORY, templateName);
+  const templatePath = resolveTemplatePath(
+    Array.isArray(templateName) ? templateName : [templateName]
+  );
   // Skip copying when the CLI package does not include the requested template.
-  if (!existsSync(templatePath)) {
+  if (!templatePath) {
     return null;
   }
 
@@ -2138,7 +2152,7 @@ function normalizeCliPath(filePath: string): string {
 export function normalizeSchemaName(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) {
-    return DEFAULT_ZTD_CONFIG.ddl.defaultSchema;
+    return DEFAULT_ZTD_CONFIG.defaultSchema;
   }
   return trimmed.replace(/^"|"$/g, '').toLowerCase();
 }
@@ -2522,7 +2536,7 @@ export function buildInitDryRunPlan(rootDir: string, options: {
   validator: ValidatorBackend;
   localSourceRoot?: string;
 }): InitDryRunPlan {
-  const schemaName = normalizeSchemaName(DEFAULT_ZTD_CONFIG.ddl.defaultSchema);
+  const schemaName = normalizeSchemaName(DEFAULT_ZTD_CONFIG.defaultSchema);
   const schemaFileName = `${sanitizeSchemaFileName(schemaName)}.sql`;
   const scaffoldLayout = resolveInitScaffoldLayout(rootDir, options.appShape);
   const starter = options.starter === true;

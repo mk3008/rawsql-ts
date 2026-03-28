@@ -56,7 +56,7 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 ## 7. Change the default schema or search path
 
-**What changed:** `ddl.defaultSchema` or `ddl.searchPath` updated in `ztd.config.json`.
+**What changed:** `defaultSchema` or `searchPath` updated in `ztd.config.json`.
 
 **Steps:** `ztd ztd-config --default-schema <name> --search-path <list>` → regenerate types → SQL files may need schema-qualified names → re-run tests.
 
