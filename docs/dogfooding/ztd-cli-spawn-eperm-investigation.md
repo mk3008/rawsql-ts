@@ -117,6 +117,11 @@ B. This PR's code changes are not the primary cause. The blocker is environment-
 - split into a separate issue: yes, if CI or another local environment confirms that the PR code is healthy while this environment continues to block Node subprocesses.
 - continue with CI or another environment: yes. The next decision point should be a reviewer-checkable run in CI or a second Windows environment that can execute Node child processes normally.
 
+### Recurrence prevention
+- Redact local filesystem paths in reviewer-facing evidence to `<repo-root>` or `<workspace>` instead of publishing raw `C:\Users\...` paths.
+- Keep a docs assertion that fails when this investigation document contains Windows user-home prefixes such as `C:\Users\` or OneDrive-specific absolute roots.
+- Treat local-environment investigation docs as sanitized artifacts: path examples should preserve only the structural information needed for reproduction.
+
 ### Reviewer conclusion
 - Local Windows environment reproduces `spawn EPERM` below the Issue #685 change layer.
 - Current evidence is insufficient to mark acceptance items 1-3 as done.

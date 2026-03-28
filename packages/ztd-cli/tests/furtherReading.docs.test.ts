@@ -197,6 +197,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         '### Conclusion',
         '### Impact on acceptance items',
         '### What should happen next',
+        '### Recurrence prevention',
         '### Reviewer conclusion',
         'pnpm --filter @rawsql-ts/ztd-cli test',
         'pnpm --filter @rawsql-ts/ztd-cli exec vitest',
@@ -257,7 +258,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       phrases: [
         'throwaway project under `tmp/`',
         '`ztd init --local-source-root <monorepo-root>`',
-        'ztd model-gen src/features/users/persistence/list_users.sql \\',
+        'ztd model-gen src/features/users/persistence/list_users.sql \\\',
         '`pnpm install --ignore-workspace`',
         'Do not use it to claim that the published npm consumer flow is already healthy',
         'Use this mode to answer: `can we dogfood the unreleased CLI from source?`'
@@ -293,6 +294,15 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       expect(doc, `${docPath} should contain ${phrase}`).toContain(phrase);
     }
   }
+});
+
+test('spawn EPERM investigation doc stays sanitized for reviewer-facing publication', () => {
+  const doc = readNormalizedFile('docs/dogfooding/ztd-cli-spawn-eperm-investigation.md');
+
+  expect(doc).toContain('<repo-root>');
+  expect(doc).toContain('<workspace>');
+  expect(doc).not.toMatch(/C:\\Users\\/);
+  expect(doc).not.toMatch(/OneDrive\\/);
 });
 
 test('quickstart and tutorial spell out the common 5432 collision fallback', () => {
