@@ -50,7 +50,7 @@ test('root AGENTS.md defines global guardrails and routing', () => {
   expect(contents).toContain('`MUST` and `REQUIRED` define completion criteria.');
   expect(contents).toContain('`ALLOWED` means permitted but not required.');
   expect(contents).toContain('`PROHIBITED` means disallowed unless a narrower rule explicitly allows it.');
-  expect(contents).toContain('This repository is for rawsql-ts developers only.');
+  expect(contents).toContain('This repository guidance is for rawsql-ts developers only.');
   expect(contents).toContain('Reports MUST state the `Verification basis` and `Guarantee limits` when evidence does not fully close an item.');
   expect(contents).toContain('Reports MUST state `Outstanding gaps` explicitly.');
   assertPolicyContains(contents, SHARED_POLICY_ASSERTIONS);

@@ -24,9 +24,9 @@
 
 ## Plan-Time Requirements
 - Plans MUST state the `Source issue` and `Why it matters`.
-- Plans MUST make acceptance items explicit.
-- Plans MUST make verification methods explicit for each acceptance item.
-- Plans SHOULD make downstream `Decision points` explicit when the result will require a human choice.
+- Acceptance items MUST be explicit.
+- Verification methods MUST be explicit for each acceptance item.
+- Downstream `Decision points` SHOULD be explicit when the result will require a human choice.
 
 ## Reporting Format
 - Reports MUST state the `Source request` or `Source issue` and `Why it matters` before item-level status.
