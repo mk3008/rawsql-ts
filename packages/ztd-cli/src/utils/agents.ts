@@ -422,7 +422,7 @@ function selectBootstrapCreatePaths(projectRoot: string): string[] {
   const fallbackPath = path.join(projectRoot, ROOT_VISIBLE_TARGETS[1]);
   if (!existsSync(rootPath)) {
     planned.push(ROOT_VISIBLE_TARGETS[0]);
-  } else if (!existsSync(fallbackPath)) {
+  } else if (shouldInstallVisibleFallback(projectRoot) && !existsSync(fallbackPath)) {
     planned.push(ROOT_VISIBLE_TARGETS[1]);
   }
 

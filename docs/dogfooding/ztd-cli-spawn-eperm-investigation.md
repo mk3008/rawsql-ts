@@ -1,12 +1,12 @@
 # ztd-cli spawn EPERM Investigation
 
-### Source issue
+## Source issue
 Issue #685
 
-### Why blocker
+## Why blocker
 `pnpm --filter @rawsql-ts/ztd-cli test` is part of the required verification path for the customer-facing Codex bootstrap added in Issue #685. If the test entrypoint cannot start in a reviewer-visible environment, acceptance items 1-3 cannot be promoted to `done` because the PR would otherwise claim verification that did not actually happen.
 
-### Reproduction
+## Reproduction
 - command: `pnpm --filter @rawsql-ts/ztd-cli test`
 - working directory: `<repo-root>`
 - environment:
@@ -50,7 +50,7 @@ SPAWN_ARGS=["--service=0.25.10","--ping"]
 SPAWN_CWD=<repo-root>
 ```
 
-### Investigation steps
+## Investigation steps
 - step 1:
   - Reproduced the failure with:
     - `pnpm --filter @rawsql-ts/ztd-cli test`
@@ -75,7 +75,7 @@ SPAWN_CWD=<repo-root>
   - A short-path junction `<workspace>/rawsql-ts-short` did not change the result.
   - Testing with a workdir outside OneDrive was not possible in this sandbox because command setup failed when the shell workdir moved outside the writable roots.
 
-### Findings
+## Findings
 - confirmed:
   - `pnpm --filter @rawsql-ts/ztd-cli test` fails reproducibly in this environment with `spawn EPERM`.
   - The failure happens before any Issue #685 test file or snapshot is executed.
@@ -98,10 +98,10 @@ SPAWN_CWD=<repo-root>
   - The exact host policy or runtime restriction that blocks Node child-process creation in this session.
   - Whether the root cause is Codex desktop sandboxing, Windows security policy, or another local execution control layer.
 
-### Conclusion
+## Conclusion
 B. This PR's code changes are not the primary cause. The blocker is environment-dependent and happens below the repo test layer because Node cannot spawn even `cmd.exe` or `node.exe` from a minimal script in this session. Additional confirmation in CI or another local environment is still required before calling the test path healthy.
 
-### Impact on acceptance items
+## Impact on acceptance items
 - acceptance item 1:
   - status: `partial`
   - reason: the bootstrap implementation exists and direct CLI checks passed, but the required `pnpm --filter @rawsql-ts/ztd-cli test` path is blocked by environment-level `spawn EPERM`.
@@ -112,17 +112,17 @@ B. This PR's code changes are not the primary cause. The blocker is environment-
   - status: `partial`
   - reason: collision/customization handling is implemented, but the unit tests that should prove it remain blocked by the same startup failure.
 
-### What should happen next
+## What should happen next
 - fix inside this PR: not yet. The current evidence does not justify changing the Issue #685 implementation to address `spawn EPERM`.
 - split into a separate issue: yes, if CI or another local environment confirms that the PR code is healthy while this environment continues to block Node subprocesses.
 - continue with CI or another environment: yes. The next decision point should be a reviewer-checkable run in CI or a second Windows environment that can execute Node child processes normally.
 
-### Recurrence prevention
+## Recurrence prevention
 - Redact local filesystem paths in reviewer-facing evidence to `<repo-root>` or `<workspace>` instead of publishing raw `C:\Users\...` paths.
 - Keep a docs assertion that fails when this investigation document contains Windows user-home prefixes such as `C:\Users\` or OneDrive-specific absolute roots.
 - Treat local-environment investigation docs as sanitized artifacts: path examples should preserve only the structural information needed for reproduction.
 
-### Reviewer conclusion
+## Reviewer conclusion
 - Local Windows environment reproduces `spawn EPERM` below the Issue #685 change layer.
 - Current evidence is insufficient to mark acceptance items 1-3 as done.
 - Next decision depends on CI or alternate-environment verification.
