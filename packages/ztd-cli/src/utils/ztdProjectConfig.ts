@@ -139,17 +139,7 @@ function detectLegacySchemaConfig(raw: unknown): boolean {
   }
 
   const rawRecord = raw as Record<string, unknown>;
-  const ddl = typeof rawRecord.ddl === 'object' && rawRecord.ddl !== null ? (rawRecord.ddl as Record<string, unknown>) : undefined;
-  if (!ddl) {
-    return false;
-  }
-
-  const hasLegacyDefaultSchema = typeof ddl.defaultSchema === 'string' && ddl.defaultSchema.trim().length > 0;
-  const hasLegacySearchPath =
-    Array.isArray(ddl.searchPath) &&
-    ddl.searchPath.some((entry) => typeof entry === 'string' && entry.trim().length > 0);
-
-  return hasLegacyDefaultSchema || hasLegacySearchPath;
+  return Object.prototype.hasOwnProperty.call(rawRecord, 'ddl') && typeof rawRecord.ddl === 'object' && rawRecord.ddl !== null;
 }
 
 /**

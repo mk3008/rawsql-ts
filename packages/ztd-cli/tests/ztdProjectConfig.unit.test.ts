@@ -151,3 +151,28 @@ test('loadZtdProjectConfig rejects removed ddl schema settings', async () => {
 
   expect(() => loadZtdProjectConfig(rootDir)).toThrow(/removed legacy ddl\\.defaultSchema \/ ddl\\.searchPath settings/);
 });
+
+test('loadZtdProjectConfig rejects an empty legacy ddl block', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-config-empty-ddl-'));
+  tempDirs.push(rootDir);
+
+  writeFileSync(
+    path.join(rootDir, 'ztd.config.json'),
+    JSON.stringify(
+      {
+        dialect: 'postgres',
+        ddlDir: 'ztd/ddl',
+        testsDir: 'tests',
+        ddl: {},
+        ddlLint: 'strict'
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+
+  const { loadZtdProjectConfig } = await loadConfigModule();
+
+  expect(() => loadZtdProjectConfig(rootDir)).toThrow(/removed legacy ddl\\.defaultSchema \/ ddl\\.searchPath settings/);
+});
