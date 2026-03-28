@@ -3,7 +3,7 @@
 
 > **isUnifiedFormat**(`input`): `boolean`
 
-Defined in: [packages/core/src/transformers/JsonMappingUnifier.ts:234](https://github.com/mk3008/rawsql-ts/blob/0b02b1f6136444853a745ebd2678719e3251db71/packages/core/src/transformers/JsonMappingUnifier.ts#L234)
+Defined in: [packages/core/src/transformers/JsonMappingUnifier.ts:234](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/transformers/JsonMappingUnifier.ts#L234)
 
 Type guard to check if input uses unified format.
 
