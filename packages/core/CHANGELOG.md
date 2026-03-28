@@ -1,5 +1,11 @@
 # rawsql-ts
 
+## 0.18.0
+
+### Minor Changes
+
+- [#679](https://github.com/mk3008/rawsql-ts/pull/679) [`be9b689`](https://github.com/mk3008/rawsql-ts/commit/be9b6893ff42f783f9cb52f1b8cd9cdc6c120e23) Thanks [@mk3008](https://github.com/mk3008)! - Add SSSQL scaffold and refresh commands, and change `DynamicQueryBuilder` so legacy runtime filter predicates fail fast instead of being injected at runtime. Runtime optional-condition pruning, sort, and paging remain supported.
+
 ## 0.17.0
 
 ### Minor Changes
