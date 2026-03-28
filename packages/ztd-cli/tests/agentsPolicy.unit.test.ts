@@ -26,6 +26,9 @@ test('root AGENTS.md defines global guardrails and routing', () => {
   expect(contents).toContain('Reports MUST state the `Verification basis` and `Guarantee limits` when evidence does not fully close an item.');
   expect(contents).toContain('Reports MUST state `Outstanding gaps` explicitly.');
   expect(contents).toContain('Reports MUST end with `What the human should decide next`.');
+  expect(contents).toContain('`What changed` MUST describe user-facing or reviewer-facing meaning before implementation detail or file names.');
+  expect(contents).toContain('`Verification basis` MUST state what observation was treated as sufficient to call the shape or item satisfied.');
+  expect(contents).toContain('`What the human should decide next` SHOULD be phrased as a narrow choice whenever possible.');
   expect(contents).toContain('.codex/agents/planning.md');
   expect(contents).toContain('.agents/skills/acceptance-planning/SKILL.md');
 });
@@ -43,6 +46,9 @@ test('.agent/AGENTS.md mirrors the routing and guardrail policy', () => {
   expect(contents).toContain('Reports MUST state `What changed` before file inventory or file lists.');
   expect(contents).toContain('Reports MUST make `Verification basis`, `Guarantee limits`, and `Outstanding gaps` visible when needed.');
   expect(contents).toContain('Reports MUST end with `What the human should decide next`.');
+  expect(contents).toContain('`What changed` MUST describe user-facing or reviewer-facing meaning before implementation detail or file names.');
+  expect(contents).toContain('`Verification basis` MUST state what observation was treated as sufficient to call the shape or item satisfied.');
+  expect(contents).toContain('`What the human should decide next` SHOULD be phrased as a narrow choice whenever possible.');
   expect(contents).toContain('.codex/agents/planning.md');
   expect(contents).toContain('.agents/skills/attainment-reporting/SKILL.md');
 });

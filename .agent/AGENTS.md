@@ -36,6 +36,9 @@
 - If a task is incomplete, the gap MUST be explicit.
 - Reports MUST make `Verification basis`, `Guarantee limits`, and `Outstanding gaps` visible when needed.
 - Reports MUST end with `What the human should decide next`.
+- `What changed` MUST describe user-facing or reviewer-facing meaning before implementation detail or file names.
+- `Verification basis` MUST state what observation was treated as sufficient to call the shape or item satisfied.
+- `What the human should decide next` SHOULD be phrased as a narrow choice whenever possible.
 - Reports MUST make clear that PR text and normal Codex work reports are decision documents, not work logs.
 
 ## Completion

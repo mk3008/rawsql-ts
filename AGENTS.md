@@ -56,6 +56,9 @@
 - Reports MUST state the `Verification basis` and `Guarantee limits` when evidence does not fully close an item.
 - Reports MUST state `Outstanding gaps` explicitly.
 - Reports MUST end with `What the human should decide next`.
+- `What changed` MUST describe user-facing or reviewer-facing meaning before implementation detail or file names.
+- `Verification basis` MUST state what observation was treated as sufficient to call the shape or item satisfied.
+- `What the human should decide next` SHOULD be phrased as a narrow choice whenever possible.
 - Reports MUST use an itemized structure with:
   - `acceptance item`
   - `status`

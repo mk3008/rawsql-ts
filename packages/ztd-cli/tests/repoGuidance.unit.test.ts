@@ -49,6 +49,9 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reportingSkill).toContain('Guarantee limits');
   expect(reportingSkill).toContain('Outstanding gaps');
   expect(reportingSkill).toContain('What the human should decide next');
+  expect(reportingSkill).toContain('describe the meaning of the change before naming files');
+  expect(reportingSkill).toContain('what observation was treated as sufficient');
+  expect(reportingSkill).toContain('prefer a narrow accept-or-defer style choice');
   expect(reportingSkill).toContain('Map each acceptance item to `done`, `partial`, or `not done`.');
   expect(reportingAgent).toContain('normal Codex work report are decision documents, not work logs.');
   expect(reportingAgent).toContain('Source request or source issue');
@@ -59,6 +62,9 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reportingAgent).toContain('Guarantee limits');
   expect(reportingAgent).toContain('Outstanding gaps');
   expect(reportingAgent).toContain('What the human should decide next');
+  expect(reportingAgent).toContain('explain the meaning of the change before listing touched files.');
+  expect(reportingAgent).toContain('what observation was treated as enough');
+  expect(reportingAgent).toContain('phrased as a narrow choice whenever possible.');
   expect(reportingAgent).toContain('Map each acceptance item to `done`, `partial`, or `not done`.');
   expect(readText('AGENTS.md')).toContain('All assistant-user conversation in this repository must be in Japanese.');
   expect(readText('AGENTS.md')).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');

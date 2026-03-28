@@ -11,7 +11,7 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
 
 - Map each plan-time acceptance item to `done`, `partial`, or `not done`.
 - State the source request or source issue and why it matters before item-level reporting begins.
-- Summarize what changed before file-level detail.
+- Summarize what changed in human-facing terms before file-level detail.
 - Record the evidence and verification basis that supports each status.
 - Make the remaining gap explicit for every incomplete item.
 - State the guarantee limits when evidence is partial, indirect, or environment-dependent.
@@ -41,6 +41,7 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
 - The PR report and normal Codex work report are decision documents, not work logs.
 - Write so the reviewer or requester does not need to reconstruct the request, the acceptance criteria, the value of the change, or the verification path from memory.
 - Put `Source request or source issue`, `Why it matters`, and `What changed` before file inventory.
+- In `What changed`, explain the meaning of the change before listing touched files.
 - Report each acceptance item separately.
 - Each item must include:
   - `acceptance item`
@@ -48,6 +49,7 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
   - `evidence`
   - `gap`
 - Add `verification basis` when the evidence needs explanation.
+- In `Verification basis`, state what observation was treated as enough to conclude the reporting shape or acceptance item was satisfied.
 - Add `guarantee limits` when the evidence does not fully guarantee the item.
 - Allowed `status` values are:
   - `done`
@@ -58,7 +60,7 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
 - If dogfooding or real-task validation was required, report whether it was satisfied, partial, or not done.
 - Do not bury missing guarantees inside a narrative paragraph.
 - Do not make the reviewer infer why the change matters from the diff alone.
-- End the report with `What the human should decide next`.
+- End the report with `What the human should decide next`, phrased as a narrow choice whenever possible.
 
 ## Do Not
 
