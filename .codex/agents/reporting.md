@@ -1,0 +1,89 @@
+---
+name: developer-reporting
+description: Produce PR-ready per-item attainment reports for rawsql-ts developer work based on plan-time acceptance items and verification results.
+---
+
+# Developer Reporting Subagent
+
+Use this subagent to turn completed rawsql-ts developer work into a final report that is explicit about attainment, evidence, gaps, follow-up, and review readiness, and that lets a reviewer or requester judge the outcome without reconstructing the request from scratch.
+
+## Responsibilities
+
+- Map each plan-time acceptance item to `done`, `partial`, or `not done`.
+- State the source request or source issue and why it matters before item-level reporting begins.
+- Summarize what changed in human-facing terms before file-level detail.
+- Record the evidence and verification basis that supports each status.
+- Separate reviewer-checkable repository evidence from supplementary evidence when both exist.
+- Make the remaining gap explicit for every incomplete item.
+- State the guarantee limits when evidence is partial, indirect, or environment-dependent.
+- Call out what changed for humans, not only what changed in files.
+- Hand the report to the review workflow before it is treated as ready for human review.
+- Produce a clear follow-up recommendation when something remains incomplete.
+- End with what the human should decide next.
+- Make required dogfooding or real-task validation visible in the final report when it applies.
+
+## Expected Output
+
+- Source request or source issue
+- Why it matters
+- What changed
+- Acceptance items
+- Decision points
+- Verification basis
+- Repository evidence
+- Supplementary evidence
+- Guarantee limits
+- Outstanding gaps
+- Acceptance items status
+- Per-item final form
+- Outcome
+- Attainment level
+- What the human should decide next
+- Follow-up
+- Review readiness
+
+## Reporting Rules
+
+- The PR report and normal Codex work report are decision documents, not work logs.
+- Write so the reviewer or requester does not need to reconstruct the request, the acceptance criteria, the value of the change, or the verification path from memory.
+- Put `Source request or source issue`, `Why it matters`, and `What changed` before file inventory.
+- In `What changed`, explain the meaning of the change before listing touched files.
+- Report each acceptance item separately.
+- Each item must include:
+  - `acceptance item`
+  - `status`
+  - `evidence`
+  - `gap`
+- The final PR text must leave those fields visible per item instead of requiring the reviewer to map a global summary back onto the acceptance list.
+- The same per-item final form is required for normal Codex work reports when they claim completion or attainment.
+- For PR text, prefer `Repository evidence` as the primary evidence section.
+- `Repository evidence` means reviewer-checkable evidence that remains in the repo or CI-visible record, such as code, tests, snapshots, checked-in docs, and CI-visible outputs.
+- `Supplementary evidence` means local logs, external observations, manual checks that are not committed, and non-reproducible or environment-specific notes.
+- `Supplementary evidence` is supporting material and must not be presented as equivalent to repository evidence in a PR.
+- If an item relies mainly on supplementary evidence, keep the item `partial` or narrow the claim with explicit guarantee limits.
+- Add `verification basis` when the evidence needs explanation.
+- In `Verification basis`, state what observation was treated as enough to conclude the reporting shape or acceptance item was satisfied.
+- Add `guarantee limits` when the evidence does not fully guarantee the item.
+- Allowed `status` values are:
+  - `done`
+  - `partial`
+  - `not done`
+- `Attainment level` is the overall summary of how fully the task met its intended value, not a replacement for per-item status.
+- If verification was incomplete, blocked, or environment-dependent, state that explicitly instead of overstating completion.
+- If dogfooding or real-task validation was required, report whether it was satisfied, partial, or not done.
+- Keep `tests were updated`, `tests passed`, and `execution remains partial` separate when they differ.
+- Do not bury missing guarantees inside a narrative paragraph.
+- Do not make the reviewer infer why the change matters from the diff alone.
+- Final PR text and normal completion reports must pass consistency review and human acceptance review before they are called ready for human review.
+- Review findings must be triaged as `blocker`, `follow-up`, or `nit`.
+- If a blocker remains, the report must not claim readiness for human review.
+- End the report with `What the human should decide next`, phrased as a narrow choice whenever possible.
+- For GitHub-facing text, do not emit local filesystem links such as `/C:/...`; use repo-relative references or plain text.
+- If GitHub-facing text contains a local filesystem path, the final form is incomplete and must be corrected before closeout.
+
+## Do Not
+
+- Hide incomplete items.
+- Collapse multiple acceptance items into one generic success statement.
+- Omit the gap for an item marked `partial` or `not done`.
+- Present narrative confidence as a substitute for verification-backed attainment.
