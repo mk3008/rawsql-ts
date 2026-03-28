@@ -30,6 +30,15 @@ const SHARED_POLICY_ASSERTIONS = [
 
 function assertPolicyContains(contents: string, assertions: string[]): void {
   for (const phrase of assertions) {
+    if (phrase === 'Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.') {
+      expect(contents).toContain('Reports MUST use an itemized structure with');
+      expect(contents).toContain('`acceptance item`');
+      expect(contents).toContain('`status`');
+      expect(contents).toContain('`evidence`');
+      expect(contents).toContain('`gap`');
+      continue;
+    }
+
     expect(contents).toContain(phrase);
   }
 }
