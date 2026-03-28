@@ -1,5 +1,16 @@
 # @rawsql-ts/sql-grep-core
 
+## 0.1.6
+
+### Patch Changes
+
+- [#682](https://github.com/mk3008/rawsql-ts/pull/682) [`07eb7fd`](https://github.com/mk3008/rawsql-ts/commit/07eb7fdda0b932f3f6bc13d58767e57927d6707e) Thanks [@mk3008](https://github.com/mk3008)! - The starter README now stays focused on entry points, while the repository telemetry setup and observed SQL investigation flows are documented in separate guides.
+
+  You can now follow step-by-step instructions for editing the generated telemetry scaffold, emitting safe structured logs, reviewing queryId-based incidents, and running `ztd query match-observed` when `queryId` is missing.
+
+- Updated dependencies [[`be9b689`](https://github.com/mk3008/rawsql-ts/commit/be9b6893ff42f783f9cb52f1b8cd9cdc6c120e23)]:
+  - rawsql-ts@0.18.0
+
 ## 0.1.5
 
 ### Patch Changes

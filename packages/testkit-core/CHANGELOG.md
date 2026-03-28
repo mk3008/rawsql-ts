@@ -1,5 +1,14 @@
 # @rawsql-ts/testkit-core
 
+## 0.16.3
+
+### Patch Changes
+
+- [#672](https://github.com/mk3008/rawsql-ts/pull/672) [`68b385e`](https://github.com/mk3008/rawsql-ts/commit/68b385e0407b8a610078ea4c07ee0c602e6910ed) Thanks [@mk3008](https://github.com/mk3008)! - `ztd-config` now reuses shared DDL analysis for linting and table metadata generation, and skips no-op config writes so telemetry matches actual persistence.
+
+- Updated dependencies [[`be9b689`](https://github.com/mk3008/rawsql-ts/commit/be9b6893ff42f783f9cb52f1b8cd9cdc6c120e23)]:
+  - rawsql-ts@0.18.0
+
 ## 0.16.2
 
 ### Patch Changes

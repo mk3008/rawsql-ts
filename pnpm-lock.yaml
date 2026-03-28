@@ -177,16 +177,16 @@ importers:
         specifier: ^0.0.1
         version: link:../../_shared/binder
       '@rawsql-ts/testkit-core':
-        specifier: ^0.16.1
+        specifier: ^0.16.3
         version: link:../../testkit-core
       '@rawsql-ts/testkit-postgres':
-        specifier: ^0.15.4
+        specifier: ^0.15.5
         version: link:../../testkit-postgres
       pg:
         specifier: ^8.13.1
         version: 8.16.3
       rawsql-ts:
-        specifier: ^0.17.0
+        specifier: ^0.18.0
         version: link:../../core
     devDependencies:
       '@prisma/adapter-pg':
@@ -280,7 +280,7 @@ importers:
   packages/ddl-docs-cli:
     dependencies:
       rawsql-ts:
-        specifier: ^0.17.0
+        specifier: ^0.18.0
         version: link:../core
     devDependencies:
       '@types/node':
@@ -355,7 +355,7 @@ importers:
   packages/sql-grep-core:
     dependencies:
       rawsql-ts:
-        specifier: ^0.17.0
+        specifier: ^0.18.0
         version: link:../core
     devDependencies:
       typescript:
@@ -390,7 +390,7 @@ importers:
   packages/testkit-core:
     dependencies:
       rawsql-ts:
-        specifier: ^0.17.0
+        specifier: ^0.18.0
         version: link:../core
     devDependencies:
       typescript:
@@ -406,10 +406,10 @@ importers:
         specifier: ^0.3.1
         version: link:../sql-contract
       '@rawsql-ts/testkit-core':
-        specifier: ^0.16.1
+        specifier: ^0.16.3
         version: link:../testkit-core
       rawsql-ts:
-        specifier: ^0.17.0
+        specifier: ^0.18.0
         version: link:../core
     devDependencies:
       typescript:
@@ -422,10 +422,10 @@ importers:
   packages/testkit-sqlite:
     dependencies:
       '@rawsql-ts/testkit-core':
-        specifier: ^0.16.1
+        specifier: ^0.16.3
         version: link:../testkit-core
       rawsql-ts:
-        specifier: ^0.17.0
+        specifier: ^0.18.0
         version: link:../core
     devDependencies:
       '@types/better-sqlite3':
@@ -450,7 +450,7 @@ importers:
   packages/ztd-cli:
     dependencies:
       '@rawsql-ts/sql-grep-core':
-        specifier: ^0.1.5
+        specifier: ^0.1.6
         version: link:../sql-grep-core
       '@rawsql-ts/test-evidence-core':
         specifier: ^0.2.0
@@ -471,20 +471,20 @@ importers:
         specifier: ^3.3.3
         version: 3.3.3
       rawsql-ts:
-        specifier: ^0.17.0
+        specifier: ^0.18.0
         version: link:../core
       yaml:
         specifier: ^2.8.3
         version: 2.8.3
     devDependencies:
       '@rawsql-ts/adapter-node-pg':
-        specifier: ^0.15.4
+        specifier: ^0.15.6
         version: link:../adapters/adapter-node-pg
       '@rawsql-ts/testkit-core':
-        specifier: ^0.16.1
+        specifier: ^0.16.3
         version: link:../testkit-core
       '@rawsql-ts/testkit-postgres':
-        specifier: ^0.15.3
+        specifier: ^0.15.5
         version: link:../testkit-postgres
       '@testcontainers/postgresql':
         specifier: ^10.28.0

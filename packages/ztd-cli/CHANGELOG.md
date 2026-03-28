@@ -1,5 +1,30 @@
 # @rawsql-ts/ztd-cli
 
+## 0.23.0
+
+### Minor Changes
+
+- [#679](https://github.com/mk3008/rawsql-ts/pull/679) [`be9b689`](https://github.com/mk3008/rawsql-ts/commit/be9b6893ff42f783f9cb52f1b8cd9cdc6c120e23) Thanks [@mk3008](https://github.com/mk3008)! - Add SSSQL scaffold and refresh commands, and change `DynamicQueryBuilder` so legacy runtime filter predicates fail fast instead of being injected at runtime. Runtime optional-condition pruning, sort, and paging remain supported.
+
+### Patch Changes
+
+- [#682](https://github.com/mk3008/rawsql-ts/pull/682) [`07eb7fd`](https://github.com/mk3008/rawsql-ts/commit/07eb7fdda0b932f3f6bc13d58767e57927d6707e) Thanks [@mk3008](https://github.com/mk3008)! - The starter README now stays focused on entry points, while the repository telemetry setup and observed SQL investigation flows are documented in separate guides.
+
+  You can now follow step-by-step instructions for editing the generated telemetry scaffold, emitting safe structured logs, reviewing queryId-based incidents, and running `ztd query match-observed` when `queryId` is missing.
+
+- [#687](https://github.com/mk3008/rawsql-ts/pull/687) [`937bb1c`](https://github.com/mk3008/rawsql-ts/commit/937bb1c42484ae4dda72cfac787734d35f485502) Thanks [@mk3008](https://github.com/mk3008)! - `ztd agents init` now installs an opt-in customer-facing Codex bootstrap with visible `AGENTS.md`, `.codex`, and `.agents` guidance. The command surface, templates, status reporting, and docs were updated so reviewers can verify the managed set and the current local `spawn EPERM` blocker separately.
+
+- [#669](https://github.com/mk3008/rawsql-ts/pull/669) [`0d61ffe`](https://github.com/mk3008/rawsql-ts/commit/0d61ffe7a464133d8d8b6720bcdd43aea432fceb) Thanks [@mk3008](https://github.com/mk3008)! - The starter quickstart now uses a `.env`-based setup flow, includes `.env.example` and `.gitignore`, and loads `ZTD_TEST_DATABASE_URL` consistently in Vitest. The generated README and tutorial were updated to keep the database port and test runtime aligned.
+
+- [#673](https://github.com/mk3008/rawsql-ts/pull/673) [`7f4035a`](https://github.com/mk3008/rawsql-ts/commit/7f4035a3caeba7f0b15247957bb0d360beef1296) Thanks [@mk3008](https://github.com/mk3008)! - Improve the starter smoke path so it points to `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`, and clarify the generated testkit guidance in the starter docs.
+
+- [#672](https://github.com/mk3008/rawsql-ts/pull/672) [`68b385e`](https://github.com/mk3008/rawsql-ts/commit/68b385e0407b8a610078ea4c07ee0c602e6910ed) Thanks [@mk3008](https://github.com/mk3008)! - `ztd-config` now reuses shared DDL analysis for linting and table metadata generation, and skips no-op config writes so telemetry matches actual persistence.
+
+- Updated dependencies [[`07eb7fd`](https://github.com/mk3008/rawsql-ts/commit/07eb7fdda0b932f3f6bc13d58767e57927d6707e), [`be9b689`](https://github.com/mk3008/rawsql-ts/commit/be9b6893ff42f783f9cb52f1b8cd9cdc6c120e23)]:
+  - @rawsql-ts/sql-grep-core@0.1.6
+  - rawsql-ts@0.18.0
+  - @rawsql-ts/adapter-node-pg@0.15.6
+
 ## 0.22.5
 
 ### Patch Changes
