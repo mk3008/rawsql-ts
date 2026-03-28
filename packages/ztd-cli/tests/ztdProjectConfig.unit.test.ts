@@ -127,7 +127,7 @@ test('loadZtdProjectConfig does not warn when legacy connection config is absent
   expect(emitWarning).not.toHaveBeenCalled();
 });
 
-test('loadZtdProjectConfig ignores removed ddl schema settings and falls back to top-level defaults', async () => {
+test('loadZtdProjectConfig rejects removed ddl schema settings', async () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-config-no-ddl-fallback-'));
   tempDirs.push(rootDir);
 
@@ -149,8 +149,5 @@ test('loadZtdProjectConfig ignores removed ddl schema settings and falls back to
 
   const { loadZtdProjectConfig } = await loadConfigModule();
 
-  const config = loadZtdProjectConfig(rootDir);
-
-  expect(config.defaultSchema).toBe('public');
-  expect(config.searchPath).toEqual(['public']);
+  expect(() => loadZtdProjectConfig(rootDir)).toThrow(/removed legacy ddl\\.defaultSchema \/ ddl\\.searchPath settings/);
 });

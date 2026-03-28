@@ -1580,7 +1580,9 @@ pullTest('pull CLI dry-run validates dump without writing files', async () => {
       dryRun: true,
       files: [expect.objectContaining({ schema: 'public' })]
     });
-    expect(existsSync(path.join(outDir, 'public.sql'))).toBe(false);
+    for (const file of parsed.data.files as Array<{ path: string }>) {
+      expect(existsSync(file.path)).toBe(false);
+    }
   } finally {
     await resetPublicSchema(client);
     await client.end();

@@ -60,6 +60,12 @@ export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjec
   try {
     // Merge on top of defaults so partial configs remain valid.
     const raw = JSON.parse(readFileSync(filePath, 'utf8'));
+    const legacySchemaConfig = detectLegacySchemaConfig(raw);
+    if (legacySchemaConfig) {
+      throw new Error(
+        `${filePath} uses removed legacy ddl.defaultSchema / ddl.searchPath settings. Move them to top-level defaultSchema and searchPath.`
+      );
+    }
     const rawConnection = typeof raw.connection === 'object' && raw.connection !== null ? raw.connection : undefined;
     const rawLintMode = typeof raw.ddlLint === 'string' ? raw.ddlLint.trim().toLowerCase() : undefined;
     const resolvedDefaultSchema = resolveSchemaName(
@@ -125,6 +131,25 @@ function normalizeSchemaList(value: unknown): string[] {
   }
 
   return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+}
+
+function detectLegacySchemaConfig(raw: unknown): boolean {
+  if (typeof raw !== 'object' || raw === null) {
+    return false;
+  }
+
+  const rawRecord = raw as Record<string, unknown>;
+  const ddl = typeof rawRecord.ddl === 'object' && rawRecord.ddl !== null ? (rawRecord.ddl as Record<string, unknown>) : undefined;
+  if (!ddl) {
+    return false;
+  }
+
+  const hasLegacyDefaultSchema = typeof ddl.defaultSchema === 'string' && ddl.defaultSchema.trim().length > 0;
+  const hasLegacySearchPath =
+    Array.isArray(ddl.searchPath) &&
+    ddl.searchPath.some((entry) => typeof entry === 'string' && entry.trim().length > 0);
+
+  return hasLegacyDefaultSchema || hasLegacySearchPath;
 }
 
 /**

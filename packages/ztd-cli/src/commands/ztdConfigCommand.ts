@@ -324,9 +324,9 @@ async function watchZtdConfig(
   await new Promise<void>((resolve) => {
     const stop = async (): Promise<void> => {
       console.log('[watch] Shutting down ztd-config watcher...');
-      watcher.off('add', scheduleReload);
-      watcher.off('change', scheduleReload);
-      watcher.off('unlink', scheduleReload);
+      watcher.off('add', scheduleReloadIfDdl);
+      watcher.off('change', scheduleReloadIfDdl);
+      watcher.off('unlink', scheduleReloadIfDdl);
       if (debounceTimer) {
         clearTimeout(debounceTimer);
         debounceTimer = null;
