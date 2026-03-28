@@ -17,10 +17,23 @@
 - Use `.codex/agents/planning.md`, `.codex/agents/verification.md`, and `.codex/agents/reporting.md` for developer workflow support.
 - Use `.agents/skills/acceptance-planning/SKILL.md` and `.agents/skills/attainment-reporting/SKILL.md` for repeatable planning and reporting workflows.
 
+## Responsibility Split
+- Planning guidance makes `Source issue`, `Why it matters`, `Acceptance items`, and `Verification methods` explicit.
+- Verification guidance checks whether the planned verification methods were actually satisfied and surfaces verification basis.
+- Reporting guidance makes `Verification basis`, `Guarantee limits`, and `Outstanding gaps` visible to reviewers.
+
+## Plan-Time Requirements
+- Plans MUST state the `Source issue` and `Why it matters`.
+- Plans MUST make acceptance items explicit.
+- Plans MUST make verification methods explicit for each acceptance item.
+
 ## Reporting Format
+- Reports MUST state the `Source issue` and `Why it matters` before item-level status.
 - Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.
 - Status values MUST be `done`, `partial`, or `not done`.
 - If a task is incomplete, the gap MUST be explicit.
+- Reports MUST make `Verification basis`, `Guarantee limits`, and `Outstanding gaps` visible when needed.
+- Reports MUST make clear that PR text is an acceptance judgment document, not a work log.
 
 ## Completion
 - Repository implementation is only complete when the acceptance items and verification methods are explicit and the required checks have been run or justified as inapplicable.

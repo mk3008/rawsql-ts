@@ -28,6 +28,9 @@
 - Root `AGENTS.md` defines repository-wide guardrails, reporting discipline, and routing.
 - Subagents under `.codex/agents/` provide task-oriented support for planning, verification, and reporting.
 - Skills under `.agents/skills/` provide repeatable workflows for writing acceptance items, verification methods, and attainment summaries.
+- Planning guidance is responsible for making `Source issue`, `Why it matters`, `Acceptance items`, and `Verification methods` explicit.
+- Verification guidance is responsible for checking whether the planned verification methods were actually satisfied and for surfacing verification basis.
+- Reporting guidance is responsible for reviewer-facing `Verification basis`, `Guarantee limits`, and `Outstanding gaps`.
 
 ## Routing
 
@@ -39,6 +42,7 @@
 
 ## Plan-Time Requirements
 
+- Plans MUST state the `Source issue` and `Why it matters`.
 - Plans MUST make acceptance items explicit.
 - Plans MUST make verification methods explicit for each acceptance item.
 - Plans MUST define completion in terms of attainment, not only file creation or code modification.
@@ -46,6 +50,9 @@
 
 ## Reporting Requirements
 
+- Reports MUST state the `Source issue` and `Why it matters` before item-level status.
+- Reports MUST state the `Verification basis` and `Guarantee limits` when evidence does not fully close an item.
+- Reports MUST state `Outstanding gaps` explicitly.
 - Reports MUST use an itemized structure with:
   - `acceptance item`
   - `status`
@@ -58,6 +65,7 @@
 - Reports MUST NOT collapse multiple acceptance items into one vague summary.
 - If a task is incomplete, the gap MUST be explicit.
 - If a task is blocked by environment or tooling, the blocker MUST be stated in `evidence` or `gap`, and the item MUST be marked `partial` or `not done`.
+- Reports MUST make it clear that PR text is an acceptance judgment document, not a work log.
 
 ## Final Attainment Reporting
 

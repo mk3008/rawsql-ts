@@ -20,6 +20,9 @@ test('root AGENTS.md defines global guardrails and routing', () => {
   expect(contents).toContain('This repository is for rawsql-ts developers only.');
   expect(contents).toContain('All assistant-user conversation in this repository must be in Japanese.');
   expect(contents).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
+  expect(contents).toContain('Plans MUST state the `Source issue` and `Why it matters`.');
+  expect(contents).toContain('Reports MUST state the `Verification basis` and `Guarantee limits` when evidence does not fully close an item.');
+  expect(contents).toContain('Reports MUST state `Outstanding gaps` explicitly.');
   expect(contents).toContain('.codex/agents/planning.md');
   expect(contents).toContain('.agents/skills/acceptance-planning/SKILL.md');
 });
@@ -32,6 +35,8 @@ test('.agent/AGENTS.md mirrors the routing and guardrail policy', () => {
   expect(contents).toContain('repository root policy remains canonical');
   expect(contents).toContain('All assistant-user conversation in this repository must be in Japanese.');
   expect(contents).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
+  expect(contents).toContain('Plans MUST state the `Source issue` and `Why it matters`.');
+  expect(contents).toContain('Reports MUST make `Verification basis`, `Guarantee limits`, and `Outstanding gaps` visible when needed.');
   expect(contents).toContain('.codex/agents/planning.md');
   expect(contents).toContain('.agents/skills/attainment-reporting/SKILL.md');
 });

@@ -5,22 +5,26 @@ description: Draft acceptance items and verification methods for rawsql-ts devel
 
 # Acceptance Planning
 
-Use this skill when a rawsql-ts developer task needs a decision-complete plan.
+Use this skill when a rawsql-ts developer task needs a decision-complete plan that a reviewer can later compare against the final report without reconstructing the issue from memory.
 
 ## Use It For
 - Turning an issue into explicit acceptance items.
 - Writing a verification method for each item.
 - Recording assumptions and working rules before implementation starts.
+- Making the source issue and why it matters visible in the plan itself.
+- Creating a plan that the final PR report can mirror without re-deriving context.
 
 ## Workflow
 1. State the developer-only scope.
-2. Extract the smallest useful set of acceptance items.
-3. Attach a verification method to each item.
-4. Note assumptions, working rules, and follow-up.
-5. If the task is broad, hand the plan to the planning subagent for decomposition.
+2. Identify the source issue and explain why it matters.
+3. Extract the smallest useful set of acceptance items.
+4. Attach a verification method to each item.
+5. Note assumptions, working rules, and follow-up.
+6. If the task is broad, hand the plan to the planning subagent for decomposition.
 
 ## Output Shape
-- Summary
+- Source issue
+- Why it matters
 - Acceptance items
 - Verification methods
 - Assumptions
@@ -29,3 +33,5 @@ Use this skill when a rawsql-ts developer task needs a decision-complete plan.
 ## Constraints
 - Keep the plan focused on rawsql-ts developer work.
 - Do not add customer-oriented guidance.
+- Do not omit the source issue or why it matters.
+- Do not leave verification methods implicit.

@@ -10,6 +10,7 @@ Use this subagent to shape a rawsql-ts developer task into a plan that can be ex
 ## Responsibilities
 
 - Reduce the issue to developer-only scope.
+- Identify the source issue and explain why it matters.
 - Make scope boundaries explicit, including out-of-scope items when needed.
 - Write acceptance items that are specific, testable, and narrow enough for per-item completion judgment.
 - Attach a verification method to every acceptance item.
@@ -18,7 +19,8 @@ Use this subagent to shape a rawsql-ts developer task into a plan that can be ex
 
 ## Expected Output
 
-- Summary
+- Source issue
+- Why it matters
 - Acceptance items
 - Verification methods
 - Out-of-scope items, when relevant
@@ -28,6 +30,7 @@ Use this subagent to shape a rawsql-ts developer task into a plan that can be ex
 ## Planning Rules
 
 - Do not stop at file creation or code modification. Define what would count as attainment.
+- Do not leave the issue context implicit when a reviewer will later need it to judge the result.
 - Do not merge unrelated concerns into one acceptance item.
 - Prefer one acceptance item per completion judgment.
 - Verification methods must be concrete enough to show how each item will be checked.

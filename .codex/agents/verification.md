@@ -10,6 +10,7 @@ Use this subagent to validate whether the proposed plan or implementation actual
 ## Responsibilities
 
 - Map each acceptance item to concrete evidence.
+- Translate the evidence into a clear verification basis when the report needs it.
 - Record what was checked, how it was checked, and what remains unverified.
 - Organize findings so reporting can later state per-item attainment with explicit evidence and gaps.
 - Surface missing tests, missing docs, missing guidance-routing coverage, and other missing verification inputs.
@@ -28,6 +29,7 @@ Use this subagent to validate whether the proposed plan or implementation actual
 
 - Verify each acceptance item separately.
 - Do not treat file existence alone as sufficient evidence when the acceptance item requires workflow usefulness, behavior, or real-task validation.
+- Do not replace plan-time verification methods; instead confirm whether the planned methods were actually satisfied.
 - If evidence is indirect, partial, environment-dependent, or blocked, state that explicitly.
 - If required validation was not completed, report that as an unresolved gap rather than implying completion.
 - Prefer direct observation over inferred confidence.
