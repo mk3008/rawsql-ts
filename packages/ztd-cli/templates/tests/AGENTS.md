@@ -1,26 +1,9 @@
-# Package Scope
-- Applies to `packages/ztd-cli/templates/tests`.
-- Defines verification contract for ZTD template-generated test code.
+# Test Guidance
 
-# Policy
-## REQUIRED
-- Tests MUST verify SQL execution under ZTD rewrite, mapping behavior, validation paths, and DTO shape semantics.
-- CUD tests MUST verify UPDATE/DELETE via affected-row signals.
-- CREATE tests for table repositories MUST expect identifier-only returns unless spec explicitly requires DTO return.
-- Test runner configuration MUST exist and support single-command execution.
-- Initial template state MUST include at least one executable test.
-- Initial template state MUST include one QuerySpec-first example test at `tests/queryspec.example.test.ts` so the repository sample is easy to copy.
+- Tests under `packages/ztd-cli/templates/tests/**/*.test.ts` MUST verify rewrite execution, mapping and validation paths, and DTO-shape behavior when the feature depends on ZTD-managed SQL assets.
+- Keep tests close to the feature they verify when possible.
+- Regenerate DDL-derived artifacts before diagnosing missing generated modules.
+- Prefer normal `vitest` verification after feature changes.
+- Keep repository contracts honest: say whether tests were updated, whether they passed, and what remains unverified.
 
-## ALLOWED
-- Tests MAY import runtime modules from `src/`.
-
-## PROHIBITED
-- Runtime imports from `tests/` or `tests/generated/`.
-- Tests that require repository follow-up SELECT behavior contradicting repository contracts.
-- Manual edits to generated artifacts.
-
-# Mandatory Workflow
-- Test changes MUST run affected test suites and confirm test-runner configuration remains valid.
-
-# Hygiene
-- Regenerate `tests/generated` artifacts before diagnosing missing generated module errors.
+Use feature-local tests as the first verification surface before adding broader suites.

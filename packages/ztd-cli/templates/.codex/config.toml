@@ -1,0 +1,16 @@
+schema_version = 1
+
+[project]
+name = "ztd-customer-project"
+root_guidance = "AGENTS.md"
+subagents_dir = ".codex/agents"
+skills_dir = ".agents/skills"
+
+[workflow]
+customer_facing = true
+preferred_workflows = ["planning", "troubleshooting", "next_steps"]
+
+[routing]
+planning = ".codex/agents/planning.md"
+troubleshooting = ".codex/agents/troubleshooting.md"
+next_steps = ".codex/agents/next-steps.md"

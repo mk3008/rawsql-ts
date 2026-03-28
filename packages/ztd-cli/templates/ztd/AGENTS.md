@@ -1,20 +1,8 @@
-# Package Scope
-- Applies to `packages/ztd-cli/templates/ztd`.
-- Governs ZTD inputs and related metadata used for generation.
+# ZTD Guidance
 
-# Policy
-## REQUIRED
-- `ztd/ddl` MUST remain the human-owned source of truth inside `ztd`.
+- Keep `ztd/ddl` as the source of truth for schema shape.
+- Make schema intent explicit in DDL before updating generated artifacts.
+- Do not apply migrations automatically.
+- After DDL edits, rerun `npx ztd ztd-config`, `npx ztd lint`, and the affected tests.
 
-## ALLOWED
-- Tests MAY reference ZTD DDL and generated outputs through ZTD tooling.
-
-## PROHIBITED
-- Creating new `ztd` subdirectories without explicit instruction.
-- Modifying `ztd/README.md` without explicit instruction.
-
-# Mandatory Workflow
-- DDL-related rule updates MUST stay at the `ztd` / `ztd/ddl` boundary and avoid deeper agent-file fanout.
-
-# Hygiene
-- Keep runtime code independent from `ztd` subtree dependencies.
+If you are unsure whether a change belongs in DDL or feature SQL, inspect the nearest feature folder first.

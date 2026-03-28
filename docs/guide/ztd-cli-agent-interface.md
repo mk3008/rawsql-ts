@@ -9,7 +9,8 @@
 - Prefer `--dry-run` before commands that write files.
 - Use `--json <payload>` on supported commands when nested option construction is easier than individual flags.
 - Read `.ztd/agents/manifest.json` first when you need project guidance without repo-visible `AGENTS.md` files.
-- Use `ztd agents status` to distinguish managed templates from user-owned instruction files.
+- Use `ztd agents status` to inspect customer-facing bootstrap targets separately from internal `.ztd` guidance, and to distinguish managed templates from user-owned instruction files.
+- Use `ztd agents init --dry-run` when you want the planned customer-facing bootstrap set before writing files.
 - For `ztd ddl diff`, treat `summary` as the logical diff, treat `risks` as the apply-plan risk list, use the `.json` artifact for automation when needed, and keep the `.sql` output as the apply-target artifact.
 - Use `ztd ddl risk --file <migration.sql>` when you need to evaluate a generated or hand-edited migration SQL file directly; it emits the same `risks` contract without regenerating the migration.
 - Treat the migration generator and the risk evaluator as separate responsibilities: `ddl diff` builds a migration plus review artifacts, while `ddl risk` evaluates the migration SQL itself after human edits.
@@ -86,6 +87,16 @@ Use `ztd init --with-ai-guidance` to write managed internal guidance under `.ztd
 
 Visible `AGENTS.md` files are opt-in via `ztd agents init` (with `ztd agents install` retained as a compatibility alias).
 
+`ztd agents init` also installs the customer-facing Codex bootstrap:
+
+- `.codex/config.toml`
+- `.codex/agents/planning.md`
+- `.codex/agents/troubleshooting.md`
+- `.codex/agents/next-steps.md`
+- `.agents/skills/quickstart/SKILL.md`
+- `.agents/skills/troubleshooting/SKILL.md`
+- `.agents/skills/next-steps/SKILL.md`
+
 The manifest includes:
 
 - template version
@@ -106,6 +117,15 @@ These commands support `--dry-run`:
 - `ztd ddl gen-entities`
 
 Dry-run validates inputs, resolves paths, and computes outputs without writing repo files.
+
+`ztd agents status` reports customer bootstrap targets and internal `.ztd` guidance in separate sections, then uses these status values for the files it examines:
+
+- `managed`
+- `missing`
+- `customized`
+- `unmanaged-conflict`
+
+`unmanaged-conflict` means the file is not managed by the bootstrap or internal `.ztd` templates, but a user-owned file is occupying the same path.
 
 For SQL-backed scaffolding, `ztd model-gen` now treats feature-local SQL files as the primary contract source. In VSA layouts, omit `--sql-root` unless the project intentionally keeps SQL under a shared compatibility root.
 

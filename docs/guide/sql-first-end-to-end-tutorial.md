@@ -36,6 +36,7 @@ Run:
 
 ```bash
 npx ztd init --starter
+# Optional: install the customer-facing Codex bootstrap for the AI-guided path
 npx ztd agents init
 ```
 
@@ -44,10 +45,11 @@ The starter generates:
 - `src/features/smoke`
 - `ztd/ddl/demo.sql`
 - `compose.yaml`
-- optional visible `AGENTS.md` guidance if you run `npx ztd agents init`
+- optional customer-facing Codex bootstrap (installed by `npx ztd agents init`)
 - Vitest smoke tests
 
-Run `npx ztd agents init` if you want visible `AGENTS.md` guidance after the starter scaffold exists.
+Run `npx ztd agents init` immediately after scaffold creation when you want the customer-facing Codex bootstrap for the AI-guided path.
+That opt-in bootstrap adds visible `AGENTS.md`, `.codex/config.toml`, `.codex/agents/*`, and `.agents/skills/*`.
 
 The smallest DB-backed starter example lives in `src/features/smoke/tests/smoke.queryspec.test.ts`.
 It uses `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`, so a missing `ZTD_TEST_DATABASE_URL`, a stopped Postgres container, or a schema mismatch fails before you build a larger feature.
@@ -118,7 +120,7 @@ This prompt is meant to be copied into another AI instance so we can observe whe
 
 ```text
 Add a users feature to this feature-first project.
-Read the nearest AGENTS.md files first.
+Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.agents/skills/*` if present.
 Keep handwritten SQL, specs, and tests inside src/features/users.
 Do not apply migrations automatically.
 ```

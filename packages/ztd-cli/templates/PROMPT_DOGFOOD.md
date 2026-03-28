@@ -8,7 +8,7 @@ Run the prompts one at a time against a project created with `ztd init --starter
 
 ```text
 Add a users feature to this feature-first project.
-Read the nearest AGENTS.md files first.
+Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.agents/skills/*` if present.
 Keep handwritten SQL, specs, and tests inside src/features/users.
 Do not apply migrations automatically.
 ```
@@ -17,7 +17,7 @@ Do not apply migrations automatically.
 
 ```text
 I changed the DDL for users.
-Read the nearest AGENTS.md files first.
+Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.agents/skills/*` if present.
 Fix the tests and feature code that now fail.
 Do not apply migrations automatically.
 ```
@@ -26,7 +26,7 @@ Do not apply migrations automatically.
 
 ```text
 I changed the SQL for users.
-Read the nearest AGENTS.md files first.
+Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.agents/skills/*` if present.
 Update the feature-local spec and tests that now fail.
 Do not apply migrations automatically.
 ```
@@ -35,7 +35,7 @@ Do not apply migrations automatically.
 
 ```text
 I changed the DTO shape for users.
-Read the nearest AGENTS.md files first.
+Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.agents/skills/*` if present.
 Update the application and tests that now fail.
 Do not apply migrations automatically.
 ```
@@ -44,7 +44,7 @@ Do not apply migrations automatically.
 
 ```text
 I changed the DDL for users and need a migration artifact.
-Read the nearest AGENTS.md files first.
+Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.agents/skills/*` if present.
 Generate or update the migration SQL, then fix the tests that fail.
 Do not apply migrations automatically.
 ```

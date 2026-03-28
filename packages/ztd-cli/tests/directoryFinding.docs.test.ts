@@ -86,6 +86,13 @@ test('feature guidance centers the sample feature and role-based folders', () =>
 
 test('feature-first scaffold files exist in the template bundle', () => {
   const requiredPaths = [
+    'packages/ztd-cli/templates/.codex/config.toml',
+    'packages/ztd-cli/templates/.codex/agents/planning.md',
+    'packages/ztd-cli/templates/.codex/agents/troubleshooting.md',
+    'packages/ztd-cli/templates/.codex/agents/next-steps.md',
+    'packages/ztd-cli/templates/.agents/skills/quickstart/SKILL.md',
+    'packages/ztd-cli/templates/.agents/skills/troubleshooting/SKILL.md',
+    'packages/ztd-cli/templates/.agents/skills/next-steps/SKILL.md',
     'packages/ztd-cli/templates/src/features/README.md',
     'packages/ztd-cli/templates/src/features/AGENTS.md',
     'packages/ztd-cli/templates/src/features/smoke/README.md',

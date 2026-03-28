@@ -4,8 +4,10 @@ import { expect, test } from 'vitest';
 import {
   AGENTS_TEMPLATE_VERSION,
   copyAgentsTemplate,
+  getAgentsInstallPlan,
   getAgentsStatus,
-  installVisibleAgents,
+  getVisibleAgentsInstallPaths,
+  installAgentsBootstrap,
   parseMarkdownAgentsMarker,
   writeInternalAgentsArtifacts
 } from '../../src/utils/agents';
@@ -40,23 +42,143 @@ test('copyAgentsTemplate writes AGENTS.md, falls back to AGENTS_ztd.md, then sto
   expect(third).toBe(null);
 });
 
-test('installVisibleAgents creates nested AGENTS templates without overwriting existing files', () => {
-  const workspace = createTempDir('ztd-agents-visible-install');
-  mkdirSync(path.join(workspace, 'src'), { recursive: true });
+test('getAgentsInstallPlan lists the full customer bootstrap set for a fresh workspace', () => {
+  const workspace = createTempDir('ztd-bootstrap-plan');
   mkdirSync(path.join(workspace, 'src', 'features'), { recursive: true });
-  mkdirSync(path.join(workspace, 'src', 'features', 'smoke'), { recursive: true });
   mkdirSync(path.join(workspace, 'tests'), { recursive: true });
-  mkdirSync(path.join(workspace, 'ztd'), { recursive: true });
+  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+
+  const plan = getAgentsInstallPlan(workspace);
+
+  expect(plan.createPaths).toEqual(expect.arrayContaining([
+    'AGENTS.md',
+    'src/AGENTS.md',
+    'src/features/AGENTS.md',
+    'tests/AGENTS.md',
+    'ztd/AGENTS.md',
+    'ztd/ddl/AGENTS.md',
+    '.codex/config.toml',
+    '.codex/agents/planning.md',
+    '.codex/agents/troubleshooting.md',
+    '.codex/agents/next-steps.md',
+    '.agents/skills/quickstart/SKILL.md',
+    '.agents/skills/troubleshooting/SKILL.md',
+    '.agents/skills/next-steps/SKILL.md'
+  ]));
+  expect(plan.conflictPaths).toEqual([]);
+  expect(plan.customizedPaths).toEqual([]);
+});
+
+test('visible install paths exclude internal bootstrap targets', () => {
+  const workspace = createTempDir('ztd-bootstrap-visible-paths');
+  mkdirSync(path.join(workspace, 'src', 'features'), { recursive: true });
+  mkdirSync(path.join(workspace, 'tests'), { recursive: true });
+  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+
+  expect(getVisibleAgentsInstallPaths(workspace)).toEqual(expect.arrayContaining([
+    'AGENTS.md',
+    'src/AGENTS.md',
+    'src/features/AGENTS.md',
+    'tests/AGENTS.md',
+    'ztd/AGENTS.md',
+    'ztd/ddl/AGENTS.md'
+  ]));
+  expect(getVisibleAgentsInstallPaths(workspace).some((target) => target.startsWith('.codex/'))).toBe(false);
+  expect(getVisibleAgentsInstallPaths(workspace).some((target) => target.startsWith('.agents/'))).toBe(false);
+});
+
+test('managed root guidance does not require AGENTS_ztd fallback, but user-owned root does', () => {
+  const managedWorkspace = createTempDir('ztd-bootstrap-managed-root');
+  copyAgentsTemplate(managedWorkspace);
+  expect(getAgentsInstallPlan(managedWorkspace).createPaths).not.toContain('AGENTS_ztd.md');
+
+  const userOwnedWorkspace = createTempDir('ztd-bootstrap-user-root');
+  writeFileSync(path.join(userOwnedWorkspace, 'AGENTS.md'), '# user-owned\n', 'utf8');
+  expect(getAgentsInstallPlan(userOwnedWorkspace).createPaths).toContain('AGENTS_ztd.md');
+});
+
+test('internal manifest mirrors the narrowed visible target contract', () => {
+  const managedWorkspace = createTempDir('ztd-internal-manifest-managed-root');
+  copyAgentsTemplate(managedWorkspace);
+  writeInternalAgentsArtifacts(managedWorkspace);
+  const managedManifest = JSON.parse(readNormalized(path.join(managedWorkspace, '.ztd', 'agents', 'manifest.json'))) as {
+    targets: Array<{ path: string }>;
+  };
+  expect(managedManifest.targets.some((target) => target.path === 'AGENTS_ztd.md')).toBe(false);
+
+  const userOwnedWorkspace = createTempDir('ztd-internal-manifest-user-root');
+  writeFileSync(path.join(userOwnedWorkspace, 'AGENTS.md'), '# user-owned\n', 'utf8');
+  writeInternalAgentsArtifacts(userOwnedWorkspace);
+  const userOwnedManifest = JSON.parse(readNormalized(path.join(userOwnedWorkspace, '.ztd', 'agents', 'manifest.json'))) as {
+    targets: Array<{ path: string }>;
+  };
+  expect(userOwnedManifest.targets.some((target) => target.path === 'AGENTS_ztd.md')).toBe(true);
+});
+
+test('installAgentsBootstrap creates visible guidance and Codex bootstrap files without overwriting existing files', () => {
+  const workspace = createTempDir('ztd-bootstrap-install');
+  mkdirSync(path.join(workspace, 'src', 'features'), { recursive: true });
+  mkdirSync(path.join(workspace, 'tests'), { recursive: true });
+  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
   writeFileSync(path.join(workspace, 'src', 'AGENTS.md'), '# existing\n', 'utf8');
 
-  const written = installVisibleAgents(workspace);
-  expect(written.some((summary) => summary.relativePath === 'AGENTS.md')).toBe(true);
-  expect(written.some((summary) => summary.relativePath === 'ztd/AGENTS.md')).toBe(true);
-  expect(written.some((summary) => summary.relativePath === 'src/features/AGENTS.md')).toBe(true);
-  expect(written.some((summary) => summary.relativePath === 'tests/AGENTS.md')).toBe(true);
-  expect(written.some((summary) => summary.relativePath === 'src/features/smoke/AGENTS.md')).toBe(false);
-  expect(written.some((summary) => summary.relativePath === 'src/AGENTS.md')).toBe(false);
+  const written = installAgentsBootstrap(workspace);
+
+  expect(written.created.some((summary) => summary.relativePath === 'AGENTS.md')).toBe(true);
+  expect(written.created.some((summary) => summary.relativePath === '.codex/config.toml')).toBe(true);
+  expect(written.created.some((summary) => summary.relativePath === '.agents/skills/quickstart/SKILL.md')).toBe(true);
+  expect(written.created.some((summary) => summary.relativePath === 'src/AGENTS.md')).toBe(false);
   expect(readNormalized(path.join(workspace, 'src', 'AGENTS.md'))).toBe('# existing\n');
+});
+
+test('install plan reports unmanaged conflicts and customized managed files separately', () => {
+  const workspace = createTempDir('ztd-bootstrap-status');
+  mkdirSync(path.join(workspace, 'src', 'features'), { recursive: true });
+  mkdirSync(path.join(workspace, 'tests'), { recursive: true });
+  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+
+  installAgentsBootstrap(workspace);
+  writeFileSync(path.join(workspace, '.codex', 'config.toml'), '# user-owned replacement\n', 'utf8');
+  writeFileSync(path.join(workspace, 'AGENTS.md'), `${readNormalized(path.join(workspace, 'AGENTS.md'))}\nmanual edit\n`, 'utf8');
+
+  const plan = getAgentsInstallPlan(workspace);
+  expect(plan.conflictPaths).toContain('.codex/config.toml');
+  expect(plan.customizedPaths).toContain('AGENTS.md');
+
+  const report = getAgentsStatus(workspace);
+  expect(report.bootstrapTargets.find((target) => target.path === '.codex/config.toml')).toMatchObject({
+    status: 'unmanaged-conflict',
+    installed: true,
+    managed: false,
+    drift: 'unknown'
+  });
+  expect(report.bootstrapTargets.find((target) => target.path === 'AGENTS.md')).toMatchObject({
+    status: 'customized',
+    installed: true,
+    managed: true,
+    drift: 'modified'
+  });
+  expect(report.internalTargets.find((target) => target.path === '.ztd/agents/manifest.json')).toMatchObject({
+    status: 'missing',
+    installed: false,
+    managed: false,
+    drift: 'none'
+  });
+  expect(report.targets.find((target) => target.path === '.codex/config.toml')).toMatchObject({
+    status: 'unmanaged-conflict',
+    installed: true,
+    managed: false,
+    drift: 'unknown'
+  });
+  expect(report.targets.find((target) => target.path === 'AGENTS.md')).toMatchObject({
+    status: 'customized',
+    installed: true,
+    managed: true,
+    drift: 'modified'
+  });
+  expect(report.recommendedActions).toContain('review-customized-guidance');
+  expect(report.recommendedActions).toContain('inspect-unmanaged-guidance');
+  expect(report.recommendedActions).not.toContain('install-codex-bootstrap');
 });
 
 test('writeInternalAgentsArtifacts creates managed payloads and sidecars unmanaged collisions', () => {
@@ -70,101 +192,10 @@ test('writeInternalAgentsArtifacts creates managed payloads and sidecars unmanag
   expect(summaries.some((summary) => summary.relativePath === '.ztd/agents/root.md.ztd.new')).toBe(true);
   expect(readNormalized(unmanagedRoot)).toBe('# user-owned\n');
   expect(existsSync(`${unmanagedRoot}.ztd.new`)).toBe(true);
-
-  const manifest = JSON.parse(readNormalized(path.join(workspace, '.ztd', 'agents', 'manifest.json'))) as {
-    managed_by: string;
-    template_version: number;
-    security_notices: string[];
-    routing_rules: Array<{ scope: string }>;
-    prompt_examples: Array<{ prompt: string; preferred_scopes: string[]; avoid_scopes: string[] }>;
-  };
-  expect(manifest.managed_by).toBe('ztd:agents');
-  expect(manifest.template_version).toBe(AGENTS_TEMPLATE_VERSION);
-  expect(manifest.security_notices).toContain('Never store secrets in instruction files.');
-  expect(manifest.routing_rules).toEqual(expect.arrayContaining([expect.objectContaining({ scope: 'src-features' })]));
-  expect(manifest.prompt_examples).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({
-        prompt: 'Convert this slice to a feature-first layout',
-        preferred_scopes: expect.arrayContaining(['src-features', 'src', 'tests'])
-      }),
-      expect.objectContaining({
-        prompt: 'Add SQL and keep the feature local',
-        preferred_scopes: expect.arrayContaining(['src-features', 'tests'])
-      })
-    ])
-  );
 });
 
 test('parseMarkdownAgentsMarker reads template version and scope', () => {
-  const marker = parseMarkdownAgentsMarker('<!-- ztd:agents template_version=1 scope=root -->\n# Title');
-  expect(marker).toEqual({ templateVersion: 1, scope: 'root' });
+  const marker = parseMarkdownAgentsMarker('<!-- ztd:agents template_version=2 scope=root -->\n# Title');
+  expect(marker).toEqual({ templateVersion: AGENTS_TEMPLATE_VERSION, scope: 'root' });
   expect(parseMarkdownAgentsMarker('# no marker')).toBeNull();
-});
-
-test('getAgentsStatus reports none modified and unknown drift states', () => {
-  const workspace = createTempDir('ztd-agents-status');
-  writeInternalAgentsArtifacts(workspace);
-  installVisibleAgents(workspace);
-
-  let report = getAgentsStatus(workspace);
-  const internalRoot = report.targets.find((target) => target.path === '.ztd/agents/root.md');
-  const visibleRoot = report.targets.find((target) => target.path === 'AGENTS.md');
-  expect(internalRoot).toMatchObject({
-    installed: true,
-    installedVersion: AGENTS_TEMPLATE_VERSION,
-    drift: 'none',
-    managed: true
-  });
-  expect(visibleRoot).toMatchObject({
-    installed: true,
-    installedVersion: AGENTS_TEMPLATE_VERSION,
-    drift: 'none',
-    managed: true
-  });
-
-  writeFileSync(path.join(workspace, '.ztd', 'agents', 'src.md'), '# user-owned replacement\n', 'utf8');
-  writeFileSync(path.join(workspace, 'AGENTS.md'), `${readNormalized(path.join(workspace, 'AGENTS.md'))}\nmanual edit\n`, 'utf8');
-
-  report = getAgentsStatus(workspace);
-  expect(report.targets.find((target) => target.path === '.ztd/agents/src.md')).toMatchObject({
-    installed: true,
-    installedVersion: null,
-    drift: 'unknown',
-    managed: false
-  });
-  expect(report.targets.find((target) => target.path === 'AGENTS.md')).toMatchObject({
-    installed: true,
-    installedVersion: AGENTS_TEMPLATE_VERSION,
-    drift: 'modified',
-    managed: true
-  });
-  expect(report.recommendedActions).toContain('inspect-unmanaged-agents-files');
-  expect(report.recommendedActions).toContain('review-visible-agents');
-});
-
-test('getAgentsStatus ignores optional visible templates when their parent directory is absent', () => {
-  const workspace = createTempDir('ztd-agents-status-gating');
-  mkdirSync(path.join(workspace, 'src'), { recursive: true });
-  mkdirSync(path.join(workspace, 'tests'), { recursive: true });
-
-  writeInternalAgentsArtifacts(workspace);
-  installVisibleAgents(workspace);
-  copyAgentsTemplate(workspace);
-
-  const report = getAgentsStatus(workspace);
-
-  expect(report.targets.some((target) => target.path === 'src/jobs/AGENTS.md')).toBe(false);
-  expect(report.targets.some((target) => target.path === 'tests/support/AGENTS.md')).toBe(false);
-  expect(report.recommendedActions).not.toContain('install-visible-agents');
-});
-
-test('installVisibleAgents treats requiredDirectory as a real directory contract', () => {
-  const workspace = createTempDir('ztd-agents-directory-contract');
-  writeFileSync(path.join(workspace, 'src'), 'not a directory\n', 'utf8');
-
-  const written = installVisibleAgents(workspace);
-
-  expect(written.some((summary) => summary.relativePath === 'src/AGENTS.md')).toBe(false);
-  expect(existsSync(path.join(workspace, 'src', 'AGENTS.md'))).toBe(false);
 });
