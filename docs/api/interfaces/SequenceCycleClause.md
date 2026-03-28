@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: SequenceCycleClause
 
-Defined in: [packages/core/src/models/DDLStatements.ts:447](https://github.com/mk3008/rawsql-ts/blob/915d54f065af7f0404f4a74f27de8d8c01037a30/packages/core/src/models/DDLStatements.ts#L447)
+Defined in: [packages/core/src/models/DDLStatements.ts:447](https://github.com/mk3008/rawsql-ts/blob/0b02b1f6136444853a745ebd2678719e3251db71/packages/core/src/models/DDLStatements.ts#L447)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:447](https://github.com/m
 
 > **kind**: `"cycle"`
 
-Defined in: [packages/core/src/models/DDLStatements.ts:448](https://github.com/mk3008/rawsql-ts/blob/915d54f065af7f0404f4a74f27de8d8c01037a30/packages/core/src/models/DDLStatements.ts#L448)
+Defined in: [packages/core/src/models/DDLStatements.ts:448](https://github.com/mk3008/rawsql-ts/blob/0b02b1f6136444853a745ebd2678719e3251db71/packages/core/src/models/DDLStatements.ts#L448)
 
 ***
 
@@ -17,5 +17,5 @@ Defined in: [packages/core/src/models/DDLStatements.ts:448](https://github.com/m
 
 > **enabled**: `boolean`
 
-Defined in: [packages/core/src/models/DDLStatements.ts:449](https://github.com/mk3008/rawsql-ts/blob/915d54f065af7f0404f4a74f27de8d8c01037a30/packages/core/src/models/DDLStatements.ts#L449)
+Defined in: [packages/core/src/models/DDLStatements.ts:449](https://github.com/mk3008/rawsql-ts/blob/0b02b1f6136444853a745ebd2678719e3251db71/packages/core/src/models/DDLStatements.ts#L449)
 </div>
