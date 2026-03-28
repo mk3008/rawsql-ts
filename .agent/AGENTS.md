@@ -32,6 +32,8 @@
 - Reports MUST state the `Source request` or `Source issue` and `Why it matters` before item-level status.
 - Reports MUST state `What changed` before file inventory or file lists.
 - Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.
+- Final PR text and final implementation reports MUST keep those fields visible per acceptance item.
+- GitHub-facing reports MUST NOT use local filesystem links such as `/C:/...`; use repo-relative references or plain text.
 - Status values MUST be `done`, `partial`, or `not done`.
 - If a task is incomplete, the gap MUST be explicit.
 - Reports MUST make `Verification basis`, `Guarantee limits`, and `Outstanding gaps` visible when needed.

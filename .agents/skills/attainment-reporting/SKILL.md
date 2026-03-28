@@ -19,11 +19,12 @@ Use this skill when a rawsql-ts developer task is ready to be summarized in a PR
 1. State the source request or source issue and why it matters.
 2. Summarize what changed in terms of user-visible or reviewer-visible meaning before any file-level detail.
 3. List the acceptance items or decision points from the plan.
-4. Map each item to a status.
-5. Add the verification basis and evidence that justify the status, including what counted as shape satisfaction.
-6. State the guarantee limits for each item when needed.
-7. Call out what was still insufficient and whether follow-up is needed.
-8. End with what the human should decide next in a narrow choice whenever possible.
+4. Map each acceptance item to a status.
+5. For each acceptance item, add the evidence and gap needed for final judgment.
+6. Add verification basis that explains what counted as sufficient for the shape or the item.
+7. State the guarantee limits for each item or for the report when needed.
+8. Call out what was still insufficient and whether follow-up is needed.
+9. End with what the human should decide next in a narrow choice whenever possible.
 
 ## Output Shape
 - Source request or source issue
@@ -35,6 +36,7 @@ Use this skill when a rawsql-ts developer task is ready to be summarized in a PR
 - Guarantee limits
 - Outstanding gaps
 - Acceptance items status
+- Per-item final form
 - Outcome
 - Attainment level
 - What the human should decide next
@@ -48,4 +50,6 @@ Use this skill when a rawsql-ts developer task is ready to be summarized in a PR
 - In `What changed`, describe the meaning of the change before naming files or implementation details.
 - In `Verification basis`, state what observation was treated as sufficient to call the reporting shape satisfied.
 - In `What the human should decide next`, prefer a narrow accept-or-defer style choice over an open-ended question.
-- Report each item with `acceptance item`, `status`, `evidence`, and `gap`, and add `verification basis` or `guarantee limits` when they affect the acceptance judgment.
+- The final report form MUST include every acceptance item as `acceptance item`, `status`, `evidence`, and `gap`.
+- Do not leave evidence and gaps only in a global summary when the reader must map them back to items manually.
+- For GitHub PR text, do not use local filesystem links such as `/C:/...`; use repo-relative references or plain text.

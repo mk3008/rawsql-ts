@@ -31,6 +31,7 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
 - Guarantee limits
 - Outstanding gaps
 - Acceptance items status
+- Per-item final form
 - Outcome
 - Attainment level
 - What the human should decide next
@@ -48,6 +49,7 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
   - `status`
   - `evidence`
   - `gap`
+- The final PR text must leave those fields visible per item instead of requiring the reviewer to map a global summary back onto the acceptance list.
 - Add `verification basis` when the evidence needs explanation.
 - In `Verification basis`, state what observation was treated as enough to conclude the reporting shape or acceptance item was satisfied.
 - Add `guarantee limits` when the evidence does not fully guarantee the item.
@@ -61,6 +63,7 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
 - Do not bury missing guarantees inside a narrative paragraph.
 - Do not make the reviewer infer why the change matters from the diff alone.
 - End the report with `What the human should decide next`, phrased as a narrow choice whenever possible.
+- For GitHub-facing text, do not emit local filesystem links such as `/C:/...`; use repo-relative references or plain text.
 
 ## Do Not
 

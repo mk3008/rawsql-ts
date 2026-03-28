@@ -64,6 +64,8 @@
   - `status`
   - `evidence`
   - `gap`
+- Final PR text and final implementation reports MUST keep those fields visible per acceptance item.
+- GitHub-facing reports MUST NOT use local filesystem links such as `/C:/...`; use repo-relative references or plain text.
 - Status values MUST be:
   - `done`
   - `partial`

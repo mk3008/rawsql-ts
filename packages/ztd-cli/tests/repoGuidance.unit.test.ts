@@ -52,6 +52,8 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reportingSkill).toContain('describe the meaning of the change before naming files');
   expect(reportingSkill).toContain('what observation was treated as sufficient');
   expect(reportingSkill).toContain('prefer a narrow accept-or-defer style choice');
+  expect(reportingSkill).toContain('The final report form MUST include every acceptance item as `acceptance item`, `status`, `evidence`, and `gap`.');
+  expect(reportingSkill).toContain('do not use local filesystem links such as `/C:/...`');
   expect(reportingSkill).toContain('Map each acceptance item to `done`, `partial`, or `not done`.');
   expect(reportingAgent).toContain('normal Codex work report are decision documents, not work logs.');
   expect(reportingAgent).toContain('Source request or source issue');
@@ -65,9 +67,30 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reportingAgent).toContain('explain the meaning of the change before listing touched files.');
   expect(reportingAgent).toContain('what observation was treated as enough');
   expect(reportingAgent).toContain('phrased as a narrow choice whenever possible.');
+  expect(reportingAgent).toContain('The final PR text must leave those fields visible per item');
+  expect(reportingAgent).toContain('do not emit local filesystem links such as `/C:/...`');
   expect(reportingAgent).toContain('Map each acceptance item to `done`, `partial`, or `not done`.');
   expect(readText('AGENTS.md')).toContain('All assistant-user conversation in this repository must be in Japanese.');
   expect(readText('AGENTS.md')).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
+});
+
+test('reporting guidance fixes the decision-oriented order', () => {
+  const reportingSkill = readText('.agents/skills/attainment-reporting/SKILL.md');
+  const sourceIndex = reportingSkill.indexOf('Source request or source issue');
+  const whyIndex = reportingSkill.indexOf('Why it matters');
+  const changedIndex = reportingSkill.indexOf('What changed');
+  const verificationIndex = reportingSkill.indexOf('Verification basis');
+  const limitsIndex = reportingSkill.indexOf('Guarantee limits');
+  const gapsIndex = reportingSkill.indexOf('Outstanding gaps');
+  const nextDecisionIndex = reportingSkill.indexOf('What the human should decide next');
+
+  expect(sourceIndex).toBeGreaterThanOrEqual(0);
+  expect(whyIndex).toBeGreaterThan(sourceIndex);
+  expect(changedIndex).toBeGreaterThan(whyIndex);
+  expect(verificationIndex).toBeGreaterThan(changedIndex);
+  expect(limitsIndex).toBeGreaterThan(verificationIndex);
+  expect(gapsIndex).toBeGreaterThan(limitsIndex);
+  expect(nextDecisionIndex).toBeGreaterThan(gapsIndex);
 });
 
 test('.codex/config.toml routes developer workflows to repo-local guidance', () => {
