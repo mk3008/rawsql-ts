@@ -4,7 +4,7 @@
 - This repository guidance is for rawsql-ts developers only.
 - Customer-facing guidance is out of scope here and belongs to Issue #685.
 - Follow the nearest deeper `AGENTS.md` first when editing package-owned code.
-- Use the repo-local Codex guidance under `.codex/agents/` and `.agents/skills/` for planning, verification, and reporting.
+- Use the repo-local Codex guidance under `.codex/agents/` and `.agents/skills/` for planning, verification, review, and reporting.
 
 ## Interpretation
 
@@ -25,19 +25,22 @@
 
 ## Guidance Roles
 
-- Root `AGENTS.md` defines repository-wide guardrails, reporting discipline, and routing.
-- Subagents under `.codex/agents/` provide task-oriented support for planning, verification, and reporting.
-- Skills under `.agents/skills/` provide repeatable workflows for writing acceptance items, verification methods, and attainment summaries.
+- Root `AGENTS.md` defines repository-wide guardrails, review discipline, and routing.
+- Subagents under `.codex/agents/` provide task-oriented support for planning, verification, review, and reporting.
+- Skills under `.agents/skills/` provide repeatable workflows for writing acceptance items, verification methods, self-review findings, and attainment summaries.
 - Planning guidance is responsible for making `Source issue`, `Why it matters`, `Acceptance items`, and `Verification methods` explicit.
 - Verification guidance is responsible for checking whether the planned verification methods were actually satisfied and for surfacing verification basis.
+- Review guidance is responsible for two-cycle self-review and triage before human review.
 - Reporting guidance is responsible for reviewer-facing and operator-facing `Verification basis`, `Guarantee limits`, `Outstanding gaps`, and `What the human should decide next`.
 
 ## Routing
 
 - Use `.codex/agents/planning.md` for plan shaping and acceptance-item decomposition.
 - Use `.codex/agents/verification.md` for evidence gathering and verification planning.
+- Use `.codex/agents/review.md` for self-review, two-cycle review, and triage before human review.
 - Use `.codex/agents/reporting.md` for attainment summaries and PR closeout.
 - Use `.agents/skills/acceptance-planning/SKILL.md` when writing acceptance items or verification methods.
+- Use `.agents/skills/self-review/SKILL.md` when reviewing consistency, human acceptance readability, or triaging findings.
 - Use `.agents/skills/attainment-reporting/SKILL.md` when writing per-item attainment reporting.
 
 ## Plan-Time Requirements
@@ -79,6 +82,20 @@
 - If a task is blocked by environment or tooling, the blocker MUST be stated in `evidence` or `gap`, and the item MUST be marked `partial` or `not done`.
 - Reports MUST make it clear that PR text and normal Codex work reports are decision documents, not work logs.
 
+## Review Requirements
+
+- Final PR text and final implementation reports MUST pass two-cycle self-review before human review.
+- Review cycle 1 is `consistency review`.
+- Consistency review MUST check literal drift, mirror / test / policy mismatch, required field coverage, GitHub-safe references, per-item final form, and `tests were updated` versus `tests passed` wording.
+- Review cycle 2 is `human acceptance review`.
+- Human acceptance review MUST check whether a reviewer can judge the result from the text alone without reconstructing the issue, value, evidence, guarantee limits, or gaps from memory.
+- Review findings MUST be triaged as `blocker`, `follow-up`, or `nit`.
+- A `blocker` prevents acceptance judgment or leaves correctness, contract, evidence, or guarantee unclear.
+- A `follow-up` has clear value but does not prevent this change from being accepted now.
+- A `nit` is wording or readability only and MUST NOT be treated as a blocker by default.
+- Blockers MUST be resolved or explicitly called out as the reason the change is not ready for human review.
+- Follow-up and nit findings MAY remain only if they are explicitly triaged and do not hide a blocker.
+
 ## Final Attainment Reporting
 
 - Final PRs and implementation reports MUST show per-item attainment for the acceptance items defined at plan time.
@@ -91,6 +108,8 @@
 - A change is only complete when:
   - its acceptance items are explicit,
   - its verification methods are explicit,
+  - its two self-review cycles and triage are explicit,
   - required checks have been run or justified as inapplicable,
-  - and final reporting states per-item attainment.
+  - final reporting states per-item attainment,
+  - and the change is ready for human review or explicitly marked not ready.
   

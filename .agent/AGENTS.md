@@ -14,12 +14,13 @@
 - Do not mix customer-oriented guidance into this repository policy.
 
 ## Routing
-- Use `.codex/agents/planning.md`, `.codex/agents/verification.md`, and `.codex/agents/reporting.md` for developer workflow support.
-- Use `.agents/skills/acceptance-planning/SKILL.md` and `.agents/skills/attainment-reporting/SKILL.md` for repeatable planning and reporting workflows.
+- Use `.codex/agents/planning.md`, `.codex/agents/verification.md`, `.codex/agents/review.md`, and `.codex/agents/reporting.md` for developer workflow support.
+- Use `.agents/skills/acceptance-planning/SKILL.md`, `.agents/skills/self-review/SKILL.md`, and `.agents/skills/attainment-reporting/SKILL.md` for repeatable planning, review, and reporting workflows.
 
 ## Responsibility Split
 - Planning guidance makes `Source issue`, `Why it matters`, `Acceptance items`, and `Verification methods` explicit.
 - Verification guidance checks whether the planned verification methods were actually satisfied and surfaces verification basis.
+- Review guidance runs two-cycle self-review and triages findings before human review.
 - Reporting guidance makes `Verification basis`, `Guarantee limits`, `Outstanding gaps`, and `What the human should decide next` visible to reviewers and requesters.
 
 ## Plan-Time Requirements
@@ -46,6 +47,18 @@
 - `Verification basis` MUST state what observation was treated as sufficient to call the shape or item satisfied.
 - `What the human should decide next` SHOULD be phrased as a narrow choice whenever possible.
 - Reports MUST make clear that PR text and normal Codex work reports are decision documents, not work logs.
+
+## Review Requirements
+- Final PR text and final implementation reports MUST pass two-cycle self-review before human review.
+- Review cycle 1 is `consistency review`.
+- Consistency review MUST check literal drift, mirror / test / policy mismatch, required field coverage, GitHub-safe references, per-item final form, and `tests were updated` versus `tests passed` wording.
+- Review cycle 2 is `human acceptance review`.
+- Human acceptance review MUST check whether a reviewer can judge the result from the text alone without reconstructing the issue, value, evidence, guarantee limits, or gaps from memory.
+- Review findings MUST be triaged as `blocker`, `follow-up`, or `nit`.
+- A `blocker` prevents acceptance judgment or leaves correctness, contract, evidence, or guarantee unclear.
+- A `follow-up` has clear value but does not prevent this change from being accepted now.
+- A `nit` is wording or readability only and MUST NOT be treated as a blocker by default.
+- Blockers MUST be resolved or explicitly called out as the reason the change is not ready for human review.
 
 ## Completion
 - Repository implementation is only complete when the acceptance items and verification methods are explicit and the required checks have been run or justified as inapplicable.

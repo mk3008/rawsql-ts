@@ -12,8 +12,10 @@ test('repo-local Codex guidance files exist and point at developer workflows', (
   expect(existsSync(resolve(repoRoot, '.codex', 'config.toml'))).toBe(true);
   expect(existsSync(resolve(repoRoot, '.codex', 'agents', 'planning.md'))).toBe(true);
   expect(existsSync(resolve(repoRoot, '.codex', 'agents', 'verification.md'))).toBe(true);
+  expect(existsSync(resolve(repoRoot, '.codex', 'agents', 'review.md'))).toBe(true);
   expect(existsSync(resolve(repoRoot, '.codex', 'agents', 'reporting.md'))).toBe(true);
   expect(existsSync(resolve(repoRoot, '.agents', 'skills', 'acceptance-planning', 'SKILL.md'))).toBe(true);
+  expect(existsSync(resolve(repoRoot, '.agents', 'skills', 'self-review', 'SKILL.md'))).toBe(true);
   expect(existsSync(resolve(repoRoot, '.agents', 'skills', 'attainment-reporting', 'SKILL.md'))).toBe(true);
 });
 
@@ -39,7 +41,9 @@ test('planning guidance covers acceptance items and verification methods', () =>
 
 test('reporting guidance covers reviewer-facing and operator-facing reporting shape', () => {
   const reportingSkill = readText('.agents/skills/attainment-reporting/SKILL.md');
+  const reviewSkill = readText('.agents/skills/self-review/SKILL.md');
   const reportingAgent = readText('.codex/agents/reporting.md');
+  const reviewAgent = readText('.codex/agents/review.md');
   const rootAgents = readText('AGENTS.md');
   const mirrorAgents = readText('.agent/AGENTS.md');
 
@@ -60,6 +64,8 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reportingSkill).toContain('treat the final form as incomplete');
   expect(reportingSkill).toContain('Distinguish `tests were updated` from `tests passed`.');
   expect(reportingSkill).toContain('keep the affected item `partial` or `not done`');
+  expect(reportingSkill).toContain('pass consistency review and human acceptance review');
+  expect(reportingSkill).toContain('Review findings MUST be triaged as `blocker`, `follow-up`, or `nit`.');
   expect(reportingSkill).toContain('Map each acceptance item to `done`, `partial`, or `not done`.');
   expect(reportingAgent).toContain('normal Codex work report are decision documents, not work logs.');
   expect(reportingAgent).toContain('Source request or source issue');
@@ -78,11 +84,25 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reportingAgent).toContain('do not emit local filesystem links such as `/C:/...`');
   expect(reportingAgent).toContain('the final form is incomplete and must be corrected');
   expect(reportingAgent).toContain('Keep `tests were updated`, `tests passed`, and `execution remains partial` separate');
+  expect(reportingAgent).toContain('pass consistency review and human acceptance review');
+  expect(reportingAgent).toContain('Review findings must be triaged as `blocker`, `follow-up`, or `nit`.');
   expect(reportingAgent).toContain('Map each acceptance item to `done`, `partial`, or `not done`.');
+  expect(reviewSkill).toContain('consistency review');
+  expect(reviewSkill).toContain('human acceptance review');
+  expect(reviewSkill).toContain('`blocker`, `follow-up`, or `nit`');
+  expect(reviewSkill).toContain('Run both review cycles before claiming readiness for human review.');
+  expect(reviewAgent).toContain('Review Cycle 1: Consistency Review');
+  expect(reviewAgent).toContain('Review Cycle 2: Human Acceptance Review');
+  expect(reviewAgent).toContain('Triage Rules');
+  expect(reviewAgent).toContain('mark the review as not ready for human review');
   expect(rootAgents).toContain('All assistant-user conversation in this repository must be in Japanese.');
   expect(rootAgents).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
+  expect(rootAgents).toContain('Final PR text and final implementation reports MUST pass two-cycle self-review before human review.');
+  expect(rootAgents).toContain('Review findings MUST be triaged as `blocker`, `follow-up`, or `nit`.');
   expect(mirrorAgents).toContain('All assistant-user conversation in this repository must be in Japanese.');
   expect(mirrorAgents).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
+  expect(mirrorAgents).toContain('Final PR text and final implementation reports MUST pass two-cycle self-review before human review.');
+  expect(mirrorAgents).toContain('Review findings MUST be triaged as `blocker`, `follow-up`, or `nit`.');
 });
 
 test('reporting guidance fixes the decision-oriented order', () => {
@@ -108,8 +128,10 @@ test('.codex/config.toml routes developer workflows to repo-local guidance', () 
   const config = readText('.codex/config.toml');
 
   expect(config).toContain('developer_only = true');
-  expect(config).toContain('preferred_workflows = ["planning", "verification", "reporting"]');
+  expect(config).toContain('preferred_workflows = ["planning", "verification", "review", "reporting"]');
+  expect(config).toContain('required_reporting_fields = ["acceptance_items", "verification_methods", "review_triage", "attainment_status"]');
   expect(config).toContain('planning = ".codex/agents/planning.md"');
   expect(config).toContain('verification = ".codex/agents/verification.md"');
+  expect(config).toContain('review = ".codex/agents/review.md"');
   expect(config).toContain('reporting = ".codex/agents/reporting.md"');
 });

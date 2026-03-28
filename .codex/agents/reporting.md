@@ -5,7 +5,7 @@ description: Produce PR-ready per-item attainment reports for rawsql-ts develope
 
 # Developer Reporting Subagent
 
-Use this subagent to turn completed rawsql-ts developer work into a final report that is explicit about attainment, evidence, gaps, and follow-up, and that lets a reviewer or requester judge the outcome without reconstructing the request from scratch.
+Use this subagent to turn completed rawsql-ts developer work into a final report that is explicit about attainment, evidence, gaps, follow-up, and review readiness, and that lets a reviewer or requester judge the outcome without reconstructing the request from scratch.
 
 ## Responsibilities
 
@@ -16,6 +16,7 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
 - Make the remaining gap explicit for every incomplete item.
 - State the guarantee limits when evidence is partial, indirect, or environment-dependent.
 - Call out what changed for humans, not only what changed in files.
+- Hand the report to the review workflow before it is treated as ready for human review.
 - Produce a clear follow-up recommendation when something remains incomplete.
 - End with what the human should decide next.
 - Make required dogfooding or real-task validation visible in the final report when it applies.
@@ -36,6 +37,7 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
 - Attainment level
 - What the human should decide next
 - Follow-up
+- Review readiness
 
 ## Reporting Rules
 
@@ -64,6 +66,9 @@ Use this subagent to turn completed rawsql-ts developer work into a final report
 - Keep `tests were updated`, `tests passed`, and `execution remains partial` separate when they differ.
 - Do not bury missing guarantees inside a narrative paragraph.
 - Do not make the reviewer infer why the change matters from the diff alone.
+- Final PR text and normal completion reports must pass consistency review and human acceptance review before they are called ready for human review.
+- Review findings must be triaged as `blocker`, `follow-up`, or `nit`.
+- If a blocker remains, the report must not claim readiness for human review.
 - End the report with `What the human should decide next`, phrased as a narrow choice whenever possible.
 - For GitHub-facing text, do not emit local filesystem links such as `/C:/...`; use repo-relative references or plain text.
 - If GitHub-facing text contains a local filesystem path, the final form is incomplete and must be corrected before closeout.

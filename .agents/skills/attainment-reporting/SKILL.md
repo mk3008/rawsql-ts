@@ -14,6 +14,7 @@ Use this skill when a rawsql-ts developer task is ready to be summarized in a PR
 - Making the actual change and the next human decision visible without forcing the reader to reconstruct context.
 - Explaining what was better than manual work and what remained insufficient.
 - Writing PR text and normal Codex reports as acceptance or operator decision documents, not work logs.
+- Preparing final text for self-review before it is shown to a human reviewer or requester.
 
 ## Workflow
 1. State the source request or source issue and why it matters.
@@ -24,7 +25,8 @@ Use this skill when a rawsql-ts developer task is ready to be summarized in a PR
 6. Add verification basis that explains what counted as sufficient for the shape or the item.
 7. State the guarantee limits for each item or for the report when needed.
 8. Call out what was still insufficient and whether follow-up is needed.
-9. End with what the human should decide next in a narrow choice whenever possible.
+9. Run consistency review and human acceptance review before treating the report as ready.
+10. End with what the human should decide next in a narrow choice whenever possible.
 
 ## Output Shape
 - Source request or source issue
@@ -58,3 +60,6 @@ Use this skill when a rawsql-ts developer task is ready to be summarized in a PR
 - If a local filesystem path appears in GitHub-facing text, treat the final form as incomplete.
 - Distinguish `tests were updated` from `tests passed`.
 - If execution is blocked, environment-dependent, or not run, keep the affected item `partial` or `not done` and state the blocker explicitly.
+- Final PR text and normal completion reports MUST pass consistency review and human acceptance review before they are treated as ready for human review.
+- Review findings MUST be triaged as `blocker`, `follow-up`, or `nit`.
+- If a blocker remains, the report MUST not be presented as ready for human review.

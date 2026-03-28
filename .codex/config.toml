@@ -8,10 +8,11 @@ skills_dir = ".agents/skills"
 
 [workflow]
 developer_only = true
-preferred_workflows = ["planning", "verification", "reporting"]
-required_reporting_fields = ["acceptance_items", "verification_methods", "attainment_status"]
+preferred_workflows = ["planning", "verification", "review", "reporting"]
+required_reporting_fields = ["acceptance_items", "verification_methods", "review_triage", "attainment_status"]
 
 [routing]
 planning = ".codex/agents/planning.md"
 verification = ".codex/agents/verification.md"
+review = ".codex/agents/review.md"
 reporting = ".codex/agents/reporting.md"
