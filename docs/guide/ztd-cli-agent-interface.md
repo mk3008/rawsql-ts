@@ -118,12 +118,14 @@ These commands support `--dry-run`:
 
 Dry-run validates inputs, resolves paths, and computes outputs without writing repo files.
 
-`ztd agents status` reports customer bootstrap targets and internal `.ztd` guidance in separate sections, then distinguishes these states for managed files:
+`ztd agents status` reports customer bootstrap targets and internal `.ztd` guidance in separate sections, then uses these status values for the files it examines:
 
 - `managed`
 - `missing`
 - `customized`
 - `unmanaged-conflict`
+
+`unmanaged-conflict` means the file is not managed by the bootstrap or internal `.ztd` templates, but a user-owned file is occupying the same path.
 
 For SQL-backed scaffolding, `ztd model-gen` now treats feature-local SQL files as the primary contract source. In VSA layouts, omit `--sql-root` unless the project intentionally keeps SQL under a shared compatibility root.
 

@@ -213,12 +213,12 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
     {
       docPath: 'docs/dogfooding/ztd-onboarding-dogfooding.md',
       phrases: [
-        '### What was run',
-        '### Exact order',
-        '### README Quickstart step-by-step outcome',
-        '### Where the new bootstrap helped',
-        '### Where the new bootstrap was redundant or confusing',
-        '### What remains unverified',
+        '## What was run',
+        '## Exact order',
+        '## README Quickstart step-by-step outcome',
+        '## Where the new bootstrap helped',
+        '## Where the new bootstrap was redundant or confusing',
+        '## What remains unverified',
         'npm install -D @rawsql-ts/ztd-cli vitest typescript',
         'npx ztd init --starter',
         'npx ztd agents init',

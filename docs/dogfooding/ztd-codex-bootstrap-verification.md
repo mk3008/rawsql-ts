@@ -4,7 +4,12 @@ This document records a reviewer-checkable verification pass for the customer-fa
 
 ## What Was Installed
 
-- visible `AGENTS.md` guidance
+- `AGENTS.md`
+- `src/AGENTS.md`
+- `src/features/AGENTS.md`
+- `tests/AGENTS.md`
+- `ztd/AGENTS.md`
+- `ztd/ddl/AGENTS.md`
 - `.codex/config.toml`
 - `.codex/agents/planning.md`
 - `.codex/agents/troubleshooting.md`

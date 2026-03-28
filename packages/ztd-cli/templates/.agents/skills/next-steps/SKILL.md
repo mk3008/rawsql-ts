@@ -19,3 +19,6 @@ Use this skill when the project needs the next concrete action, not a large rede
 - why it matters
 - files likely to change
 - next verification command
+- What the human should decide next
+
+Reports MUST end with `What the human should decide next`.

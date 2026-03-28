@@ -24,8 +24,8 @@ The focus is SQL maintainability: keep schema, queries, specs, and tests close t
 ```bash
 npm install -D @rawsql-ts/ztd-cli vitest typescript
 npx ztd init --starter
+# starter scaffold generates compose.yaml, starter DDL, config, and test stubs
 npx ztd agents init
-# generates docker-compose.yml, starter DDL, config, and test stubs
 cp .env.example .env
 # edit ZTD_DB_PORT=5433 if needed
 docker compose up -d
@@ -38,8 +38,8 @@ npx vitest run
 ```powershell
 npm install -D @rawsql-ts/ztd-cli vitest typescript
 npx ztd init --starter
+# starter scaffold generates compose.yaml, starter DDL, config, and test stubs
 npx ztd agents init
-# generates docker-compose.yml, starter DDL, config, and test stubs
 Copy-Item .env.example .env
 # edit ZTD_DB_PORT=5433 if needed
 docker compose up -d
@@ -94,7 +94,7 @@ Do not apply migrations automatically.
 
 Quickstart already places `npx ztd agents init` immediately after starter scaffold creation.
 If you skipped that step and still want the opt-in Codex bootstrap for the project, run it before asking Codex to inspect `src/features/smoke`.
-Add `--with-dogfooding` if you want `PROMPT_DOGFOOD.md` for debugging or prompt review.
+If you want `PROMPT_DOGFOOD.md` for debugging or prompt review, pass `--with-dogfooding` to `npx ztd init --starter`.
 
 `ztd agents init` adds:
 

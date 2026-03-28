@@ -8,7 +8,7 @@ Issue #685
 
 ### Reproduction
 - command: `pnpm --filter @rawsql-ts/ztd-cli test`
-- working directory: `C:\Users\sugiu\OneDrive\ドキュメント\CodexApp\rawsql-ts`
+- working directory: `<repo-root>`
 - environment:
   - OS: `Microsoft Windows [Version 10.0.26200.8037]`
   - shell: `Windows PowerShell 5.1.26100.7920`
@@ -19,23 +19,23 @@ Issue #685
 - full error:
 
 ```text
-> @rawsql-ts/ztd-cli@0.22.5 test C:\Users\sugiu\OneDrive\ドキュメント\CodexApp\rawsql-ts\packages\ztd-cli
+> @rawsql-ts/ztd-cli@0.22.5 test <repo-root>\packages\ztd-cli
 > pnpm --filter @rawsql-ts/adapter-node-pg run build && vitest run --config vitest.config.ts
 
-failed to load config from C:\Users\sugiu\OneDrive\ドキュメント\CodexApp\rawsql-ts\packages\ztd-cli\vitest.config.ts
+failed to load config from <repo-root>\packages\ztd-cli\vitest.config.ts
 
 Startup Error
 Error: spawn EPERM
     at ChildProcess.spawn (node:internal/child_process:420:11)
     at Object.spawn (node:child_process:753:9)
-    at ensureServiceIsRunning (C:\Users\sugiu\OneDrive\ドキュメント\CodexApp\rawsql-ts\node_modules\.pnpm\esbuild@0.25.10\node_modules\esbuild\lib\main.js:1978:29)
-    at build (C:\Users\sugiu\OneDrive\ドキュメント\CodexApp\rawsql-ts\node_modules\.pnpm\esbuild@0.25.10\node_modules\esbuild\lib\main.js:1876:26)
-    at bundleConfigFile (file:///C:/Users/sugiu/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/CodexApp/rawsql-ts/node_modules/.pnpm/vite@7.2.1_@types+node@22.18.7_jiti@2.6.1_yaml@2.8.3/node_modules/vite/dist/node/chunks/config.js:36419:23)
-    at bundleAndLoadConfigFile (file:///C:/Users/sugiu/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/CodexApp/rawsql-ts/node_modules/.pnpm/vite@7.2.1_@types+node@22.18.7_jiti@2.6.1_yaml@2.8.3/node_modules/vite/dist/node/chunks/config.js:36406:24)
-    at loadConfigFromFile (file:///C:/Users/sugiu/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/CodexApp/rawsql-ts/node_modules/.pnpm/vite@7.2.1_@types+node@22.18.7_jiti@2.6.1_yaml@2.8.3/node_modules/vite/dist/node/chunks/config.js:36375:179)
-    at resolveConfig (file:///C:/Users/sugiu/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/CodexApp/rawsql-ts/node_modules/.pnpm/vite@7.2.1_@types+node@22.18.7_jiti@2.6.1_yaml@2.8.3/node_modules/vite/dist/node/chunks/config.js:36024:28)
-    at _createServer (file:///C:/Users/sugiu/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/CodexApp/rawsql-ts/node_modules/.pnpm/vite@7.2.1_@types+node@22.18.7_jiti@2.6.1_yaml@2.8.3/node_modules/vite/dist/node/chunks/config.js:25969:73)
-    at createServer$2 (file:///C:/Users/sugiu/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/CodexApp/rawsql-ts/node_modules/.pnpm/vite@7.2.1_@types+node@22.18.7_jiti@2.6.1_yaml@2.8.3/node_modules/vite/dist/node/chunks/config.js:25966:9) {
+    at ensureServiceIsRunning (<repo-root>\node_modules\.pnpm\esbuild@0.25.10\node_modules\esbuild\lib\main.js:1978:29)
+    at build (<repo-root>\node_modules\.pnpm\esbuild@0.25.10\node_modules\esbuild\lib\main.js:1876:26)
+    at bundleConfigFile (file:///<repo-root>/node_modules/.pnpm/vite@7.2.1_@types+node@22.18.7_jiti@2.6.1_yaml@2.8.3/node_modules/vite/dist/node/chunks/config.js:36419:23)
+    at bundleAndLoadConfigFile (file:///<repo-root>/node_modules/.pnpm/vite@7.2.1_@types+node@22.18.7_jiti@2.6.1_yaml@2.8.3/node_modules/vite/dist/node/chunks/config.js:36406:24)
+    at loadConfigFromFile (file:///<repo-root>/node_modules/.pnpm/vite@7.2.1_@types+node@22.18.7_jiti@2.6.1_yaml@2.8.3/node_modules/vite/dist/node/chunks/config.js:36375:179)
+    at resolveConfig (file:///<repo-root>/node_modules/.pnpm/vite@7.2.1_@types+node@22.18.7_jiti@2.6.1_yaml@2.8.3/node_modules/vite/dist/node/chunks/config.js:36024:28)
+    at _createServer (file:///<repo-root>/node_modules/.pnpm/vite@7.2.1_@types+node@22.18.7_jiti@2.6.1_yaml@2.8.3/node_modules/vite/dist/node/chunks/config.js:25969:73)
+    at createServer$2 (file:///<repo-root>/node_modules/.pnpm/vite@7.2.1_@types+node@22.18.7_jiti@2.6.1_yaml@2.8.3/node_modules/vite/dist/node/chunks/config.js:25966:9) {
   errno: -4048,
   code: 'EPERM',
   syscall: 'spawn'
@@ -45,9 +45,9 @@ Error: spawn EPERM
 - first failing spawn target:
 
 ```text
-SPAWN_TARGET=C:\Users\sugiu\OneDrive\ドキュメント\CodexApp\rawsql-ts\node_modules\.pnpm\@esbuild+win32-x64@0.25.10\node_modules\@esbuild\win32-x64\esbuild.exe
+SPAWN_TARGET=<repo-root>\node_modules\.pnpm\@esbuild+win32-x64@0.25.10\node_modules\@esbuild\win32-x64\esbuild.exe
 SPAWN_ARGS=["--service=0.25.10","--ping"]
-SPAWN_CWD=C:\Users\sugiu\OneDrive\ドキュメント\CodexApp\rawsql-ts
+SPAWN_CWD=<repo-root>
 ```
 
 ### Investigation steps
@@ -70,9 +70,9 @@ SPAWN_CWD=C:\Users\sugiu\OneDrive\ドキュメント\CodexApp\rawsql-ts
     - A minimal Node script that only does `child_process.spawn('cmd.exe', ...)` fails with `EPERM`.
     - A minimal Node script that only does `child_process.spawn(process.execPath, ['-v'])` fails with `EPERM`.
     - A minimal Node script that only does `require('esbuild').build(...)` fails with `EPERM` while spawning `esbuild.exe --service=0.25.10 --ping`.
-    - Copying `esbuild.exe` to `C:\Users\sugiu\OneDrive\ドキュメント\CodexApp\tmp-short\esbuild-copy.exe` does not help; Node spawn still fails with `EPERM`.
+    - Copying `esbuild.exe` to `<workspace>/tmp-short/esbuild-copy.exe` does not help; Node spawn still fails with `EPERM`.
     - Running through `cmd.exe` instead of PowerShell does not help; `pnpm ... exec vitest` still fails the same way.
-  - A short-path junction `C:\Users\sugiu\OneDrive\ドキュメント\CodexApp\rawsql-ts-short` did not change the result.
+  - A short-path junction `<workspace>/rawsql-ts-short` did not change the result.
   - Testing with a workdir outside OneDrive was not possible in this sandbox because command setup failed when the shell workdir moved outside the writable roots.
 
 ### Findings

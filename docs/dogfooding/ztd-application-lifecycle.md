@@ -17,7 +17,7 @@ The goal is to confirm that an AI agent can read the Codex bootstrap files after
 
 ```text
 Add a users feature to this feature-first project.
-Read the nearest AGENTS.md files first.
+Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.agents/skills/*` if present.
 Keep handwritten SQL, specs, and tests inside src/features/users.
 Do not apply migrations automatically.
 ```

@@ -147,14 +147,14 @@ function renderManagedConfig(templateName: string, scope: string): string {
   return `${buildHashMarker(scope)}\n\n${body}\n`;
 }
 
-function buildInternalManifest(): string {
+function buildInternalManifest(projectRoot: string): string {
   const payload = {
     schema_version: 1,
     managed_by: AGENTS_MANAGED_BY,
     template_version: AGENTS_TEMPLATE_VERSION,
     generated_by: '@rawsql-ts/ztd-cli',
     security_notices: [...AGENTS_SECURITY_NOTICES],
-    targets: VISIBLE_AGENT_TEMPLATES.map((target) => ({
+    targets: getApplicableVisibleAgentTemplates(projectRoot).map((target) => ({
       path: normalizeCliPath(target.relativePath),
       purpose_tags: [...(target.purposeTags ?? [])]
     })),
@@ -196,11 +196,27 @@ function templateParentExists(projectRoot: string, target: TemplateDescriptor): 
   }
 }
 
+function shouldInstallVisibleFallback(projectRoot: string): boolean {
+  const rootPath = path.join(projectRoot, ROOT_VISIBLE_TARGETS[0]);
+  if (!existsSync(rootPath)) {
+    return false;
+  }
+
+  const rootContents = readFileSync(rootPath, 'utf8');
+  return !isManagedAgentsArtifact(rootPath, rootContents);
+}
+
 function getApplicableVisibleAgentTemplates(projectRoot: string): readonly TemplateDescriptor[] {
   return VISIBLE_AGENT_TEMPLATES.filter(
-    (target) =>
-      ROOT_VISIBLE_TARGETS.includes(target.relativePath as typeof ROOT_VISIBLE_TARGETS[number]) ||
-      templateParentExists(projectRoot, target)
+    (target) => {
+      if (target.relativePath === ROOT_VISIBLE_TARGETS[0]) {
+        return true;
+      }
+      if (target.relativePath === ROOT_VISIBLE_TARGETS[1]) {
+        return shouldInstallVisibleFallback(projectRoot);
+      }
+      return templateParentExists(projectRoot, target);
+    }
   );
 }
 
@@ -284,9 +300,9 @@ function renderBootstrapTarget(relativePath: string): string {
   return renderManagedMarkdown(target.templateName, target.scope, false);
 }
 
-function renderInternalTarget(relativePath: string): string {
+function renderInternalTarget(projectRoot: string, relativePath: string): string {
   if (normalizeCliPath(relativePath) === normalizeCliPath(INTERNAL_MANIFEST_PATH)) {
-    return buildInternalManifest();
+    return buildInternalManifest(projectRoot);
   }
   const target = INTERNAL_AGENT_TEMPLATES.find((entry) => normalizeCliPath(entry.relativePath) === normalizeCliPath(relativePath));
   if (!target) {
@@ -295,7 +311,7 @@ function renderInternalTarget(relativePath: string): string {
   return renderManagedMarkdown(target.templateName, target.scope, target.includeSecurityNotice);
 }
 
-function renderManagedTarget(relativePath: string): string {
+function renderManagedTarget(projectRoot: string, relativePath: string): string {
   const normalized = normalizeCliPath(relativePath);
   if (VISIBLE_AGENT_TEMPLATES.some((target) => normalizeCliPath(target.relativePath) === normalized)) {
     return renderVisibleTarget(relativePath);
@@ -303,7 +319,7 @@ function renderManagedTarget(relativePath: string): string {
   if (BOOTSTRAP_TEMPLATES.some((target) => normalizeCliPath(target.relativePath) === normalized)) {
     return renderBootstrapTarget(relativePath);
   }
-  return renderInternalTarget(relativePath);
+  return renderInternalTarget(projectRoot, relativePath);
 }
 
 function buildStatusEntry(projectRoot: string, relativePath: string, expectedContents: string): AgentsStatusEntry {
@@ -396,7 +412,7 @@ function getBootstrapManagedTargetPaths(projectRoot: string): string[] {
 
 function getBootstrapStatusEntries(projectRoot: string): AgentsStatusEntry[] {
   return getBootstrapManagedTargetPaths(projectRoot).map((relativePath) =>
-    buildStatusEntry(projectRoot, relativePath, renderManagedTarget(relativePath))
+    buildStatusEntry(projectRoot, relativePath, renderManagedTarget(projectRoot, relativePath))
   );
 }
 
@@ -460,7 +476,7 @@ export function installAgentsBootstrap(projectRoot: string): AgentsInstallReport
   for (const relativePath of plan.createPaths) {
     const absolutePath = path.join(projectRoot, relativePath);
     ensureDirectory(path.dirname(absolutePath));
-    writeFileSync(absolutePath, renderManagedTarget(relativePath), 'utf8');
+    writeFileSync(absolutePath, renderManagedTarget(projectRoot, relativePath), 'utf8');
     created.push({ relativePath: normalizeCliPath(relativePath), outcome: 'created' });
   }
 
@@ -473,9 +489,9 @@ export function installAgentsBootstrap(projectRoot: string): AgentsInstallReport
 export function writeInternalAgentsArtifacts(projectRoot: string): FileSummaryLike[] {
   const summaries: FileSummaryLike[] = [];
 
-  summaries.push(writeManagedInternalFile(projectRoot, INTERNAL_MANIFEST_PATH, buildInternalManifest()));
+  summaries.push(writeManagedInternalFile(projectRoot, INTERNAL_MANIFEST_PATH, buildInternalManifest(projectRoot)));
   for (const target of INTERNAL_AGENT_TEMPLATES) {
-    summaries.push(writeManagedInternalFile(projectRoot, target.relativePath, renderInternalTarget(target.relativePath)));
+    summaries.push(writeManagedInternalFile(projectRoot, target.relativePath, renderInternalTarget(projectRoot, target.relativePath)));
   }
 
   return summaries;
@@ -485,9 +501,9 @@ export function getAgentsStatus(projectRoot: string): AgentsStatusReport {
   const internalTargets: AgentsStatusEntry[] = [];
   const bootstrapTargets = getBootstrapStatusEntries(projectRoot);
 
-  internalTargets.push(buildStatusEntry(projectRoot, INTERNAL_MANIFEST_PATH, buildInternalManifest()));
+  internalTargets.push(buildStatusEntry(projectRoot, INTERNAL_MANIFEST_PATH, buildInternalManifest(projectRoot)));
   for (const target of INTERNAL_AGENT_TEMPLATES) {
-    internalTargets.push(buildStatusEntry(projectRoot, target.relativePath, renderInternalTarget(target.relativePath)));
+    internalTargets.push(buildStatusEntry(projectRoot, target.relativePath, renderInternalTarget(projectRoot, target.relativePath)));
   }
 
   const targets = [...bootstrapTargets, ...internalTargets];
@@ -507,5 +523,7 @@ export function getAgentsStatus(projectRoot: string): AgentsStatusReport {
 }
 
 export function getVisibleAgentsInstallPaths(projectRoot: string): string[] {
-  return getAgentsInstallPlan(projectRoot).createPaths;
+  return getAgentsInstallPlan(projectRoot).createPaths.filter(
+    (relativePath) => !relativePath.startsWith('.codex/') && !relativePath.startsWith('.agents/')
+  );
 }

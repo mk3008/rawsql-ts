@@ -317,6 +317,13 @@ test('default scaffold still omits the customer Codex bootstrap', async () => {
 
   expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(false);
   expect(existsSync(path.join(workspace, '.agents', 'skills', 'quickstart', 'SKILL.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'src', 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'src', 'features', 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'tests', 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'ztd', 'ddl', 'AGENTS.md'))).toBe(false);
 });
 
 test('init can opt into AI guidance files when explicitly requested', async () => {

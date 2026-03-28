@@ -1,5 +1,7 @@
 # Runtime Guidance
 
+- Runtime code MUST remain independent from ZTD internals.
+- Applies to `packages/ztd-cli/templates/src/**/*.{ts,tsx,js,jsx}`.
 - Keep runtime code independent from `tests/` and `tests/generated/`.
 - Keep SQL ownership inside the feature that owns the workflow.
 - Prefer small feature-local edits over broad shared extraction.

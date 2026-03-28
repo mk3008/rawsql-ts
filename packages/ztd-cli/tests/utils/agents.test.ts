@@ -6,6 +6,7 @@ import {
   copyAgentsTemplate,
   getAgentsInstallPlan,
   getAgentsStatus,
+  getVisibleAgentsInstallPaths,
   installAgentsBootstrap,
   parseMarkdownAgentsMarker,
   writeInternalAgentsArtifacts
@@ -66,6 +67,52 @@ test('getAgentsInstallPlan lists the full customer bootstrap set for a fresh wor
   ]));
   expect(plan.conflictPaths).toEqual([]);
   expect(plan.customizedPaths).toEqual([]);
+});
+
+test('visible install paths exclude internal bootstrap targets', () => {
+  const workspace = createTempDir('ztd-bootstrap-visible-paths');
+  mkdirSync(path.join(workspace, 'src', 'features'), { recursive: true });
+  mkdirSync(path.join(workspace, 'tests'), { recursive: true });
+  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+
+  expect(getVisibleAgentsInstallPaths(workspace)).toEqual(expect.arrayContaining([
+    'AGENTS.md',
+    'src/AGENTS.md',
+    'src/features/AGENTS.md',
+    'tests/AGENTS.md',
+    'ztd/AGENTS.md',
+    'ztd/ddl/AGENTS.md'
+  ]));
+  expect(getVisibleAgentsInstallPaths(workspace).some((target) => target.startsWith('.codex/'))).toBe(false);
+  expect(getVisibleAgentsInstallPaths(workspace).some((target) => target.startsWith('.agents/'))).toBe(false);
+});
+
+test('managed root guidance does not require AGENTS_ztd fallback, but user-owned root does', () => {
+  const managedWorkspace = createTempDir('ztd-bootstrap-managed-root');
+  copyAgentsTemplate(managedWorkspace);
+  expect(getAgentsInstallPlan(managedWorkspace).createPaths).not.toContain('AGENTS_ztd.md');
+
+  const userOwnedWorkspace = createTempDir('ztd-bootstrap-user-root');
+  writeFileSync(path.join(userOwnedWorkspace, 'AGENTS.md'), '# user-owned\n', 'utf8');
+  expect(getAgentsInstallPlan(userOwnedWorkspace).createPaths).toContain('AGENTS_ztd.md');
+});
+
+test('internal manifest mirrors the narrowed visible target contract', () => {
+  const managedWorkspace = createTempDir('ztd-internal-manifest-managed-root');
+  copyAgentsTemplate(managedWorkspace);
+  writeInternalAgentsArtifacts(managedWorkspace);
+  const managedManifest = JSON.parse(readNormalized(path.join(managedWorkspace, '.ztd', 'agents', 'manifest.json'))) as {
+    targets: Array<{ path: string }>;
+  };
+  expect(managedManifest.targets.some((target) => target.path === 'AGENTS_ztd.md')).toBe(false);
+
+  const userOwnedWorkspace = createTempDir('ztd-internal-manifest-user-root');
+  writeFileSync(path.join(userOwnedWorkspace, 'AGENTS.md'), '# user-owned\n', 'utf8');
+  writeInternalAgentsArtifacts(userOwnedWorkspace);
+  const userOwnedManifest = JSON.parse(readNormalized(path.join(userOwnedWorkspace, '.ztd', 'agents', 'manifest.json'))) as {
+    targets: Array<{ path: string }>;
+  };
+  expect(userOwnedManifest.targets.some((target) => target.path === 'AGENTS_ztd.md')).toBe(true);
 });
 
 test('installAgentsBootstrap creates visible guidance and Codex bootstrap files without overwriting existing files', () => {
