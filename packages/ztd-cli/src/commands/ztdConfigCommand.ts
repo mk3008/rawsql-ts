@@ -101,7 +101,7 @@ export function registerZtdConfigCommand(program: Command): void {
     .option('--ddl-dir <directory>', 'DDL directory to scan (repeatable)', collectDirectories, [])
     .option('--extensions <list>', 'Comma-separated extensions to include', parseExtensions, DEFAULT_EXTENSIONS)
     .option('--out <file>', 'Destination TypeScript file for generated config')
-    .option('--default-schema <schema>', 'Override ddl.defaultSchema stored in ztd.config.json')
+    .option('--default-schema <schema>', 'Override defaultSchema stored in ztd.config.json')
     .option('--search-path <list>', 'Comma-separated schema search path entries', parseCsvList)
     .option('--watch', 'Watch DDL files and regenerate when schema changes', false)
     .option('--quiet', 'Suppress next-step hints after generation', false)
@@ -127,16 +127,17 @@ export function registerZtdConfigCommand(program: Command): void {
         const layoutOut = path.join(path.dirname(output), 'ztd-layout.generated.ts');
         const manifestOut = path.join(path.dirname(output), 'ztd-fixture-manifest.generated.ts');
 
-        const ddlOverrides: ZtdProjectConfig['ddl'] = { ...projectConfig.ddl };
+        let nextDefaultSchema = projectConfig.defaultSchema;
+        let nextSearchPath = projectConfig.searchPath;
         let shouldUpdateConfig = false;
 
         if (merged.defaultSchema) {
-          ddlOverrides.defaultSchema = validateResourceIdentifier(merged.defaultSchema, '--default-schema');
+          nextDefaultSchema = validateResourceIdentifier(merged.defaultSchema, '--default-schema');
           shouldUpdateConfig = true;
         }
 
         if (merged.searchPath && merged.searchPath.length > 0) {
-          ddlOverrides.searchPath = merged.searchPath.map((entry) => validateResourceIdentifier(entry, '--search-path'));
+          nextSearchPath = merged.searchPath.map((entry) => validateResourceIdentifier(entry, '--search-path'));
           shouldUpdateConfig = true;
         }
 
@@ -147,12 +148,16 @@ export function registerZtdConfigCommand(program: Command): void {
           directories,
           extensions,
           out: validatedOutput,
-          defaultSchema: ddlOverrides.defaultSchema,
-          searchPath: ddlOverrides.searchPath,
+          defaultSchema: nextDefaultSchema,
+          searchPath: nextSearchPath,
           ddlLint: projectConfig.ddlLint,
           dryRun: merged.dryRun
         };
-        const layoutConfig: ZtdProjectConfig = { ...projectConfig, ddl: ddlOverrides };
+        const layoutConfig: ZtdProjectConfig = {
+          ...projectConfig,
+          defaultSchema: nextDefaultSchema,
+          searchPath: nextSearchPath
+        };
 
         emitDecisionEvent('command.options.resolved', {
           dryRun: merged.dryRun,
@@ -166,7 +171,8 @@ export function registerZtdConfigCommand(program: Command): void {
           merged,
           projectConfig,
           shouldUpdateConfig,
-          ddlOverrides,
+          nextDefaultSchema,
+          nextSearchPath,
           validatedOutput,
           validatedLayoutOut,
           validatedManifestOut,
@@ -182,11 +188,14 @@ export function registerZtdConfigCommand(program: Command): void {
         await withSpan('persist-project-config', async () => {
           configUpdated = writeZtdProjectConfig(
             process.cwd(),
-            { ddl: commandState.ddlOverrides },
+            {
+              defaultSchema: commandState.nextDefaultSchema,
+              searchPath: commandState.nextSearchPath
+            },
             commandState.projectConfig
           );
           if (configUpdated) {
-            emitDiagnostic({ code: 'ztd-config.config-updated', message: 'ztd.config.json ddl schema settings updated.' });
+            emitDiagnostic({ code: 'ztd-config.config-updated', message: 'ztd.config.json schema settings updated.' });
             emitDecisionEvent('config.updated');
           }
         });
@@ -315,9 +324,9 @@ async function watchZtdConfig(
   await new Promise<void>((resolve) => {
     const stop = async (): Promise<void> => {
       console.log('[watch] Shutting down ztd-config watcher...');
-      watcher.off('add', scheduleReload);
-      watcher.off('change', scheduleReload);
-      watcher.off('unlink', scheduleReload);
+      watcher.off('add', scheduleReloadIfDdl);
+      watcher.off('change', scheduleReloadIfDdl);
+      watcher.off('unlink', scheduleReloadIfDdl);
       if (debounceTimer) {
         clearTimeout(debounceTimer);
         debounceTimer = null;

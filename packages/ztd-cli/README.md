@@ -92,7 +92,7 @@ Keep handwritten SQL, spec, and tests inside src/features/<feature>.
 Do not apply migrations automatically.
 ```
 
-Quickstart already places `npx ztd agents init` immediately after starter scaffold creation.
+Quickstart treats `npx ztd agents init` as an optional follow-up after starter scaffold creation.
 If you skipped that step and still want the opt-in Codex bootstrap for the project, run it before asking Codex to inspect `src/features/smoke`.
 If you want `PROMPT_DOGFOOD.md` for debugging or prompt review, pass `--with-dogfooding` to `npx ztd init --starter`.
 
@@ -114,7 +114,7 @@ Read the nearest AGENTS files, inspect src/features/smoke, and plan the next use
 ## Core features
 
 - `ztd init --starter` creates a feature-first starter scaffold with `smoke`, starter DDL, and local Postgres wiring.
-- `ztd agents init` adds the opt-in Codex bootstrap on demand: visible `AGENTS.md`, `.codex/agents`, `.agents/skills`, and `.codex/config.toml`.
+- `ztd agents init` adds the optional Codex bootstrap on demand: visible `AGENTS.md`, `.codex/agents`, `.agents/skills`, and `.codex/config.toml`.
 - `ztd ztd-config --watch` keeps generated `TestRowMap` types and runtime fixture metadata aligned with DDL as files change.
 - `ztd lint` checks SQL against a temporary Postgres before you ship it.
 - `ztd model-gen` and `ztd query uses` keep QuerySpec scaffolding and impacted-file discovery close to the feature-first slice.
@@ -128,7 +128,7 @@ Read the nearest AGENTS files, inspect src/features/smoke, and plan the next use
 | Command | Purpose |
 |---|---|
 | `ztd init --starter` | Scaffold the recommended first-run project. |
-| `ztd agents init` | Add the opt-in Codex bootstrap after starter setup. |
+| `ztd agents init` | Add the optional Codex bootstrap on demand. |
 | `ztd ztd-config` | Regenerate `TestRowMap`, runtime fixture metadata, and layout metadata from DDL; add `--watch` for live updates. |
 | `ztd lint` | Lint SQL files against a temporary Postgres. |
 | `ztd model-gen` | Generate QuerySpec scaffolding from SQL assets. |
@@ -141,6 +141,23 @@ Read the nearest AGENTS files, inspect src/features/smoke, and plan the next use
 
 After DDL or schema changes, rerun `ztd ztd-config`, `ztd lint`, and `npx vitest run`. Use `ztd ddl diff` or `ztd ddl pull` when you need a migration plan. The generated runtime manifest is the preferred input for `@rawsql-ts/testkit-postgres`; raw DDL directories remain a fallback for legacy layouts.
 Run `npx ztd describe command <name>` for per-command flags and options.
+
+## ztd.config.json
+
+`ztd.config.json` now keeps schema resolution at the top level:
+
+```json
+{
+  "dialect": "postgres",
+  "ddlDir": "ztd/ddl",
+  "testsDir": "tests",
+  "defaultSchema": "public",
+  "searchPath": ["public"],
+  "ddlLint": "strict"
+}
+```
+
+`ddl.defaultSchema` and `ddl.searchPath` are no longer read. If an older project still keeps schema settings under `ddl`, move them to the top-level `defaultSchema` and `searchPath` fields.
 
 ## Glossary
 

@@ -27,11 +27,7 @@ test('loadStarterPostgresDefaults reads top-level starter defaults and falls bac
       {
         ztdRootDir: '.',
         defaultSchema: 'app',
-        searchPath: ['app'],
-        ddl: {
-          defaultSchema: 'legacy',
-          searchPath: ['legacy']
-        }
+        searchPath: ['app']
       },
       null,
       2

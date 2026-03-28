@@ -9,10 +9,6 @@ interface StarterProjectConfigFile {
   ddlDir?: string;
   defaultSchema?: string;
   searchPath?: string[];
-  ddl?: {
-    defaultSchema?: string;
-    searchPath?: string[];
-  };
 }
 
 export interface StarterPostgresDefaults {
@@ -56,15 +52,11 @@ function loadStarterProjectConfig(rootDir: string = process.cwd()): StarterProje
 export function loadStarterPostgresDefaults(rootDir: string = process.cwd()): StarterPostgresDefaults {
   const projectConfig = loadStarterProjectConfig(rootDir);
   const resolvedProjectRootDir = path.resolve(rootDir, projectConfig.ztdRootDir ?? '.');
-  const resolvedDdl = typeof projectConfig.ddl === 'object' && projectConfig.ddl !== null ? projectConfig.ddl : undefined;
-  // Prefer top-level config defaults first, then fall back to the legacy ddl block.
   const defaultSchema =
     typeof projectConfig.defaultSchema === 'string' && projectConfig.defaultSchema.length > 0
       ? projectConfig.defaultSchema
-      : typeof resolvedDdl?.defaultSchema === 'string' && resolvedDdl.defaultSchema.length > 0
-        ? resolvedDdl.defaultSchema
-        : 'public';
-  const searchPath = normalizeSearchPath(projectConfig.searchPath ?? resolvedDdl?.searchPath);
+      : 'public';
+  const searchPath = normalizeSearchPath(projectConfig.searchPath);
 
   return {
     projectRootDir: resolvedProjectRootDir,

@@ -591,8 +591,8 @@ export function resolveModelGenZtdProbeOptions(
   }
   return {
     ddlDirectories: [absoluteDir],
-    defaultSchema: config.ddl.defaultSchema,
-    searchPath: config.ddl.searchPath
+    defaultSchema: config.defaultSchema,
+    searchPath: config.searchPath
   };
 }
 

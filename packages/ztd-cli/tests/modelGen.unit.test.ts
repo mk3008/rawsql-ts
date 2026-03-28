@@ -260,10 +260,8 @@ test('resolveModelGenZtdProbeOptions preserves defaultSchema and searchPath from
       dialect: 'postgres',
       ddlDir: 'schema',
       testsDir: 'tests',
-      ddl: {
-        defaultSchema: 'app',
-        searchPath: ['app', 'public']
-      },
+      defaultSchema: 'app',
+      searchPath: ['app', 'public'],
       ddlLint: 'strict'
     }),
     'utf8'
