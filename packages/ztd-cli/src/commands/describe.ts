@@ -45,39 +45,59 @@ const COMMANDS: CommandDescriptor[] = [
   },
   {
     name: 'agents init',
-    summary: 'Initialize visible AGENTS.md files from the managed templates.',
+    summary: 'Initialize the opt-in Codex bootstrap files from the managed templates.',
     writesFiles: true,
-    supportsDryRun: false,
+    supportsDryRun: true,
     supportsJsonPayload: false,
     output: {
       stdout: 'Human init summary in text mode, JSON envelope in global json mode.',
-      files: ['AGENTS.md or AGENTS_ztd.md', 'ztd/**/AGENTS.md', 'src/**/AGENTS.md', 'tests/**/AGENTS.md']
+      files: [
+        'AGENTS.md or AGENTS_ztd.md',
+        'ztd/**/AGENTS.md',
+        'src/**/AGENTS.md',
+        'tests/**/AGENTS.md',
+        '.codex/config.toml',
+        '.codex/agents/*.md',
+        '.agents/skills/*/SKILL.md'
+      ]
     },
     exitCodes: {
-      '0': 'Visible AGENTS initialization completed or was already up to date.',
+      '0': 'Codex bootstrap initialization completed, was already up to date, or dry-run output was emitted.',
       '1': 'Filesystem or validation error.'
     },
-    flags: []
+    flags: [
+      { name: '--dry-run', description: 'Emit the planned Codex bootstrap files without writing them.' }
+    ]
   },
   {
     name: 'agents install',
     summary: 'Alias for agents init.',
     writesFiles: true,
-    supportsDryRun: false,
+    supportsDryRun: true,
     supportsJsonPayload: false,
     output: {
       stdout: 'Human init summary in text mode, JSON envelope in global json mode.',
-      files: ['AGENTS.md or AGENTS_ztd.md', 'ztd/AGENTS.md', 'src/**/AGENTS.md', 'tests/**/AGENTS.md']
+      files: [
+        'AGENTS.md or AGENTS_ztd.md',
+        'ztd/**/AGENTS.md',
+        'src/**/AGENTS.md',
+        'tests/**/AGENTS.md',
+        '.codex/config.toml',
+        '.codex/agents/*.md',
+        '.agents/skills/*/SKILL.md'
+      ]
     },
     exitCodes: {
-      '0': 'Visible AGENTS initialization completed or was already up to date.',
+      '0': 'Codex bootstrap initialization completed, was already up to date, or dry-run output was emitted.',
       '1': 'Filesystem or validation error.'
     },
-    flags: []
+    flags: [
+      { name: '--dry-run', description: 'Emit the planned Codex bootstrap files without writing them.' }
+    ]
   },
   {
     name: 'agents status',
-    summary: 'Report managed AGENTS guidance state and drift signals.',
+    summary: 'Report managed Codex bootstrap and AGENTS guidance state and drift signals.',
     writesFiles: false,
     supportsDryRun: false,
     supportsJsonPayload: false,

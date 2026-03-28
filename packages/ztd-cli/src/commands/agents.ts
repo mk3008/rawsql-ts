@@ -1,37 +1,72 @@
 import { Command } from 'commander';
-import { getAgentsStatus, getVisibleAgentsInstallPaths, installVisibleAgents } from '../utils/agents';
+import { getAgentsInstallPlan, getAgentsStatus, installAgentsBootstrap } from '../utils/agents';
 import { isJsonOutput, writeCommandEnvelope } from '../utils/agentCli';
 
-function runVisibleAgentsInit(commandName: 'agents init' | 'agents install'): void {
-  const plannedPaths = getVisibleAgentsInstallPaths(process.cwd());
+function runAgentsInit(commandName: 'agents init' | 'agents install', dryRun: boolean): void {
+  const plan = getAgentsInstallPlan(process.cwd());
   const lines = ['About to create:'];
-  if (plannedPaths.length === 0) {
+  if (plan.createPaths.length === 0) {
     lines.push(' - (none)');
   } else {
-    for (const targetPath of plannedPaths) {
+    for (const targetPath of plan.createPaths) {
       lines.push(` - ${targetPath}`);
     }
   }
   lines.push('No files will be overwritten.');
-  lines.push(`Omit \`ztd ${commandName}\` if you do not want visible AGENTS files.`);
+  if (plan.conflictPaths.length > 0) {
+    lines.push('Unmanaged conflicts will be preserved:');
+    for (const targetPath of plan.conflictPaths) {
+      lines.push(` - ${targetPath}`);
+    }
+  }
+  if (plan.customizedPaths.length > 0) {
+    lines.push('Customized managed files will be preserved:');
+    for (const targetPath of plan.customizedPaths) {
+      lines.push(` - ${targetPath}`);
+    }
+  }
+  lines.push(`Omit \`ztd ${commandName}\` if you do not want the Codex bootstrap files.`);
 
-  const written = installVisibleAgents(process.cwd());
+  if (dryRun) {
+    lines.push('Dry run only; no files were written.');
+    if (isJsonOutput()) {
+      writeCommandEnvelope(commandName, {
+        schemaVersion: 1,
+        dryRun: true,
+        plannedPaths: plan.createPaths,
+        conflictPaths: plan.conflictPaths,
+        customizedPaths: plan.customizedPaths,
+        managedPaths: plan.managedPaths,
+        messageLines: lines
+      });
+      return;
+    }
+
+    process.stdout.write(`${lines.join('\n')}\n`);
+    return;
+  }
+
+  const written = installAgentsBootstrap(process.cwd());
   if (isJsonOutput()) {
     writeCommandEnvelope(commandName, {
       schemaVersion: 1,
-      plannedPaths,
-      createdPaths: written.map((summary) => summary.relativePath),
+      dryRun: false,
+      plannedPaths: plan.createPaths,
+      createdPaths: written.created.map((summary) => summary.relativePath),
+      conflictPaths: written.conflictPaths,
+      customizedPaths: written.customizedPaths,
+      managedPaths: written.managedPaths,
       messageLines: lines
     });
     return;
   }
 
   const finalLines = [...lines];
-  if (written.length === 0) {
-    finalLines.push('Visible AGENTS guidance is already installed or intentionally preserved.');
+  if (written.created.length === 0) {
+    finalLines.push('Codex bootstrap guidance is already installed or intentionally preserved.');
   } else {
-    finalLines.push('Installed visible AGENTS guidance:');
-    for (const summary of written) {
+    finalLines.push('Installed Codex bootstrap guidance:');
+    for (const summary of written.created) {
       finalLines.push(` - ${summary.relativePath}`);
     }
   }
@@ -39,19 +74,20 @@ function runVisibleAgentsInit(commandName: 'agents init' | 'agents install'): vo
 }
 
 export function registerAgentsCommand(program: Command): void {
-  const agents = program.command('agents').description('Manage internal and visible AGENTS guidance for ztd projects');
+  const agents = program.command('agents').description('Manage internal guidance and the opt-in customer Codex bootstrap for ztd projects');
 
   agents
     .command('init')
     .alias('install')
-    .description('Initialize visible AGENTS.md files from the managed templates')
-    .action(() => {
-      runVisibleAgentsInit('agents init');
+    .description('Initialize the opt-in Codex bootstrap files from the managed templates')
+    .option('--dry-run', 'Emit the planned Codex bootstrap files without writing them')
+    .action((options: { dryRun?: boolean }) => {
+      runAgentsInit('agents init', options.dryRun === true);
     });
 
   agents
     .command('status')
-    .description('Report managed AGENTS guidance state and drift signals')
+    .description('Report managed Codex bootstrap and AGENTS guidance state and drift signals')
     .action(() => {
       const report = getAgentsStatus(process.cwd());
       if (isJsonOutput()) {
@@ -66,7 +102,7 @@ export function registerAgentsCommand(program: Command): void {
       const lines = ['AGENTS status:'];
       for (const target of report.targets) {
         lines.push(
-          `- ${target.path}: installed=${target.installed} managed=${target.managed} installed_version=${target.installedVersion ?? 'null'} template_version=${target.templateVersion} drift=${target.drift}`
+          `- ${target.path}: status=${target.status} installed=${target.installed} managed=${target.managed} installed_version=${target.installedVersion ?? 'null'} template_version=${target.templateVersion} drift=${target.drift}`
         );
       }
       lines.push(`recommended_actions: ${report.recommendedActions.length > 0 ? report.recommendedActions.join(', ') : '(none)'}`);

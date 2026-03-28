@@ -32,7 +32,9 @@ test('package README links every Further Reading guide from the public index', (
     '[Perf Scale Tuning Dogfooding](../../docs/dogfooding/perf-scale-tuning.md)',
     '[Published-Package Verification Before Release](../../docs/guide/published-package-verification.md)',
     '[Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md)',
-    '[ztd-cli Agent Interface](../../docs/guide/ztd-cli-agent-interface.md)'
+    '[ztd-cli Agent Interface](../../docs/guide/ztd-cli-agent-interface.md)',
+    '[Codex Bootstrap Verification](../../docs/dogfooding/ztd-codex-bootstrap-verification.md)',
+    '[ztd-cli spawn EPERM Investigation](../../docs/dogfooding/ztd-cli-spawn-eperm-investigation.md)'
   ]);
 });
 
@@ -130,27 +132,31 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'Use `--json <payload>` on supported commands when nested option construction is easier than individual flags.',
         'Use `ztd init --with-ai-guidance` to write managed internal guidance under `.ztd/agents/`',
         'Use `ztd agents status` to distinguish managed templates from user-owned instruction files.',
+        'Use `ztd agents init --dry-run` when you want the planned customer-facing bootstrap set before writing files.',
         'treat `summary` as the logical diff, treat `risks` as the apply-plan risk list',
         'Use `ztd ddl risk --file <migration.sql>` when you need to evaluate a generated or hand-edited migration SQL file directly',
         '`ztd model-gen` now treats feature-local SQL files as the primary contract source',
         'ZTD_TEST_DATABASE_URL',
         'Do not assume `DATABASE_URL` is a usable default target',
-        'Visible `AGENTS.md` files are opt-in via `ztd agents init`'
+        'Visible `AGENTS.md` files are opt-in via `ztd agents init`',
+        '.codex/config.toml',
+        '`managed`',
+        '`unmanaged-conflict`'
       ]
     },
     {
       docPath: 'docs/guide/feature-index.md',
       phrases: [
-        'Visible AGENTS init',
+        'Codex bootstrap init',
         'ztd agents init'
       ]
     },
     {
       docPath: 'docs/dogfooding/ztd-application-lifecycle.md',
       phrases: [
-        'confirm that an AI agent can read `AGENTS.md` after you opt in with `ztd agents init`',
+        'confirm that an AI agent can read the Codex bootstrap files after you opt in with `ztd agents init`',
         '`ztd agents init`',
-        'after visible AGENTS are installed'
+        '.codex/agents/*'
       ]
     },
     {
@@ -160,7 +166,46 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         '@rawsql-ts/testkit-postgres',
         'createPostgresTestkitClient',
         'the `@rawsql-ts/testkit-postgres` package README',
-        'If you add a no-op repository telemetry seam under `src/infrastructure/telemetry/`'
+        'If you add a no-op repository telemetry seam under `src/infrastructure/telemetry/`',
+        '.codex/config.toml',
+        '.agents/skills/',
+        'Read the nearest AGENTS files, inspect src/features/smoke, and plan the next users feature.'
+      ]
+    },
+    {
+      docPath: 'docs/dogfooding/ztd-codex-bootstrap-verification.md',
+      phrases: [
+        'reviewer-checkable verification pass',
+        'Fresh Project Verification',
+        'What Was Installed',
+        'How To Verify',
+        'What Becomes Possible',
+        'Guarantee Limits',
+        'Weak Spots Or Out Of Scope Areas'
+      ]
+    },
+    {
+      docPath: 'docs/dogfooding/ztd-cli-spawn-eperm-investigation.md',
+      phrases: [
+        '### Source issue',
+        '### Why blocker',
+        '### Reproduction',
+        '### Investigation steps',
+        '### Findings',
+        '### Conclusion',
+        '### Impact on acceptance items',
+        '### What should happen next',
+        '### Reviewer conclusion',
+        'pnpm --filter @rawsql-ts/ztd-cli test',
+        'pnpm --filter @rawsql-ts/ztd-cli exec vitest',
+        'pnpm --filter @rawsql-ts/ztd-cli test -- --run tests/utils/agents.test.ts',
+        'build` -> passed',
+        'lint` -> passed',
+        'child_process.spawn(',
+        'B. This PR\'s code changes are not the primary cause.',
+        'Local Windows environment reproduces `spawn EPERM` below the Issue #685 change layer.',
+        'Current evidence is insufficient to mark acceptance items 1-3 as done.',
+        'Next decision depends on CI or alternate-environment verification.'
       ]
     },
     {

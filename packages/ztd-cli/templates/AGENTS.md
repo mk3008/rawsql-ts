@@ -1,21 +1,26 @@
-# Package Scope
-- Applies to `packages/ztd-cli/templates`.
-- Defines repository-wide guardrails for generated project templates.
+# Project Guidance
 
-# Policy
-## REQUIRED
-- Generated artifacts MUST remain unedited unless explicit instruction exists.
-- Feature-first boundaries MUST stay explicit when `src/features/<feature>` exists.
-- Human-owned contract directories (`ztd/ddl`, `src/catalog/specs`, `src/sql`) MUST NOT be semantically changed without explicit instruction.
-- Template output MUST keep a runnable `pnpm test` path at initialization.
-- The repository-root `AGENTS.md` SHOULD define stable, high-level boundaries such as the repository root, `src/features`, `tests`, and `ztd`.
-- When a nested `AGENTS.md` exists near the edited files, treat it as the closest path-specific override and keep it short, focused, and easy to maintain.
-- Feature-local intent and starter explanations SHOULD live primarily in `README.md`, sample code, and tests rather than relying on deep per-folder `AGENTS.md`.
+Read `README.md` and the nearest `AGENTS.md` before editing files.
 
-## PROHIBITED
-- Manual edits under `tests/generated`.
-- Treating ZTD-specific workflow rules as repository-global rules.
-- Assuming every future feature or subfolder will be generated through the CLI.
+## Default Working Shape
 
-# Hygiene
-- Keep `AGENTS.md` files few, stable, and easy to maintain.
+- Use `src/features/<feature>` as the default change unit.
+- Keep handwritten SQL, specs, and tests inside the feature that owns them.
+- Treat `ztd/ddl` as human-owned DDL input.
+- Do not apply migrations automatically.
+
+## Safe Next Steps
+
+- After DDL changes, rerun `npx ztd ztd-config`, `npx ztd lint`, and `npx vitest run`.
+- After SQL-only changes, rerun the affected tests and regenerate specs when needed.
+- If the request is broad, start with a plan before editing many files.
+
+## Codex Bootstrap
+
+If this project was set up with `ztd agents init`, use:
+
+- `.codex/agents/planning.md` to scope the next change
+- `.codex/agents/troubleshooting.md` to debug setup or contract drift
+- `.codex/agents/next-steps.md` to suggest the next safe command or feature task
+
+The first useful request after setup is usually: "Read the nearest AGENTS files, inspect `src/features/smoke`, and plan the next `users` feature."

@@ -591,7 +591,7 @@ test('init CLI can opt into internal AI guidance explicitly', { timeout: 60_000 
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(false);
 });
 
-test('agents init emits the visible AGENTS plan and materializes the files', { timeout: 60_000 }, () => {
+test('agents init emits the Codex bootstrap plan and materializes the files', { timeout: 60_000 }, () => {
   const workspace = createTempDir('agents-init');
   assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before init-agents');
 
@@ -599,10 +599,14 @@ test('agents init emits the visible AGENTS plan and materializes the files', { t
   assertCliSuccess(result, 'agents init');
   expect(result.stdout).toContain('About to create:');
   expect(result.stdout).toContain('No files will be overwritten.');
-  expect(result.stdout).toContain('Omit `ztd agents init` if you do not want visible AGENTS files.');
+  expect(result.stdout).toContain('Omit `ztd agents init` if you do not want the Codex bootstrap files.');
   expect(result.stdout).toContain('AGENTS.md');
+  expect(result.stdout).toContain('.codex/config.toml');
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(true);
+  expect(existsSync(path.join(workspace, '.codex', 'agents', 'planning.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, '.agents', 'skills', 'quickstart', 'SKILL.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(false);
 });
 
@@ -612,9 +616,10 @@ test('agents install remains a backwards-compatible alias for agents init', { ti
 
   const result = runCli(['agents', 'install'], {}, workspace);
   assertCliSuccess(result, 'agents install alias');
-  expect(result.stdout).toContain('Omit `ztd agents init` if you do not want visible AGENTS files.');
+  expect(result.stdout).toContain('Omit `ztd agents init` if you do not want the Codex bootstrap files.');
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(true);
 });
 
 test('agents init preserves an existing root AGENTS.md and falls back to AGENTS_ztd.md', { timeout: 60_000 }, () => {
@@ -629,7 +634,28 @@ test('agents init preserves an existing root AGENTS.md and falls back to AGENTS_
   expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(true);
 });
 
-test('agents status reports internal files and visible install recommendation before install', { timeout: 60_000 }, () => {
+test('agents init supports dry-run for the Codex bootstrap plan', { timeout: 60_000 }, () => {
+  const workspace = createTempDir('agents-init-dry-run');
+  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before dry-run');
+
+  const result = runCli(['--output', 'json', 'agents', 'init', '--dry-run'], {}, workspace);
+  assertCliSuccess(result, 'agents init dry-run');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed.data).toMatchObject({
+    dryRun: true,
+    plannedPaths: expect.arrayContaining([
+      'AGENTS.md',
+      '.codex/config.toml',
+      '.codex/agents/planning.md',
+      '.agents/skills/quickstart/SKILL.md'
+    ]),
+    conflictPaths: [],
+    customizedPaths: []
+  });
+  expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(false);
+});
+
+test('agents status reports bootstrap files and install recommendation before install', { timeout: 60_000 }, () => {
   const workspace = createTempDir('agents-status');
   assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before status');
 
@@ -637,17 +663,26 @@ test('agents status reports internal files and visible install recommendation be
   assertCliSuccess(result, 'agents status');
   const parsed = JSON.parse(result.stdout);
   expect(parsed.data).toMatchObject({
-    recommended_actions: expect.arrayContaining(['install-visible-agents']),
+    recommended_actions: expect.arrayContaining(['install-codex-bootstrap']),
     targets: expect.arrayContaining([
       expect.objectContaining({
         path: '.ztd/agents/manifest.json',
         installed: false,
+        status: 'missing',
         managed: false,
         drift: 'none'
       }),
       expect.objectContaining({
         path: 'AGENTS.md',
         installed: false,
+        status: 'missing',
+        managed: false,
+        drift: 'none'
+      }),
+      expect.objectContaining({
+        path: '.codex/config.toml',
+        installed: false,
+        status: 'missing',
         managed: false,
         drift: 'none'
       })

@@ -92,13 +92,28 @@ Keep handwritten SQL, spec, and tests inside src/features/<feature>.
 Do not apply migrations automatically.
 ```
 
-Run `npx ztd agents init` afterward if you want visible `AGENTS.md` files for the project.
+Run `npx ztd agents init` afterward if you want the opt-in Codex bootstrap for the project.
 Add `--with-dogfooding` if you want `PROMPT_DOGFOOD.md` for debugging or prompt review.
+
+`ztd agents init` adds:
+
+- visible `AGENTS.md` guidance
+- `.codex/config.toml`
+- `.codex/agents/`
+- `.agents/skills/`
+
+Existing user-owned guidance files are preserved; use `npx ztd agents status` if you need to review managed, customized, or unmanaged-conflict files.
+
+A good first request after setup is:
+
+```text
+Read the nearest AGENTS files, inspect src/features/smoke, and plan the next users feature.
+```
 
 ## Core features
 
 - `ztd init --starter` creates a feature-first starter scaffold with `smoke`, starter DDL, and local Postgres wiring.
-- `ztd agents init` adds visible `AGENTS.md` files on demand.
+- `ztd agents init` adds the opt-in Codex bootstrap on demand: visible `AGENTS.md`, `.codex/agents`, `.agents/skills`, and `.codex/config.toml`.
 - `ztd ztd-config --watch` keeps generated `TestRowMap` types and runtime fixture metadata aligned with DDL as files change.
 - `ztd lint` checks SQL against a temporary Postgres before you ship it.
 - `ztd model-gen` and `ztd query uses` keep QuerySpec scaffolding and impacted-file discovery close to the feature-first slice.
@@ -112,7 +127,7 @@ Add `--with-dogfooding` if you want `PROMPT_DOGFOOD.md` for debugging or prompt 
 | Command | Purpose |
 |---|---|
 | `ztd init --starter` | Scaffold the recommended first-run project. |
-| `ztd agents init` | Add visible `AGENTS.md` files after starter setup. |
+| `ztd agents init` | Add the opt-in Codex bootstrap after starter setup. |
 | `ztd ztd-config` | Regenerate `TestRowMap`, runtime fixture metadata, and layout metadata from DDL; add `--watch` for live updates. |
 | `ztd lint` | Lint SQL files against a temporary Postgres. |
 | `ztd model-gen` | Generate QuerySpec scaffolding from SQL assets. |
@@ -178,6 +193,8 @@ This is the minimum runtime step needed for multi-DB workflows. It is not saga o
 - [Published-Package Verification Before Release](../../docs/guide/published-package-verification.md) - pack and smoke-test the published-package path
 - [Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md) - unpublished local checkout workflow
 - [ztd-cli Agent Interface](../../docs/guide/ztd-cli-agent-interface.md) - machine-readable command surface
+- [Codex Bootstrap Verification](../../docs/dogfooding/ztd-codex-bootstrap-verification.md) - reviewer-checkable fresh-project verification for `ztd agents init`
+- [ztd-cli spawn EPERM Investigation](../../docs/dogfooding/ztd-cli-spawn-eperm-investigation.md) - reviewer-checkable root-cause investigation for the local Vitest startup blocker
 
 ## License
 

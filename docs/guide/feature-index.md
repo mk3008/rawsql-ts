@@ -12,7 +12,7 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 |---------|-------------------|-------------|
 | Non-interactive init | `ztd init --yes --workflow demo --validator zod` | CI/CD pipelines, agent-driven scaffolding |
 | Internal agent guidance | `.ztd/agents/manifest.json` | Default AI/project guidance without repo-visible `AGENTS.md` files |
-| Visible AGENTS init | `ztd agents init` | Materialize repo-visible `AGENTS.md` files only when you want them |
+| Codex bootstrap init | `ztd agents init` | Materialize the opt-in Codex bootstrap: visible `AGENTS.md`, `.codex`, and `.agents` |
 | AGENTS status | `ztd agents status` | Check managed guidance state and drift |
 | DDL pull from explicit target | `ztd ddl pull --url <target>` | Inspect schema state from an existing Postgres database |
 | DDL diff | `ztd ddl diff --url <target>` | Compare local DDL against an explicit target database after changes |
@@ -73,6 +73,7 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Dynamic Filter Routing | [guide/dynamic-filter-routing](./dynamic-filter-routing.md) | Decide whether DynamicQueryBuilder filters or SSSQL optional branches should be the first move |
 | ztd-cli SSSQL Authoring | [guide/ztd-cli-sssql-authoring](./ztd-cli-sssql-authoring.md) | Keep optional-condition requests on the SQL-first path while authoring ZTD SQL assets |
 | ztd-cli Agent Interface | [guide/ztd-cli-agent-interface](./ztd-cli-agent-interface.md) | Machine-readable CLI usage for automation and AI agents |
+| ztd-cli spawn EPERM investigation | [dogfooding/ztd-cli-spawn-eperm-investigation](../dogfooding/ztd-cli-spawn-eperm-investigation.md) | Review the local Vitest startup blocker before treating Issue #685 acceptance items as done |
 | ztd describe schema | [guide/ztd-cli-describe-schema](./ztd-cli-describe-schema.md) | Contract details for `ztd describe` JSON payloads |
 | ztd-cli measurement inventory | [guide/ztd-cli-measurement-inventory](./ztd-cli-measurement-inventory.md) | Audit current timing/profiling surfaces before adding OpenTelemetry |
 | ztd-cli telemetry policy | [guide/ztd-cli-telemetry-policy](./ztd-cli-telemetry-policy.md) | Event schema, redaction rules, and safe export boundaries for CLI telemetry |
