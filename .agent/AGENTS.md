@@ -1,5 +1,5 @@
 # Visible Policy Mirror
-- This file mirrors the repository root guidance in `./AGENTS.md`.
+- This file mirrors the repository root guidance in `../AGENTS.md`.
 - `MUST` and `REQUIRED` define completion criteria.
 - `ALLOWED` means permitted but not required.
 - `PROHIBITED` means disallowed unless a narrower rule explicitly allows it.
@@ -23,10 +23,10 @@
 - Reporting guidance makes `Verification basis`, `Guarantee limits`, `Outstanding gaps`, and `What the human should decide next` visible to reviewers and requesters.
 
 ## Plan-Time Requirements
-- Plans MUST state the `Source issue` and `Why it matters`.
-- Plans MUST make acceptance items explicit.
-- Plans MUST make verification methods explicit for each acceptance item.
-- Plans SHOULD make downstream `Decision points` explicit when the result will require a human choice.
+- State the `Source issue` and `Why it matters`.
+- Make acceptance items explicit.
+- Specify verification methods for each acceptance item.
+- When applicable, note downstream `Decision points` that require human choice.
 
 ## Reporting Format
 - Reports MUST state the `Source request` or `Source issue` and `Why it matters` before item-level status.

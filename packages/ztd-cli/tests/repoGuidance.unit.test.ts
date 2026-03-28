@@ -40,6 +40,8 @@ test('planning guidance covers acceptance items and verification methods', () =>
 test('reporting guidance covers reviewer-facing and operator-facing reporting shape', () => {
   const reportingSkill = readText('.agents/skills/attainment-reporting/SKILL.md');
   const reportingAgent = readText('.codex/agents/reporting.md');
+  const rootAgents = readText('AGENTS.md');
+  const mirrorAgents = readText('.agent/AGENTS.md');
 
   expect(reportingSkill).toContain('Source request or source issue');
   expect(reportingSkill).toContain('Why it matters');
@@ -77,8 +79,10 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reportingAgent).toContain('the final form is incomplete and must be corrected');
   expect(reportingAgent).toContain('Keep `tests were updated`, `tests passed`, and `execution remains partial` separate');
   expect(reportingAgent).toContain('Map each acceptance item to `done`, `partial`, or `not done`.');
-  expect(readText('AGENTS.md')).toContain('All assistant-user conversation in this repository must be in Japanese.');
-  expect(readText('AGENTS.md')).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
+  expect(rootAgents).toContain('All assistant-user conversation in this repository must be in Japanese.');
+  expect(rootAgents).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
+  expect(mirrorAgents).toContain('All assistant-user conversation in this repository must be in Japanese.');
+  expect(mirrorAgents).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
 });
 
 test('reporting guidance fixes the decision-oriented order', () => {
