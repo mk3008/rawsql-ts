@@ -24,6 +24,9 @@ function createTempDir(prefix: string): string {
 test('deriveFeatureName defaults to resource-action form', () => {
   expect(deriveFeatureName('users', 'insert')).toBe('users-insert');
   expect(deriveFeatureName('public.users', 'insert')).toBe('users-insert');
+  expect(deriveFeatureName('crm.UserProfiles', 'insert')).toBe('user-profiles-insert');
+  expect(deriveFeatureName('public.user_profiles', 'insert')).toBe('user-profiles-insert');
+  expect(deriveFeatureName('public.user profiles', 'insert')).toBe('user-profiles-insert');
 });
 
 test('normalizeFeatureAction only accepts insert in v1', () => {
@@ -34,6 +37,7 @@ test('normalizeFeatureAction only accepts insert in v1', () => {
 test('normalizeFeatureName enforces resource-action kebab-case', () => {
   expect(normalizeFeatureName('users-insert')).toBe('users-insert');
   expect(() => normalizeFeatureName('users')).toThrow(/resource-action/i);
+  expect(() => normalizeFeatureName('3users-insert')).toThrow(/start with a letter/i);
 });
 
 test('generated metadata assessment reports missing PK contract even when manifest exists', () => {
@@ -90,6 +94,42 @@ test('resolveFeatureScaffoldInput falls back to ddl metadata and resolves schema
   expect(input.source).toBe('ddl');
   expect(input.table.canonicalName).toBe('public.users');
   expect(input.table.columns.map((column) => column.name)).toEqual(['id', 'email', 'created_at']);
+});
+
+test('resolveFeatureScaffoldInput honors searchPath order when schemas share a table name', () => {
+  const workspace = createTempDir('feature-scaffold-search-path');
+  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'tables.sql'),
+    [
+      'create table public.users (',
+      '  id serial primary key',
+      ');',
+      '',
+      'create table app.users (',
+      '  id serial primary key',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  const input = resolveFeatureScaffoldInput({
+    projectRoot: workspace,
+    table: 'users',
+    config: {
+      ...DEFAULT_ZTD_CONFIG,
+      searchPath: ['app', 'public']
+    },
+    generatedMetadataAssessment: {
+      source: 'generated-metadata',
+      supported: false,
+      reasons: ['pk metadata missing'],
+      checkedFiles: []
+    }
+  });
+
+  expect(input.table.canonicalName).toBe('app.users');
 });
 
 test('resolvePrimaryKeyColumn rejects missing and composite primary keys', () => {
@@ -219,4 +259,64 @@ test('runFeatureScaffoldCommand writes a file-resource entrypoint and scaffold R
   expect(readmeFile).toContain('Expect exactly one row from the executor.');
   expect(readmeFile).toContain('## Open questions');
   expect(readmeFile).toContain('Consider lazy-loading or caching the SQL file resource if repeated imports become a concern.');
+});
+
+test('runFeatureScaffoldCommand preserves existing feature files unless force is set', async () => {
+  const workspace = createTempDir('feature-scaffold-collision');
+  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
+  mkdirSync(ddlDir, { recursive: true });
+  mkdirSync(path.join(featureDir, 'sql'), { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'users.sql'),
+    [
+      'create table public.users (',
+      '  id serial primary key,',
+      '  email text not null',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(path.join(featureDir, 'users-insert.ts'), '// existing file\n', 'utf8');
+
+  await expect(
+    runFeatureScaffoldCommand({
+      table: 'users',
+      action: 'insert',
+      rootDir: workspace
+    })
+  ).rejects.toThrow(/overwrite existing files/i);
+});
+
+test('runFeatureScaffoldCommand overwrites scaffold-owned feature files with --force', async () => {
+  const workspace = createTempDir('feature-scaffold-force');
+  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
+  mkdirSync(ddlDir, { recursive: true });
+  mkdirSync(path.join(featureDir, 'sql'), { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'users.sql'),
+    [
+      'create table public.users (',
+      '  id serial primary key,',
+      '  email text not null',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(path.join(featureDir, 'users-insert.ts'), '// existing file\n', 'utf8');
+  writeFileSync(path.join(featureDir, 'sql', 'users-insert.sql'), '-- existing sql\n', 'utf8');
+  writeFileSync(path.join(featureDir, 'README.md'), '# existing readme\n', 'utf8');
+
+  const result = await runFeatureScaffoldCommand({
+    table: 'users',
+    action: 'insert',
+    force: true,
+    rootDir: workspace
+  });
+
+  expect(result.dryRun).toBe(false);
+  expect(readFileSync(path.join(featureDir, 'users-insert.ts'), 'utf8')).toContain(
+    "import { loadSqlResource } from '../_shared/loadSqlResource';"
+  );
 });

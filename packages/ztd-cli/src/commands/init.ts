@@ -2292,7 +2292,7 @@ function buildNextSteps(
       `The bundled compose file uses ${postgresImage}; copy .env.example to .env and keep ZTD_DB_PORT aligned before running src/features/smoke/tests/smoke.queryspec.test.ts`,
       'Expect src/features/smoke/tests/smoke.queryspec.test.ts to fail until .env is present or the DB is running; that failure is part of the starter guidance',
       ...generationSteps,
-      'Start your first real CRUD slice with `npx ztd feature scaffold --table users --action insert` after the smoke sample makes sense',
+      `Start your first real CRUD slice with \`${ztdCommand} feature scaffold --table users --action insert\` after the smoke sample makes sense`,
       'Delete src/features/smoke/ once you no longer need the starter sample'
     ];
     const starterFallbackSteps = [

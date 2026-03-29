@@ -239,6 +239,7 @@ test(
     expect(result.stdout).toContain('--action <action>');
     expect(result.stdout).toContain('--feature-name <name>');
     expect(result.stdout).toContain('--dry-run');
+    expect(result.stdout).toContain('--force');
   },
   60000,
 );
@@ -398,6 +399,41 @@ test(
 
     assertCliFailure(result, 'feature scaffold composite pk');
     expect(result.stderr || result.stdout).toContain('Composite primary keys are not supported in v1');
+  },
+  60000,
+);
+
+test(
+  'feature scaffold preserves existing files unless --force is provided',
+  () => {
+    const workspace = createTempDir('feature-scaffold-existing-file');
+    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
+    mkdirSync(ddlDir, { recursive: true });
+    mkdirSync(path.join(featureDir, 'sql'), { recursive: true });
+    writeFileSync(
+      path.join(ddlDir, 'users.sql'),
+      [
+        'create table public.users (',
+        '  id serial primary key,',
+        '  email text not null',
+        ');'
+      ].join('\n'),
+      'utf8'
+    );
+    writeFileSync(path.join(featureDir, 'users-insert.ts'), '// existing\n', 'utf8');
+
+    const result = runCli([
+      'feature',
+      'scaffold',
+      '--table',
+      'users',
+      '--action',
+      'insert'
+    ], {}, workspace);
+
+    assertCliFailure(result, 'feature scaffold existing file');
+    expect(result.stderr || result.stdout).toContain('Re-run with --force');
   },
   60000,
 );

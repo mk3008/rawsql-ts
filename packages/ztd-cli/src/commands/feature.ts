@@ -30,6 +30,7 @@ type FeatureCommandOptions = {
   action?: string;
   featureName?: string;
   dryRun?: boolean;
+  force?: boolean;
   rootDir?: string;
 };
 
@@ -95,6 +96,7 @@ export function registerFeatureCommand(program: Command): void {
     .requiredOption('--action <action>', 'Feature action template to scaffold (v1 supports only insert)')
     .option('--feature-name <name>', 'Override the derived feature name')
     .option('--dry-run', 'Validate inputs and emit the planned scaffold without writing files', false)
+    .option('--force', 'Overwrite scaffold-owned feature files when they already exist', false)
     .action(async (options: FeatureCommandOptions) => {
       const result = await runFeatureScaffoldCommand(options);
       if (isJsonOutput()) {
@@ -143,6 +145,7 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
     table: input.table,
     primaryKeyColumn,
   });
+  assertFeatureWriteSafety(paths, options.force === true);
   const sharedOutputs = buildSharedOutputs(rootDir, paths, !options.dryRun);
 
   const outputs: FeatureScaffoldResult['outputs'] = [
@@ -173,9 +176,9 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
   ensureDirectory(paths.testsDir);
   writeFileIfMissing(paths.loadSqlResourceFile, contents.loadSqlResourceFile);
   writeFileIfMissing(paths.queryOneExactFile, contents.queryOneExactFile);
-  writeFileSync(paths.featureFile, contents.featureFile, 'utf8');
-  writeFileSync(paths.sqlFile, contents.sqlFile, 'utf8');
-  writeFileSync(paths.readmeFile, contents.readmeFile, 'utf8');
+  writeFeatureFile(paths.featureFile, contents.featureFile, options.force === true);
+  writeFeatureFile(paths.sqlFile, contents.sqlFile, options.force === true);
+  writeFeatureFile(paths.readmeFile, contents.readmeFile, options.force === true);
 
   emitDiagnostic({
     code: 'feature-scaffold.ai-follow-up',
@@ -194,8 +197,8 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
 }
 
 export function deriveFeatureName(tableName: string, action: string): string {
-  const normalizedTable = tableName.trim().split('.').pop() ?? '';
-  return `${normalizedTable}-${action.trim().toLowerCase()}`;
+  const resourceSegment = toFeatureResourceSegment(tableName);
+  return `${resourceSegment}-${action.trim().toLowerCase()}`;
 }
 
 export function normalizeFeatureAction(action: string | undefined): 'insert' {
@@ -208,8 +211,10 @@ export function normalizeFeatureAction(action: string | undefined): 'insert' {
 
 export function normalizeFeatureName(value: string): string {
   const normalized = value.trim().toLowerCase();
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)+$/.test(normalized)) {
-    throw new Error('Feature name must use resource-action kebab-case such as users-insert.');
+  if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$/.test(normalized)) {
+    throw new Error(
+      'Feature name must use resource-action kebab-case, start with a letter, and look like users-insert.'
+    );
   }
   return normalized;
 }
@@ -399,23 +404,27 @@ function resolveRequestedTable(
   searchPath: string[]
 ): DdlTableMetadata | undefined {
   const normalized = rawTableName.trim().toLowerCase();
-  const canonical = normalized.includes('.') ? normalized : `${defaultSchema}.${normalized}`;
-  const canonicalMatch = tables.find((table) => table.canonicalName.toLowerCase() === canonical);
-  if (canonicalMatch) {
-    return canonicalMatch;
+  if (normalized.includes('.')) {
+    const canonical = normalized || `${defaultSchema}.${normalized}`;
+    const canonicalMatch = tables.find((table) => table.canonicalName.toLowerCase() === canonical);
+    if (canonicalMatch) {
+      return canonicalMatch;
+    }
   }
 
   const candidates = tables.filter((table) => table.tableName.toLowerCase() === normalized);
   if (candidates.length === 0) {
     return undefined;
   }
-  const preferred = candidates.filter((table) => searchPath.includes(table.schemaName));
-  if (preferred.length === 1) {
-    return preferred[0];
+
+  const orderedSearchPath = searchPath.map((entry) => entry.toLowerCase());
+  for (const schemaName of orderedSearchPath) {
+    const match = candidates.find((table) => table.schemaName.toLowerCase() === schemaName);
+    if (match) {
+      return match;
+    }
   }
-  if (preferred.length > 1) {
-    throw new Error(`Table name is ambiguous across searchPath schemas: ${rawTableName}. Use a schema-qualified table name.`);
-  }
+
   if (candidates.length === 1) {
     return candidates[0];
   }
@@ -609,6 +618,17 @@ function toProjectRelativePath(rootDir: string, filePath: string): string {
   return normalizeCliPath(path.relative(rootDir, filePath));
 }
 
+function toFeatureResourceSegment(tableName: string): string {
+  const rawResource = tableName.trim().split('.').pop() ?? '';
+  return rawResource
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replace(/[_\s]+/g, '-')
+    .replace(/[^a-zA-Z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+}
+
 function buildSharedOutputs(
   rootDir: string,
   paths: FeatureScaffoldPaths,
@@ -644,6 +664,29 @@ function writeFileIfMissing(filePath: string, contents: string): void {
     return;
   }
   writeFileSync(filePath, contents, 'utf8');
+}
+
+function writeFeatureFile(filePath: string, contents: string, force: boolean): void {
+  if (existsSync(filePath) && !force) {
+    return;
+  }
+  writeFileSync(filePath, contents, 'utf8');
+}
+
+function assertFeatureWriteSafety(paths: FeatureScaffoldPaths, force: boolean): void {
+  if (force) {
+    return;
+  }
+
+  const existingPaths = [paths.featureFile, paths.sqlFile, paths.readmeFile].filter((candidate) => existsSync(candidate));
+  if (existingPaths.length === 0) {
+    return;
+  }
+
+  const relativePaths = existingPaths.map((candidate) => normalizeCliPath(path.relative(paths.featureDir, candidate)));
+  throw new Error(
+    `Feature scaffold would overwrite existing files for ${path.basename(paths.featureDir)}: ${relativePaths.join(', ')}. Re-run with --force to overwrite scaffold-owned files.`
+  );
 }
 
 function dedupeStrings(values: string[]): string[] {
