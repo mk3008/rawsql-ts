@@ -127,7 +127,8 @@ test('inspectPerfDdlInventory counts CREATE INDEX statements so perf reset can r
     dialect: 'postgres',
     ddlDir: 'ztd/ddl',
     testsDir: 'tests',
-    ddl: { defaultSchema: 'public', searchPath: ['public'] },
+    defaultSchema: 'public',
+    searchPath: ['public'],
     ddlLint: 'strict'
   }, null, 2), 'utf8');
   writeFileSync(path.join(ddlDir, 'public.sql'), [
@@ -151,7 +152,8 @@ test('inspectPerfDdlInventory fails fast when the configured DDL directory does 
     dialect: 'postgres',
     ddlDir: 'ztd/ddl',
     testsDir: 'tests',
-    ddl: { defaultSchema: 'public', searchPath: ['public'] },
+    defaultSchema: 'public',
+    searchPath: ['public'],
     ddlLint: 'strict'
   }, null, 2), 'utf8');
 

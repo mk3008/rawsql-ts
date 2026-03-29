@@ -30,7 +30,6 @@ test('writeZtdProjectConfig skips rewriting when the effective config is unchang
         testsDir: 'tests',
         defaultSchema: 'public',
         searchPath: ['public'],
-        ddl: { defaultSchema: 'public', searchPath: ['public'] },
         ddlLint: 'strict'
       },
       null,
@@ -66,7 +65,6 @@ test('loadZtdProjectConfig warns when legacy connection config is present', asyn
         testsDir: 'tests',
         defaultSchema: 'public',
         searchPath: ['public'],
-        ddl: { defaultSchema: 'public', searchPath: ['public'] },
         ddlLint: 'strict',
         connection: {
           host: 'legacy-db',
@@ -110,7 +108,6 @@ test('loadZtdProjectConfig does not warn when legacy connection config is absent
         testsDir: 'tests',
         defaultSchema: 'public',
         searchPath: ['public'],
-        ddl: { defaultSchema: 'public', searchPath: ['public'] },
         ddlLint: 'strict'
       },
       null,
@@ -128,4 +125,54 @@ test('loadZtdProjectConfig does not warn when legacy connection config is absent
   expect(config.defaultSchema).toBe('public');
   expect(config.searchPath).toEqual(['public']);
   expect(emitWarning).not.toHaveBeenCalled();
+});
+
+test('loadZtdProjectConfig rejects removed ddl schema settings', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-config-no-ddl-fallback-'));
+  tempDirs.push(rootDir);
+
+  writeFileSync(
+    path.join(rootDir, 'ztd.config.json'),
+    JSON.stringify(
+      {
+        dialect: 'postgres',
+        ddlDir: 'ztd/ddl',
+        testsDir: 'tests',
+        ddl: { defaultSchema: 'legacy', searchPath: ['legacy', 'public'] },
+        ddlLint: 'strict'
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+
+  const { loadZtdProjectConfig } = await loadConfigModule();
+
+  expect(() => loadZtdProjectConfig(rootDir)).toThrow(/removed legacy ddl\.defaultSchema \/ ddl\.searchPath settings/);
+});
+
+test('loadZtdProjectConfig rejects an empty legacy ddl block', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-config-empty-ddl-'));
+  tempDirs.push(rootDir);
+
+  writeFileSync(
+    path.join(rootDir, 'ztd.config.json'),
+    JSON.stringify(
+      {
+        dialect: 'postgres',
+        ddlDir: 'ztd/ddl',
+        testsDir: 'tests',
+        ddl: {},
+        ddlLint: 'strict'
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+
+  const { loadZtdProjectConfig } = await loadConfigModule();
+
+  expect(() => loadZtdProjectConfig(rootDir)).toThrow(/removed legacy ddl\.defaultSchema \/ ddl\.searchPath settings/);
 });

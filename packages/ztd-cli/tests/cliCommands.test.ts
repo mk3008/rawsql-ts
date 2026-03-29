@@ -488,10 +488,8 @@ test(
         dialect: 'postgres',
         ddlDir: 'ztd/ddl',
         testsDir: 'tests',
-        ddl: {
-          defaultSchema: 'public',
-          searchPath: ['public']
-        },
+        defaultSchema: 'public',
+        searchPath: ['public'],
         ddlLint: 'strict'
       }, null, 2),
       'utf8'
@@ -797,7 +795,8 @@ test('perf db reset dry-run lists DDL files without touching Docker', () => {
       dialect: 'postgres',
       ddlDir: 'ztd/ddl',
       testsDir: 'tests',
-      ddl: { defaultSchema: 'public', searchPath: ['public'] },
+      defaultSchema: 'public',
+      searchPath: ['public'],
       ddlLint: 'strict'
     }, null, 2),
     'utf8'
@@ -829,7 +828,8 @@ test('perf db reset dry-run fails fast when the configured DDL directory is miss
       dialect: 'postgres',
       ddlDir: 'ztd/ddl',
       testsDir: 'tests',
-      ddl: { defaultSchema: 'public', searchPath: ['public'] },
+      defaultSchema: 'public',
+      searchPath: ['public'],
       ddlLint: 'strict'
     }, null, 2),
     'utf8'
@@ -850,7 +850,8 @@ test('perf seed output redacts connection credentials in global json mode', () =
       dialect: 'postgres',
       ddlDir: 'ztd/ddl',
       testsDir: 'tests',
-      ddl: { defaultSchema: 'public', searchPath: ['public'] },
+      defaultSchema: 'public',
+      searchPath: ['public'],
       ddlLint: 'strict'
     }, null, 2),
     'utf8'
@@ -883,7 +884,8 @@ test('perf db reset refuses implicit DATABASE_URL without explicit ZTD test opt-
       dialect: 'postgres',
       ddlDir: 'ztd/ddl',
       testsDir: 'tests',
-      ddl: { defaultSchema: 'public', searchPath: ['public'] },
+      defaultSchema: 'public',
+      searchPath: ['public'],
       ddlLint: 'strict'
     }, null, 2),
     'utf8'
@@ -911,7 +913,8 @@ test('perf seed dry-run rejects unknown tables from perf seed config', () => {
       dialect: 'postgres',
       ddlDir: 'ztd/ddl',
       testsDir: 'tests',
-      ddl: { defaultSchema: 'public', searchPath: ['public'] },
+      defaultSchema: 'public',
+      searchPath: ['public'],
       ddlLint: 'strict'
     }, null, 2),
     'utf8'
@@ -941,7 +944,8 @@ test('perf seed dry-run reports deterministic row counts from perf seed config',
       dialect: 'postgres',
       ddlDir: 'ztd/ddl',
       testsDir: 'tests',
-      ddl: { defaultSchema: 'public', searchPath: ['public'] },
+      defaultSchema: 'public',
+      searchPath: ['public'],
       ddlLint: 'strict'
     }, null, 2),
     'utf8'
@@ -1576,7 +1580,9 @@ pullTest('pull CLI dry-run validates dump without writing files', async () => {
       dryRun: true,
       files: [expect.objectContaining({ schema: 'public' })]
     });
-    expect(existsSync(path.join(outDir, 'public.sql'))).toBe(false);
+    for (const file of parsed.data.files as Array<{ path: string }>) {
+      expect(existsSync(file.path)).toBe(false);
+    }
   } finally {
     await resetPublicSchema(client);
     await client.end();
@@ -1666,10 +1672,8 @@ pullTest('model-gen emits a spec scaffold from ZTD DDL metadata without physical
         dialect: 'postgres',
         ddlDir: 'ztd/ddl',
         testsDir: 'tests',
-        ddl: {
-          defaultSchema: 'public',
-          searchPath: ['public']
-        },
+        defaultSchema: 'public',
+        searchPath: ['public'],
         ddlLint: 'strict'
       }, null, 2),
       'utf8'
@@ -1738,10 +1742,8 @@ pullTest('model-gen ztd resolves unqualified table names through defaultSchema/s
         dialect: 'postgres',
         ddlDir: 'ztd/ddl',
         testsDir: 'tests',
-        ddl: {
-          defaultSchema: 'public',
-          searchPath: ['public']
-        },
+        defaultSchema: 'public',
+        searchPath: ['public'],
         ddlLint: 'strict'
       }, null, 2),
       'utf8'
@@ -1810,10 +1812,8 @@ pullTest('model-gen ztd honors searchPath precedence for unqualified table names
         dialect: 'postgres',
         ddlDir: 'ztd/ddl',
         testsDir: 'tests',
-        ddl: {
-          defaultSchema: 'app',
-          searchPath: ['app', 'public']
-        },
+        defaultSchema: 'app',
+        searchPath: ['app', 'public'],
         ddlLint: 'strict'
       }, null, 2),
       'utf8'

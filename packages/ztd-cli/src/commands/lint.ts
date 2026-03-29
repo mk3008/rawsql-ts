@@ -237,8 +237,8 @@ async function runLintCommand(pattern: string): Promise<void> {
     const result = await runSqlLint({
       sqlFiles,
       ddlDirectories: [ddlRoot],
-      defaultSchema: config.ddl.defaultSchema,
-      searchPath: config.ddl.searchPath,
+      defaultSchema: config.defaultSchema,
+      searchPath: config.searchPath,
       ddlLint: config.ddlLint,
       client
     });

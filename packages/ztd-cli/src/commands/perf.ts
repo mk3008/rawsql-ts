@@ -327,7 +327,7 @@ function buildPerfSeedDryRunPlan(rootDir: string): { seed: number; tables: Recor
 
   const tables = Object.fromEntries(
     Object.entries(seedConfig.tables).map(([tableName, tableConfig]) => {
-      const definition = definitions.find((candidate) => candidate.name === tableName || candidate.name === `${config.ddl.defaultSchema}.${tableName}`);
+      const definition = definitions.find((candidate) => candidate.name === tableName || candidate.name === `${config.defaultSchema}.${tableName}`);
       if (!definition) {
         throw new Error(`No table definition found for perf seed table: ${tableName}`);
       }

@@ -1299,7 +1299,8 @@ test('runPerfBenchmark dry-run reports ddl inventory and pipeline-first tuning g
     dialect: 'postgres',
     ddlDir: 'ztd/ddl',
     testsDir: 'tests',
-    ddl: { defaultSchema: 'public', searchPath: ['public'] },
+    defaultSchema: 'public',
+    searchPath: ['public'],
     ddlLint: 'strict'
   }, null, 2), 'utf8');
   writeFileSync(ddlFile, [

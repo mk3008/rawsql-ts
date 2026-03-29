@@ -249,7 +249,7 @@ export async function seedPerfSandbox(rootDir: string): Promise<PerfSeedResult> 
     await client.connect();
 
     for (const [tableName, tableSeed] of Object.entries(seedConfig.tables)) {
-      const definition = resolveTableDefinition(definitions, tableName, config.ddl.defaultSchema);
+      const definition = resolveTableDefinition(definitions, tableName, config.defaultSchema);
       if (!definition) {
         throw new Error(`No table definition found for perf seed table: ${tableName}`);
       }

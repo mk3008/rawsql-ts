@@ -18,10 +18,6 @@ export interface ZtdProjectConfig {
   testsDir: string;
   defaultSchema: string;
   searchPath: string[];
-  ddl: {
-    defaultSchema: string;
-    searchPath: string[];
-  };
   /** Controls DDL integrity validation during config generation and tests. */
   ddlLint: DdlLintMode;
   /** @deprecated Legacy field. ztd-cli no longer uses config-based DB connections implicitly. */
@@ -29,11 +25,6 @@ export interface ZtdProjectConfig {
 }
 
 const CONFIG_NAME = 'ztd.config.json';
-
-const DEFAULT_DDL_PROPERTIES = {
-  defaultSchema: 'public',
-  searchPath: ['public']
-};
 
 let hasWarnedLegacyConnectionConfig = false;
 
@@ -43,7 +34,6 @@ export const DEFAULT_ZTD_CONFIG: ZtdProjectConfig = {
   testsDir: 'tests',
   defaultSchema: 'public',
   searchPath: ['public'],
-  ddl: { ...DEFAULT_DDL_PROPERTIES },
   ddlLint: 'strict'
 };
 
@@ -70,17 +60,21 @@ export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjec
   try {
     // Merge on top of defaults so partial configs remain valid.
     const raw = JSON.parse(readFileSync(filePath, 'utf8'));
-    const rawDdl = typeof raw.ddl === 'object' && raw.ddl !== null ? raw.ddl : undefined;
+    const legacySchemaConfig = detectLegacySchemaConfig(raw);
+    if (legacySchemaConfig) {
+      throw new Error(
+        `${filePath} uses removed legacy ddl.defaultSchema / ddl.searchPath settings. Move them to top-level defaultSchema and searchPath.`
+      );
+    }
     const rawConnection = typeof raw.connection === 'object' && raw.connection !== null ? raw.connection : undefined;
     const rawLintMode = typeof raw.ddlLint === 'string' ? raw.ddlLint.trim().toLowerCase() : undefined;
     const resolvedDefaultSchema = resolveSchemaName(
       typeof raw.defaultSchema === 'string' ? raw.defaultSchema : undefined,
-      typeof rawDdl?.defaultSchema === 'string' ? rawDdl.defaultSchema : undefined,
       DEFAULT_ZTD_CONFIG.defaultSchema
     );
     const resolvedSearchPath = resolveSearchPath(
       raw.searchPath,
-      rawDdl?.searchPath,
+      undefined,
       resolvedDefaultSchema
     );
     const normalizedConnection = normalizeConnectionConfig(rawConnection);
@@ -96,10 +90,6 @@ export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjec
         typeof raw.testsDir === 'string' && raw.testsDir.length ? raw.testsDir : DEFAULT_ZTD_CONFIG.testsDir,
       defaultSchema: resolvedDefaultSchema,
       searchPath: resolvedSearchPath,
-      ddl: {
-        defaultSchema: resolvedDefaultSchema,
-        searchPath: resolvedSearchPath
-      },
       ddlLint: isDdlLintMode(rawLintMode) ? rawLintMode : DEFAULT_ZTD_CONFIG.ddlLint,
       connection: normalizedConnection
     };
@@ -141,6 +131,15 @@ function normalizeSchemaList(value: unknown): string[] {
   }
 
   return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+}
+
+function detectLegacySchemaConfig(raw: unknown): boolean {
+  if (typeof raw !== 'object' || raw === null) {
+    return false;
+  }
+
+  const rawRecord = raw as Record<string, unknown>;
+  return Object.prototype.hasOwnProperty.call(rawRecord, 'ddl') && typeof rawRecord.ddl === 'object' && rawRecord.ddl !== null;
 }
 
 /**
@@ -256,26 +255,16 @@ function mergeProjectConfig(
   const defaultSchema =
     typeof overrides.defaultSchema === 'string' && overrides.defaultSchema.length > 0
       ? overrides.defaultSchema
-      : typeof overrides.ddl?.defaultSchema === 'string' && overrides.ddl.defaultSchema.length > 0
-        ? overrides.ddl.defaultSchema
-        : baseConfig.defaultSchema;
+      : baseConfig.defaultSchema;
   const searchPath =
     normalizeSchemaList(overrides.searchPath).length > 0
       ? normalizeSchemaList(overrides.searchPath)
-      : normalizeSchemaList(overrides.ddl?.searchPath).length > 0
-        ? normalizeSchemaList(overrides.ddl?.searchPath)
-        : baseConfig.searchPath;
+      : baseConfig.searchPath;
   return {
     ...baseConfig,
     ...overrides,
     defaultSchema,
-    searchPath,
-    ddl: {
-      ...baseConfig.ddl,
-      ...(overrides.ddl ?? {}),
-      defaultSchema,
-      searchPath
-    }
+    searchPath
   };
 }
 

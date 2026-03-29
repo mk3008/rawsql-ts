@@ -47,10 +47,8 @@ function createJoinDirectionWorkspace(prefix: string): {
     path.join(rootDir, 'ztd.config.json'),
     JSON.stringify({
       ddlDir: 'ztd/ddl',
-      ddl: {
-        defaultSchema: 'public',
-        searchPath: ['public']
-      }
+      defaultSchema: 'public',
+      searchPath: ['public']
     }, null, 2),
     'utf8'
   );
