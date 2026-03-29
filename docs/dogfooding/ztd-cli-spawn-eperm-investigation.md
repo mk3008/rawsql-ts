@@ -73,7 +73,7 @@ SPAWN_CWD=<repo-root>
     - Copying `esbuild.exe` to `<workspace>/tmp-short/esbuild-copy.exe` does not help; Node spawn still fails with `EPERM`.
     - Running through `cmd.exe` instead of PowerShell does not help; `pnpm ... exec vitest` still fails the same way.
   - A short-path junction `<workspace>/rawsql-ts-short` did not change the result.
-  - Testing with a workdir outside OneDrive was not possible in this sandbox because command setup failed when the shell workdir moved outside the writable roots.
+  - Testing with a workdir outside the synced workspace root was not possible in this sandbox because command setup failed when the shell workdir moved outside the writable roots.
 
 ## Findings
 - confirmed:
@@ -86,7 +86,7 @@ SPAWN_CWD=<repo-root>
   - Minimal Node `child_process.spawn()` and `spawnSync()` calls fail even for `cmd.exe` and `node.exe`.
   - Direct shell execution of `esbuild.exe` works, so the failure is specifically on Node-launched subprocesses in this environment.
 - not confirmed:
-  - Whether the same Node spawn failure reproduces outside OneDrive on this machine.
+  - Whether the same Node spawn failure reproduces outside the synced workspace root on this machine.
   - Whether CI or another Windows environment without this sandbox reproduces the same behavior.
   - Whether Windows Defender / Controlled Folder Access is the exact policy component involved.
 - ruled out:
@@ -118,8 +118,8 @@ B. This PR's code changes are not the primary cause. The blocker is environment-
 - continue with CI or another environment: yes. The next decision point should be a reviewer-checkable run in CI or a second Windows environment that can execute Node child processes normally.
 
 ## Recurrence prevention
-- Redact local filesystem paths in reviewer-facing evidence to `<repo-root>` or `<workspace>` instead of publishing raw `C:\Users\...` paths.
-- Keep a docs assertion that fails when this investigation document contains Windows user-home prefixes such as `C:\Users\` or OneDrive-specific absolute roots.
+- Redact local filesystem paths in reviewer-facing evidence to `<repo-root>` or `<workspace>` instead of publishing raw host-specific paths.
+- Keep a docs assertion that fails when this investigation document contains Windows user-home prefixes or synced-workspace-specific absolute roots.
 - Treat local-environment investigation docs as sanitized artifacts: path examples should preserve only the structural information needed for reproduction.
 
 ## Reviewer conclusion

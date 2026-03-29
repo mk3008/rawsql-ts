@@ -227,7 +227,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'docker compose up -d',
         'npx ztd ztd-config',
         'npx vitest run',
-        'Published package: `@rawsql-ts/ztd-cli@0.22.5`',
+        'README Quickstart path in a fresh directory outside the monorepo workspace root.',
         'The onboarding order introduced by Issue #685 is coherent'
       ]
     },
@@ -258,7 +258,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       phrases: [
         'throwaway project under `tmp/`',
         '`ztd init --local-source-root <monorepo-root>`',
-        'ztd model-gen src/features/users/persistence/list_users.sql \\\',
+        'ztd model-gen src/features/users/persistence/list_users.sql \\',
         '`pnpm install --ignore-workspace`',
         'Do not use it to claim that the published npm consumer flow is already healthy',
         'Use this mode to answer: `can we dogfood the unreleased CLI from source?`'

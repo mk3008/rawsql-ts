@@ -70,3 +70,26 @@
 
 ## Completion
 - Repository implementation is only complete when the acceptance items and verification methods are explicit and the required checks have been run or justified as inapplicable.
+
+## QuerySpec Completion
+- A QuerySpec used for product behavior is incomplete unless it has a ZTD-backed test that executes the SQL through the rewriter.
+- Writing a product-behavior QuerySpec is equivalent to asserting that the behavior will be verified in ZTD format.
+- A property-only validation test is not sufficient for product behavior and MUST NOT be treated as the required QuerySpec verification.
+- If the ZTD-backed test cannot be written yet, do not write the product-behavior QuerySpec yet.
+- Example-only QuerySpec files MAY omit the ZTD-backed test only when the file is explicitly labeled as an example and the limitation is stated in the same change.
+
+## Test Default
+- Unless the request explicitly says not to, behavior changes MUST add or update tests in the same change.
+- When the request is ambiguous, prefer the strongest executable test that exercises the behavior instead of a property-only check.
+- For QuerySpec work, default to a ZTD-backed test that executes the SQL through the rewriter and validates observed behavior.
+- When a QuerySpec is requested for product behavior, treat the QuerySpec and its ZTD-backed test as one completion unit.
+
+## SQL Shadowing Troubleshooting
+- When a SQL-backed test fails, first determine whether the query is shadowing the intended SQL path or accidentally touching a physical table directly.
+- If the SQL is not shadowing correctly, check the failure in this order:
+  1. DDL and fixture sync
+  2. Fixture selection or specification
+  3. repository bug or rewriter bug
+- Do not use DDL execution as a repair path for ZTD validation failures.
+- If the database is reachable, treat relation or missing-table errors as a shadowing, fixture, or repository problem before considering schema changes.
+- SQL shadowing diagnostics MUST prefer repository evidence over manual database repair.
