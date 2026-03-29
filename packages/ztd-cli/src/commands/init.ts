@@ -355,6 +355,7 @@ const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
 const SETUP_ENV_TEMPLATE = 'tests/support/setup-env.ts';
 const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
 const TSCONFIG_TEMPLATE = 'tsconfig.json';
+const GITIGNORE_TEMPLATE = 'gitignore.template';
 const SQL_CLIENT_TEMPLATE = 'src/db/sql-client.ts';
 const SQL_CLIENT_ADAPTERS_TEMPLATE = 'src/db/sql-client-adapters.ts';
 const INFRASTRUCTURE_README_TEMPLATE = 'src/infrastructure/README.md';
@@ -1225,8 +1226,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   const editorconfigSummary = copyTemplateFileIfMissing(
     rootDir,
     relativePath('editorconfig'),
-    '.editorconfig',
-    dependencies
+    dependencies,
+    '.editorconfig'
   );
   if (editorconfigSummary) {
     summaries.editorconfig = editorconfigSummary;
@@ -1235,8 +1236,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   const prettierSummary = copyTemplateFileIfMissing(
     rootDir,
     relativePath('prettier'),
-    '.prettierrc',
-    dependencies
+    dependencies,
+    '.prettierrc'
   );
   if (prettierSummary) {
     summaries.prettier = prettierSummary;
@@ -1245,8 +1246,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   const gitignoreSummary = copyTemplateFileIfMissing(
     rootDir,
     relativePath('gitignore'),
-    '.gitignore',
-    dependencies
+    dependencies,
+    GITIGNORE_TEMPLATE
   );
   if (gitignoreSummary) {
     summaries.gitignore = gitignoreSummary;
@@ -1259,8 +1260,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   const prettierignoreSummary = copyTemplateFileIfMissing(
     rootDir,
     relativePath('prettierignore'),
-    '.prettierignore',
-    dependencies
+    dependencies,
+    '.prettierignore'
   );
   if (prettierignoreSummary) {
     summaries.prettierignore = prettierignoreSummary;
@@ -1762,8 +1763,8 @@ async function ensureTemplateDependenciesInstalled(
 function copyTemplateFileIfMissing(
   rootDir: string,
   relative: string,
-  templateName: string,
-  dependencies: ZtdConfigWriterDependencies
+  dependencies: ZtdConfigWriterDependencies,
+  templateName: string = relative
 ): FileSummary | null {
   const templatePath = path.join(TEMPLATE_DIRECTORY, templateName);
   // Skip copying when the CLI package does not include the requested template.
