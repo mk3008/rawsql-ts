@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SqlPaginationInjector
 
-Defined in: [packages/core/src/transformers/SqlPaginationInjector.ts:20](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/transformers/SqlPaginationInjector.ts#L20)
+Defined in: [packages/core/src/transformers/SqlPaginationInjector.ts:20](https://github.com/mk3008/rawsql-ts/blob/d48ef1e4aa20926f9b07d25e21de5be68d0d6807/packages/core/src/transformers/SqlPaginationInjector.ts#L20)
 
 SqlPaginationInjector injects pagination (LIMIT/OFFSET) into a SelectQuery model,
 creating LIMIT and OFFSET clauses based on provided pagination options.
@@ -22,7 +22,7 @@ creating LIMIT and OFFSET clauses based on provided pagination options.
 
 > `static` **removePagination**(`query`): [`SimpleSelectQuery`](SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/transformers/SqlPaginationInjector.ts:85](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/transformers/SqlPaginationInjector.ts#L85)
+Defined in: [packages/core/src/transformers/SqlPaginationInjector.ts:85](https://github.com/mk3008/rawsql-ts/blob/d48ef1e4aa20926f9b07d25e21de5be68d0d6807/packages/core/src/transformers/SqlPaginationInjector.ts#L85)
 
 Removes LIMIT and OFFSET clauses from the given query.
 
@@ -46,7 +46,7 @@ The modified SimpleSelectQuery with pagination removed
 
 > **inject**(`query`, `pagination`): [`SimpleSelectQuery`](SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/transformers/SqlPaginationInjector.ts:28](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/transformers/SqlPaginationInjector.ts#L28)
+Defined in: [packages/core/src/transformers/SqlPaginationInjector.ts:28](https://github.com/mk3008/rawsql-ts/blob/d48ef1e4aa20926f9b07d25e21de5be68d0d6807/packages/core/src/transformers/SqlPaginationInjector.ts#L28)
 
 Injects pagination as LIMIT/OFFSET clauses into the given query model.
 

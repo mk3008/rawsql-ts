@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: RelationGraphEdge
 
-Defined in: [packages/core/src/utils/RelationGraph.ts:9](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/utils/RelationGraph.ts#L9)
+Defined in: [packages/core/src/utils/RelationGraph.ts:9](https://github.com/mk3008/rawsql-ts/blob/d48ef1e4aa20926f9b07d25e21de5be68d0d6807/packages/core/src/utils/RelationGraph.ts#L9)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/utils/RelationGraph.ts:9](https://github.com/mk30
 
 > **childTable**: `string`
 
-Defined in: [packages/core/src/utils/RelationGraph.ts:10](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/utils/RelationGraph.ts#L10)
+Defined in: [packages/core/src/utils/RelationGraph.ts:10](https://github.com/mk3008/rawsql-ts/blob/d48ef1e4aa20926f9b07d25e21de5be68d0d6807/packages/core/src/utils/RelationGraph.ts#L10)
 
 ***
 
@@ -17,7 +17,7 @@ Defined in: [packages/core/src/utils/RelationGraph.ts:10](https://github.com/mk3
 
 > **parentTable**: `string`
 
-Defined in: [packages/core/src/utils/RelationGraph.ts:11](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/utils/RelationGraph.ts#L11)
+Defined in: [packages/core/src/utils/RelationGraph.ts:11](https://github.com/mk3008/rawsql-ts/blob/d48ef1e4aa20926f9b07d25e21de5be68d0d6807/packages/core/src/utils/RelationGraph.ts#L11)
 
 ***
 
@@ -25,7 +25,7 @@ Defined in: [packages/core/src/utils/RelationGraph.ts:11](https://github.com/mk3
 
 > **childColumns**: `string`[]
 
-Defined in: [packages/core/src/utils/RelationGraph.ts:12](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/utils/RelationGraph.ts#L12)
+Defined in: [packages/core/src/utils/RelationGraph.ts:12](https://github.com/mk3008/rawsql-ts/blob/d48ef1e4aa20926f9b07d25e21de5be68d0d6807/packages/core/src/utils/RelationGraph.ts#L12)
 
 ***
 
@@ -33,7 +33,7 @@ Defined in: [packages/core/src/utils/RelationGraph.ts:12](https://github.com/mk3
 
 > **parentColumns**: `string`[]
 
-Defined in: [packages/core/src/utils/RelationGraph.ts:13](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/utils/RelationGraph.ts#L13)
+Defined in: [packages/core/src/utils/RelationGraph.ts:13](https://github.com/mk3008/rawsql-ts/blob/d48ef1e4aa20926f9b07d25e21de5be68d0d6807/packages/core/src/utils/RelationGraph.ts#L13)
 
 ***
 
@@ -41,7 +41,7 @@ Defined in: [packages/core/src/utils/RelationGraph.ts:13](https://github.com/mk3
 
 > **constraintKind**: [`RelationConstraintKind`](../type-aliases/RelationConstraintKind.md)
 
-Defined in: [packages/core/src/utils/RelationGraph.ts:14](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/utils/RelationGraph.ts#L14)
+Defined in: [packages/core/src/utils/RelationGraph.ts:14](https://github.com/mk3008/rawsql-ts/blob/d48ef1e4aa20926f9b07d25e21de5be68d0d6807/packages/core/src/utils/RelationGraph.ts#L14)
 
 ***
 
@@ -49,7 +49,7 @@ Defined in: [packages/core/src/utils/RelationGraph.ts:14](https://github.com/mk3
 
 > **constraintName**: `null` \| `string`
 
-Defined in: [packages/core/src/utils/RelationGraph.ts:15](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/utils/RelationGraph.ts#L15)
+Defined in: [packages/core/src/utils/RelationGraph.ts:15](https://github.com/mk3008/rawsql-ts/blob/d48ef1e4aa20926f9b07d25e21de5be68d0d6807/packages/core/src/utils/RelationGraph.ts#L15)
 
 ***
 
@@ -57,7 +57,7 @@ Defined in: [packages/core/src/utils/RelationGraph.ts:15](https://github.com/mk3
 
 > **evidenceKind**: [`RelationEvidenceKind`](../type-aliases/RelationEvidenceKind.md)
 
-Defined in: [packages/core/src/utils/RelationGraph.ts:20](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/utils/RelationGraph.ts#L20)
+Defined in: [packages/core/src/utils/RelationGraph.ts:20](https://github.com/mk3008/rawsql-ts/blob/d48ef1e4aa20926f9b07d25e21de5be68d0d6807/packages/core/src/utils/RelationGraph.ts#L20)
 
 Evidence behind the relation edge. v1 uses FK evidence, but callers can
 keep the same edge shape when PK / UNIQUE inference is added later.
@@ -68,7 +68,7 @@ keep the same edge shape when PK / UNIQUE inference is added later.
 
 > **confidence**: [`RelationConfidence`](../type-aliases/RelationConfidence.md)
 
-Defined in: [packages/core/src/utils/RelationGraph.ts:25](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/utils/RelationGraph.ts#L25)
+Defined in: [packages/core/src/utils/RelationGraph.ts:25](https://github.com/mk3008/rawsql-ts/blob/d48ef1e4aa20926f9b07d25e21de5be68d0d6807/packages/core/src/utils/RelationGraph.ts#L25)
 
 Indicates whether the relation is directly confirmed or inferred from
 broader schema evidence.
@@ -79,5 +79,5 @@ broader schema evidence.
 
 > **isSelfReference**: `boolean`
 
-Defined in: [packages/core/src/utils/RelationGraph.ts:26](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/utils/RelationGraph.ts#L26)
+Defined in: [packages/core/src/utils/RelationGraph.ts:26](https://github.com/mk3008/rawsql-ts/blob/d48ef1e4aa20926f9b07d25e21de5be68d0d6807/packages/core/src/utils/RelationGraph.ts#L26)
 </div>

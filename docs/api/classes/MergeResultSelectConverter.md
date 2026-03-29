@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: MergeResultSelectConverter
 
-Defined in: [packages/core/src/transformers/MergeResultSelectConverter.ts:16](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/transformers/MergeResultSelectConverter.ts#L16)
+Defined in: [packages/core/src/transformers/MergeResultSelectConverter.ts:16](https://github.com/mk3008/rawsql-ts/blob/d48ef1e4aa20926f9b07d25e21de5be68d0d6807/packages/core/src/transformers/MergeResultSelectConverter.ts#L16)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/MergeResultSelectConverter.ts:16](ht
 
 > `static` **toSelectQuery**(`mergeQuery`, `options?`): [`SimpleSelectQuery`](SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/transformers/MergeResultSelectConverter.ts:22](https://github.com/mk3008/rawsql-ts/blob/7b5dc3bdc2f9377c2bbcea5de1aed04ddbd37737/packages/core/src/transformers/MergeResultSelectConverter.ts#L22)
+Defined in: [packages/core/src/transformers/MergeResultSelectConverter.ts:22](https://github.com/mk3008/rawsql-ts/blob/d48ef1e4aa20926f9b07d25e21de5be68d0d6807/packages/core/src/transformers/MergeResultSelectConverter.ts#L22)
 
 Converts a MERGE query into a SELECT that counts or models the rows affected by each action.
 
