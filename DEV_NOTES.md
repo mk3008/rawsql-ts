@@ -12,6 +12,10 @@
 - Observe first: capture `git status`, `git diff`, recent log, and failing test/lint/build outputs before changing files.
 - Re-run failed commands after each minimal fix.
 - Re-run `pnpm --filter rawsql-ts build` when CLI tests report stale dist artifacts.
+- For SQL-backed test failures, first confirm whether the SQL is shadowing the intended path or accidentally touching a physical table directly.
+- If shadowing is wrong, check in this order: DDL and fixture sync, fixture selection or specification, repository bug or rewriter bug.
+- Do not use DDL execution as a repair path for ZTD validation failures.
+- If the database is reachable, treat relation or missing-table errors as a shadowing, fixture, or repository problem before considering schema changes.
 
 ## Docs and Demo Operations
 - Rebuild browser bundle for parser/formatter behavior updates.

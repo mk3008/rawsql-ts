@@ -46,9 +46,12 @@ Use this short prompt:
 
 ```text
 I want to build a feature-first application with @rawsql-ts/ztd-cli.
-Choose ztd init or ztd init --starter based on whether I want the removable starter sample.
-Add a users feature next.
-Keep handwritten SQL, spec, and tests inside src/features/<feature>.
+Start from src/features/smoke and add a users feature next.
+Use src/features/smoke/tests/smoke.queryspec.test.ts as the pattern for the first real DB-backed ZTD test.
+Keep handwritten SQL, QuerySpec, repository code, and tests inside src/features/users.
+Treat the QuerySpec and its ZTD-backed test as one completion unit; do not stop at a property-only check.
+Make sure the result executes the users SQL through ZTD rewrite and checks mapping and validation, not just property values.
+Read the nearest AGENTS.md files first.
 Do not apply migrations automatically.
 ```
 

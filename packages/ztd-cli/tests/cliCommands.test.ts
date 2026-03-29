@@ -608,6 +608,16 @@ test('agents init emits the Codex bootstrap plan and materializes the files', { 
   expect(existsSync(path.join(workspace, '.codex', 'agents', 'planning.md'))).toBe(true);
   expect(existsSync(path.join(workspace, '.agents', 'skills', 'quickstart', 'SKILL.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(false);
+  expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toContain('## SQL Shadowing Troubleshooting');
+  expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toContain(
+    'If the SQL is not shadowing correctly, check the failure in this order:'
+  );
+  expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toContain(
+    'DDL and fixture sync'
+  );
+  expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toContain(
+    'Do not use DDL execution as a repair path for ZTD validation failures.'
+  );
 });
 
 test('agents install remains a backwards-compatible alias for agents init', { timeout: 60_000 }, () => {
