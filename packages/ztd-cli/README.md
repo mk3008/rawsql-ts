@@ -87,9 +87,11 @@ Use this prompt after Quickstart.
 Choose ztd init or ztd init --starter based on whether I want the removable starter sample.
 
 ```text
-I want to build a feature-first application with @rawsql-ts/ztd-cli.
-Start from src/features/smoke and add a users feature next.
-Keep handwritten SQL, spec, and tests inside src/features/<feature>.
+Add a users insert feature to this feature-first project.
+Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.agents/skills/*` if present.
+Start with `npx ztd feature scaffold --table users --action insert`.
+Keep handwritten SQL and the feature entrypoint inside src/features/users-insert.
+Add the two tests in src/features/users-insert/tests as the follow-up step.
 Do not apply migrations automatically.
 ```
 
@@ -109,12 +111,18 @@ Existing user-owned guidance files are preserved; use `npx ztd agents status` if
 A good first request after setup is:
 
 ```text
-Read the nearest AGENTS files, inspect src/features/smoke, and plan the next users feature.
+Add a users insert feature to this feature-first project.
+Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.agents/skills/*` if present.
+Start with `npx ztd feature scaffold --table users --action insert`.
+Keep handwritten SQL and the feature entrypoint inside src/features/users-insert.
+Add the two tests in src/features/users-insert/tests as the follow-up step.
+Do not apply migrations automatically.
 ```
 
 ## Core features
 
 - `ztd init --starter` creates a feature-first starter scaffold with `smoke`, starter DDL, and local Postgres wiring.
+- `ztd feature scaffold --table <table> --action insert` creates a fixed insert feature scaffold for the first CRUD slice while leaving test files to AI follow-up.
 - `ztd agents init` adds the optional Codex bootstrap on demand: visible `AGENTS.md`, `.codex/agents`, `.agents/skills`, and `.codex/config.toml`.
 - `ztd ztd-config --watch` keeps generated `TestRowMap` types and runtime fixture metadata aligned with DDL as files change.
 - `ztd lint` checks SQL against a temporary Postgres before you ship it.
@@ -129,6 +137,7 @@ Read the nearest AGENTS files, inspect src/features/smoke, and plan the next use
 | Command | Purpose |
 |---|---|
 | `ztd init --starter` | Scaffold the recommended first-run project. |
+| `ztd feature scaffold --table <table> --action insert` | Scaffold the fixed insert feature shell, SQL, and README, but not the test files. |
 | `ztd agents init` | Add the optional Codex bootstrap on demand. |
 | `ztd ztd-config` | Regenerate `TestRowMap`, runtime fixture metadata, and layout metadata from DDL; add `--watch` for live updates. |
 | `ztd lint` | Lint SQL files against a temporary Postgres. |

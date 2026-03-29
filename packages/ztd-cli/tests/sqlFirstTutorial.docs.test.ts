@@ -31,8 +31,8 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
   expectInOrder(tutorial, [
     'This tutorial shows the shortest path from `ztd init --starter` to a small `users` feature that can be changed, broken, and repaired with AI help.',
     'The tutorial uses one starter project, one `smoke` feature, and one `users` feature.',
-    'DDL repair | `npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail`',
-    'SQL repair | `npx ztd model-gen --probe-mode ztd src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts`',
+    'DDL repair | `npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail`',
+    'SQL repair | `npx ztd model-gen --probe-mode ztd src/features/users-insert/sql/users-insert.sql --out src/features/users-insert/sql/users-insert.spec.ts`',
     'DTO repair | `npx vitest run` after the DTO change',
     'migration | `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to prepare review output plus apply SQL',
     'tuning | `npx ztd query plan <sql-file>` and the perf guide under `docs/guide/`',
@@ -52,17 +52,19 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
     '# edit ZTD_DB_PORT=5433',
     'docker compose up -d',
     'npx vitest run',
-    'Use `src/features/smoke` as the teaching example and add `src/features/users` as the first real feature.',
-    'src/features/users/domain',
-    'src/features/users/application',
-    'src/features/users/persistence',
-    'src/features/users/tests',
-    'Use src/features/smoke/tests/smoke.queryspec.test.ts as the pattern for the first real DB-backed ZTD test.',
-    'Treat the QuerySpec and its ZTD-backed test as one completion unit; do not stop at a property-only check.',
-    'Make sure the result executes the users SQL through ZTD rewrite and checks mapping and validation, not just property values.',
-    'npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail',
+    'Use `src/features/smoke` as the starter-only teaching example, but scaffold the first real CRUD slice with the CLI:',
+    'npx ztd feature scaffold --table users --action insert',
+    'src/features/users-insert/users-insert.ts',
+    'src/features/users-insert/sql/users-insert.sql',
+    'src/features/users-insert/tests/',
+    'The CLI creates the `tests/` directory but leaves the two test files for the AI follow-up step.',
+    'Add a users insert feature to this feature-first project.',
+    'Start with `npx ztd feature scaffold --table users --action insert`.',
+    'Keep handwritten SQL and the feature entrypoint inside src/features/users-insert.',
+    'Add the two tests in src/features/users-insert/tests as the follow-up step.',
+    'npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail',
     'Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.',
-    'For SQL repair, keep the SQL assets under the feature folder, keep the query on the starter DDL\'s `users` table, and rerun `model-gen` against the feature-local SQL file directly.',
+    'For SQL repair, keep the SQL assets under `src/features/users-insert/sql/`, keep the query on the starter DDL\'s `users` table, and rerun `model-gen` against `src/features/users-insert/sql/users-insert.sql` directly.',
     'In VSA layouts, `model-gen` now treats the SQL file location as the primary contract source, so `--sql-root` is only needed for older shared-root layouts.',
     'npx ztd ztd-config',
     'npx ztd ddl diff'
@@ -72,6 +74,7 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
   expect(tutorial).toContain('generated `tableDefinitions` are the normal runtime path after `ztd-config`');
   expect(tutorial).toContain('explicit `tableDefinitions` / `tableRows` are for local tests that want direct fixtures');
   expect(tutorial).toContain('`ddl.directories` is the fallback only when no generated manifest exists');
+  expect(tutorial).toContain('the agent edits the `users-insert` feature only');
 });
 
 test('guide navigation and feature index surface the tutorial', () => {

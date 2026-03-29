@@ -22,8 +22,8 @@ README gives the first-run copy-paste path. This tutorial gives the scenario-lev
 
 | Scenario | Primary CLI | Why |
 | --- | --- | --- |
-| DDL repair | `npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail` | Find the impacted feature-local SQL files before editing them |
-| SQL repair | `npx ztd model-gen --probe-mode ztd src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts` | Regenerate the spec from the feature-local SQL asset |
+| DDL repair | `npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail` | Find the impacted feature-local SQL files before editing them |
+| SQL repair | `npx ztd model-gen --probe-mode ztd src/features/users-insert/sql/users-insert.sql --out src/features/users-insert/sql/users-insert.spec.ts` | Regenerate the spec from the feature-local SQL asset |
 | DTO repair | `npx vitest run` after the DTO change | Verify the feature-local runtime and tests after the shape change |
 | migration | `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to prepare review output plus apply SQL | Prepare a manually applied migration without asking ztd-cli to deploy it |
 | tuning | `npx ztd query plan <sql-file>` and the perf guide under `docs/guide/` | Keep perf work in the separate tuning path, not in the starter tutorial |
@@ -101,16 +101,20 @@ Avoid mixing `npm install -D` into a pnpm-managed starter project because that c
 
 ## 3. Add the first real feature
 
-Use `src/features/smoke` as the teaching example and add `src/features/users` as the first real feature.
+Use `src/features/smoke` as the starter-only teaching example, but scaffold the first real CRUD slice with the CLI:
 
-Keep the feature local:
+```bash
+npx ztd feature scaffold --table users --action insert
+```
 
-- `src/features/users/domain`
-- `src/features/users/application`
-- `src/features/users/persistence`
-- `src/features/users/tests`
+That v1 scaffold fixes the initial layout to:
 
-The feature should own its SQL, spec, and tests instead of reaching for `src/catalog` as the starting place.
+- `src/features/users-insert/users-insert.ts`
+- `src/features/users-insert/sql/users-insert.sql`
+- `src/features/users-insert/tests/`
+- `src/features/users-insert/README.md`
+
+The CLI creates the `tests/` directory but leaves the two test files for the AI follow-up step.
 
 ## 4. Run the CRUD scenario
 
@@ -119,16 +123,19 @@ Use the prompt from `packages/ztd-cli/README.md` or `PROMPT_DOGFOOD.md`:
 This prompt is meant to be copied into another AI instance so we can observe whether the scaffold and AGENTS guidance are enough on their own.
 
 ```text
-Add a users feature to this feature-first project.
+Add a users insert feature to this feature-first project.
 Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.agents/skills/*` if present.
-Keep handwritten SQL, specs, and tests inside src/features/users.
+Start with `npx ztd feature scaffold --table users --action insert`.
+Keep handwritten SQL and the feature entrypoint inside src/features/users-insert.
+Add the two tests in src/features/users-insert/tests as the follow-up step.
 Do not apply migrations automatically.
 ```
 
 Expected result:
 
-- the agent edits the `users` feature only
-- the agent keeps SQL, spec, and tests feature-local
+- the agent edits the `users-insert` feature only
+- the agent keeps SQL and the feature entrypoint feature-local
+- the agent adds tests only after the scaffold exists
 - the next command is a normal project test run
 
 ## 5. Run the DDL / SQL / DTO change scenarios
@@ -141,9 +148,9 @@ Use the same `users` project for each scenario:
 
 Each scenario should end with `vitest` passing again.
 
-For DDL repair, run `npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail` first so the impacted SQL files come from the CLI, not from guesswork. Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.
+For DDL repair, run `npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail` first so the impacted SQL files come from the CLI, not from guesswork. Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.
 
-For SQL repair, keep the SQL assets under the feature folder, keep the query on the starter DDL's `users` table, and rerun `model-gen` against the feature-local SQL file directly. In VSA layouts, `model-gen` now treats the SQL file location as the primary contract source, so `--sql-root` is only needed for older shared-root layouts.
+For SQL repair, keep the SQL assets under `src/features/users-insert/sql/`, keep the query on the starter DDL's `users` table, and rerun `model-gen` against `src/features/users-insert/sql/users-insert.sql` directly. In VSA layouts, `model-gen` now treats the SQL file location as the primary contract source, so `--sql-root` is only needed for older shared-root layouts.
 
 For migration work, use an explicit `--url <target-db-url>` with `ddl pull` or `ddl diff` so the target database is never inferred from the starter test database by accident.
 

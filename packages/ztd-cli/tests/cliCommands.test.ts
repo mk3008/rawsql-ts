@@ -225,6 +225,179 @@ test(
     const result = runCli(['--help']);
     assertCliSuccess(result, '--help');
     expect(result.stdout).toContain('model-gen [options] <sql-file>');
+    expect(result.stdout).toContain('feature');
+  },
+  60000,
+);
+
+test(
+  'feature scaffold help exposes the insert scaffold contract',
+  () => {
+    const result = runCli(['feature', 'scaffold', '--help']);
+    assertCliSuccess(result, 'feature scaffold --help');
+    expect(result.stdout).toContain('--table <table>');
+    expect(result.stdout).toContain('--action <action>');
+    expect(result.stdout).toContain('--feature-name <name>');
+    expect(result.stdout).toContain('--dry-run');
+  },
+  60000,
+);
+
+test(
+  'feature scaffold dry-run emits JSON and reserves test files for AI follow-up',
+  () => {
+    const workspace = createTempDir('feature-scaffold-dry-run');
+    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    mkdirSync(ddlDir, { recursive: true });
+    writeFileSync(
+      path.join(ddlDir, 'users.sql'),
+      [
+        'create table public.users (',
+        '  id serial primary key,',
+        '  email text not null,',
+        '  created_at timestamptz not null default now()',
+        ');'
+      ].join('\n'),
+      'utf8'
+    );
+
+    const result = runCli([
+      '--output',
+      'json',
+      'feature',
+      'scaffold',
+      '--table',
+      'users',
+      '--action',
+      'insert',
+      '--dry-run'
+    ], {}, workspace);
+
+    assertCliSuccess(result, 'feature scaffold dry-run json');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      command: 'feature scaffold',
+      ok: true,
+      data: {
+        featureName: 'users-insert',
+        action: 'insert',
+        table: 'public.users',
+        primaryKeyColumn: 'id',
+        source: 'ddl',
+        dryRun: true
+      }
+    });
+    const plannedPaths = parsed.data.outputs.map((entry: { path: string }) => entry.path);
+    expect(plannedPaths).toEqual(expect.arrayContaining([
+      'src/features/_shared',
+      'src/features/_shared/loadSqlResource.ts',
+      'src/features/_shared/queryOneExact.ts',
+      'src/features/users-insert',
+      'src/features/users-insert/sql',
+      'src/features/users-insert/tests',
+      'src/features/users-insert/users-insert.ts',
+      'src/features/users-insert/sql/users-insert.sql',
+      'src/features/users-insert/README.md'
+    ]));
+    expect(plannedPaths.some((entry: string) => entry.endsWith('.queryspec.test.ts'))).toBe(false);
+    expect(plannedPaths.some((entry: string) => entry.endsWith('.feature.test.ts'))).toBe(false);
+  },
+  60000,
+);
+
+test(
+  'feature scaffold writes fixed layout directories without creating test files',
+  () => {
+    const workspace = createTempDir('feature-scaffold-write');
+    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    mkdirSync(ddlDir, { recursive: true });
+    writeFileSync(
+      path.join(ddlDir, 'users.sql'),
+      [
+        'create table public.users (',
+        '  id serial primary key,',
+        '  email text not null',
+        ');'
+      ].join('\n'),
+      'utf8'
+    );
+
+    const result = runCli([
+      'feature',
+      'scaffold',
+      '--table',
+      'users',
+      '--action',
+      'insert'
+    ], {}, workspace);
+
+    assertCliSuccess(result, 'feature scaffold write');
+    expect(existsSync(path.join(workspace, 'src', 'features', '_shared'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', '_shared', 'loadSqlResource.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', '_shared', 'queryOneExact.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'sql'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'tests'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'users-insert.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'sql', 'users-insert.sql'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'tests', 'users-insert.queryspec.test.ts'))).toBe(false);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'tests', 'users-insert.feature.test.ts'))).toBe(false);
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'sql', 'users-insert.sql'))).toContain('returning id;');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'users-insert.ts'))).toContain(
+      "import { loadSqlResource } from '../_shared/loadSqlResource';"
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'users-insert.ts'))).toContain(
+      "return queryOneExact<UsersInsertResult>(executor, usersInsertSqlResource, input, 'users-insert');"
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'users-insert.ts'))).not.toContain(
+      "TODO: implement feature entrypoint."
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'users-insert.ts'))).not.toContain(
+      "readFileSync(path.join(__dirname, 'sql', 'users-insert.sql'), 'utf8')"
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', '_shared', 'queryOneExact.ts'))).toContain(
+      'export async function queryOneExact<TResult>('
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toContain(
+      '## Execution seam contract'
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toContain(
+      '## Open questions'
+    );
+  },
+  60000,
+);
+
+test(
+  'feature scaffold rejects composite primary keys in v1',
+  () => {
+    const workspace = createTempDir('feature-scaffold-composite-pk');
+    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    mkdirSync(ddlDir, { recursive: true });
+    writeFileSync(
+      path.join(ddlDir, 'orders.sql'),
+      [
+        'create table public.orders (',
+        '  order_id bigint not null,',
+        '  line_no bigint not null,',
+        '  primary key (order_id, line_no)',
+        ');'
+      ].join('\n'),
+      'utf8'
+    );
+
+    const result = runCli([
+      'feature',
+      'scaffold',
+      '--table',
+      'orders',
+      '--action',
+      'insert'
+    ], {}, workspace);
+
+    assertCliFailure(result, 'feature scaffold composite pk');
+    expect(result.stderr || result.stdout).toContain('Composite primary keys are not supported in v1');
   },
   60000,
 );

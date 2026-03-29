@@ -376,6 +376,14 @@ exports[`describe command snapshots the top-level command catalog and every deta
         "writesFiles": false,
       },
       {
+        "name": "feature scaffold",
+        "summary": "Scaffold a feature-local insert shell, SQL, and README from schema metadata.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": true,
+        "supportsJsonPayload": false,
+        "writesFiles": true,
+      },
+      {
         "name": "ztd-config",
         "summary": "Generate TestRowMap, runtime fixture metadata, and layout metadata from local DDL.",
         "supportsDescribeOutput": false,
@@ -537,6 +545,57 @@ exports[`describe command snapshots the top-level command catalog and every deta
       "summary": "Generate deterministic specification evidence artifacts.",
       "supportsDryRun": false,
       "supportsJsonPayload": true,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > feature scaffold 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Scaffold completed or dry-run plan emitted.",
+        "1": "Validation, metadata resolution, or filesystem error.",
+      },
+      "flags": [
+        {
+          "description": "Target table name for the scaffold.",
+          "name": "--table <table>",
+        },
+        {
+          "description": "Action template to scaffold. v1 supports only insert.",
+          "name": "--action <action>",
+        },
+        {
+          "description": "Override the derived resource-action feature name.",
+          "name": "--feature-name <name>",
+        },
+        {
+          "description": "Validate inputs and emit the planned scaffold without writing files.",
+          "name": "--dry-run",
+        },
+      ],
+      "name": "feature scaffold",
+      "output": {
+        "files": [
+          "src/features/<feature-name>/",
+          "src/features/<feature-name>/sql/",
+          "src/features/<feature-name>/tests/",
+          "src/features/<feature-name>/<feature-name>.ts",
+          "src/features/<feature-name>/sql/<feature-name>.sql",
+          "src/features/<feature-name>/README.md",
+        ],
+        "stdout": "Human scaffold summary in text mode, JSON envelope in global json mode.",
+      },
+      "summary": "Scaffold a feature-local insert shell, SQL, and README from schema metadata.",
+      "supportsDryRun": true,
+      "supportsJsonPayload": false,
       "writesFiles": true,
     },
     "schemaVersion": 1,
