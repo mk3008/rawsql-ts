@@ -414,8 +414,8 @@ const STARTER_README_APPENDIX = (postgresImage: string): string =>
     '6. Run `npx ztd ztd-config` to regenerate the runtime fixture manifest, DDL-derived test rows, and layout metadata.',
     '7. Read `tests/support/postgres-testkit.ts` and `src/features/smoke/tests/smoke.queryspec.test.ts` to see the DB-backed starter smoke path through `createStarterPostgresTestkitClient` and the underlying `@rawsql-ts/testkit-postgres` API.',
     '8. Run `npx vitest run` to exercise the DB-free and DB-backed smoke tests with the values from `.env`.',
-    '9. Run `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` to scaffold a QuerySpec from that SQL file.',
-    '10. Start your first real feature under `src/features/users/`, then delete `src/features/smoke/` when you no longer need the sample.',
+    '9. Run `npx ztd feature scaffold --table users --action insert` to create the first fixed feature shell before asking AI to add tests.',
+    '10. Add `src/features/users-insert/tests/users-insert.queryspec.test.ts` and `src/features/users-insert/tests/users-insert.feature.test.ts` as the AI follow-up, then delete `src/features/smoke/` when you no longer need the sample.',
     ''
   ].join('\n');
 
@@ -2292,7 +2292,7 @@ function buildNextSteps(
       `The bundled compose file uses ${postgresImage}; copy .env.example to .env and keep ZTD_DB_PORT aligned before running src/features/smoke/tests/smoke.queryspec.test.ts`,
       'Expect src/features/smoke/tests/smoke.queryspec.test.ts to fail until .env is present or the DB is running; that failure is part of the starter guidance',
       ...generationSteps,
-      'Start your first real feature under src/features/users/ after the smoke sample makes sense',
+      `Start your first real CRUD slice with \`${ztdCommand} feature scaffold --table users --action insert\` after the smoke sample makes sense`,
       'Delete src/features/smoke/ once you no longer need the starter sample'
     ];
     const starterFallbackSteps = [

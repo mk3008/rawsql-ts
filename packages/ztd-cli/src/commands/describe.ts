@@ -111,6 +111,34 @@ const COMMANDS: CommandDescriptor[] = [
     flags: []
   },
   {
+    name: 'feature scaffold',
+    summary: 'Scaffold a feature-local insert shell, SQL, and README from schema metadata.',
+    writesFiles: true,
+    supportsDryRun: true,
+    supportsJsonPayload: false,
+    output: {
+      stdout: 'Human scaffold summary in text mode, JSON envelope in global json mode.',
+      files: [
+        'src/features/<feature-name>/',
+        'src/features/<feature-name>/sql/',
+        'src/features/<feature-name>/tests/',
+        'src/features/<feature-name>/<feature-name>.ts',
+        'src/features/<feature-name>/sql/<feature-name>.sql',
+        'src/features/<feature-name>/README.md'
+      ]
+    },
+    exitCodes: {
+      '0': 'Scaffold completed or dry-run plan emitted.',
+      '1': 'Validation, metadata resolution, or filesystem error.'
+    },
+    flags: [
+      { name: '--table <table>', description: 'Target table name for the scaffold.' },
+      { name: '--action <action>', description: 'Action template to scaffold. v1 supports only insert.' },
+      { name: '--feature-name <name>', description: 'Override the derived resource-action feature name.' },
+      { name: '--dry-run', description: 'Validate inputs and emit the planned scaffold without writing files.' }
+    ]
+  },
+  {
     name: 'ztd-config',
     summary: 'Generate TestRowMap, runtime fixture metadata, and layout metadata from local DDL.',
     writesFiles: true,

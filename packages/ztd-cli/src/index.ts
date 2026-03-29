@@ -5,6 +5,7 @@ import { registerAgentsCommand } from './commands/agents';
 import { CheckContractRuntimeError, registerCheckContractCommand } from './commands/checkContract';
 import { registerDescribeCommand } from './commands/describe';
 import { registerDdlCommands } from './commands/ddl';
+import { registerFeatureCommand } from './commands/feature';
 import { registerFindingRegistryCommand } from './commands/findings';
 import { registerInitCommand } from './commands/init';
 import { registerLintCommand } from './commands/lint';
@@ -85,6 +86,7 @@ export function buildProgram(): Command {
 
   registerInitCommand(program);
   registerAgentsCommand(program);
+  registerFeatureCommand(program);
   registerLintCommand(program);
   registerModelGenCommand(program);
   registerPerfCommands(program);
@@ -102,6 +104,7 @@ Getting started:
   $ ztd init --yes             Create a new ZTD project (non-interactive, demo + Zod defaults)
   $ ztd init --yes --force     Allow non-interactive overwrite of scaffold-owned files
   $ ztd agents init            Install the opt-in Codex bootstrap files
+  $ ztd feature scaffold --table users --action insert --dry-run
   $ ztd ztd-config             Generate TestRowMap types from DDL
   $ ztd findings validate docs/guide/finding-registry.example.json
   $ ztd lint <path>            Lint SQL files against the schema

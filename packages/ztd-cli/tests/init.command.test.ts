@@ -185,9 +185,9 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If `5432` is already in use');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('change `ZTD_DB_PORT` in `.env`');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('delete `src/features/smoke/`');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/features/users');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd feature scaffold --table users --action insert');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd model-gen');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('users-insert.queryspec.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('@rawsql-ts/testkit-postgres');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('tests/support/postgres-testkit.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('repository telemetry');
@@ -387,10 +387,12 @@ test('init can opt into dogfooding prompt files when explicitly requested', asyn
 
   expect(existsSync(path.join(workspace, 'CONTEXT.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toBe(true);
-  expect(readNormalizedFile(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toContain('Add a users feature');
-  expect(readNormalizedFile(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toContain(
-    'Do not apply migrations automatically.'
-  );
+  const promptDogfood = readNormalizedFile(path.join(workspace, 'PROMPT_DOGFOOD.md'));
+  expect(promptDogfood).toContain('Add a users insert feature to this feature-first project.');
+  expect(promptDogfood).toContain('Start with `npx ztd feature scaffold --table users --action insert`.');
+  expect(promptDogfood).toContain('Keep handwritten SQL and the feature entrypoint inside src/features/users-insert.');
+  expect(promptDogfood).toContain('Add the two tests in src/features/users-insert/tests as the follow-up step.');
+  expect(promptDogfood).toContain('Do not apply migrations automatically.');
 });
 
 test('with-app-interface appends to AGENTS.md when both root files exist', async () => {
