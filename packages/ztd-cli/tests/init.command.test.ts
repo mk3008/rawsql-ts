@@ -88,7 +88,7 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('feature-first by default');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Generate the starter flow with `ztd init --starter` when you want the removable `src/features/smoke/` sample feature');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
-    'Choose `ztd init` or `ztd init --starter` based on whether I want the removable starter sample.'
+    'Choose ztd init or ztd init --starter based on whether I want the removable starter sample.'
   );
   expect(existsSync(path.join(workspace, 'src', 'features', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke'))).toBe(false);
@@ -173,7 +173,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Starter Flow');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('starter-only sample feature');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
-    'Choose `ztd init` or `ztd init --starter` based on whether I want the removable starter sample.'
+    'Choose ztd init or ztd init --starter based on whether I want the removable starter sample.'
   );
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Copy `.env.example` to `.env`');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('ZTD_DB_PORT');

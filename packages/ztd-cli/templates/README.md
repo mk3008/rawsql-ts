@@ -43,7 +43,7 @@ For reverse lookup from observed SQL, read [Observed SQL Investigation](../../..
 ## Getting Started with AI
 
 Use this short prompt:
-Choose `ztd init` or `ztd init --starter` based on whether I want the removable starter sample.
+Choose ztd init or ztd init --starter based on whether I want the removable starter sample.
 
 ```text
 I want to build a feature-first application with @rawsql-ts/ztd-cli.

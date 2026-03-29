@@ -84,7 +84,7 @@ If `5432` is busy, use another local port and update `ZTD_DB_PORT` in `.env`.
 ## Getting Started with AI
 
 Use this prompt after Quickstart.
-Choose `ztd init` or `ztd init --starter` based on whether I want the removable starter sample.
+Choose ztd init or ztd init --starter based on whether I want the removable starter sample.
 
 ```text
 I want to build a feature-first application with @rawsql-ts/ztd-cli.
