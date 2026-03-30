@@ -352,7 +352,7 @@ test(
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toBe(true);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'tests', 'users-insert.queryspec.test.ts'))).toBe(false);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'tests', 'users-insert.feature.test.ts'))).toBe(false);
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'insert-users.sql'))).toContain('returning id;');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'insert-users.sql'))).toContain('returning "id";');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).toContain(
       'export async function executeUsersInsertEntrySpec'
     );
@@ -486,8 +486,8 @@ test(
     assertCliSuccess(result, 'feature scaffold update write');
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-update', 'entryspec.ts'))).toBe(true);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-update', 'update-users', 'queryspec.ts'))).toBe(true);
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-update', 'update-users', 'update-users.sql'))).toContain('update public.users');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-update', 'update-users', 'update-users.sql'))).toContain('id = :id');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-update', 'update-users', 'update-users.sql'))).toContain('update "public"."users"');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-update', 'update-users', 'update-users.sql'))).toContain('"id" = :id');
   },
   60000,
 );
@@ -521,7 +521,7 @@ test(
     assertCliSuccess(result, 'feature scaffold delete write');
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-delete', 'entryspec.ts'))).toBe(true);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-delete', 'delete-users', 'queryspec.ts'))).toBe(true);
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-delete', 'delete-users', 'delete-users.sql'))).toContain('delete from public.users');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-delete', 'delete-users', 'delete-users.sql'))).toContain('delete from "public"."users"');
   },
   60000,
 );

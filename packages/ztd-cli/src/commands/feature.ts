@@ -393,24 +393,37 @@ function extractTypeName(column: TableColumnDefinition): string | undefined {
 
 function extractDefaultValue(constraints: ColumnConstraintDefinition[]): string | null {
   const defaultConstraint = constraints.find((constraint) => constraint.kind === 'default');
-  if (!defaultConstraint?.defaultValue) {
+  if (!defaultConstraint || defaultConstraint.defaultValue == null) {
     return null;
   }
   const value = defaultConstraint.defaultValue;
   if (typeof value === 'string') {
     return value;
   }
-  if ('toSql' in value && typeof value.toSql === 'function') {
+  if (
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'bigint'
+  ) {
+    return String(value);
+  }
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'toSql' in value &&
+    typeof value.toSql === 'function'
+  ) {
     return value.toSql();
   }
   try {
     const formatter = new SqlFormatter({ keywordCase: 'none' });
     const { formattedSql } = formatter.format(value);
     return formattedSql;
-  } catch {
-    // Fall back to String() only when we cannot pretty-print the AST default.
+  } catch (cause) {
+    throw new Error(
+      `Failed to render a scaffoldable default expression: ${cause instanceof Error ? cause.message : String(cause)}`
+    );
   }
-  return String(value);
 }
 
 function resolveRequestedTable(
@@ -659,45 +672,55 @@ function isGeneratedInsertColumn(column: ScaffoldColumnMetadata, primaryKeyColum
 }
 
 function renderActionSql(plan: ActionPlan, tableName: string, primaryKeyColumn: string): string {
+  const quotedTableName = quoteQualifiedIdentifier(tableName);
+  const quotedPrimaryKeyColumn = quoteSqlIdentifier(primaryKeyColumn);
   if (plan.action === 'insert') {
     if (plan.writeColumns.length === 0) {
       return [
-        `insert into ${tableName}`,
+        `insert into ${quotedTableName}`,
         'default values',
-        `returning ${primaryKeyColumn};`,
+        `returning ${quotedPrimaryKeyColumn};`,
         ''
       ].join('\n');
     }
 
     return [
-      `insert into ${tableName} (`,
-      plan.writeColumns.map((column) => `  ${column.name}`).join(',\n'),
+      `insert into ${quotedTableName} (`,
+      plan.writeColumns.map((column) => `  ${quoteSqlIdentifier(column.name)}`).join(',\n'),
       ') values (',
       plan.writeColumns.map((column) => `  ${column.expression}`).join(',\n'),
-      `) returning ${primaryKeyColumn};`,
+      `) returning ${quotedPrimaryKeyColumn};`,
       ''
     ].join('\n');
   }
 
   if (plan.action === 'update') {
     return [
-      `update ${tableName}`,
+      `update ${quotedTableName}`,
       'set',
-      plan.writeColumns.map((column) => `  ${column.name} = ${column.expression}`).join(',\n'),
+      plan.writeColumns.map((column) => `  ${quoteSqlIdentifier(column.name)} = ${column.expression}`).join(',\n'),
       'where',
-      plan.whereColumns.map((column, index) => `  ${column.name} = ${column.expression}${index < plan.whereColumns.length - 1 ? ' and' : ''}`).join('\n'),
-      `returning ${primaryKeyColumn};`,
+      plan.whereColumns.map((column, index) => `  ${quoteSqlIdentifier(column.name)} = ${column.expression}${index < plan.whereColumns.length - 1 ? ' and' : ''}`).join('\n'),
+      `returning ${quotedPrimaryKeyColumn};`,
       ''
     ].join('\n');
   }
 
   return [
-    `delete from ${tableName}`,
+    `delete from ${quotedTableName}`,
     'where',
-    plan.whereColumns.map((column, index) => `  ${column.name} = ${column.expression}${index < plan.whereColumns.length - 1 ? ' and' : ''}`).join('\n'),
-    `returning ${primaryKeyColumn};`,
+    plan.whereColumns.map((column, index) => `  ${quoteSqlIdentifier(column.name)} = ${column.expression}${index < plan.whereColumns.length - 1 ? ' and' : ''}`).join('\n'),
+    `returning ${quotedPrimaryKeyColumn};`,
     ''
   ].join('\n');
+}
+
+function quoteQualifiedIdentifier(value: string): string {
+  return value.split('.').map((segment) => quoteSqlIdentifier(segment)).join('.');
+}
+
+function quoteSqlIdentifier(value: string): string {
+  return `"${value.replace(/"/g, '""')}"`;
 }
 
 function toRenderField(column: ScaffoldColumnMetadata): RenderField {

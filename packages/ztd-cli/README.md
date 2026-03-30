@@ -139,7 +139,7 @@ Do not apply migrations automatically.
 | Command | Purpose |
 |---|---|
 | `ztd init --starter` | Scaffold the recommended first-run project. |
-| `ztd feature scaffold --table <table> --action <insert|update|delete>` | Scaffold the fixed CRUD boundary files (`entryspec.ts`, query-local `queryspec.ts` + SQL, `zod` DTO schemas, shared executor runtime contract), the empty `tests/` directory, and SQL-resource helper files on first run, while using `@rawsql-ts/sql-contract` for cardinality execution and leaving the two test files to AI follow-up. |
+| `ztd feature scaffold --table <table> --action <insert/update/delete>` | Scaffold the fixed CRUD boundary files (`entryspec.ts`, query-local `queryspec.ts` + SQL, `zod` DTO schemas, shared executor runtime contract), the empty `tests/` directory, and SQL-resource helper files on first run, while using `@rawsql-ts/sql-contract` for cardinality execution and leaving the two test files to AI follow-up. |
 | `ztd agents init` | Add the optional Codex bootstrap on demand. |
 | `ztd ztd-config` | Regenerate `TestRowMap`, runtime fixture metadata, and layout metadata from DDL; add `--watch` for live updates. |
 | `ztd lint` | Lint SQL files against a temporary Postgres. |
