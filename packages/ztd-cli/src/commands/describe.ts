@@ -112,7 +112,7 @@ const COMMANDS: CommandDescriptor[] = [
   },
   {
     name: 'feature scaffold',
-    summary: 'Scaffold a feature-local insert entryspec, queryspec, and README from schema metadata.',
+    summary: 'Scaffold a feature-local CRUD boundary skeleton from schema metadata.',
     writesFiles: true,
     supportsDryRun: true,
     supportsJsonPayload: false,
@@ -136,7 +136,7 @@ const COMMANDS: CommandDescriptor[] = [
     },
     flags: [
       { name: '--table <table>', description: 'Target table name for the scaffold.' },
-      { name: '--action <action>', description: 'Action template to scaffold. v1 supports only insert.' },
+      { name: '--action <action>', description: 'Action template to scaffold. v1 supports insert, update, and delete.' },
       { name: '--feature-name <name>', description: 'Override the derived resource-action feature name.' },
       { name: '--dry-run', description: 'Validate inputs and emit the planned scaffold without writing files.' },
       { name: '--force', description: 'Overwrite scaffold-owned feature files when they already exist.' }

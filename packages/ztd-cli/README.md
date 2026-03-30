@@ -124,7 +124,7 @@ Do not apply migrations automatically.
 ## Core features
 
 - `ztd init --starter` creates a feature-first starter scaffold with `smoke`, starter DDL, and local Postgres wiring.
-- `ztd feature scaffold --table <table> --action insert` creates a fixed insert feature scaffold with `entryspec.ts`, a co-located query directory (`queryspec.ts` + SQL resource), `zod` DTO schemas at both boundaries, a shared executor runtime contract, the empty feature `tests/` directory, and SQL-resource helper files on first run, while delegating cardinality execution to `@rawsql-ts/sql-contract` and leaving the two test files to AI follow-up.
+- `ztd feature scaffold --table <table> --action <insert|update|delete>` creates a fixed CRUD boundary scaffold with `entryspec.ts`, a co-located query directory (`queryspec.ts` + SQL resource), `zod` DTO schemas at both boundaries, a shared executor runtime contract, the empty feature `tests/` directory, and SQL-resource helper files on first run, while delegating cardinality execution to `@rawsql-ts/sql-contract` and leaving the two test files to AI follow-up.
 - `ztd agents init` adds the optional Codex bootstrap on demand: visible `AGENTS.md`, `.codex/agents`, `.agents/skills`, and `.codex/config.toml`.
 - `ztd ztd-config --watch` keeps generated `TestRowMap` types and runtime fixture metadata aligned with DDL as files change.
 - `ztd lint` checks SQL against a temporary Postgres before you ship it.
@@ -139,7 +139,7 @@ Do not apply migrations automatically.
 | Command | Purpose |
 |---|---|
 | `ztd init --starter` | Scaffold the recommended first-run project. |
-| `ztd feature scaffold --table <table> --action insert` | Scaffold the fixed insert boundary files (`entryspec.ts`, query-local `queryspec.ts` + SQL, `zod` DTO schemas, shared executor runtime contract), the empty `tests/` directory, and SQL-resource helper files on first run, while using `@rawsql-ts/sql-contract` for cardinality execution and leaving the two test files to AI follow-up. |
+| `ztd feature scaffold --table <table> --action <insert|update|delete>` | Scaffold the fixed CRUD boundary files (`entryspec.ts`, query-local `queryspec.ts` + SQL, `zod` DTO schemas, shared executor runtime contract), the empty `tests/` directory, and SQL-resource helper files on first run, while using `@rawsql-ts/sql-contract` for cardinality execution and leaving the two test files to AI follow-up. |
 | `ztd agents init` | Add the optional Codex bootstrap on demand. |
 | `ztd ztd-config` | Regenerate `TestRowMap`, runtime fixture metadata, and layout metadata from DDL; add `--watch` for live updates. |
 | `ztd lint` | Lint SQL files against a temporary Postgres. |

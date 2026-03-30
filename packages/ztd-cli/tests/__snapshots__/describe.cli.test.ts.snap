@@ -377,7 +377,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
       },
       {
         "name": "feature scaffold",
-        "summary": "Scaffold a feature-local insert entryspec, queryspec, and README from schema metadata.",
+        "summary": "Scaffold a feature-local CRUD boundary skeleton from schema metadata.",
         "supportsDescribeOutput": false,
         "supportsDryRun": true,
         "supportsJsonPayload": false,
@@ -569,7 +569,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
           "name": "--table <table>",
         },
         {
-          "description": "Action template to scaffold. v1 supports only insert.",
+          "description": "Action template to scaffold. v1 supports insert, update, and delete.",
           "name": "--action <action>",
         },
         {
@@ -600,7 +600,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
         ],
         "stdout": "Human scaffold summary in text mode, JSON envelope in global json mode.",
       },
-      "summary": "Scaffold a feature-local insert entryspec, queryspec, and README from schema metadata.",
+      "summary": "Scaffold a feature-local CRUD boundary skeleton from schema metadata.",
       "supportsDryRun": true,
       "supportsJsonPayload": false,
       "writesFiles": true,

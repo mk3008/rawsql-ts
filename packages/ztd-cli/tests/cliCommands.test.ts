@@ -231,7 +231,7 @@ test(
 );
 
 test(
-  'feature scaffold help exposes the insert boundary scaffold contract',
+  'feature scaffold help exposes the CRUD boundary scaffold contract',
   () => {
     const result = runCli(['feature', 'scaffold', '--help']);
     assertCliSuccess(result, 'feature scaffold --help');
@@ -240,7 +240,7 @@ test(
     expect(result.stdout).toContain('--feature-name <name>');
     expect(result.stdout).toContain('--dry-run');
     expect(result.stdout).toContain('--force');
-    expect(result.stdout).toMatch(/supports only\s+insert/);
+    expect(result.stdout).toMatch(/insert,\s+update,\s+and\s+delete/);
   },
   60000,
 );
@@ -452,6 +452,76 @@ test(
 
     assertCliFailure(result, 'feature scaffold composite pk');
     expect(result.stderr || result.stdout).toContain('Composite primary keys are not supported in v1');
+  },
+  60000,
+);
+
+test(
+  'feature scaffold writes the update boundary baseline',
+  () => {
+    const workspace = createTempDir('feature-scaffold-update-cli');
+    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    mkdirSync(ddlDir, { recursive: true });
+    writeFileSync(
+      path.join(ddlDir, 'users.sql'),
+      [
+        'create table public.users (',
+        '  id serial primary key,',
+        '  email text not null,',
+        '  display_name text',
+        ');'
+      ].join('\n'),
+      'utf8'
+    );
+
+    const result = runCli([
+      'feature',
+      'scaffold',
+      '--table',
+      'users',
+      '--action',
+      'update'
+    ], {}, workspace);
+
+    assertCliSuccess(result, 'feature scaffold update write');
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-update', 'entryspec.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-update', 'update-users', 'queryspec.ts'))).toBe(true);
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-update', 'update-users', 'update-users.sql'))).toContain('update public.users');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-update', 'update-users', 'update-users.sql'))).toContain('id = :id');
+  },
+  60000,
+);
+
+test(
+  'feature scaffold writes the delete boundary baseline',
+  () => {
+    const workspace = createTempDir('feature-scaffold-delete-cli');
+    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    mkdirSync(ddlDir, { recursive: true });
+    writeFileSync(
+      path.join(ddlDir, 'users.sql'),
+      [
+        'create table public.users (',
+        '  id serial primary key,',
+        '  email text not null',
+        ');'
+      ].join('\n'),
+      'utf8'
+    );
+
+    const result = runCli([
+      'feature',
+      'scaffold',
+      '--table',
+      'users',
+      '--action',
+      'delete'
+    ], {}, workspace);
+
+    assertCliSuccess(result, 'feature scaffold delete write');
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-delete', 'entryspec.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-delete', 'delete-users', 'queryspec.ts'))).toBe(true);
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-delete', 'delete-users', 'delete-users.sql'))).toContain('delete from public.users');
   },
   60000,
 );

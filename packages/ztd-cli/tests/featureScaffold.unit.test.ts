@@ -24,16 +24,19 @@ function createTempDir(prefix: string): string {
 
 test('deriveFeatureName defaults to resource-action form', () => {
   expect(deriveFeatureName('users', 'insert')).toBe('users-insert');
+  expect(deriveFeatureName('users', 'update')).toBe('users-update');
+  expect(deriveFeatureName('users', 'delete')).toBe('users-delete');
   expect(deriveFeatureName('public.users', 'insert')).toBe('users-insert');
   expect(deriveFeatureName('crm.UserProfiles', 'insert')).toBe('user-profiles-insert');
   expect(deriveFeatureName('public.user_profiles', 'insert')).toBe('user-profiles-insert');
   expect(deriveFeatureName('public.user profiles', 'insert')).toBe('user-profiles-insert');
 });
 
-test('normalizeFeatureAction only accepts insert in v1', () => {
+test('normalizeFeatureAction accepts the supported CRUD scaffold actions', () => {
   expect(normalizeFeatureAction('insert')).toBe('insert');
-  expect(() => normalizeFeatureAction('update')).toThrow(/supports only insert/i);
-  expect(() => normalizeFeatureAction('delete')).toThrow(/supports only insert/i);
+  expect(normalizeFeatureAction('update')).toBe('update');
+  expect(normalizeFeatureAction('delete')).toBe('delete');
+  expect(() => normalizeFeatureAction('read')).toThrow(/supports only insert, update, and delete/i);
 });
 
 test('normalizeFeatureName enforces resource-action kebab-case', () => {
@@ -345,6 +348,113 @@ test('runFeatureScaffoldCommand uses default values when every insert column is 
   );
   expect(sqlFile).toContain('insert into public.users');
   expect(sqlFile).toContain('default values');
+});
+
+test('runFeatureScaffoldCommand writes the update baseline with pk predicate and explicit set list', async () => {
+  const workspace = createTempDir('feature-scaffold-update-write');
+  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'users.sql'),
+    [
+      'create table public.users (',
+      '  id serial primary key,',
+      '  email text not null,',
+      '  display_name text,',
+      '  created_at timestamptz not null default now()',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  const result = await runFeatureScaffoldCommand({
+    table: 'users',
+    action: 'update',
+    rootDir: workspace
+  });
+
+  expect(result.featureName).toBe('users-update');
+  const entrySpecFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-update', 'entryspec.ts'),
+    'utf8'
+  );
+  expect(entrySpecFile).toContain('export type UsersUpdateRequest');
+  expect(entrySpecFile).toContain('id: z.number().finite()');
+  expect(entrySpecFile).toContain('email: z.string()');
+  expect(entrySpecFile).toContain('display_name: z.string().nullable()');
+  expect(entrySpecFile).toContain('created_at: z.string()');
+
+  const querySpecFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-update', 'update-users', 'queryspec.ts'),
+    'utf8'
+  );
+  expect(querySpecFile).toContain('export type UpdateUsersQueryParams');
+  expect(querySpecFile).toContain("import { queryExactlyOneRow, type QueryParams } from '@rawsql-ts/sql-contract';");
+
+  const sqlFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-update', 'update-users', 'update-users.sql'),
+    'utf8'
+  );
+  expect(sqlFile).toContain('update public.users');
+  expect(sqlFile).toContain('email = :email');
+  expect(sqlFile).toContain('display_name = :display_name');
+  expect(sqlFile).toContain('created_at = :created_at');
+  expect(sqlFile).toContain('where');
+  expect(sqlFile).toContain('id = :id');
+  expect(sqlFile).toContain('returning id;');
+
+  const updateReadmeFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-update', 'README.md'),
+    'utf8'
+  );
+  expect(updateReadmeFile).toContain('mechanical, not a mutable-policy guarantee');
+  expect(updateReadmeFile).toContain('`created_at`, `updated_at`, and similar fields are representative follow-up candidates');
+});
+
+test('runFeatureScaffoldCommand writes the delete baseline with key-only predicate', async () => {
+  const workspace = createTempDir('feature-scaffold-delete-write');
+  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'users.sql'),
+    [
+      'create table public.users (',
+      '  id serial primary key,',
+      '  email text not null',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  const result = await runFeatureScaffoldCommand({
+    table: 'users',
+    action: 'delete',
+    rootDir: workspace
+  });
+
+  expect(result.featureName).toBe('users-delete');
+  const entrySpecFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-delete', 'entryspec.ts'),
+    'utf8'
+  );
+  expect(entrySpecFile).toContain('export type UsersDeleteRequest');
+  expect(entrySpecFile).toContain('id: z.number().finite()');
+  expect(entrySpecFile).not.toContain('email:');
+
+  const sqlFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-delete', 'delete-users', 'delete-users.sql'),
+    'utf8'
+  );
+  expect(sqlFile).toContain('delete from public.users');
+  expect(sqlFile).toContain('id = :id');
+  expect(sqlFile).toContain('returning id;');
+
+  const deleteReadmeFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-delete', 'README.md'),
+    'utf8'
+  );
+  expect(deleteReadmeFile).toContain('does not assume string normalization');
+  expect(deleteReadmeFile).not.toContain('trim()` plus empty-string rejection examples for string inputs');
 });
 
 test('runFeatureScaffoldCommand preserves existing feature files unless force is set', async () => {

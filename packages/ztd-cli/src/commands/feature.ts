@@ -14,7 +14,8 @@ import { ensureDirectory } from '../utils/fs';
 import { collectSqlFiles, type SqlSource } from '../utils/collectSqlFiles';
 import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
 
-const FEATURE_ACTION = 'insert';
+const FEATURE_ACTIONS = ['insert', 'update', 'delete'] as const;
+type FeatureAction = (typeof FEATURE_ACTIONS)[number];
 const FIXED_LAYOUT_DESCRIPTION = [
   'src/features/<feature-name>/',
   '  entryspec.ts',
@@ -79,7 +80,7 @@ interface FeatureScaffoldPaths {
 
 interface FeatureScaffoldResult {
   featureName: string;
-  action: 'insert';
+  action: FeatureAction;
   table: string;
   primaryKeyColumn: string;
   source: FeatureScaffoldSourceName;
@@ -92,9 +93,9 @@ export function registerFeatureCommand(program: Command): void {
 
   feature
     .command('scaffold')
-    .description('Scaffold a feature-local insert entryspec, queryspec, and README from schema metadata')
+    .description('Scaffold a feature-local CRUD boundary skeleton from schema metadata')
     .requiredOption('--table <table>', 'Target table name')
-    .requiredOption('--action <action>', 'Feature action template to scaffold (v1 supports only insert)')
+    .requiredOption('--action <action>', 'Feature action template to scaffold (v1 supports insert, update, and delete)')
     .option('--feature-name <name>', 'Override the derived feature name')
     .option('--dry-run', 'Validate inputs and emit the planned scaffold without writing files', false)
     .option('--force', 'Overwrite scaffold-owned feature files when they already exist', false)
@@ -206,12 +207,12 @@ export function deriveFeatureName(tableName: string, action: string): string {
   return `${resourceSegment}-${action.trim().toLowerCase()}`;
 }
 
-export function normalizeFeatureAction(action: string | undefined): 'insert' {
+export function normalizeFeatureAction(action: string | undefined): FeatureAction {
   const normalized = (action ?? '').trim().toLowerCase();
-  if (normalized === FEATURE_ACTION) {
-    return FEATURE_ACTION;
+  if (FEATURE_ACTIONS.includes(normalized as FeatureAction)) {
+    return normalized as FeatureAction;
   }
-  throw new Error(`Unsupported --action value: ${action}. v1 supports only insert.`);
+  throw new Error(`Unsupported --action value: ${action}. v1 supports only insert, update, and delete.`);
 }
 
 export function normalizeFeatureName(value: string): string {
@@ -466,7 +467,7 @@ function buildFeatureScaffoldPaths(rootDir: string, featureName: string, queryNa
 function renderFeatureScaffoldFiles(params: {
   featureName: string;
   queryName: string;
-  action: 'insert';
+  action: FeatureAction;
   table: DdlTableMetadata;
   primaryKeyColumn: string;
 }): {
@@ -481,13 +482,8 @@ function renderFeatureScaffoldFiles(params: {
   const entryCamelName = toCamelCase(params.featureName);
   const queryPascalName = toPascalCase(params.queryName);
   const queryCamelName = toCamelCase(params.queryName);
-  const insertSqlColumns = selectInsertSqlColumns(params.table, params.primaryKeyColumn);
-  const requestFields = params.table.columns
-    .filter((column) =>
-      !isGeneratedInsertColumn(column, params.primaryKeyColumn) &&
-      column.defaultValue == null
-    )
-    .map((column) => toRenderField(column));
+  const actionPlan = buildActionPlan(params.action, params.table, params.primaryKeyColumn);
+  const requestFields = actionPlan.requestColumns.map((column) => toRenderField(column));
   const responseField = toRenderField(
     params.table.columns.find((column) => column.name === params.primaryKeyColumn) ?? {
       name: params.primaryKeyColumn,
@@ -497,7 +493,7 @@ function renderFeatureScaffoldFiles(params: {
       hasGeneratedIdentity: false
     }
   );
-  const sqlFile = renderInsertSql(params.table.canonicalName, insertSqlColumns, params.primaryKeyColumn);
+  const sqlFile = renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn);
   const featureQueryExecutorFile = [
     '// Shared runtime contract for scaffolded features.',
     '// Inject your DB execution implementation at this seam from the application runtime.',
@@ -516,6 +512,7 @@ function renderFeatureScaffoldFiles(params: {
     ''
   ].join('\n');
   const entrySpecFile = renderEntrySpecFile({
+    action: params.action,
     featureName: params.featureName,
     pascalName,
     entryCamelName,
@@ -526,6 +523,7 @@ function renderFeatureScaffoldFiles(params: {
     responseField
   });
   const querySpecFile = renderQuerySpecFile({
+    action: params.action,
     queryName: params.queryName,
     featureName: params.featureName,
     queryPascalName,
@@ -534,6 +532,7 @@ function renderFeatureScaffoldFiles(params: {
     responseField
   });
   const readmeFile = renderReadmeFile({
+    action: params.action,
     featureName: params.featureName,
     queryName: params.queryName,
     tableName: params.table.canonicalName,
@@ -541,9 +540,9 @@ function renderFeatureScaffoldFiles(params: {
     generatedColumns: params.table.columns
       .filter((column) => isGeneratedInsertColumn(column, params.primaryKeyColumn))
       .map((column) => column.name),
-    insertColumns: insertSqlColumns.map((column) => column.name),
-    parameterColumns: insertSqlColumns.filter((column) => column.source === 'param').map((column) => column.name),
-    defaultExpressionColumns: insertSqlColumns.filter((column) => column.source === 'ddl-default').map((column) => column.name)
+    queryColumns: actionPlan.queryColumns.map((column) => column.name),
+    parameterColumns: actionPlan.queryColumns.filter((column) => column.source === 'param').map((column) => column.name),
+    defaultExpressionColumns: actionPlan.queryColumns.filter((column) => column.source === 'ddl-default').map((column) => column.name)
   });
 
   return {
@@ -570,8 +569,61 @@ type InsertSqlColumn = {
   source: 'param' | 'ddl-default';
 };
 
-function deriveQueryName(tableName: string, action: 'insert'): string {
+type ActionPlan = {
+  action: FeatureAction;
+  requestColumns: ScaffoldColumnMetadata[];
+  queryColumns: InsertSqlColumn[];
+  writeColumns: InsertSqlColumn[];
+  whereColumns: InsertSqlColumn[];
+};
+
+function deriveQueryName(tableName: string, action: FeatureAction): string {
   return `${action}-${toFeatureResourceSegment(tableName)}`;
+}
+
+function buildActionPlan(
+  action: FeatureAction,
+  table: DdlTableMetadata,
+  primaryKeyColumn: string
+): ActionPlan {
+  if (action === 'insert') {
+    const queryColumns = selectInsertSqlColumns(table, primaryKeyColumn);
+    return {
+      action,
+      requestColumns: table.columns
+        .filter((column) => !isGeneratedInsertColumn(column, primaryKeyColumn) && column.defaultValue == null),
+      queryColumns,
+      writeColumns: queryColumns,
+      whereColumns: []
+    };
+  }
+
+  if (action === 'update') {
+    const primaryKey = requireColumn(table, primaryKeyColumn);
+    const mutableColumns = table.columns.filter((column) => !isGeneratedInsertColumn(column, primaryKeyColumn) && column.name !== primaryKeyColumn);
+    if (mutableColumns.length === 0) {
+      throw new Error(`Update scaffold requires at least one mutable non-primary-key column: ${table.canonicalName}.`);
+    }
+    const whereColumns = [{ name: primaryKey.name, expression: `:${primaryKey.name}`, source: 'param' as const }];
+    const writeColumns = mutableColumns.map((column) => ({ name: column.name, expression: `:${column.name}`, source: 'param' as const }));
+    return {
+      action,
+      requestColumns: [primaryKey, ...mutableColumns],
+      queryColumns: [...whereColumns, ...writeColumns],
+      writeColumns,
+      whereColumns
+    };
+  }
+
+  const primaryKey = requireColumn(table, primaryKeyColumn);
+  const whereColumns = [{ name: primaryKey.name, expression: `:${primaryKey.name}`, source: 'param' as const }];
+  return {
+    action,
+    requestColumns: [primaryKey],
+    queryColumns: whereColumns,
+    writeColumns: [],
+    whereColumns
+  };
 }
 
 function selectInsertSqlColumns(table: DdlTableMetadata, primaryKeyColumn: string): InsertSqlColumn[] {
@@ -582,6 +634,14 @@ function selectInsertSqlColumns(table: DdlTableMetadata, primaryKeyColumn: strin
       expression: column.defaultValue ?? `:${column.name}`,
       source: column.defaultValue == null ? 'param' : 'ddl-default'
     }));
+}
+
+function requireColumn(table: DdlTableMetadata, columnName: string): ScaffoldColumnMetadata {
+  const column = table.columns.find((candidate) => candidate.name === columnName);
+  if (!column) {
+    throw new Error(`Column ${columnName} was not found in ${table.canonicalName}.`);
+  }
+  return column;
 }
 
 function isGeneratedInsertColumn(column: ScaffoldColumnMetadata, primaryKeyColumn: string): boolean {
@@ -598,22 +658,44 @@ function isGeneratedInsertColumn(column: ScaffoldColumnMetadata, primaryKeyColum
   return /^nextval\s*\(/i.test(column.defaultValue ?? '');
 }
 
-function renderInsertSql(tableName: string, columns: InsertSqlColumn[], primaryKeyColumn: string): string {
-  if (columns.length === 0) {
+function renderActionSql(plan: ActionPlan, tableName: string, primaryKeyColumn: string): string {
+  if (plan.action === 'insert') {
+    if (plan.writeColumns.length === 0) {
+      return [
+        `insert into ${tableName}`,
+        'default values',
+        `returning ${primaryKeyColumn};`,
+        ''
+      ].join('\n');
+    }
+
     return [
-      `insert into ${tableName}`,
-      'default values',
+      `insert into ${tableName} (`,
+      plan.writeColumns.map((column) => `  ${column.name}`).join(',\n'),
+      ') values (',
+      plan.writeColumns.map((column) => `  ${column.expression}`).join(',\n'),
+      `) returning ${primaryKeyColumn};`,
+      ''
+    ].join('\n');
+  }
+
+  if (plan.action === 'update') {
+    return [
+      `update ${tableName}`,
+      'set',
+      plan.writeColumns.map((column) => `  ${column.name} = ${column.expression}`).join(',\n'),
+      'where',
+      plan.whereColumns.map((column, index) => `  ${column.name} = ${column.expression}${index < plan.whereColumns.length - 1 ? ' and' : ''}`).join('\n'),
       `returning ${primaryKeyColumn};`,
       ''
     ].join('\n');
   }
 
   return [
-    `insert into ${tableName} (`,
-    columns.map((column) => `  ${column.name}`).join(',\n'),
-    ') values (',
-    columns.map((column) => `  ${column.expression}`).join(',\n'),
-    `) returning ${primaryKeyColumn};`,
+    `delete from ${tableName}`,
+    'where',
+    plan.whereColumns.map((column, index) => `  ${column.name} = ${column.expression}${index < plan.whereColumns.length - 1 ? ' and' : ''}`).join('\n'),
+    `returning ${primaryKeyColumn};`,
     ''
   ].join('\n');
 }
@@ -670,6 +752,7 @@ function isNumberType(typeName: string): boolean {
 }
 
 function renderEntrySpecFile(params: {
+  action: FeatureAction;
   featureName: string;
   pascalName: string;
   entryCamelName: string;
@@ -729,8 +812,7 @@ function renderEntrySpecFile(params: {
     `  type ${params.queryPascalName}QueryResult`,
     `} from './${params.queryName}/queryspec';`,
     '',
-    '// Only non-default insert columns remain in the initial feature request.',
-    '// DDL-backed default expressions are written into the SQL resource explicitly.',
+    ...renderEntrySpecBoundaryComments(params.action),
     '',
     rawRequestSchema,
     '',
@@ -776,6 +858,7 @@ function renderEntrySpecFile(params: {
 }
 
 function renderQuerySpecFile(params: {
+  action: FeatureAction;
   queryName: string;
   featureName: string;
   queryPascalName: string;
@@ -808,8 +891,7 @@ function renderQuerySpecFile(params: {
     '',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
     '',
-    '// Query params own only the DB-boundary values that still need caller-supplied input.',
-    '// DDL-backed defaults are reflected directly in the SQL resource.',
+    ...renderQuerySpecBoundaryComments(params.action),
     paramsSchema,
     '',
     `export type ${params.queryPascalName}QueryParams = z.infer<typeof ${params.queryCamelName}QueryParamsSchema>;`,
@@ -852,34 +934,37 @@ function renderQuerySpecFile(params: {
 }
 
 function renderReadmeFile(params: {
+  action: FeatureAction;
   featureName: string;
   queryName: string;
   tableName: string;
   primaryKeyColumn: string;
   generatedColumns: string[];
-  insertColumns: string[];
+  queryColumns: string[];
   parameterColumns: string[];
   defaultExpressionColumns: string[];
 }): string {
   const generatedColumnsLine = params.generatedColumns.length > 0
     ? `- Generated / identity / sequence-backed columns excluded at scaffold time: ${params.generatedColumns.map((name) => `\`${name}\``).join(', ')}.`
-    : '- No generated / identity / sequence-backed insert columns were detected for exclusion in this scaffold.';
-  const insertColumnsLine = params.insertColumns.length > 0
-    ? `- Initial insert columns: ${params.insertColumns.map((name) => `\`${name}\``).join(', ')}.`
-    : '- Initial insert uses `default values` because every insert candidate column is DB-generated.';
+    : '- No generated / identity / sequence-backed columns were detected for exclusion in this scaffold.';
+  const queryColumnsLine = params.queryColumns.length > 0
+    ? `- Initial ${params.action} query columns: ${params.queryColumns.map((name) => `\`${name}\``).join(', ')}.`
+    : `- Initial ${params.action} query does not require caller-visible write columns.`;
   const parameterColumnsLine = params.parameterColumns.length > 0
     ? `- Caller-supplied request/query params: ${params.parameterColumns.map((name) => `\`${name}\``).join(', ')}.`
     : '- No caller-supplied request/query params remain after applying scaffold defaults.';
-  const defaultExpressionColumnsLine = params.defaultExpressionColumns.length > 0
+  const defaultExpressionColumnsLine = params.action === 'insert' && params.defaultExpressionColumns.length > 0
     ? `- DDL-backed default expressions written directly into SQL: ${params.defaultExpressionColumns.map((name) => `\`${name}\``).join(', ')}.`
-    : '- No general insert columns used DDL-backed default expressions in this scaffold.';
+    : params.action === 'insert'
+      ? '- No general insert columns used DDL-backed default expressions in this scaffold.'
+      : `- DDL-backed default expressions are not applied in the baseline ${params.action} scaffold because the query writes caller-supplied values or a key-only predicate.`;
 
   return [
     `# ${params.featureName}`,
     '',
     '## Purpose',
     '',
-    `Scaffold a minimal insert feature skeleton for \`${params.tableName}\` with explicit feature, DB, and transport boundaries.`,
+    `Scaffold a minimal ${params.action} feature skeleton for \`${params.tableName}\` with explicit feature, DB, and transport boundaries.`,
     '',
     '## Fixed feature layout contract',
     '',
@@ -909,18 +994,16 @@ function renderReadmeFile(params: {
     '## Boundary responsibilities',
     '',
     '- `entryspec.ts` is the feature outer-boundary specification for request parsing, normalization, rejection, query-parameter assembly, and response shaping.',
-    '- `entryspec.ts` uses `zod` schemas for request and response DTOs, and the scaffold includes `trim()` plus empty-string rejection examples for string inputs.',
+    ...renderReadmeEntryspecNotes(params.action, params.parameterColumns),
     '- `entryspec.ts` keeps its schema values and helper functions file-local; it converts request data to query params explicitly and depends on the shared executor contract directly.',
     `- \`${params.queryName}/queryspec.ts\` is the DB-boundary specification for query params, row shape, query result shape, row-to-result mapping, and SQL execution contract.`,
     `- \`${params.queryName}/queryspec.ts\` keeps its \`zod\` schema values, row type, and helper functions private, completes params / row / result parsing internally, and depends on the shared executor contract directly.`,
     `- \`${params.queryName}/queryspec.ts\` and \`${params.queryName}/${params.queryName}.sql\` stay co-located as one queryspec/SQL pair.`,
     generatedColumnsLine,
-    insertColumnsLine,
+    queryColumnsLine,
     parameterColumnsLine,
     defaultExpressionColumnsLine,
-    '- SQL omits only generated / identity / sequence-backed primary keys. Every other insert column stays explicit in the scaffold SQL.',
-    '- When DDL declares a column default, the scaffold writes that default expression into SQL explicitly instead of relying on an implicit database default at runtime.',
-    `- The insert result returns the primary key only: \`${params.primaryKeyColumn}\`.`,
+    ...renderReadmeOperationNotes(params.action, params.primaryKeyColumn),
     '',
     '## Query growth rule',
     '',
@@ -938,9 +1021,105 @@ function renderReadmeFile(params: {
     '',
     '- Narrow field types and validation rules once the transport contract is known.',
     '- Replace any scaffolded DDL-backed default expression if the feature needs a different explicit SQL assignment.',
+    ...renderReadmeFollowUpNotes(params.action),
     '- Add QuerySpec and feature tests under `tests/` as the AI-owned follow-up step.',
     ''
   ].join('\n');
+}
+
+function renderReadmeEntryspecNotes(action: FeatureAction, parameterColumns: string[]): string[] {
+  const hasStringLikeInput = parameterColumns.length > 0;
+  if (action === 'delete') {
+    return [
+      '- `entryspec.ts` uses `zod` schemas for request and response DTOs and keeps the delete baseline focused on key-only request parsing.',
+      '- The delete baseline does not assume string normalization; add transport-specific parsing or policy checks later only when the feature actually needs them.'
+    ];
+  }
+
+  if (hasStringLikeInput) {
+    return [
+      '- `entryspec.ts` uses `zod` schemas for request and response DTOs, and the scaffold includes `trim()` plus empty-string rejection examples for current string inputs.'
+    ];
+  }
+
+  return [
+    '- `entryspec.ts` uses `zod` schemas for request and response DTOs and leaves string normalization examples for follow-up when string fields appear.'
+  ];
+}
+
+function renderEntrySpecBoundaryComments(action: FeatureAction): string[] {
+  if (action === 'insert') {
+    return [
+      '// Only non-default insert columns remain in the initial feature request.',
+      '// DDL-backed default expressions are written into the SQL resource explicitly.'
+    ];
+  }
+  if (action === 'update') {
+    return [
+      '// The initial update request carries the primary key plus every mechanically mutable candidate column.',
+      '// Treat control or audit fields as follow-up review points; remove or pin them when the feature contract becomes more specific.'
+    ];
+  }
+  return [
+    '// The initial delete request carries only the primary-key predicate.',
+    '// Add richer policy or authorization checks here as follow-up requirements appear.'
+  ];
+}
+
+function renderQuerySpecBoundaryComments(action: FeatureAction): string[] {
+  if (action === 'insert') {
+    return [
+      '// Query params own only the DB-boundary values that still need caller-supplied input.',
+      '// DDL-backed defaults are reflected directly in the SQL resource.'
+    ];
+  }
+  if (action === 'update') {
+    return [
+      '// Query params own the primary-key predicate plus every caller-supplied write value.',
+      '// The baseline update query returns the primary key after exactly one-row execution.'
+    ];
+  }
+  return [
+    '// Query params own only the primary-key predicate for the delete baseline.',
+    '// The baseline delete query returns the primary key after exactly one-row execution.'
+  ];
+}
+
+function renderReadmeOperationNotes(action: FeatureAction, primaryKeyColumn: string): string[] {
+  if (action === 'insert') {
+    return [
+      '- SQL omits only generated / identity / sequence-backed primary keys. Every other insert column stays explicit in the scaffold SQL.',
+      '- When DDL declares a column default, the scaffold writes that default expression into SQL explicitly instead of relying on an implicit database default at runtime.',
+      `- The insert result returns the primary key only: \`${primaryKeyColumn}\`.`
+    ];
+  }
+  if (action === 'update') {
+    return [
+      `- The baseline update query uses \`${primaryKeyColumn}\` as the predicate and updates every non-generated, non-primary-key column explicitly.`,
+      '- This baseline is mechanical, not a mutable-policy guarantee. Control or audit columns such as `created_at`, `updated_at`, and similar fields are representative follow-up candidates to remove, pin, or otherwise specialize.',
+      `- The update result returns the primary key only: \`${primaryKeyColumn}\`.`
+    ];
+  }
+  return [
+    `- The baseline delete query uses \`${primaryKeyColumn}\` as the predicate and performs a primary-key-only delete.`,
+    `- The delete result returns the primary key only: \`${primaryKeyColumn}\`.`
+  ];
+}
+
+function renderReadmeFollowUpNotes(action: FeatureAction): string[] {
+  if (action === 'update') {
+    return [
+      '- Revisit the mutable field set before treating the scaffold as business-safe. Control and audit columns are expected follow-up review points for update features.'
+    ];
+  }
+
+  if (action === 'delete') {
+    return [
+      '- Add richer delete policy, authorization checks, or soft-delete behavior later if the feature contract requires them.'
+    ];
+  }
+
+  return [];
 }
 
 function renderZodObjectSchema(
