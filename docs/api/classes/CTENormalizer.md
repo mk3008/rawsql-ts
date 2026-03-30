@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CTENormalizer
 
-Defined in: [packages/core/src/transformers/CTENormalizer.ts:20](https://github.com/mk3008/rawsql-ts/blob/31cf69500e2889c5dc86d8b2391e15e8a0746977/packages/core/src/transformers/CTENormalizer.ts#L20)
+Defined in: [packages/core/src/transformers/CTENormalizer.ts:20](https://github.com/mk3008/rawsql-ts/blob/15281f90ed1573f1c4d35f7aeeb5e5a04cc184e7/packages/core/src/transformers/CTENormalizer.ts#L20)
 
 CTENormalizer is responsible for normalizing Common Table Expressions (CTEs) within SQL queries.
 It collects all CTEs from various parts of the query and consolidates them into a single WITH clause
@@ -18,7 +18,7 @@ This implementation uses:
 
 > `static` **normalize**(`query`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/CTENormalizer.ts:34](https://github.com/mk3008/rawsql-ts/blob/31cf69500e2889c5dc86d8b2391e15e8a0746977/packages/core/src/transformers/CTENormalizer.ts#L34)
+Defined in: [packages/core/src/transformers/CTENormalizer.ts:34](https://github.com/mk3008/rawsql-ts/blob/15281f90ed1573f1c4d35f7aeeb5e5a04cc184e7/packages/core/src/transformers/CTENormalizer.ts#L34)
 
 Normalizes a SQL query by consolidating all CTEs into a single WITH clause
 at the root level of the query.

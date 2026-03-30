@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: SequenceRestartClause
 
-Defined in: [packages/core/src/models/DDLStatements.ts:452](https://github.com/mk3008/rawsql-ts/blob/31cf69500e2889c5dc86d8b2391e15e8a0746977/packages/core/src/models/DDLStatements.ts#L452)
+Defined in: [packages/core/src/models/DDLStatements.ts:452](https://github.com/mk3008/rawsql-ts/blob/15281f90ed1573f1c4d35f7aeeb5e5a04cc184e7/packages/core/src/models/DDLStatements.ts#L452)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:452](https://github.com/m
 
 > **kind**: `"restart"`
 
-Defined in: [packages/core/src/models/DDLStatements.ts:453](https://github.com/mk3008/rawsql-ts/blob/31cf69500e2889c5dc86d8b2391e15e8a0746977/packages/core/src/models/DDLStatements.ts#L453)
+Defined in: [packages/core/src/models/DDLStatements.ts:453](https://github.com/mk3008/rawsql-ts/blob/15281f90ed1573f1c4d35f7aeeb5e5a04cc184e7/packages/core/src/models/DDLStatements.ts#L453)
 
 ***
 
@@ -17,5 +17,5 @@ Defined in: [packages/core/src/models/DDLStatements.ts:453](https://github.com/m
 
 > `optional` **value**: [`ValueComponent`](../type-aliases/ValueComponent.md)
 
-Defined in: [packages/core/src/models/DDLStatements.ts:454](https://github.com/mk3008/rawsql-ts/blob/31cf69500e2889c5dc86d8b2391e15e8a0746977/packages/core/src/models/DDLStatements.ts#L454)
+Defined in: [packages/core/src/models/DDLStatements.ts:454](https://github.com/mk3008/rawsql-ts/blob/15281f90ed1573f1c4d35f7aeeb5e5a04cc184e7/packages/core/src/models/DDLStatements.ts#L454)
 </div>

@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CheckpointStatementParser
 
-Defined in: [packages/core/src/parsers/CheckpointStatementParser.ts:4](https://github.com/mk3008/rawsql-ts/blob/31cf69500e2889c5dc86d8b2391e15e8a0746977/packages/core/src/parsers/CheckpointStatementParser.ts#L4)
+Defined in: [packages/core/src/parsers/CheckpointStatementParser.ts:4](https://github.com/mk3008/rawsql-ts/blob/15281f90ed1573f1c4d35f7aeeb5e5a04cc184e7/packages/core/src/parsers/CheckpointStatementParser.ts#L4)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/parsers/CheckpointStatementParser.ts:4](https://g
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/CheckpointStatementParser.ts:5](https://github.com/mk3008/rawsql-ts/blob/31cf69500e2889c5dc86d8b2391e15e8a0746977/packages/core/src/parsers/CheckpointStatementParser.ts#L5)
+Defined in: [packages/core/src/parsers/CheckpointStatementParser.ts:5](https://github.com/mk3008/rawsql-ts/blob/15281f90ed1573f1c4d35f7aeeb5e5a04cc184e7/packages/core/src/parsers/CheckpointStatementParser.ts#L5)
 
 #### Parameters
 
