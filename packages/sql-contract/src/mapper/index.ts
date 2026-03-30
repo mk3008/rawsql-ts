@@ -25,6 +25,10 @@ export type QueryExecutor = (
   params: QueryParams
 ) => Promise<QueryExecutionResult>
 
+export interface CardinalityOptions {
+  label?: string
+}
+
 /**
  * Defines how a column prefix, key, and optional overrides describe a row mapping.
  */
@@ -700,6 +704,90 @@ function expectExactlyOneRow<T>(rows: T[]): T {
     throw new Error(`expected exactly one row but received ${rows.length}.`)
   }
   return rows[0]
+}
+
+function describeLabel(label?: string): string {
+  return label ? ` for ${label}` : ''
+}
+
+function expectZeroOrOneRow<T>(rows: T[], label?: string): T | undefined {
+  if (rows.length > 1) {
+    throw new Error(
+      `expected zero or one row${describeLabel(label)} but received ${rows.length}.`
+    )
+  }
+  return rows[0]
+}
+
+async function readRows<T>(
+  executor: QueryExecutor,
+  sql: string,
+  params: QueryParams
+): Promise<T[]> {
+  const rawResult = await executor(sql, params)
+
+  try {
+    const { rows } = normalizeExecutionResult(rawResult)
+    if (!Array.isArray(rows)) {
+      throw new Error(
+        `Cardinality executor result must include a rows array. sql=${sql} params=${String(params)} raw=${String(rawResult)}`
+      )
+    }
+    return rows as T[]
+  } catch (cause) {
+    throw new Error(
+      `Cardinality executor returned an unsupported result shape. sql=${sql} params=${String(params)} cause=${cause instanceof Error ? cause.message : String(cause)}`
+    )
+  }
+}
+
+export async function queryManyRows<T>(
+  executor: QueryExecutor,
+  sql: string,
+  params: QueryParams = []
+): Promise<T[]> {
+  return readRows<T>(executor, sql, params)
+}
+
+export async function queryExactlyOneRow<T>(
+  executor: QueryExecutor,
+  sql: string,
+  params: QueryParams = [],
+  options?: CardinalityOptions
+): Promise<T> {
+  const rows = await readRows<T>(executor, sql, params)
+  try {
+    return expectExactlyOneRow(rows)
+  } catch (cause) {
+    throw new Error(
+      `Expected exactly one row${describeLabel(options?.label)}. ${cause instanceof Error ? cause.message : String(cause)}`
+    )
+  }
+}
+
+export async function queryZeroOrOneRow<T>(
+  executor: QueryExecutor,
+  sql: string,
+  params: QueryParams = [],
+  options?: CardinalityOptions
+): Promise<T | undefined> {
+  const rows = await readRows<T>(executor, sql, params)
+  return expectZeroOrOneRow(rows, options?.label)
+}
+
+export async function queryScalarExactlyOne<T = unknown>(
+  executor: QueryExecutor,
+  sql: string,
+  params: QueryParams = [],
+  options?: CardinalityOptions
+): Promise<T> {
+  try {
+    return (await readScalarValue(executor, sql, params)) as T
+  } catch (cause) {
+    throw new Error(
+      `Expected exactly one scalar${describeLabel(options?.label)}. ${cause instanceof Error ? cause.message : String(cause)}`
+    )
+  }
 }
 
 function readScalarValue(
