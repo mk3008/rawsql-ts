@@ -797,6 +797,15 @@ function toRenderField(column: ScaffoldColumnMetadata): RenderField {
       sourceType: column.typeName ?? 'bigint'
     };
   }
+  if (isStringEncodedNumericType(typeName)) {
+    return {
+      name: column.name,
+      typeScriptType: column.isNotNull ? 'string' : 'string | null',
+      parserKind: 'string',
+      nullable: !column.isNotNull,
+      sourceType: column.typeName ?? 'numeric'
+    };
+  }
   if (isNumberType(typeName)) {
     return {
       name: column.name,
@@ -844,13 +853,18 @@ function isNumberType(typeName: string): boolean {
     'int4',
     'integer',
     'smallint',
-    'numeric',
-    'decimal',
     'real',
     'float',
     'float4',
     'float8',
     'double precision'
+  ].includes(typeName);
+}
+
+function isStringEncodedNumericType(typeName: string): boolean {
+  return [
+    'numeric',
+    'decimal'
   ].includes(typeName);
 }
 
@@ -882,7 +896,7 @@ function renderEntrySpecFile(params: {
     trimStrings: false,
     rejectEmptyStrings: false,
     exported: false,
-    strict: false
+    strict: true
   });
   const normalizeLines = params.requestFields.length === 0
     ? ['  return request;']
@@ -1001,13 +1015,13 @@ function renderQuerySpecFile(params: {
     trimStrings: false,
     rejectEmptyStrings: false,
     exported: false,
-    strict: false
+    strict: true
   });
   const resultSchema = renderZodObjectSchema('QueryResultSchema', [params.responseFields[0]], {
     trimStrings: false,
     rejectEmptyStrings: false,
     exported: false,
-    strict: false
+    strict: true
   });
 
   return [
@@ -1346,7 +1360,7 @@ function renderGetByIdEntrySpecFile(params: {
     trimStrings: false,
     rejectEmptyStrings: false,
     exported: false,
-    strict: false
+    strict: true
   });
 
   return [
@@ -1444,7 +1458,7 @@ function renderListEntrySpecFile(params: {
     trimStrings: false,
     rejectEmptyStrings: false,
     exported: false,
-    strict: false
+    strict: true
   });
 
   return [
@@ -1467,7 +1481,7 @@ function renderListEntrySpecFile(params: {
     '',
     'const ResponseSchema = z.object({',
     '  items: z.array(ResponseItemSchema),',
-    '});',
+    '}).strict();',
     '',
     `export type ${params.pascalName}Response = z.infer<typeof ResponseSchema>;`,
     '',
@@ -1529,7 +1543,7 @@ function renderGetByIdQuerySpecFile(params: {
     trimStrings: false,
     rejectEmptyStrings: false,
     exported: false,
-    strict: false
+    strict: true
   });
 
   return [
@@ -1609,7 +1623,7 @@ function renderListQuerySpecFile(params: {
     trimStrings: false,
     rejectEmptyStrings: false,
     exported: false,
-    strict: false
+    strict: true
   });
 
   return [
@@ -1631,7 +1645,7 @@ function renderListQuerySpecFile(params: {
     '',
     'const QueryResultSchema = z.object({',
     '  items: z.array(RowSchema),',
-    '});',
+    '}).strict();',
     '',
     `export type ${params.queryPascalName}QueryResult = z.infer<typeof QueryResultSchema>;`,
     '',

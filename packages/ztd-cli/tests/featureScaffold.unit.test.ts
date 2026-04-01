@@ -450,6 +450,8 @@ test('runFeatureScaffoldCommand writes the update baseline with pk predicate and
   expect(entrySpecFile).toContain('email: z.string()');
   expect(entrySpecFile).toContain('display_name: z.string().nullable()');
   expect(entrySpecFile).toContain('created_at: z.string()');
+  expect(entrySpecFile).toContain('const ResponseSchema = z.object({');
+  expect(entrySpecFile).toContain('}).strict();');
 
   const querySpecFile = readFileSync(
     path.join(workspace, 'src', 'features', 'users-update', 'update-users', 'queryspec.ts'),
@@ -562,6 +564,8 @@ test('runFeatureScaffoldCommand writes the get-by-id baseline with zero-or-one c
   );
   expect(entrySpecFile).toContain('const RequestSchema = z.object({');
   expect(entrySpecFile).toContain('}).strict();');
+  expect(entrySpecFile).toContain('const ResponseRowSchema = z.object({');
+  expect(entrySpecFile).toContain('}).strict();');
   expect(entrySpecFile).toContain('const ResponseSchema = ResponseRowSchema.nullable();');
   expect(entrySpecFile).toContain('function toQueryParams');
   expect(entrySpecFile).toContain('Maps the feature request into query params for the query spec.');
@@ -578,6 +582,7 @@ test('runFeatureScaffoldCommand writes the get-by-id baseline with zero-or-one c
   );
   expect(querySpecFile).toContain("import { queryZeroOrOneRow, type QueryParams } from '@rawsql-ts/sql-contract';");
   expect(querySpecFile).toContain('}).strict();');
+  expect(querySpecFile).toContain('const RowSchema = z.object({');
   expect(querySpecFile).toContain('const QueryResultSchema = RowSchema.nullable();');
   expect(querySpecFile).toContain('function parseQueryParams');
   expect(querySpecFile).toContain('function parseRow');
@@ -634,6 +639,7 @@ test('runFeatureScaffoldCommand writes the list baseline with catalog paging and
   expect(entrySpecFile).toContain('const RequestSchema = z.object({\n}).strict();');
   expect(entrySpecFile).toContain('const ResponseSchema = z.object({');
   expect(entrySpecFile).toContain('items: z.array(ResponseItemSchema)');
+  expect(entrySpecFile).toContain('}).strict();');
   expect(entrySpecFile).toContain('Maps the feature request into query params for the query spec.');
   expect(entrySpecFile).toContain('function parseRequest');
   expect(entrySpecFile).toContain('function normalizeRequest');
@@ -649,9 +655,11 @@ test('runFeatureScaffoldCommand writes the list baseline with catalog paging and
   );
   expect(querySpecFile).toContain("import { createCatalogExecutor, type QuerySpec } from '@rawsql-ts/sql-contract';");
   expect(querySpecFile).toContain('const QueryParamsSchema = z.object({\n}).strict();');
+  expect(querySpecFile).toContain('const RowSchema = z.object({');
   expect(querySpecFile).toContain('const DEFAULT_PAGE_SIZE = 50;');
   expect(querySpecFile).toContain('allowNamedParamsWithoutBinder: true');
   expect(querySpecFile).toContain('items: z.array(RowSchema)');
+  expect(querySpecFile).toContain('}).strict();');
   expect(querySpecFile).toContain('limit: DEFAULT_PAGE_SIZE');
   expect(querySpecFile).toContain('function parseQueryParams');
   expect(querySpecFile).toContain('function parseRow');
@@ -677,6 +685,48 @@ test('runFeatureScaffoldCommand writes the list baseline with catalog paging and
   expect(readmeFile).toContain('does not assume that every ID is a 32-bit integer');
   expect(readmeFile).toContain('rejects unsupported request fields instead of silently ignoring them');
   expect(readmeFile).toContain('The baseline response is `{ items: [...] }`');
+});
+
+test('runFeatureScaffoldCommand keeps numeric and decimal read contracts string-based', async () => {
+  const workspace = createTempDir('feature-scaffold-list-numeric-write');
+  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'products.sql'),
+    [
+      'create table public.products (',
+      '  id serial8 primary key,',
+      '  price decimal not null,',
+      '  score numeric',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  const result = await runFeatureScaffoldCommand({
+    table: 'products',
+    action: 'list',
+    rootDir: workspace
+  });
+
+  expect(result.featureName).toBe('products-list');
+  const entrySpecFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'products-list', 'entryspec.ts'),
+    'utf8'
+  );
+  expect(entrySpecFile).toContain('price: z.string()');
+  expect(entrySpecFile).toContain('score: z.string().nullable()');
+  expect(entrySpecFile).not.toContain('price: z.number().finite()');
+  expect(entrySpecFile).not.toContain('score: z.number().finite()');
+
+  const querySpecFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'products-list', 'list', 'queryspec.ts'),
+    'utf8'
+  );
+  expect(querySpecFile).toContain('price: z.string()');
+  expect(querySpecFile).toContain('score: z.string().nullable()');
+  expect(querySpecFile).not.toContain('price: z.number().finite()');
+  expect(querySpecFile).not.toContain('score: z.number().finite()');
 });
 
 test('runFeatureScaffoldCommand preserves existing feature files unless force is set', async () => {

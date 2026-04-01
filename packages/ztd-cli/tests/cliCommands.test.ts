@@ -574,11 +574,13 @@ test(
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toBe(true);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toBe(true);
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('}).strict();');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('const ResponseRowSchema = z.object({');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('id: z.string()');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('function parseRequest');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('function toQueryParams');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toContain('queryZeroOrOneRow');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toContain('}).strict();');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toContain('const RowSchema = z.object({');
   },
   60000,
 );
@@ -613,11 +615,13 @@ test(
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toBe(true);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-list', 'list', 'queryspec.ts'))).toBe(true);
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('const RequestSchema = z.object({\n}).strict();');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('const ResponseItemSchema = z.object({');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('id: z.string()');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('function parseRequest');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('function toQueryParams');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'list', 'queryspec.ts'))).toContain('createCatalogExecutor');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'list', 'queryspec.ts'))).toContain('const QueryParamsSchema = z.object({\n}).strict();');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'list', 'queryspec.ts'))).toContain('const RowSchema = z.object({');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'list', 'list.sql'))).toContain('limit :limit;');
   },
   60000,
