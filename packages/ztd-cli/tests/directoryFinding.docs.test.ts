@@ -38,7 +38,7 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('@rawsql-ts/testkit-postgres');
   expect(readNormalizedFile('docs/guide/sql-first-end-to-end-tutorial.md')).toContain('Scenario CLI at a glance');
   expect(readNormalizedFile('docs/dogfooding/ztd-migration-lifecycle.md')).toContain('Preferred CLI by scenario');
-  expect(packageReadme).toContain('Advanced validation, dogfooding, and tuning live in [Further Reading](#further-reading).');
+  expect(packageReadme).toContain('## Further Reading');
   expect(packageReadme).toContain('ztd ztd-config --watch');
   expect(packageReadme).toContain('--dry-run');
   expect(packageReadme).toContain('--output json');
@@ -90,9 +90,6 @@ test('feature-first scaffold files exist in the template bundle', () => {
     'packages/ztd-cli/templates/.codex/agents/planning.md',
     'packages/ztd-cli/templates/.codex/agents/troubleshooting.md',
     'packages/ztd-cli/templates/.codex/agents/next-steps.md',
-    'packages/ztd-cli/templates/.agents/skills/quickstart/SKILL.md',
-    'packages/ztd-cli/templates/.agents/skills/troubleshooting/SKILL.md',
-    'packages/ztd-cli/templates/.agents/skills/next-steps/SKILL.md',
     'packages/ztd-cli/templates/src/features/README.md',
     'packages/ztd-cli/templates/src/features/AGENTS.md',
     'packages/ztd-cli/templates/src/features/smoke/README.md',
@@ -109,5 +106,20 @@ test('feature-first scaffold files exist in the template bundle', () => {
 
   for (const requiredPath of requiredPaths) {
     expect(existsSync(path.join(repoRoot, requiredPath))).toBe(true);
+  }
+
+  const removedPaths = [
+    'packages/ztd-cli/templates/.agents',
+    'packages/ztd-cli/templates/.agents/skills',
+    'packages/ztd-cli/templates/.agents/skills/quickstart',
+    'packages/ztd-cli/templates/.agents/skills/troubleshooting',
+    'packages/ztd-cli/templates/.agents/skills/next-steps',
+    'packages/ztd-cli/templates/.agents/skills/quickstart/SKILL.md',
+    'packages/ztd-cli/templates/.agents/skills/troubleshooting/SKILL.md',
+    'packages/ztd-cli/templates/.agents/skills/next-steps/SKILL.md'
+  ];
+
+  for (const removedPath of removedPaths) {
+    expect(existsSync(path.join(repoRoot, removedPath))).toBe(false);
   }
 });

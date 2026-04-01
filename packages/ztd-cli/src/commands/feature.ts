@@ -12,7 +12,7 @@ import {
 import { emitDiagnostic, isJsonOutput, writeCommandEnvelope } from '../utils/agentCli';
 import { ensureDirectory } from '../utils/fs';
 import { collectSqlFiles, type SqlSource } from '../utils/collectSqlFiles';
-import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
+import { loadZtdProjectConfig, resolveGeneratedDir } from '../utils/ztdProjectConfig';
 
 const FEATURE_ACTIONS = ['insert', 'update', 'delete', 'get-by-id', 'list'] as const;
 type FeatureAction = (typeof FEATURE_ACTIONS)[number];
@@ -227,10 +227,11 @@ export function normalizeFeatureName(value: string): string {
 }
 
 export function assessGeneratedMetadataCapability(projectRoot: string): GeneratedMetadataAssessment {
-  const generatedManifestPath = path.join(projectRoot, 'tests', 'generated', 'ztd-fixture-manifest.generated.ts');
+  const config = loadZtdProjectConfig(projectRoot);
+  const generatedManifestPath = path.join(projectRoot, resolveGeneratedDir(config), 'ztd-fixture-manifest.generated.ts');
   const reasons: string[] = [];
   if (!existsSync(generatedManifestPath)) {
-    reasons.push('tests/generated/ztd-fixture-manifest.generated.ts is missing.');
+    reasons.push(`${normalizeCliPath(path.relative(projectRoot, generatedManifestPath))} is missing.`);
     return {
       source: 'generated-metadata',
       supported: false,

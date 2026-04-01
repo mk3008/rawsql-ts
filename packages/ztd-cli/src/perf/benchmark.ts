@@ -1700,7 +1700,7 @@ export function buildPerfTuningGuidance(
   const indexRationale: string[] = [];
   const indexNextSteps = [
     'Capture or review EXPLAIN (ANALYZE, BUFFERS) before changing the physical design.',
-    'Append CREATE INDEX statements to ztd/ddl/*.sql instead of making ad-hoc sandbox-only changes.',
+    'Append CREATE INDEX statements to db/ddl/*.sql instead of making ad-hoc sandbox-only changes.',
     'Run `ztd perf db reset` so the perf sandbox recreates both tables and indexes from local DDL.'
   ];
   const pipelineRationale: string[] = [];

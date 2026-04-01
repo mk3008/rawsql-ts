@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { createStarterPostgresTestkitClient } from '../../../../tests/support/postgres-testkit.js';
+import { createStarterPostgresTestkitClient } from '../../../../.ztd/support/postgres-testkit.js';
 
 const usersTableDefinitions = [
   {

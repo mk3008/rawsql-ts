@@ -6,7 +6,12 @@ import readline from 'node:readline/promises';
 
 import { ensureDirectory } from '../utils/fs';
 import { copyAgentsTemplate, writeInternalAgentsArtifacts } from '../utils/agents';
-import { DEFAULT_ZTD_CONFIG, writeZtdProjectConfig } from '../utils/ztdProjectConfig';
+import {
+  DEFAULT_ZTD_CONFIG,
+  resolveGeneratedDir,
+  resolveSupportDir,
+  writeZtdProjectConfig
+} from '../utils/ztdProjectConfig';
 import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConfig';
 import { runPullSchema, type PullSchemaOptions } from './pull';
 import { isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
@@ -137,7 +142,6 @@ type FileKey =
   | 'smokeDomain'
   | 'smokeApplication'
   | 'smokeSql'
-  | 'querySpecExampleTest'
   | 'globalSetup'
   | 'vitestConfig'
   | 'tsconfig'
@@ -284,7 +288,7 @@ interface InitScaffoldLayout {
 const STACK_DEV_DEPENDENCIES: Record<string, string> = {
   '@rawsql-ts/sql-contract': '^0.3.1',
   '@rawsql-ts/testkit-core': '^0.16.1',
-  '@rawsql-ts/ztd-cli': '^0.20.3',
+  '@rawsql-ts/ztd-cli': resolveCurrentCliVersion(),
 };
 const STARTER_DEV_DEPENDENCIES: Record<string, string> = {
   pg: '^8.13.1',
@@ -293,7 +297,8 @@ const STARTER_DEV_DEPENDENCIES: Record<string, string> = {
 };
 const LOCAL_SOURCE_STACK_PACKAGE_DIRS: Record<string, string> = {
   '@rawsql-ts/sql-contract': path.join('packages', 'sql-contract'),
-  '@rawsql-ts/testkit-core': path.join('packages', 'testkit-core')
+  '@rawsql-ts/testkit-core': path.join('packages', 'testkit-core'),
+  '@rawsql-ts/ztd-cli': path.join('packages', 'ztd-cli')
 };
 const ZOD_DEPENDENCY: Record<string, string> = {
   zod: '^4.3.6'
@@ -301,6 +306,26 @@ const ZOD_DEPENDENCY: Record<string, string> = {
 const ARKTYPE_DEPENDENCY: Record<string, string> = {
   arktype: '2.2.0'
 };
+
+function resolveCurrentCliVersion(): string {
+  const candidates = [
+    path.resolve(__dirname, '..', '..', 'package.json'),
+    path.resolve(__dirname, '..', '..', '..', 'package.json'),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(readFileSync(candidate, 'utf8')) as { version?: string };
+      if (typeof parsed.version === 'string' && parsed.version.length > 0) {
+        return `^${parsed.version}`;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return '^0.23.0';
+}
 
 async function gatherOptionalFeatures(
   prompter: Prompter,
@@ -350,7 +375,6 @@ const FEATURE_SMOKE_VALIDATION_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.v
 const FEATURE_SMOKE_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.test.ts';
 const FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.queryspec.test.ts';
 const LOCAL_SOURCE_GUARD_TEMPLATE = 'scripts/local-source-guard.mjs';
-const QUERYSPEC_EXAMPLE_TEST_TEMPLATE = 'tests/queryspec.example.test.ts';
 const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
 const SETUP_ENV_TEMPLATE = 'tests/support/setup-env.ts';
 const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
@@ -364,7 +388,7 @@ const TELEMETRY_CONSOLE_REPOSITORY_TEMPLATE = 'src/infrastructure/telemetry/cons
 const SQL_README_TEMPLATE = 'src/sql/README.md';
 const JOBS_README_TEMPLATE = 'src/jobs/README.md';
 const ZTD_README_TEMPLATE = 'ztd/README.md';
-const ZTD_DDL_DEMO_TEMPLATE = 'ztd/ddl/demo.sql';
+const ZTD_DDL_DEMO_TEMPLATE = 'db/ddl/demo.sql';
 
 const EMPTY_SCHEMA_COMMENT = (schemaName: string): string =>
   [
@@ -412,7 +436,7 @@ const STARTER_README_APPENDIX = (postgresImage: string): string =>
     '4. Start Postgres with `docker compose up -d` when you are ready for the DB-backed smoke path.',
     `5. The bundled compose file uses \`${postgresImage}\`, and the generated Vitest setup derives \`ZTD_TEST_DATABASE_URL\` from \`ZTD_DB_PORT\`.`,
     '6. Run `npx ztd ztd-config` to regenerate the runtime fixture manifest, DDL-derived test rows, and layout metadata.',
-    '7. Read `tests/support/postgres-testkit.ts` and `src/features/smoke/tests/smoke.queryspec.test.ts` to see the DB-backed starter smoke path through `createStarterPostgresTestkitClient` and the underlying `@rawsql-ts/testkit-postgres` API.',
+    '7. Read `.ztd/support/postgres-testkit.ts` and `src/features/smoke/tests/smoke.queryspec.test.ts` to see the DB-backed starter smoke path through `createStarterPostgresTestkitClient` and the underlying `@rawsql-ts/testkit-postgres` API.',
     '8. Run `npx vitest run` to exercise the DB-free and DB-backed smoke tests with the values from `.env`.',
     '9. Run `npx ztd feature scaffold --table users --action insert` to create the first fixed feature shell before asking AI to add tests.',
     '10. Add `src/features/users-insert/tests/users-insert.queryspec.test.ts` and `src/features/users-insert/tests/users-insert.feature.test.ts` as the AI follow-up, then delete `src/features/smoke/` when you no longer need the sample.',
@@ -448,6 +472,7 @@ function buildStarterReadmeContents(postgresImage: string): string {
 }
 
 function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): InitScaffoldLayout {
+  const supportDir = resolveSupportDir(DEFAULT_ZTD_CONFIG);
   return {
     readmeTemplate: README_TEMPLATE,
     contextTemplate: CONTEXT_TEMPLATE,
@@ -482,9 +507,9 @@ function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): In
     smokeTestTemplate: FEATURE_SMOKE_TEST_TEMPLATE,
     smokeQuerySpecTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'),
     smokeQuerySpecTestTemplate: FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE,
-    setupEnvPath: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'setup-env.ts'),
+    setupEnvPath: path.join(rootDir, supportDir, 'setup-env.ts'),
     setupEnvTemplate: SETUP_ENV_TEMPLATE,
-    starterPostgresTestkitPath: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'postgres-testkit.ts'),
+    starterPostgresTestkitPath: path.join(rootDir, supportDir, 'postgres-testkit.ts'),
     starterPostgresTestkitTemplate: 'tests/support/postgres-testkit.ts',
     infrastructureReadmePath: path.join(rootDir, 'src', 'infrastructure', 'README.md'),
     infrastructureReadmeTemplate: INFRASTRUCTURE_README_TEMPLATE,
@@ -655,13 +680,14 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   const appShape: InitAppShape = options?.appShape ?? 'default';
   const postgresImage = options?.postgresImage?.trim() || DEFAULT_POSTGRES_IMAGE;
   const scaffoldLayout = resolveInitScaffoldLayout(rootDir, appShape);
+  const supportDir = resolveSupportDir(DEFAULT_ZTD_CONFIG);
 
   const absolutePaths: Record<FileKey, string> = {
     schema: path.join(rootDir, DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
     config: path.join(rootDir, 'ztd.config.json'),
     starterCompose: path.join(rootDir, STARTER_COMPOSE_FILE),
     envExample: path.join(rootDir, '.env.example'),
-    setupEnv: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'setup-env.ts'),
+    setupEnv: path.join(rootDir, supportDir, 'setup-env.ts'),
     localSourceGuardScript: path.join(rootDir, 'scripts', 'local-source-guard.mjs'),
     featureRootReadme: scaffoldLayout.featureReadmePath,
     smokeReadme: scaffoldLayout.smokeReadmePath,
@@ -680,7 +706,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     telemetryTypes: scaffoldLayout.telemetryTypesPath,
     telemetryRepository: scaffoldLayout.telemetryRepositoryPath,
     telemetryConsoleRepository: scaffoldLayout.telemetryConsoleRepositoryPath,
-    querySpecExampleTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'queryspec.example.test.ts'),
     starterPostgresTestkit: scaffoldLayout.starterPostgresTestkitPath,
     readme: path.join(rootDir, 'README.md'),
     context: path.join(rootDir, 'CONTEXT.md'),
@@ -689,14 +714,14 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     internalAgentsRoot: path.join(rootDir, '.ztd', 'agents', 'root.md'),
     internalAgentsSrc: path.join(rootDir, '.ztd', 'agents', 'src.md'),
     internalAgentsTests: path.join(rootDir, '.ztd', 'agents', 'tests.md'),
-    internalAgentsZtd: path.join(rootDir, '.ztd', 'agents', 'ztd.md'),
+    internalAgentsZtd: path.join(rootDir, '.ztd', 'agents', 'db.md'),
     sqlReadme: path.join(rootDir, 'src', 'sql', 'README.md'),
     sqlClient: scaffoldLayout.sqlClientPath,
     sqlClientAdapters: scaffoldLayout.sqlClientAdaptersPath,
-    globalSetup: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
+    globalSetup: path.join(rootDir, supportDir, 'global-setup.ts'),
     vitestConfig: path.join(rootDir, 'vitest.config.ts'),
     tsconfig: path.join(rootDir, 'tsconfig.json'),
-    ztdDocsReadme: path.join(rootDir, 'ztd', 'README.md'),
+    ztdDocsReadme: path.join(rootDir, 'db', 'README.md'),
     gitignore: path.join(rootDir, '.gitignore'),
     editorconfig: path.join(rootDir, '.editorconfig'),
     prettierignore: path.join(rootDir, '.prettierignore'),
@@ -781,7 +806,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     overwritePolicy,
     () => {
       writeZtdProjectConfig(rootDir, {
-        ztdRootDir: '.',
+        ztdRootDir: '.ztd',
         defaultSchema: schemaName,
         searchPath: [schemaName]
       });
@@ -1138,19 +1163,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     if (sqlClientAdaptersSummary) {
       summaries.sqlClientAdapters = sqlClientAdaptersSummary;
     }
-  }
-
-  const querySpecExampleTestSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.querySpecExampleTest,
-    relativePath('querySpecExampleTest'),
-    QUERYSPEC_EXAMPLE_TEST_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (querySpecExampleTestSummary) {
-    summaries.querySpecExampleTest = querySpecExampleTestSummary;
   }
 
   const envExampleSummary = await writeTemplateFile(
@@ -2276,7 +2288,7 @@ function buildNextSteps(
   const wiringStep = 'Keep the first slice small and local before extracting shared helpers';
   const firstTestStep = `Run tests (${runScriptCommand('test')} or npx vitest run) to keep the generated scaffold green before adding more features`;
   const sampleTestStep =
-    'Open tests/queryspec.example.test.ts if you want a repo-level QuerySpec support sample outside the starter smoke feature';
+    'Keep repo-level helpers under `.ztd/support/`, and keep customer-owned tests inside `src/features/*/tests`';
   const fallbackSteps = [
     `If ${ztdCommand} ztd-config fails, keep editing ${schemaRelativePath} and the feature-local SQL file first, then rerun generation after the DDL is ready`,
     `If ${ztdCommand} model-gen fails, keep the SQL file and rerun it after ${ztdCommand} ztd-config succeeds; the ztd probe path does not need DATABASE_URL`,
@@ -2341,11 +2353,13 @@ function buildNextSteps(
 }
 
 function resolveInitScaffoldProfile(rootDir: string, localSourceRoot?: string): InitScaffoldProfile {
-  if (!localSourceRoot) {
+  const resolvedRoot = localSourceRoot
+    ? path.resolve(rootDir, localSourceRoot)
+    : detectImplicitLocalSourceRoot();
+
+  if (!resolvedRoot) {
     return { dependencyProfile: 'registry', localSourceRoot: null };
   }
-
-  const resolvedRoot = path.resolve(rootDir, localSourceRoot);
 
   // Validate every direct rawsql-ts scaffold dependency up front so local-source installs
   // cannot silently mix local packages with registry packages.
@@ -2362,6 +2376,22 @@ function resolveInitScaffoldProfile(rootDir: string, localSourceRoot?: string): 
     dependencyProfile: 'local-source',
     localSourceRoot: resolvedRoot
   };
+}
+
+function detectImplicitLocalSourceRoot(): string | null {
+  const packageRoot = path.resolve(__dirname, '..', '..');
+  const workspaceRoot = findAncestorPnpmWorkspaceRoot(packageRoot);
+  if (!workspaceRoot) {
+    return null;
+  }
+
+  for (const packageDir of Object.values(LOCAL_SOURCE_STACK_PACKAGE_DIRS)) {
+    if (!existsSync(path.join(workspaceRoot, packageDir, 'package.json'))) {
+      return null;
+    }
+  }
+
+  return workspaceRoot;
 }
 
 function buildLocalSourceStackDependencies(
@@ -2436,7 +2466,6 @@ function buildSummaryLines(
     'telemetryTypes',
     'telemetryRepository',
     'telemetryConsoleRepository',
-    'querySpecExampleTest',
     'sqlClient',
     'sqlClientAdapters',
     'globalSetup',
@@ -2480,7 +2509,7 @@ function buildSummaryLines(
     lines.push(` - Bundled Postgres compose image: ${postgresImage}`);
     lines.push(' - Run docker compose up -d before the DB-backed smoke test so the starter DB path is ready.');
     lines.push(
-      ' - The starter smoke test uses tests/support/postgres-testkit.ts, @rawsql-ts/testkit-postgres, and createStarterPostgresTestkitClient to fail fast on setup problems.'
+      ' - The starter smoke test uses .ztd/support/postgres-testkit.ts, @rawsql-ts/testkit-postgres, and createStarterPostgresTestkitClient to fail fast on setup problems.'
     );
   }
   if (optionalFeatures.aiGuidance) {
@@ -2541,11 +2570,11 @@ export function buildInitDryRunPlan(rootDir: string, options: {
     'ztd.config.json',
     path.join(DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
     path.join('src', 'features', 'README.md'),
-    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
-    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'setup-env.ts'),
-    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'queryspec.example.test.ts'),
-    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-row-map.generated.ts'),
-    path.join(DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-layout.generated.ts'),
+    path.join(resolveSupportDir(DEFAULT_ZTD_CONFIG), 'global-setup.ts'),
+    path.join(resolveSupportDir(DEFAULT_ZTD_CONFIG), 'setup-env.ts'),
+    path.join(resolveGeneratedDir(DEFAULT_ZTD_CONFIG), 'ztd-row-map.generated.ts'),
+    path.join(resolveGeneratedDir(DEFAULT_ZTD_CONFIG), 'ztd-layout.generated.ts'),
+    path.join(resolveGeneratedDir(DEFAULT_ZTD_CONFIG), 'ztd-fixture-manifest.generated.ts'),
     'README.md',
     '.env.example',
     '.gitignore',
@@ -2573,7 +2602,7 @@ export function buildInitDryRunPlan(rootDir: string, options: {
       path.join('src', 'infrastructure', 'telemetry', 'types.ts'),
       path.join('src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'),
       path.join('src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'),
-      path.join(DEFAULT_ZTD_CONFIG.testsDir, 'support', 'postgres-testkit.ts')
+      path.join(resolveSupportDir(DEFAULT_ZTD_CONFIG), 'postgres-testkit.ts')
     );
   }
 
@@ -2583,7 +2612,7 @@ export function buildInitDryRunPlan(rootDir: string, options: {
     files.push('.ztd/agents/src.md');
     files.push('.ztd/agents/src-features.md');
     files.push('.ztd/agents/tests.md');
-    files.push('.ztd/agents/ztd.md');
+    files.push('.ztd/agents/db.md');
     files.push('CONTEXT.md');
   }
 

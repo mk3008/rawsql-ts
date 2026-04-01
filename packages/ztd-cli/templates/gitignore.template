@@ -7,5 +7,5 @@ coverage/
 .env.*
 !.env.example
 
-tests/generated/**
-!tests/generated/AGENTS.md
+.ztd/generated/**
+!.ztd/generated/AGENTS.md

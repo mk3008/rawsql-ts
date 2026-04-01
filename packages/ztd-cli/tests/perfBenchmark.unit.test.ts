@@ -1297,7 +1297,7 @@ test('runPerfBenchmark dry-run reports ddl inventory and pipeline-first tuning g
   mkdirSync(path.dirname(ddlFile), { recursive: true });
   writeFileSync(path.join(workspace.rootDir, 'ztd.config.json'), JSON.stringify({
     dialect: 'postgres',
-    ddlDir: 'ztd/ddl',
+    ddlDir: 'db/ddl',
     testsDir: 'tests',
     defaultSchema: 'public',
     searchPath: ['public'],
@@ -1409,7 +1409,7 @@ test('buildPerfTuningGuidance prefers index remediation when the captured plan s
   expect(guidance.primary_path).toBe('index');
   expect(guidance.index_branch.recommended).toBe(true);
   expect(guidance.pipeline_branch.recommended).toBe(false);
-  expect(guidance.index_branch.next_steps).toContain('Append CREATE INDEX statements to ztd/ddl/*.sql instead of making ad-hoc sandbox-only changes.');
+  expect(guidance.index_branch.next_steps).toContain('Append CREATE INDEX statements to db/ddl/*.sql instead of making ad-hoc sandbox-only changes.');
   expect(buildPerfTuningSummary(guidance)).toMatchObject({
     headline: 'Start with index tuning.'
   });
@@ -1441,7 +1441,7 @@ test('buildPerfTuningGuidance does not require another capture when a non-signal
 
 test('summarizePerfDdlInventory keeps index counts visible in saved perf guidance', () => {
   const summary = summarizePerfDdlInventory({
-    files: ['ztd/ddl/public.sql'],
+    files: ['db/ddl/public.sql'],
     statements: [],
     ddlStatementCount: 4,
     tableCount: 2,

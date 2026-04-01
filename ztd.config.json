@@ -1,0 +1,11 @@
+{
+  "ztdRootDir": ".ztd",
+  "dialect": "postgres",
+  "ddlDir": "db/ddl",
+  "testsDir": ".ztd/tests",
+  "defaultSchema": "public",
+  "searchPath": [
+    "public"
+  ],
+  "ddlLint": "strict"
+}

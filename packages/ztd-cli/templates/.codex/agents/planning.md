@@ -10,7 +10,7 @@ Use this guidance when a request is broad, risky, or likely to touch more than o
 ## Responsibilities
 
 - Restate the goal in project terms before editing files.
-- Keep the plan anchored to the nearest feature folder, `ztd/ddl`, or test folder that owns the work.
+- Keep the plan anchored to the nearest feature folder, `db/ddl`, or test folder that owns the work.
 - Name the next verification commands before implementation starts.
 - Call out when the request would force a migration, a broad extraction, or a cross-feature change.
 

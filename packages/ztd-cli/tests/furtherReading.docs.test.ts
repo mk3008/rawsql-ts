@@ -169,7 +169,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'the `@rawsql-ts/testkit-postgres` package README',
         'If you add a no-op repository telemetry seam under `src/infrastructure/telemetry/`',
         '.codex/config.toml',
-        '.agents/skills/',
+        '',
         'customer bootstrap targets separately from internal `.ztd` guidance',
         'Read the nearest AGENTS files, inspect src/features/smoke, and plan the next users feature.'
       ]

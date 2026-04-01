@@ -6,7 +6,7 @@ The project is feature-first by default:
 
 - keep SQL, specs, and tests close to each feature
 - use `@rawsql-ts/sql-contract` for QuerySpec contracts
-- `@rawsql-ts/testkit-core` so `npx ztd ztd-config` works in a fresh standalone project and writes the generated runtime manifest to `tests/generated/ztd-fixture-manifest.generated.ts` with `tableDefinitions` schema metadata only
+- `@rawsql-ts/testkit-core` so `npx ztd ztd-config` works in a fresh standalone project and writes the generated runtime manifest to `.ztd/generated/ztd-fixture-manifest.generated.ts` with `tableDefinitions` schema metadata only
 
 Generate the starter flow with `ztd init --starter` when you want the removable `src/features/smoke/` sample feature, a named-parameter SQL example, and the bundled Postgres compose path.
 
@@ -32,7 +32,7 @@ npx vitest run
 
 The generated runtime manifest is the preferred input for `@rawsql-ts/testkit-postgres`; raw DDL directories remain a fallback for legacy layouts. The generated contract itself is schema metadata only (`tableDefinitions`), so test rows stay explicit.
 The removable starter smoke test shows the DB-backed path through `createStarterPostgresTestkitClient`, so the starter can fail fast when setup is incomplete.
-If you add a second DB-backed feature, reuse `tests/support/postgres-testkit.ts` for the pool, config defaults, and cleanup, then keep each feature's fixtures next to the test that needs them.
+If you add a second DB-backed feature, reuse `.ztd/support/postgres-testkit.ts` for the pool, config defaults, and cleanup, then keep each feature's fixtures next to the test that needs them.
 The starter keeps `ztdRootDir`, `ddlDir`, `defaultSchema`, and `searchPath` in `ztd.config.json`. The helper reads the project defaults from one place instead of repeating them in every DB-backed test.
 
 src/catalog may still exist as internal support, but it is not the user-facing standard location.

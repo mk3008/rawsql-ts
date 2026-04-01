@@ -63,21 +63,17 @@ const INTERNAL_MANIFEST_PATH = path.join(INTERNAL_AGENTS_DIR, 'manifest.json');
 const VISIBLE_AGENT_TEMPLATES: readonly TemplateDescriptor[] = [
   { relativePath: 'AGENTS.md', templateName: 'AGENTS.md', scope: 'root', includeSecurityNotice: true, purposeTags: ['root', 'global'] },
   { relativePath: 'AGENTS_ztd.md', templateName: 'AGENTS.md', scope: 'root-fallback', includeSecurityNotice: true, purposeTags: ['root', 'fallback'] },
-  { relativePath: 'ztd/AGENTS.md', templateName: 'ztd/AGENTS.md', scope: 'ztd', includeSecurityNotice: true, purposeTags: ['ztd', 'metadata'], requiredDirectory: 'ztd' },
-  { relativePath: 'ztd/ddl/AGENTS.md', templateName: 'ztd/ddl/AGENTS.md', scope: 'ztd-ddl', includeSecurityNotice: true, purposeTags: ['ddl', 'schema'], requiredDirectory: 'ztd/ddl' },
+  { relativePath: 'db/AGENTS.md', templateName: 'db/AGENTS.md', scope: 'db', includeSecurityNotice: true, purposeTags: ['db', 'metadata'], requiredDirectory: 'db' },
+  { relativePath: 'db/ddl/AGENTS.md', templateName: 'db/ddl/AGENTS.md', scope: 'db-ddl', includeSecurityNotice: true, purposeTags: ['ddl', 'schema'], requiredDirectory: 'db/ddl' },
   { relativePath: 'src/AGENTS.md', templateName: 'src/AGENTS.md', scope: 'src', includeSecurityNotice: true, purposeTags: ['runtime', 'root'], requiredDirectory: 'src' },
-  { relativePath: 'src/features/AGENTS.md', templateName: 'src/features/AGENTS.md', scope: 'src-features', includeSecurityNotice: true, purposeTags: ['features', 'root'], requiredDirectory: 'src/features' },
-  { relativePath: 'tests/AGENTS.md', templateName: 'tests/AGENTS.md', scope: 'tests', includeSecurityNotice: true, purposeTags: ['tests', 'root'], requiredDirectory: 'tests' }
+  { relativePath: 'src/features/AGENTS.md', templateName: 'src/features/AGENTS.md', scope: 'src-features', includeSecurityNotice: true, purposeTags: ['features', 'root'], requiredDirectory: 'src/features' }
 ] as const;
 
 const BOOTSTRAP_TEMPLATES: readonly TemplateDescriptor[] = [
   { relativePath: '.codex/config.toml', templateName: '.codex/config.toml', scope: 'codex-config', purposeTags: ['codex', 'config'] },
   { relativePath: '.codex/agents/planning.md', templateName: '.codex/agents/planning.md', scope: 'codex-planning', purposeTags: ['codex', 'planning'] },
   { relativePath: '.codex/agents/troubleshooting.md', templateName: '.codex/agents/troubleshooting.md', scope: 'codex-troubleshooting', purposeTags: ['codex', 'troubleshooting'] },
-  { relativePath: '.codex/agents/next-steps.md', templateName: '.codex/agents/next-steps.md', scope: 'codex-next-steps', purposeTags: ['codex', 'next-steps'] },
-  { relativePath: '.agents/skills/quickstart/SKILL.md', templateName: '.agents/skills/quickstart/SKILL.md', scope: 'skill-quickstart', purposeTags: ['skills', 'quickstart'] },
-  { relativePath: '.agents/skills/troubleshooting/SKILL.md', templateName: '.agents/skills/troubleshooting/SKILL.md', scope: 'skill-troubleshooting', purposeTags: ['skills', 'troubleshooting'] },
-  { relativePath: '.agents/skills/next-steps/SKILL.md', templateName: '.agents/skills/next-steps/SKILL.md', scope: 'skill-next-steps', purposeTags: ['skills', 'next-steps'] }
+  { relativePath: '.codex/agents/next-steps.md', templateName: '.codex/agents/next-steps.md', scope: 'codex-next-steps', purposeTags: ['codex', 'next-steps'] }
 ] as const;
 
 const INTERNAL_AGENT_TEMPLATES: readonly TemplateDescriptor[] = [
@@ -85,7 +81,7 @@ const INTERNAL_AGENT_TEMPLATES: readonly TemplateDescriptor[] = [
   { relativePath: path.join(INTERNAL_AGENTS_DIR, 'src.md'), templateName: 'src/AGENTS.md', scope: 'internal-src', includeSecurityNotice: true },
   { relativePath: path.join(INTERNAL_AGENTS_DIR, 'src-features.md'), templateName: 'src/features/AGENTS.md', scope: 'internal-src-features', includeSecurityNotice: true },
   { relativePath: path.join(INTERNAL_AGENTS_DIR, 'tests.md'), templateName: 'tests/AGENTS.md', scope: 'internal-tests', includeSecurityNotice: true },
-  { relativePath: path.join(INTERNAL_AGENTS_DIR, 'ztd.md'), templateName: 'ztd/AGENTS.md', scope: 'internal-ztd', includeSecurityNotice: true }
+  { relativePath: path.join(INTERNAL_AGENTS_DIR, 'db.md'), templateName: 'db/AGENTS.md', scope: 'internal-db', includeSecurityNotice: true }
 ] as const;
 
 function normalizeCliPath(filePath: string): string {
@@ -165,21 +161,20 @@ function buildInternalManifest(projectRoot: string): string {
     prompt_examples: [
       {
         prompt: 'Convert this slice to a feature-first layout',
-        preferred_scopes: ['src-features', 'src', 'tests'],
-        avoid_scopes: ['ztd']
+        preferred_scopes: ['src-features', 'src', 'internal-db'],
+        avoid_scopes: ['db']
       },
       {
         prompt: 'Add SQL and keep the feature local',
-        preferred_scopes: ['src-features', 'tests'],
-        avoid_scopes: ['ztd']
+        preferred_scopes: ['src-features', 'internal-db'],
+        avoid_scopes: ['db']
       }
     ],
     recommended_entrypoints: INTERNAL_AGENT_TEMPLATES.map((target) => target.scope),
     routing_rules: [
       { paths: ['src/features/**'], scope: 'src-features' },
       { paths: ['src/**'], scope: 'src' },
-      { paths: ['tests/**'], scope: 'tests' },
-      { paths: ['ztd/**'], scope: 'ztd' }
+      { paths: ['db/**'], scope: 'db' }
     ]
   };
   return `${JSON.stringify(payload, null, 2)}\n`;

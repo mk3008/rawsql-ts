@@ -31,7 +31,7 @@ const COMMANDS: CommandDescriptor[] = [
     supportsJsonPayload: true,
     output: {
       stdout: 'Human summary in text mode, JSON envelope in global json mode.',
-      files: ['ztd.config.json', 'ztd/ddl/*.sql', 'tests/generated/*', '.ztd/agents/*', 'CONTEXT.md']
+      files: ['ztd.config.json', 'db/ddl/*.sql', '.ztd/generated/*', '.ztd/agents/*', 'CONTEXT.md']
     },
     exitCodes: {
       '0': 'Scaffold completed or dry-run plan emitted.',
@@ -53,12 +53,10 @@ const COMMANDS: CommandDescriptor[] = [
       stdout: 'Human init summary in text mode, JSON envelope in global json mode.',
       files: [
         'AGENTS.md or AGENTS_ztd.md',
-        'ztd/**/AGENTS.md',
+        'db/**/AGENTS.md',
         'src/**/AGENTS.md',
-        'tests/**/AGENTS.md',
         '.codex/config.toml',
-        '.codex/agents/*.md',
-        '.agents/skills/*/SKILL.md'
+        '.codex/agents/*.md'
       ]
     },
     exitCodes: {
@@ -79,12 +77,10 @@ const COMMANDS: CommandDescriptor[] = [
       stdout: 'Human init summary in text mode, JSON envelope in global json mode.',
       files: [
         'AGENTS.md or AGENTS_ztd.md',
-        'ztd/**/AGENTS.md',
+        'db/**/AGENTS.md',
         'src/**/AGENTS.md',
-        'tests/**/AGENTS.md',
         '.codex/config.toml',
-        '.codex/agents/*.md',
-        '.agents/skills/*/SKILL.md'
+        '.codex/agents/*.md'
       ]
     },
     exitCodes: {
@@ -151,9 +147,9 @@ const COMMANDS: CommandDescriptor[] = [
     output: {
       stdout: 'Status or JSON envelope.',
       files: [
-        'tests/generated/ztd-row-map.generated.ts',
-        'tests/generated/ztd-fixture-manifest.generated.ts',
-        'tests/generated/ztd-layout.generated.ts'
+        '.ztd/generated/ztd-row-map.generated.ts',
+        '.ztd/generated/ztd-fixture-manifest.generated.ts',
+        '.ztd/generated/ztd-layout.generated.ts'
       ]
     },
     exitCodes: {

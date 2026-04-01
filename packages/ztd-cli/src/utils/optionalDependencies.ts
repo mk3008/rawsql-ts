@@ -74,7 +74,7 @@ export interface PostgresContainerBuilderLike {
 }
 
 export interface PostgresContainerModule {
-  PostgreSqlContainer: new (image?: string) => PostgresContainerBuilderLike;
+  PostgreSqlContainer: new (image: string) => PostgresContainerBuilderLike;
 }
 
 export function clearOptionalDependencyCache(): void {

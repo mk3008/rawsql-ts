@@ -15,7 +15,7 @@
 
 ## PROHIBITED
 - Database I/O in runtime mapping modules.
-- Importing from `tests/` or `tests/generated/`.
+- Importing from `tests/` or `.ztd/generated/`.
 - Defining or editing human-owned contracts in runtime modules.
 
 # Mandatory Workflow

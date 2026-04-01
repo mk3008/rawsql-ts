@@ -4,6 +4,8 @@
 
 ### Minor Changes
 
+- Clarify the managed workspace layout and bootstrap ownership for new projects. DDL now defaults to `db/ddl`, repo-managed generated/support files live under `.ztd/`, the removed root `ztd/` and `tests/` layouts now fail with explicit migration guidance, and `ztd agents init` no longer scaffolds or ships `SKILL` assets.
+
 - [#679](https://github.com/mk3008/rawsql-ts/pull/679) [`be9b689`](https://github.com/mk3008/rawsql-ts/commit/be9b6893ff42f783f9cb52f1b8cd9cdc6c120e23) Thanks [@mk3008](https://github.com/mk3008)! - Add SSSQL scaffold and refresh commands, and change `DynamicQueryBuilder` so legacy runtime filter predicates fail fast instead of being injected at runtime. Runtime optional-condition pruning, sort, and paging remain supported.
 
 ### Patch Changes
@@ -244,7 +246,7 @@
 
 ### Minor Changes
 
-- [#411](https://github.com/mk3008/rawsql-ts/pull/411) [`84ec3a0`](https://github.com/mk3008/rawsql-ts/commit/84ec3a0c5f3e16463c1eee532fc9570bf1bcff93) Thanks [@mk3008](https://github.com/mk3008)! - Document that the CLI templates treat ztd/ddl as the only authoritative source, keep optional references purely informational, and ship the mapper/writer sample with its supporting tests.
+- [#411](https://github.com/mk3008/rawsql-ts/pull/411) [`84ec3a0`](https://github.com/mk3008/rawsql-ts/commit/84ec3a0c5f3e16463c1eee532fc9570bf1bcff93) Thanks [@mk3008](https://github.com/mk3008)! - Document that the CLI templates treat db/ddl as the only authoritative source, keep optional references purely informational, and ship the mapper/writer sample with its supporting tests.
 
 ### Patch Changes
 
@@ -332,7 +334,7 @@
   - The benchmark outputs now surface the total SQL count and DB execution time for both workflows, along with the rewrite and fixture timing that explains why ZTD issues fewer statements.
 
 - [#318](https://github.com/mk3008/rawsql-ts/pull/318) [`f5ea0f8`](https://github.com/mk3008/rawsql-ts/commit/f5ea0f85727d99c281f4719c9f6c1445636f6d93) Thanks [@mk3008](https://github.com/mk3008)! - Add SQL rewrite logging to generated pg-testkit client
-  - Generated `tests/support/testkit-client.ts` can emit structured logs showing the SQL before and after pg-testkit rewrites it.
+  - Generated `.ztd/support/testkit-client.ts` can emit structured logs showing the SQL before and after pg-testkit rewrites it.
   - Logging can be enabled via `ZTD_SQL_LOG` and can optionally include parameters via `ZTD_SQL_LOG_PARAMS`.
   - Logging is resilient to non-JSON primitives (e.g. `bigint`) and circular references, so enabling it won't crash a test run.
 

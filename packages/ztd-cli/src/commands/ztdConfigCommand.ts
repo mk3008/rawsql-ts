@@ -9,10 +9,14 @@ import {
   resolveExtensions,
   DEFAULT_DDL_DIRECTORY,
   DEFAULT_EXTENSIONS,
-  DEFAULT_TESTS_DIRECTORY,
   parseCsvList
 } from './options';
-import { loadZtdProjectConfig, writeZtdProjectConfig, type ZtdProjectConfig } from '../utils/ztdProjectConfig';
+import {
+  loadZtdProjectConfig,
+  resolveGeneratedDir,
+  writeZtdProjectConfig,
+  type ZtdProjectConfig
+} from '../utils/ztdProjectConfig';
 import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConfig';
 import { ensureDirectory } from '../utils/fs';
 import { emitDiagnostic, isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
@@ -64,9 +68,8 @@ function normalizeZtdConfigCommandOptions(options: Record<string, unknown>): Ztd
 }
 
 function renderZtdLayoutGeneratedFile(config: ZtdProjectConfig): string {
-  // Derive the canonical ztd root directory from the configured DDL path.
+  const ztdRootDir = config.ztdRootDir?.replace(/\\/g, '/') ?? resolveGeneratedDir(config).replace(/\/generated$/, '');
   const ddlDir = config.ddlDir.replace(/\\/g, '/');
-  const ztdRootDir = path.posix.dirname(ddlDir);
 
   // Keep default sibling directories deterministic for downstream tooling.
   const enumsDir = path.posix.join(ztdRootDir, 'enums');
@@ -118,11 +121,7 @@ export function registerZtdConfigCommand(program: Command): void {
         const projectConfig = loadZtdProjectConfig();
         const directories = normalizeDirectoryList(merged.ddlDir, projectConfig.ddlDir ?? DEFAULT_DDL_DIRECTORY);
         const extensions = resolveExtensions(merged.extensions, DEFAULT_EXTENSIONS);
-        const defaultOut = path.join(
-          projectConfig.testsDir ?? DEFAULT_TESTS_DIRECTORY,
-          'generated',
-          'ztd-row-map.generated.ts'
-        );
+        const defaultOut = path.join(resolveGeneratedDir(projectConfig), 'ztd-row-map.generated.ts');
         const output = merged.out ?? defaultOut;
         const layoutOut = path.join(path.dirname(output), 'ztd-layout.generated.ts');
         const manifestOut = path.join(path.dirname(output), 'ztd-fixture-manifest.generated.ts');

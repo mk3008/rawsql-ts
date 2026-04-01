@@ -11,7 +11,7 @@ function createWorkspace(prefix: string): string {
   const tmpRoot = path.join(process.cwd(), 'tmp');
   mkdirSync(tmpRoot, { recursive: true });
   const root = mkdtempSync(path.join(tmpRoot, `${prefix}-`));
-  mkdirSync(path.join(root, 'ztd', 'ddl'), { recursive: true });
+  mkdirSync(path.join(root, 'db', 'ddl'), { recursive: true });
   return root;
 }
 
@@ -32,9 +32,9 @@ afterEach(() => {
 
 test('real CLI root wiring emits telemetry events for ztd-config when --telemetry is enabled', async () => {
   const workspace = createWorkspace('ztd-config-telemetry');
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   const ddlFile = path.join(ddlDir, 'public.sql');
-  const outputFile = path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts');
+  const outputFile = path.join(workspace, '.ztd', 'generated', 'ztd-row-map.generated.ts');
   const relativeDdlDir = path.relative(process.cwd(), ddlDir);
   const relativeOutputFile = path.relative(process.cwd(), outputFile);
 
@@ -99,7 +99,7 @@ test('real CLI root wiring emits telemetry events for ztd-config when --telemetr
 test('ztd-config does not emit a config.updated decision when the effective config is unchanged', async () => {
   const workspace = createWorkspace('ztd-config-noop-update');
   const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(workspace);
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   const ddlFile = path.join(ddlDir, 'public.sql');
 
   writeFileSync(
@@ -117,8 +117,9 @@ test('ztd-config does not emit a config.updated decision when the effective conf
     JSON.stringify(
       {
         dialect: 'postgres',
-        ddlDir: 'ztd/ddl',
-        testsDir: 'tests',
+        ztdRootDir: '.ztd',
+        ddlDir: 'db/ddl',
+        testsDir: '.ztd/tests',
         defaultSchema: 'public',
         searchPath: ['public'],
         ddlLint: 'strict'
@@ -151,9 +152,9 @@ test('ztd-config does not emit a config.updated decision when the effective conf
         'json',
         'ztd-config',
         '--ddl-dir',
-        'ztd/ddl',
+        'db/ddl',
         '--out',
-        'tests/generated/ztd-row-map.generated.ts',
+        '.ztd/generated/ztd-row-map.generated.ts',
         '--default-schema',
         'public',
         '--search-path',
@@ -197,9 +198,9 @@ test('ztd-config does not emit a config.updated decision when the effective conf
 
 test('real CLI root wiring enables telemetry from env when the flag is omitted', async () => {
   const workspace = createWorkspace('ztd-config-telemetry-env');
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   const ddlFile = path.join(ddlDir, 'public.sql');
-  const outputFile = path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts');
+  const outputFile = path.join(workspace, '.ztd', 'generated', 'ztd-row-map.generated.ts');
   const relativeDdlDir = path.relative(process.cwd(), ddlDir);
   const relativeOutputFile = path.relative(process.cwd(), outputFile);
 

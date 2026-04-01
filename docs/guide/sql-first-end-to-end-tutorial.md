@@ -23,7 +23,7 @@ README gives the first-run copy-paste path. This tutorial gives the scenario-lev
 | Scenario | Primary CLI | Why |
 | --- | --- | --- |
 | DDL repair | `npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail` | Find the impacted feature-local SQL files before editing them |
-| SQL repair | `npx ztd model-gen --probe-mode ztd src/features/users-insert/sql/users-insert.sql --out src/features/users-insert/sql/users-insert.spec.ts` | Regenerate the spec from the feature-local SQL asset |
+| SQL repair | `npx ztd model-gen --probe-mode ztd src/features/users-insert/insert-users/insert-users.sql --out src/features/users-insert/insert-users/queryspec.ts` | Regenerate the feature-local QuerySpec from the SQL asset |
 | DTO repair | `npx vitest run` after the DTO change | Verify the feature-local runtime and tests after the shape change |
 | migration | `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to prepare review output plus apply SQL | Prepare a manually applied migration without asking ztd-cli to deploy it |
 | tuning | `npx ztd query plan <sql-file>` and the perf guide under `docs/guide/` | Keep perf work in the separate tuning path, not in the starter tutorial |
@@ -43,13 +43,13 @@ npx ztd agents init
 The starter generates:
 
 - `src/features/smoke`
-- `ztd/ddl/demo.sql`
+- `db/ddl/public.sql`
 - `compose.yaml`
 - optional customer-facing Codex bootstrap (installed by `npx ztd agents init`)
 - Vitest smoke tests
 
 Run `npx ztd agents init` immediately after scaffold creation when you want the customer-facing Codex bootstrap for the AI-guided path.
-That opt-in bootstrap adds visible `AGENTS.md`, `.codex/config.toml`, `.codex/agents/*`, and `.agents/skills/*`.
+That opt-in bootstrap adds visible `AGENTS.md`, `db/AGENTS.md`, `db/ddl/AGENTS.md`, `src/AGENTS.md`, `src/features/AGENTS.md`, `.codex/config.toml`, and `.codex/agents/*`.
 
 The smallest DB-backed starter example lives in `src/features/smoke/tests/smoke.queryspec.test.ts`.
 It uses `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`, so a missing `ZTD_TEST_DATABASE_URL`, a stopped Postgres container, or a schema mismatch fails before you build a larger feature.
@@ -109,8 +109,9 @@ npx ztd feature scaffold --table users --action insert
 
 That v1 scaffold fixes the initial layout to:
 
-- `src/features/users-insert/users-insert.ts`
-- `src/features/users-insert/sql/users-insert.sql`
+- `src/features/users-insert/entryspec.ts`
+- `src/features/users-insert/insert-users/queryspec.ts`
+- `src/features/users-insert/insert-users/insert-users.sql`
 - `src/features/users-insert/tests/`
 - `src/features/users-insert/README.md`
 
@@ -124,9 +125,9 @@ This prompt is meant to be copied into another AI instance so we can observe whe
 
 ```text
 Add a users insert feature to this feature-first project.
-Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.agents/skills/*` if present.
+Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.ztd/agents/*` if present.
 Start with `npx ztd feature scaffold --table users --action insert`.
-Keep handwritten SQL and the feature entrypoint inside src/features/users-insert.
+Keep `entryspec.ts`, the query-local `queryspec.ts`, and the query-local SQL resource inside `src/features/users-insert`.
 Add the two tests in src/features/users-insert/tests as the follow-up step.
 Do not apply migrations automatically.
 ```
@@ -150,7 +151,7 @@ Each scenario should end with `vitest` passing again.
 
 For DDL repair, run `npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail` first so the impacted SQL files come from the CLI, not from guesswork. Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.
 
-For SQL repair, keep the SQL assets under `src/features/users-insert/sql/`, keep the query on the starter DDL's `users` table, and rerun `model-gen` against `src/features/users-insert/sql/users-insert.sql` directly. In VSA layouts, `model-gen` now treats the SQL file location as the primary contract source, so `--sql-root` is only needed for older shared-root layouts.
+For SQL repair, keep the SQL assets under `src/features/users-insert/insert-users/`, keep the query on the starter DDL's `users` table, and rerun `model-gen` against `src/features/users-insert/insert-users/insert-users.sql` directly, writing back to `src/features/users-insert/insert-users/queryspec.ts`. In VSA layouts, `model-gen` now treats the SQL file location as the primary contract source, so `--sql-root` is only needed for older shared-root layouts.
 
 For migration work, use an explicit `--url <target-db-url>` with `ddl pull` or `ddl diff` so the target database is never inferred from the starter test database by accident.
 
@@ -172,8 +173,8 @@ When the schema change needs a deployable migration, keep the flow explicit:
 
 Use a fresh AI prompt for this step so we can confirm the migration guidance works without human patching in the middle.
 
-1. Edit the DDL in `ztd/ddl/demo.sql` or the relevant schema file.
-2. Run `npx ztd ztd-config` to refresh the ZTD-generated artifacts, including `tests/generated/ztd-fixture-manifest.generated.ts` for runtime schema metadata (`tableDefinitions` only).
+1. Edit the DDL in `db/ddl/public.sql` or the relevant schema file.
+2. Run `npx ztd ztd-config` to refresh the ZTD-generated artifacts, including `.ztd/generated/ztd-fixture-manifest.generated.ts` for runtime schema metadata (`tableDefinitions` only).
 3. Optionally run `npx ztd ddl pull --url <target-db-url>` to inspect the target, then run `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` when you need a migration plan.
 4. Read the text summary first, inspect the generated SQL second, and apply the SQL outside `ztd-cli`.
 5. Re-run `npx ztd ztd-config` and `npx vitest run` after the migration lands so the generated runtime manifest stays in sync with the schema metadata.

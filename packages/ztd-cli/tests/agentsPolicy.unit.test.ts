@@ -63,8 +63,8 @@ test('root AGENTS.md defines global guardrails and routing', () => {
   assertPolicyContains(contents, SHARED_POLICY_ASSERTIONS);
   expect(contents).toContain('.codex/agents/planning.md');
   expect(contents).toContain('.codex/agents/review.md');
-  expect(contents).toContain('.agents/skills/acceptance-planning/SKILL.md');
-  expect(contents).toContain('.agents/skills/self-review/SKILL.md');
+  expect(contents).toContain('acceptance-planning/SKILL.md');
+  expect(contents).toContain('self-review/SKILL.md');
 });
 
 test('.agent/AGENTS.md mirrors the routing and guardrail policy', () => {
@@ -79,8 +79,8 @@ test('.agent/AGENTS.md mirrors the routing and guardrail policy', () => {
   assertPolicyContains(contents, SHARED_POLICY_ASSERTIONS);
   expect(contents).toContain('.codex/agents/planning.md');
   expect(contents).toContain('.codex/agents/review.md');
-  expect(contents).toContain('.agents/skills/attainment-reporting/SKILL.md');
-  expect(contents).toContain('.agents/skills/self-review/SKILL.md');
+  expect(contents).toContain('attainment-reporting/SKILL.md');
+  expect(contents).toContain('self-review/SKILL.md');
 });
 
 test('policy precedence is described without weakening completion criteria', () => {

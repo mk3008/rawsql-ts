@@ -45,25 +45,20 @@ test('copyAgentsTemplate writes AGENTS.md, falls back to AGENTS_ztd.md, then sto
 test('getAgentsInstallPlan lists the full customer bootstrap set for a fresh workspace', () => {
   const workspace = createTempDir('ztd-bootstrap-plan');
   mkdirSync(path.join(workspace, 'src', 'features'), { recursive: true });
-  mkdirSync(path.join(workspace, 'tests'), { recursive: true });
-  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+  mkdirSync(path.join(workspace, 'db', 'ddl'), { recursive: true });
 
   const plan = getAgentsInstallPlan(workspace);
 
   expect(plan.createPaths).toEqual(expect.arrayContaining([
     'AGENTS.md',
+    'db/AGENTS.md',
+    'db/ddl/AGENTS.md',
     'src/AGENTS.md',
     'src/features/AGENTS.md',
-    'tests/AGENTS.md',
-    'ztd/AGENTS.md',
-    'ztd/ddl/AGENTS.md',
     '.codex/config.toml',
     '.codex/agents/planning.md',
     '.codex/agents/troubleshooting.md',
-    '.codex/agents/next-steps.md',
-    '.agents/skills/quickstart/SKILL.md',
-    '.agents/skills/troubleshooting/SKILL.md',
-    '.agents/skills/next-steps/SKILL.md'
+    '.codex/agents/next-steps.md'
   ]));
   expect(plan.conflictPaths).toEqual([]);
   expect(plan.customizedPaths).toEqual([]);
@@ -72,19 +67,16 @@ test('getAgentsInstallPlan lists the full customer bootstrap set for a fresh wor
 test('visible install paths exclude internal bootstrap targets', () => {
   const workspace = createTempDir('ztd-bootstrap-visible-paths');
   mkdirSync(path.join(workspace, 'src', 'features'), { recursive: true });
-  mkdirSync(path.join(workspace, 'tests'), { recursive: true });
-  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+  mkdirSync(path.join(workspace, 'db', 'ddl'), { recursive: true });
 
   expect(getVisibleAgentsInstallPaths(workspace)).toEqual(expect.arrayContaining([
     'AGENTS.md',
+    'db/AGENTS.md',
+    'db/ddl/AGENTS.md',
     'src/AGENTS.md',
-    'src/features/AGENTS.md',
-    'tests/AGENTS.md',
-    'ztd/AGENTS.md',
-    'ztd/ddl/AGENTS.md'
+    'src/features/AGENTS.md'
   ]));
   expect(getVisibleAgentsInstallPaths(workspace).some((target) => target.startsWith('.codex/'))).toBe(false);
-  expect(getVisibleAgentsInstallPaths(workspace).some((target) => target.startsWith('.agents/'))).toBe(false);
 });
 
 test('managed root guidance does not require AGENTS_ztd fallback, but user-owned root does', () => {
@@ -118,15 +110,14 @@ test('internal manifest mirrors the narrowed visible target contract', () => {
 test('installAgentsBootstrap creates visible guidance and Codex bootstrap files without overwriting existing files', () => {
   const workspace = createTempDir('ztd-bootstrap-install');
   mkdirSync(path.join(workspace, 'src', 'features'), { recursive: true });
-  mkdirSync(path.join(workspace, 'tests'), { recursive: true });
-  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+  mkdirSync(path.join(workspace, 'db', 'ddl'), { recursive: true });
   writeFileSync(path.join(workspace, 'src', 'AGENTS.md'), '# existing\n', 'utf8');
 
   const written = installAgentsBootstrap(workspace);
 
   expect(written.created.some((summary) => summary.relativePath === 'AGENTS.md')).toBe(true);
   expect(written.created.some((summary) => summary.relativePath === '.codex/config.toml')).toBe(true);
-  expect(written.created.some((summary) => summary.relativePath === '.agents/skills/quickstart/SKILL.md')).toBe(true);
+  expect(written.created.some((summary) => summary.relativePath === 'db/AGENTS.md')).toBe(true);
   expect(written.created.some((summary) => summary.relativePath === 'src/AGENTS.md')).toBe(false);
   expect(readNormalized(path.join(workspace, 'src', 'AGENTS.md'))).toBe('# existing\n');
 });
@@ -134,8 +125,7 @@ test('installAgentsBootstrap creates visible guidance and Codex bootstrap files 
 test('install plan reports unmanaged conflicts and customized managed files separately', () => {
   const workspace = createTempDir('ztd-bootstrap-status');
   mkdirSync(path.join(workspace, 'src', 'features'), { recursive: true });
-  mkdirSync(path.join(workspace, 'tests'), { recursive: true });
-  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+  mkdirSync(path.join(workspace, 'db', 'ddl'), { recursive: true });
 
   installAgentsBootstrap(workspace);
   writeFileSync(path.join(workspace, '.codex', 'config.toml'), '# user-owned replacement\n', 'utf8');

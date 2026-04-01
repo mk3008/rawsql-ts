@@ -25,9 +25,10 @@ test('writeZtdProjectConfig skips rewriting when the effective config is unchang
     path.join(rootDir, 'ztd.config.json'),
     JSON.stringify(
       {
+        ztdRootDir: '.ztd',
         dialect: 'postgres',
-        ddlDir: 'ztd/ddl',
-        testsDir: 'tests',
+        ddlDir: 'db/ddl',
+        testsDir: '.ztd/tests',
         defaultSchema: 'public',
         searchPath: ['public'],
         ddlLint: 'strict'
@@ -60,9 +61,10 @@ test('loadZtdProjectConfig warns when legacy connection config is present', asyn
     path.join(rootDir, 'ztd.config.json'),
     JSON.stringify(
       {
+        ztdRootDir: '.ztd',
         dialect: 'postgres',
-        ddlDir: 'ztd/ddl',
-        testsDir: 'tests',
+        ddlDir: 'db/ddl',
+        testsDir: '.ztd/tests',
         defaultSchema: 'public',
         searchPath: ['public'],
         ddlLint: 'strict',
@@ -103,9 +105,10 @@ test('loadZtdProjectConfig does not warn when legacy connection config is absent
     path.join(rootDir, 'ztd.config.json'),
     JSON.stringify(
       {
+        ztdRootDir: '.ztd',
         dialect: 'postgres',
-        ddlDir: 'ztd/ddl',
-        testsDir: 'tests',
+        ddlDir: 'db/ddl',
+        testsDir: '.ztd/tests',
         defaultSchema: 'public',
         searchPath: ['public'],
         ddlLint: 'strict'
@@ -135,9 +138,10 @@ test('loadZtdProjectConfig rejects removed ddl schema settings', async () => {
     path.join(rootDir, 'ztd.config.json'),
     JSON.stringify(
       {
+        ztdRootDir: '.ztd',
         dialect: 'postgres',
-        ddlDir: 'ztd/ddl',
-        testsDir: 'tests',
+        ddlDir: 'db/ddl',
+        testsDir: '.ztd/tests',
         ddl: { defaultSchema: 'legacy', searchPath: ['legacy', 'public'] },
         ddlLint: 'strict'
       },
@@ -160,9 +164,10 @@ test('loadZtdProjectConfig rejects an empty legacy ddl block', async () => {
     path.join(rootDir, 'ztd.config.json'),
     JSON.stringify(
       {
+        ztdRootDir: '.ztd',
         dialect: 'postgres',
-        ddlDir: 'ztd/ddl',
-        testsDir: 'tests',
+        ddlDir: 'db/ddl',
+        testsDir: '.ztd/tests',
         ddl: {},
         ddlLint: 'strict'
       },

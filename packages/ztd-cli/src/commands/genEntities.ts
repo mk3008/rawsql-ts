@@ -45,10 +45,10 @@ export function runGenerateEntities(options: GenerateEntitiesOptions): GenerateE
 }
 
 function renderEntitiesFile(tables: TableMetadata[]): string {
-  // The header reminds maintainers that this file is a secondary reference next to tests/generated/ztd-row-map.generated.ts.
+  // The header reminds maintainers that this file is a secondary reference next to .ztd/generated/ztd-row-map.generated.ts.
   const header = [
     '// ENTITY HELPERS - AUTO GENERATED',
-    '// Complementary reference for tooling. TestRowMap in tests/generated/ztd-row-map.generated.ts remains authoritative.',
+    '// Complementary reference for tooling. TestRowMap in .ztd/generated/ztd-row-map.generated.ts remains authoritative.',
     ''
   ].join('\n');
 
