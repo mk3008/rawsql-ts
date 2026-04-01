@@ -240,7 +240,7 @@ test(
     expect(result.stdout).toContain('--feature-name <name>');
     expect(result.stdout).toContain('--dry-run');
     expect(result.stdout).toContain('--force');
-    expect(result.stdout).toMatch(/insert,\s+update,\s+and\s+delete/);
+    expect(result.stdout).toMatch(/insert,\s+update,\s+delete,\s+get-by-id,\s+and\s+list/);
   },
   60000,
 );
@@ -255,7 +255,7 @@ test(
       path.join(ddlDir, 'users.sql'),
       [
         'create table public.users (',
-        '  id serial primary key,',
+        '  id serial8 primary key,',
         '  email text not null,',
         '  created_at timestamptz not null default now()',
         ');'
@@ -318,7 +318,7 @@ test(
       path.join(ddlDir, 'users.sql'),
       [
         'create table public.users (',
-        '  id serial primary key,',
+        '  id serial8 primary key,',
         '  email text not null,',
         '  created_at timestamptz not null default now()',
         ');'
@@ -363,7 +363,16 @@ test(
       "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor';"
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).toContain(
-      'const usersInsertRawRequestSchema = z.object({'
+      'const RequestSchema = z.object({'
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).toContain(
+      "const RequestSchema = z.object({\n  email: z.string(),\n}).strict();"
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).toContain(
+      'function parseRequest'
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).toContain(
+      'function toQueryParams'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).not.toContain(
       'QueryParamsSchema'
@@ -396,6 +405,9 @@ test(
       'export interface InsertUsersQueryContract'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).not.toContain(
+      "id: z.string().min(1, 'id must not be empty.')"
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).not.toContain(
       'created_at: z.string().min(1'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'insert-users.sql'))).not.toContain(
@@ -417,7 +429,10 @@ test(
       'When DDL declares a column default, the scaffold writes that default expression into SQL explicitly'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toContain(
-      'Cardinality execution should come from `@rawsql-ts/sql-contract`'
+      'Cardinality and catalog execution should come from `@rawsql-ts/sql-contract`'
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toContain(
+      'Keep this baseline as one workflow and one primary query by default'
     );
   },
   60000,
@@ -502,7 +517,7 @@ test(
       path.join(ddlDir, 'users.sql'),
       [
         'create table public.users (',
-        '  id serial primary key,',
+        '  id serial8 primary key,',
         '  email text not null',
         ');'
       ].join('\n'),
@@ -527,6 +542,83 @@ test(
 );
 
 test(
+  'feature scaffold writes the get-by-id boundary baseline',
+  () => {
+    const workspace = createTempDir('feature-scaffold-get-by-id-cli');
+    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    mkdirSync(ddlDir, { recursive: true });
+    writeFileSync(
+      path.join(ddlDir, 'users.sql'),
+      [
+        'create table public.users (',
+        '  id serial8 primary key,',
+        '  email text not null',
+        ');'
+      ].join('\n'),
+      'utf8'
+    );
+
+    const result = runCli([
+      'feature',
+      'scaffold',
+      '--table',
+      'users',
+      '--action',
+      'get-by-id'
+    ], {}, workspace);
+
+    assertCliSuccess(result, 'feature scaffold get-by-id write');
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toBe(true);
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('}).strict();');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('id: z.string()');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('function parseRequest');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('function toQueryParams');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toContain('queryZeroOrOneRow');
+  },
+  60000,
+);
+
+test(
+  'feature scaffold writes the list boundary baseline',
+  () => {
+    const workspace = createTempDir('feature-scaffold-list-cli');
+    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    mkdirSync(ddlDir, { recursive: true });
+    writeFileSync(
+      path.join(ddlDir, 'users.sql'),
+      [
+        'create table public.users (',
+        '  id serial8 primary key,',
+        '  email text not null',
+        ');'
+      ].join('\n'),
+      'utf8'
+    );
+
+    const result = runCli([
+      'feature',
+      'scaffold',
+      '--table',
+      'users',
+      '--action',
+      'list'
+    ], {}, workspace);
+
+    assertCliSuccess(result, 'feature scaffold list write');
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-list', 'list', 'queryspec.ts'))).toBe(true);
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('const RequestSchema = z.object({\n}).strict();');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('id: z.string()');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('function parseRequest');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('function toQueryParams');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'list', 'queryspec.ts'))).toContain('createCatalogExecutor');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'list', 'list.sql'))).toContain('limit :limit;');
+  },
+  60000,
+);
+
+test(
   'feature scaffold preserves existing files unless --force is provided',
   () => {
     const workspace = createTempDir('feature-scaffold-existing-file');
@@ -538,7 +630,7 @@ test(
       path.join(ddlDir, 'users.sql'),
       [
         'create table public.users (',
-        '  id serial primary key,',
+        '  id serial8 primary key,',
         '  email text not null',
         ');'
       ].join('\n'),

@@ -14,8 +14,9 @@ import { ensureDirectory } from '../utils/fs';
 import { collectSqlFiles, type SqlSource } from '../utils/collectSqlFiles';
 import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
 
-const FEATURE_ACTIONS = ['insert', 'update', 'delete'] as const;
+const FEATURE_ACTIONS = ['insert', 'update', 'delete', 'get-by-id', 'list'] as const;
 type FeatureAction = (typeof FEATURE_ACTIONS)[number];
+const DEFAULT_PAGE_SIZE = 50;
 const FIXED_LAYOUT_DESCRIPTION = [
   'src/features/<feature-name>/',
   '  entryspec.ts',
@@ -93,9 +94,9 @@ export function registerFeatureCommand(program: Command): void {
 
   feature
     .command('scaffold')
-    .description('Scaffold a feature-local CRUD boundary skeleton from schema metadata')
+    .description('Scaffold a feature-local CRUD or SELECT boundary skeleton from schema metadata')
     .requiredOption('--table <table>', 'Target table name')
-    .requiredOption('--action <action>', 'Feature action template to scaffold (v1 supports insert, update, and delete)')
+    .requiredOption('--action <action>', 'Feature action template to scaffold (v1 supports insert, update, delete, get-by-id, and list)')
     .option('--feature-name <name>', 'Override the derived feature name')
     .option('--dry-run', 'Validate inputs and emit the planned scaffold without writing files', false)
     .option('--force', 'Overwrite scaffold-owned feature files when they already exist', false)
@@ -212,7 +213,7 @@ export function normalizeFeatureAction(action: string | undefined): FeatureActio
   if (FEATURE_ACTIONS.includes(normalized as FeatureAction)) {
     return normalized as FeatureAction;
   }
-  throw new Error(`Unsupported --action value: ${action}. v1 supports only insert, update, and delete.`);
+  throw new Error(`Unsupported --action value: ${action}. v1 supports only insert, update, delete, get-by-id, and list.`);
 }
 
 export function normalizeFeatureName(value: string): string {
@@ -497,15 +498,7 @@ function renderFeatureScaffoldFiles(params: {
   const queryCamelName = toCamelCase(params.queryName);
   const actionPlan = buildActionPlan(params.action, params.table, params.primaryKeyColumn);
   const requestFields = actionPlan.requestColumns.map((column) => toRenderField(column));
-  const responseField = toRenderField(
-    params.table.columns.find((column) => column.name === params.primaryKeyColumn) ?? {
-      name: params.primaryKeyColumn,
-      typeName: 'integer',
-      isNotNull: true,
-      defaultValue: null,
-      hasGeneratedIdentity: false
-    }
-  );
+  const responseFields = actionPlan.resultColumns.map((column) => toRenderField(column));
   const sqlFile = renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn);
   const featureQueryExecutorFile = [
     '// Shared runtime contract for scaffolded features.',
@@ -533,7 +526,7 @@ function renderFeatureScaffoldFiles(params: {
     queryPascalName,
     queryCamelName,
     requestFields,
-    responseField
+    responseFields
   });
   const querySpecFile = renderQuerySpecFile({
     action: params.action,
@@ -542,7 +535,7 @@ function renderFeatureScaffoldFiles(params: {
     queryPascalName,
     queryCamelName,
     requestFields,
-    responseField
+    responseFields
   });
   const readmeFile = renderReadmeFile({
     action: params.action,
@@ -553,8 +546,8 @@ function renderFeatureScaffoldFiles(params: {
     generatedColumns: params.table.columns
       .filter((column) => isGeneratedInsertColumn(column, params.primaryKeyColumn))
       .map((column) => column.name),
-    queryColumns: actionPlan.queryColumns.map((column) => column.name),
-    parameterColumns: actionPlan.queryColumns.filter((column) => column.source === 'param').map((column) => column.name),
+    queryColumns: actionPlan.resultColumns.map((column) => column.name),
+    parameterColumns: actionPlan.requestColumns.map((column) => column.name),
     defaultExpressionColumns: actionPlan.queryColumns.filter((column) => column.source === 'ddl-default').map((column) => column.name)
   });
 
@@ -576,21 +569,25 @@ type RenderField = {
   sourceType: string;
 };
 
-type InsertSqlColumn = {
+type QueryColumn = {
   name: string;
   expression: string;
-  source: 'param' | 'ddl-default';
+  source: 'param' | 'ddl-default' | 'selected';
 };
 
 type ActionPlan = {
   action: FeatureAction;
   requestColumns: ScaffoldColumnMetadata[];
-  queryColumns: InsertSqlColumn[];
-  writeColumns: InsertSqlColumn[];
-  whereColumns: InsertSqlColumn[];
+  resultColumns: ScaffoldColumnMetadata[];
+  queryColumns: QueryColumn[];
+  writeColumns: QueryColumn[];
+  whereColumns: QueryColumn[];
 };
 
 function deriveQueryName(tableName: string, action: FeatureAction): string {
+  if (action === 'get-by-id' || action === 'list') {
+    return action;
+  }
   return `${action}-${toFeatureResourceSegment(tableName)}`;
 }
 
@@ -605,6 +602,7 @@ function buildActionPlan(
       action,
       requestColumns: table.columns
         .filter((column) => !isGeneratedInsertColumn(column, primaryKeyColumn) && column.defaultValue == null),
+      resultColumns: [requireColumn(table, primaryKeyColumn)],
       queryColumns,
       writeColumns: queryColumns,
       whereColumns: []
@@ -622,6 +620,7 @@ function buildActionPlan(
     return {
       action,
       requestColumns: [primaryKey, ...mutableColumns],
+      resultColumns: [primaryKey],
       queryColumns: [...whereColumns, ...writeColumns],
       writeColumns,
       whereColumns
@@ -630,16 +629,50 @@ function buildActionPlan(
 
   const primaryKey = requireColumn(table, primaryKeyColumn);
   const whereColumns = [{ name: primaryKey.name, expression: `:${primaryKey.name}`, source: 'param' as const }];
+  if (action === 'delete') {
+    return {
+      action,
+      requestColumns: [primaryKey],
+      resultColumns: [primaryKey],
+      queryColumns: whereColumns,
+      writeColumns: [],
+      whereColumns
+    };
+  }
+
+  if (action === 'get-by-id') {
+    return {
+      action,
+      requestColumns: [primaryKey],
+      resultColumns: [...table.columns],
+      queryColumns: [
+        ...whereColumns,
+        ...table.columns.map((column) => ({
+          name: column.name,
+          expression: quoteSqlIdentifier(column.name),
+          source: 'selected' as const
+        }))
+      ],
+      writeColumns: [],
+      whereColumns
+    };
+  }
+
   return {
     action,
-    requestColumns: [primaryKey],
-    queryColumns: whereColumns,
+    requestColumns: [],
+    resultColumns: [...table.columns],
+    queryColumns: table.columns.map((column) => ({
+      name: column.name,
+      expression: quoteSqlIdentifier(column.name),
+      source: 'selected' as const
+    })),
     writeColumns: [],
-    whereColumns
+    whereColumns: []
   };
 }
 
-function selectInsertSqlColumns(table: DdlTableMetadata, primaryKeyColumn: string): InsertSqlColumn[] {
+function selectInsertSqlColumns(table: DdlTableMetadata, primaryKeyColumn: string): QueryColumn[] {
   return table.columns
     .filter((column) => !isGeneratedInsertColumn(column, primaryKeyColumn))
     .map((column) => ({
@@ -665,7 +698,14 @@ function isGeneratedInsertColumn(column: ScaffoldColumnMetadata, primaryKeyColum
     return false;
   }
   const normalizedType = (column.typeName ?? '').trim().toLowerCase();
-  if (normalizedType === 'serial' || normalizedType === 'bigserial' || normalizedType === 'smallserial') {
+  if (
+    normalizedType === 'serial'
+    || normalizedType === 'serial2'
+    || normalizedType === 'serial4'
+    || normalizedType === 'serial8'
+    || normalizedType === 'bigserial'
+    || normalizedType === 'smallserial'
+  ) {
     return true;
   }
   return /^nextval\s*\(/i.test(column.defaultValue ?? '');
@@ -706,6 +746,29 @@ function renderActionSql(plan: ActionPlan, tableName: string, primaryKeyColumn: 
     ].join('\n');
   }
 
+  if (plan.action === 'get-by-id') {
+    return [
+      'select',
+      plan.resultColumns.map((column) => `  ${quoteSqlIdentifier(column.name)}`).join(',\n'),
+      `from ${quotedTableName}`,
+      'where',
+      plan.whereColumns.map((column, index) => `  ${quoteSqlIdentifier(column.name)} = ${column.expression}${index < plan.whereColumns.length - 1 ? ' and' : ''}`).join('\n'),
+      ''
+    ].join('\n');
+  }
+
+  if (plan.action === 'list') {
+    return [
+      'select',
+      plan.resultColumns.map((column) => `  ${quoteSqlIdentifier(column.name)}`).join(',\n'),
+      `from ${quotedTableName}`,
+      'order by',
+      `  ${quotedPrimaryKeyColumn} asc`,
+      'limit :limit;',
+      ''
+    ].join('\n');
+  }
+
   return [
     `delete from ${quotedTableName}`,
     'where',
@@ -725,6 +788,15 @@ function quoteSqlIdentifier(value: string): string {
 
 function toRenderField(column: ScaffoldColumnMetadata): RenderField {
   const typeName = (column.typeName ?? '').trim().toLowerCase();
+  if (isBigIntLikeType(typeName)) {
+    return {
+      name: column.name,
+      typeScriptType: column.isNotNull ? 'string' : 'string | null',
+      parserKind: 'string',
+      nullable: !column.isNotNull,
+      sourceType: column.typeName ?? 'bigint'
+    };
+  }
   if (isNumberType(typeName)) {
     return {
       name: column.name,
@@ -752,17 +824,23 @@ function toRenderField(column: ScaffoldColumnMetadata): RenderField {
   };
 }
 
+function isBigIntLikeType(typeName: string): boolean {
+  return [
+    'bigserial',
+    'serial8',
+    'int8',
+    'bigint'
+  ].includes(typeName);
+}
+
 function isNumberType(typeName: string): boolean {
   return [
     'serial',
-    'bigserial',
     'smallserial',
     'int',
     'int2',
     'int4',
-    'int8',
     'integer',
-    'bigint',
     'smallint',
     'numeric',
     'decimal',
@@ -783,17 +861,26 @@ function renderEntrySpecFile(params: {
   queryPascalName: string;
   queryCamelName: string;
   requestFields: RenderField[];
-  responseField: RenderField;
+  responseFields: RenderField[];
 }): string {
-  const rawRequestSchema = renderZodObjectSchema(`${params.entryCamelName}RawRequestSchema`, params.requestFields, {
+  if (params.action === 'get-by-id') {
+    return renderGetByIdEntrySpecFile(params);
+  }
+  if (params.action === 'list') {
+    return renderListEntrySpecFile(params);
+  }
+
+  const rawRequestSchema = renderZodObjectSchema('RequestSchema', params.requestFields, {
     trimStrings: false,
     rejectEmptyStrings: false,
-    exported: false
+    exported: false,
+    strict: true
   });
-  const responseSchema = renderZodObjectSchema(`${params.entryCamelName}ResponseSchema`, [params.responseField], {
+  const responseSchema = renderZodObjectSchema('ResponseSchema', [params.responseFields[0]], {
     trimStrings: false,
     rejectEmptyStrings: false,
-    exported: false
+    exported: false,
+    strict: false
   });
   const normalizeLines = params.requestFields.length === 0
     ? ['  return request;']
@@ -839,42 +926,48 @@ function renderEntrySpecFile(params: {
     '',
     rawRequestSchema,
     '',
-    `export type ${params.pascalName}Request = z.infer<typeof ${params.entryCamelName}RawRequestSchema>;`,
+    `export type ${params.pascalName}Request = z.infer<typeof RequestSchema>;`,
     '',
     responseSchema,
     '',
-    `export type ${params.pascalName}Response = z.infer<typeof ${params.entryCamelName}ResponseSchema>;`,
+    `export type ${params.pascalName}Response = z.infer<typeof ResponseSchema>;`,
     '',
-    `function parse${params.pascalName}Request(raw: unknown): ${params.pascalName}Request {`,
-    `  return ${params.entryCamelName}RawRequestSchema.parse(raw);`,
+    '/** Parses the raw feature request at the feature boundary. */',
+    `function parseRequest(raw: unknown): ${params.pascalName}Request {`,
+    '  return RequestSchema.parse(raw);',
     '}',
     '',
-    `function normalize${params.pascalName}Request(request: ${params.pascalName}Request): ${params.pascalName}Request {`,
+    '/** Normalizes the parsed feature request for downstream feature logic. */',
+    `function normalizeRequest(request: ${params.pascalName}Request): ${params.pascalName}Request {`,
     ...normalizeLines,
     '}',
     '',
-    `function reject${params.pascalName}Request(request: ${params.pascalName}Request): void {`,
+    '/** Rejects feature requests that violate feature-level rules. */',
+    `function rejectRequest(request: ${params.pascalName}Request): void {`,
     ...(rejectLines.length > 0
       ? rejectLines
       : ['  // Add feature-level reject rules here when follow-up requirements appear.']),
     '}',
     '',
-    `function to${params.queryPascalName}QueryParams(request: ${params.pascalName}Request): ${params.queryPascalName}QueryParams {`,
+    '/** Maps the feature request into query params for the query spec. */',
+    `function toQueryParams(request: ${params.pascalName}Request): ${params.queryPascalName}QueryParams {`,
     ...renderTypedReturnObject(params.requestFields, `${params.queryPascalName}QueryParams`),
     '}',
     '',
-    `function from${params.queryPascalName}QueryResult(result: ${params.queryPascalName}QueryResult): ${params.pascalName}Response {`,
-    `  return ${params.entryCamelName}ResponseSchema.parse(result);`,
+    '/** Maps the query result into the feature response contract. */',
+    `function fromQueryResult(result: ${params.queryPascalName}QueryResult): ${params.pascalName}Response {`,
+    '  return ResponseSchema.parse(result);',
     '}',
     '',
+    '/** Executes the feature boundary flow for this feature. */',
     `export async function execute${params.pascalName}EntrySpec(`,
     '  executor: FeatureQueryExecutor,',
     '  rawRequest: unknown',
     `): Promise<${params.pascalName}Response> {`,
-    `  const request = normalize${params.pascalName}Request(parse${params.pascalName}Request(rawRequest));`,
-    `  reject${params.pascalName}Request(request);`,
-    `  const result = await execute${params.queryPascalName}QuerySpec(executor, to${params.queryPascalName}QueryParams(request));`,
-    `  return from${params.queryPascalName}QueryResult(result);`,
+    '  const request = normalizeRequest(parseRequest(rawRequest));',
+    '  rejectRequest(request);',
+    `  const result = await execute${params.queryPascalName}QuerySpec(executor, toQueryParams(request));`,
+    '  return fromQueryResult(result);',
     '}',
     ''
   ].join('\n');
@@ -887,22 +980,32 @@ function renderQuerySpecFile(params: {
   queryPascalName: string;
   queryCamelName: string;
   requestFields: RenderField[];
-  responseField: RenderField;
+  responseFields: RenderField[];
 }): string {
-  const paramsSchema = renderZodObjectSchema(`${params.queryCamelName}QueryParamsSchema`, params.requestFields, {
+  if (params.action === 'get-by-id') {
+    return renderGetByIdQuerySpecFile(params);
+  }
+  if (params.action === 'list') {
+    return renderListQuerySpecFile(params);
+  }
+
+  const paramsSchema = renderZodObjectSchema('QueryParamsSchema', params.requestFields, {
     trimStrings: false,
     rejectEmptyStrings: true,
-    exported: false
+    exported: false,
+    strict: false
   });
-  const rowSchema = renderZodObjectSchema(`${params.queryCamelName}RowSchema`, [params.responseField], {
+  const rowSchema = renderZodObjectSchema('RowSchema', [params.responseFields[0]], {
     trimStrings: false,
     rejectEmptyStrings: false,
-    exported: false
+    exported: false,
+    strict: false
   });
-  const resultSchema = renderZodObjectSchema(`${params.queryCamelName}QueryResultSchema`, [params.responseField], {
+  const resultSchema = renderZodObjectSchema('QueryResultSchema', [params.responseFields[0]], {
     trimStrings: false,
     rejectEmptyStrings: false,
-    exported: false
+    exported: false,
+    strict: false
   });
 
   return [
@@ -917,40 +1020,44 @@ function renderQuerySpecFile(params: {
     ...renderQuerySpecBoundaryComments(params.action),
     paramsSchema,
     '',
-    `export type ${params.queryPascalName}QueryParams = z.infer<typeof ${params.queryCamelName}QueryParamsSchema>;`,
+    `export type ${params.queryPascalName}QueryParams = z.infer<typeof QueryParamsSchema>;`,
     '',
     rowSchema,
     '',
     resultSchema,
     '',
-    `export type ${params.queryPascalName}QueryResult = z.infer<typeof ${params.queryCamelName}QueryResultSchema>;`,
+    `export type ${params.queryPascalName}QueryResult = z.infer<typeof QueryResultSchema>;`,
     '',
-    `type ${params.queryPascalName}Row = z.infer<typeof ${params.queryCamelName}RowSchema>;`,
+    `type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
     '',
-    `function parse${params.queryPascalName}QueryParams(raw: unknown): ${params.queryPascalName}QueryParams {`,
-    `  return ${params.queryCamelName}QueryParamsSchema.parse(raw);`,
+    '/** Parses raw query params at the query boundary. */',
+    `function parseQueryParams(raw: unknown): ${params.queryPascalName}QueryParams {`,
+    '  return QueryParamsSchema.parse(raw);',
     '}',
     '',
-    `function parse${params.queryPascalName}Row(raw: unknown): ${params.queryPascalName}Row {`,
-    `  return ${params.queryCamelName}RowSchema.parse(raw);`,
+    '/** Parses a raw DB row at the query boundary. */',
+    `function parseRow(raw: unknown): ${params.queryPascalName}Row {`,
+    '  return RowSchema.parse(raw);',
     '}',
     '',
-    `function map${params.queryPascalName}RowToResult(row: ${params.queryPascalName}Row): ${params.queryPascalName}QueryResult {`,
-    `  return ${params.queryCamelName}QueryResultSchema.parse(row);`,
+    '/** Maps a query row into the query result contract. */',
+    `function mapRowToResult(row: ${params.queryPascalName}Row): ${params.queryPascalName}QueryResult {`,
+    '  return QueryResultSchema.parse(row);',
     '}',
     '',
+    '/** Executes the query boundary flow for this query spec. */',
     `export async function execute${params.queryPascalName}QuerySpec(`,
     `  executor: FeatureQueryExecutor,`,
     `  rawParams: unknown`,
     `): Promise<${params.queryPascalName}QueryResult> {`,
-    `  const params = parse${params.queryPascalName}QueryParams(rawParams);`,
+    '  const params = parseQueryParams(rawParams);',
     `  const row = await queryExactlyOneRow<Record<string, unknown>>(`,
     '    (sql, params) => executor.query(sql, params as Record<string, unknown>),',
     `    ${params.queryCamelName}SqlResource,`,
     '    params as QueryParams,',
     `    { label: '${params.featureName}/${params.queryName}/queryspec' }`,
     '  );',
-    `  return map${params.queryPascalName}RowToResult(parse${params.queryPascalName}Row(row));`,
+    '  return mapRowToResult(parseRow(row));',
     '}',
     ''
   ].join('\n');
@@ -967,20 +1074,22 @@ function renderReadmeFile(params: {
   parameterColumns: string[];
   defaultExpressionColumns: string[];
 }): string {
-  const generatedColumnsLine = params.generatedColumns.length > 0
-    ? `- Generated / identity / sequence-backed columns excluded at scaffold time: ${params.generatedColumns.map((name) => `\`${name}\``).join(', ')}.`
-    : '- No generated / identity / sequence-backed columns were detected for exclusion in this scaffold.';
+  const generatedColumnsLine = params.action === 'insert'
+    ? params.generatedColumns.length > 0
+      ? `- Generated / identity / sequence-backed columns excluded at scaffold time: ${params.generatedColumns.map((name) => `\`${name}\``).join(', ')}.`
+      : '- No generated / identity / sequence-backed columns were detected for exclusion in this scaffold.'
+    : '- Generated / identity handling is unchanged in this read scaffold because the baseline only reads the selected row shape.';
   const queryColumnsLine = params.queryColumns.length > 0
     ? `- Initial ${params.action} query columns: ${params.queryColumns.map((name) => `\`${name}\``).join(', ')}.`
     : `- Initial ${params.action} query does not require caller-visible write columns.`;
   const parameterColumnsLine = params.parameterColumns.length > 0
     ? `- Caller-supplied request/query params: ${params.parameterColumns.map((name) => `\`${name}\``).join(', ')}.`
-    : '- No caller-supplied request/query params remain after applying scaffold defaults.';
+    : '- The baseline keeps caller-supplied request/query params empty until the use case requires explicit inputs.';
   const defaultExpressionColumnsLine = params.action === 'insert' && params.defaultExpressionColumns.length > 0
     ? `- DDL-backed default expressions written directly into SQL: ${params.defaultExpressionColumns.map((name) => `\`${name}\``).join(', ')}.`
     : params.action === 'insert'
       ? '- No general insert columns used DDL-backed default expressions in this scaffold.'
-      : `- DDL-backed default expressions are not applied in the baseline ${params.action} scaffold because the query writes caller-supplied values or a key-only predicate.`;
+      : '- Read baselines do not infer additional filter or default-expression policy beyond the explicit SQL and queryspec contract.';
 
   return [
     `# ${params.featureName}`,
@@ -1007,7 +1116,7 @@ function renderReadmeFile(params: {
     '',
     '- `src/features/_shared/featureQueryExecutor.ts`',
     '- `src/features/_shared/loadSqlResource.ts`',
-    '- Cardinality runtime primitives from `@rawsql-ts/sql-contract`',
+    '- Cardinality and catalog runtime primitives from `@rawsql-ts/sql-contract`',
     '',
     '## AI-created files',
     '',
@@ -1028,17 +1137,17 @@ function renderReadmeFile(params: {
     defaultExpressionColumnsLine,
     ...renderReadmeOperationNotes(params.action, params.primaryKeyColumn),
     '',
-    '## Query growth rule',
+    '## Follow-up query growth',
     '',
-    `- When the feature grows beyond one query, add another sibling query directory next to \`${params.queryName}/\`.`,
-    '- Keep each query directory self-contained with exactly one `queryspec.ts` and one SQL resource.',
+    `- Keep this baseline as one workflow and one primary query by default; add another sibling query directory next to \`${params.queryName}/\` only if a follow-up intentionally expands the feature.`,
+    '- If a follow-up adds another query directory, keep each query directory self-contained with exactly one `queryspec.ts` and one SQL resource.',
     '- Add transport-specific adapters later only when a concrete transport contract exists.',
     '',
     '## Shared helper note',
     '',
     '- `src/features/_shared/featureQueryExecutor.ts` is the shared runtime contract for DB execution injection.',
-    '- Cardinality execution should come from `@rawsql-ts/sql-contract` so the scaffold does not re-invent feature-local row-count helpers.',
-    '- Treat `exactly-one`, `zero-or-one`, `many`, and `scalar` as the long-term cardinality contract family for future CRUD expansion.',
+    '- Cardinality and catalog execution should come from `@rawsql-ts/sql-contract` so the scaffold does not re-invent feature-local helpers.',
+    '- Treat `exactly-one`, `zero-or-one`, `many`, and `scalar` as the long-term cardinality contract family for future CRUD and SELECT expansion.',
     '',
     '## Follow-up customization points',
     '',
@@ -1051,6 +1160,20 @@ function renderReadmeFile(params: {
 }
 
 function renderReadmeEntryspecNotes(action: FeatureAction, parameterColumns: string[]): string[] {
+  if (action === 'get-by-id') {
+    return [
+      '- `entryspec.ts` uses `zod` schemas for request and response DTOs and keeps the get-by-id baseline focused on key-only request parsing.',
+      '- `entryspec.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
+      '- The get-by-id baseline keeps not-found handling explicit and non-throwing so follow-up work can decide whether to keep nullable output or move to an exactly-one contract.'
+    ];
+  }
+  if (action === 'list') {
+    return [
+      '- `entryspec.ts` uses `zod` schemas for request and response DTOs, keeps the baseline request minimal, and returns a `{ items: [...] }` response contract.',
+      '- `entryspec.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
+      '- `entryspec.ts` does not expose explicit paging inputs in the baseline scaffold; follow-up work can add them once the use case is known.'
+    ];
+  }
   const hasStringLikeInput = parameterColumns.length > 0;
   if (action === 'delete') {
     return [
@@ -1071,6 +1194,18 @@ function renderReadmeEntryspecNotes(action: FeatureAction, parameterColumns: str
 }
 
 function renderEntrySpecBoundaryComments(action: FeatureAction): string[] {
+  if (action === 'get-by-id') {
+    return [
+      '// The get-by-id baseline accepts only the primary-key request input.',
+      '// Keep not-found handling explicit here instead of promoting it to an exception contract by default.'
+    ];
+  }
+  if (action === 'list') {
+    return [
+      '// The list baseline keeps the request contract intentionally minimal.',
+      '// Paging and stable ordering stay inside queryspec.ts so the feature boundary remains transport-focused.'
+    ];
+  }
   if (action === 'insert') {
     return [
       '// Only non-default insert columns remain in the initial feature request.',
@@ -1090,6 +1225,18 @@ function renderEntrySpecBoundaryComments(action: FeatureAction): string[] {
 }
 
 function renderQuerySpecBoundaryComments(action: FeatureAction): string[] {
+  if (action === 'get-by-id') {
+    return [
+      '// Query params own only the primary-key predicate for the get-by-id baseline.',
+      '// The baseline query returns zero or one row and leaves not-found handling non-throwing.'
+    ];
+  }
+  if (action === 'list') {
+    return [
+      '// Queryspec owns the list baseline paging and primary-key ordering contract.',
+      '// Keep the request contract narrow here; explicit paging inputs can be added later when the use case is known.'
+    ];
+  }
   if (action === 'insert') {
     return [
       '// Query params own only the DB-boundary values that still need caller-supplied input.',
@@ -1109,6 +1256,22 @@ function renderQuerySpecBoundaryComments(action: FeatureAction): string[] {
 }
 
 function renderReadmeOperationNotes(action: FeatureAction, primaryKeyColumn: string): string[] {
+  if (action === 'get-by-id') {
+    return [
+      `- The baseline get-by-id query uses \`${primaryKeyColumn}\` as the predicate and selects the scaffolded row shape explicitly.`,
+      '- The baseline uses `queryZeroOrOneRow`, so not found is allowed instead of being treated as an exception.',
+      '- Generated request and response contracts follow the DDL-derived column types for this feature; the scaffold does not assume that every ID is a 32-bit integer.',
+      '- If the feature later needs a strict existence guarantee, this scaffold can be tightened to `queryExactlyOneRow` as a follow-up decision.'
+    ];
+  }
+  if (action === 'list') {
+    return [
+      `- The baseline list query applies stable primary-key ordering by \`${primaryKeyColumn}\` and keeps paging enabled by default.`,
+      `- \`DEFAULT_PAGE_SIZE\` is set to \`${DEFAULT_PAGE_SIZE}\` in queryspec.ts so the default can be changed without widening the request contract first.`,
+      '- Generated request and response contracts follow the DDL-derived column types for this feature; the scaffold does not assume that every ID is a 32-bit integer.',
+      '- The baseline response is `{ items: [...] }` so paging metadata and other list-level fields can be added later without breaking the response shape.'
+    ];
+  }
   if (action === 'insert') {
     return [
       '- SQL omits only generated / identity / sequence-backed primary keys. Every other insert column stays explicit in the scaffold SQL.',
@@ -1130,6 +1293,17 @@ function renderReadmeOperationNotes(action: FeatureAction, primaryKeyColumn: str
 }
 
 function renderReadmeFollowUpNotes(action: FeatureAction): string[] {
+  if (action === 'get-by-id') {
+    return [
+      '- Switch to `queryExactlyOneRow` later only if the feature decides that missing rows must fail instead of returning a nullable result.'
+    ];
+  }
+  if (action === 'list') {
+    return [
+      '- Add explicit paging inputs, filter fields, or richer ordering only after the list use case is known.',
+      '- Keep catalog-based paging and ordering inside `queryspec.ts` as the feature grows.'
+    ];
+  }
   if (action === 'update') {
     return [
       '- Revisit the mutable field set before treating the scaffold as business-safe. Control and audit columns are expected follow-up review points for update features.'
@@ -1145,16 +1319,404 @@ function renderReadmeFollowUpNotes(action: FeatureAction): string[] {
   return [];
 }
 
+function renderGetByIdEntrySpecFile(params: {
+  action: FeatureAction;
+  featureName: string;
+  pascalName: string;
+  entryCamelName: string;
+  queryName: string;
+  queryPascalName: string;
+  queryCamelName: string;
+  requestFields: RenderField[];
+  responseFields: RenderField[];
+}): string {
+  const rawRequestSchema = renderZodObjectSchema('RequestSchema', params.requestFields, {
+    trimStrings: false,
+    rejectEmptyStrings: false,
+    exported: false,
+    strict: true
+  });
+  const responseRowSchema = renderZodObjectSchema('ResponseRowSchema', params.responseFields, {
+    trimStrings: false,
+    rejectEmptyStrings: false,
+    exported: false,
+    strict: false
+  });
+
+  return [
+    "import { z } from 'zod';",
+    "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor';",
+    '',
+    `import {`,
+    `  execute${params.queryPascalName}QuerySpec,`,
+    `  type ${params.queryPascalName}QueryParams,`,
+    `  type ${params.queryPascalName}QueryResult`,
+    `} from './${params.queryName}/queryspec';`,
+    '',
+    ...renderEntrySpecBoundaryComments(params.action),
+    '',
+    rawRequestSchema,
+    '',
+    `export type ${params.pascalName}Request = z.infer<typeof RequestSchema>;`,
+    '',
+    responseRowSchema,
+    '',
+    'const ResponseSchema = ResponseRowSchema.nullable();',
+    '',
+    `export type ${params.pascalName}Response = z.infer<typeof ResponseSchema>;`,
+    '',
+    '/** Parses the raw feature request at the feature boundary. */',
+    `function parseRequest(raw: unknown): ${params.pascalName}Request {`,
+    `  return RequestSchema.parse(raw);`,
+    '}',
+    '',
+    '/** Normalizes the parsed feature request for downstream feature logic. */',
+    `function normalizeRequest(request: ${params.pascalName}Request): ${params.pascalName}Request {`,
+    '  return {',
+    ...params.requestFields.map((field) => field.parserKind === 'string'
+      ? `    ${field.name}: request.${field.name}.trim(),`
+      : `    ${field.name}: request.${field.name},`),
+    '  };',
+    '}',
+    '',
+    '/** Rejects feature requests that violate feature-level rules. */',
+    `function rejectRequest(request: ${params.pascalName}Request): void {`,
+    ...params.requestFields
+      .filter((field) => field.parserKind === 'string')
+      .flatMap((field) => [
+        `  if (request.${field.name}.length === 0) {`,
+        `    throw new Error('${params.pascalName}Request.${field.name} must not be empty after trim().');`,
+        '  }'
+      ]),
+    ...(params.requestFields.some((field) => field.parserKind === 'string')
+      ? []
+      : ['  // Add feature-level reject rules here when follow-up requirements appear.']),
+    '}',
+    '',
+    '/** Maps the feature request into query params for the query spec. */',
+    `function toQueryParams(request: ${params.pascalName}Request): ${params.queryPascalName}QueryParams {`,
+    ...renderTypedReturnObject(params.requestFields, `${params.queryPascalName}QueryParams`),
+    '}',
+    '',
+    '/** Maps the query result into the feature response contract. */',
+    `function fromQueryResult(result: ${params.queryPascalName}QueryResult): ${params.pascalName}Response {`,
+    `  return ResponseSchema.parse(result);`,
+    '}',
+    '',
+    '/** Executes the feature boundary flow for this feature. */',
+    `export async function execute${params.pascalName}EntrySpec(`,
+    '  executor: FeatureQueryExecutor,',
+    '  rawRequest: unknown',
+    `): Promise<${params.pascalName}Response> {`,
+    '  const request = normalizeRequest(parseRequest(rawRequest));',
+    '  rejectRequest(request);',
+    `  const result = await execute${params.queryPascalName}QuerySpec(executor, toQueryParams(request));`,
+    '  return fromQueryResult(result);',
+    '}',
+    ''
+  ].join('\n');
+}
+
+function renderListEntrySpecFile(params: {
+  action: FeatureAction;
+  featureName: string;
+  pascalName: string;
+  entryCamelName: string;
+  queryName: string;
+  queryPascalName: string;
+  queryCamelName: string;
+  requestFields: RenderField[];
+  responseFields: RenderField[];
+}): string {
+  const rawRequestSchema = renderZodObjectSchema('RequestSchema', params.requestFields, {
+    trimStrings: false,
+    rejectEmptyStrings: false,
+    exported: false,
+    strict: true
+  });
+  const responseItemSchema = renderZodObjectSchema('ResponseItemSchema', params.responseFields, {
+    trimStrings: false,
+    rejectEmptyStrings: false,
+    exported: false,
+    strict: false
+  });
+
+  return [
+    "import { z } from 'zod';",
+    "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor';",
+    '',
+    `import {`,
+    `  execute${params.queryPascalName}QuerySpec,`,
+    `  type ${params.queryPascalName}QueryParams,`,
+    `  type ${params.queryPascalName}QueryResult`,
+    `} from './${params.queryName}/queryspec';`,
+    '',
+    ...renderEntrySpecBoundaryComments(params.action),
+    '',
+    rawRequestSchema,
+    '',
+    `export type ${params.pascalName}Request = z.infer<typeof RequestSchema>;`,
+    '',
+    responseItemSchema,
+    '',
+    'const ResponseSchema = z.object({',
+    '  items: z.array(ResponseItemSchema),',
+    '});',
+    '',
+    `export type ${params.pascalName}Response = z.infer<typeof ResponseSchema>;`,
+    '',
+    '/** Parses the raw feature request at the feature boundary. */',
+    `function parseRequest(raw: unknown): ${params.pascalName}Request {`,
+    '  return RequestSchema.parse(raw);',
+    '}',
+    '',
+    '/** Normalizes the parsed feature request for downstream feature logic. */',
+    `function normalizeRequest(request: ${params.pascalName}Request): ${params.pascalName}Request {`,
+    '  return request;',
+    '}',
+    '',
+    '/** Rejects feature requests that violate feature-level rules. */',
+    `function rejectRequest(_request: ${params.pascalName}Request): void {`,
+    '  // Add feature-level reject rules here when follow-up requirements appear.',
+    '}',
+    '',
+    '/** Maps the feature request into query params for the query spec. */',
+    `function toQueryParams(_request: ${params.pascalName}Request): ${params.queryPascalName}QueryParams {`,
+    `  return {} as ${params.queryPascalName}QueryParams;`,
+    '}',
+    '',
+    '/** Maps the query result into the feature response contract. */',
+    `function fromQueryResult(result: ${params.queryPascalName}QueryResult): ${params.pascalName}Response {`,
+    '  return ResponseSchema.parse(result);',
+    '}',
+    '',
+    '/** Executes the feature boundary flow for this feature. */',
+    `export async function execute${params.pascalName}EntrySpec(`,
+    '  executor: FeatureQueryExecutor,',
+    '  rawRequest: unknown',
+    `): Promise<${params.pascalName}Response> {`,
+    '  const request = normalizeRequest(parseRequest(rawRequest));',
+    '  rejectRequest(request);',
+    `  const result = await execute${params.queryPascalName}QuerySpec(executor, toQueryParams(request));`,
+    '  return fromQueryResult(result);',
+    '}',
+    ''
+  ].join('\n');
+}
+
+function renderGetByIdQuerySpecFile(params: {
+  action: FeatureAction;
+  queryName: string;
+  featureName: string;
+  queryPascalName: string;
+  queryCamelName: string;
+  requestFields: RenderField[];
+  responseFields: RenderField[];
+}): string {
+  const paramsSchema = renderZodObjectSchema('QueryParamsSchema', params.requestFields, {
+    trimStrings: false,
+    rejectEmptyStrings: true,
+    exported: false,
+    strict: false
+  });
+  const rowSchema = renderZodObjectSchema('RowSchema', params.responseFields, {
+    trimStrings: false,
+    rejectEmptyStrings: false,
+    exported: false,
+    strict: false
+  });
+
+  return [
+    "import { z } from 'zod';",
+    '',
+    "import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor';",
+    "import { queryZeroOrOneRow, type QueryParams } from '@rawsql-ts/sql-contract';",
+    "import { loadSqlResource } from '../../_shared/loadSqlResource';",
+    '',
+    `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
+    '',
+    ...renderQuerySpecBoundaryComments(params.action),
+    paramsSchema,
+    '',
+    `export type ${params.queryPascalName}QueryParams = z.infer<typeof QueryParamsSchema>;`,
+    '',
+    rowSchema,
+    '',
+    'const QueryResultSchema = RowSchema.nullable();',
+    '',
+    `export type ${params.queryPascalName}QueryResult = z.infer<typeof QueryResultSchema>;`,
+    '',
+    `type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
+    '',
+    '/** Parses raw query params at the query boundary. */',
+    `function parseQueryParams(raw: unknown): ${params.queryPascalName}QueryParams {`,
+    `  return QueryParamsSchema.parse(raw);`,
+    '}',
+    '',
+    '/** Parses a raw DB row at the query boundary. */',
+    `function parseRow(raw: unknown): ${params.queryPascalName}Row {`,
+    `  return RowSchema.parse(raw);`,
+    '}',
+    '',
+    '/** Maps a query row into the query result contract. */',
+    `function mapRowToResult(row: ${params.queryPascalName}Row | undefined): ${params.queryPascalName}QueryResult {`,
+    '  if (row === undefined) {',
+    '    return null;',
+    '  }',
+    `  return QueryResultSchema.parse(row);`,
+    '}',
+    '',
+    '/** Executes the query boundary flow for this query spec. */',
+    `export async function execute${params.queryPascalName}QuerySpec(`,
+    '  executor: FeatureQueryExecutor,',
+    '  rawParams: unknown',
+    `): Promise<${params.queryPascalName}QueryResult> {`,
+    '  const params = parseQueryParams(rawParams);',
+    `  const row = await queryZeroOrOneRow<Record<string, unknown>>(`,
+    '    (sql, queryParams) => executor.query(sql, queryParams as Record<string, unknown>),',
+    `    ${params.queryCamelName}SqlResource,`,
+    '    params as QueryParams,',
+    `    { label: '${params.featureName}/${params.queryName}/queryspec' }`,
+    '  );',
+    '  return mapRowToResult(row === undefined ? undefined : parseRow(row));',
+    '}',
+    ''
+  ].join('\n');
+}
+
+function renderListQuerySpecFile(params: {
+  action: FeatureAction;
+  queryName: string;
+  featureName: string;
+  queryPascalName: string;
+  queryCamelName: string;
+  requestFields: RenderField[];
+  responseFields: RenderField[];
+}): string {
+  const paramsSchema = renderZodObjectSchema('QueryParamsSchema', params.requestFields, {
+    trimStrings: false,
+    rejectEmptyStrings: false,
+    exported: false,
+    strict: false
+  });
+  const rowSchema = renderZodObjectSchema('RowSchema', params.responseFields, {
+    trimStrings: false,
+    rejectEmptyStrings: false,
+    exported: false,
+    strict: false
+  });
+
+  return [
+    "import { z } from 'zod';",
+    '',
+    "import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor';",
+    "import { createCatalogExecutor, type QuerySpec } from '@rawsql-ts/sql-contract';",
+    "import { loadSqlResource } from '../../_shared/loadSqlResource';",
+    '',
+    `const DEFAULT_PAGE_SIZE = ${DEFAULT_PAGE_SIZE};`,
+    `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
+    '',
+    ...renderQuerySpecBoundaryComments(params.action),
+    paramsSchema,
+    '',
+    `export type ${params.queryPascalName}QueryParams = z.infer<typeof QueryParamsSchema>;`,
+    '',
+    rowSchema,
+    '',
+    'const QueryResultSchema = z.object({',
+    '  items: z.array(RowSchema),',
+    '});',
+    '',
+    `export type ${params.queryPascalName}QueryResult = z.infer<typeof QueryResultSchema>;`,
+    '',
+    `type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
+    `type ${params.queryPascalName}CatalogQueryParams = ${params.queryPascalName}QueryParams & {`,
+    '  limit: number;',
+    '};',
+    '',
+    '/** Parses raw query params at the query boundary. */',
+    `function parseQueryParams(raw: unknown): ${params.queryPascalName}QueryParams {`,
+    '  return QueryParamsSchema.parse(raw);',
+    '}',
+    '',
+    '/** Parses a raw DB row at the query boundary. */',
+    `function parseRow(raw: unknown): ${params.queryPascalName}Row {`,
+    '  return RowSchema.parse(raw);',
+    '}',
+    '',
+    `const ${params.queryCamelName}CatalogSpec: QuerySpec<${params.queryPascalName}CatalogQueryParams, ${params.queryPascalName}Row> = {`,
+    `  id: '${params.featureName}/${params.queryName}/queryspec',`,
+    `  sqlFile: 'src/features/${params.featureName}/${params.queryName}/${params.queryName}.sql',`,
+    '  params: {',
+    "    shape: 'named',",
+    '    example: {',
+    '      limit: DEFAULT_PAGE_SIZE,',
+    `    } as ${params.queryPascalName}CatalogQueryParams,`,
+    '  },',
+    '  output: {',
+    '    validate: (row) => parseRow(row),',
+    '    example: RowSchema.parse({',
+    ...params.responseFields.map((field) => `      ${field.name}: ${renderExampleValue(field)},`),
+    '    }),',
+    '  },',
+    '};',
+    '',
+    '/** Maps the feature request into query params for the query spec. */',
+    `function toQueryParams(params: ${params.queryPascalName}QueryParams): ${params.queryPascalName}CatalogQueryParams {`,
+    '  return {',
+    '    ...params,',
+    '    limit: DEFAULT_PAGE_SIZE,',
+    '  };',
+    '}',
+    '',
+    '/** Maps query rows into the query result contract. */',
+    `function mapRowsToResult(rows: ${params.queryPascalName}Row[]): ${params.queryPascalName}QueryResult {`,
+    '  return QueryResultSchema.parse({ items: rows });',
+    '}',
+    '',
+    '/** Executes the query boundary flow for this query spec. */',
+    `export async function execute${params.queryPascalName}QuerySpec(`,
+    '  executor: FeatureQueryExecutor,',
+    '  rawParams: unknown',
+    `): Promise<${params.queryPascalName}QueryResult> {`,
+    '  const params = parseQueryParams(rawParams);',
+    '  const catalog = createCatalogExecutor({',
+    '    loader: {',
+    `      load: async () => ${params.queryCamelName}SqlResource,`,
+    '    },',
+    '    executor: (sql, queryParams) => executor.query<Record<string, unknown>>(sql, queryParams as Record<string, unknown>),',
+    '    allowNamedParamsWithoutBinder: true,',
+    '  });',
+    `  const rows = await catalog.list(${params.queryCamelName}CatalogSpec, toQueryParams(params));`,
+    '  return mapRowsToResult(rows);',
+    '}',
+    ''
+  ].join('\n');
+}
+
+function renderExampleValue(field: RenderField): string {
+  if (field.nullable) {
+    return 'null';
+  }
+  if (field.parserKind === 'number') {
+    return '1';
+  }
+  if (field.parserKind === 'boolean') {
+    return 'true';
+  }
+  return `'example_${field.name}'`;
+}
+
 function renderZodObjectSchema(
   name: string,
   fields: RenderField[],
-  options: { trimStrings: boolean; rejectEmptyStrings: boolean; exported: boolean }
+  options: { trimStrings: boolean; rejectEmptyStrings: boolean; exported: boolean; strict?: boolean }
 ): string {
   const lines = [`${options.exported ? 'export ' : ''}const ${name} = z.object({`];
   for (const field of fields) {
     lines.push(`  ${field.name}: ${renderZodField(field, options)},`);
   }
-  lines.push('});');
+  lines.push(`})${options.strict ? '.strict()' : ''};`);
   return lines.join('\n');
 }
 
