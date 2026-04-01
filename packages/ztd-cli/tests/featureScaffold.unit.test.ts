@@ -280,6 +280,7 @@ test('runFeatureScaffoldCommand writes the entryspec/queryspec baseline and excl
   expect(querySpecFile).toContain("import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor';");
   expect(querySpecFile).toContain("const insertUsersSqlResource = loadSqlResource(__dirname, 'insert-users.sql');");
   expect(querySpecFile).toContain('const QueryParamsSchema = z.object({');
+  expect(querySpecFile).toContain("}).strict();");
   expect(querySpecFile).toContain("email: z.string().min(1, 'email must not be empty.')");
   expect(querySpecFile).not.toContain("id: z.string().min(1, 'id must not be empty.')");
   expect(querySpecFile).not.toContain('created_at: z.string().min(1');
@@ -381,7 +382,7 @@ test('runFeatureScaffoldCommand uses default values when every insert column is 
     path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'),
     'utf8'
   );
-  expect(querySpecFile).toContain('const QueryParamsSchema = z.object({\n});');
+  expect(querySpecFile).toContain('const QueryParamsSchema = z.object({\n}).strict();');
 });
 
 test('runFeatureScaffoldCommand renders primitive defaults directly into insert SQL', async () => {
@@ -479,6 +480,8 @@ test('runFeatureScaffoldCommand writes the update baseline with pk predicate and
   );
   expect(updateReadmeFile).toContain('mechanical, not a mutable-policy guarantee');
   expect(updateReadmeFile).toContain('`created_at`, `updated_at`, and similar fields are representative follow-up candidates');
+  expect(updateReadmeFile).toContain('Generated / identity handling remains explicit in this write scaffold');
+  expect(updateReadmeFile).toContain('Write baselines do not infer additional default-expression or policy behavior');
 });
 
 test('runFeatureScaffoldCommand writes the delete baseline with key-only predicate', async () => {
@@ -526,6 +529,8 @@ test('runFeatureScaffoldCommand writes the delete baseline with key-only predica
   );
   expect(deleteReadmeFile).toContain('does not assume string normalization');
   expect(deleteReadmeFile).not.toContain('trim()` plus empty-string rejection examples for string inputs');
+  expect(deleteReadmeFile).toContain('Generated / identity handling remains explicit in this write scaffold');
+  expect(deleteReadmeFile).toContain('Write baselines do not infer additional default-expression or policy behavior');
 });
 
 test('runFeatureScaffoldCommand writes the get-by-id baseline with zero-or-one contract', async () => {
@@ -572,6 +577,7 @@ test('runFeatureScaffoldCommand writes the get-by-id baseline with zero-or-one c
     'utf8'
   );
   expect(querySpecFile).toContain("import { queryZeroOrOneRow, type QueryParams } from '@rawsql-ts/sql-contract';");
+  expect(querySpecFile).toContain('}).strict();');
   expect(querySpecFile).toContain('const QueryResultSchema = RowSchema.nullable();');
   expect(querySpecFile).toContain('function parseQueryParams');
   expect(querySpecFile).toContain('function parseRow');
@@ -642,6 +648,7 @@ test('runFeatureScaffoldCommand writes the list baseline with catalog paging and
     'utf8'
   );
   expect(querySpecFile).toContain("import { createCatalogExecutor, type QuerySpec } from '@rawsql-ts/sql-contract';");
+  expect(querySpecFile).toContain('const QueryParamsSchema = z.object({\n}).strict();');
   expect(querySpecFile).toContain('const DEFAULT_PAGE_SIZE = 50;');
   expect(querySpecFile).toContain('allowNamedParamsWithoutBinder: true');
   expect(querySpecFile).toContain('items: z.array(RowSchema)');

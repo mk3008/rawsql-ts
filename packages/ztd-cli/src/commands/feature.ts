@@ -836,6 +836,8 @@ function isBigIntLikeType(typeName: string): boolean {
 function isNumberType(typeName: string): boolean {
   return [
     'serial',
+    'serial2',
+    'serial4',
     'smallserial',
     'int',
     'int2',
@@ -993,7 +995,7 @@ function renderQuerySpecFile(params: {
     trimStrings: false,
     rejectEmptyStrings: true,
     exported: false,
-    strict: false
+    strict: true
   });
   const rowSchema = renderZodObjectSchema('RowSchema', [params.responseFields[0]], {
     trimStrings: false,
@@ -1078,7 +1080,9 @@ function renderReadmeFile(params: {
     ? params.generatedColumns.length > 0
       ? `- Generated / identity / sequence-backed columns excluded at scaffold time: ${params.generatedColumns.map((name) => `\`${name}\``).join(', ')}.`
       : '- No generated / identity / sequence-backed columns were detected for exclusion in this scaffold.'
-    : '- Generated / identity handling is unchanged in this read scaffold because the baseline only reads the selected row shape.';
+    : params.action === 'get-by-id' || params.action === 'list'
+      ? '- Generated / identity handling is unchanged in this read scaffold because the baseline only reads the selected row shape.'
+      : '- Generated / identity handling remains explicit in this write scaffold; no extra generated-column behavior is inferred here.';
   const queryColumnsLine = params.queryColumns.length > 0
     ? `- Initial ${params.action} query columns: ${params.queryColumns.map((name) => `\`${name}\``).join(', ')}.`
     : `- Initial ${params.action} query does not require caller-visible write columns.`;
@@ -1089,7 +1093,9 @@ function renderReadmeFile(params: {
     ? `- DDL-backed default expressions written directly into SQL: ${params.defaultExpressionColumns.map((name) => `\`${name}\``).join(', ')}.`
     : params.action === 'insert'
       ? '- No general insert columns used DDL-backed default expressions in this scaffold.'
-      : '- Read baselines do not infer additional filter or default-expression policy beyond the explicit SQL and queryspec contract.';
+      : params.action === 'get-by-id' || params.action === 'list'
+        ? '- Read baselines do not infer additional filter or default-expression policy beyond the explicit SQL and queryspec contract.'
+        : '- Write baselines do not infer additional default-expression or policy behavior beyond the explicit SQL and queryspec contract.';
 
   return [
     `# ${params.featureName}`,
@@ -1517,7 +1523,7 @@ function renderGetByIdQuerySpecFile(params: {
     trimStrings: false,
     rejectEmptyStrings: true,
     exported: false,
-    strict: false
+    strict: true
   });
   const rowSchema = renderZodObjectSchema('RowSchema', params.responseFields, {
     trimStrings: false,
@@ -1597,7 +1603,7 @@ function renderListQuerySpecFile(params: {
     trimStrings: false,
     rejectEmptyStrings: false,
     exported: false,
-    strict: false
+    strict: true
   });
   const rowSchema = renderZodObjectSchema('RowSchema', params.responseFields, {
     trimStrings: false,

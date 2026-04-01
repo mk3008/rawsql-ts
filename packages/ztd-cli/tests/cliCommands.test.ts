@@ -390,6 +390,9 @@ test(
       "const insertUsersSqlResource = loadSqlResource(__dirname, 'insert-users.sql');"
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).toContain(
+      '}).strict();'
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).toContain(
       "import { z } from 'zod';"
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).toContain(
@@ -575,6 +578,7 @@ test(
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('function parseRequest');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('function toQueryParams');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toContain('queryZeroOrOneRow');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toContain('}).strict();');
   },
   60000,
 );
@@ -613,6 +617,7 @@ test(
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('function parseRequest');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('function toQueryParams');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'list', 'queryspec.ts'))).toContain('createCatalogExecutor');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'list', 'queryspec.ts'))).toContain('const QueryParamsSchema = z.object({\n}).strict();');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'list', 'list.sql'))).toContain('limit :limit;');
   },
   60000,
