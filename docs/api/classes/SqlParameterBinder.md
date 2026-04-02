@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SqlParameterBinder
 
-Defined in: [packages/core/src/transformers/SqlParameterBinder.ts:23](https://github.com/mk3008/rawsql-ts/blob/15281f90ed1573f1c4d35f7aeeb5e5a04cc184e7/packages/core/src/transformers/SqlParameterBinder.ts#L23)
+Defined in: [packages/core/src/transformers/SqlParameterBinder.ts:23](https://github.com/mk3008/rawsql-ts/blob/a402da365e5fb6dab58669048ef20597204bfcbe/packages/core/src/transformers/SqlParameterBinder.ts#L23)
 
 SqlParameterBinder binds values to existing hardcoded parameters in SQL queries.
 
@@ -17,7 +17,7 @@ only sets values for parameters that already exist in the parsed SQL.
 
 > **new SqlParameterBinder**(`options`): `SqlParameterBinder`
 
-Defined in: [packages/core/src/transformers/SqlParameterBinder.ts:26](https://github.com/mk3008/rawsql-ts/blob/15281f90ed1573f1c4d35f7aeeb5e5a04cc184e7/packages/core/src/transformers/SqlParameterBinder.ts#L26)
+Defined in: [packages/core/src/transformers/SqlParameterBinder.ts:26](https://github.com/mk3008/rawsql-ts/blob/a402da365e5fb6dab58669048ef20597204bfcbe/packages/core/src/transformers/SqlParameterBinder.ts#L26)
 
 #### Parameters
 
@@ -35,7 +35,7 @@ Defined in: [packages/core/src/transformers/SqlParameterBinder.ts:26](https://gi
 
 > **bind**(`query`, `parameterValues`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/SqlParameterBinder.ts:40](https://github.com/mk3008/rawsql-ts/blob/15281f90ed1573f1c4d35f7aeeb5e5a04cc184e7/packages/core/src/transformers/SqlParameterBinder.ts#L40)
+Defined in: [packages/core/src/transformers/SqlParameterBinder.ts:40](https://github.com/mk3008/rawsql-ts/blob/a402da365e5fb6dab58669048ef20597204bfcbe/packages/core/src/transformers/SqlParameterBinder.ts#L40)
 
 Binds values to existing hardcoded parameters in the query.
 
@@ -69,7 +69,7 @@ Error when required parameters are missing values
 
 > **bindToSimpleQuery**(`query`, `parameterValues`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/SqlParameterBinder.ts:86](https://github.com/mk3008/rawsql-ts/blob/15281f90ed1573f1c4d35f7aeeb5e5a04cc184e7/packages/core/src/transformers/SqlParameterBinder.ts#L86)
+Defined in: [packages/core/src/transformers/SqlParameterBinder.ts:86](https://github.com/mk3008/rawsql-ts/blob/a402da365e5fb6dab58669048ef20597204bfcbe/packages/core/src/transformers/SqlParameterBinder.ts#L86)
 
 Convenience method to bind parameters to a SimpleSelectQuery.
 

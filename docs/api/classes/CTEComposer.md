@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CTEComposer
 
-Defined in: [packages/core/src/transformers/CTEComposer.ts:61](https://github.com/mk3008/rawsql-ts/blob/15281f90ed1573f1c4d35f7aeeb5e5a04cc184e7/packages/core/src/transformers/CTEComposer.ts#L61)
+Defined in: [packages/core/src/transformers/CTEComposer.ts:61](https://github.com/mk3008/rawsql-ts/blob/a402da365e5fb6dab58669048ef20597204bfcbe/packages/core/src/transformers/CTEComposer.ts#L61)
 
 Composes edited CTEs back into a unified SQL query
 
@@ -37,7 +37,7 @@ const composedSQL = composer.compose(editedCTEs, 'select * from filtered_data');
 
 > **new CTEComposer**(`options`): `CTEComposer`
 
-Defined in: [packages/core/src/transformers/CTEComposer.ts:71](https://github.com/mk3008/rawsql-ts/blob/15281f90ed1573f1c4d35f7aeeb5e5a04cc184e7/packages/core/src/transformers/CTEComposer.ts#L71)
+Defined in: [packages/core/src/transformers/CTEComposer.ts:71](https://github.com/mk3008/rawsql-ts/blob/a402da365e5fb6dab58669048ef20597204bfcbe/packages/core/src/transformers/CTEComposer.ts#L71)
 
 Creates a new CTEComposer instance
 
@@ -59,7 +59,7 @@ Configuration options extending SqlFormatterOptions
 
 > **compose**(`editedCTEs`, `rootQuery`): `string`
 
-Defined in: [packages/core/src/transformers/CTEComposer.ts:105](https://github.com/mk3008/rawsql-ts/blob/15281f90ed1573f1c4d35f7aeeb5e5a04cc184e7/packages/core/src/transformers/CTEComposer.ts#L105)
+Defined in: [packages/core/src/transformers/CTEComposer.ts:105](https://github.com/mk3008/rawsql-ts/blob/a402da365e5fb6dab58669048ef20597204bfcbe/packages/core/src/transformers/CTEComposer.ts#L105)
 
 Compose edited CTEs and root query into a unified SQL query
 
