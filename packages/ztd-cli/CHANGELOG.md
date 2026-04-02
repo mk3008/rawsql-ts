@@ -1,5 +1,40 @@
 # @rawsql-ts/ztd-cli
 
+## 0.24.0
+
+### Minor Changes
+
+- [#694](https://github.com/mk3008/rawsql-ts/pull/694) [`cc1102f`](https://github.com/mk3008/rawsql-ts/commit/cc1102fdbf19e43eff3a45fc1ffb0afb5218ccc4) Thanks [@mk3008](https://github.com/mk3008)! - Expand `ztd feature scaffold` so the CRUD boundary baseline now supports `--action update` and `--action delete` in addition to `insert`. The generated scaffold keeps the same `entryspec.ts` plus query-local `queryspec.ts` and SQL layout, uses `zod` DTO schemas at both boundaries, creates the empty `tests/` directory, and leaves the two test files for an AI follow-up step.
+
+- [#692](https://github.com/mk3008/rawsql-ts/pull/692) [`073834c`](https://github.com/mk3008/rawsql-ts/commit/073834cc36edf4df41b4c3571957086f28012688) Thanks [@mk3008](https://github.com/mk3008)! - Simplify `ztd.config.json` by removing the legacy `ddl.defaultSchema` and `ddl.searchPath` mirror.
+
+  `ztd-cli` now reads and writes schema resolution settings only from the top-level `defaultSchema` and `searchPath` fields. Projects that still keep those values under `ddl` must move them to the top level.
+
+- [#695](https://github.com/mk3008/rawsql-ts/pull/695) [`329f194`](https://github.com/mk3008/rawsql-ts/commit/329f19483e71f9114534406bdea20b6f62b11c4e) Thanks [@mk3008](https://github.com/mk3008)! - Expand `ztd feature scaffold` so the baseline now supports `--action get-by-id` and `--action list` in addition to `insert`, `update`, and `delete`. The generated read scaffolds keep the same feature-local layout, use `queryZeroOrOneRow` for `get-by-id`, and keep default paging plus primary-key ordering inside `list/queryspec.ts` while returning `{ items: [...] }`.
+
+  Generated feature/query specs now use shorter private helper names with responsibility-focused JSDoc, reject unsupported request fields by default, and derive bigint-like ID contracts from the DDL instead of assuming 32-bit numeric IDs.
+
+- [#693](https://github.com/mk3008/rawsql-ts/pull/693) [`ead64e3`](https://github.com/mk3008/rawsql-ts/commit/ead64e37a05a502f9814e9b6a90ff1190c501221) Thanks [@mk3008](https://github.com/mk3008)! - Add a new `ztd feature scaffold` command for insert feature scaffolds. The command creates the fixed feature layout, writes the placeholder feature entrypoint, SQL file, and README, creates the `tests/` directory, and leaves the two test files for an AI follow-up step.
+
+- [#696](https://github.com/mk3008/rawsql-ts/pull/696) [`a4263c6`](https://github.com/mk3008/rawsql-ts/commit/a4263c66d5eaa97ddfd406b008af7b78caf057f2) Thanks [@mk3008](https://github.com/mk3008)! - Redefine the default project layout around `src/`, `db/ddl/`, and `.ztd/`.
+
+  `ztd init` and `ztd init --starter` now treat `db/ddl` as the human-owned schema source of truth and `.ztd` as the tool-managed workspace for generated and support files. The legacy root `ztd/` and `tests/` layout is no longer supported, and the CLI now reports explicit migration guidance when that older layout is detected.
+
+  This release also removes `SKILL` scaffold output from the Codex bootstrap path, updates the starter docs and dogfooding prompts to match the current feature scaffold shape, and makes monorepo dogfooding installs keep using the local `@rawsql-ts/ztd-cli` package so the generated project matches the current command surface during verification.
+
+### Patch Changes
+
+- [#696](https://github.com/mk3008/rawsql-ts/pull/696) [`686edf2`](https://github.com/mk3008/rawsql-ts/commit/686edf2d23960d8108b4c01777364980183664fe) Thanks [@mk3008](https://github.com/mk3008)! - Fix two dogfooded workflow gaps in the current starter/tutorial path.
+
+  `ztd query uses` now discovers scaffolded feature-local `queryspec.ts` files that load SQL through `loadSqlResource(...)`, so DDL repair and usage search work against the generated VSA layout instead of reporting that no QuerySpec entries were found.
+
+  `ztd model-gen --probe-mode ztd` now handles starter-style `INSERT ... RETURNING` scaffolds more reliably by deriving RETURNING column types from the loaded DDL metadata when direct probing cannot resolve them, and it also reads starter `.env` settings to find the ZTD-owned test database without requiring a manually exported `ZTD_TEST_DATABASE_URL`.
+
+- [#691](https://github.com/mk3008/rawsql-ts/pull/691) [`774601c`](https://github.com/mk3008/rawsql-ts/commit/774601c7b482e922665ba7ec075f255530720815) Thanks [@mk3008](https://github.com/mk3008)! - Strengthen the starter guidance and repository troubleshooting notes so SQL-backed QuerySpecs are treated as ZTD-backed tests, and SQL shadowing failures are diagnosed before considering schema changes.
+
+- Updated dependencies [[`686edf2`](https://github.com/mk3008/rawsql-ts/commit/686edf2d23960d8108b4c01777364980183664fe)]:
+  - @rawsql-ts/sql-grep-core@0.1.7
+
 ## 0.23.0
 
 ### Minor Changes

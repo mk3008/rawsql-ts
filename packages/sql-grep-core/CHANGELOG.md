@@ -1,5 +1,15 @@
 # @rawsql-ts/sql-grep-core
 
+## 0.1.7
+
+### Patch Changes
+
+- [#696](https://github.com/mk3008/rawsql-ts/pull/696) [`686edf2`](https://github.com/mk3008/rawsql-ts/commit/686edf2d23960d8108b4c01777364980183664fe) Thanks [@mk3008](https://github.com/mk3008)! - Fix two dogfooded workflow gaps in the current starter/tutorial path.
+
+  `ztd query uses` now discovers scaffolded feature-local `queryspec.ts` files that load SQL through `loadSqlResource(...)`, so DDL repair and usage search work against the generated VSA layout instead of reporting that no QuerySpec entries were found.
+
+  `ztd model-gen --probe-mode ztd` now handles starter-style `INSERT ... RETURNING` scaffolds more reliably by deriving RETURNING column types from the loaded DDL metadata when direct probing cannot resolve them, and it also reads starter `.env` settings to find the ZTD-owned test database without requiring a manually exported `ZTD_TEST_DATABASE_URL`.
+
 ## 0.1.6
 
 ### Patch Changes
