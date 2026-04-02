@@ -45,9 +45,10 @@ jobs:
       - name: Setup publish readiness runtime
         uses: ./.github/actions/setup-publish-runtime
         with:
+          node-version: "24"
           use-pnpm: "true"
           install-dependencies: "true"
-          update-npm: "true"
+          update-npm: "false"
           required-commands: "node,npm,pnpm"
           warn-min-npm-version: "11.5.1"
           label: "verify-publish-readiness"
@@ -79,6 +80,7 @@ jobs:
       - name: Setup artifact build runtime
         uses: ./.github/actions/setup-publish-runtime
         with:
+          node-version: "24"
           use-pnpm: "true"
           install-dependencies: "true"
           update-npm: "false"
@@ -134,9 +136,10 @@ jobs:
       - name: Setup actual publish runtime
         uses: ./.github/actions/setup-publish-runtime
         with:
+          node-version: "24"
           use-pnpm: "false"
           install-dependencies: "false"
-          update-npm: "true"
+          update-npm: "false"
           required-commands: "node,npm,git,gh"
           min-npm-version: "11.5.1"
           label: "actual-publish"
