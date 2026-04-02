@@ -82,6 +82,7 @@ interface QuerySssqlScaffoldOptions {
 interface QuerySssqlRefreshOptions {
   format?: string;
   out?: string;
+  json?: string;
 }
 
 interface QueryMatchObservedOptions {
@@ -278,6 +279,7 @@ Notes:
     .command('refresh <sqlFile>')
     .description('Refresh existing SSSQL optional filter scaffolds without changing predicate meaning')
     .option('--format <format>', 'Output format (text|json)', 'text')
+    .option('--json <payload>', 'Pass command options as a JSON object')
     .option('--out <path>', 'Write output to file')
     .action((sqlFile: string, options: QuerySssqlRefreshOptions) => {
       runQuerySssqlRefreshCommand(sqlFile, options);
@@ -539,14 +541,17 @@ function runQuerySssqlScaffoldCommand(sqlFile: string, options: QuerySssqlScaffo
 }
 
 function runQuerySssqlRefreshCommand(sqlFile: string, options: QuerySssqlRefreshOptions): void {
+  const resolved = options.json
+    ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') }
+    : options;
   const sql = readFileSync(sqlFile, 'utf8');
   const parsed = SelectQueryParser.parse(sql);
   const existingBranches = collectSupportedOptionalConditionBranches(parsed);
   const filters = Object.fromEntries(existingBranches.map((branch) => [branch.parameterName, null]));
   const result = new SSSQLFilterBuilder().refresh(parsed, filters);
   const formatted = new SqlFormatter().format(result).formattedSql;
-  const outputFile = normalizeStringOption(options.out);
-  const format = normalizeFormat(normalizeStringOption(options.format) ?? getAgentOutputFormat());
+  const outputFile = normalizeStringOption(resolved.out);
+  const format = normalizeFormat(normalizeStringOption(resolved.format) ?? getAgentOutputFormat());
 
   if (outputFile) {
     writeFileSync(outputFile, `${formatted}\n`, 'utf8');
