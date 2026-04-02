@@ -1,3 +1,5 @@
+import { SimulatedSelectConverter, SqlFormatter, SqlParser } from 'rawsql-ts';
+
 interface PgMetadataQueryClientLike {
   query<T = unknown>(statement: string, values?: unknown[] | Record<string, unknown>): Promise<{
     rows?: T[];
@@ -25,6 +27,10 @@ interface PgTypeRow {
 }
 
 const directTypeMap = new Map<string, string>([
+  ['smallint', 'number'],
+  ['integer', 'number'],
+  ['int', 'number'],
+  ['bigint', 'string'],
   ['int2', 'number'],
   ['int4', 'number'],
   ['int8', 'string'],
@@ -50,12 +56,21 @@ const directTypeMap = new Map<string, string>([
   ['bytea', 'Uint8Array']
 ]);
 
+export function mapDeclaredPgTypeToTs(typeName: string | undefined): string {
+  if (!typeName) {
+    return 'unknown';
+  }
+  const normalized = typeName.trim().toLowerCase();
+  return directTypeMap.get(normalized) ?? 'unknown';
+}
+
 export async function probeQueryColumns(
   client: PgMetadataQueryClientLike,
   boundSql: string,
-  params: unknown[]
+  params: unknown[],
+  options?: { direct?: boolean }
 ): Promise<ProbedColumn[]> {
-  const probeSql = buildProbeSql(boundSql);
+  const probeSql = options?.direct ? normalizeProbeSource(boundSql) : buildProbeSql(boundSql);
   const result = await client.query(probeSql, params);
   const fields = normalizeFields(result.fields);
   if (fields.length === 0) {
@@ -74,11 +89,34 @@ export async function probeQueryColumns(
 }
 
 export function buildProbeSql(boundSql: string): string {
-  const normalizedSql = boundSql.trim().replace(/(?:;\s*)+$/u, '');
+  const normalizedSql = normalizeProbeSource(boundSql);
   if (!normalizedSql) {
     throw new Error('The SQL probe source is empty.');
   }
+
+  try {
+    const ast = SqlParser.parse(normalizedSql);
+    const simulatedSelect = SimulatedSelectConverter.convert(ast, {
+      missingFixtureStrategy: 'passthrough'
+    });
+    if (simulatedSelect) {
+      const formatter = new SqlFormatter({ keywordCase: 'none' });
+      const { formattedSql } = formatter.format(simulatedSelect);
+      const simulatedSql = formattedSql.trim().replace(/(?:;\s*)+$/u, '');
+      if (simulatedSql) {
+        return `SELECT * FROM (${simulatedSql}) AS _ztd_type_probe LIMIT 0`;
+      }
+    }
+  } catch {
+    // Fall back to the legacy direct wrapper so probe behavior remains tolerant
+    // for callers that already provide SELECT-compatible SQL.
+  }
+
   return `SELECT * FROM (${normalizedSql}) AS _ztd_type_probe LIMIT 0`;
+}
+
+function normalizeProbeSource(boundSql: string): string {
+  return boundSql.trim().replace(/(?:;\s*)+$/u, '');
 }
 
 function normalizeFields(fields: unknown): ProbeField[] {
@@ -154,5 +192,5 @@ function mapPgTypeToTs(oid: number, rows: Map<number, PgTypeRow>): string {
   if (row.typtype === 'e') {
     return 'string';
   }
-  return directTypeMap.get(row.typname) ?? 'unknown';
+  return mapDeclaredPgTypeToTs(row.typname);
 }

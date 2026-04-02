@@ -1,3 +1,6 @@
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { expect, test } from 'vitest';
 import {
   resolveExplicitTargetConnection,
@@ -5,13 +8,14 @@ import {
 } from '../src/utils/dbConnection';
 
 function withEnv<T>(
-  values: Partial<Record<'DATABASE_URL' | 'ZTD_TEST_DATABASE_URL', string | undefined>>,
+  values: Partial<Record<'DATABASE_URL' | 'ZTD_TEST_DATABASE_URL' | 'ZTD_DB_PORT', string | undefined>>,
   fn: () => T
 ): T {
   const previousDatabaseUrl = process.env.DATABASE_URL;
   const previousZtdTestDatabaseUrl = process.env.ZTD_TEST_DATABASE_URL;
+  const previousZtdDbPort = process.env.ZTD_DB_PORT;
   try {
-    for (const [key, value] of Object.entries(values) as Array<['DATABASE_URL' | 'ZTD_TEST_DATABASE_URL', string | undefined]>) {
+    for (const [key, value] of Object.entries(values) as Array<['DATABASE_URL' | 'ZTD_TEST_DATABASE_URL' | 'ZTD_DB_PORT', string | undefined]>) {
       if (value === undefined) {
         delete process.env[key];
       } else {
@@ -30,6 +34,12 @@ function withEnv<T>(
       delete process.env.ZTD_TEST_DATABASE_URL;
     } else {
       process.env.ZTD_TEST_DATABASE_URL = previousZtdTestDatabaseUrl;
+    }
+
+    if (previousZtdDbPort === undefined) {
+      delete process.env.ZTD_DB_PORT;
+    } else {
+      process.env.ZTD_DB_PORT = previousZtdDbPort;
     }
   }
 }
@@ -119,6 +129,28 @@ test('partial explicit --db-* flags fail with a clear error', () => {
 test('missing ZTD-owned connection reports actionable error', () => {
   withEnv({ DATABASE_URL: 'postgres://app_user:secret@app-host:5432/app_db', ZTD_TEST_DATABASE_URL: undefined }, () => {
     expect(() => resolveZtdOwnedTestConnection()).toThrow(/ZTD_TEST_DATABASE_URL is required/);
+  });
+});
+
+test('ZTD-owned connection derives the starter URL from .env ZTD_DB_PORT when the direct env var is absent', () => {
+  const workspace = mkdtempSync(path.join(os.tmpdir(), 'db-connection-dotenv-'));
+  writeFileSync(path.join(workspace, '.env'), 'ZTD_DB_PORT=5544\n', 'utf8');
+  const connection = withEnv(
+    {
+      DATABASE_URL: 'postgres://app_user:secret@app-host:5432/app_db',
+      ZTD_TEST_DATABASE_URL: undefined,
+      ZTD_DB_PORT: undefined,
+    },
+    () => resolveZtdOwnedTestConnection(workspace)
+  );
+
+  expect(connection.url).toBe('postgres://ztd:ztd@localhost:5544/ztd');
+  expect(connection.context).toMatchObject({
+    source: 'ztd-test-env',
+    host: 'localhost',
+    port: 5544,
+    user: 'ztd',
+    database: 'ztd'
   });
 });
 

@@ -8,7 +8,7 @@ import {
   type PgClientLike,
   type PgTestkitClientLike,
 } from '../utils/optionalDependencies';
-import { buildProbeSql, probeQueryColumns } from '../utils/modelProbe';
+import { buildProbeSql, mapDeclaredPgTypeToTs, probeQueryColumns, type ProbedColumn } from '../utils/modelProbe';
 import { bindModelGenNamedSql } from '../utils/modelGenBinder';
 import {
   deriveModelGenNames,
@@ -138,11 +138,26 @@ export async function runModelGen(sqlFilePath: string, options: ModelGenCommandO
 
   try {
     const probedColumns = await withSpan(MODEL_GEN_SPAN_NAMES.probeQueryColumns, async () => {
-      return probeQueryColumns(
-        probeClient.queryable,
-        placeholderPlan.bound.boundSql,
-        placeholderPlan.bound.orderedParamNames.map(() => null)
-      );
+      try {
+        return await probeQueryColumns(
+          probeClient.queryable,
+          placeholderPlan.bound.boundSql,
+          placeholderPlan.bound.orderedParamNames.map(() => null),
+          { direct: resolved.probeMode === 'ztd' }
+        );
+      } catch (error) {
+        const fallbackColumns = await tryInferZtdReturningColumnsFromDdl({
+          error,
+          probeMode: resolved.probeMode,
+          rootDir: process.cwd(),
+          ddlDir: options.ddlDir,
+          boundSql: placeholderPlan.bound.boundSql,
+        });
+        if (fallbackColumns) {
+          return fallbackColumns;
+        }
+        throw error;
+      }
     }, {
       paramCount: placeholderPlan.bound.orderedParamNames.length,
       probeMode: resolved.probeMode,
@@ -566,7 +581,14 @@ async function createProbeClient(
     return {
       queryable: testkitClient,
       close: async () => {
-        await testkitClient.close();
+        const results = await Promise.allSettled([
+          testkitClient.close(),
+          pgClient.end(),
+        ]);
+        const failure = results.find((result) => result.status === 'rejected');
+        if (failure?.status === 'rejected') {
+          throw failure.reason;
+        }
       }
     };
   } catch (error) {
@@ -769,6 +791,176 @@ function buildCommandText(sqlFilePath: string, options: ModelGenCommandOptions):
 
 export function normalizeCliPath(filePath: string): string {
   return filePath.replace(/\\/g, '/');
+}
+
+async function tryInferZtdReturningColumnsFromDdl(params: {
+  error: unknown;
+  probeMode: ModelGenProbeMode;
+  rootDir?: string;
+  ddlDir?: string;
+  boundSql: string;
+}): Promise<ProbedColumn[] | null> {
+  if (params.probeMode !== 'ztd') {
+    return null;
+  }
+
+  const message = params.error instanceof Error ? params.error.message : String(params.error);
+  if (!/cannot be resolved for RETURNING output/i.test(message)) {
+    return null;
+  }
+
+  const ztdOptions = resolveModelGenZtdProbeOptions({
+    rootDir: params.rootDir,
+    ddlDir: params.ddlDir,
+  });
+  const fixtureState = await loadModelGenZtdFixtureState(ztdOptions);
+  return inferReturningColumnsFromTableDefinitions(
+    params.boundSql,
+    fixtureState.tableDefinitions,
+    ztdOptions.defaultSchema,
+    ztdOptions.searchPath
+  );
+}
+
+export function inferReturningColumnsFromTableDefinitions(
+  sql: string,
+  tableDefinitions: unknown[],
+  defaultSchema: string,
+  searchPath: string[]
+): ProbedColumn[] | null {
+  const normalizedSql = sql.trim().replace(/(?:;\s*)+$/u, '');
+  const tableMatch = normalizedSql.match(/^\s*(?:insert\s+into|update|delete\s+from)\s+((?:"[^"]+"|[A-Za-z_][\w$]*)(?:\.(?:"[^"]+"|[A-Za-z_][\w$]*))?)/iu);
+  const returningMatch = normalizedSql.match(/\breturning\b([\s\S]+)$/iu);
+  if (!tableMatch || !returningMatch) {
+    return null;
+  }
+
+  const tableIdentifier = parseTableReference(tableMatch[1]);
+  if (!tableIdentifier) {
+    return null;
+  }
+
+  const tableDefinition = resolveTableDefinition(tableDefinitions, tableIdentifier, defaultSchema, searchPath);
+  if (!tableDefinition) {
+    return null;
+  }
+
+  const returningColumns = splitReturningColumns(returningMatch[1]);
+  if (returningColumns.length === 0) {
+    return null;
+  }
+
+  const resolved = returningColumns.map((columnName) => {
+    const column = tableDefinition.columns.find((candidate) => candidate.name.toLowerCase() === columnName.toLowerCase());
+    if (!column) {
+      throw new Error(`Column '${columnName}' cannot be resolved for RETURNING output.`);
+    }
+    const typeName = typeof column.typeName === 'string' ? column.typeName : 'unknown';
+    return {
+      columnName: column.name,
+      typeName,
+      tsType: mapDeclaredPgTypeToTs(typeName),
+    };
+  });
+
+  return resolved;
+}
+
+function splitReturningColumns(source: string): string[] {
+  return source
+    .split(',')
+    .map((segment) => segment.trim())
+    .map((segment) => {
+      const identifier = parseColumnReference(segment);
+      return identifier ? identifier.column : null;
+    })
+    .filter((value): value is string => typeof value === 'string' && value.length > 0);
+}
+
+function parseColumnReference(source: string): { schema?: string; table?: string; column: string } | null {
+  const parts = source
+    .split('.')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0)
+    .map((segment) => {
+      if (segment.startsWith('"') && segment.endsWith('"')) {
+        return segment.slice(1, -1);
+      }
+      return /^[A-Za-z_][\w$]*$/u.test(segment) ? segment : null;
+    });
+
+  if (parts.some((part) => part === null)) {
+    return null;
+  }
+
+  if (parts.length === 1) {
+    return { column: parts[0]! };
+  }
+  if (parts.length === 2) {
+    return { table: parts[0]!, column: parts[1]! };
+  }
+  if (parts.length === 3) {
+    return { schema: parts[0]!, table: parts[1]!, column: parts[2]! };
+  }
+  return null;
+}
+
+function parseTableReference(source: string): { schema?: string; table: string } | null {
+  const parts = source
+    .split('.')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0)
+    .map((segment) => {
+      if (segment.startsWith('"') && segment.endsWith('"')) {
+        return segment.slice(1, -1);
+      }
+      return /^[A-Za-z_][\w$]*$/u.test(segment) ? segment : null;
+    });
+
+  if (parts.some((part) => part === null)) {
+    return null;
+  }
+
+  if (parts.length === 1) {
+    return { table: parts[0]! };
+  }
+  if (parts.length === 2) {
+    return { schema: parts[0]!, table: parts[1]! };
+  }
+  return null;
+}
+
+function resolveTableDefinition(
+  tableDefinitions: unknown[],
+  identifier: { schema?: string; table: string },
+  defaultSchema: string,
+  searchPath: string[]
+): { name: string; columns: Array<{ name: string; typeName?: string }> } | null {
+  const definitions = tableDefinitions
+    .filter((definition): definition is { name: string; columns: Array<{ name: string; typeName?: string }> } =>
+      typeof (definition as { name?: unknown }).name === 'string' &&
+      Array.isArray((definition as { columns?: unknown }).columns)
+    );
+
+  const requestedTable = identifier.table;
+  const requestedSchema = identifier.schema;
+  if (requestedSchema) {
+    return (
+      definitions.find((definition) => definition.name.toLowerCase() === `${requestedSchema}.${requestedTable}`.toLowerCase()) ??
+      definitions.find((definition) => definition.name.toLowerCase() === requestedTable.toLowerCase()) ??
+      null
+    );
+  }
+
+  const candidates = definitions.filter((definition) => definition.name.split('.').pop()?.toLowerCase() === requestedTable.toLowerCase());
+  for (const schemaName of [defaultSchema, ...searchPath]) {
+    const match = candidates.find((definition) => definition.name.toLowerCase() === `${schemaName}.${requestedTable}`.toLowerCase());
+    if (match) {
+      return match;
+    }
+  }
+
+  return candidates[0] ?? null;
 }
 
 function ensureSpecIdAvailable(projectRoot: string, specId: string, sourceSqlFile: string): void {

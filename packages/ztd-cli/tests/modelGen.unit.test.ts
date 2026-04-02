@@ -8,6 +8,7 @@ import {
   resolveModelGenZtdProbeOptions,
   resolveCliConnectionWithProbeGuidance,
   buildModelGenConnectionFailure,
+  inferReturningColumnsFromTableDefinitions,
 } from '../src/commands/modelGen';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -224,7 +225,24 @@ test('normalizeCliPath converts windows-style paths to slash-separated paths', (
 });
 
 test('buildProbeSql trims trailing semicolons before wrapping the probe query', () => {
-  expect(buildProbeSql('select 1 as value; \n')).toBe('SELECT * FROM (select 1 as value) AS _ztd_type_probe LIMIT 0');
+  const probeSql = buildProbeSql('select 1 as value; \n');
+  expect(probeSql).toContain('SELECT * FROM (');
+  expect(probeSql).toContain('AS _ztd_type_probe LIMIT 0');
+  expect(probeSql.toLowerCase()).toContain('select 1 as');
+  expect(probeSql.toLowerCase()).toContain('value');
+});
+
+test('buildProbeSql converts insert-returning statements into probeable select SQL', () => {
+  const probeSql = buildProbeSql(`
+    insert into public.users (email, display_name)
+    values (:email, :display_name)
+    returning user_id
+  `);
+
+  expect(probeSql).toContain('SELECT * FROM (');
+  expect(probeSql.toLowerCase()).toContain('select');
+  expect(probeSql.toLowerCase()).toContain('user_id');
+  expect(probeSql.toLowerCase()).not.toContain('expected');
 });
 
 test('probeQueryColumns maps int8 metadata to string to match pg driver defaults', async () => {
@@ -233,7 +251,9 @@ test('probeQueryColumns maps int8 metadata to string to match pg driver defaults
     async query<T>(sql: string): Promise<{ fields?: unknown; rows?: T[] }> {
       queryCall += 1;
       if (queryCall === 1) {
-        expect(sql).toContain('SELECT * FROM (select count(*) as total)');
+        expect(sql).toContain('SELECT * FROM (');
+        expect(sql.toLowerCase()).toContain('select count(*) as');
+        expect(sql.toLowerCase()).toContain('total');
         return {
           fields: [{ name: 'total', dataTypeID: 20 }],
           rows: []
@@ -251,6 +271,59 @@ test('probeQueryColumns maps int8 metadata to string to match pg driver defaults
   ]);
 });
 
+test('probeQueryColumns can probe direct SQL without wrapping when the caller opts in', async () => {
+  let queryCall = 0;
+  const client = {
+    async query<T>(sql: string): Promise<{ fields?: unknown; rows?: T[] }> {
+      queryCall += 1;
+      if (queryCall === 1) {
+        expect(sql.toLowerCase()).toContain('insert into public.users');
+        expect(sql).not.toContain('SELECT * FROM (');
+        return {
+          fields: [{ name: 'user_id', dataTypeID: 20 }],
+          rows: []
+        };
+      }
+
+      return {
+        rows: [{ oid: 20, typname: 'int8', typtype: 'b', typelem: 0, typbasetype: 0 } as T]
+      };
+    }
+  };
+
+  await expect(
+    probeQueryColumns(
+      client,
+      'insert into public.users (email) values ($1) returning user_id',
+      [null],
+      { direct: true }
+    )
+  ).resolves.toEqual([
+    { columnName: 'user_id', typeName: 'int8', tsType: 'string' }
+  ]);
+});
+
+test('inferReturningColumnsFromTableDefinitions resolves schema-qualified inserts against unqualified ZTD table definitions', () => {
+  expect(
+    inferReturningColumnsFromTableDefinitions(
+      'insert into "public"."users" (email) values (:email) returning "user_id";',
+      [
+        {
+          name: 'users',
+          columns: [
+            { name: 'user_id', typeName: 'bigint' },
+            { name: 'email', typeName: 'text' },
+          ],
+        },
+      ],
+      'public',
+      ['public']
+    )
+  ).toEqual([
+    { columnName: 'user_id', typeName: 'bigint', tsType: 'string' }
+  ]);
+});
+
 test('resolveModelGenZtdProbeOptions preserves defaultSchema and searchPath from ztd.config.json', () => {
   const workspace = mkdtempSync(path.join(os.tmpdir(), 'model-gen-ztd-config-'));
   mkdirSync(path.join(workspace, 'schema'), { recursive: true });
@@ -259,7 +332,7 @@ test('resolveModelGenZtdProbeOptions preserves defaultSchema and searchPath from
     JSON.stringify({
       dialect: 'postgres',
       ddlDir: 'schema',
-      testsDir: 'tests',
+      ztdRootDir: '.ztd',
       defaultSchema: 'app',
       searchPath: ['app', 'public'],
       ddlLint: 'strict'

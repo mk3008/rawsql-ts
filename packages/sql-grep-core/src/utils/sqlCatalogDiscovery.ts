@@ -157,9 +157,14 @@ export function loadSqlCatalogSpecsFromFile(
 
   const source = readFileSync(filePath, 'utf8');
   if (!looksLikeSpecFile(filePath) && !source.includes('sqlFile')) {
-    return [];
+    const fallbackSpec = extractFeatureLocalQuerySpec(source);
+    return fallbackSpec ? [{ spec: fallbackSpec, filePath }] : [];
   }
   const blocks = extractTsJsSpecBlocks(source);
+  if (blocks.length === 0) {
+    const fallbackSpec = extractFeatureLocalQuerySpec(source);
+    return fallbackSpec ? [{ spec: fallbackSpec, filePath }] : [];
+  }
   return blocks.map((block) => {
     const id = block.match(/id\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
     const sqlFile = block.match(/sqlFile\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
@@ -191,6 +196,19 @@ export function loadSqlCatalogSpecsFromFile(
       filePath
     };
   });
+}
+
+function extractFeatureLocalQuerySpec(source: string): SqlCatalogSpecLike | null {
+  const sqlResourceMatch = source.match(/loadSqlResource\s*\(\s*__dirname\s*,\s*['"`]([^'"`]+\.sql)['"`]\s*\)/);
+  if (!sqlResourceMatch) {
+    return null;
+  }
+
+  const label = source.match(/label\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
+  return {
+    id: label,
+    sqlFile: `./${sqlResourceMatch[1]}`
+  };
 }
 
 /**

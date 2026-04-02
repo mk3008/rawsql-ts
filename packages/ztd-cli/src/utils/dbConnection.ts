@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+
 export interface DbConnectionFlags {
   host?: string;
   port?: string;
@@ -23,13 +26,14 @@ export interface ResolvedDatabaseConnection {
 
 const DEFAULT_PORT = 5432;
 const ZTD_TEST_DATABASE_ENV = 'ZTD_TEST_DATABASE_URL';
+const ZTD_DB_PORT_ENV = 'ZTD_DB_PORT';
 
 /**
  * Resolves the single implicit database owned by ztd-cli.
  * @returns The managed ZTD test database connection plus sanitized context metadata.
  */
-export function resolveZtdOwnedTestConnection(): ResolvedDatabaseConnection {
-  const envUrl = (process.env[ZTD_TEST_DATABASE_ENV] ?? '').trim();
+export function resolveZtdOwnedTestConnection(rootDir: string = process.cwd()): ResolvedDatabaseConnection {
+  const envUrl = resolveManagedDatabaseUrlFromEnvironment(rootDir);
   if (!envUrl) {
     throw new Error(
       `${ZTD_TEST_DATABASE_ENV} is required for this ZTD-owned workflow. ztd-cli does not read DATABASE_URL implicitly.`
@@ -43,6 +47,66 @@ export function resolveZtdOwnedTestConnection(): ResolvedDatabaseConnection {
       ...parseUrlContext(envUrl)
     }
   };
+}
+
+function resolveManagedDatabaseUrlFromEnvironment(rootDir: string): string {
+  const directEnvUrl = (process.env[ZTD_TEST_DATABASE_ENV] ?? '').trim();
+  if (directEnvUrl) {
+    return directEnvUrl;
+  }
+
+  const envFileValues = loadDotEnvValues(rootDir);
+  const envFileUrl = envFileValues.get(ZTD_TEST_DATABASE_ENV)?.trim();
+  if (envFileUrl) {
+    return envFileUrl;
+  }
+
+  const port = envFileValues.get(ZTD_DB_PORT_ENV)?.trim();
+  if (port) {
+    return `postgres://ztd:ztd@localhost:${port}/ztd`;
+  }
+
+  return '';
+}
+
+function loadDotEnvValues(rootDir: string): Map<string, string> {
+  const envPath = path.join(rootDir, '.env');
+  if (!existsSync(envPath)) {
+    return new Map();
+  }
+
+  const parsed = new Map<string, string>();
+  const source = readFileSync(envPath, 'utf8');
+  for (const line of source.split(/\r?\n/u)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) {
+      continue;
+    }
+
+    const equalsIndex = trimmed.indexOf('=');
+    if (equalsIndex <= 0) {
+      continue;
+    }
+
+    const key = trimmed.slice(0, equalsIndex).trim();
+    const value = trimmed.slice(equalsIndex + 1).trim();
+    if (key.length === 0) {
+      continue;
+    }
+    parsed.set(key, stripOptionalQuotes(value));
+  }
+
+  return parsed;
+}
+
+function stripOptionalQuotes(value: string): string {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1);
+  }
+  return value;
 }
 
 /**
