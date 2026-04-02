@@ -25,13 +25,18 @@ export interface ZtdProjectConfig {
 }
 
 const CONFIG_NAME = 'ztd.config.json';
+export const DEFAULT_ZTD_ROOT_DIR = '.ztd';
+export const DEFAULT_ZTD_GENERATED_DIR = `${DEFAULT_ZTD_ROOT_DIR}/generated`;
+export const DEFAULT_ZTD_SUPPORT_DIR = `${DEFAULT_ZTD_ROOT_DIR}/support`;
+export const DEFAULT_TEST_DISCOVERY_DIR = `${DEFAULT_ZTD_ROOT_DIR}/tests`;
 
 let hasWarnedLegacyConnectionConfig = false;
 
 export const DEFAULT_ZTD_CONFIG: ZtdProjectConfig = {
+  ztdRootDir: DEFAULT_ZTD_ROOT_DIR,
   dialect: 'postgres',
-  ddlDir: 'ztd/ddl',
-  testsDir: 'tests',
+  ddlDir: 'db/ddl',
+  testsDir: DEFAULT_TEST_DISCOVERY_DIR,
   defaultSchema: 'public',
   searchPath: ['public'],
   ddlLint: 'strict'
@@ -54,6 +59,7 @@ export function resolveZtdConfigPath(rootDir: string = process.cwd()): string {
 export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjectConfig {
   const filePath = resolveZtdConfigPath(rootDir);
   if (!existsSync(filePath)) {
+    assertSupportedProjectLayout(rootDir, DEFAULT_ZTD_CONFIG);
     return DEFAULT_ZTD_CONFIG;
   }
 
@@ -82,7 +88,7 @@ export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjec
       emitLegacyConnectionConfigWarning(filePath);
     }
 
-    return {
+    const resolvedConfig: ZtdProjectConfig = {
       ztdRootDir: typeof raw.ztdRootDir === 'string' && raw.ztdRootDir.length ? raw.ztdRootDir : undefined,
       dialect: typeof raw.dialect === 'string' ? raw.dialect : DEFAULT_ZTD_CONFIG.dialect,
       ddlDir: typeof raw.ddlDir === 'string' && raw.ddlDir.length ? raw.ddlDir : DEFAULT_ZTD_CONFIG.ddlDir,
@@ -93,9 +99,74 @@ export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjec
       ddlLint: isDdlLintMode(rawLintMode) ? rawLintMode : DEFAULT_ZTD_CONFIG.ddlLint,
       connection: normalizedConnection
     };
+    assertSupportedProjectLayout(rootDir, resolvedConfig);
+    return resolvedConfig;
   } catch (error) {
     throw new Error(`${CONFIG_NAME} is malformed: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+export function resolveZtdRootDir(config: ZtdProjectConfig): string {
+  return normalizeProjectPath(config.ztdRootDir || DEFAULT_ZTD_CONFIG.ztdRootDir || DEFAULT_ZTD_ROOT_DIR);
+}
+
+export function resolveGeneratedDir(config: ZtdProjectConfig): string {
+  return `${resolveZtdRootDir(config)}/generated`;
+}
+
+export function resolveSupportDir(config: ZtdProjectConfig): string {
+  return `${resolveZtdRootDir(config)}/support`;
+}
+
+function normalizeProjectPath(filePath: string): string {
+  return filePath.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/\/$/, '');
+}
+
+function assertSupportedProjectLayout(rootDir: string, config: ZtdProjectConfig): void {
+  const normalizedDdlDir = normalizeProjectPath(config.ddlDir);
+  const normalizedTestsDir = normalizeProjectPath(config.testsDir);
+  const normalizedZtdRootDir = resolveZtdRootDir(config);
+  const legacySignals: string[] = [];
+
+  if (normalizedDdlDir === 'ztd/ddl') {
+    legacySignals.push('ztd.config.json uses the removed ddlDir value "ztd/ddl".');
+  }
+  if (normalizedTestsDir === 'tests') {
+    legacySignals.push('ztd.config.json uses the removed testsDir value "tests".');
+  }
+  if (normalizedZtdRootDir !== DEFAULT_ZTD_ROOT_DIR) {
+    legacySignals.push(`ztd.config.json uses the unsupported ztdRootDir "${normalizedZtdRootDir}".`);
+  }
+
+  const knownLegacyPaths = [
+    'ztd/ddl',
+    'tests/generated',
+    'tests/support',
+    'tests/queryspec.example.test.ts'
+  ];
+  for (const relativePath of knownLegacyPaths) {
+    if (existsSync(path.join(rootDir, relativePath))) {
+      legacySignals.push(`Legacy layout detected at ${relativePath}.`);
+    }
+  }
+
+  if (legacySignals.length === 0) {
+    return;
+  }
+
+  throw new Error(
+    [
+      'This project uses the removed pre-.ztd layout.',
+      ...legacySignals.map((signal) => `- ${signal}`),
+      'Migration steps:',
+      '- Move DDL from ztd/ddl to db/ddl.',
+      '- Move repo-level generated files to .ztd/generated.',
+      '- Move repo-level support files to .ztd/support.',
+      '- Update ztd.config.json so ztdRootDir=".ztd" and ddlDir="db/ddl".',
+      '- Re-run `ztd ztd-config` after the move.',
+      '- Remove stale legacy scaffold files under ztd/ and tests/.'
+    ].join('\n')
+  );
 }
 
 function isDdlLintMode(value?: string): value is DdlLintMode {

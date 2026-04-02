@@ -110,9 +110,9 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('copy `.env.example` to `.env`');
   expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain('setupFiles');
   expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain(
-    "tests/support/setup-env.ts"
+    ".ztd/support/setup-env.ts"
   );
-  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'setup-env.ts'))).toContain(
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain(
     'ZTD_DB_PORT'
   );
   expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_PORT=5432');
@@ -141,14 +141,13 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
     postgresImage: 'postgres:17'
   });
 
-  const ddlFiles = readdirSync(path.join(workspace, 'ztd', 'ddl')).filter((entry) => entry.endsWith('.sql'));
+  const ddlFiles = readdirSync(path.join(workspace, 'db', 'ddl')).filter((entry) => entry.endsWith('.sql'));
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'features', 'AGENTS.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'tests', 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'db', 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(false);
-  expect(existsSync(path.join(workspace, '.agents', 'skills', 'quickstart', 'SKILL.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'compose.yaml'))).toBe(true);
   expect(existsSync(path.join(workspace, '.env.example'))).toBe(true);
@@ -165,10 +164,10 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_PORT=5432');
   expect(ddlFiles.length).toBeGreaterThan(0);
   expect(
-    readNormalizedFile(path.join(workspace, 'ztd', 'ddl', ddlFiles[0]))
+    readNormalizedFile(path.join(workspace, 'db', 'ddl', ddlFiles[0]))
   ).toContain('create table users');
   expect(
-    readNormalizedFile(path.join(workspace, 'ztd', 'ddl', ddlFiles[0]))
+    readNormalizedFile(path.join(workspace, 'db', 'ddl', ddlFiles[0]))
   ).toContain('Starter user directory for the first CRUD feature');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Starter Flow');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('starter-only sample feature');
@@ -189,7 +188,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('users-insert.queryspec.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('@rawsql-ts/testkit-postgres');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('tests/support/postgres-testkit.ts');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('.ztd/support/postgres-testkit.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('repository telemetry');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('queryId');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('tableDefinitions');
@@ -197,20 +196,20 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'README.md'))).toContain('starter-only sample feature');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('smoke.queryspec.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('setup-env.ts');
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('tests/support/postgres-testkit.ts');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('.ztd/support/postgres-testkit.ts');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('ZTD_DB_PORT');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'persistence', 'smoke.sql'))).toContain(':v1::integer + :v2::integer as result');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'))).toContain(
     "sqlFile: './smoke.sql'"
   );
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'))).toContain("shape: 'named'");
-  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'setup-env.ts'))).toContain('ZTD_DB_PORT');
-  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'setup-env.ts'))).toContain('ZTD_TEST_DATABASE_URL');
-  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'postgres-testkit.ts'))).toContain('createPostgresTestkitClient');
-  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'postgres-testkit.ts'))).toContain('loadStarterPostgresDefaults');
-  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'postgres-testkit.ts'))).toContain('ZTD_TEST_DATABASE_URL');
-  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'postgres-testkit.ts'))).toContain('throw new Error');
-  expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"ztdRootDir": "."');
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain('ZTD_DB_PORT');
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain('ZTD_TEST_DATABASE_URL');
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'postgres-testkit.ts'))).toContain('createPostgresTestkitClient');
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'postgres-testkit.ts'))).toContain('loadStarterPostgresDefaults');
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'postgres-testkit.ts'))).toContain('ZTD_TEST_DATABASE_URL');
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'postgres-testkit.ts'))).toContain('throw new Error');
+  expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"ztdRootDir": ".ztd"');
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"defaultSchema": "public"');
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"searchPath": [');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'))).toContain('buildSmokeWorkflow');
@@ -240,12 +239,12 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-postgres');
   expect(packageJson.devDependencies).toHaveProperty('pg');
   expect(packageJson.devDependencies).toHaveProperty('@types/pg');
-  expect(existsSync(path.join(workspace, 'tests', 'support', 'testkit-client.ts'))).toBe(false);
+  expect(existsSync(path.join(workspace, '.ztd', 'support', 'testkit-client.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'))).toBe(true);
   expect(result.summary).toContain('compose.yaml');
   expect(result.summary).toContain('.env.example');
-  expect(result.summary).toContain('tests/support/setup-env.ts');
-  expect(result.summary).toContain('tests/support/postgres-testkit.ts');
+  expect(result.summary).toContain('.ztd/support/setup-env.ts');
+  expect(result.summary).toContain('.ztd/support/postgres-testkit.ts');
   expect(result.summary).toContain('src/features/smoke/tests/smoke.queryspec.test.ts');
   expect(result.summary).toContain('starter-only sample feature');
   expect(result.summary).toContain('ztd agents init');
@@ -271,15 +270,14 @@ test('init dry-run plan matches starter outputs without AGENTS files', () => {
     'compose.yaml',
     'src/features/smoke/tests/smoke.test.ts',
     'src/infrastructure/telemetry/types.ts',
-    'tests/support/postgres-testkit.ts'
+    '.ztd/support/postgres-testkit.ts'
   ]));
   expect(plan.files).not.toEqual(expect.arrayContaining([
     'AGENTS.md',
-    'ztd/AGENTS.md',
-    'ztd/ddl/AGENTS.md',
+    'db/AGENTS.md',
+    'db/ddl/AGENTS.md',
     'src/AGENTS.md',
-    'src/features/AGENTS.md',
-    'tests/AGENTS.md'
+    'src/features/AGENTS.md'
   ]));
 });
 
@@ -300,9 +298,8 @@ test('init starter keeps visible AGENTS out even when internal AI guidance is en
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'AGENTS.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'tests', 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'db', 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(false);
-  expect(existsSync(path.join(workspace, '.agents', 'skills', 'quickstart', 'SKILL.md'))).toBe(false);
   expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(true);
   expect(existsSync(path.join(workspace, 'CONTEXT.md'))).toBe(true);
   expect(result.summary).toContain('Internal guidance is managed under .ztd/agents/.');
@@ -323,14 +320,12 @@ test('default scaffold still omits the customer Codex bootstrap', async () => {
   });
 
   expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(false);
-  expect(existsSync(path.join(workspace, '.agents', 'skills', 'quickstart', 'SKILL.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'features', 'AGENTS.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'tests', 'AGENTS.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'ztd', 'ddl', 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'db', 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'db', 'ddl', 'AGENTS.md'))).toBe(false);
 });
 
 test('init can opt into AI guidance files when explicitly requested', async () => {
@@ -366,8 +361,7 @@ test('init can opt into AI guidance files when explicitly requested', async () =
     expect.arrayContaining([
       expect.objectContaining({ scope: 'src-features' }),
       expect.objectContaining({ scope: 'src' }),
-      expect.objectContaining({ scope: 'tests' }),
-      expect.objectContaining({ scope: 'ztd' })
+      expect.objectContaining({ scope: 'db' })
     ])
   );
 });

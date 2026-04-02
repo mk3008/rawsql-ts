@@ -1,6 +1,6 @@
 export const DEFAULT_EXTENSIONS = ['.sql'];
-export const DEFAULT_DDL_DIRECTORY = 'ztd/ddl';
-export const DEFAULT_TESTS_DIRECTORY = 'tests';
+export const DEFAULT_DDL_DIRECTORY = 'db/ddl';
+export const DEFAULT_TESTS_DIRECTORY = '.ztd/tests';
 const EXTENSION_TOKEN_PATTERN = /^[A-Za-z0-9_]+$/;
 
 export function collectDirectories(value: string, previous: string[]): string[] {

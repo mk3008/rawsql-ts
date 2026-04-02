@@ -130,7 +130,7 @@ test('handles multiple sources with composite keys and cross-schema references',
 test('resolveZtdConfigCommandOptions expands json payload fields to command option shapes', () => {
   const resolved = resolveZtdConfigCommandOptions({
     json: JSON.stringify({
-      ddlDir: 'ztd/ddl',
+      ddlDir: 'db/ddl',
       extensions: '.sql,.ddl',
       searchPath: 'public,app',
       dryRun: true
@@ -138,7 +138,7 @@ test('resolveZtdConfigCommandOptions expands json payload fields to command opti
   });
 
   expect(resolved).toMatchObject({
-    ddlDir: ['ztd/ddl'],
+    ddlDir: ['db/ddl'],
     extensions: ['.ddl', '.sql'],
     searchPath: ['public', 'app'],
     dryRun: true

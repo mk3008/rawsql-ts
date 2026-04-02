@@ -182,6 +182,53 @@ test('project-wide discovery finds feature-local specs across multiple slices wi
   ]);
 });
 
+test('query usage report discovers scaffolded feature-local queryspec files that use loadSqlResource', () => {
+  const root = createWorkspace('query-uses-scaffolded-feature-local');
+  mkdirSync(path.join(root, 'src', 'features', 'users-insert', 'insert-users'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'),
+    [
+      "import { loadSqlResource } from '../../_shared/loadSqlResource';",
+      '',
+      "const insertUsersSqlResource = loadSqlResource(__dirname, 'insert-users.sql');",
+      '',
+      'export async function executeInsertUsersQuerySpec() {',
+      '  return insertUsersSqlResource;',
+      '}',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'features', 'users-insert', 'insert-users', 'insert-users.sql'),
+    'insert into public.users (email) values (:email) returning user_id;',
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'column',
+    rawTarget: 'users.email',
+    rootDir: root,
+    specsDir: 'src/features/users-insert',
+    anySchema: true,
+    view: 'detail'
+  });
+
+  expect(report.summary).toMatchObject({
+    catalogsScanned: 1,
+    statementsScanned: 1,
+    matches: 1,
+    unresolvedSqlFiles: 0
+  });
+  expect(report.warnings).toEqual([]);
+  expect(report.matches).toEqual([
+    expect.objectContaining({
+      kind: 'detail',
+      sql_file: 'src/features/users-insert/insert-users/insert-users.sql'
+    })
+  ]);
+});
+
 test('impact view resolves sql-root-relative sqlFile values before the legacy spec-relative fallback', () => {
   const root = createWorkspace('query-uses-sql-root-relative');
   mkdirSync(path.join(root, 'src', 'sql', 'sales'), { recursive: true });

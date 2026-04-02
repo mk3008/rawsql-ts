@@ -6,7 +6,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import {
   createStarterPostgresTestkitClient,
   loadStarterPostgresDefaults
-} from '../templates/tests/support/postgres-testkit';
+} from '../templates/.ztd/support/postgres-testkit';
 
 const tempDirs: string[] = [];
 

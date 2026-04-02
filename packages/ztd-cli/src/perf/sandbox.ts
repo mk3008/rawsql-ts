@@ -434,7 +434,7 @@ function buildPerfReadme(): string {
     '2. `ztd perf db reset`',
     '3. `ztd perf seed`',
     '',
-    'The reset step replays local `ztd/ddl/*.sql`, including physical tables and indexes.',
+    'The reset step replays local `db/ddl/*.sql`, including physical tables and indexes.',
     '',
     'The sandbox is intentionally separated from default ZTD workflows.',
     ''

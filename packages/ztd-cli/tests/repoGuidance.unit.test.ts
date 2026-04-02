@@ -20,7 +20,7 @@ test('repo-local Codex guidance files exist and point at developer workflows', (
 });
 
 test('planning guidance covers acceptance items and verification methods', () => {
-  const planningSkill = readText('.agents/skills/acceptance-planning/SKILL.md');
+  const planningSkill = readText('acceptance-planning/SKILL.md');
   const planningAgent = readText('.codex/agents/planning.md');
   const verificationAgent = readText('.codex/agents/verification.md');
 
@@ -40,8 +40,8 @@ test('planning guidance covers acceptance items and verification methods', () =>
 });
 
 test('reporting guidance covers reviewer-facing and operator-facing reporting shape', () => {
-  const reportingSkill = readText('.agents/skills/attainment-reporting/SKILL.md');
-  const reviewSkill = readText('.agents/skills/self-review/SKILL.md');
+  const reportingSkill = readText('attainment-reporting/SKILL.md');
+  const reviewSkill = readText('self-review/SKILL.md');
   const reportingAgent = readText('.codex/agents/reporting.md');
   const reviewAgent = readText('.codex/agents/review.md');
   const rootAgents = readText('AGENTS.md');
@@ -119,7 +119,7 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
 });
 
 test('reporting guidance fixes the decision-oriented order', () => {
-  const reportingSkill = readText('.agents/skills/attainment-reporting/SKILL.md');
+  const reportingSkill = readText('attainment-reporting/SKILL.md');
   const sourceIndex = reportingSkill.indexOf('Source request or source issue');
   const whyIndex = reportingSkill.indexOf('Why it matters');
   const changedIndex = reportingSkill.indexOf('What changed');

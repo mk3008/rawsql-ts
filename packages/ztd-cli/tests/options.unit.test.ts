@@ -8,17 +8,17 @@ import {
 } from '../src/commands/options';
 
 test('normalizeDirectoryList respects user directories and falls back when absent', () => {
-  const provided = ['ztd/ddl', 'schema'];
+  const provided = ['db/ddl', 'schema'];
   const normalized = normalizeDirectoryList(provided, DEFAULT_DDL_DIRECTORY);
-  expect(normalized).toEqual(['ztd/ddl', 'schema']);
+  expect(normalized).toEqual(['db/ddl', 'schema']);
 
   const fallback = normalizeDirectoryList([], DEFAULT_DDL_DIRECTORY);
   expect(fallback).toEqual([DEFAULT_DDL_DIRECTORY]);
 });
 
 test('normalizeDirectoryList removes duplicates', () => {
-  const normalized = normalizeDirectoryList(['ztd/ddl', 'ztd/ddl', 'schema'], DEFAULT_DDL_DIRECTORY);
-  expect(normalized).toEqual(['ztd/ddl', 'schema']);
+  const normalized = normalizeDirectoryList(['db/ddl', 'db/ddl', 'schema'], DEFAULT_DDL_DIRECTORY);
+  expect(normalized).toEqual(['db/ddl', 'schema']);
 });
 
 test('parseExtensions normalizes CLI extension arguments and ignores invalid tokens', () => {

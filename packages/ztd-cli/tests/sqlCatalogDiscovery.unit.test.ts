@@ -139,6 +139,38 @@ test('sql catalog discovery preserves spec ids, ordering, sqlFile, and minimal e
   ]);
 });
 
+test('sql catalog discovery extracts feature-local queryspec files that use loadSqlResource', () => {
+  const root = createWorkspace('sql-catalog-feature-queryspec');
+  mkdirSync(path.join(root, 'src', 'features', 'users-insert', 'insert-users'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'),
+    [
+      "import { loadSqlResource } from '../../_shared/loadSqlResource';",
+      '',
+      "const insertUsersSqlResource = loadSqlResource(__dirname, 'insert-users.sql');",
+      '',
+      'export async function executeInsertUsersQuerySpec() {',
+      '  return insertUsersSqlResource;',
+      '}',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+
+  const loaded = loadSqlCatalogSpecsFromFile(
+    path.join(root, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'),
+    (message) => new Error(message)
+  );
+
+  expect(loaded).toEqual([
+    expect.objectContaining({
+      spec: expect.objectContaining({
+        sqlFile: './insert-users.sql'
+      })
+    })
+  ]);
+});
+
 test('shared discovery keeps runCheckContract behavior unchanged for ts/json specs', () => {
   const root = createWorkspace('sql-catalog-check-contract');
   writeFileSync(path.join(root, 'src', 'sql', 'a.sql'), 'SELECT 1', 'utf8');

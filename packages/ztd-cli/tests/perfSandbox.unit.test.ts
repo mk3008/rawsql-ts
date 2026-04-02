@@ -125,7 +125,7 @@ test('inspectPerfDdlInventory counts CREATE INDEX statements so perf reset can r
 
   writeFileSync(path.join(rootDir, 'ztd.config.json'), JSON.stringify({
     dialect: 'postgres',
-    ddlDir: 'ztd/ddl',
+    ddlDir: 'db/ddl',
     testsDir: 'tests',
     defaultSchema: 'public',
     searchPath: ['public'],
@@ -150,7 +150,7 @@ test('inspectPerfDdlInventory fails fast when the configured DDL directory does 
 
   writeFileSync(path.join(rootDir, 'ztd.config.json'), JSON.stringify({
     dialect: 'postgres',
-    ddlDir: 'ztd/ddl',
+    ddlDir: 'db/ddl',
     testsDir: 'tests',
     defaultSchema: 'public',
     searchPath: ['public'],

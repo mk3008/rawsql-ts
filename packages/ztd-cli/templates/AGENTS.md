@@ -6,7 +6,8 @@ Read `README.md` and the nearest `AGENTS.md` before editing files.
 
 - Use `src/features/<feature>` as the default change unit.
 - Keep handwritten SQL, specs, and tests inside the feature that owns them.
-- Treat `ztd/ddl` as human-owned DDL input.
+- Treat `db/ddl` as human-owned DDL input.
+- Treat `.ztd/` as the tool-managed workspace for generated and support assets.
 - Do not apply migrations automatically.
 
 ## Safe Next Steps

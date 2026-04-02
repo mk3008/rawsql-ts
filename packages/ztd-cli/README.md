@@ -47,7 +47,7 @@ npx ztd ztd-config
 npx vitest run
 ```
 
-The starter scaffold includes `@rawsql-ts/testkit-core`, so `npx ztd ztd-config` works in a fresh standalone project and writes the generated runtime manifest to `tests/generated/ztd-fixture-manifest.generated.ts`.
+The starter scaffold includes `@rawsql-ts/testkit-core`, so `npx ztd ztd-config` works in a fresh standalone project and writes the generated runtime manifest to `.ztd/generated/ztd-fixture-manifest.generated.ts`.
 That manifest carries `tableDefinitions` schema metadata only; test rows stay explicit fixtures outside the generated contract.
 The removable starter smoke path also shows `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient` for the DB-backed test that catches setup problems early.
 If you want the fixture-resolution details, read the `@rawsql-ts/testkit-postgres` package README after the starter smoke path.
@@ -88,7 +88,7 @@ Choose ztd init or ztd init --starter based on whether I want the removable star
 
 ```text
 Add a users insert feature to this feature-first project.
-Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.agents/skills/*` if present.
+Read the nearest AGENTS.md files first. Then read `.codex/agents/*` if present.
 Start with `npx ztd feature scaffold --table users --action insert`.
 Keep `entryspec.ts`, the query-local `queryspec.ts`, and the query-local SQL resource inside `src/features/users-insert`.
 Use `zod` schemas at the feature boundary and DB boundary, then add tests as the AI follow-up.
@@ -105,7 +105,6 @@ If you want `PROMPT_DOGFOOD.md` for debugging or prompt review, pass `--with-dog
 - visible `AGENTS.md` guidance
 - `.codex/config.toml`
 - `.codex/agents/`
-- `.agents/skills/`
 
 Existing user-owned guidance files are preserved; use `npx ztd agents status` if you need to review customer bootstrap targets separately from internal `.ztd` guidance, including managed, customized, or unmanaged-conflict files.
 
@@ -113,7 +112,7 @@ A good first request after setup is:
 
 ```text
 Add a users insert feature to this feature-first project.
-Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.agents/skills/*` if present.
+Read the nearest AGENTS.md files first. Then read `.codex/agents/*` if present.
 Start with `npx ztd feature scaffold --table users --action insert`.
 Keep `entryspec.ts`, the query-local `queryspec.ts`, and the query-local SQL resource inside `src/features/users-insert`.
 Use `zod` schemas at the feature boundary and DB boundary, then add tests as the AI follow-up.
@@ -125,7 +124,7 @@ Do not apply migrations automatically.
 
 - `ztd init --starter` creates a feature-first starter scaffold with `smoke`, starter DDL, and local Postgres wiring.
 - `ztd feature scaffold --table <table> --action <insert|update|delete|get-by-id|list>` creates a fixed CRUD/SELECT boundary scaffold with `entryspec.ts`, a co-located query directory (`queryspec.ts` + SQL resource), `zod` DTO schemas at both boundaries, a shared executor runtime contract, the empty feature `tests/` directory, and SQL-resource helper files on first run. `get-by-id` uses a zero-or-one baseline, and `list` keeps default paging and primary-key ordering inside `queryspec.ts` while leaving the two test files to AI follow-up.
-- `ztd agents init` adds the optional Codex bootstrap on demand: visible `AGENTS.md`, `.codex/agents`, `.agents/skills`, and `.codex/config.toml`.
+- `ztd agents init` adds the optional Codex bootstrap on demand: visible `AGENTS.md`, `.codex/agents`, and `.codex/config.toml`.
 - `ztd ztd-config --watch` keeps generated `TestRowMap` types and runtime fixture metadata aligned with DDL as files change.
 - `ztd lint` checks SQL against a temporary Postgres before you ship it.
 - `ztd model-gen` and `ztd query uses` keep QuerySpec scaffolding and impacted-file discovery close to the feature-first slice.
@@ -151,7 +150,7 @@ Do not apply migrations automatically.
 | `ztd perf *` | Run the tuning loop (`init`, `db reset`, `run`) for index or pipeline investigation. |
 | `ztd describe` | Inspect commands in machine-readable form, including `--output json`. |
 
-After DDL or schema changes, rerun `ztd ztd-config`, `ztd lint`, and `npx vitest run`. Use `ztd ddl diff` or `ztd ddl pull` when you need a migration plan. The generated runtime manifest is the preferred input for `@rawsql-ts/testkit-postgres`; raw DDL directories remain a fallback for legacy layouts.
+After DDL or schema changes, rerun `ztd ztd-config`, `ztd lint`, and `npx vitest run`. Use `ztd ddl diff` or `ztd ddl pull` when you need a migration plan. The generated runtime manifest under `.ztd/generated/` is the preferred input for `@rawsql-ts/testkit-postgres`.
 Run `npx ztd describe command <name>` for per-command flags and options.
 
 ## ztd.config.json
@@ -161,8 +160,9 @@ Run `npx ztd describe command <name>` for per-command flags and options.
 ```json
 {
   "dialect": "postgres",
-  "ddlDir": "ztd/ddl",
-  "testsDir": "tests",
+  "ztdRootDir": ".ztd",
+  "ddlDir": "db/ddl",
+  "testsDir": ".ztd/tests",
   "defaultSchema": "public",
   "searchPath": ["public"],
   "ddlLint": "strict"

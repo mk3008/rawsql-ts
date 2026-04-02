@@ -11,4 +11,4 @@
 - `src/repositories/AGENTS.md`
 - `src/sql/AGENTS.md`
 - `tests/AGENTS.md`
-- `ztd/ddl/AGENTS.md`
+- `db/ddl/AGENTS.md`

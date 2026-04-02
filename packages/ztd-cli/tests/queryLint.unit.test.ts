@@ -46,7 +46,7 @@ function createJoinDirectionWorkspace(prefix: string): {
   writeFileSync(
     path.join(rootDir, 'ztd.config.json'),
     JSON.stringify({
-      ddlDir: 'ztd/ddl',
+      ddlDir: 'db/ddl',
       defaultSchema: 'public',
       searchPath: ['public']
     }, null, 2),

@@ -304,8 +304,8 @@ function verifyNpmPrimaryPath(packages) {
   runIn(appDir, NPM, ["install"]);
   const initResult = runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "demo", "--validator", "zod"]);
 
-  assertIncludes(initResult.stdout, "npx ztd ztd-config", "phase-a packaging-npm-primary-path-gate");
-  assertIncludes(initResult.stdout, "npx ztd model-gen", "phase-a packaging-npm-primary-path-gate");
+  assertIncludes(initResult.stdout, "npm run ztd -- ztd-config", "phase-a packaging-npm-primary-path-gate");
+  assertIncludes(initResult.stdout, "npm run ztd -- model-gen", "phase-a packaging-npm-primary-path-gate");
   assertIncludes(initResult.stdout, "npm run test", "phase-a packaging-npm-primary-path-gate");
   assertExcludes(initResult.stdout, "pnpm exec ztd", "phase-a packaging-npm-primary-path-gate");
   assertExcludes(initResult.stdout, "pnpm test", "phase-a packaging-npm-primary-path-gate");
@@ -586,11 +586,11 @@ function verifyOverwriteSafety(packages) {
     devDependencies: createTarballDependencyMap(packages),
   });
 
-  fs.mkdirSync(path.join(appDir, "ztd", "ddl"), { recursive: true });
-  fs.writeFileSync(path.join(appDir, "ztd", "ddl", "public.sql"), "-- existing\n", "utf8");
+  fs.mkdirSync(path.join(appDir, "db", "ddl"), { recursive: true });
+  fs.writeFileSync(path.join(appDir, "db", "ddl", "public.sql"), "-- existing\n", "utf8");
 
   runIn(appDir, NPM, ["install"]);
-  const ddlPath = path.join(appDir, "ztd", "ddl", "public.sql");
+  const ddlPath = path.join(appDir, "db", "ddl", "public.sql");
   const originalSchema = fs.readFileSync(ddlPath, "utf8");
 
   let overwriteFailed = false;

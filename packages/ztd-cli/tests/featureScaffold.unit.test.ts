@@ -51,7 +51,7 @@ test('normalizeFeatureName enforces resource-action kebab-case', () => {
 
 test('generated metadata assessment reports missing PK contract even when manifest exists', () => {
   const workspace = createTempDir('feature-scaffold-manifest');
-  const generatedDir = path.join(workspace, 'tests', 'generated');
+  const generatedDir = path.join(workspace, '.ztd', 'generated');
   mkdirSync(generatedDir, { recursive: true });
   writeFileSync(
     path.join(generatedDir, 'ztd-fixture-manifest.generated.ts'),
@@ -74,7 +74,7 @@ test('generated metadata assessment reports missing PK contract even when manife
 
 test('resolveFeatureScaffoldInput falls back to ddl metadata and resolves schema-qualified names', () => {
   const workspace = createTempDir('feature-scaffold-ddl');
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   mkdirSync(ddlDir, { recursive: true });
   writeFileSync(
     path.join(ddlDir, 'users.sql'),
@@ -107,7 +107,7 @@ test('resolveFeatureScaffoldInput falls back to ddl metadata and resolves schema
 
 test('resolveFeatureScaffoldInput honors searchPath order when schemas share a table name', () => {
   const workspace = createTempDir('feature-scaffold-search-path');
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   mkdirSync(ddlDir, { recursive: true });
   writeFileSync(
     path.join(ddlDir, 'tables.sql'),
@@ -165,7 +165,7 @@ test('resolvePrimaryKeyColumn rejects missing and composite primary keys', () =>
 
 test('runFeatureScaffoldCommand dry-run creates the new insert layout without test files', async () => {
   const workspace = createTempDir('feature-scaffold-dry-run');
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   mkdirSync(ddlDir, { recursive: true });
   writeFileSync(
     path.join(ddlDir, 'users.sql'),
@@ -207,7 +207,7 @@ test('runFeatureScaffoldCommand dry-run creates the new insert layout without te
 
 test('runFeatureScaffoldCommand writes the entryspec/queryspec baseline and excludes generated PK columns', async () => {
   const workspace = createTempDir('feature-scaffold-write-contract');
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   mkdirSync(ddlDir, { recursive: true });
   writeFileSync(
     path.join(ddlDir, 'users.sql'),
@@ -346,7 +346,7 @@ test('runFeatureScaffoldCommand writes the entryspec/queryspec baseline and excl
 
 test('runFeatureScaffoldCommand uses default values when every insert column is DB-generated', async () => {
   const workspace = createTempDir('feature-scaffold-default-values');
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   mkdirSync(ddlDir, { recursive: true });
   writeFileSync(
     path.join(ddlDir, 'users.sql'),
@@ -387,7 +387,7 @@ test('runFeatureScaffoldCommand uses default values when every insert column is 
 
 test('runFeatureScaffoldCommand renders primitive defaults directly into insert SQL', async () => {
   const workspace = createTempDir('feature-scaffold-primitive-defaults');
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   mkdirSync(ddlDir, { recursive: true });
   writeFileSync(
     path.join(ddlDir, 'flags.sql'),
@@ -419,7 +419,7 @@ test('runFeatureScaffoldCommand renders primitive defaults directly into insert 
 
 test('runFeatureScaffoldCommand writes the update baseline with pk predicate and explicit set list', async () => {
   const workspace = createTempDir('feature-scaffold-update-write');
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   mkdirSync(ddlDir, { recursive: true });
   writeFileSync(
     path.join(ddlDir, 'users.sql'),
@@ -488,7 +488,7 @@ test('runFeatureScaffoldCommand writes the update baseline with pk predicate and
 
 test('runFeatureScaffoldCommand writes the delete baseline with key-only predicate', async () => {
   const workspace = createTempDir('feature-scaffold-delete-write');
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   mkdirSync(ddlDir, { recursive: true });
   writeFileSync(
     path.join(ddlDir, 'users.sql'),
@@ -537,7 +537,7 @@ test('runFeatureScaffoldCommand writes the delete baseline with key-only predica
 
 test('runFeatureScaffoldCommand writes the get-by-id baseline with zero-or-one contract', async () => {
   const workspace = createTempDir('feature-scaffold-get-by-id-write');
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   mkdirSync(ddlDir, { recursive: true });
   writeFileSync(
     path.join(ddlDir, 'users.sql'),
@@ -611,7 +611,7 @@ test('runFeatureScaffoldCommand writes the get-by-id baseline with zero-or-one c
 
 test('runFeatureScaffoldCommand writes the list baseline with catalog paging and items response', async () => {
   const workspace = createTempDir('feature-scaffold-list-write');
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   mkdirSync(ddlDir, { recursive: true });
   writeFileSync(
     path.join(ddlDir, 'users.sql'),
@@ -689,7 +689,7 @@ test('runFeatureScaffoldCommand writes the list baseline with catalog paging and
 
 test('runFeatureScaffoldCommand keeps numeric and decimal read contracts string-based', async () => {
   const workspace = createTempDir('feature-scaffold-list-numeric-write');
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   mkdirSync(ddlDir, { recursive: true });
   writeFileSync(
     path.join(ddlDir, 'products.sql'),
@@ -731,7 +731,7 @@ test('runFeatureScaffoldCommand keeps numeric and decimal read contracts string-
 
 test('runFeatureScaffoldCommand preserves existing feature files unless force is set', async () => {
   const workspace = createTempDir('feature-scaffold-collision');
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
   mkdirSync(ddlDir, { recursive: true });
   mkdirSync(path.join(featureDir, 'insert-users'), { recursive: true });
@@ -762,7 +762,7 @@ test('runFeatureScaffoldCommand preserves existing feature files unless force is
 
 test('runFeatureScaffoldCommand overwrites scaffold-owned feature files with --force', async () => {
   const workspace = createTempDir('feature-scaffold-force');
-  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
   const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
   mkdirSync(ddlDir, { recursive: true });
   mkdirSync(path.join(featureDir, 'insert-users'), { recursive: true });

@@ -4,7 +4,6 @@ schema_version = 1
 name = "ztd-customer-project"
 root_guidance = "AGENTS.md"
 subagents_dir = ".codex/agents"
-skills_dir = ".agents/skills"
 
 [workflow]
 customer_facing = true

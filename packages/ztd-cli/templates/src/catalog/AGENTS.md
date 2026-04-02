@@ -8,7 +8,7 @@
 - Each catalog spec MUST stay aligned with 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.
 - `src/catalog/specs` MUST be treated as human-owned contracts.
 - `src/catalog/runtime` MUST implement runtime wiring only.
-- Code in `src/catalog` MUST remain independent from `tests`, `tests/generated`, and `ztd` imports.
+- Code in `src/catalog` MUST remain independent from `tests`, `.ztd/generated`, and `ztd` imports.
 - Each spec MUST be covered by tests for rewrite execution, mapping/validation outcomes, and output shape.
 - The scaffold MUST keep `src/catalog/specs/_smoke.spec.*` minimal and pair it with `tests/queryspec.example.test.ts` as the reusable QuerySpec-first sample.
 

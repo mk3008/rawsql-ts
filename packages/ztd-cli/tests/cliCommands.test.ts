@@ -249,7 +249,7 @@ test(
   'feature scaffold dry-run emits JSON and reserves test files for AI follow-up',
   () => {
     const workspace = createTempDir('feature-scaffold-dry-run');
-    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    const ddlDir = path.join(workspace, 'db', 'ddl');
     mkdirSync(ddlDir, { recursive: true });
     writeFileSync(
       path.join(ddlDir, 'users.sql'),
@@ -312,7 +312,7 @@ test(
   'feature scaffold writes the entryspec/queryspec baseline without creating test files',
   () => {
     const workspace = createTempDir('feature-scaffold-write');
-    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    const ddlDir = path.join(workspace, 'db', 'ddl');
     mkdirSync(ddlDir, { recursive: true });
     writeFileSync(
       path.join(ddlDir, 'users.sql'),
@@ -919,7 +919,7 @@ test(
       path.join(workspace.rootDir, 'ztd.config.json'),
       JSON.stringify({
         dialect: 'postgres',
-        ddlDir: 'ztd/ddl',
+        ddlDir: 'db/ddl',
         testsDir: 'tests',
         defaultSchema: 'public',
         searchPath: ['public'],
@@ -1037,7 +1037,9 @@ test('agents init emits the Codex bootstrap plan and materializes the files', { 
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(true);
   expect(existsSync(path.join(workspace, '.codex', 'agents', 'planning.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, '.agents', 'skills', 'quickstart', 'SKILL.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, '.agents'))).toBe(false);
+  expect(existsSync(path.join(workspace, '.agents', 'skills'))).toBe(false);
+  expect(existsSync(path.join(workspace, '.agents', 'skills', 'quickstart', 'SKILL.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(false);
   expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toContain('## SQL Shadowing Troubleshooting');
   expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toContain(
@@ -1088,11 +1090,11 @@ test('agents init supports dry-run for the Codex bootstrap plan', { timeout: 60_
       'AGENTS.md',
       '.codex/config.toml',
       '.codex/agents/planning.md',
-      '.agents/skills/quickstart/SKILL.md'
     ]),
     conflictPaths: [],
     customizedPaths: []
   });
+  expect(parsed.data.plannedPaths.some((entry: string) => entry.includes('.agents/skills'))).toBe(false);
   expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(false);
 });
 
@@ -1231,20 +1233,21 @@ test('perf init writes the sandbox scaffold files', () => {
 
 test('perf db reset dry-run lists DDL files without touching Docker', () => {
   const workspace = createTempDir('perf-reset-dry-run');
-  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+  mkdirSync(path.join(workspace, 'db', 'ddl'), { recursive: true });
   writeFileSync(
     path.join(workspace, 'ztd.config.json'),
     JSON.stringify({
       dialect: 'postgres',
-      ddlDir: 'ztd/ddl',
-      testsDir: 'tests',
+      ztdRootDir: '.ztd',
+      ddlDir: 'db/ddl',
+      testsDir: '.ztd/tests',
       defaultSchema: 'public',
       searchPath: ['public'],
       ddlLint: 'strict'
     }, null, 2),
     'utf8'
   );
-  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), ['create table public.users (id integer primary key);', 'create index users_id_idx on public.users(id);', ''].join('\n'), 'utf8');
+  writeFileSync(path.join(workspace, 'db', 'ddl', 'public.sql'), ['create table public.users (id integer primary key);', 'create index users_id_idx on public.users(id);', ''].join('\n'), 'utf8');
 
   const result = runCli(['--output', 'json', 'perf', 'db', 'reset', '--dry-run'], {}, workspace);
 
@@ -1257,7 +1260,7 @@ test('perf db reset dry-run lists DDL files without touching Docker', () => {
     table_count: 1,
     index_count: 1,
     index_names: ['users_id_idx'],
-    ddl_files: ['ztd/ddl/public.sql']
+    ddl_files: ['db/ddl/public.sql']
   });
 });
 
@@ -1269,7 +1272,7 @@ test('perf db reset dry-run fails fast when the configured DDL directory is miss
     path.join(workspace, 'ztd.config.json'),
     JSON.stringify({
       dialect: 'postgres',
-      ddlDir: 'ztd/ddl',
+      ddlDir: 'db/ddl',
       testsDir: 'tests',
       defaultSchema: 'public',
       searchPath: ['public'],
@@ -1291,7 +1294,7 @@ test('perf seed output redacts connection credentials in global json mode', () =
     path.join(workspace, 'ztd.config.json'),
     JSON.stringify({
       dialect: 'postgres',
-      ddlDir: 'ztd/ddl',
+      ddlDir: 'db/ddl',
       testsDir: 'tests',
       defaultSchema: 'public',
       searchPath: ['public'],
@@ -1325,7 +1328,7 @@ test('perf db reset refuses implicit DATABASE_URL without explicit ZTD test opt-
     path.join(workspace, 'ztd.config.json'),
     JSON.stringify({
       dialect: 'postgres',
-      ddlDir: 'ztd/ddl',
+      ddlDir: 'db/ddl',
       testsDir: 'tests',
       defaultSchema: 'public',
       searchPath: ['public'],
@@ -1354,7 +1357,7 @@ test('perf seed dry-run rejects unknown tables from perf seed config', () => {
     path.join(workspace, 'ztd.config.json'),
     JSON.stringify({
       dialect: 'postgres',
-      ddlDir: 'ztd/ddl',
+      ddlDir: 'db/ddl',
       testsDir: 'tests',
       defaultSchema: 'public',
       searchPath: ['public'],
@@ -1385,7 +1388,7 @@ test('perf seed dry-run reports deterministic row counts from perf seed config',
     path.join(workspace, 'ztd.config.json'),
     JSON.stringify({
       dialect: 'postgres',
-      ddlDir: 'ztd/ddl',
+      ddlDir: 'db/ddl',
       testsDir: 'tests',
       defaultSchema: 'public',
       searchPath: ['public'],
@@ -2113,7 +2116,7 @@ pullTest('model-gen emits a spec scaffold from ZTD DDL metadata without physical
       path.join(workspace.rootDir, 'ztd.config.json'),
       JSON.stringify({
         dialect: 'postgres',
-        ddlDir: 'ztd/ddl',
+        ddlDir: 'db/ddl',
         testsDir: 'tests',
         defaultSchema: 'public',
         searchPath: ['public'],
@@ -2146,7 +2149,7 @@ pullTest('model-gen emits a spec scaffold from ZTD DDL metadata without physical
     expect(content).toContain("productId: 'product_id'");
     expect(content).toContain("params: { shape: 'named', example: { product_id: null } }");
     expect(result.stderr).toContain('probeMode: ztd');
-    expect(result.stderr).toContain('ddlDir: ztd/ddl');
+    expect(result.stderr).toContain('ddlDir: db/ddl');
 
     const existsAfter = await client.query<{ name: string | null }>(
       "select to_regclass('public.products') as name"
@@ -2183,7 +2186,7 @@ pullTest('model-gen ztd resolves unqualified table names through defaultSchema/s
       path.join(workspace.rootDir, 'ztd.config.json'),
       JSON.stringify({
         dialect: 'postgres',
-        ddlDir: 'ztd/ddl',
+        ddlDir: 'db/ddl',
         testsDir: 'tests',
         defaultSchema: 'public',
         searchPath: ['public'],
@@ -2253,7 +2256,7 @@ pullTest('model-gen ztd honors searchPath precedence for unqualified table names
       path.join(workspace.rootDir, 'ztd.config.json'),
       JSON.stringify({
         dialect: 'postgres',
-        ddlDir: 'ztd/ddl',
+        ddlDir: 'db/ddl',
         testsDir: 'tests',
         defaultSchema: 'app',
         searchPath: ['app', 'public'],
