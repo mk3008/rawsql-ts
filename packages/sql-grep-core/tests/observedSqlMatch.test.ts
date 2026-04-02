@@ -101,6 +101,98 @@ describe('observed SQL matching', () => {
     expect(text).toContain('differences:');
   });
 
+  it('keeps boolean branch order stable and distinguishes function calls with different arguments', () => {
+    const workspace = createTempDir('observed-sql-match-structure');
+    const observedSql = `
+      SELECT lower(u.email)
+      FROM public.users u
+      WHERE u.status = :status AND (u.deleted_at IS NULL OR u.active = true)
+    `;
+
+    writeSqlFile(
+      path.join(workspace, 'src', 'sql', 'users', 'structure.sql'),
+      `
+        SELECT lower(u.email)
+        FROM public.users u
+        WHERE (u.active = true OR u.deleted_at IS NULL) AND u.status = :status
+      `
+    );
+
+    writeSqlFile(
+      path.join(workspace, 'src', 'sql', 'users', 'function-match.sql'),
+      `
+        SELECT lower(u.email)
+        FROM public.users u
+        WHERE lower(u.email) = :email
+      `
+    );
+
+    writeSqlFile(
+      path.join(workspace, 'src', 'sql', 'users', 'function-collision.sql'),
+      `
+        SELECT lower(u.status)
+        FROM public.users u
+        WHERE lower(u.status) = :status
+      `
+    );
+
+    const report = buildObservedSqlMatchReport({
+      rootDir: workspace,
+      observedSql
+    });
+
+    expect(report.matches[0]?.sql_file).toBe('src/sql/users/structure.sql');
+    expect(report.matches[0]?.score).toBeGreaterThan(report.matches[1]?.score ?? 0);
+    const scoresByFile = Object.fromEntries(report.matches.map((match) => [match.sql_file, match.score]));
+    expect(scoresByFile['src/sql/users/function-match.sql']).toBeGreaterThan(
+      scoresByFile['src/sql/users/function-collision.sql'] ?? 0
+    );
+  });
+
+  it('continues ranking when a candidate file cannot be read', () => {
+    const workspace = createTempDir('observed-sql-match-partial-failure');
+    const readableSqlFile = path.join(workspace, 'src', 'sql', 'users', 'good.sql');
+    const unreadableSqlFile = path.join(workspace, 'src', 'sql', 'users', 'broken.sql');
+
+    writeSqlFile(
+      readableSqlFile,
+      `
+        SELECT u.user_id
+        FROM public.users u
+        WHERE u.active = true
+      `
+    );
+    writeSqlFile(
+      unreadableSqlFile,
+      `
+        SELECT u.user_id
+        FROM public.users u
+        WHERE u.active = true
+      `
+    );
+
+    const report = buildObservedSqlMatchReport({
+      rootDir: workspace,
+      observedSql: `
+        SELECT u.user_id
+        FROM public.users u
+        WHERE u.active = true
+      `,
+      readFileSync: (filePath) => {
+        if (filePath.endsWith('broken.sql')) {
+          throw new Error('simulated read failure');
+        }
+        return readFileSync(filePath, 'utf8');
+      }
+    });
+
+    expect(report.matches[0]?.sql_file).toBe('src/sql/users/good.sql');
+    expect(report.summary.filesRead).toBeGreaterThan(0);
+    expect(report.summary.filesSkipped).toBe(1);
+    expect(report.warnings.some((warning) => warning.code === 'file-read-failed')).toBe(true);
+    expect(formatObservedSqlMatchReport(report, 'text')).toContain('files skipped: 1');
+  });
+
   it('keeps formatter output stable when no candidate matches are found', () => {
     const workspace = createTempDir('observed-sql-match-empty');
     const report = buildObservedSqlMatchReport({

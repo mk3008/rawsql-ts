@@ -4,6 +4,7 @@ export interface ObservedSqlMatchReportParams {
   observedSql: string;
   rootDir?: string;
   topResults?: number;
+  readFileSync?: (filePath: string, encoding: BufferEncoding) => string;
 }
 
 export interface ObservedSqlMatchWarning {
@@ -50,6 +51,8 @@ export interface ObservedSqlMatchReport {
   observedQueries: number;
   summary: {
     filesScanned: number;
+    filesRead: number;
+    filesSkipped: number;
     sqlFilesScanned: number;
     queriesScored: number;
     queriesSkipped: number;

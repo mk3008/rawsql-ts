@@ -56,9 +56,9 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'The starter setup derives `ZTD_TEST_DATABASE_URL` from `.env`',
         'If port `5432` is already in use, update `ZTD_DB_PORT` in `.env` before you rerun the compose path, for example:',
         'Copy-Item .env.example .env',
-        'npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail',
+        'npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail',
         'Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.',
-        'npx ztd model-gen --probe-mode ztd src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts',
+        'npx ztd model-gen --probe-mode ztd src/features/users-insert/insert-users/insert-users.sql --out src/features/users-insert/insert-users/queryspec.ts',
         'model-gen` now treats the SQL file location as the primary contract source',
         'Read the review summary first:',
         '- the risks section lists destructive and operational apply-plan risks separately',
@@ -171,7 +171,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         '.codex/config.toml',
         '',
         'customer bootstrap targets separately from internal `.ztd` guidance',
-        'Read the nearest AGENTS files, inspect src/features/smoke, and plan the next users feature.'
+        'Read the nearest AGENTS.md files first. Then read `.codex/agents/*` if present.'
       ]
     },
     {
