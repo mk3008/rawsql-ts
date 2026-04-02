@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: DDLToFixtureConverter
 
-Defined in: [packages/core/src/transformers/DDLToFixtureConverter.ts:12](https://github.com/mk3008/rawsql-ts/blob/a402da365e5fb6dab58669048ef20597204bfcbe/packages/core/src/transformers/DDLToFixtureConverter.ts#L12)
+Defined in: [packages/core/src/transformers/DDLToFixtureConverter.ts:12](https://github.com/mk3008/rawsql-ts/blob/a8087283268c33b59adddc13d48a8b3737f9cb11/packages/core/src/transformers/DDLToFixtureConverter.ts#L12)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/DDLToFixtureConverter.ts:12](https:/
 
 > `static` **convert**(`ddlSql`): `Record`&lt;`string`, `any`\&gt;
 
-Defined in: [packages/core/src/transformers/DDLToFixtureConverter.ts:20](https://github.com/mk3008/rawsql-ts/blob/a402da365e5fb6dab58669048ef20597204bfcbe/packages/core/src/transformers/DDLToFixtureConverter.ts#L20)
+Defined in: [packages/core/src/transformers/DDLToFixtureConverter.ts:20](https://github.com/mk3008/rawsql-ts/blob/a8087283268c33b59adddc13d48a8b3737f9cb11/packages/core/src/transformers/DDLToFixtureConverter.ts#L20)
 
 Converts DDL statements (CREATE TABLE) in the provided SQL text to a Fixture JSON object.
 Ignores non-DDL statements and parse errors.

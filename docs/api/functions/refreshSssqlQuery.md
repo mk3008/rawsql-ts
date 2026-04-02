@@ -3,7 +3,7 @@
 
 > **refreshSssqlQuery**(`sqlContent`, `filters`): [`SssqlTransformResult`](../interfaces/SssqlTransformResult.md)
 
-Defined in: [packages/core/src/transformers/SSSQLFilterBuilder.ts:382](https://github.com/mk3008/rawsql-ts/blob/a402da365e5fb6dab58669048ef20597204bfcbe/packages/core/src/transformers/SSSQLFilterBuilder.ts#L382)
+Defined in: [packages/core/src/transformers/SSSQLFilterBuilder.ts:382](https://github.com/mk3008/rawsql-ts/blob/a8087283268c33b59adddc13d48a8b3737f9cb11/packages/core/src/transformers/SSSQLFilterBuilder.ts#L382)
 
 ## Parameters
 
