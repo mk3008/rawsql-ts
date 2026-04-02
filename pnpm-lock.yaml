@@ -450,7 +450,7 @@ importers:
   packages/ztd-cli:
     dependencies:
       '@rawsql-ts/sql-grep-core':
-        specifier: ^0.1.6
+        specifier: ^0.1.7
         version: link:../sql-grep-core
       '@rawsql-ts/test-evidence-core':
         specifier: ^0.2.0
