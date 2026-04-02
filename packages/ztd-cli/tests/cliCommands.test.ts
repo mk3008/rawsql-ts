@@ -777,6 +777,56 @@ test(
 );
 
 test(
+  'query sssql refresh accepts a JSON payload for machine-readable automation',
+  () => {
+    const workspace = createSqlWorkspace('query-sssql-refresh-json', path.join('src', 'sql', 'users.sql'));
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        SELECT u.id, u.status
+        FROM users u
+        WHERE (:status IS NULL OR u.status = :status)
+      `,
+      'utf8'
+    );
+
+    const outFile = path.join(workspace.rootDir, 'users.refreshed.sql');
+    const result = runCli(
+      [
+        'query',
+        'sssql',
+        'refresh',
+        workspace.sqlFile,
+        '--format',
+        'json',
+        '--json',
+        JSON.stringify({
+          out: outFile
+        })
+      ],
+      {},
+      workspace.rootDir
+    );
+
+    assertCliSuccess(result, 'query sssql refresh json');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      command: 'query sssql refresh',
+      ok: true,
+      data: {
+        file: workspace.sqlFile,
+        output_file: outFile,
+        written: true
+      }
+    });
+
+    const contents = readFileSync(outFile, 'utf8').replace(/\r\n/g, '\n').trim().toLowerCase();
+    expect(contents).toContain('(:status is null or "u"."status" = :status)');
+  },
+  60000,
+);
+
+test(
   'query match-observed ranks the likely source asset for observed SELECT SQL',
   () => {
     const workspace = createSqlWorkspace('query-match-observed', path.join('src', 'sql', 'users', 'list.sql'));
