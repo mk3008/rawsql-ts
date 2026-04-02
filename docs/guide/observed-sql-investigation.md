@@ -17,6 +17,7 @@ Use this workflow when you need to answer questions like:
 - Which query shape should I inspect before I change application code?
 
 It is a ranking tool, not a proof engine.
+The matcher is best-effort: it continues past parse failures and file-read failures, and it reports how many files were read, skipped, and scored.
 
 ## How to run it
 
@@ -40,11 +41,13 @@ The initial matcher focuses on SELECT-shaped SQL and compares structural areas:
 
 - projection
 - FROM / JOIN graph
-- predicate family
+- predicate structure and predicate families
 - ORDER BY
 - LIMIT / OFFSET presence
 
 It ignores whitespace, comments, and alias drift where possible.
+Boolean branch order is normalized, so `AND` / `OR` reordering alone should not dominate the result.
+Function calls include their argument shape, so similar names with different inputs stay distinguishable.
 
 ## Reading the result
 
@@ -54,8 +57,10 @@ Look for:
 - the score for each candidate
 - the main reasons it matched
 - the major differences that remain
+- the files-read / files-skipped counts and any warnings
 
 The top score tells you which asset to inspect first. It does not prove semantic equivalence.
+When warnings are present, treat the ranking as a filtered search result rather than a clean proof.
 
 ## Typical investigation flow
 

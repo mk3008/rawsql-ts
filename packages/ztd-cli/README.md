@@ -194,7 +194,7 @@ Run `npx ztd describe command <name>` for per-command flags and options.
 ### Advanced User Guides
 
 - [ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md) - opt-in telemetry guidance
-- [Observed SQL Matching](../../docs/guide/observed-sql-matching.md) - why reverse lookup exists and where it fits
+- [Observed SQL Matching](../../docs/guide/observed-sql-matching.md) - reverse lookup for missing `queryId`, with best-effort ranking and skip/warning reporting
 
 #### Multiple DB Clients in One Workflow
 

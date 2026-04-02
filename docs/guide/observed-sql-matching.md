@@ -22,6 +22,7 @@ Use `ztd query match-observed` when you need to answer questions like:
 - Which query shape should I inspect first before I change application code?
 
 It is a ranking tool, not a proof engine.
+The matcher is best-effort: it continues past parse failures and file-read failures, and it reports how many files were read, skipped, and scored.
 
 ## What it compares
 
@@ -29,11 +30,13 @@ The initial matcher focuses on SELECT-shaped SQL and compares these structural a
 
 - projection
 - FROM / JOIN graph
-- predicate family
+- predicate structure and predicate families
 - ORDER BY
 - LIMIT / OFFSET presence
 
 It ignores cosmetic differences such as whitespace, comments, and alias drift where possible.
+It also normalizes boolean branch order, so `AND` / `OR` reordering alone should not lower a candidate as much as a real structural change.
+Function calls are compared with their argument shape, so `lower(email)` and `lower(status)` no longer collapse into the same bucket.
 
 ## Good inputs
 
@@ -57,8 +60,10 @@ Look for:
 - the score for each candidate
 - why the candidate matched
 - what was different
+- how many files were read versus skipped
 
 High scores mean the structural shape is close, but they do not prove semantic equivalence.
+If the report shows skipped files or warnings, read them first before trusting the ranking order.
 
 ## Relationship to telemetry
 

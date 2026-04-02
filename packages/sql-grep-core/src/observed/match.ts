@@ -112,6 +112,7 @@ export function discoverObservedSqlAssetFiles(rootDir: string): string[] {
 export function buildObservedSqlMatchReport(params: ObservedSqlMatchReportParams): ObservedSqlMatchReport {
   const rootDir = path.resolve(params.rootDir ?? process.cwd());
   const topResults = params.topResults ?? DEFAULT_TOP_RESULTS;
+  const readFile = params.readFileSync ?? readFileSync;
   const warnings: ObservedSqlMatchWarning[] = [];
 
   const observedSummaries = collectQuerySummaries(params.observedSql, 'observed SQL', warnings);
@@ -128,11 +129,38 @@ export function buildObservedSqlMatchReport(params: ObservedSqlMatchReportParams
 
   const candidateFiles = discoverObservedSqlAssetFiles(rootDir);
   const candidates: CandidateSummary[] = [];
+  let filesRead = 0;
+  let filesSkipped = 0;
   let queriesSkipped = 0;
 
   for (const sqlFile of candidateFiles) {
-    const sqlText = readFileSync(sqlFile, 'utf8');
-    const queries = splitQueries(sqlText).getNonEmpty();
+    let sqlText: string;
+    try {
+      sqlText = readFile(sqlFile, 'utf8');
+      filesRead += 1;
+    } catch (error) {
+      filesSkipped += 1;
+      warnings.push({
+        code: 'file-read-failed',
+        sql_file: normalizePath(path.relative(rootDir, sqlFile)),
+        message: error instanceof Error ? error.message : String(error)
+      });
+      continue;
+    }
+
+    let queries: Array<{ sql: string }>;
+    try {
+      queries = splitQueries(sqlText).getNonEmpty();
+    } catch (error) {
+      filesSkipped += 1;
+      warnings.push({
+        code: 'file-scan-failed',
+        sql_file: normalizePath(path.relative(rootDir, sqlFile)),
+        message: error instanceof Error ? error.message : String(error)
+      });
+      continue;
+    }
+
     for (const [queryIndex, query] of queries.entries()) {
       const summaries = collectQuerySummaries(query.sql, normalizePath(path.relative(rootDir, sqlFile)), warnings);
       if (summaries.length === 0) {
@@ -188,6 +216,8 @@ export function buildObservedSqlMatchReport(params: ObservedSqlMatchReportParams
     observedQueries: observedSummaries.length,
     summary: {
       filesScanned: candidateFiles.length,
+      filesRead,
+      filesSkipped,
       sqlFilesScanned: candidateFiles.length,
       queriesScored: candidates.length,
       queriesSkipped,
@@ -211,6 +241,8 @@ export function formatObservedSqlMatchReport(report: ObservedSqlMatchReport, for
     `root: ${report.rootDir}`,
     `observed statements: ${report.observedQueries}`,
     `files scanned: ${report.summary.filesScanned}`,
+    `files read: ${report.summary.filesRead}`,
+    `files skipped: ${report.summary.filesSkipped}`,
     `queries scored: ${report.summary.queriesScored}`,
     `queries skipped: ${report.summary.queriesSkipped}`,
     `candidates returned: ${report.summary.candidates}`
@@ -518,22 +550,19 @@ function normalizeValueSignature(value: ValueComponent, aliasMap: Map<string, st
     return `raw:${normalizeIdentifier(candidate.value)}`;
   }
   if (candidate instanceof FunctionCall) {
-    const name = normalizeFunctionName(candidate);
-    const args: string[] = [];
-    if (candidate.argument) {
-      args.push(normalizeValueSignature(candidate.argument, aliasMap));
-    }
-    if (candidate.filterCondition) {
-      args.push(`filter:${normalizeValueSignature(candidate.filterCondition, aliasMap)}`);
-    }
-    return `fn:${name}(${args.join('|')})`;
+    return normalizeFunctionSignature(candidate, aliasMap);
   }
   if (candidate instanceof BinaryExpression) {
     const operator = normalizeIdentifier(candidate.operator.value);
+
+    if (operator === 'and' || operator === 'or') {
+      return normalizeBooleanSignature(candidate, aliasMap, operator);
+    }
+
     const left = normalizeValueSignature(candidate.left, aliasMap);
     const right = normalizeValueSignature(candidate.right, aliasMap);
 
-    if (operator === 'and' || operator === 'or' || operator === '=' || operator === 'is') {
+    if (operator === '=' || operator === 'is') {
       const ordered = [left, right].sort();
       return `${operator}(${ordered.join('|')})`;
     }
@@ -565,7 +594,7 @@ function normalizePredicateSignature(value: ValueComponent, aliasMap: Map<string
       return `${operator}(${normalizePredicateOperand(candidate.left, aliasMap)}|${normalizePredicateOperand(candidate.right, aliasMap)})`;
     }
     if (operator === 'and' || operator === 'or') {
-      return `${operator}(${normalizePredicateSignature(candidate.left, aliasMap)}|${normalizePredicateSignature(candidate.right, aliasMap)})`;
+      return normalizeBooleanSignature(candidate, aliasMap, operator);
     }
   }
 
@@ -596,7 +625,7 @@ function normalizePredicateOperand(value: ValueComponent, aliasMap: Map<string, 
   }
 
   if (candidate instanceof FunctionCall) {
-    return `fn:${normalizeFunctionName(candidate)}`;
+    return normalizeFunctionSignature(candidate, aliasMap);
   }
 
   if (candidate instanceof TupleExpression) {
@@ -614,6 +643,41 @@ function normalizeFunctionName(value: FunctionCall): string {
   const name = value.name instanceof RawString ? value.name.value : value.name.name;
   const namespaces = value.namespaces?.map((namespace) => normalizeIdentifier(namespace.name)) ?? [];
   return [...namespaces, normalizeIdentifier(name)].join('.');
+}
+
+function normalizeFunctionSignature(value: FunctionCall, aliasMap: Map<string, string>): string {
+  const name = normalizeFunctionName(value);
+  const args: string[] = [];
+
+  if (value.argument) {
+    args.push(normalizeValueSignature(value.argument, aliasMap));
+  }
+
+  if (value.filterCondition) {
+    args.push(`filter:${normalizeValueSignature(value.filterCondition, aliasMap)}`);
+  }
+
+  return `fn:${name}(${args.join('|')})`;
+}
+
+function normalizeBooleanSignature(
+  value: BinaryExpression,
+  aliasMap: Map<string, string>,
+  operator: 'and' | 'or'
+): string {
+  const operands = flattenBooleanOperands(value, operator).map((operand) => normalizeValueSignature(operand, aliasMap));
+  return `${operator}(${operands.sort().join('|')})`;
+}
+
+function flattenBooleanOperands(value: ValueComponent, operator: 'and' | 'or'): ValueComponent[] {
+  const candidate = unwrap(value);
+  if (candidate instanceof BinaryExpression && normalizeIdentifier(candidate.operator.value) === operator) {
+    return [
+      ...flattenBooleanOperands(candidate.left, operator),
+      ...flattenBooleanOperands(candidate.right, operator)
+    ];
+  }
+  return [candidate];
 }
 
 function normalizeColumnReference(value: ColumnReference, aliasMap: Map<string, string>): string {
