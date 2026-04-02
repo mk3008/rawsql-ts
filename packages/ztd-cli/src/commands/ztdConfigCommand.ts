@@ -71,18 +71,12 @@ function renderZtdLayoutGeneratedFile(config: ZtdProjectConfig): string {
   const ztdRootDir = config.ztdRootDir?.replace(/\\/g, '/') ?? resolveGeneratedDir(config).replace(/\/generated$/, '');
   const ddlDir = config.ddlDir.replace(/\\/g, '/');
 
-  // Keep default sibling directories deterministic for downstream tooling.
-  const enumsDir = path.posix.join(ztdRootDir, 'enums');
-  const domainSpecsDir = path.posix.join(ztdRootDir, 'domain-specs');
-
   return [
     '// GENERATED FILE. DO NOT EDIT.',
     '',
     'export default {',
     `  ztdRootDir: ${JSON.stringify(ztdRootDir)},`,
     `  ddlDir: ${JSON.stringify(ddlDir)},`,
-    `  enumsDir: ${JSON.stringify(enumsDir)},`,
-    `  domainSpecsDir: ${JSON.stringify(domainSpecsDir)},`,
     '};',
     ''
   ].join('\n');

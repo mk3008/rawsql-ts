@@ -151,6 +151,7 @@ test(
 
   const outDir = createTempDir('cli-gen-out');
   const outputFile = path.join(outDir, 'ztd-row-map.generated.ts');
+  const layoutFile = path.join(outDir, 'ztd-layout.generated.ts');
   const manifestFile = path.join(outDir, 'ztd-fixture-manifest.generated.ts');
 
   const result = runCli(['ztd-config', '--ddl-dir', ddlDir, '--extensions', '.sql', '--out', outputFile]);
@@ -158,6 +159,14 @@ test(
 
   const content = readNormalizedFile(outputFile);
   expect(content).toMatchSnapshot();
+  const layoutContent = readNormalizedFile(layoutFile);
+  expect(layoutContent).toBe(`// GENERATED FILE. DO NOT EDIT.
+
+export default {
+  ztdRootDir: ".ztd",
+  ddlDir: "db/ddl",
+};
+`);
   const manifestContent = readNormalizedFile(manifestFile);
   expect(manifestContent).toContain("import type { TableDefinitionModel } from 'rawsql-ts';");
   expect(manifestContent).toContain('export const generatedFixtureManifest');
