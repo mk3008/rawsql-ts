@@ -1882,7 +1882,7 @@ function ensurePackageJsonFormatting(
 
   const scripts = (parsed.scripts as Record<string, string> | undefined) ?? {};
   const requiredScripts: Record<string, string> = {
-    test: 'vitest run',
+    test: 'vitest run --passWithNoTests',
     typecheck: 'tsc --noEmit',
     format: 'prettier . --write',
     lint: 'eslint .',
@@ -1890,7 +1890,7 @@ function ensurePackageJsonFormatting(
   };
   if (scaffoldProfile.dependencyProfile === 'local-source') {
     // Route test and typecheck through the local-source guard so parent workspaces cannot silently hijack execution.
-    requiredScripts.test = 'node ./scripts/local-source-guard.mjs test';
+    requiredScripts.test = 'node ./scripts/local-source-guard.mjs test --passWithNoTests';
     requiredScripts.typecheck = 'node ./scripts/local-source-guard.mjs typecheck';
     requiredScripts.ztd = 'node ./scripts/local-source-guard.mjs ztd';
   }

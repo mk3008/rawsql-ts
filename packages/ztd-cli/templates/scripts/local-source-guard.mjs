@@ -71,7 +71,8 @@ const binaryName = process.platform === 'win32'
   : command === 'test'
   ? 'vitest'
   : 'tsc';
-const binaryArgs = command === 'test' ? ['run'] : ['--noEmit'];
+const forwardedArgs = process.argv.slice(3);
+const binaryArgs = command === 'test' ? ['run', ...forwardedArgs] : ['--noEmit', ...forwardedArgs];
 const binaryPath = path.join(projectRoot, 'node_modules', '.bin', binaryName);
 const packageChecks = command === 'test'
   ? ['vitest/package.json', 'zod/package.json', '@rawsql-ts/sql-contract/package.json']
