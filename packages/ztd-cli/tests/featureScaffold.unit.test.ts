@@ -276,7 +276,6 @@ test('runFeatureScaffoldCommand writes the entryspec/queryspec baseline and excl
     'utf8'
   );
   expect(querySpecFile).toContain("import { z } from 'zod';");
-  expect(querySpecFile).toContain("import { queryExactlyOneRow, type QueryParams } from '@rawsql-ts/sql-contract';");
   expect(querySpecFile).toContain("import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor';");
   expect(querySpecFile).toContain("const insertUsersSqlResource = loadSqlResource(__dirname, 'insert-users.sql');");
   expect(querySpecFile).toContain('const QueryParamsSchema = z.object({');
@@ -295,8 +294,8 @@ test('runFeatureScaffoldCommand writes the entryspec/queryspec baseline and excl
   expect(querySpecFile).toContain('function mapRowToResult');
   expect(querySpecFile).toContain('/** Executes the query boundary flow for this query spec. */');
   expect(querySpecFile).toContain('export async function executeInsertUsersQuerySpec');
-  expect(querySpecFile).toContain('queryExactlyOneRow<Record<string, unknown>>(');
-  expect(querySpecFile).toContain("(sql, params) => executor.query(sql, params as Record<string, unknown>)");
+  expect(querySpecFile).toContain('loadSingleRow');
+  expect(querySpecFile).toContain('executor.query<Record<string, unknown>>(sql, params)');
   expect(querySpecFile).not.toContain('export interface InsertUsersQueryContract');
   expect(querySpecFile).not.toContain('export const insertUsersQueryContract');
   expect(querySpecFile).not.toContain('export function parseInsertUsersQueryParams');
@@ -340,7 +339,7 @@ test('runFeatureScaffoldCommand writes the entryspec/queryspec baseline and excl
   expect(readmeFile).toContain('DDL-backed default expressions written directly into SQL: `created_at`.');
   expect(readmeFile).toContain('When DDL declares a column default, the scaffold writes that default expression into SQL explicitly');
   expect(readmeFile).toContain('featureQueryExecutor.ts` is the shared runtime contract for DB execution injection');
-  expect(readmeFile).toContain('Cardinality and catalog execution should come from `@rawsql-ts/sql-contract`');
+  expect(readmeFile).toContain('Catalog runtime primitives from `@rawsql-ts/sql-contract`');
   expect(readmeFile).toContain('Keep this baseline as one workflow and one primary query by default');
 });
 
@@ -458,7 +457,8 @@ test('runFeatureScaffoldCommand writes the update baseline with pk predicate and
     'utf8'
   );
   expect(querySpecFile).toContain('export type UpdateUsersQueryParams');
-  expect(querySpecFile).toContain("import { queryExactlyOneRow, type QueryParams } from '@rawsql-ts/sql-contract';");
+  expect(querySpecFile).toContain('loadSingleRow');
+  expect(querySpecFile).not.toContain('queryExactlyOneRow');
 
   const sqlFile = readFileSync(
     path.join(workspace, 'src', 'features', 'users-update', 'update-users', 'update-users.sql'),
@@ -580,14 +580,15 @@ test('runFeatureScaffoldCommand writes the get-by-id baseline with zero-or-one c
     path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'),
     'utf8'
   );
-  expect(querySpecFile).toContain("import { queryZeroOrOneRow, type QueryParams } from '@rawsql-ts/sql-contract';");
+  expect(querySpecFile).not.toContain('queryZeroOrOneRow');
   expect(querySpecFile).toContain('}).strict();');
   expect(querySpecFile).toContain('const RowSchema = z.object({');
   expect(querySpecFile).toContain('const QueryResultSchema = RowSchema.nullable();');
   expect(querySpecFile).toContain('function parseQueryParams');
   expect(querySpecFile).toContain('function parseRow');
   expect(querySpecFile).toContain('function mapRowToResult');
-  expect(querySpecFile).toContain('queryZeroOrOneRow<Record<string, unknown>>(');
+  expect(querySpecFile).toContain('loadOptionalRow');
+  expect(querySpecFile).toContain('executor.query<Record<string, unknown>>(sql, params)');
   expect(querySpecFile).toContain('return null;');
 
   const sqlFile = readFileSync(
@@ -602,11 +603,10 @@ test('runFeatureScaffoldCommand writes the get-by-id baseline with zero-or-one c
     path.join(workspace, 'src', 'features', 'users-get-by-id', 'README.md'),
     'utf8'
   );
-  expect(readmeFile).toContain('The baseline uses `queryZeroOrOneRow`');
-  expect(readmeFile).toContain('not found is allowed');
+  expect(readmeFile).toContain('The baseline allows not found instead of treating it as an exception.');
   expect(readmeFile).toContain('does not assume that every ID is a 32-bit integer');
   expect(readmeFile).toContain('rejects unsupported request fields instead of silently ignoring them');
-  expect(readmeFile).toContain('tightened to `queryExactlyOneRow`');
+  expect(readmeFile).toContain('tightened to a strict one-row contract');
 });
 
 test('runFeatureScaffoldCommand writes the list baseline with catalog paging and items response', async () => {

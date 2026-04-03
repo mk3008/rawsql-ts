@@ -1029,7 +1029,6 @@ function renderQuerySpecFile(params: {
     "import { z } from 'zod';",
     '',
     "import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor';",
-    "import { queryExactlyOneRow, type QueryParams } from '@rawsql-ts/sql-contract';",
     "import { loadSqlResource } from '../../_shared/loadSqlResource';",
     '',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
@@ -1062,19 +1061,23 @@ function renderQuerySpecFile(params: {
     '  return QueryResultSchema.parse(row);',
     '}',
     '',
+    '/** Loads the single row for the write baseline. */',
+    `async function loadSingleRow(executor: FeatureQueryExecutor, sql: string, params: Record<string, unknown>): Promise<${params.queryPascalName}Row> {`,
+    '  const rows = await executor.query<Record<string, unknown>>(sql, params);',
+    '  if (rows.length !== 1) {',
+    `    throw new Error('${params.queryPascalName}QuerySpec expected exactly one row.');`,
+    '  }',
+    '  return parseRow(rows[0]);',
+    '}',
+    '',
     '/** Executes the query boundary flow for this query spec. */',
     `export async function execute${params.queryPascalName}QuerySpec(`,
     `  executor: FeatureQueryExecutor,`,
     `  rawParams: unknown`,
     `): Promise<${params.queryPascalName}QueryResult> {`,
     '  const params = parseQueryParams(rawParams);',
-    `  const row = await queryExactlyOneRow<Record<string, unknown>>(`,
-    '    (sql, params) => executor.query(sql, params as Record<string, unknown>),',
-    `    ${params.queryCamelName}SqlResource,`,
-    '    params as QueryParams,',
-    `    { label: '${params.featureName}/${params.queryName}/queryspec' }`,
-    '  );',
-    '  return mapRowToResult(parseRow(row));',
+    `  const row = await loadSingleRow(executor, ${params.queryCamelName}SqlResource, params);`,
+    '  return mapRowToResult(row);',
     '}',
     ''
   ].join('\n');
@@ -1137,7 +1140,7 @@ function renderReadmeFile(params: {
     '',
     '- `src/features/_shared/featureQueryExecutor.ts`',
     '- `src/features/_shared/loadSqlResource.ts`',
-    '- Cardinality and catalog runtime primitives from `@rawsql-ts/sql-contract`',
+    '- Catalog runtime primitives from `@rawsql-ts/sql-contract`',
     '',
     '## AI-created files',
     '',
@@ -1280,9 +1283,9 @@ function renderReadmeOperationNotes(action: FeatureAction, primaryKeyColumn: str
   if (action === 'get-by-id') {
     return [
       `- The baseline get-by-id query uses \`${primaryKeyColumn}\` as the predicate and selects the scaffolded row shape explicitly.`,
-      '- The baseline uses `queryZeroOrOneRow`, so not found is allowed instead of being treated as an exception.',
+      '- The baseline allows not found instead of treating it as an exception.',
       '- Generated request and response contracts follow the DDL-derived column types for this feature; the scaffold does not assume that every ID is a 32-bit integer.',
-      '- If the feature later needs a strict existence guarantee, this scaffold can be tightened to `queryExactlyOneRow` as a follow-up decision.'
+      '- If the feature later needs a strict existence guarantee, this scaffold can be tightened to a strict one-row contract as a follow-up decision.'
     ];
   }
   if (action === 'list') {
@@ -1316,7 +1319,7 @@ function renderReadmeOperationNotes(action: FeatureAction, primaryKeyColumn: str
 function renderReadmeFollowUpNotes(action: FeatureAction): string[] {
   if (action === 'get-by-id') {
     return [
-      '- Switch to `queryExactlyOneRow` later only if the feature decides that missing rows must fail instead of returning a nullable result.'
+      '- Switch to a strict one-row contract later only if the feature decides that missing rows must fail instead of returning a nullable result.'
     ];
   }
   if (action === 'list') {
@@ -1551,7 +1554,6 @@ function renderGetByIdQuerySpecFile(params: {
     "import { z } from 'zod';",
     '',
     "import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor';",
-    "import { queryZeroOrOneRow, type QueryParams } from '@rawsql-ts/sql-contract';",
     "import { loadSqlResource } from '../../_shared/loadSqlResource';",
     '',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
@@ -1587,19 +1589,26 @@ function renderGetByIdQuerySpecFile(params: {
     `  return QueryResultSchema.parse(row);`,
     '}',
     '',
+    '/** Loads the optional row for the get-by-id baseline. */',
+    `async function loadOptionalRow(executor: FeatureQueryExecutor, sql: string, params: Record<string, unknown>): Promise<${params.queryPascalName}Row | undefined> {`,
+    '  const rows = await executor.query<Record<string, unknown>>(sql, params);',
+    '  if (rows.length === 0) {',
+    '    return undefined;',
+    '  }',
+    '  if (rows.length > 1) {',
+    `    throw new Error('${params.queryPascalName}QuerySpec expected at most one row.');`,
+    '  }',
+    '  return parseRow(rows[0]);',
+    '}',
+    '',
     '/** Executes the query boundary flow for this query spec. */',
     `export async function execute${params.queryPascalName}QuerySpec(`,
     '  executor: FeatureQueryExecutor,',
     '  rawParams: unknown',
     `): Promise<${params.queryPascalName}QueryResult> {`,
     '  const params = parseQueryParams(rawParams);',
-    `  const row = await queryZeroOrOneRow<Record<string, unknown>>(`,
-    '    (sql, queryParams) => executor.query(sql, queryParams as Record<string, unknown>),',
-    `    ${params.queryCamelName}SqlResource,`,
-    '    params as QueryParams,',
-    `    { label: '${params.featureName}/${params.queryName}/queryspec' }`,
-    '  );',
-    '  return mapRowToResult(row === undefined ? undefined : parseRow(row));',
+    `  const row = await loadOptionalRow(executor, ${params.queryCamelName}SqlResource, params);`,
+    '  return mapRowToResult(row);',
     '}',
     ''
   ].join('\n');
