@@ -1,5 +1,11 @@
 # @rawsql-ts/ztd-cli
 
+## 0.24.1
+
+### Patch Changes
+
+- [#715](https://github.com/mk3008/rawsql-ts/pull/715) [`e3eba48`](https://github.com/mk3008/rawsql-ts/commit/e3eba48cca031f04573043ce73f078d3603d8ff0) Thanks [@mk3008](https://github.com/mk3008)! - Fix feature scaffold queryspec generation so CRUD baselines no longer import non-existent `sql-contract` cardinality helpers and instead use locally generated row-count handling.
+
 ## 0.24.0
 
 ### Minor Changes
