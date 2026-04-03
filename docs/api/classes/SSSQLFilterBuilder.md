@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SSSQLFilterBuilder
 
-Defined in: [packages/core/src/transformers/SSSQLFilterBuilder.ts:132](https://github.com/mk3008/rawsql-ts/blob/4a96cf12a5c3e5c2ca1c2e1e88ff01abcf60f29c/packages/core/src/transformers/SSSQLFilterBuilder.ts#L132)
+Defined in: [packages/core/src/transformers/SSSQLFilterBuilder.ts:132](https://github.com/mk3008/rawsql-ts/blob/b1d59a6317b920d69108eb2049117d9588f8670b/packages/core/src/transformers/SSSQLFilterBuilder.ts#L132)
 
 Builds and refreshes truthful SSSQL optional filter branches.
 Runtime callers should use pruning, not dynamic predicate injection.
@@ -12,7 +12,7 @@ Runtime callers should use pruning, not dynamic predicate injection.
 
 > **new SSSQLFilterBuilder**(`tableColumnResolver?`): `SSSQLFilterBuilder`
 
-Defined in: [packages/core/src/transformers/SSSQLFilterBuilder.ts:135](https://github.com/mk3008/rawsql-ts/blob/4a96cf12a5c3e5c2ca1c2e1e88ff01abcf60f29c/packages/core/src/transformers/SSSQLFilterBuilder.ts#L135)
+Defined in: [packages/core/src/transformers/SSSQLFilterBuilder.ts:135](https://github.com/mk3008/rawsql-ts/blob/b1d59a6317b920d69108eb2049117d9588f8670b/packages/core/src/transformers/SSSQLFilterBuilder.ts#L135)
 
 #### Parameters
 
@@ -30,7 +30,7 @@ Defined in: [packages/core/src/transformers/SSSQLFilterBuilder.ts:135](https://g
 
 > **scaffold**(`query`, `filters`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/SSSQLFilterBuilder.ts:139](https://github.com/mk3008/rawsql-ts/blob/4a96cf12a5c3e5c2ca1c2e1e88ff01abcf60f29c/packages/core/src/transformers/SSSQLFilterBuilder.ts#L139)
+Defined in: [packages/core/src/transformers/SSSQLFilterBuilder.ts:139](https://github.com/mk3008/rawsql-ts/blob/b1d59a6317b920d69108eb2049117d9588f8670b/packages/core/src/transformers/SSSQLFilterBuilder.ts#L139)
 
 #### Parameters
 
@@ -52,7 +52,7 @@ Defined in: [packages/core/src/transformers/SSSQLFilterBuilder.ts:139](https://g
 
 > **refresh**(`query`, `filters`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/SSSQLFilterBuilder.ts:156](https://github.com/mk3008/rawsql-ts/blob/4a96cf12a5c3e5c2ca1c2e1e88ff01abcf60f29c/packages/core/src/transformers/SSSQLFilterBuilder.ts#L156)
+Defined in: [packages/core/src/transformers/SSSQLFilterBuilder.ts:156](https://github.com/mk3008/rawsql-ts/blob/b1d59a6317b920d69108eb2049117d9588f8670b/packages/core/src/transformers/SSSQLFilterBuilder.ts#L156)
 
 #### Parameters
 
