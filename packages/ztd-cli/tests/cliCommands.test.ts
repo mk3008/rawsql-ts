@@ -405,10 +405,13 @@ test(
       "import { z } from 'zod';"
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).toContain(
-      "import { queryExactlyOneRow, type QueryParams } from '@rawsql-ts/sql-contract';"
+      "import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor';"
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).not.toContain(
+      'queryExactlyOneRow'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).toContain(
-      "import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor';"
+      'loadSingleRow'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).not.toContain(
       'export const insertUsersQueryParamsSchema'
@@ -587,7 +590,8 @@ test(
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('id: z.string()');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('function parseRequest');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('function toQueryParams');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toContain('queryZeroOrOneRow');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toContain('loadOptionalRow');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).not.toContain('queryZeroOrOneRow');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toContain('}).strict();');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toContain('const RowSchema = z.object({');
   },
