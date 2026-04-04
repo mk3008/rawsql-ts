@@ -30,6 +30,7 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
 
   try {
     await client.query('BEGIN');
+    await resetFixtureTables(client, querySpecCase.beforeDb);
     await seedFixture(client, querySpecCase.beforeDb);
 
     const result = await execute(createQuerySpecExecutor(client), querySpecCase.input);
@@ -82,6 +83,15 @@ async function seedFixture(client: PoolClient, fixture: FixtureTree): Promise<vo
   }
 }
 
+async function resetFixtureTables(client: PoolClient, fixture: FixtureTree): Promise<void> {
+  const tableNames = flattenFixtureTableRows(fixture).map((tableFixture) => quoteQualifiedTableName(tableFixture.tableName));
+  if (tableNames.length === 0) {
+    return;
+  }
+
+  await client.query(`truncate table ${tableNames.join(', ')} restart identity cascade`);
+}
+
 function assertRecordRow(value: unknown, tableName: string): Record<string, unknown> {
   if (isPlainRecord(value)) {
     return value;
@@ -108,25 +118,48 @@ async function expectAfterDbState(client: PoolClient, afterDb: FixtureTree): Pro
   const fixtures = flattenFixtureTableRows(afterDb);
   for (const fixture of fixtures) {
     const result = await client.query(`select * from ${quoteQualifiedTableName(fixture.tableName)}`);
-    expect(normalizeRows(result.rows as Array<Record<string, unknown>>)).toEqual(
-      normalizeRows(fixture.rows as Array<Record<string, unknown>>)
+    expectRowsMatchSubset(
+      result.rows as Array<Record<string, unknown>>,
+      fixture.rows as Array<Record<string, unknown>>
     );
   }
 }
 
-function normalizeRows(rows: Array<Record<string, unknown>>): string[] {
-  return rows
-    .map((row) => JSON.stringify(sortObjectKeys(row)))
-    .sort((left, right) => left.localeCompare(right));
+function expectRowsMatchSubset(
+  actualRows: Array<Record<string, unknown>>,
+  expectedRows: Array<Record<string, unknown>>
+): void {
+  expect(actualRows).toHaveLength(expectedRows.length);
+
+  const remainingRows = [...actualRows];
+  for (const expectedRow of expectedRows) {
+    const matchIndex = remainingRows.findIndex((row) => isSubsetMatch(row, expectedRow));
+    expect(matchIndex).toBeGreaterThanOrEqual(0);
+    if (matchIndex >= 0) {
+      remainingRows.splice(matchIndex, 1);
+    }
+  }
 }
 
-function sortObjectKeys(value: Record<string, unknown>): Record<string, unknown> {
-  return Object.keys(value)
-    .sort((left, right) => left.localeCompare(right))
-    .reduce<Record<string, unknown>>((accumulator, key) => {
-      accumulator[key] = value[key];
-      return accumulator;
-    }, {});
+function isSubsetMatch(actual: unknown, expected: unknown): boolean {
+  if (Array.isArray(expected)) {
+    if (!Array.isArray(actual) || actual.length !== expected.length) {
+      return false;
+    }
+    return expected.every((expectedItem, index) => isSubsetMatch(actual[index], expectedItem));
+  }
+
+  if (isPlainRecord(expected)) {
+    if (!isPlainRecord(actual)) {
+      return false;
+    }
+
+    return Object.entries(expected).every(([key, expectedValue]) =>
+      isSubsetMatch(actual[key], expectedValue)
+    );
+  }
+
+  return Object.is(actual, expected);
 }
 
 function quoteQualifiedTableName(tableName: string): string {

@@ -48,6 +48,9 @@ interface FeatureTestAnalysis {
 }
 
 interface TestPlanDetails extends FeatureTestAnalysis {
+  queryInputFields: string[];
+  queryOutputFields: string[];
+  queryFixtureRowFields: string[];
   querySpecSourcePath: string;
   entrySpecPath: string;
   querySpecPath: string;
@@ -266,14 +269,22 @@ function renderFeatureTestScaffoldFiles(params: {
   const queryTypePrefix = toPascalCase(params.queryName);
   const queryCaseTypeName = `${queryTypePrefix}QuerySpecZtdCase`;
   const queryTypesImportPath = './queryspec-ztd-types.js';
-  const beforeDbTypeLiteral = buildQueryFixtureTypeLiteral(params.planDetails.fixtureCandidateTables);
+  const beforeDbTypeLiteral = buildQueryFixtureTypeLiteral(
+    params.planDetails.fixtureCandidateTables,
+    buildQueryFixtureRowTypeLiteral(params.planDetails.queryFixtureRowFields)
+  );
   const afterDbTypeLiteral = params.planDetails.writesTables.length > 0
-    ? buildQueryFixtureTypeLiteral(params.planDetails.writesTables)
+    ? buildQueryFixtureTypeLiteral(
+        params.planDetails.writesTables,
+        buildQueryFixtureRowTypeLiteral(params.planDetails.queryFixtureRowFields)
+      )
     : beforeDbTypeLiteral;
   const beforeDbValueLiteral = buildQueryFixtureValueLiteral(params.planDetails.fixtureCandidateTables);
   const afterDbValueLiteral = params.planDetails.writesTables.length > 0
     ? buildQueryFixtureValueLiteral(params.planDetails.writesTables)
     : beforeDbValueLiteral;
+  const queryInputTypeLiteral = buildRecordShapeTypeLiteral(params.planDetails.queryInputFields);
+  const queryOutputTypeLiteral = buildRecordShapeTypeLiteral(params.planDetails.queryOutputFields);
   const vitestEntrypointFile = [
     `import { expect, test } from 'vitest';`,
     '',
@@ -318,8 +329,8 @@ function renderFeatureTestScaffoldFiles(params: {
     `import type { QuerySpecZtdCase } from '../../../../../tests/ztd/case-types.js';`,
     '',
     `export type ${queryTypePrefix}BeforeDb = ${beforeDbTypeLiteral};`,
-    `export type ${queryTypePrefix}Input = Record<string, unknown>;`,
-    `export type ${queryTypePrefix}Output = Record<string, unknown>;`,
+    `export type ${queryTypePrefix}Input = ${queryInputTypeLiteral};`,
+    `export type ${queryTypePrefix}Output = ${queryOutputTypeLiteral};`,
     `export type ${queryTypePrefix}AfterDb = ${afterDbTypeLiteral};`,
     '',
     `export type ${queryCaseTypeName} = QuerySpecZtdCase<`,
@@ -350,12 +361,18 @@ function buildTestPlanDetails(params: {
   const querySpecSource = readFileSync(params.queryLayout.querySpecFile, 'utf8');
   const sqlSource = readFileSync(params.queryLayout.querySqlFile, 'utf8');
   const requestFields = extractSchemaFields(entrySpecSource, 'RequestSchema');
+  const queryInputFields = extractSchemaFields(querySpecSource, 'QueryParamsSchema');
+  const queryOutputFields = extractSchemaFields(querySpecSource, 'QueryResultSchema');
+  const sqlInsertColumns = extractSqlInsertColumns(sqlSource);
+  const sqlReturningColumns = extractSqlReturningColumns(sqlSource);
   const fixtureCandidateTables = dedupeStrings([
     ...extractSqlTableReferences(sqlSource),
     ...extractSqlWriteTables(sqlSource)
   ]);
   const writesTables = extractSqlWriteTables(sqlSource);
   const resultCardinality = querySpecSource.includes('items: z.array(') || params.queryLayout.queryName === 'list' ? 'many' : 'one';
+  const resolvedInputFields = queryInputFields.length > 0 ? queryInputFields : requestFields;
+  const resolvedOutputFields = queryOutputFields.length > 0 ? queryOutputFields : sqlReturningColumns;
 
   return {
     schemaVersion: 1,
@@ -366,6 +383,9 @@ function buildTestPlanDetails(params: {
     validationScenarioHints: buildValidationScenarioHints(requestFields, params.queryLayout.queryName),
     dbScenarioHints: buildDbScenarioHints(writesTables, params.queryLayout.queryName, fixtureCandidateTables),
     resultCardinality,
+    queryInputFields: resolvedInputFields,
+    queryOutputFields: resolvedOutputFields,
+    queryFixtureRowFields: dedupeStrings([...sqlInsertColumns, ...sqlReturningColumns, ...resolvedOutputFields]),
     entrySpecPath: toProjectRelativePath(params.rootDir, entrySpecFile),
     querySpecSourcePath: params.queryLayout.querySpecFile,
     querySpecPath: toProjectRelativePath(params.rootDir, params.queryLayout.querySpecFile),
@@ -446,12 +466,30 @@ function renderFixtureTree(node: FixtureTreeNode, leaf: string, separator: ',' |
   return `{ ${entries.join(` ${separator} `)} }`;
 }
 
-function buildQueryFixtureTypeLiteral(tableNames: string[]): string {
+function buildQueryFixtureTypeLiteral(tableNames: string[], rowTypeLiteral: string): string {
   const normalized = dedupeStrings(tableNames);
   if (normalized.length === 0) {
     return 'Record<string, never>';
   }
-  return renderFixtureTree(buildFixtureTree(normalized), 'readonly unknown[]', ';');
+  return renderFixtureTree(buildFixtureTree(normalized), `readonly ${rowTypeLiteral}[]`, ';');
+}
+
+function buildQueryFixtureRowTypeLiteral(fieldNames: string[]): string {
+  const normalized = dedupeStrings(fieldNames);
+  if (normalized.length === 0) {
+    return 'Record<string, unknown>';
+  }
+
+  return `{ ${normalized.map((field) => `${field}?: unknown`).join('; ')} }`;
+}
+
+function buildRecordShapeTypeLiteral(fieldNames: string[]): string {
+  const normalized = dedupeStrings(fieldNames);
+  if (normalized.length === 0) {
+    return 'Record<string, unknown>';
+  }
+
+  return `{ ${normalized.map((field) => `${field}: unknown`).join('; ')} }`;
 }
 
 function buildQueryFixtureValueLiteral(tableNames: string[]): string {
@@ -502,6 +540,36 @@ function extractSqlWriteTables(sqlSource: string): string[] {
   }
 
   return [...tables];
+}
+
+function extractSqlInsertColumns(sqlSource: string): string[] {
+  const match = sqlSource.match(/\binsert\s+into\s+[^\s(,;]+(?:\s*\(\s*([^)]+?)\s*\))?/i);
+  if (!match || !match[1]) {
+    return [];
+  }
+
+  return splitSqlIdentifiers(match[1]);
+}
+
+function extractSqlReturningColumns(sqlSource: string): string[] {
+  const match = sqlSource.match(/\breturning\s+([^;]+)$/i);
+  if (!match || !match[1]) {
+    return [];
+  }
+
+  return splitSqlIdentifiers(match[1]);
+}
+
+function splitSqlIdentifiers(value: string): string[] {
+  return value
+    .split(',')
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .map((segment) => segment.replace(/^["'`]|["'`]$/g, ''))
+    .map((segment) => segment.replace(/\s+as\s+.+$/i, ''))
+    .map((segment) => segment.replace(/\(.+\)$/, ''))
+    .map((segment) => segment.trim())
+    .filter(Boolean);
 }
 
 function extractSchemaFields(source: string, schemaName: string): string[] {
