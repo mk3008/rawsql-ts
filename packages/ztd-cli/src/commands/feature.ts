@@ -13,6 +13,7 @@ import { emitDiagnostic, isJsonOutput, writeCommandEnvelope } from '../utils/age
 import { ensureDirectory } from '../utils/fs';
 import { collectSqlFiles, type SqlSource } from '../utils/collectSqlFiles';
 import { loadZtdProjectConfig, resolveGeneratedDir } from '../utils/ztdProjectConfig';
+import { registerFeatureTestsScaffoldCommand } from './featureTests';
 
 const FEATURE_ACTIONS = ['insert', 'update', 'delete', 'get-by-id', 'list'] as const;
 type FeatureAction = (typeof FEATURE_ACTIONS)[number];
@@ -91,6 +92,7 @@ interface FeatureScaffoldResult {
 
 export function registerFeatureCommand(program: Command): void {
   const feature = program.command('feature').description('Scaffold feature-local files from schema metadata');
+  registerFeatureTestsScaffoldCommand(feature);
 
   feature
     .command('scaffold')
@@ -118,8 +120,8 @@ export function registerFeatureCommand(program: Command): void {
         ...result.outputs.map((output) => `- ${output.path}`),
         '',
         'Reserved for AI follow-up (not created by the CLI):',
-        `- src/features/${result.featureName}/tests/${result.featureName}.queryspec.test.ts`,
-        `- src/features/${result.featureName}/tests/${result.featureName}.feature.test.ts`
+        `- Run \`ztd feature tests scaffold --feature ${result.featureName}\` after you finish SQL and DTO edits.`,
+        `- That command will refresh src/features/${result.featureName}/tests/ztd/generated/TEST_PLAN.md and analysis.json, while AI-authored cases stay in src/features/${result.featureName}/tests/ztd/cases/.`
       ];
       process.stdout.write(`${lines.join('\n')}\n`);
     });
@@ -189,7 +191,7 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
 
   emitDiagnostic({
     code: 'feature-scaffold.ai-follow-up',
-    message: `CLI created src/features/${featureName}/tests/ only. Add src/features/${featureName}/tests/${featureName}.queryspec.test.ts and src/features/${featureName}/tests/${featureName}.feature.test.ts as the AI follow-up.`
+    message: `CLI created src/features/${featureName}/tests/ only. Run feature tests scaffold to refresh generated analysis and keep AI-authored cases under src/features/${featureName}/tests/ztd/cases/.`
   });
 
   return {
@@ -1144,8 +1146,9 @@ function renderReadmeFile(params: {
     '',
     '## AI-created files',
     '',
-    `- \`tests/${params.featureName}.queryspec.test.ts\``,
-    `- \`tests/${params.featureName}.feature.test.ts\``,
+    `- \`tests/ztd/generated/TEST_PLAN.md\``,
+    `- \`tests/ztd/generated/analysis.json\``,
+    `- persistent case files under \`tests/ztd/cases/\``,
     '',
     '## Boundary responsibilities',
     '',
@@ -1178,7 +1181,7 @@ function renderReadmeFile(params: {
     '- Narrow field types and validation rules once the transport contract is known.',
     '- Replace any scaffolded DDL-backed default expression if the feature needs a different explicit SQL assignment.',
     ...renderReadmeFollowUpNotes(params.action),
-    '- Add QuerySpec and feature tests under `tests/` as the AI-owned follow-up step.',
+    `- After the SQL and DTO edits settle, run \`ztd feature tests scaffold --feature ${params.featureName}\` to refresh generated analysis, then let AI add persistent cases.`,
     ''
   ].join('\n');
 }

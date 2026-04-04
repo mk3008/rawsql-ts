@@ -29,22 +29,20 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(smokeReadme).toContain('starter-only sample feature');
   expect(rootReadme).toContain('Migration Repair Loop');
   expect(packageReadme).toContain('Quickstart');
-  expect(packageReadme).toContain('Getting Started with AI');
-  expect(packageReadme).toContain('Core features');
+  expect(packageReadme).toContain('Create the Users Insert Feature');
+  expect(packageReadme).toContain('Highlights');
   expect(packageReadme).toContain('Commands');
   expect(packageReadme).toContain('Glossary');
   expect(packageReadme).toContain('Further Reading');
-  expect(packageReadme).toContain('@rawsql-ts/testkit-core');
-  expect(packageReadme).toContain('@rawsql-ts/testkit-postgres');
+  expect(packageReadme).toContain('ZTD here means feature-local SQL tests that execute through the project testkit against the real database engine, not a mocked executor.');
+  expect(packageReadme).toContain('The validation checks may stay at the entry boundary, but the successful insert must run through the DB-backed ZTD path and verify the returned id.');
+  expect(packageReadme).toContain('Do not put returned columns such as `user_id` into the input fixture; only assert them after the DB-backed insert returns.');
+  expect(packageReadme).toContain('If the returned id is `null`, stop and fix the scaffold or DDL instead of weakening the test.');
+  expect(packageReadme).toContain('Before writing the success-path assertion, inspect `insert-users.sql` and `queryspec.ts`. If the scaffold does not actually return a non-null id, report that mismatch instead of inventing fixture data or schema overrides.');
+  expect(scaffoldReadme).toContain('Make sure the result executes the users SQL through the DB-backed ZTD path and checks mapping and validation, not just property values.');
   expect(readNormalizedFile('docs/guide/sql-first-end-to-end-tutorial.md')).toContain('Scenario CLI at a glance');
   expect(readNormalizedFile('docs/dogfooding/ztd-migration-lifecycle.md')).toContain('Preferred CLI by scenario');
   expect(packageReadme).toContain('## Further Reading');
-  expect(packageReadme).toContain('ztd ztd-config --watch');
-  expect(packageReadme).toContain('--dry-run');
-  expect(packageReadme).toContain('--output json');
-  expect(packageReadme).toContain('TestRowMap');
-  expect(packageReadme).toContain('QuerySpec');
-  expect(packageReadme).toContain('Run `npx ztd describe command <name>` for per-command flags and options.');
   expect(readNormalizedFile('docs/guide/perf-tuning-decision-guide.md')).toContain(
     'tuning stays evidence-driven and does not require breaking the SQL shape first'
   );

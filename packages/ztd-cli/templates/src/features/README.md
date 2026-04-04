@@ -9,6 +9,8 @@ This scaffold organizes application work under `src/features/<feature>/`.
 - `persistence`: one SQL file, one spec, and the mapping helpers for that unit
 - `tests`: feature-local checks that keep the slice honest
 
+Use `ztd feature tests scaffold --feature <feature-name>` after SQL and DTO edits to refresh `tests/ztd/generated/TEST_PLAN.md` and `analysis.json`, then add persistent cases under `tests/ztd/cases/` with the fixed app-level ZTD runner.
+
 ## Sample feature
 
 `smoke` is the removable teaching feature.

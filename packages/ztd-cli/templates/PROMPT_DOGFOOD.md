@@ -7,11 +7,13 @@ Run the prompts one at a time against a project created with `ztd init --starter
 ## Prompt 1: Add a feature
 
 ```text
-Add a users insert feature to this feature-first project.
+Add a feature to this feature-first project.
 Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.ztd/agents/*` if present.
-Start with `npx ztd feature scaffold --table users --action insert`.
-Keep handwritten SQL and the feature entrypoint inside src/features/users-insert.
-Add the two tests in src/features/users-insert/tests as the follow-up step.
+Start with `npx ztd feature scaffold --table <table> --action <action>`.
+Keep handwritten SQL, the feature entrypoint, and QuerySpec inside `src/features/<feature-name>`.
+After you finish SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/tests/ztd/generated/TEST_PLAN.md` and `analysis.json`. The validation case may stay at the entry boundary, but the success case must execute through the fixed app-level ZTD runner. Do not put returned columns into the input fixture. Read `TEST_PLAN.md` and `analysis.json` before filling the persistent case files under `src/features/<feature-name>/tests/ztd/cases/`.
+If the returned result is null, stop and fix the scaffold or DDL instead of weakening the case.
+Before writing the success-path assertion, inspect the current SQL and QuerySpec. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.
 Do not apply migrations automatically.
 ```
 

@@ -43,15 +43,19 @@ For reverse lookup from observed SQL, read [Observed SQL Investigation](../../..
 ## Getting Started with AI
 
 Use this short prompt:
-Choose ztd init or ztd init --starter based on whether I want the removable starter sample.
+Choose `ztd init` or `ztd init --starter` based on whether I want the removable starter sample.
 
 ```text
 I want to build a feature-first application with @rawsql-ts/ztd-cli.
-Start from src/features/smoke and add a users feature next.
-Use src/features/smoke/tests/smoke.queryspec.test.ts as the pattern for the first real DB-backed ZTD test.
-Keep handwritten SQL, QuerySpec, repository code, and tests inside src/features/users.
+Start from `src/features/smoke` and add the next feature.
+Use `src/features/smoke/tests/smoke.queryspec.test.ts` as the pattern for the first real DB-backed ZTD test.
+Keep handwritten SQL, QuerySpec, repository code, and test cases inside `src/features/<feature-name>`.
 Treat the QuerySpec and its ZTD-backed test as one completion unit; do not stop at a property-only check.
-Make sure the result executes the users SQL through ZTD rewrite and checks mapping and validation, not just property values.
+Make sure the result executes the users SQL through the DB-backed ZTD path and checks mapping and validation, not just property values.
+Do not put returned columns into the input fixture; assert them only after the DB-backed result returns.
+If the returned result is `null`, stop and fix the scaffold or DDL instead of weakening the success-path schema or seeding fake rows.
+Before writing the success-path assertion, inspect the current SQL and QuerySpec. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.
+After the SQL and DTO edits settle, run `ztd feature tests scaffold --feature <feature-name>` to refresh `tests/ztd/generated/TEST_PLAN.md` and `analysis.json`, then ask AI to add persistent case files under `tests/ztd/cases/` using the fixed app-level ZTD runner.
 Read the nearest AGENTS.md files first.
 Do not apply migrations automatically.
 ```

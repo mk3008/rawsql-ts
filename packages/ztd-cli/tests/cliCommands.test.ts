@@ -255,6 +255,21 @@ test(
 );
 
 test(
+  'feature tests scaffold help exposes the TODO-based test scaffold contract',
+  () => {
+    const result = runCli(['feature', 'tests', 'scaffold', '--help']);
+    assertCliSuccess(result, 'feature tests scaffold --help');
+    expect(result.stdout).toContain('--feature <name>');
+    expect(result.stdout).toContain('--query <name>');
+    expect(result.stdout).toContain('--dry-run');
+    expect(result.stdout).toContain('--force');
+    expect(result.stdout).toContain('Refresh generated ZTD analysis');
+    expect(result.stdout).toContain('persistent cases');
+  },
+  60000,
+);
+
+test(
   'feature scaffold dry-run emits JSON and reserves test files for AI follow-up',
   () => {
     const workspace = createTempDir('feature-scaffold-dry-run');

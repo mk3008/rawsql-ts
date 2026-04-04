@@ -112,10 +112,12 @@ That v1 scaffold fixes the initial layout to:
 - `src/features/users-insert/entryspec.ts`
 - `src/features/users-insert/insert-users/queryspec.ts`
 - `src/features/users-insert/insert-users/insert-users.sql`
-- `src/features/users-insert/tests/`
+- `src/features/users-insert/tests/ztd/generated/`
+- `src/features/users-insert/tests/ztd/cases/`
 - `src/features/users-insert/README.md`
 
-The CLI creates the `tests/` directory but leaves the two test files for the AI follow-up step.
+The CLI creates the `tests/ztd/generated/` analysis files and the empty `tests/ztd/cases/` directory, then leaves the persistent case files for the AI follow-up step.
+After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature users-insert` to refresh `tests/ztd/generated/TEST_PLAN.md` and `analysis.json`. AI-authored cases belong in `tests/ztd/cases/`, while the fixed app-level runner stays in `tests/ztd/harness.ts`.
 
 ## 4. Run the CRUD scenario
 
@@ -128,7 +130,9 @@ Add a users insert feature to this feature-first project.
 Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.ztd/agents/*` if present.
 Start with `npx ztd feature scaffold --table users --action insert`.
 Keep `entryspec.ts`, the query-local `queryspec.ts`, and the query-local SQL resource inside `src/features/users-insert`.
-Add the two tests in src/features/users-insert/tests as the follow-up step.
+After you finish SQL and DTO edits, run `npx ztd feature tests scaffold --feature users-insert` to refresh `src/features/users-insert/tests/ztd/generated/TEST_PLAN.md` and `analysis.json`. The validation cases may stay at the entry boundary, but the success case must execute through the fixed app-level ZTD runner and verify the returned result. Do not put returned columns into the input fixture. Read `TEST_PLAN.md` and `analysis.json` before filling the persistent case files under `src/features/users-insert/tests/ztd/cases/`.
+If the returned id is null, stop and fix the scaffold or DDL instead of weakening the test.
+Before writing the success-path assertion, inspect `insert-users.sql` and `queryspec.ts`. If the scaffold does not actually return a non-null id, report that mismatch instead of inventing fixture data or schema overrides.
 Do not apply migrations automatically.
 ```
 

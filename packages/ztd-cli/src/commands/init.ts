@@ -127,6 +127,10 @@ type FileKey =
   | 'smokeValidationTest'
   | 'smokeTest'
   | 'smokeQuerySpecTest'
+  | 'testsZtdReadme'
+  | 'testsZtdCaseTypes'
+  | 'testsZtdVerifier'
+  | 'testsZtdHarness'
   | 'setupEnv'
   | 'starterPostgresTestkit'
   | 'infrastructureReadme'
@@ -269,6 +273,14 @@ interface InitScaffoldLayout {
   smokeTestTemplate: string;
   smokeQuerySpecTestPath: string;
   smokeQuerySpecTestTemplate: string;
+  testsZtdReadmePath: string;
+  testsZtdReadmeTemplate: string;
+  testsZtdCaseTypesPath: string;
+  testsZtdCaseTypesTemplate: string;
+  testsZtdVerifierPath: string;
+  testsZtdVerifierTemplate: string;
+  testsZtdHarnessPath: string;
+  testsZtdHarnessTemplate: string;
   setupEnvPath: string;
   setupEnvTemplate: string;
   starterPostgresTestkitPath: string;
@@ -374,6 +386,10 @@ const FEATURE_SMOKE_SPEC_TEMPLATE = 'src/features/smoke/persistence/smoke.spec.t
 const FEATURE_SMOKE_VALIDATION_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.validation.test.ts';
 const FEATURE_SMOKE_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.test.ts';
 const FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.queryspec.test.ts';
+const TESTS_ZTD_README_TEMPLATE = 'tests/ztd/README.md';
+const TESTS_ZTD_CASE_TYPES_TEMPLATE = 'tests/ztd/case-types.ts';
+const TESTS_ZTD_VERIFIER_TEMPLATE = 'tests/ztd/verifier.ts';
+const TESTS_ZTD_HARNESS_TEMPLATE = 'tests/ztd/harness.ts';
 const LOCAL_SOURCE_GUARD_TEMPLATE = 'scripts/local-source-guard.mjs';
 const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
 const SETUP_ENV_TEMPLATE = 'tests/support/setup-env.ts';
@@ -438,8 +454,8 @@ const STARTER_README_APPENDIX = (postgresImage: string): string =>
     '6. Run `npx ztd ztd-config` to regenerate the runtime fixture manifest, DDL-derived test rows, and layout metadata.',
     '7. Read `.ztd/support/postgres-testkit.ts` and `src/features/smoke/tests/smoke.queryspec.test.ts` to see the DB-backed starter smoke path through `createStarterPostgresTestkitClient` and the underlying `@rawsql-ts/testkit-postgres` API.',
     '8. Run `npx vitest run` to exercise the DB-free and DB-backed smoke tests with the values from `.env`.',
-    '9. Run `npx ztd feature scaffold --table users --action insert` to create the first fixed feature shell before asking AI to add tests.',
-    '10. Add `src/features/users-insert/tests/users-insert.queryspec.test.ts` and `src/features/users-insert/tests/users-insert.feature.test.ts` as the AI follow-up, then delete `src/features/smoke/` when you no longer need the sample.',
+  '9. Run `npx ztd feature scaffold --table users --action insert` to create the first fixed feature shell.',
+  '10. After you finish SQL and DTO edits, run `npx ztd feature tests scaffold --feature users-insert` to create TODO-based test scaffolds, then let AI complete them.',
     ''
   ].join('\n');
 
@@ -507,6 +523,14 @@ function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): In
     smokeTestTemplate: FEATURE_SMOKE_TEST_TEMPLATE,
     smokeQuerySpecTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'),
     smokeQuerySpecTestTemplate: FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE,
+    testsZtdReadmePath: path.join(rootDir, 'tests', 'ztd', 'README.md'),
+    testsZtdReadmeTemplate: TESTS_ZTD_README_TEMPLATE,
+    testsZtdCaseTypesPath: path.join(rootDir, 'tests', 'ztd', 'case-types.ts'),
+    testsZtdCaseTypesTemplate: TESTS_ZTD_CASE_TYPES_TEMPLATE,
+    testsZtdVerifierPath: path.join(rootDir, 'tests', 'ztd', 'verifier.ts'),
+    testsZtdVerifierTemplate: TESTS_ZTD_VERIFIER_TEMPLATE,
+    testsZtdHarnessPath: path.join(rootDir, 'tests', 'ztd', 'harness.ts'),
+    testsZtdHarnessTemplate: TESTS_ZTD_HARNESS_TEMPLATE,
     setupEnvPath: path.join(rootDir, supportDir, 'setup-env.ts'),
     setupEnvTemplate: SETUP_ENV_TEMPLATE,
     starterPostgresTestkitPath: path.join(rootDir, supportDir, 'postgres-testkit.ts'),
@@ -702,6 +726,10 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     smokeValidationTest: scaffoldLayout.smokeValidationTestPath,
     smokeTest: scaffoldLayout.smokeTestPath,
     smokeQuerySpecTest: scaffoldLayout.smokeQuerySpecTestPath,
+    testsZtdReadme: scaffoldLayout.testsZtdReadmePath,
+    testsZtdCaseTypes: scaffoldLayout.testsZtdCaseTypesPath,
+    testsZtdVerifier: scaffoldLayout.testsZtdVerifierPath,
+    testsZtdHarness: scaffoldLayout.testsZtdHarnessPath,
     infrastructureReadme: scaffoldLayout.infrastructureReadmePath,
     telemetryTypes: scaffoldLayout.telemetryTypesPath,
     telemetryRepository: scaffoldLayout.telemetryRepositoryPath,
@@ -1061,6 +1089,58 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     );
     if (smokeQuerySpecTestSummary) {
       summaries.smokeQuerySpecTest = smokeQuerySpecTestSummary;
+    }
+
+    const testsZtdReadmeSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.testsZtdReadme,
+      relativePath('testsZtdReadme'),
+      scaffoldLayout.testsZtdReadmeTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (testsZtdReadmeSummary) {
+      summaries.testsZtdReadme = testsZtdReadmeSummary;
+    }
+
+    const testsZtdCaseTypesSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.testsZtdCaseTypes,
+      relativePath('testsZtdCaseTypes'),
+      scaffoldLayout.testsZtdCaseTypesTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (testsZtdCaseTypesSummary) {
+      summaries.testsZtdCaseTypes = testsZtdCaseTypesSummary;
+    }
+
+    const testsZtdVerifierSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.testsZtdVerifier,
+      relativePath('testsZtdVerifier'),
+      scaffoldLayout.testsZtdVerifierTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (testsZtdVerifierSummary) {
+      summaries.testsZtdVerifier = testsZtdVerifierSummary;
+    }
+
+    const testsZtdHarnessSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.testsZtdHarness,
+      relativePath('testsZtdHarness'),
+      scaffoldLayout.testsZtdHarnessTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (testsZtdHarnessSummary) {
+      summaries.testsZtdHarness = testsZtdHarnessSummary;
     }
 
     const infrastructureReadmeSummary = await writeTemplateFile(
@@ -2299,12 +2379,13 @@ function buildNextSteps(
     const starterNextSteps = [
       'Inspect src/features/smoke/ and treat it as a starter-only sample feature that can be deleted later',
       `Run tests (${runScriptCommand('test')} or npx vitest run src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts) to confirm the DB-free smoke path is green`,
-      'Read src/features/smoke/tests/smoke.queryspec.test.ts to see the DB-backed QuerySpec path that also checks connectivity',
+  'Read src/features/smoke/tests/smoke.queryspec.test.ts to see the DB-backed QuerySpec path that also checks connectivity',
       'Run docker compose up -d to start the bundled Postgres container before the DB-backed smoke path',
       `The bundled compose file uses ${postgresImage}; copy .env.example to .env and keep ZTD_DB_PORT aligned before running src/features/smoke/tests/smoke.queryspec.test.ts`,
       'Expect src/features/smoke/tests/smoke.queryspec.test.ts to fail until .env is present or the DB is running; that failure is part of the starter guidance',
       ...generationSteps,
-      `Start your first real CRUD slice with \`${ztdCommand} feature scaffold --table users --action insert\` after the smoke sample makes sense`,
+  `Start your first real CRUD slice with \`${ztdCommand} feature scaffold --table users --action insert\` after the smoke sample makes sense`,
+  `Then run \`${ztdCommand} feature tests scaffold --feature users-insert\` after you finish SQL and DTO edits, and let AI complete the TODO-based tests.`,
       'Delete src/features/smoke/ once you no longer need the starter sample'
     ];
     const starterFallbackSteps = [
@@ -2460,6 +2541,10 @@ function buildSummaryLines(
     'smokeValidationTest',
     'smokeTest',
     'smokeQuerySpecTest',
+    'testsZtdReadme',
+    'testsZtdCaseTypes',
+    'testsZtdVerifier',
+    'testsZtdHarness',
     'setupEnv',
     'starterPostgresTestkit',
     'infrastructureReadme',
@@ -2509,7 +2594,7 @@ function buildSummaryLines(
     lines.push(` - Bundled Postgres compose image: ${postgresImage}`);
     lines.push(' - Run docker compose up -d before the DB-backed smoke test so the starter DB path is ready.');
     lines.push(
-      ' - The starter smoke test uses .ztd/support/postgres-testkit.ts, @rawsql-ts/testkit-postgres, and createStarterPostgresTestkitClient to fail fast on setup problems.'
+      ' - The starter smoke test uses .ztd/support/postgres-testkit.ts, tests/ztd/harness.ts, @rawsql-ts/testkit-postgres, and createStarterPostgresTestkitClient to fail fast on setup problems.'
     );
   }
   if (optionalFeatures.aiGuidance) {

@@ -68,16 +68,18 @@ Run this first:
 npx ztd feature scaffold --table users --action insert
 ```
 
-Scaffold the `users-insert` feature with co-located SQL, specs, and tests.
+Scaffold the `users-insert` feature with co-located SQL, specs, and an empty tests directory.
 
-Then ask AI to add the follow-up tests in `src/features/users-insert/tests`. ZTD here means SQL-only tests without migrations or mocks, run against the real database engine.
+After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/tests/ztd/generated/TEST_PLAN.md` and `analysis.json`. ZTD here means feature-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor. Persistent AI-authored case files belong in `src/features/<feature-name>/tests/ztd/cases/`. Use validation-only cases for boundary checks and DB-backed cases for the success path.
 
 ```text
-Write ZTD-format tests for the users insert feature.
-Keep them in src/features/users-insert/tests.
-Cover:
-- required-field validation failures
-- successful insert returning an id
+Write ZTD-format cases for the feature.
+Keep the persistent case files in `src/features/<feature-name>/tests/ztd/cases/`.
+Use `src/features/<feature-name>/tests/ztd/generated/TEST_PLAN.md` and `analysis.json` as the source of truth.
+Do not put returned columns into the input fixture; only assert them after the DB-backed case returns.
+The validation cases may stay at the entry boundary, but the success case must run through the fixed app-level ZTD runner and verify the returned result.
+If the returned result is `null`, stop and fix the scaffold or DDL instead of weakening the case.
+Before writing the success-path assertion, inspect the current SQL and QuerySpec. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.
 Do not apply migrations automatically.
 ```
 
@@ -94,7 +96,8 @@ If you want a deeper walkthrough, keep that in the linked guides instead of expa
 | Command | Purpose |
 |---|---|
 | `ztd init --starter` | Scaffold the starter project with smoke, DDL, compose, and local Postgres wiring. |
-| `ztd feature scaffold --table <table> --action <insert/update/delete/get-by-id/list>` | Scaffold a feature-local CRUD/SELECT slice with SQL, entrypoint, QuerySpec, tests, and DTO schemas. |
+| `ztd feature scaffold --table <table> --action <insert/update/delete/get-by-id/list>` | Scaffold a feature-local CRUD/SELECT slice with SQL, entrypoint, QuerySpec, README, and an empty tests directory. |
+| `ztd feature tests scaffold --feature <feature-name>` | Refresh `tests/ztd/generated/TEST_PLAN.md` and `analysis.json` from the current feature files and keep `tests/ztd/cases/` for persistent AI-authored cases. |
 | `ztd agents init` | Add the optional Codex bootstrap files. |
 | `ztd ztd-config` | Regenerate `TestRowMap` and runtime fixture metadata from DDL without Docker. |
 | `ztd lint` | Lint SQL against a temporary Postgres. |
