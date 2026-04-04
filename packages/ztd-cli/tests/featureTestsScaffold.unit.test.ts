@@ -14,7 +14,7 @@ function createTempDir(prefix: string): string {
   return mkdtempSync(path.join(tmpRoot, `${prefix}-`));
 }
 
-test('runFeatureTestsScaffoldCommand writes TODO-based test scaffolds from the current feature files', async () => {
+test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the current feature files', async () => {
   const workspace = createTempDir('feature-tests-scaffold');
   const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
   const queryDir = path.join(featureDir, 'insert-users');
@@ -23,8 +23,14 @@ test('runFeatureTestsScaffoldCommand writes TODO-based test scaffolds from the c
   writeFileSync(
     path.join(featureDir, 'entryspec.ts'),
     [
-      "export async function executeUsersInsertEntrySpec() {",
-      '  return { user_id: "placeholder" };',
+      "import { z } from 'zod';",
+      '',
+      'const RequestSchema = z.object({',
+      '  email: z.string()',
+      '}).strict();',
+      '',
+      'export async function executeUsersInsertEntrySpec() {',
+      '  return RequestSchema.parse({ email: "alice@example.com" });',
       '}'
     ].join('\n'),
     'utf8'
@@ -56,24 +62,42 @@ test('runFeatureTestsScaffoldCommand writes TODO-based test scaffolds from the c
   });
   expect(result.outputs.map((output) => output.path)).toEqual(
     expect.arrayContaining([
-      'src/features/users-insert/tests',
-      'src/features/users-insert/tests/ztd',
-      'src/features/users-insert/tests/ztd/generated',
-      'src/features/users-insert/tests/ztd/cases',
-      'src/features/users-insert/tests/ztd/generated/TEST_PLAN.md',
-      'src/features/users-insert/tests/ztd/generated/analysis.json'
+      'src/features/users-insert/insert-users/tests',
+      'src/features/users-insert/insert-users/tests/generated',
+      'src/features/users-insert/insert-users/tests/cases',
+      'src/features/users-insert/insert-users/tests/insert-users.queryspec.ztd.test.ts',
+      'src/features/users-insert/insert-users/tests/cases/basic.case.ts',
+      'src/features/users-insert/insert-users/tests/generated/TEST_PLAN.md',
+      'src/features/users-insert/insert-users/tests/generated/analysis.json'
     ])
   );
 
-  const testPlanFile = readFileSync(path.join(featureDir, 'tests', 'ztd', 'generated', 'TEST_PLAN.md'), 'utf8');
-  expect(testPlanFile).toContain('# users-insert test plan');
+  const vitestEntrypointFile = readFileSync(
+    path.join(featureDir, 'insert-users', 'tests', 'insert-users.queryspec.ztd.test.ts'),
+    'utf8'
+  );
+  expect(vitestEntrypointFile).toContain("import { expect, test } from 'vitest';");
+  expect(vitestEntrypointFile).toContain("import { runQuerySpecZtdCases } from '../../../../../tests/ztd/harness.js';");
+  expect(vitestEntrypointFile).toContain("import { executeInsertUsersQuerySpec } from '../queryspec.js';");
+  expect(vitestEntrypointFile).toContain("import cases from './cases/basic.case.js';");
+  expect(vitestEntrypointFile).toContain("import type { InsertUsersQuerySpecZtdCase } from './queryspec-ztd-types.js';");
+  expect(vitestEntrypointFile).toContain('expect(cases.length).toBeGreaterThan(0);');
+  expect(vitestEntrypointFile).toContain('await runQuerySpecZtdCases(cases, executeInsertUsersQuerySpec);');
+
+  const testPlanFile = readFileSync(
+    path.join(featureDir, 'insert-users', 'tests', 'generated', 'TEST_PLAN.md'),
+    'utf8'
+  );
+  expect(testPlanFile).toContain('# users-insert / insert-users queryspec test plan');
   expect(testPlanFile).toContain('schemaVersion: 1');
   expect(testPlanFile).toContain('featureId: users-insert');
   expect(testPlanFile).toContain('testKind: ztd');
   expect(testPlanFile).toContain('resultCardinality: one');
   expect(testPlanFile).toContain('fixedVerifier: tests/ztd/harness.ts');
-  expect(testPlanFile).toContain('persistentCases: src/features/users-insert/tests/ztd/cases');
-  expect(testPlanFile).toContain('analysisJson: src/features/users-insert/tests/ztd/generated/analysis.json');
+  expect(testPlanFile).toContain('vitestEntrypoint: src/features/users-insert/insert-users/tests/insert-users.queryspec.ztd.test.ts');
+  expect(testPlanFile).toContain('generatedDir: src/features/users-insert/insert-users/tests/generated');
+  expect(testPlanFile).toContain('casesDir: src/features/users-insert/insert-users/tests/cases');
+  expect(testPlanFile).toContain('analysisJson: src/features/users-insert/insert-users/tests/generated/analysis.json');
   expect(testPlanFile).toContain('src/features/users-insert/entryspec.ts');
   expect(testPlanFile).toContain('src/features/users-insert/insert-users/queryspec.ts');
   expect(testPlanFile).toContain('src/features/users-insert/insert-users/insert-users.sql');
@@ -82,9 +106,12 @@ test('runFeatureTestsScaffoldCommand writes TODO-based test scaffolds from the c
   expect(testPlanFile).toContain('Write Tables');
   expect(testPlanFile).toContain('Validation Scenario Hints');
   expect(testPlanFile).toContain('DB Scenario Hints');
+  expect(testPlanFile).toContain('After DB Semantics');
+  expect(testPlanFile).toContain('- `afterDb` is optional and must be a pure fixture with schema-qualified table keys.');
+  expect(testPlanFile).toContain('Row order is ignored, but row content must match exactly.');
 
   const analysisFile = JSON.parse(
-    readFileSync(path.join(featureDir, 'tests', 'ztd', 'generated', 'analysis.json'), 'utf8')
+    readFileSync(path.join(featureDir, 'insert-users', 'tests', 'generated', 'analysis.json'), 'utf8')
   ) as {
     schemaVersion: number;
     featureId: string;
@@ -103,12 +130,12 @@ test('runFeatureTestsScaffoldCommand writes TODO-based test scaffolds from the c
     fixtureCandidateTables: ['public.users'],
     writesTables: ['public.users'],
     validationScenarioHints: expect.arrayContaining([
-      'Missing required request fields should fail at the feature boundary.',
-      'Malformed feature input should never reach the fixed verifier.'
+      'Keep entryspec validation separate from queryspec DB-backed execution.',
+      'Validation failures belong in the feature-root mock test lane.'
     ]),
     dbScenarioHints: expect.arrayContaining([
-      'Keep the success path DB-backed through the fixed app-level verifier.',
-      'Expect one row or one inserted result for a non-list feature.'
+      'Use the fixed app-level harness and query-local cases to keep the ZTD path thin.',
+      'Keep db/input/output visible in the case file so the AI can fill the query contract without re-deriving the scaffold.'
     ]),
     resultCardinality: 'one'
   });
@@ -118,15 +145,24 @@ test('runFeatureTestsScaffoldCommand refreshes generated analysis without overwr
   const workspace = createTempDir('feature-tests-cases');
   const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
   const queryDir = path.join(featureDir, 'insert-users');
-  const casesDir = path.join(featureDir, 'tests', 'ztd', 'cases');
+  const testsDir = path.join(queryDir, 'tests');
+  const generatedDir = path.join(testsDir, 'generated');
+  const casesDir = path.join(testsDir, 'cases');
   mkdirSync(queryDir, { recursive: true });
   mkdirSync(casesDir, { recursive: true });
+  mkdirSync(generatedDir, { recursive: true });
 
   writeFileSync(
     path.join(featureDir, 'entryspec.ts'),
     [
-      "export async function executeUsersInsertEntrySpec() {",
-      '  return { user_id: "placeholder" };',
+      "import { z } from 'zod';",
+      '',
+      'const RequestSchema = z.object({',
+      '  email: z.string()',
+      '}).strict();',
+      '',
+      'export async function executeUsersInsertEntrySpec() {',
+      '  return RequestSchema.parse({ email: "alice@example.com" });',
       '}'
     ].join('\n'),
     'utf8'
@@ -146,8 +182,10 @@ test('runFeatureTestsScaffoldCommand refreshes generated analysis without overwr
     'utf8'
   );
 
-  const caseFile = path.join(casesDir, 'basic-success.case.ts');
+  const caseFile = path.join(casesDir, 'basic.case.ts');
   writeFileSync(caseFile, "export const marker = 'keep-me';\n", 'utf8');
+  const entrypointFile = path.join(testsDir, 'insert-users.queryspec.ztd.test.ts');
+  writeFileSync(entrypointFile, "export const entrypointMarker = 'keep-me';\n", 'utf8');
 
   await runFeatureTestsScaffoldCommand({
     feature: 'users-insert',
@@ -156,5 +194,6 @@ test('runFeatureTestsScaffoldCommand refreshes generated analysis without overwr
   });
 
   expect(readFileSync(caseFile, 'utf8')).toBe("export const marker = 'keep-me';\n");
-  expect(readFileSync(path.join(featureDir, 'tests', 'ztd', 'generated', 'analysis.json'), 'utf8')).toContain('"schemaVersion": 1');
+  expect(readFileSync(entrypointFile, 'utf8')).toBe("export const entrypointMarker = 'keep-me';\n");
+  expect(readFileSync(path.join(generatedDir, 'analysis.json'), 'utf8')).toContain('"schemaVersion": 1');
 });

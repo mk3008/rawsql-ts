@@ -32,7 +32,7 @@ npx vitest run
 
 The generated runtime manifest is the preferred input for `@rawsql-ts/testkit-postgres`; raw DDL directories remain a fallback for legacy layouts. The generated contract itself is schema metadata only (`tableDefinitions`), so test rows stay explicit.
 The removable starter smoke test shows the DB-backed path through `createStarterPostgresTestkitClient`, so the starter can fail fast when setup is incomplete.
-If you add a second DB-backed feature, reuse `.ztd/support/postgres-testkit.ts` for the pool, config defaults, and cleanup, then keep each feature's fixtures next to the test that needs them.
+If you add a second DB-backed feature, reuse `.ztd/support/postgres-testkit.ts` for the pool, config defaults, and cleanup, then keep each queryspec's fixtures next to the test that needs them.
 The starter keeps `ztdRootDir`, `ddlDir`, `defaultSchema`, and `searchPath` in `ztd.config.json`. The helper reads the project defaults from one place instead of repeating them in every DB-backed test.
 
 src/catalog may still exist as internal support, but it is not the user-facing standard location.
@@ -49,13 +49,14 @@ Choose `ztd init` or `ztd init --starter` based on whether I want the removable 
 I want to build a feature-first application with @rawsql-ts/ztd-cli.
 Start from `src/features/smoke` and add the next feature.
 Use `src/features/smoke/tests/smoke.queryspec.test.ts` as the pattern for the first real DB-backed ZTD test.
-Keep handwritten SQL, QuerySpec, repository code, and test cases inside `src/features/<feature-name>`.
+Keep handwritten SQL, QuerySpec, repository code, and tests inside `src/features/<feature-name>`.
 Treat the QuerySpec and its ZTD-backed test as one completion unit; do not stop at a property-only check.
-Make sure the result executes the users SQL through the DB-backed ZTD path and checks mapping and validation, not just property values.
+Keep entryspec tests mock-based in `src/features/<feature-name>/tests/<feature-name>.entryspec.test.ts`.
+Make sure the queryspec result executes through the DB-backed ZTD path and checks mapping and validation, not just property values.
 Do not put returned columns into the input fixture; assert them only after the DB-backed result returns.
 If the returned result is `null`, stop and fix the scaffold or DDL instead of weakening the success-path schema or seeding fake rows.
 Before writing the success-path assertion, inspect the current SQL and QuerySpec. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.
-After the SQL and DTO edits settle, run `ztd feature tests scaffold --feature <feature-name>` to refresh `tests/ztd/generated/TEST_PLAN.md` and `analysis.json`, then ask AI to add persistent case files under `tests/ztd/cases/` using the fixed app-level ZTD runner.
+After the SQL and DTO edits settle, run `ztd feature tests scaffold --feature <feature-name>` to refresh `tests/generated/TEST_PLAN.md` and `analysis.json`, create the thin `tests/<query-name>.queryspec.ztd.test.ts` Vitest entrypoint if it is missing, then ask AI to add persistent case files under `tests/cases/` using the fixed app-level ZTD runner. If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs. `beforeDb` and `afterDb` are pure fixture skeletons with schema-qualified table keys. `afterDb` compares exact post-execution rows after normalizing object key order, while row order itself is ignored. When the cases are ready, run `npx vitest run src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts` to execute the ZTD query test.
 Read the nearest AGENTS.md files first.
 Do not apply migrations automatically.
 ```

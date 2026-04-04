@@ -194,15 +194,16 @@ test('runFeatureScaffoldCommand dry-run creates the new insert layout without te
     'src/features/_shared/featureQueryExecutor.ts',
     'src/features/_shared/loadSqlResource.ts',
     'src/features/users-insert',
+    'src/features/users-insert/tests',
+    'src/features/users-insert/tests/users-insert.entryspec.test.ts',
     'src/features/users-insert/entryspec.ts',
     'src/features/users-insert/insert-users',
     'src/features/users-insert/insert-users/queryspec.ts',
     'src/features/users-insert/insert-users/insert-users.sql',
-    'src/features/users-insert/tests',
     'src/features/users-insert/README.md'
   ]));
-  expect(result.outputs.some((output) => output.path.endsWith('.queryspec.test.ts'))).toBe(false);
-  expect(result.outputs.some((output) => output.path.endsWith('.feature.test.ts'))).toBe(false);
+  expect(result.outputs.some((output) => output.path.endsWith('.queryspec.ztd.test.ts'))).toBe(false);
+  expect(result.outputs.some((output) => output.path.endsWith('.entryspec.test.ts'))).toBe(true);
 });
 
 test('runFeatureScaffoldCommand writes the entryspec/queryspec baseline and excludes generated PK columns', async () => {
@@ -270,6 +271,18 @@ test('runFeatureScaffoldCommand writes the entryspec/queryspec baseline and excl
   expect(entrySpecFile).not.toContain('parseBySpecs');
   expect(entrySpecFile).not.toContain('expectObject');
   expect(entrySpecFile).not.toContain('matchesKind');
+
+  const entrySpecTestFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-insert', 'tests', 'users-insert.entryspec.test.ts'),
+    'utf8'
+  );
+  expect(entrySpecTestFile).toContain("import { expect, test } from 'vitest';");
+  expect(entrySpecTestFile).toContain("import { executeUsersInsertEntrySpec } from '../entryspec.js';");
+  expect(entrySpecTestFile).toContain("import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor.js';");
+  expect(entrySpecTestFile).toContain('function createGuardedExecutor(): FeatureQueryExecutor');
+  expect(entrySpecTestFile).toContain("test('rejects invalid feature input at the feature boundary for users-insert/insert-users', async () => {");
+  expect(entrySpecTestFile).toContain('await expect(executeUsersInsertEntrySpec(createGuardedExecutor(), {})).rejects.toThrow();');
+  expect(entrySpecTestFile).toContain("test.todo('cover normalization and response mapping for UsersInsert entryspec');");
 
   const querySpecFile = readFileSync(
     path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'),

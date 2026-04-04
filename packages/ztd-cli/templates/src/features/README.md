@@ -7,9 +7,9 @@ This scaffold organizes application work under `src/features/<feature>/`.
 - `domain`: pure business rules and invariants
 - `application`: orchestration and use-case flow
 - `persistence`: one SQL file, one spec, and the mapping helpers for that unit
-- `tests`: feature-local checks that keep the slice honest
+- `tests`: feature-local checks that keep the slice honest, including a thin `tests/<feature>.entryspec.test.ts` Vitest entrypoint for the mock-based lane and per-query `tests/<query>.queryspec.ztd.test.ts` Vitest entrypoints for the ZTD lane
 
-Use `ztd feature tests scaffold --feature <feature-name>` after SQL and DTO edits to refresh `tests/ztd/generated/TEST_PLAN.md` and `analysis.json`, then add persistent cases under `tests/ztd/cases/` with the fixed app-level ZTD runner.
+Use `ztd feature tests scaffold --feature <feature-name>` after SQL and DTO edits to refresh `tests/generated/TEST_PLAN.md` and `analysis.json`, keep the thin `tests/<query-name>.queryspec.ztd.test.ts` entrypoint in sync, and add persistent cases under `tests/cases/` with the fixed app-level ZTD runner.
 
 ## Sample feature
 

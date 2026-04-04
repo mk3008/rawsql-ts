@@ -55,24 +55,33 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
     'Use `src/features/smoke` as the starter-only teaching example, but scaffold the first real CRUD slice with the CLI:',
     'npx ztd feature scaffold --table users --action insert',
     'src/features/users-insert/entryspec.ts',
+    'src/features/users-insert/tests/users-insert.entryspec.test.ts',
     'src/features/users-insert/insert-users/queryspec.ts',
     'src/features/users-insert/insert-users/insert-users.sql',
-    'src/features/users-insert/tests/',
-    'The CLI creates the `tests/` directory but leaves the two test files for the AI follow-up step.',
-    'Add a users insert feature to this feature-first project.',
-    'Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.ztd/agents/*` if present.',
-    'Start with `npx ztd feature scaffold --table users --action insert`.',
-    'Keep `entryspec.ts`, the query-local `queryspec.ts`, and the query-local SQL resource inside `src/features/users-insert`.',
-    'Add the two tests in src/features/users-insert/tests as the follow-up step. The validation test may stay at the entry boundary, but the success test must execute the insert through the DB-backed ZTD path and verify the returned id. Do not put returned columns such as `user_id` into the input fixture.',
-    'If the returned id is null, stop and fix the scaffold or DDL instead of weakening the test.',
-    'Before writing the success-path assertion, inspect `insert-users.sql` and `queryspec.ts`. If the scaffold does not actually return a non-null id, report that mismatch instead of inventing fixture data or schema overrides.',
-    'npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail',
-    'Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.',
-    'For SQL repair, keep the SQL assets under `src/features/users-insert/insert-users/`, keep the query on the starter DDL\'s `users` table, and rerun `model-gen` against `src/features/users-insert/insert-users/insert-users.sql` directly, writing back to `src/features/users-insert/insert-users/queryspec.ts`.',
-    'In VSA layouts, `model-gen` now treats the SQL file location as the primary contract source, so `--sql-root` is only needed for older shared-root layouts.',
-    'npx ztd ztd-config',
-    'npx ztd ddl diff'
+    'src/features/users-insert/insert-users/tests/',
   ]);
+
+  expect(tutorial).toContain('insert-users/tests/insert-users.queryspec.ztd.test.ts');
+  expect(tutorial).toContain('insert-users/tests/generated/');
+  expect(tutorial).toContain('insert-users/tests/cases/');
+  expect(tutorial).toContain('persistent case files');
+  expect(tutorial).toContain('Add a users insert feature to this feature-first project.');
+  expect(tutorial).toContain('Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.ztd/agents/*` if present.');
+  expect(tutorial).toContain('Start with `npx ztd feature scaffold --table users --action insert`.');
+  expect(tutorial).toContain('Keep `entryspec.ts`, the query-local `queryspec.ts`, and the query-local SQL resource inside `src/features/users-insert`.');
+  expect(tutorial).toContain('The CLI creates the `src/features/users-insert/insert-users/tests/generated/` analysis files, the thin `src/features/users-insert/insert-users/tests/insert-users.queryspec.ztd.test.ts` Vitest entrypoint, and the empty `src/features/users-insert/insert-users/tests/cases/` directory, then leaves the persistent case files for the AI follow-up step.');
+  expect(tutorial).toContain('After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature users-insert` to refresh `src/features/users-insert/insert-users/tests/generated/TEST_PLAN.md` and `analysis.json`. If `ztd-config` has already run, use `src/features/users-insert/.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints when you fill the case files. `beforeDb` and `afterDb` are schema-qualified pure fixture skeletons. AI-authored cases belong in `src/features/users-insert/insert-users/tests/cases/`, while the fixed app-level runner stays in `tests/ztd/harness.ts`. Keep the feature-root `src/features/users-insert/tests/users-insert.entryspec.test.ts` for mock-based boundary tests. `afterDb` compares exact post-execution rows after normalizing object key order, while row order itself is ignored. When the cases are ready, run `npx vitest run src/features/users-insert/insert-users/tests/insert-users.queryspec.ztd.test.ts` to execute the ZTD query test.');
+  expect(tutorial).toContain('The validation cases may stay at the entry boundary, but the success case must execute through the fixed app-level ZTD runner and verify the returned result.');
+  expect(tutorial).toContain('Do not put returned columns into the input fixture.');
+  expect(tutorial).toContain('If the returned id is null, stop and fix the scaffold or DDL instead of weakening the test.');
+  expect(tutorial).toContain('Before writing the success-path assertion, inspect `insert-users.sql` and `queryspec.ts`. If the scaffold does not actually return a non-null id, report that mismatch instead of inventing fixture data or schema overrides.');
+  expect(tutorial).toContain('When the cases are ready, run `npx vitest run src/features/users-insert/insert-users/tests/insert-users.queryspec.ztd.test.ts` to execute the ZTD query test.');
+  expect(tutorial).toContain('npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail');
+  expect(tutorial).toContain('Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.');
+  expect(tutorial).toContain('For SQL repair, keep the SQL assets under `src/features/users-insert/insert-users/`, keep the query on the starter DDL\'s `users` table, and rerun `model-gen` against `src/features/users-insert/insert-users/insert-users.sql` directly, writing back to `src/features/users-insert/insert-users/queryspec.ts`.');
+  expect(tutorial).toContain('In VSA layouts, `model-gen` now treats the SQL file location as the primary contract source, so `--sql-root` is only needed for older shared-root layouts.');
+  expect(tutorial).toContain('npx ztd ztd-config');
+  expect(tutorial).toContain('npx ztd ddl diff');
 
   expect(tutorial).toContain('npx ztd ddl risk --file tmp/users.diff.sql');
   expect(tutorial).toContain('generated `tableDefinitions` are the normal runtime path after `ztd-config`');

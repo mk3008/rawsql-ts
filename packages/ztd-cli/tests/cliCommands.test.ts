@@ -263,8 +263,8 @@ test(
     expect(result.stdout).toContain('--query <name>');
     expect(result.stdout).toContain('--dry-run');
     expect(result.stdout).toContain('--force');
-    expect(result.stdout).toContain('Refresh generated ZTD analysis');
-    expect(result.stdout).toContain('persistent cases');
+    expect(result.stdout).toContain('Refresh queryspec-owned ZTD analysis');
+    expect(result.stdout).toContain('persistent cases for AI and humans');
   },
   60000,
 );

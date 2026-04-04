@@ -1,14 +1,21 @@
-import type { PostgresTestkitClient, StarterPostgresTestkitOptions } from '../support/postgres-testkit.js';
+export type QuerySpecZtdResultCardinality = 'one' | 'many';
 
-export type ZtdTestKind = 'ztd';
-
-export type ZtdResultCardinality = 'one' | 'many';
-
-export interface ZtdCase<RowShape extends Record<string, unknown> = Record<string, unknown>, Input = unknown, Result = unknown> {
+export interface QuerySpecZtdCase<
+  BeforeDb extends Record<string, unknown> = Record<string, unknown>,
+  Input = unknown,
+  Output = unknown,
+  AfterDb extends Record<string, unknown> = BeforeDb
+> {
   name: string;
+  beforeDb: BeforeDb;
   input: Input;
-  clientOptions?: StarterPostgresTestkitOptions<RowShape>;
-  expectedResult?: Result;
-  assertResult?: (result: Result) => void | Promise<void>;
-  assertAfter?: (client: PostgresTestkitClient<RowShape>) => void | Promise<void>;
+  output: Output;
+  afterDb?: AfterDb;
 }
+
+export type ZtdCase<
+  BeforeDb extends Record<string, unknown> = Record<string, unknown>,
+  Input = unknown,
+  Output = unknown,
+  AfterDb extends Record<string, unknown> = BeforeDb
+> = QuerySpecZtdCase<BeforeDb, Input, Output, AfterDb>;

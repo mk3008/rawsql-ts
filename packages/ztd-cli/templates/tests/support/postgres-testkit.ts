@@ -87,7 +87,13 @@ export function createStarterPostgresTestkitClient<RowType extends Record<string
   const pool = new Pool({ connectionString });
 
   return createPostgresTestkitClient({
-    queryExecutor: (sql, params) => pool.query(sql, params as unknown[]),
+    queryExecutor: async (sql, params) => {
+      const result = await pool.query(sql, params as unknown[]);
+      return {
+        rows: result.rows,
+        rowCount: result.rowCount ?? undefined
+      };
+    },
     defaultSchema: options.defaultSchema ?? defaults.defaultSchema,
     searchPath: options.searchPath ?? defaults.searchPath,
     tableDefinitions: options.tableDefinitions,

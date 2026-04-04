@@ -379,9 +379,17 @@ test('init can opt into dogfooding prompt files when explicitly requested', asyn
   expect(promptDogfood).toContain('Add a feature to this feature-first project.');
   expect(promptDogfood).toContain('Start with `npx ztd feature scaffold --table <table> --action <action>`.');
   expect(promptDogfood).toContain('Keep handwritten SQL, the feature entrypoint, and QuerySpec inside `src/features/<feature-name>`.');
-  expect(promptDogfood).toContain(
-    'After you finish SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/tests/ztd/generated/TEST_PLAN.md` and `analysis.json`. The validation case may stay at the entry boundary, but the success case must execute through the fixed app-level ZTD runner. Do not put returned columns into the input fixture. Read `TEST_PLAN.md` and `analysis.json` before filling the persistent case files under `src/features/<feature-name>/tests/ztd/cases/`.'
-  );
+  expect(promptDogfood).toContain('After you finish SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>`');
+  expect(promptDogfood).toContain('refresh `src/features/<feature-name>/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`');
+  expect(promptDogfood).toContain('keep the thin `src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts` Vitest entrypoint in sync');
+  expect(promptDogfood).toContain('fill the persistent case files under `src/features/<feature-name>/<query-name>/tests/cases/`');
+  expect(promptDogfood).toContain('If `ztd-config` has already run, use `src/features/<feature-name>/.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs.');
+  expect(promptDogfood).toContain('`beforeDb` and `afterDb` are pure fixture skeletons with schema-qualified table keys.');
+  expect(promptDogfood).toContain('The validation case may stay at the entry boundary, but the success case must execute through the fixed app-level ZTD runner.');
+  expect(promptDogfood).toContain('Do not put returned columns into the input fixture.');
+  expect(promptDogfood).toContain('Read `TEST_PLAN.md` and `analysis.json` before filling the persistent case files under `src/features/<feature-name>/<query-name>/tests/cases/`.');
+  expect(promptDogfood).toContain('`afterDb` compares exact post-execution rows after normalizing object key order, while row order itself is ignored.');
+  expect(promptDogfood).toContain('After the cases are ready, run `npx vitest run src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts` to execute the ZTD query test.');
   expect(promptDogfood).toContain('If the returned result is null, stop and fix the scaffold or DDL instead of weakening the case.');
   expect(promptDogfood).toContain('Before writing the success-path assertion, inspect the current SQL and QuerySpec. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.');
   expect(promptDogfood).toContain('Do not apply migrations automatically.');

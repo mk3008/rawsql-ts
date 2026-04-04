@@ -68,14 +68,14 @@ Run this first:
 npx ztd feature scaffold --table users --action insert
 ```
 
-Scaffold the `users-insert` feature with co-located SQL, specs, and an empty tests directory.
+Scaffold the `users-insert` feature with co-located SQL, specs, and a thin tests entrypoint.
 
-After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/tests/ztd/generated/TEST_PLAN.md` and `analysis.json`. ZTD here means feature-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor. Persistent AI-authored case files belong in `src/features/<feature-name>/tests/ztd/cases/`. Use validation-only cases for boundary checks and DB-backed cases for the success path.
+After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`. That command also creates the thin Vitest entrypoint `src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts`, which stays as a small adapter around the fixed app-level harness. ZTD here means queryspec-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor. Persistent AI-authored case files belong in `src/features/<feature-name>/<query-name>/tests/cases/`. If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs. `beforeDb` and `afterDb` are schema-qualified pure fixture skeletons. Use validation-only cases for boundary checks and DB-backed cases for the success path. Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.entryspec.test.ts` for mock-based boundary tests. `afterDb` compares exact post-execution rows after normalizing object key order, while row order itself is ignored. After the cases are filled, run `npx vitest run src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts` to execute the ZTD query test.
 
 ```text
-Write ZTD-format cases for the feature.
-Keep the persistent case files in `src/features/<feature-name>/tests/ztd/cases/`.
-Use `src/features/<feature-name>/tests/ztd/generated/TEST_PLAN.md` and `analysis.json` as the source of truth.
+Write ZTD-format cases for the queryspec.
+Keep the persistent case files in `src/features/<feature>/<query>/tests/cases/`.
+Use `src/features/<feature>/<query>/tests/generated/TEST_PLAN.md` and `analysis.json` as the source of truth.
 Do not put returned columns into the input fixture; only assert them after the DB-backed case returns.
 The validation cases may stay at the entry boundary, but the success case must run through the fixed app-level ZTD runner and verify the returned result.
 If the returned result is `null`, stop and fix the scaffold or DDL instead of weakening the case.
@@ -96,8 +96,8 @@ If you want a deeper walkthrough, keep that in the linked guides instead of expa
 | Command | Purpose |
 |---|---|
 | `ztd init --starter` | Scaffold the starter project with smoke, DDL, compose, and local Postgres wiring. |
-| `ztd feature scaffold --table <table> --action <insert/update/delete/get-by-id/list>` | Scaffold a feature-local CRUD/SELECT slice with SQL, entrypoint, QuerySpec, README, and an empty tests directory. |
-| `ztd feature tests scaffold --feature <feature-name>` | Refresh `tests/ztd/generated/TEST_PLAN.md` and `analysis.json` from the current feature files and keep `tests/ztd/cases/` for persistent AI-authored cases. |
+| `ztd feature scaffold --table <table> --action <insert/update/delete/get-by-id/list>` | Scaffold a feature-local CRUD/SELECT slice with SQL, entrypoint, QuerySpec, README, and a thin tests entrypoint. |
+| `ztd feature tests scaffold --feature <feature-name>` | Refresh `tests/ztd/generated/TEST_PLAN.md` and `analysis.json`, create the thin `tests/<feature-name>.ztd.test.ts` Vitest entrypoint when missing, and keep `tests/ztd/cases/` for persistent AI-authored cases. |
 | `ztd agents init` | Add the optional Codex bootstrap files. |
 | `ztd ztd-config` | Regenerate `TestRowMap` and runtime fixture metadata from DDL without Docker. |
 | `ztd lint` | Lint SQL against a temporary Postgres. |
