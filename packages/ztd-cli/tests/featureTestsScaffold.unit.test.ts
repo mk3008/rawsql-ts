@@ -108,7 +108,8 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(testPlanFile).toContain('DB Scenario Hints');
   expect(testPlanFile).toContain('After DB Semantics');
   expect(testPlanFile).toContain('- `afterDb` is optional and must be a pure fixture with schema-qualified table keys.');
-  expect(testPlanFile).toContain('Row order is ignored, but row content must match exactly.');
+  expect(testPlanFile).toContain('subset match');
+  expect(testPlanFile).toContain('Row order is ignored');
 
   const analysisFile = JSON.parse(
     readFileSync(path.join(featureDir, 'insert-users', 'tests', 'generated', 'analysis.json'), 'utf8')
