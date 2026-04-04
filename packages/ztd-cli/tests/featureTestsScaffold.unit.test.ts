@@ -84,6 +84,15 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(vitestEntrypointFile).toContain('expect(cases.length).toBeGreaterThan(0);');
   expect(vitestEntrypointFile).toContain('await runQuerySpecZtdCases(cases, executeInsertUsersQuerySpec);');
 
+  const queryTypesFile = readFileSync(
+    path.join(featureDir, 'insert-users', 'tests', 'queryspec-ztd-types.ts'),
+    'utf8'
+  );
+  expect(queryTypesFile).toContain('export type InsertUsersBeforeDb = { public: { users: readonly { email?: unknown }[] } };');
+  expect(queryTypesFile).toContain('export type InsertUsersInput = { email: unknown };');
+  expect(queryTypesFile).toContain('export type InsertUsersOutput = Record<string, unknown>;');
+  expect(queryTypesFile).not.toContain('InsertUsersBeforeDb = Record<string, unknown>');
+
   const testPlanFile = readFileSync(
     path.join(featureDir, 'insert-users', 'tests', 'generated', 'TEST_PLAN.md'),
     'utf8'
@@ -108,6 +117,7 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(testPlanFile).toContain('DB Scenario Hints');
   expect(testPlanFile).toContain('After DB Semantics');
   expect(testPlanFile).toContain('- `afterDb` is optional and must be a pure fixture with schema-qualified table keys.');
+  expect(testPlanFile).toContain('unordered multiset');
   expect(testPlanFile).toContain('subset match');
   expect(testPlanFile).toContain('Row order is ignored');
 
@@ -187,6 +197,8 @@ test('runFeatureTestsScaffoldCommand refreshes generated analysis without overwr
   writeFileSync(caseFile, "export const marker = 'keep-me';\n", 'utf8');
   const entrypointFile = path.join(testsDir, 'insert-users.queryspec.ztd.test.ts');
   writeFileSync(entrypointFile, "export const entrypointMarker = 'keep-me';\n", 'utf8');
+  const queryTypesFile = path.join(testsDir, 'queryspec-ztd-types.ts');
+  writeFileSync(queryTypesFile, "export const queryTypesMarker = 'refresh-me';\n", 'utf8');
 
   await runFeatureTestsScaffoldCommand({
     feature: 'users-insert',
@@ -196,5 +208,6 @@ test('runFeatureTestsScaffoldCommand refreshes generated analysis without overwr
 
   expect(readFileSync(caseFile, 'utf8')).toBe("export const marker = 'keep-me';\n");
   expect(readFileSync(entrypointFile, 'utf8')).toBe("export const entrypointMarker = 'keep-me';\n");
+  expect(readFileSync(queryTypesFile, 'utf8')).not.toBe("export const queryTypesMarker = 'refresh-me';\n");
   expect(readFileSync(path.join(generatedDir, 'analysis.json'), 'utf8')).toContain('"schemaVersion": 1');
 });

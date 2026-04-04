@@ -57,6 +57,17 @@ Do not put returned columns into the input fixture; assert them only after the D
 If the returned result is `null`, stop and fix the scaffold or DDL instead of weakening the success-path schema or seeding fake rows.
 Before writing the success-path assertion, inspect the current SQL and QuerySpec. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.
 After the SQL and DTO edits settle, run `ztd feature tests scaffold --feature <feature-name>` to refresh `tests/generated/TEST_PLAN.md` and `analysis.json`, create the thin `tests/<query-name>.queryspec.ztd.test.ts` Vitest entrypoint if it is missing, and keep `tests/cases/` as human/AI-owned persistent cases around the fixed app-level ZTD runner. `generated/*` is CLI owned and refreshable, while the thin entrypoint is kept. If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs. `beforeDb` and `afterDb` are pure fixture skeletons with schema-qualified table keys. `afterDb` compares rows by subset match after normalizing object key order, while row order itself is ignored. When the cases are ready, run `npx vitest run src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts` to execute the ZTD query test.
+
+## Troubleshooting
+
+- If a DB-backed ZTD case returns `user_id: null`, inspect the fixture manifest and rewrite path before weakening the case.
+- Compare the direct database `INSERT ... RETURNING ...` result with the ZTD result to tell whether the problem is the DB, the manifest, or the rewrite path.
+- If the workspace is meant to reflect a source change, verify it resolves `rawsql-ts` from the local source tree instead of a registry copy.
+- `afterDb` remains subset-based, row order is ignored, and volatile columns can stay out of the persistent case.
+- If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; `ztd-cli` or `rawsql-ts` can still be the source of the bug.
+- A `user_id: null` symptom usually points at fixture manifest, metadata, or rewrite path trouble rather than the DB engine itself.
+- When a dogfood workspace should reflect a source change, verify the local `rawsql-ts` checkout is being resolved instead of a registry copy.
+- For `afterDb` false negatives, check the comparison path, row-order handling, and any volatile columns you intentionally left out.
 Read the nearest AGENTS.md files first.
 Do not apply migrations automatically.
 ```

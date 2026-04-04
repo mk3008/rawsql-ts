@@ -56,6 +56,13 @@ docker compose up -d
 npx vitest run
 ```
 
+### ZTD Runtime Debugging
+
+- If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; check whether `ztd-cli` or `rawsql-ts` changed the manifest or rewrite path.
+- If you see `user_id: null`, compare the direct database `INSERT ... RETURNING ...` result with the ZTD result and inspect `.ztd/generated/ztd-fixture-manifest.generated.ts` first.
+- If a dogfood workspace is meant to reflect a source change, verify that it resolves `rawsql-ts` from the local source tree rather than a registry copy.
+- If `afterDb` looks wrong, remember that the verifier uses subset matching, ignores row order, and may omit volatile columns from the persistent case.
+
 ## Create the Users Insert Feature
 
 Use this after Quickstart.
@@ -71,6 +78,13 @@ npx ztd feature scaffold --table users --action insert
 Scaffold the `users-insert` feature with co-located SQL, specs, and a thin tests entrypoint.
 
 After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`. That command also creates the thin Vitest entrypoint `src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts`, which stays checked in as a small adapter around the fixed app-level harness. `generated/*` is CLI owned and refreshable, `cases/*` is human/AI owned and kept, and the thin entrypoint is kept. ZTD here means queryspec-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor. Persistent case files belong in `src/features/<feature-name>/<query-name>/tests/cases/`. If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs. `beforeDb` and `afterDb` are schema-qualified pure fixture skeletons. Use validation-only cases for boundary checks and DB-backed cases for the success path. Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.entryspec.test.ts` for mock-based boundary tests. `afterDb` compares rows by subset match after normalizing object key order, and row order itself is ignored. After the cases are filled, run `npx vitest run src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts` to execute the ZTD query test.
+
+## Troubleshooting
+
+- If a DB-backed ZTD case returns `user_id: null`, check the fixture manifest and rewrite path before weakening the case.
+- Compare the direct database `INSERT ... RETURNING ...` result with the ZTD result so you can separate a DB issue from a manifest or rewrite issue.
+- If the workspace is meant to reflect a source change, verify it resolves `rawsql-ts` from the local source tree instead of a registry copy.
+- When `afterDb` fails, remember that the comparison is subset-based, row order is ignored, and volatile columns such as timestamps may be intentionally omitted from the fixture.
 
 ```text
 Write ZTD-format cases for the queryspec.

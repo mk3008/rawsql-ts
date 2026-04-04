@@ -147,11 +147,11 @@ export async function runFeatureTestsScaffoldCommand(options: FeatureTestsComman
   ensureDirectory(queryLayout.casesDir);
 
   // The Vitest entrypoint and the initial case file are created once and then
-  // treated as persistent query-owned assets. `--force` only refreshes the
-  // CLI-owned generated snapshot files below.
+  // treated as persistent query-owned assets. `--force` refreshes the CLI-owned
+  // generated snapshot files and the query-local type alias file below.
   writeFileIfMissing(queryLayout.entrypointFile, files.vitestEntrypointFile);
   writeFileIfMissing(queryLayout.basicCaseFile, files.basicCaseFile);
-  writeFileIfMissing(queryLayout.queryTypesFile, files.queryTypesFile);
+  writeFeatureFile(queryLayout.queryTypesFile, files.queryTypesFile, options.force === true);
   writeFeatureFile(queryLayout.planFile, files.testPlanFile, options.force === true);
   writeFeatureFile(queryLayout.analysisFile, files.analysisFile, options.force === true);
 
@@ -235,7 +235,7 @@ function renderFeatureTestScaffoldFiles(params: {
     '## After DB Semantics',
     '',
     '- `afterDb` is optional and must be a pure fixture with schema-qualified table keys.',
-    '- The harness compares post-execution rows by subset match after normalizing object key order.',
+    '- The harness compares post-execution rows as an unordered multiset by subset match after normalizing object key order.',
     '- Row order is ignored, but row content must still match the fields you spell out.',
     '- Use `afterDb` for post-execution snapshots when you want to assert the rows you spell out.',
     '',
