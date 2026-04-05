@@ -315,17 +315,17 @@ function verifyNpmPrimaryPath(packages) {
   assertIncludes(readme, "The project is feature-first by default:", "phase-a scaffold-readme");
   assertIncludes(
     readme,
-    "local-source dogfood output that resolves `rawsql-ts` packages through `file:` dependencies back to a monorepo checkout",
+    "local-source workspace output that resolves `rawsql-ts` packages through `file:` dependencies back to a monorepo checkout",
     "phase-a scaffold-readme"
   );
   assertIncludes(
     readme,
-    "Check `package.json` to see which mode you are in. If you see `file:` dependencies that point back to a monorepo checkout, this is a local-source dogfood workspace and the monorepo checkout is the source of truth.",
+    "Check `package.json` to see which mode you are in. If you see `file:` dependencies that point back to a monorepo checkout, this is a local-source workspace and the monorepo checkout is the source of truth.",
     "phase-a scaffold-readme"
   );
   assertIncludes(readme, "Use this short prompt:", "phase-a scaffold-readme");
   assertIncludes(readme, "Choose `ztd init` or `ztd init --starter` based on whether you want the removable starter sample.", "phase-a scaffold-readme");
-  assertIncludes(readme, "Add `--with-dogfooding` if you want `PROMPT_DOGFOOD.md` for prompt review.", "phase-a scaffold-readme");
+  assertIncludes(readme, "Add the optional prompt-review file if you want `PROMPT_DOGFOOD.md` for prompt review.", "phase-a scaffold-readme");
   assertIncludes(readme, "The feature-first path is successful when:", "phase-a scaffold-readme");
   assertExcludes(readme, "pnpm exec ztd ztd-config", "phase-a scaffold-readme");
 
