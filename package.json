@@ -42,7 +42,8 @@
     "docs:preview": "vitepress preview docs",
     "docs:api": "typedoc && node scripts/postprocess-docs.mjs",
     "verify:customer-consumers": "node scripts/verify-published-package-mode.mjs",
-    "verify:published-package-mode": "node scripts/verify-published-package-mode.mjs"
+    "verify:published-package-mode": "node scripts/verify-published-package-mode.mjs",
+    "verify:generated-project-mode": "node scripts/verify-generated-project-mode.mjs"
   },
   "keywords": [
     "sql",

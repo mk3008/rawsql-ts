@@ -161,6 +161,7 @@ If you want a deeper walkthrough, keep that in the linked guides instead of expa
 ### Developer Guides
 
 - [Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md) - unpublished local checkout workflow
+- [Generated-Project Verification Before Merge](../../docs/guide/generated-project-verification.md) - fresh-project scaffold and layout smoke check for `ztd init` and `feature scaffold`
 - [Codex Bootstrap Verification](../../docs/dogfooding/ztd-codex-bootstrap-verification.md) - reviewer-checkable fresh-project verification for `ztd agents init`
 - [ztd-cli spawn EPERM Investigation](../../docs/dogfooding/ztd-cli-spawn-eperm-investigation.md) - reviewer-checkable root-cause investigation for the local Vitest startup blocker
 - [ztd Onboarding Dogfooding](../../docs/dogfooding/ztd-onboarding-dogfooding.md) - reviewer-checkable README Quickstart and tutorial verification for the customer-facing onboarding path
