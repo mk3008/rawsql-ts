@@ -13,9 +13,10 @@ The project is feature-first by default:
 
 - keep SQL, specs, and tests close to each feature
 - use `@rawsql-ts/sql-contract` for QuerySpec contracts
-- keep user-facing tests under `src/features/<feature>/tests/`
-- keep tool-managed ZTD workspace files under `.ztd/tests/` and `.ztd/generated/`
-- `ztd.config.json` controls the tool-managed test workspace while the feature-local tests stay next to the feature they cover
+- keep feature-root entryspec tests under `src/features/<feature>/tests/`
+- keep query-local ZTD generated assets under `src/features/<feature>/<query>/tests/{generated,cases}` alongside the thin entrypoint
+- keep tool-managed fixture metadata under `.ztd/generated/`, and reserve `.ztd/tests/` for shared support files only
+- `ztd.config.json` controls generated metadata and runtime defaults while the feature-local tests stay next to the feature they cover
 
 When you add SQL-backed tests, copy `.env.example` to `.env` and adjust `ZTD_DB_PORT` if needed before running the DB-backed suites.
 
@@ -26,7 +27,7 @@ npx vitest run src/features/**/*.test.ts
 The generated runtime manifest is the preferred input for `@rawsql-ts/testkit-postgres`; raw DDL directories remain a fallback for legacy layouts. The generated contract itself is schema metadata only (`tableDefinitions`), so test rows stay explicit.
 The starter keeps `ztdRootDir`, `ddlDir`, `defaultSchema`, and `searchPath` in `ztd.config.json`. The helper reads the project defaults from one place instead of repeating them in every DB-backed test.
 
-`src/features/<feature>/tests/` is where feature-local entryspec and queryspec tests live. `.ztd/tests/` is the tool-managed workspace for generated support files and ZTD runtime artifacts.
+`src/features/<feature>/tests/` is where feature-root entryspec tests live. Query-local ZTD assets live under `src/features/<feature>/<query>/tests/{generated,cases}` with the thin entrypoint beside them, while the shared runner lives at `tests/ztd/` and `.ztd/tests/` stays reserved for tool-managed support files.
 
 ## Getting Started with AI
 

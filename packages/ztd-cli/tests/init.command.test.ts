@@ -380,7 +380,7 @@ test('init can opt into dogfooding prompt files when explicitly requested', asyn
   expect(promptDogfood).toContain('refresh `src/features/<feature-name>/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`');
   expect(promptDogfood).toContain('keep the thin `src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts` Vitest entrypoint in sync');
   expect(promptDogfood).toContain('keep the persistent case files under `src/features/<feature-name>/<query-name>/tests/cases/` as human/AI-owned ZTD assets around the fixed app-level runner.');
-  expect(promptDogfood).toContain('If `ztd-config` has already run, use `src/features/<feature-name>/.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs.');
+  expect(promptDogfood).toContain('If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs.');
   expect(promptDogfood).toContain('`beforeDb` and `afterDb` are pure fixture skeletons with schema-qualified table keys.');
   expect(promptDogfood).toContain('The validation case may stay at the entry boundary, but the success case must execute through the fixed app-level ZTD runner.');
   expect(promptDogfood).toContain('Do not put returned columns into the input fixture.');

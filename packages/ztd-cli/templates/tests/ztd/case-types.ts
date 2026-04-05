@@ -1,5 +1,3 @@
-export type QuerySpecZtdResultCardinality = 'one' | 'many';
-
 export interface QuerySpecZtdCase<
   BeforeDb extends Record<string, unknown> = Record<string, unknown>,
   Input = unknown,

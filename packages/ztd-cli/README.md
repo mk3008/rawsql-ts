@@ -45,7 +45,7 @@ docker compose up -d
 npx vitest run
 ```
 
-## Troubleshooting
+### Feature Test Debugging
 
 ### Port Already In Use
 
