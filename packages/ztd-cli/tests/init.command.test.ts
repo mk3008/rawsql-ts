@@ -85,8 +85,12 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   });
 
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('This scaffold starts from `ztd init`.');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('feature-first by default');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Generate the starter flow with `ztd init --starter` when you want the removable `src/features/smoke/` sample feature');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('This generated project is either:');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('local-source dogfood output');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If you see `file:` dependencies that point back to a monorepo checkout');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('keep tool-managed ZTD workspace files under `.ztd/tests/` and `.ztd/generated/`');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('this generated workspace may not contain `docs/`');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('`ztd.config.json` controls the tool-managed test workspace while the feature-local tests stay next to the feature they cover');
   expect(existsSync(path.join(workspace, 'src', 'features', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke'))).toBe(false);
   expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain(
@@ -104,7 +108,7 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(gitignore).toMatch(/^\.env$/m);
   expect(gitignore).toMatch(/^\.env\.\*$/m);
   expect(gitignore).toMatch(/^!\.env\.example$/m);
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('copy `.env.example` to `.env`');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('copy `.env.example` to `.env` and adjust `ZTD_DB_PORT` if needed before running the DB-backed suites');
   expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain('setupFiles');
   expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain(
     ".ztd/support/setup-env.ts"
@@ -168,24 +172,18 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   ).toContain('Starter user directory for the first CRUD feature');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Starter Flow');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('starter-only sample feature');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Copy `.env.example` to `.env`');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Copy `.env.example` to `.env` and update `ZTD_DB_PORT` if 5432 is already in use.');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('ZTD_DB_PORT');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
     'derives `ZTD_TEST_DATABASE_URL` from `ZTD_DB_PORT`'
   );
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Docker Desktop or another Docker daemon is already running');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx vitest run src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('If `5432` is already in use');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('change `ZTD_DB_PORT` in `.env`');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Copy `.env.example` to `.env` and update `ZTD_DB_PORT` if 5432 is already in use.');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd feature scaffold --table users --action insert');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('@rawsql-ts/testkit-postgres');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('.ztd/support/postgres-testkit.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('fixed app-level ZTD runner');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('repository telemetry');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('queryId');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('tableDefinitions');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('createStarterPostgresTestkitClient');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'README.md'))).toContain('starter-only sample feature');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('smoke.queryspec.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('setup-env.ts');
@@ -382,13 +380,14 @@ test('init can opt into dogfooding prompt files when explicitly requested', asyn
   expect(promptDogfood).toContain('After you finish SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>`');
   expect(promptDogfood).toContain('refresh `src/features/<feature-name>/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`');
   expect(promptDogfood).toContain('keep the thin `src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts` Vitest entrypoint in sync');
-  expect(promptDogfood).toContain('fill the persistent case files under `src/features/<feature-name>/<query-name>/tests/cases/`');
+  expect(promptDogfood).toContain('keep the persistent case files under `src/features/<feature-name>/<query-name>/tests/cases/` as human/AI-owned ZTD assets around the fixed app-level runner.');
   expect(promptDogfood).toContain('If `ztd-config` has already run, use `src/features/<feature-name>/.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs.');
   expect(promptDogfood).toContain('`beforeDb` and `afterDb` are pure fixture skeletons with schema-qualified table keys.');
   expect(promptDogfood).toContain('The validation case may stay at the entry boundary, but the success case must execute through the fixed app-level ZTD runner.');
   expect(promptDogfood).toContain('Do not put returned columns into the input fixture.');
   expect(promptDogfood).toContain('Read `TEST_PLAN.md` and `analysis.json` before filling the persistent case files under `src/features/<feature-name>/<query-name>/tests/cases/`.');
-  expect(promptDogfood).toContain('`afterDb` compares exact post-execution rows after normalizing object key order, while row order itself is ignored.');
+  expect(promptDogfood).toContain('refresh `src/features/<feature-name>/<query-name>/tests/queryspec-ztd-types.ts`');
+  expect(promptDogfood).toContain('`afterDb` is subset-based per row, rows are treated as an unordered multiset, row order is ignored, and the verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding.');
   expect(promptDogfood).toContain('After the cases are ready, run `npx vitest run src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts` to execute the ZTD query test.');
   expect(promptDogfood).toContain('If the returned result is null, stop and fix the scaffold or DDL instead of weakening the case.');
   expect(promptDogfood).toContain('Before writing the success-path assertion, inspect the current SQL and QuerySpec. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.');
