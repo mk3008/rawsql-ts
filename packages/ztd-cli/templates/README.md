@@ -5,9 +5,9 @@ This scaffold starts from `ztd init`.
 This generated project is either:
 
 - standalone customer-facing output that resolves published packages, or
-- local-source dogfood output that resolves `rawsql-ts` packages through `file:` dependencies back to a monorepo checkout
+- local-source workspace output that resolves `rawsql-ts` packages through `file:` dependencies back to a monorepo checkout
 
-Check `package.json` to see which mode you are in. If you see `file:` dependencies that point back to a monorepo checkout, this is a local-source dogfood workspace and the monorepo checkout is the source of truth.
+Check `package.json` to see which mode you are in. If you see `file:` dependencies that point back to a monorepo checkout, this is a local-source workspace and the monorepo checkout is the source of truth.
 
 The project is feature-first by default:
 
@@ -27,7 +27,7 @@ npx vitest run src/features/**/*.test.ts
 The generated runtime manifest is the preferred input for `@rawsql-ts/testkit-postgres`; raw DDL directories remain a fallback for legacy layouts. The generated contract itself is schema metadata only (`tableDefinitions`), so test rows stay explicit.
 The starter keeps `ztdRootDir`, `ddlDir`, `defaultSchema`, and `searchPath` in `ztd.config.json`. The helper reads the project defaults from one place instead of repeating them in every DB-backed test.
 
-`src/features/<feature>/tests/` is where feature-root entryspec tests live. Query-local ZTD assets live under `src/features/<feature>/<query>/tests/{generated,cases}` with the thin entrypoint beside them, while the shared runner lives at `tests/ztd/` and `.ztd/tests/` stays reserved for tool-managed support files.
+`src/features/<feature>/tests/` is where feature-root entryspec tests live. Query-local ZTD assets live under `src/features/<feature>/<query>/tests/{generated,cases}` with the thin entrypoint beside them. The shared runner implementation lives at `tests/ztd/` (application code and reusable harness helpers), while `.ztd/tests/` is reserved for tool-managed support files and generated metadata.
 
 ## Getting Started with AI
 
@@ -53,13 +53,13 @@ After the SQL and DTO edits settle, run `ztd feature tests scaffold --feature <f
 - `afterDb` remains subset-based per row, rows are treated as an unordered multiset, row order is ignored, and volatile columns can stay out of the persistent case.
 - If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; `ztd-cli` or `rawsql-ts` can still be the source of the bug.
 - A `user_id: null` symptom usually points at fixture manifest, metadata, or rewrite path trouble rather than the DB engine itself.
-- When a dogfood workspace should reflect a source change, verify the local `rawsql-ts` checkout is being resolved instead of a registry copy.
+- When a local-source workspace should reflect a source change, verify the local `rawsql-ts` checkout is being resolved instead of a registry copy.
 - For `afterDb` false negatives, check the comparison path, row-order handling, multiset semantics, and any volatile columns you intentionally left out.
 Read the nearest AGENTS.md files first.
 Do not apply migrations automatically.
 ```
 
-Add `--with-dogfooding` if you want `PROMPT_DOGFOOD.md` for prompt review.
+Add the optional prompt-review file if you want `PROMPT_DOGFOOD.md` for prompt review.
 
 The feature-first path is successful when:
 
@@ -67,4 +67,4 @@ The feature-first path is successful when:
 - SQL, specs, and tests stay feature-local
 - the same vocabulary appears in the README, AGENTS files, and tutorial docs
 
-If you need the deeper change scenarios, use the linked source-repository guides when you are working from the monorepo checkout; this generated workspace may not contain `docs/`.
+If you need the deeper change scenarios, consult the source-repository guides when you are working from the monorepo checkout; this generated workspace may not contain `docs/`.
