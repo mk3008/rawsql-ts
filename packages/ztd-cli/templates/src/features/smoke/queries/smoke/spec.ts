@@ -1,9 +1,11 @@
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
 import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';
 import { loadSqlResource } from '../../../_shared/loadSqlResource.js';
 
-const smokeSqlResource = loadSqlResource(__dirname, 'smoke.sql');
+const smokeSqlResource = loadSqlResource(dirname(fileURLToPath(import.meta.url)), 'smoke.sql');
 
 const QueryParamsSchema = z.object({
   user_id: z.number().int().positive()

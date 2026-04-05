@@ -2633,7 +2633,7 @@ function buildSummaryLines(
     lines.push(` - Bundled Postgres compose image: ${postgresImage}`);
     lines.push(' - Run docker compose up -d before the DB-backed smoke test so the starter DB path is ready.');
     lines.push(
-      ' - The starter smoke path uses tests/ztd/harness.ts with the query-local cases under src/features/smoke/queries/smoke/tests/ so the starter DB path stays thin.'
+      ' - The starter smoke path uses tests/ztd/harness.ts with the query-local cases under src/features/smoke/queries/smoke/tests/{generated,cases} so the starter DB path stays thin.'
     );
   }
   if (optionalFeatures.aiGuidance) {

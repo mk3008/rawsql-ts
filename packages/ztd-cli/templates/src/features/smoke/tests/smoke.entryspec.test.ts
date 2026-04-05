@@ -28,5 +28,7 @@ test('maps the starter smoke request through the feature boundary', async () => 
 });
 
 test('rejects invalid feature input at the feature boundary for smoke', async () => {
-  await expect(executeSmokeEntrySpec(createGuardedExecutor(), {})).rejects.toThrow();
+  await expect(executeSmokeEntrySpec(createGuardedExecutor(), {})).rejects.toThrow(
+    /user_id|required|invalid/i
+  );
 });

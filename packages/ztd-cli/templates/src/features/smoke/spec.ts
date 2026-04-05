@@ -24,12 +24,6 @@ function parseRequest(raw: unknown): SmokeRequest {
   return RequestSchema.parse(raw);
 }
 
-function rejectRequest(request: SmokeRequest): void {
-  if (request.user_id <= 0) {
-    throw new Error('SmokeRequest.user_id must be a positive integer.');
-  }
-}
-
 function toQueryParams(request: SmokeRequest): SmokeQueryParams {
   return {
     user_id: request.user_id
@@ -45,7 +39,6 @@ export async function executeSmokeEntrySpec(
   rawRequest: unknown
 ): Promise<SmokeResponse> {
   const request = parseRequest(rawRequest);
-  rejectRequest(request);
   const result = await executeSmokeQuerySpec(executor, toQueryParams(request));
   return fromQueryResult(result);
 }

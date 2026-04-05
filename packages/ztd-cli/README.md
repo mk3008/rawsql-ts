@@ -90,8 +90,8 @@ After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --fe
 
 ```text
 Write ZTD-format cases for the spec.
-Keep the persistent case files in `src/features/<feature>/<query>/tests/cases/`.
-Use `src/features/<feature>/<query>/tests/generated/TEST_PLAN.md` and `analysis.json` as the source of truth.
+Keep the persistent case files in `src/features/<feature>/queries/<query>/tests/cases/`.
+Use `src/features/<feature>/queries/<query>/tests/generated/TEST_PLAN.md` and `analysis.json` as the source of truth.
 Do not put returned columns into the input fixture; only assert them after the DB-backed case returns.
 The validation cases may stay at the entry boundary, but the success case must run through the fixed app-level ZTD runner and verify the returned result.
 If the returned result is `null`, stop and fix the scaffold or DDL instead of weakening the case.

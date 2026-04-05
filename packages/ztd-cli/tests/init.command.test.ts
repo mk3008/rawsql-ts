@@ -88,7 +88,7 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('This generated project is either:');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('local-source workspace output');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('file:` dependencies that point back to a monorepo checkout');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('keep query-local ZTD generated assets under `src/features/<feature>/<query>/tests/{generated,cases}` alongside the thin entrypoint');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('keep query-local ZTD generated assets under `src/features/<feature>/queries/<query>/tests/{generated,cases}` alongside the thin entrypoint');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('this generated workspace may not contain `docs/`');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('`ztd.config.json` controls generated metadata and runtime defaults while the feature-local tests stay next to the feature they cover');
   expect(existsSync(path.join(workspace, 'src', 'features', 'README.md'))).toBe(true);
@@ -182,8 +182,9 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('fixed app-level ZTD runner');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'README.md'))).toContain('starter-only sample feature');
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'spec.ts'))).toContain('executeSmokeQuerySpec');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'spec.ts'))).toContain('executeSmokeEntrySpec');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.entryspec.test.ts'))).toContain('executeSmokeEntrySpec');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'spec.ts'))).toContain('executeSmokeQuerySpec');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'spec.ts'))).toContain('loadSqlResource');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'smoke.sql'))).toContain('from users');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'smoke.sql'))).toContain('where user_id = :user_id::integer');
