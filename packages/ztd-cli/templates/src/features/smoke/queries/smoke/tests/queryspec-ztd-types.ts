@@ -1,0 +1,24 @@
+import type { QuerySpecZtdCase } from '../../../../../../tests/ztd/case-types.js';
+
+export type SmokeBeforeDb = {
+  public: {
+    users: readonly {
+      user_id?: unknown;
+      email?: unknown;
+      display_name?: unknown;
+      is_active?: unknown;
+      created_at?: unknown;
+    }[];
+  };
+};
+
+export type SmokeInput = { user_id: unknown };
+export type SmokeOutput = { user_id: unknown; email: unknown };
+export type SmokeAfterDb = SmokeBeforeDb;
+
+export type SmokeQuerySpecZtdCase = QuerySpecZtdCase<
+  SmokeBeforeDb,
+  SmokeInput,
+  SmokeOutput,
+  SmokeAfterDb
+>;
