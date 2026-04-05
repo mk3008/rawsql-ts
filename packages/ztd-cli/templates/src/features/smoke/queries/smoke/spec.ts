@@ -12,12 +12,12 @@ const QueryParamsSchema = z.object({
 export type SmokeQueryParams = z.infer<typeof QueryParamsSchema>;
 
 const RowSchema = z.object({
-  user_id: z.number().int(),
+  user_id: z.coerce.number().int(),
   email: z.string()
 }).strict();
 
 const QueryResultSchema = z.object({
-  user_id: z.number().int(),
+  user_id: z.coerce.number().int(),
   email: z.string()
 }).strict();
 

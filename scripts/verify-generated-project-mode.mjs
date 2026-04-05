@@ -50,9 +50,16 @@ function verifyStarterScaffold(appDir) {
 
 function verifyFeatureScaffold(appDir) {
   const featureRoot = path.join(appDir, "src", "features", "users-insert");
-  assertExists(path.join(featureRoot, "entryspec.ts"), "feature entryspec");
-  assertExists(path.join(featureRoot, "insert-users", "queryspec.ts"), "feature queryspec");
-  assertExists(path.join(featureRoot, "insert-users", "insert-users.sql"), "feature SQL resource");
+  assertExists(path.join(featureRoot, "spec.ts"), "feature root spec");
+  assertExists(
+    path.join(featureRoot, "tests", "users-insert.entryspec.test.ts"),
+    "feature entryspec test"
+  );
+  assertExists(path.join(featureRoot, "queries", "insert-users", "spec.ts"), "feature query spec");
+  assertExists(
+    path.join(featureRoot, "queries", "insert-users", "insert-users.sql"),
+    "feature SQL resource"
+  );
 }
 
 function writeProjectEnvFile(appDir, dbPort) {
@@ -84,6 +91,28 @@ async function waitForPostgres(appDir) {
       await sleep(2000);
     }
   }
+}
+
+function applyStarterSchema(appDir) {
+  const schemaPath = path.join(appDir, "db", "ddl", "public.sql");
+  runIn(appDir, "docker", [
+    "cp",
+    schemaPath,
+    `${postgresContainerName}:/tmp/public.sql`,
+  ]);
+  runIn(appDir, "docker", [
+    "exec",
+    postgresContainerName,
+    "psql",
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-U",
+    "ztd",
+    "-d",
+    "ztd",
+    "-f",
+    "/tmp/public.sql",
+  ]);
 }
 
 async function main() {
@@ -155,6 +184,7 @@ async function main() {
 
     writeProjectEnvFile(generatedProjectRoot, starterDbPort);
     await waitForPostgres(generatedProjectRoot);
+    applyStarterSchema(generatedProjectRoot);
     runIn(generatedProjectRoot, PNPM, ["exec", "--", "ztd", "ztd-config"]);
     runIn(generatedProjectRoot, PNPM, ["test"]);
 
@@ -171,6 +201,7 @@ async function main() {
         "docker run -d --rm --name generated-project-check-postgres -P postgres:18",
         "docker port generated-project-check-postgres 5432/tcp",
         "write .env with the mapped Postgres port",
+        "docker cp db/ddl/public.sql and apply it to the starter Postgres container",
         "ztd ztd-config",
         "pnpm test",
       ],
