@@ -28,11 +28,11 @@ test('package README links every Further Reading guide from the public index', (
     '[Perf Tuning Decision Guide](../../docs/guide/perf-tuning-decision-guide.md)',
     '[JOIN Direction Lint Specification](../../docs/guide/join-direction-lint-spec.md)',
     '[ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md)',
-    '[Generated-Project Verification Before Merge](../../docs/guide/generated-project-verification.md)',
     '[Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md)',
+    '[Generated-Project Verification Before Merge](../../docs/guide/generated-project-verification.md)',
     '[Codex Bootstrap Verification](../../docs/dogfooding/ztd-codex-bootstrap-verification.md)',
     '[ztd-cli spawn EPERM Investigation](../../docs/dogfooding/ztd-cli-spawn-eperm-investigation.md)',
-    '[ztd Onboarding Verification](../../docs/dogfooding/ztd-onboarding-dogfooding.md)'
+    '[ztd Onboarding Dogfooding](../../docs/dogfooding/ztd-onboarding-dogfooding.md)'
   ]);
 });
 
@@ -163,7 +163,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'npx ztd agents init',
         'If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; check whether `ztd-cli` or `rawsql-ts` changed the manifest or rewrite path.',
         'If you see `user_id: null`, compare the direct database `INSERT ... RETURNING ...` result with the ZTD result and inspect `.ztd/generated/ztd-fixture-manifest.generated.ts` first.',
-        'If a local-source workspace is meant to reflect a source change, verify that it resolves `rawsql-ts` from the local source tree rather than a registry copy.',
+        'If a dogfood workspace is meant to reflect a source change, verify that it resolves `rawsql-ts` from the local source tree rather than a registry copy.',
         'After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`.',
         'generated/*` is CLI-owned and refreshable, `cases/*` is human/AI-owned and kept, and the thin entrypoint is kept.',
         'Do not apply migrations automatically.'
