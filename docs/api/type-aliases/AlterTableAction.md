@@ -3,5 +3,5 @@
 
 > **AlterTableAction** = [`AlterTableAddConstraint`](../classes/AlterTableAddConstraint.md) \| [`AlterTableDropConstraint`](../classes/AlterTableDropConstraint.md) \| [`AlterTableDropColumn`](../classes/AlterTableDropColumn.md) \| [`AlterTableAddColumn`](../classes/AlterTableAddColumn.md) \| [`AlterTableAlterColumnDefault`](../classes/AlterTableAlterColumnDefault.md)
 
-Defined in: [packages/core/src/models/DDLStatements.ts:312](https://github.com/mk3008/rawsql-ts/blob/b1d59a6317b920d69108eb2049117d9588f8670b/packages/core/src/models/DDLStatements.ts#L312)
+Defined in: [packages/core/src/models/DDLStatements.ts:312](https://github.com/mk3008/rawsql-ts/blob/638992705468a8dd89cba8016e5cc8db9e8b16ea/packages/core/src/models/DDLStatements.ts#L312)
 </div>
