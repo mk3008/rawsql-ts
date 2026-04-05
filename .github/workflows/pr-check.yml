@@ -62,7 +62,7 @@ jobs:
         changed_files=$(git diff --name-only "$base_sha...$head_sha")
         printf '%s\n' "$changed_files"
 
-        if printf '%s\n' "$changed_files" | grep -Eq '^(package\.json|scripts/verify-generated-project-mode\.mjs|packages/ztd-cli/package\.json|packages/ztd-cli/(README\.md|src/commands/(feature|init)\.ts|templates/|tests/(cliCommands|featureScaffold|init\.command)\.test\.ts)|docs/guide/(generated-project-verification|ztd-local-source-dogfooding|sql-first-end-to-end-tutorial)\.md|\.github/workflows/pr-check\.yml$)'; then
+        if printf '%s\n' "$changed_files" | grep -Eq '^(package\.json|scripts/verify-generated-project-mode\.mjs|packages/ztd-cli/package\.json|packages/ztd-cli/(README\.md|src/commands/(feature|init)\.ts|templates/|tests/(cliCommands|featureScaffold\.unit|init\.command)\.test\.ts)|docs/guide/(generated-project-verification|ztd-local-source-dogfooding|sql-first-end-to-end-tutorial)\.md|\.github/workflows/pr-check\.yml$)'; then
           echo "run=true" >> "$GITHUB_OUTPUT"
         else
           echo "run=false" >> "$GITHUB_OUTPUT"
