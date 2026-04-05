@@ -24,8 +24,8 @@ const FIXED_LAYOUT_DESCRIPTION = [
   '  tests/',
   '    <feature-name>.entryspec.test.ts',
   '  <query-name>/',
-    '    queryspec.ts',
-    '    <query-name>.sql',
+  '    queryspec.ts',
+  '    <query-name>.sql',
   '    tests/',
   '      <query-name>.queryspec.ztd.test.ts',
   '      generated/',
@@ -564,7 +564,7 @@ function renderFeatureScaffoldFiles(params: {
     generatedColumns: params.table.columns
       .filter((column) => isGeneratedInsertColumn(column, params.primaryKeyColumn))
       .map((column) => column.name),
-    queryColumns: actionPlan.resultColumns.map((column) => column.name),
+    queryColumns: actionPlan.queryColumns.map((column) => column.name),
     parameterColumns: actionPlan.requestColumns.map((column) => column.name),
     defaultExpressionColumns: actionPlan.queryColumns.filter((column) => column.source === 'ddl-default').map((column) => column.name)
   });
@@ -1216,11 +1216,18 @@ function renderReadmeFile(params: {
     '- `src/features/_shared/loadSqlResource.ts`',
     '- Catalog runtime primitives from `@rawsql-ts/sql-contract`',
     '',
-    '## AI-created files',
+    '## CLI-owned generated files',
     '',
+    `- \`${params.queryName}/tests/queryspec-ztd-types.ts\``,
     `- \`${params.queryName}/tests/generated/TEST_PLAN.md\``,
     `- \`${params.queryName}/tests/generated/analysis.json\``,
+    `- generated/* is CLI-owned and refreshable.`,
+    '',
+    '## Human/AI-owned persistent files',
+    '',
     `- persistent case files under \`${params.queryName}/tests/cases/\``,
+    `- cases/* is human/AI-owned and kept.`,
+    `- \`${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts\` is a thin Vitest entrypoint and is kept.`,
     '',
     '## Boundary responsibilities',
     '',
@@ -1255,7 +1262,7 @@ function renderReadmeFile(params: {
     '- Narrow field types and validation rules once the transport contract is known.',
     '- Replace any scaffolded DDL-backed default expression if the feature needs a different explicit SQL assignment.',
     ...renderReadmeFollowUpNotes(params.action),
-    `- After the SQL and DTO edits settle, run \`ztd feature tests scaffold --feature ${params.featureName}\` to refresh generated analysis, then let AI add persistent cases.`,
+    `- After the SQL and DTO edits settle, run \`ztd feature tests scaffold --feature ${params.featureName}\` to refresh the CLI-owned generated files, keep the thin Vitest entrypoint in place, and then keep the persistent case files as human/AI-owned query-local assets.`,
     ''
   ].join('\n');
 }

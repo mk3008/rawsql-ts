@@ -233,6 +233,7 @@ test(
   () => {
     const result = runCli(['--help']);
     assertCliSuccess(result, '--help');
+    expect(result.stdout).toContain('Getting started');
     expect(result.stdout).toContain('model-gen [options] <sql-file>');
     expect(result.stdout).toContain('feature');
   },

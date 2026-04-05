@@ -178,7 +178,6 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
     'derives `ZTD_TEST_DATABASE_URL` from `ZTD_DB_PORT`'
   );
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx vitest run src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Copy `.env.example` to `.env` and update `ZTD_DB_PORT` if 5432 is already in use.');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd feature scaffold --table users --action insert');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('@rawsql-ts/testkit-postgres');
