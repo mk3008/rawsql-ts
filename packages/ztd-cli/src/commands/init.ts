@@ -597,8 +597,10 @@ const APP_INTERFACE_SECTION = `---
 7. Guard every behavioral change with feature-local tests so regression risks stay low.
 `;
 
-function resolveTemplateDirectory(): string {
+function resolveTemplateDirectory(localSourceRoot?: string): string {
   const candidates = [
+    // Prefer the monorepo checkout explicitly when local-source mode is active.
+    ...(localSourceRoot ? [path.resolve(localSourceRoot, 'packages', 'ztd-cli', 'templates')] : []),
     // Prefer the installed package layout: <pkg>/dist/commands → <pkg>/templates.
     path.resolve(__dirname, '..', '..', '..', 'templates'),
     // Support legacy layouts that copied templates into dist/.
@@ -617,8 +619,7 @@ function resolveTemplateDirectory(): string {
   return candidates[0];
 }
 
-// Resolve templates from a shipped directory so `ztd init` works after `npm install`.
-const TEMPLATE_DIRECTORY = resolveTemplateDirectory();
+let TEMPLATE_DIRECTORY = resolveTemplateDirectory();
 
 const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
   ensureDirectory,
@@ -796,6 +797,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
 
   const summaries: Partial<Record<FileKey, FileSummary>> = {};
   const scaffoldProfile = resolveInitScaffoldProfile(rootDir, options?.localSourceRoot);
+  TEMPLATE_DIRECTORY = resolveTemplateDirectory(scaffoldProfile.localSourceRoot ?? undefined);
 
   // Ask how the user prefers to populate the initial schema.
   if (workflow === 'pg_dump') {

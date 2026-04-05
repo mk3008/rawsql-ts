@@ -41,9 +41,9 @@ function verifyStarterScaffold(appDir) {
     throw new Error("[generated-project verification] starter scaffold did not install @rawsql-ts/ztd-cli.");
   }
   assertExists(path.join(appDir, "README.md"), "starter README");
-  assertExists(path.join(appDir, "src", "features", "smoke", "tests", "smoke.test.ts"), "starter smoke test");
+  assertExists(path.join(appDir, "src", "features", "smoke", "tests", "smoke.entryspec.test.ts"), "starter smoke boundary test");
   assertExists(
-    path.join(appDir, "src", "features", "smoke", "tests", "smoke.queryspec.test.ts"),
+    path.join(appDir, "src", "features", "smoke", "queries", "smoke", "tests", "smoke.queryspec.ztd.test.ts"),
     "starter DB-backed smoke test"
   );
 }
@@ -176,11 +176,11 @@ async function main() {
       ],
       files: [
         "README.md",
-        "src/features/smoke/tests/smoke.test.ts",
-        "src/features/smoke/tests/smoke.queryspec.test.ts",
-        "src/features/users-insert/entryspec.ts",
-        "src/features/users-insert/insert-users/queryspec.ts",
-        "src/features/users-insert/insert-users/insert-users.sql",
+        "src/features/smoke/tests/smoke.entryspec.test.ts",
+        "src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts",
+        "src/features/users-insert/tests/users-insert.entryspec.test.ts",
+        "src/features/users-insert/queries/insert-users/spec.ts",
+        "src/features/users-insert/queries/insert-users/insert-users.sql",
       ],
     });
   } finally {
