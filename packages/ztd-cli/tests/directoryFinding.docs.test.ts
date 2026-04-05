@@ -18,7 +18,6 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
 
   for (const doc of [rootReadme, packageReadme, scaffoldReadme, featuresReadme, smokeReadme]) {
     expect(doc).toContain('src/features');
-    expect(doc).toContain('smoke');
     expect(doc).not.toContain('tables/views');
   }
 
@@ -27,6 +26,8 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(scaffoldReadme).toContain('feature-first');
   expect(featuresReadme).toContain('smoke');
   expect(smokeReadme).toContain('starter-only sample feature');
+  expect(smokeReadme).toContain('mirrors the fixed `users-insert` layout');
+  expect(smokeReadme).toContain('queries/smoke/spec.ts');
   expect(rootReadme).toContain('Migration Repair Loop');
   expect(packageReadme).toContain('Quickstart');
   expect(packageReadme).toContain('Create the Users Insert Feature');
@@ -34,12 +35,12 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('Commands');
   expect(packageReadme).toContain('Glossary');
   expect(packageReadme).toContain('Further Reading');
-  expect(packageReadme).toContain('ZTD here means feature-local SQL tests that execute through the project testkit against the real database engine, not a mocked executor.');
-  expect(packageReadme).toContain('The validation checks may stay at the entry boundary, but the successful insert must run through the DB-backed ZTD path and verify the returned id.');
-  expect(packageReadme).toContain('Do not put returned columns such as `user_id` into the input fixture; only assert them after the DB-backed insert returns.');
-  expect(packageReadme).toContain('If the returned id is `null`, stop and fix the scaffold or DDL instead of weakening the test.');
-  expect(packageReadme).toContain('Before writing the success-path assertion, inspect `insert-users.sql` and `queryspec.ts`. If the scaffold does not actually return a non-null id, report that mismatch instead of inventing fixture data or schema overrides.');
-  expect(scaffoldReadme).toContain('Make sure the result executes the users SQL through the DB-backed ZTD path and checks mapping and validation, not just property values.');
+  expect(packageReadme).toContain('ZTD here means query-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor.');
+  expect(packageReadme).toContain('Use validation-only cases for boundary checks and DB-backed cases for the success path.');
+  expect(packageReadme).toContain('Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.entryspec.test.ts` for mock-based boundary tests.');
+  expect(packageReadme).toContain('The starter `smoke` sample now mirrors the same feature-first layout: `src/features/smoke/spec.ts`, `src/features/smoke/tests/smoke.entryspec.test.ts`, and `src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts`.');
+  expect(packageReadme).toContain('After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`.');
+  expect(scaffoldReadme).toContain('Make sure the queryspec result executes through the DB-backed ZTD path and checks mapping and validation, not just property values.');
   expect(readNormalizedFile('docs/guide/sql-first-end-to-end-tutorial.md')).toContain('Scenario CLI at a glance');
   expect(readNormalizedFile('docs/dogfooding/ztd-migration-lifecycle.md')).toContain('Preferred CLI by scenario');
   expect(packageReadme).toContain('## Further Reading');
@@ -56,8 +57,8 @@ test('feature guidance centers the sample feature and role-based folders', () =>
     'packages/ztd-cli/templates/src/features/AGENTS.md',
     'packages/ztd-cli/templates/src/features/README.md',
     'packages/ztd-cli/templates/src/features/smoke/README.md',
-    'packages/ztd-cli/templates/src/features/smoke/persistence/README.md',
-    'packages/ztd-cli/templates/src/features/smoke/tests/README.md'
+    'packages/ztd-cli/templates/src/features/smoke/spec.ts',
+    'packages/ztd-cli/templates/src/features/smoke/tests/smoke.entryspec.test.ts'
   ];
 
   for (const file of files) {
@@ -68,17 +69,26 @@ test('feature guidance centers the sample feature and role-based folders', () =>
   }
 
   expect(readNormalizedFile('packages/ztd-cli/templates/src/features/AGENTS.md')).toContain('domain');
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/persistence/README.md')).toContain(
-    'named-parameter'
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/spec.ts')).toContain(
+    'executeSmokeEntrySpec'
   );
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/README.md')).toContain(
-    '@rawsql-ts/testkit-postgres'
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/queries/smoke/spec.ts')).toContain(
+    'executeSmokeQuerySpec'
   );
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/tests/README.md')).toContain(
-    'smoke.queryspec.test.ts'
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/queries/smoke/smoke.sql')).toContain(
+    'where user_id = :user_id::integer'
   );
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/tests/README.md')).toContain(
-    'createStarterPostgresTestkitClient'
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/tests/smoke.entryspec.test.ts')).toContain(
+    'executeSmokeEntrySpec'
+  );
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts')).toContain(
+    'runQuerySpecZtdCases'
+  );
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/_shared/featureQueryExecutor.ts')).toContain(
+    'FeatureQueryExecutor'
+  );
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/_shared/loadSqlResource.ts')).toContain(
+    'loadSqlResource'
   );
 });
 
@@ -91,15 +101,17 @@ test('feature-first scaffold files exist in the template bundle', () => {
     'packages/ztd-cli/templates/src/features/README.md',
     'packages/ztd-cli/templates/src/features/AGENTS.md',
     'packages/ztd-cli/templates/src/features/smoke/README.md',
-    'packages/ztd-cli/templates/src/features/smoke/application/README.md',
-    'packages/ztd-cli/templates/src/features/smoke/domain/README.md',
-    'packages/ztd-cli/templates/src/features/smoke/persistence/README.md',
-    'packages/ztd-cli/templates/src/features/smoke/tests/README.md',
-    'packages/ztd-cli/templates/src/features/smoke/persistence/smoke.sql',
-    'packages/ztd-cli/templates/src/features/smoke/persistence/smoke.spec.ts',
-    'packages/ztd-cli/templates/src/features/smoke/tests/smoke.test.ts',
-    'packages/ztd-cli/templates/src/features/smoke/tests/smoke.validation.test.ts',
-    'packages/ztd-cli/templates/src/features/smoke/tests/smoke.queryspec.test.ts'
+    'packages/ztd-cli/templates/src/features/smoke/spec.ts',
+    'packages/ztd-cli/templates/src/features/smoke/tests/smoke.entryspec.test.ts',
+    'packages/ztd-cli/templates/src/features/smoke/queries/smoke/spec.ts',
+    'packages/ztd-cli/templates/src/features/smoke/queries/smoke/smoke.sql',
+    'packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts',
+    'packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/queryspec-ztd-types.ts',
+    'packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/cases/basic.case.ts',
+    'packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/generated/TEST_PLAN.md',
+    'packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/generated/analysis.json',
+    'packages/ztd-cli/templates/src/features/_shared/featureQueryExecutor.ts',
+    'packages/ztd-cli/templates/src/features/_shared/loadSqlResource.ts'
   ];
 
   for (const requiredPath of requiredPaths) {

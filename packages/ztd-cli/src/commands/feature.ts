@@ -20,14 +20,15 @@ type FeatureAction = (typeof FEATURE_ACTIONS)[number];
 const DEFAULT_PAGE_SIZE = 50;
 const FIXED_LAYOUT_DESCRIPTION = [
   'src/features/<feature-name>/',
-  '  entryspec.ts',
+  '  spec.ts',
   '  tests/',
   '    <feature-name>.entryspec.test.ts',
-  '  <query-name>/',
-  '    queryspec.ts',
-  '    <query-name>.sql',
-  '    tests/',
-  '      <query-name>.queryspec.ztd.test.ts',
+  '  queries/',
+  '    <query-name>/',
+  '      spec.ts',
+  '      <query-name>.sql',
+  '      tests/',
+  '        <query-name>.queryspec.ztd.test.ts',
   '      generated/',
   '        TEST_PLAN.md',
   '        analysis.json',
@@ -130,7 +131,7 @@ export function registerFeatureCommand(program: Command): void {
       '',
       'Reserved for AI follow-up (not created by the CLI):',
       `- Run \`ztd feature tests scaffold --feature ${result.featureName}\` after you finish SQL and DTO edits.`,
-      `- That command will refresh src/features/${result.featureName}/${result.queryName}/tests/generated/TEST_PLAN.md and analysis.json, while AI-authored cases stay in src/features/${result.featureName}/${result.queryName}/tests/cases/.`
+      `- That command will refresh src/features/${result.featureName}/queries/${result.queryName}/tests/generated/TEST_PLAN.md and analysis.json, while AI-authored cases stay in src/features/${result.featureName}/queries/${result.queryName}/tests/cases/.`
     ];
       process.stdout.write(`${lines.join('\n')}\n`);
     });
@@ -203,7 +204,7 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
 
   emitDiagnostic({
     code: 'feature-scaffold.ai-follow-up',
-    message: `CLI created src/features/${featureName}/tests/ only for the entryspec lane. Run feature tests scaffold after SQL and DTO edits to refresh query-local generated analysis and keep AI-authored cases under src/features/${featureName}/${queryName}/tests/cases/.`
+    message: `CLI created src/features/${featureName}/tests/ only for the spec lane. Run feature tests scaffold after SQL and DTO edits to refresh query-local generated analysis and keep AI-authored cases under src/features/${featureName}/queries/${queryName}/tests/cases/.`
   });
 
   return {
@@ -482,12 +483,12 @@ function buildFeatureScaffoldPaths(rootDir: string, featureName: string, queryNa
   const sharedDir = path.join(rootDir, 'src', 'features', '_shared');
   return {
     featureDir,
-    queryDir: path.join(featureDir, queryName),
+    queryDir: path.join(featureDir, 'queries', queryName),
     testsDir: path.join(featureDir, 'tests'),
     entrySpecTestFile: path.join(featureDir, 'tests', `${featureName}.entryspec.test.ts`),
-    entrySpecFile: path.join(featureDir, 'entryspec.ts'),
-    querySpecFile: path.join(featureDir, queryName, 'queryspec.ts'),
-    querySqlFile: path.join(featureDir, queryName, `${queryName}.sql`),
+    entrySpecFile: path.join(featureDir, 'spec.ts'),
+    querySpecFile: path.join(featureDir, 'queries', queryName, 'spec.ts'),
+    querySqlFile: path.join(featureDir, 'queries', queryName, `${queryName}.sql`),
     readmeFile: path.join(featureDir, 'README.md'),
     sharedDir,
     featureQueryExecutorFile: path.join(sharedDir, 'featureQueryExecutor.ts'),
@@ -954,13 +955,13 @@ function renderEntrySpecFile(params: {
 
   return [
     "import { z } from 'zod';",
-    "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor';",
+    "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor.js';",
     '',
     `import {`,
       `  execute${params.queryPascalName}QuerySpec,`,
     `  type ${params.queryPascalName}QueryParams,`,
     `  type ${params.queryPascalName}QueryResult`,
-    `} from './${params.queryName}/queryspec';`,
+    `} from './queries/${params.queryName}/spec.js';`,
     '',
     ...renderEntrySpecBoundaryComments(params.action),
     '',
@@ -1019,7 +1020,7 @@ function renderEntrySpecTestFile(params: {
   pascalName: string;
   hasRequestFields: boolean;
 }): string {
-  const entrypointImportPath = '../entryspec.js';
+  const entrypointImportPath = '../spec.js';
   const sharedExecutorImportPath = '../../_shared/featureQueryExecutor.js';
 
   if (!params.hasRequestFields) {
@@ -1027,11 +1028,11 @@ function renderEntrySpecTestFile(params: {
       "import { test } from 'vitest';",
       '',
       `test.todo('cover feature boundary behavior for ${params.featureName}/${params.queryName}');`,
-      `test.todo('cover normalization and response mapping for ${params.pascalName} entryspec');`,
+      `test.todo('cover normalization and response mapping for ${params.pascalName} spec');`,
       '',
       '// AI follow-up note:',
       `// Keep the real assertions in this file if the feature boundary needs more than mock-based boundary checks.`,
-      `// The query-boundary contract lives in ${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts.`,
+      `// The query-boundary contract lives in queries/${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts.`,
       ''
     ].join('\n');
   }
@@ -1045,7 +1046,7 @@ function renderEntrySpecTestFile(params: {
     'function createGuardedExecutor(): FeatureQueryExecutor {',
     '  return {',
     '    async query() {',
-    `      throw new Error('Feature boundary tests stay mock-based for ${params.featureName}; keep DB-backed execution in the queryspec lane.');`,
+    `      throw new Error('Feature boundary tests stay mock-based for ${params.featureName}; keep DB-backed execution in the spec lane.');`,
     '    }',
     '  };',
     '}',
@@ -1054,11 +1055,11 @@ function renderEntrySpecTestFile(params: {
     `  await expect(execute${params.pascalName}EntrySpec(createGuardedExecutor(), {})).rejects.toThrow();`,
     '});',
     '',
-    `test.todo('cover normalization and response mapping for ${params.pascalName} entryspec');`,
+    `test.todo('cover normalization and response mapping for ${params.pascalName} spec');`,
     '',
     '// AI follow-up note:',
     `// Keep the real assertions in this file if the feature boundary needs more than mock-based boundary checks.`,
-    `// The query-boundary contract lives in ${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts.`,
+    `// The query-boundary contract lives in queries/${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts.`,
     ''
   ].join('\n');
 }
@@ -1101,8 +1102,8 @@ function renderQuerySpecFile(params: {
   return [
     "import { z } from 'zod';",
     '',
-    "import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor';",
-    "import { loadSqlResource } from '../../_shared/loadSqlResource';",
+    "import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';",
+    "import { loadSqlResource } from '../../../_shared/loadSqlResource.js';",
     '',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
     '',
@@ -1185,8 +1186,8 @@ function renderReadmeFile(params: {
     : params.action === 'insert'
       ? '- No general insert columns used DDL-backed default expressions in this scaffold.'
       : params.action === 'get-by-id' || params.action === 'list'
-        ? '- Read baselines do not infer additional filter or default-expression policy beyond the explicit SQL and queryspec contract.'
-        : '- Write baselines do not infer additional default-expression or policy behavior beyond the explicit SQL and queryspec contract.';
+        ? '- Read baselines do not infer additional filter or default-expression policy beyond the explicit SQL and spec contract.'
+        : '- Write baselines do not infer additional default-expression or policy behavior beyond the explicit SQL and spec contract.';
 
   return [
     `# ${params.featureName}`,
@@ -1203,11 +1204,11 @@ function renderReadmeFile(params: {
     '',
     '## CLI-created files',
     '',
-    '- `entryspec.ts`',
+    '- `spec.ts`',
     `- \`tests/${params.featureName}.entryspec.test.ts\``,
-    `- \`${params.queryName}/queryspec.ts\``,
-    `- \`${params.queryName}/${params.queryName}.sql\``,
-    `- \`${params.queryName}/tests/\``,
+    `- \`queries/${params.queryName}/spec.ts\``,
+    `- \`queries/${params.queryName}/${params.queryName}.sql\``,
+    `- \`queries/${params.queryName}/tests/\``,
     '- `README.md`',
     '',
     '## Shared helper files created by the CLI when missing',
@@ -1218,27 +1219,27 @@ function renderReadmeFile(params: {
     '',
     '## CLI-owned generated files',
     '',
-    `- \`${params.queryName}/tests/queryspec-ztd-types.ts\``,
-    `- \`${params.queryName}/tests/generated/TEST_PLAN.md\``,
-    `- \`${params.queryName}/tests/generated/analysis.json\``,
+    `- \`queries/${params.queryName}/tests/queryspec-ztd-types.ts\``,
+    `- \`queries/${params.queryName}/tests/generated/TEST_PLAN.md\``,
+    `- \`queries/${params.queryName}/tests/generated/analysis.json\``,
     `- generated/* is CLI-owned and refreshable.`,
     '',
     '## Human/AI-owned persistent files',
     '',
-    `- persistent case files under \`${params.queryName}/tests/cases/\``,
+    `- persistent case files under \`queries/${params.queryName}/tests/cases/\``,
     `- cases/* is human/AI-owned and kept.`,
-    `- \`${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts\` is a thin Vitest entrypoint and is kept.`,
+    `- \`queries/${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts\` is a thin Vitest entrypoint and is kept.`,
     '',
     '## Boundary responsibilities',
     '',
-    '- `entryspec.ts` is the feature outer-boundary specification for request parsing, normalization, rejection, query-parameter assembly, and response shaping.',
+    '- `spec.ts` is the feature outer-boundary specification for request parsing, normalization, rejection, query-parameter assembly, and response shaping.',
     ...renderReadmeEntryspecNotes(params.action, params.parameterColumns),
-    '- `entryspec.ts` keeps its schema values and helper functions file-local; it converts request data to query params explicitly and depends on the shared executor contract directly.',
-    `- \`${params.queryName}/queryspec.ts\` is the DB-boundary specification for query params, row shape, query result shape, row-to-result mapping, and SQL execution contract.`,
-    `- \`${params.queryName}/queryspec.ts\` keeps its \`zod\` schema values, row type, and helper functions private, completes params / row / result parsing internally, and depends on the shared executor contract directly.`,
-    `- \`${params.queryName}/queryspec.ts\` and \`${params.queryName}/${params.queryName}.sql\` stay co-located as one queryspec/SQL pair.`,
+    '- `spec.ts` keeps its schema values and helper functions file-local; it converts request data to query params explicitly and depends on the shared executor contract directly.',
+    `- \`queries/${params.queryName}/spec.ts\` is the DB-boundary specification for query params, row shape, query result shape, row-to-result mapping, and SQL execution contract.`,
+    `- \`queries/${params.queryName}/spec.ts\` keeps its \`zod\` schema values, row type, and helper functions private, completes params / row / result parsing internally, and depends on the shared executor contract directly.`,
+    `- \`queries/${params.queryName}/spec.ts\` and \`queries/${params.queryName}/${params.queryName}.sql\` stay co-located as one spec/SQL pair.`,
     `- \`${params.featureName}/tests/${params.featureName}.entryspec.test.ts\` is the thin Vitest entrypoint for the feature boundary lane.`,
-    `- \`${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts\` is the thin Vitest entrypoint for the ZTD query lane.`,
+    `- \`queries/${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts\` is the thin Vitest entrypoint for the ZTD query lane.`,
     generatedColumnsLine,
     queryColumnsLine,
     parameterColumnsLine,
@@ -1247,8 +1248,8 @@ function renderReadmeFile(params: {
     '',
     '## Follow-up query growth',
     '',
-    `- Keep this baseline as one workflow and one primary query by default; add another sibling query directory next to \`${params.queryName}/\` only if a follow-up intentionally expands the feature.`,
-    '- If a follow-up adds another query directory, keep each query directory self-contained with exactly one `queryspec.ts` and one SQL resource.',
+    `- Keep this baseline as one workflow and one primary query by default; add another sibling query directory under \`queries/\` only if a follow-up intentionally expands the feature.`,
+    '- If a follow-up adds another query directory, keep each query directory self-contained with exactly one `spec.ts` and one SQL resource.',
     '- Add transport-specific adapters later only when a concrete transport contract exists.',
     '',
     '## Shared helper note',
@@ -1270,34 +1271,34 @@ function renderReadmeFile(params: {
 function renderReadmeEntryspecNotes(action: FeatureAction, parameterColumns: string[]): string[] {
   if (action === 'get-by-id') {
     return [
-      '- `entryspec.ts` uses `zod` schemas for request and response DTOs and keeps the get-by-id baseline focused on key-only request parsing.',
-      '- `entryspec.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
+      '- `spec.ts` uses `zod` schemas for request and response DTOs and keeps the get-by-id baseline focused on key-only request parsing.',
+      '- `spec.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
       '- The get-by-id baseline keeps not-found handling explicit and non-throwing so follow-up work can decide whether to keep nullable output or move to an exactly-one contract.'
     ];
   }
   if (action === 'list') {
     return [
-      '- `entryspec.ts` uses `zod` schemas for request and response DTOs, keeps the baseline request minimal, and returns a `{ items: [...] }` response contract.',
-      '- `entryspec.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
-      '- `entryspec.ts` does not expose explicit paging inputs in the baseline scaffold; follow-up work can add them once the use case is known.'
+      '- `spec.ts` uses `zod` schemas for request and response DTOs, keeps the baseline request minimal, and returns a `{ items: [...] }` response contract.',
+      '- `spec.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
+      '- `spec.ts` does not expose explicit paging inputs in the baseline scaffold; follow-up work can add them once the use case is known.'
     ];
   }
   const hasStringLikeInput = parameterColumns.length > 0;
   if (action === 'delete') {
     return [
-      '- `entryspec.ts` uses `zod` schemas for request and response DTOs and keeps the delete baseline focused on key-only request parsing.',
+      '- `spec.ts` uses `zod` schemas for request and response DTOs and keeps the delete baseline focused on key-only request parsing.',
       '- The delete baseline does not assume string normalization; add transport-specific parsing or policy checks later only when the feature actually needs them.'
     ];
   }
 
   if (hasStringLikeInput) {
     return [
-      '- `entryspec.ts` uses `zod` schemas for request and response DTOs, and the scaffold includes `trim()` plus empty-string rejection examples for current string inputs.'
+      '- `spec.ts` uses `zod` schemas for request and response DTOs, and the scaffold includes `trim()` plus empty-string rejection examples for current string inputs.'
     ];
   }
 
   return [
-    '- `entryspec.ts` uses `zod` schemas for request and response DTOs and leaves string normalization examples for follow-up when string fields appear.'
+    '- `spec.ts` uses `zod` schemas for request and response DTOs and leaves string normalization examples for follow-up when string fields appear.'
   ];
 }
 
@@ -1311,7 +1312,7 @@ function renderEntrySpecBoundaryComments(action: FeatureAction): string[] {
   if (action === 'list') {
     return [
       '// The list baseline keeps the request contract intentionally minimal.',
-      '// Paging and stable ordering stay inside queryspec.ts so the feature boundary remains transport-focused.'
+      '// Paging and stable ordering stay inside queries/<query>/spec.ts so the feature boundary remains transport-focused.'
     ];
   }
   if (action === 'insert') {
@@ -1341,7 +1342,7 @@ function renderQuerySpecBoundaryComments(action: FeatureAction): string[] {
   }
   if (action === 'list') {
     return [
-      '// Queryspec owns the list baseline paging and primary-key ordering contract.',
+      '// queries/<query>/spec.ts owns the list baseline paging and primary-key ordering contract.',
       '// Keep the request contract narrow here; explicit paging inputs can be added later when the use case is known.'
     ];
   }
@@ -1375,7 +1376,7 @@ function renderReadmeOperationNotes(action: FeatureAction, primaryKeyColumn: str
   if (action === 'list') {
     return [
       `- The baseline list query applies stable primary-key ordering by \`${primaryKeyColumn}\` and keeps paging enabled by default.`,
-      `- \`DEFAULT_PAGE_SIZE\` is set to \`${DEFAULT_PAGE_SIZE}\` in queryspec.ts so the default can be changed without widening the request contract first.`,
+      `- \`DEFAULT_PAGE_SIZE\` is set to \`${DEFAULT_PAGE_SIZE}\` in queries/<query>/spec.ts so the default can be changed without widening the request contract first.`,
       '- Generated request and response contracts follow the DDL-derived column types for this feature; the scaffold does not assume that every ID is a 32-bit integer.',
       '- The baseline response is `{ items: [...] }` so paging metadata and other list-level fields can be added later without breaking the response shape.'
     ];
@@ -1409,7 +1410,7 @@ function renderReadmeFollowUpNotes(action: FeatureAction): string[] {
   if (action === 'list') {
     return [
       '- Add explicit paging inputs, filter fields, or richer ordering only after the list use case is known.',
-      '- Keep catalog-based paging and ordering inside `queryspec.ts` as the feature grows.'
+      '- Keep catalog-based paging and ordering inside `queries/<query>/spec.ts` as the feature grows.'
     ];
   }
   if (action === 'update') {
@@ -1453,13 +1454,13 @@ function renderGetByIdEntrySpecFile(params: {
 
   return [
     "import { z } from 'zod';",
-    "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor';",
+    "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor.js';",
     '',
     `import {`,
     `  execute${params.queryPascalName}QuerySpec,`,
     `  type ${params.queryPascalName}QueryParams,`,
     `  type ${params.queryPascalName}QueryResult`,
-    `} from './${params.queryName}/queryspec';`,
+    `} from './queries/${params.queryName}/spec.js';`,
     '',
     ...renderEntrySpecBoundaryComments(params.action),
     '',
@@ -1551,13 +1552,13 @@ function renderListEntrySpecFile(params: {
 
   return [
     "import { z } from 'zod';",
-    "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor';",
+    "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor.js';",
     '',
     `import {`,
     `  execute${params.queryPascalName}QuerySpec,`,
     `  type ${params.queryPascalName}QueryParams,`,
     `  type ${params.queryPascalName}QueryResult`,
-    `} from './${params.queryName}/queryspec';`,
+    `} from './queries/${params.queryName}/spec.js';`,
     '',
     ...renderEntrySpecBoundaryComments(params.action),
     '',
@@ -1637,8 +1638,8 @@ function renderGetByIdQuerySpecFile(params: {
   return [
     "import { z } from 'zod';",
     '',
-    "import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor';",
-    "import { loadSqlResource } from '../../_shared/loadSqlResource';",
+    "import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';",
+    "import { loadSqlResource } from '../../../_shared/loadSqlResource.js';",
     '',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
     '',
@@ -1723,9 +1724,9 @@ function renderListQuerySpecFile(params: {
   return [
     "import { z } from 'zod';",
     '',
-    "import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor';",
+    "import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';",
     "import { createCatalogExecutor, type QuerySpec } from '@rawsql-ts/sql-contract';",
-    "import { loadSqlResource } from '../../_shared/loadSqlResource';",
+    "import { loadSqlResource } from '../../../_shared/loadSqlResource.js';",
     '',
     `const DEFAULT_PAGE_SIZE = ${DEFAULT_PAGE_SIZE};`,
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
@@ -1759,8 +1760,8 @@ function renderListQuerySpecFile(params: {
     '}',
     '',
     `const ${params.queryCamelName}CatalogSpec: QuerySpec<${params.queryPascalName}CatalogQueryParams, ${params.queryPascalName}Row> = {`,
-    `  id: '${params.featureName}/${params.queryName}/queryspec',`,
-    `  sqlFile: 'src/features/${params.featureName}/${params.queryName}/${params.queryName}.sql',`,
+    `  id: '${params.featureName}/queries/${params.queryName}/spec',`,
+    `  sqlFile: 'src/features/${params.featureName}/queries/${params.queryName}/${params.queryName}.sql',`,
     '  params: {',
     "    shape: 'named',",
     '    example: {',

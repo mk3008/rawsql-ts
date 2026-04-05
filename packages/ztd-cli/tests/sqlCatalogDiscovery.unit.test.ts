@@ -45,15 +45,15 @@ test('sql catalog discovery keeps deterministic ordering and excludes .test. fil
 
 test('sql catalog discovery finds feature-local specs under src/features', () => {
   const root = createWorkspace('sql-catalog-features');
-  mkdirSync(path.join(root, 'src', 'features', 'smoke', 'persistence', 'generated'), { recursive: true });
+  mkdirSync(path.join(root, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated'), { recursive: true });
   writeFileSync(
-    path.join(root, 'src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'),
-    "export const smoke = { id: 'features.smoke.persistence.smoke', sqlFile: './smoke.sql', params: { shape: 'named', example: { id: null } } };",
+    path.join(root, 'src', 'features', 'smoke', 'queries', 'smoke', 'spec.ts'),
+    "export const smoke = { id: 'features.smoke.queries.smoke.smoke', sqlFile: './smoke.sql', params: { shape: 'named', example: { user_id: 1 } } };",
     'utf8'
   );
   writeFileSync(
-    path.join(root, 'src', 'features', 'smoke', 'persistence', 'generated', 'smoke.generated.ts'),
-    "export const generated = { id: 'features.smoke.persistence.generated', sqlFile: './generated.sql', params: { shape: 'named' } };",
+    path.join(root, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'smoke.generated.ts'),
+    "export const generated = { id: 'features.smoke.queries.smoke.generated', sqlFile: './generated.sql', params: { shape: 'named' } };",
     'utf8'
   );
 
@@ -64,10 +64,10 @@ test('sql catalog discovery finds feature-local specs under src/features', () =>
   });
 
   expect(allFiles.map((filePath) => path.basename(filePath))).toEqual([
-    'smoke.generated.ts',
-    'smoke.spec.ts'
+    'spec.ts',
+    'smoke.generated.ts'
   ]);
-  expect(checkFiles.map((filePath) => path.basename(filePath))).toEqual(['smoke.spec.ts']);
+  expect(checkFiles.map((filePath) => path.basename(filePath))).toEqual(['spec.ts']);
 });
 
 test('project-wide spec discovery finds feature-local QuerySpecs without a fixed catalog root', () => {
