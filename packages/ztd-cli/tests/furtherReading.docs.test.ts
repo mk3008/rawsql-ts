@@ -28,7 +28,8 @@ test('package README links every Further Reading guide from the public index', (
     '[Perf Tuning Decision Guide](../../docs/guide/perf-tuning-decision-guide.md)',
     '[JOIN Direction Lint Specification](../../docs/guide/join-direction-lint-spec.md)',
     '[ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md)',
-    '[Local-Source Development](../../docs/guide/ztd-local-source-dogfooding.md)',
+    '[Generated-Project Verification Before Merge](../../docs/guide/generated-project-verification.md)',
+    '[Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md)',
     '[Codex Bootstrap Verification](../../docs/dogfooding/ztd-codex-bootstrap-verification.md)',
     '[ztd-cli spawn EPERM Investigation](../../docs/dogfooding/ztd-cli-spawn-eperm-investigation.md)',
     '[ztd Onboarding Verification](../../docs/dogfooding/ztd-onboarding-dogfooding.md)'
@@ -234,6 +235,22 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         '`ztd perf db reset --dry-run`',
         '`ztd perf run`',
         'compare `--strategy direct` and `--strategy decomposed`'
+      ]
+    },
+    {
+      docPath: 'docs/guide/generated-project-verification.md',
+      phrases: [
+        'Use this guide when you change the scaffold or layout that `ztd-cli` writes into a fresh project.',
+        'Build the workspace packages needed by the local-source scaffold path.',
+        'ztd init --starter --yes --local-source-root <repo-root>',
+        'ztd feature scaffold --table users --action insert',
+        'ztd ztd-config',
+        'packages/ztd-cli/src/commands/init.ts',
+        'packages/ztd-cli/src/commands/feature.ts',
+        'packages/ztd-cli/templates/**',
+        'packages/ztd-cli/tests/init.command.test.ts',
+        'packages/ztd-cli/tests/featureScaffold.unit.test.ts',
+        'packages/ztd-cli/README.md'
       ]
     },
     {

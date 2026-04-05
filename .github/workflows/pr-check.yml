@@ -53,6 +53,21 @@ jobs:
           echo "run=false" >> "$GITHUB_OUTPUT"
         fi
 
+    - name: Detect scaffold-layout changes
+      id: generated_project_changes
+      shell: bash
+      run: |
+        base_sha="${{ github.event.pull_request.base.sha }}"
+        head_sha="${{ github.event.pull_request.head.sha }}"
+        changed_files=$(git diff --name-only "$base_sha...$head_sha")
+        printf '%s\n' "$changed_files"
+
+        if printf '%s\n' "$changed_files" | grep -Eq '^(package\.json|scripts/verify-generated-project-mode\.mjs|packages/ztd-cli/package\.json|packages/ztd-cli/(README\.md|src/commands/(feature|init)\.ts|templates/|tests/(cliCommands|featureScaffold|init\.command)\.test\.ts)|docs/guide/(generated-project-verification|ztd-local-source-dogfooding|sql-first-end-to-end-tutorial)\.md|\.github/workflows/pr-check\.yml$)'; then
+          echo "run=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "run=false" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Build ZTD CLI dependencies
       if: steps.playground_changes.outputs.run == 'true'
       run: |
@@ -82,6 +97,10 @@ jobs:
     - name: Verify working tree is clean after generation
       if: steps.playground_changes.outputs.run == 'true' && steps.playground.outputs.exists == 'true'
       run: git diff --exit-code
+
+    - name: Run generated-project verification lane
+      if: steps.generated_project_changes.outputs.run == 'true'
+      run: pnpm verify:generated-project-mode
 
     - name: Run parser benchmark (PR lightweight)
       run: pnpm run benchmark:parser:pr
