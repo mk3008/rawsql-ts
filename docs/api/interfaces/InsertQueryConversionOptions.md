@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: InsertQueryConversionOptions
 
-Defined in: [packages/core/src/models/SelectQuery.ts:43](https://github.com/mk3008/rawsql-ts/blob/638992705468a8dd89cba8016e5cc8db9e8b16ea/packages/core/src/models/SelectQuery.ts#L43)
+Defined in: [packages/core/src/models/SelectQuery.ts:43](https://github.com/mk3008/rawsql-ts/blob/023a375cb53027a6fb9d41c96a4c5d3941054e3d/packages/core/src/models/SelectQuery.ts#L43)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/SelectQuery.ts:43](https://github.com/mk30
 
 > **target**: `string`
 
-Defined in: [packages/core/src/models/SelectQuery.ts:44](https://github.com/mk3008/rawsql-ts/blob/638992705468a8dd89cba8016e5cc8db9e8b16ea/packages/core/src/models/SelectQuery.ts#L44)
+Defined in: [packages/core/src/models/SelectQuery.ts:44](https://github.com/mk3008/rawsql-ts/blob/023a375cb53027a6fb9d41c96a4c5d3941054e3d/packages/core/src/models/SelectQuery.ts#L44)
 
 ***
 
@@ -17,5 +17,5 @@ Defined in: [packages/core/src/models/SelectQuery.ts:44](https://github.com/mk30
 
 > `optional` **columns**: `string`[]
 
-Defined in: [packages/core/src/models/SelectQuery.ts:45](https://github.com/mk3008/rawsql-ts/blob/638992705468a8dd89cba8016e5cc8db9e8b16ea/packages/core/src/models/SelectQuery.ts#L45)
+Defined in: [packages/core/src/models/SelectQuery.ts:45](https://github.com/mk3008/rawsql-ts/blob/023a375cb53027a6fb9d41c96a4c5d3941054e3d/packages/core/src/models/SelectQuery.ts#L45)
 </div>

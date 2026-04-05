@@ -3,7 +3,7 @@
 
 > **ColumnType** = `"string"` \| `"number"` \| `"boolean"` \| `"date"` \| `"auto"`
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:9](https://github.com/mk3008/rawsql-ts/blob/638992705468a8dd89cba8016e5cc8db9e8b16ea/packages/core/src/transformers/EnhancedJsonMapping.ts#L9)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:9](https://github.com/mk3008/rawsql-ts/blob/023a375cb53027a6fb9d41c96a4c5d3941054e3d/packages/core/src/transformers/EnhancedJsonMapping.ts#L9)
 
 Supported column types for enhanced mapping.
 </div>
