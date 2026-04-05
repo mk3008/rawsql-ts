@@ -7,13 +7,24 @@ Run the prompts one at a time against a project created with `ztd init --starter
 ## Prompt 1: Add a feature
 
 ```text
-Add a users insert feature to this feature-first project.
+Add a feature to this feature-first project.
 Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.ztd/agents/*` if present.
-Start with `npx ztd feature scaffold --table users --action insert`.
-Keep handwritten SQL and the feature entrypoint inside src/features/users-insert.
-Add the two tests in src/features/users-insert/tests as the follow-up step.
+Start with `npx ztd feature scaffold --table <table> --action <action>`.
+Keep handwritten SQL, the feature entrypoint, and QuerySpec inside `src/features/<feature-name>`.
+Keep entryspec tests mock-based in `src/features/<feature-name>/tests/<feature-name>.entryspec.test.ts`.
+After you finish SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`, refresh `src/features/<feature-name>/<query-name>/tests/queryspec-ztd-types.ts`, keep the thin `src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts` Vitest entrypoint in sync, and then keep the persistent case files under `src/features/<feature-name>/<query-name>/tests/cases/` as human/AI-owned ZTD assets around the fixed app-level runner. `generated/*` is CLI-owned and refreshable, `cases/*` is human/AI-owned and kept, and the thin entrypoint is kept. If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs. `beforeDb` and `afterDb` are pure fixture skeletons with schema-qualified table keys. The validation case may stay at the entry boundary, but the success case must execute through the fixed app-level ZTD runner. Do not put returned columns into the input fixture. Read `TEST_PLAN.md` and `analysis.json` before filling the persistent case files under `src/features/<feature-name>/<query-name>/tests/cases/`. `afterDb` is subset-based per row, rows are treated as an unordered multiset, row order is ignored, and the verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding. After the cases are ready, run `npx vitest run src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts` to execute the ZTD query test.
+If the returned result is null, stop and fix the scaffold or DDL instead of weakening the case.
+Before writing the success-path assertion, inspect the current SQL and QuerySpec. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.
 Do not apply migrations automatically.
 ```
+
+Troubleshooting reminder:
+
+- If an AI-authored ZTD test fails, check the runtime path as well as the prompt and case file; `ztd-cli` or `rawsql-ts` can still be the source of the bug.
+- If you see `user_id: null`, inspect the fixture manifest and rewrite path before weakening the case.
+- Compare the direct database `INSERT ... RETURNING ...` result with the ZTD result so you can separate the DB from manifest or rewrite issues.
+- Verify a dogfood workspace resolves `rawsql-ts` from the local source tree instead of a registry copy when you expect a source change to be reflected.
+- For `afterDb` false negatives, remember that the comparison is subset-based per row, rows are treated as an unordered multiset, row order is ignored, and volatile columns can stay out of the persistent case.
 
 ## Prompt 2: Fix a DDL change
 

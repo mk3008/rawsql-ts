@@ -233,6 +233,7 @@ test(
   () => {
     const result = runCli(['--help']);
     assertCliSuccess(result, '--help');
+    expect(result.stdout).toContain('Getting started');
     expect(result.stdout).toContain('model-gen [options] <sql-file>');
     expect(result.stdout).toContain('feature');
   },
@@ -250,6 +251,21 @@ test(
     expect(result.stdout).toContain('--dry-run');
     expect(result.stdout).toContain('--force');
     expect(result.stdout).toMatch(/insert,\s+update,\s+delete,\s+get-by-id,\s+and\s+list/);
+  },
+  60000,
+);
+
+test(
+  'feature tests scaffold help exposes the TODO-based test scaffold contract',
+  () => {
+    const result = runCli(['feature', 'tests', 'scaffold', '--help']);
+    assertCliSuccess(result, 'feature tests scaffold --help');
+    expect(result.stdout).toContain('--feature <name>');
+    expect(result.stdout).toContain('--query <name>');
+    expect(result.stdout).toContain('--dry-run');
+    expect(result.stdout).toContain('--force');
+    expect(result.stdout).toContain('Refresh queryspec-owned ZTD analysis');
+    expect(result.stdout).toContain('persistent cases for AI and humans');
   },
   60000,
 );

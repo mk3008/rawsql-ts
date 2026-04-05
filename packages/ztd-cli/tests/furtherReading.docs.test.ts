@@ -28,14 +28,10 @@ test('package README links every Further Reading guide from the public index', (
     '[Perf Tuning Decision Guide](../../docs/guide/perf-tuning-decision-guide.md)',
     '[JOIN Direction Lint Specification](../../docs/guide/join-direction-lint-spec.md)',
     '[ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md)',
-    '[Migration Lifecycle Dogfooding](../../docs/dogfooding/ztd-migration-lifecycle.md)',
-    '[Perf Scale Tuning Dogfooding](../../docs/dogfooding/perf-scale-tuning.md)',
-    '[Published-Package Verification Before Release](../../docs/guide/published-package-verification.md)',
-    '[Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md)',
-    '[ztd-cli Agent Interface](../../docs/guide/ztd-cli-agent-interface.md)',
+    '[Local-Source Development](../../docs/guide/ztd-local-source-dogfooding.md)',
     '[Codex Bootstrap Verification](../../docs/dogfooding/ztd-codex-bootstrap-verification.md)',
     '[ztd-cli spawn EPERM Investigation](../../docs/dogfooding/ztd-cli-spawn-eperm-investigation.md)',
-    '[ztd Onboarding Dogfooding](../../docs/dogfooding/ztd-onboarding-dogfooding.md)'
+    '[ztd Onboarding Verification](../../docs/dogfooding/ztd-onboarding-dogfooding.md)'
   ]);
 });
 
@@ -164,14 +160,12 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       docPath: 'packages/ztd-cli/README.md',
       phrases: [
         'npx ztd agents init',
-        '@rawsql-ts/testkit-postgres',
-        'createPostgresTestkitClient',
-        'the `@rawsql-ts/testkit-postgres` package README',
-        'If you add a no-op repository telemetry seam under `src/infrastructure/telemetry/`',
-        '.codex/config.toml',
-        '',
-        'customer bootstrap targets separately from internal `.ztd` guidance',
-        'Read the nearest AGENTS.md files first. Then read `.codex/agents/*` if present.'
+        'If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; check whether `ztd-cli` or `rawsql-ts` changed the manifest or rewrite path.',
+        'If you see `user_id: null`, compare the direct database `INSERT ... RETURNING ...` result with the ZTD result and inspect `.ztd/generated/ztd-fixture-manifest.generated.ts` first.',
+        'If a local-source workspace is meant to reflect a source change, verify that it resolves `rawsql-ts` from the local source tree rather than a registry copy.',
+        'After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`.',
+        'generated/*` is CLI-owned and refreshable, `cases/*` is human/AI-owned and kept, and the thin entrypoint is kept.',
+        'Do not apply migrations automatically.'
       ]
     },
     {
@@ -312,12 +306,12 @@ test('quickstart and tutorial spell out the common 5432 collision fallback', () 
 
   expect(packageReadme).toContain('.env.example');
   expect(packageReadme).toContain('ZTD_DB_PORT');
-  expect(packageReadme).toContain('The generated Vitest setup derives `ZTD_TEST_DATABASE_URL` from `.env`');
-  expect(packageReadme).toContain('Docker Desktop or another Docker daemon is already running');
-  expect(scaffoldReadme).toContain(
-    'If `5432` is already in use, change `ZTD_DB_PORT` in `.env` before you run those suites, for example:'
-  );
-  expect(scaffoldReadme).toContain('The generated Vitest setup derives `ZTD_TEST_DATABASE_URL` from `.env`');
+  expect(packageReadme).toContain('If port `5432` is already in use, change `ZTD_DB_PORT` in `.env` and then verify recovery with:');
+  expect(packageReadme).toContain('cp .env.example .env');
+  expect(packageReadme).toContain('docker compose up -d');
+  expect(packageReadme).toContain('npx vitest run');
+  expect(scaffoldReadme).toContain('When you add SQL-backed tests, copy `.env.example` to `.env` and adjust `ZTD_DB_PORT` if needed before running the DB-backed suites.');
+  expect(scaffoldReadme).toContain('The shared runner implementation lives at `tests/ztd/` (application code and reusable harness helpers), while `.ztd/tests/` is reserved for tool-managed support files and generated metadata.');
   expect(tutorial).toContain('If port `5432` is already in use, update `ZTD_DB_PORT` in `.env` before you rerun the compose path, for example:');
   expect(tutorial).toContain('cp .env.example .env');
   expect(tutorial).toContain('Copy-Item .env.example .env');

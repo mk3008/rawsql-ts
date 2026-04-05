@@ -45,7 +45,7 @@ docker compose up -d
 npx vitest run
 ```
 
-## Troubleshooting
+### Feature Test Debugging
 
 ### Port Already In Use
 
@@ -55,6 +55,13 @@ If port `5432` is already in use, change `ZTD_DB_PORT` in `.env` and then verify
 docker compose up -d
 npx vitest run
 ```
+
+### ZTD Runtime Debugging
+
+- If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; check whether `ztd-cli` or `rawsql-ts` changed the manifest or rewrite path.
+- If you see `user_id: null`, compare the direct database `INSERT ... RETURNING ...` result with the ZTD result and inspect `.ztd/generated/ztd-fixture-manifest.generated.ts` first.
+- If a dogfood workspace is meant to reflect a source change, verify that it resolves `rawsql-ts` from the local source tree rather than a registry copy.
+- If `afterDb` looks wrong, remember that the verifier uses subset-based per-row matching, ignores row order, treats rows as an unordered multiset, and may omit volatile columns from the persistent case.
 
 ## Create the Users Insert Feature
 
@@ -68,16 +75,25 @@ Run this first:
 npx ztd feature scaffold --table users --action insert
 ```
 
-Scaffold the `users-insert` feature with co-located SQL, specs, and tests.
+Scaffold the `users-insert` feature with co-located SQL, specs, and a thin tests entrypoint.
 
-Then ask AI to add the follow-up tests in `src/features/users-insert/tests`. ZTD here means SQL-only tests without migrations or mocks, run against the real database engine.
+After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`. That command also creates the thin Vitest entrypoint `src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts`, which stays checked in as a small adapter around the fixed app-level harness. `generated/*` is CLI-owned and refreshable, `cases/*` is human/AI-owned and kept, and the thin entrypoint is kept. ZTD here means queryspec-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor. Persistent case files belong in `src/features/<feature-name>/<query-name>/tests/cases/`. If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs. `beforeDb` and `afterDb` are schema-qualified pure fixture skeletons. Use validation-only cases for boundary checks and DB-backed cases for the success path. Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.entryspec.test.ts` for mock-based boundary tests. `afterDb` is subset-based per row, rows are treated as an unordered multiset, and row order itself is ignored. The verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding. After the cases are filled, run `npx vitest run src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts` to execute the ZTD query test.
+
+## Troubleshooting
+
+- If a DB-backed ZTD case returns `user_id: null`, check the fixture manifest and rewrite path before weakening the case.
+- Compare the direct database `INSERT ... RETURNING ...` result with the ZTD result so you can separate a DB issue from a manifest or rewrite issue.
+- If the workspace is meant to reflect a source change, verify it resolves `rawsql-ts` from the local source tree instead of a registry copy.
+- When `afterDb` fails, remember that the comparison is subset-based, row order is ignored, and volatile columns such as timestamps may be intentionally omitted from the fixture.
 
 ```text
-Write ZTD-format tests for the users insert feature.
-Keep them in src/features/users-insert/tests.
-Cover:
-- required-field validation failures
-- successful insert returning an id
+Write ZTD-format cases for the queryspec.
+Keep the persistent case files in `src/features/<feature>/<query>/tests/cases/`.
+Use `src/features/<feature>/<query>/tests/generated/TEST_PLAN.md` and `analysis.json` as the source of truth.
+Do not put returned columns into the input fixture; only assert them after the DB-backed case returns.
+The validation cases may stay at the entry boundary, but the success case must run through the fixed app-level ZTD runner and verify the returned result.
+If the returned result is `null`, stop and fix the scaffold or DDL instead of weakening the case.
+Before writing the success-path assertion, inspect the current SQL and QuerySpec. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.
 Do not apply migrations automatically.
 ```
 
@@ -94,7 +110,8 @@ If you want a deeper walkthrough, keep that in the linked guides instead of expa
 | Command | Purpose |
 |---|---|
 | `ztd init --starter` | Scaffold the starter project with smoke, DDL, compose, and local Postgres wiring. |
-| `ztd feature scaffold --table <table> --action <insert/update/delete/get-by-id/list>` | Scaffold a feature-local CRUD/SELECT slice with SQL, entrypoint, QuerySpec, tests, and DTO schemas. |
+| `ztd feature scaffold --table <table> --action <insert/update/delete/get-by-id/list>` | Scaffold a feature-local CRUD/SELECT slice with SQL, entrypoint, QuerySpec, README, and a thin tests entrypoint. |
+| `ztd feature tests scaffold --feature <feature-name>` | Refresh `tests/generated/TEST_PLAN.md` and `analysis.json`, create the thin `<query-name>.queryspec.ztd.test.ts` Vitest entrypoint when missing, and keep `tests/cases/` as human/AI-owned persistent cases. |
 | `ztd agents init` | Add the optional Codex bootstrap files. |
 | `ztd ztd-config` | Regenerate `TestRowMap` and runtime fixture metadata from DDL without Docker. |
 | `ztd lint` | Lint SQL against a temporary Postgres. |

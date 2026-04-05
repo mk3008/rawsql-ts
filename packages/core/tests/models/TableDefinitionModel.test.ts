@@ -21,6 +21,7 @@ describe('TableDefinitionModel helpers', () => {
 
         expect(definition.columns[0].typeName).toBe('bigint');
         expect(definition.columns[0].required).toBe(false);
+        expect(definition.columns[0].defaultValue).toBe('row_number() over ()');
 
         expect(definition.columns[1].typeName).toBe('numeric');
         expect(definition.columns[1].required).toBe(true);

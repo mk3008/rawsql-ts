@@ -101,7 +101,8 @@ function adaptColumn(column: CreateTableColumnDefinition): TableColumnDefinition
         name: column.name.name,
         typeName: getColumnTypeName(column),
         required,
-        defaultValue: defaultConstraint?.defaultValue ?? null,
+        // Identity columns need a deterministic stand-in so insert-to-select rewrites can emit a concrete RETURNING value.
+        defaultValue: defaultConstraint?.defaultValue ?? (hasIdentity ? 'row_number() over ()' : null),
         isNotNull: hasNotNull
     };
 }

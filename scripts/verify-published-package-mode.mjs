@@ -315,27 +315,17 @@ function verifyNpmPrimaryPath(packages) {
   assertIncludes(readme, "The project is feature-first by default:", "phase-a scaffold-readme");
   assertIncludes(
     readme,
-    "Generate the starter flow with `ztd init --starter` when you want the removable `src/features/smoke/` sample feature",
+    "local-source workspace output that resolves `rawsql-ts` packages through `file:` dependencies back to a monorepo checkout",
     "phase-a scaffold-readme"
   );
   assertIncludes(
     readme,
-    "If you need the repository telemetry seam that comes with the starter, use [Repository Telemetry Setup]",
-    "phase-a scaffold-readme"
-  );
-  assertIncludes(
-    readme,
-    "For `queryId`-based investigation, read [Repository Telemetry Setup]",
-    "phase-a scaffold-readme"
-  );
-  assertIncludes(
-    readme,
-    "For reverse lookup from observed SQL, read [Observed SQL Investigation]",
+    "Check `package.json` to see which mode you are in. If you see `file:` dependencies that point back to a monorepo checkout, this is a local-source workspace and the monorepo checkout is the source of truth.",
     "phase-a scaffold-readme"
   );
   assertIncludes(readme, "Use this short prompt:", "phase-a scaffold-readme");
-  assertIncludes(readme, "Choose ztd init or ztd init --starter based on whether I want the removable starter sample.", "phase-a scaffold-readme");
-  assertIncludes(readme, "Add `--with-dogfooding` if you want `PROMPT_DOGFOOD.md` for prompt review.", "phase-a scaffold-readme");
+  assertIncludes(readme, "Choose `ztd init` or `ztd init --starter` based on whether you want the removable starter sample.", "phase-a scaffold-readme");
+  assertIncludes(readme, "Add the optional prompt-review file if you want `PROMPT_DOGFOOD.md` for prompt review.", "phase-a scaffold-readme");
   assertIncludes(readme, "The feature-first path is successful when:", "phase-a scaffold-readme");
   assertExcludes(readme, "pnpm exec ztd ztd-config", "phase-a scaffold-readme");
 

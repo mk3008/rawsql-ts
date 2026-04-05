@@ -13,6 +13,7 @@ import { emitDiagnostic, isJsonOutput, writeCommandEnvelope } from '../utils/age
 import { ensureDirectory } from '../utils/fs';
 import { collectSqlFiles, type SqlSource } from '../utils/collectSqlFiles';
 import { loadZtdProjectConfig, resolveGeneratedDir } from '../utils/ztdProjectConfig';
+import { registerFeatureTestsScaffoldCommand } from './featureTests';
 
 const FEATURE_ACTIONS = ['insert', 'update', 'delete', 'get-by-id', 'list'] as const;
 type FeatureAction = (typeof FEATURE_ACTIONS)[number];
@@ -20,10 +21,17 @@ const DEFAULT_PAGE_SIZE = 50;
 const FIXED_LAYOUT_DESCRIPTION = [
   'src/features/<feature-name>/',
   '  entryspec.ts',
+  '  tests/',
+  '    <feature-name>.entryspec.test.ts',
   '  <query-name>/',
   '    queryspec.ts',
   '    <query-name>.sql',
-  '  tests/',
+  '    tests/',
+  '      <query-name>.queryspec.ztd.test.ts',
+  '      generated/',
+  '        TEST_PLAN.md',
+  '        analysis.json',
+  '      cases/',
   '  README.md'
 ].join('\n');
 
@@ -70,6 +78,7 @@ interface FeatureScaffoldPaths {
   featureDir: string;
   queryDir: string;
   testsDir: string;
+  entrySpecTestFile: string;
   entrySpecFile: string;
   querySpecFile: string;
   querySqlFile: string;
@@ -81,6 +90,7 @@ interface FeatureScaffoldPaths {
 
 interface FeatureScaffoldResult {
   featureName: string;
+  queryName: string;
   action: FeatureAction;
   table: string;
   primaryKeyColumn: string;
@@ -91,6 +101,7 @@ interface FeatureScaffoldResult {
 
 export function registerFeatureCommand(program: Command): void {
   const feature = program.command('feature').description('Scaffold feature-local files from schema metadata');
+  registerFeatureTestsScaffoldCommand(feature);
 
   feature
     .command('scaffold')
@@ -114,13 +125,13 @@ export function registerFeatureCommand(program: Command): void {
         `Primary key: ${result.primaryKeyColumn}`,
         `Source: ${result.source}`,
         '',
-        'Created by CLI:',
-        ...result.outputs.map((output) => `- ${output.path}`),
-        '',
-        'Reserved for AI follow-up (not created by the CLI):',
-        `- src/features/${result.featureName}/tests/${result.featureName}.queryspec.test.ts`,
-        `- src/features/${result.featureName}/tests/${result.featureName}.feature.test.ts`
-      ];
+      'Created by CLI:',
+      ...result.outputs.map((output) => `- ${output.path}`),
+      '',
+      'Reserved for AI follow-up (not created by the CLI):',
+      `- Run \`ztd feature tests scaffold --feature ${result.featureName}\` after you finish SQL and DTO edits.`,
+      `- That command will refresh src/features/${result.featureName}/${result.queryName}/tests/generated/TEST_PLAN.md and analysis.json, while AI-authored cases stay in src/features/${result.featureName}/${result.queryName}/tests/cases/.`
+    ];
       process.stdout.write(`${lines.join('\n')}\n`);
     });
 }
@@ -156,8 +167,9 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
   const outputs: FeatureScaffoldResult['outputs'] = [
     ...sharedOutputs,
     { path: toProjectRelativePath(rootDir, paths.featureDir), written: !options.dryRun, kind: 'directory' },
-    { path: toProjectRelativePath(rootDir, paths.queryDir), written: !options.dryRun, kind: 'directory' },
     { path: toProjectRelativePath(rootDir, paths.testsDir), written: !options.dryRun, kind: 'directory' },
+    { path: toProjectRelativePath(rootDir, paths.queryDir), written: !options.dryRun, kind: 'directory' },
+    { path: toProjectRelativePath(rootDir, paths.entrySpecTestFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.entrySpecFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.querySpecFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.querySqlFile), written: !options.dryRun, kind: 'file' },
@@ -167,6 +179,7 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
   if (options.dryRun) {
     return {
       featureName,
+      queryName,
       action,
       table: input.table.canonicalName,
       primaryKeyColumn,
@@ -178,10 +191,11 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
 
   ensureDirectory(paths.sharedDir);
   ensureDirectory(paths.featureDir);
-  ensureDirectory(paths.queryDir);
   ensureDirectory(paths.testsDir);
+  ensureDirectory(paths.queryDir);
   writeFileIfMissing(paths.featureQueryExecutorFile, contents.featureQueryExecutorFile);
   writeFileIfMissing(paths.loadSqlResourceFile, contents.loadSqlResourceFile);
+  writeFileIfMissing(paths.entrySpecTestFile, contents.entrySpecTestFile);
   writeFeatureFile(paths.entrySpecFile, contents.entrySpecFile, options.force === true);
   writeFeatureFile(paths.querySpecFile, contents.querySpecFile, options.force === true);
   writeFeatureFile(paths.querySqlFile, contents.querySqlFile, options.force === true);
@@ -189,11 +203,12 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
 
   emitDiagnostic({
     code: 'feature-scaffold.ai-follow-up',
-    message: `CLI created src/features/${featureName}/tests/ only. Add src/features/${featureName}/tests/${featureName}.queryspec.test.ts and src/features/${featureName}/tests/${featureName}.feature.test.ts as the AI follow-up.`
+    message: `CLI created src/features/${featureName}/tests/ only for the entryspec lane. Run feature tests scaffold after SQL and DTO edits to refresh query-local generated analysis and keep AI-authored cases under src/features/${featureName}/${queryName}/tests/cases/.`
   });
 
   return {
     featureName,
+    queryName,
     action,
     table: input.table.canonicalName,
     primaryKeyColumn,
@@ -469,6 +484,7 @@ function buildFeatureScaffoldPaths(rootDir: string, featureName: string, queryNa
     featureDir,
     queryDir: path.join(featureDir, queryName),
     testsDir: path.join(featureDir, 'tests'),
+    entrySpecTestFile: path.join(featureDir, 'tests', `${featureName}.entryspec.test.ts`),
     entrySpecFile: path.join(featureDir, 'entryspec.ts'),
     querySpecFile: path.join(featureDir, queryName, 'queryspec.ts'),
     querySqlFile: path.join(featureDir, queryName, `${queryName}.sql`),
@@ -487,6 +503,7 @@ function renderFeatureScaffoldFiles(params: {
   primaryKeyColumn: string;
 }): {
   entrySpecFile: string;
+  entrySpecTestFile: string;
   querySpecFile: string;
   querySqlFile: string;
   readmeFile: string;
@@ -547,13 +564,19 @@ function renderFeatureScaffoldFiles(params: {
     generatedColumns: params.table.columns
       .filter((column) => isGeneratedInsertColumn(column, params.primaryKeyColumn))
       .map((column) => column.name),
-    queryColumns: actionPlan.resultColumns.map((column) => column.name),
+    queryColumns: actionPlan.queryColumns.map((column) => column.name),
     parameterColumns: actionPlan.requestColumns.map((column) => column.name),
     defaultExpressionColumns: actionPlan.queryColumns.filter((column) => column.source === 'ddl-default').map((column) => column.name)
   });
 
   return {
     entrySpecFile,
+    entrySpecTestFile: renderEntrySpecTestFile({
+      featureName: params.featureName,
+      queryName: params.queryName,
+      pascalName,
+      hasRequestFields: requestFields.length > 0
+    }),
     querySpecFile,
     querySqlFile: sqlFile,
     readmeFile,
@@ -990,6 +1013,56 @@ function renderEntrySpecFile(params: {
   ].join('\n');
 }
 
+function renderEntrySpecTestFile(params: {
+  featureName: string;
+  queryName: string;
+  pascalName: string;
+  hasRequestFields: boolean;
+}): string {
+  const entrypointImportPath = '../entryspec.js';
+  const sharedExecutorImportPath = '../../_shared/featureQueryExecutor.js';
+
+  if (!params.hasRequestFields) {
+    return [
+      "import { test } from 'vitest';",
+      '',
+      `test.todo('cover feature boundary behavior for ${params.featureName}/${params.queryName}');`,
+      `test.todo('cover normalization and response mapping for ${params.pascalName} entryspec');`,
+      '',
+      '// AI follow-up note:',
+      `// Keep the real assertions in this file if the feature boundary needs more than mock-based boundary checks.`,
+      `// The query-boundary contract lives in ${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts.`,
+      ''
+    ].join('\n');
+  }
+
+  return [
+    "import { expect, test } from 'vitest';",
+    '',
+    `import { execute${params.pascalName}EntrySpec } from '${entrypointImportPath}';`,
+    `import type { FeatureQueryExecutor } from '${sharedExecutorImportPath}';`,
+    '',
+    'function createGuardedExecutor(): FeatureQueryExecutor {',
+    '  return {',
+    '    async query() {',
+    `      throw new Error('Feature boundary tests stay mock-based for ${params.featureName}; keep DB-backed execution in the queryspec lane.');`,
+    '    }',
+    '  };',
+    '}',
+    '',
+    `test('rejects invalid feature input at the feature boundary for ${params.featureName}/${params.queryName}', async () => {`,
+    `  await expect(execute${params.pascalName}EntrySpec(createGuardedExecutor(), {})).rejects.toThrow();`,
+    '});',
+    '',
+    `test.todo('cover normalization and response mapping for ${params.pascalName} entryspec');`,
+    '',
+    '// AI follow-up note:',
+    `// Keep the real assertions in this file if the feature boundary needs more than mock-based boundary checks.`,
+    `// The query-boundary contract lives in ${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts.`,
+    ''
+  ].join('\n');
+}
+
 function renderQuerySpecFile(params: {
   action: FeatureAction;
   queryName: string;
@@ -1131,9 +1204,10 @@ function renderReadmeFile(params: {
     '## CLI-created files',
     '',
     '- `entryspec.ts`',
+    `- \`tests/${params.featureName}.entryspec.test.ts\``,
     `- \`${params.queryName}/queryspec.ts\``,
     `- \`${params.queryName}/${params.queryName}.sql\``,
-    '- `tests/`',
+    `- \`${params.queryName}/tests/\``,
     '- `README.md`',
     '',
     '## Shared helper files created by the CLI when missing',
@@ -1142,10 +1216,18 @@ function renderReadmeFile(params: {
     '- `src/features/_shared/loadSqlResource.ts`',
     '- Catalog runtime primitives from `@rawsql-ts/sql-contract`',
     '',
-    '## AI-created files',
+    '## CLI-owned generated files',
     '',
-    `- \`tests/${params.featureName}.queryspec.test.ts\``,
-    `- \`tests/${params.featureName}.feature.test.ts\``,
+    `- \`${params.queryName}/tests/queryspec-ztd-types.ts\``,
+    `- \`${params.queryName}/tests/generated/TEST_PLAN.md\``,
+    `- \`${params.queryName}/tests/generated/analysis.json\``,
+    `- generated/* is CLI-owned and refreshable.`,
+    '',
+    '## Human/AI-owned persistent files',
+    '',
+    `- persistent case files under \`${params.queryName}/tests/cases/\``,
+    `- cases/* is human/AI-owned and kept.`,
+    `- \`${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts\` is a thin Vitest entrypoint and is kept.`,
     '',
     '## Boundary responsibilities',
     '',
@@ -1155,6 +1237,8 @@ function renderReadmeFile(params: {
     `- \`${params.queryName}/queryspec.ts\` is the DB-boundary specification for query params, row shape, query result shape, row-to-result mapping, and SQL execution contract.`,
     `- \`${params.queryName}/queryspec.ts\` keeps its \`zod\` schema values, row type, and helper functions private, completes params / row / result parsing internally, and depends on the shared executor contract directly.`,
     `- \`${params.queryName}/queryspec.ts\` and \`${params.queryName}/${params.queryName}.sql\` stay co-located as one queryspec/SQL pair.`,
+    `- \`${params.featureName}/tests/${params.featureName}.entryspec.test.ts\` is the thin Vitest entrypoint for the feature boundary lane.`,
+    `- \`${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts\` is the thin Vitest entrypoint for the ZTD query lane.`,
     generatedColumnsLine,
     queryColumnsLine,
     parameterColumnsLine,
@@ -1178,7 +1262,7 @@ function renderReadmeFile(params: {
     '- Narrow field types and validation rules once the transport contract is known.',
     '- Replace any scaffolded DDL-backed default expression if the feature needs a different explicit SQL assignment.',
     ...renderReadmeFollowUpNotes(params.action),
-    '- Add QuerySpec and feature tests under `tests/` as the AI-owned follow-up step.',
+    `- After the SQL and DTO edits settle, run \`ztd feature tests scaffold --feature ${params.featureName}\` to refresh the CLI-owned generated files, keep the thin Vitest entrypoint in place, and then keep the persistent case files as human/AI-owned query-local assets.`,
     ''
   ].join('\n');
 }
