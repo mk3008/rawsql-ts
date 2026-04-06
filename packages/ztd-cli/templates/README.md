@@ -18,7 +18,7 @@ The project is feature-first by default:
 - keep tool-managed fixture metadata under `.ztd/generated/`, and reserve `.ztd/tests/` for shared support files only
 - `ztd.config.json` controls generated metadata and runtime defaults while the feature-local tests stay next to the feature they cover
 
-When you add SQL-backed tests, copy `.env.example` to `.env` and adjust `ZTD_DB_PORT` if needed before running the DB-backed suites.
+When you add SQL-backed tests, copy `.env.example` to `.env` and adjust the DB settings if needed before running the DB-backed suites. The starter derives `ZTD_TEST_DATABASE_URL` from `ZTD_DB_HOST`, `ZTD_DB_PORT`, `ZTD_DB_NAME`, `ZTD_DB_USER`, and `ZTD_DB_PASS`.
 
 ```bash
 npx vitest run src/features/**/*.test.ts
