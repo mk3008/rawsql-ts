@@ -1,5 +1,13 @@
 # @rawsql-ts/ztd-cli
 
+## 0.24.3
+
+### Patch Changes
+
+- [#724](https://github.com/mk3008/rawsql-ts/pull/724) [`d6b7162`](https://github.com/mk3008/rawsql-ts/commit/d6b71629e6ae2f9000bf2e15153ccea967cebad8) Thanks [@mk3008](https://github.com/mk3008)! - Fix starter scaffolds so the Vitest setup derives `ZTD_TEST_DATABASE_URL` from `ZTD_DB_PORT`, which keeps the DB-backed smoke test aligned with the compose port even if an older localhost:5432 URL is still present. Add a regression test for the generated setup file so the port override stays authoritative.
+
+- [#724](https://github.com/mk3008/rawsql-ts/pull/724) [`900faa8`](https://github.com/mk3008/rawsql-ts/commit/900faa810588adbd6550d7008bee9e181fa786e0) Thanks [@mk3008](https://github.com/mk3008)! - The starter scaffold now treats `.env` as the single source of truth for database connection settings. `compose.yaml` reads the DB host, port, name, user, and password from `.env`, and the generated Vitest setup derives `ZTD_TEST_DATABASE_URL` from those values. If a preexisting `ZTD_TEST_DATABASE_URL` conflicts with the starter DB settings, `ztd` now fails fast instead of silently choosing one source.
+
 ## 0.24.2
 
 ### Patch Changes
