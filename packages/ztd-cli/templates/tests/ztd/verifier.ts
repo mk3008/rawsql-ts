@@ -20,9 +20,9 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
   querySpecCase: QuerySpecZtdCase<BeforeDb, Input, Output>,
   execute: QuerySpecExecutor<Input, Output>
 ): Promise<void> {
-  const connectionString = process.env.ZTD_DB_URL ?? process.env.ZTD_TEST_DATABASE_URL;
+  const connectionString = process.env.ZTD_TEST_DATABASE_URL;
   if (!connectionString) {
-    throw new Error('Set ZTD_DB_URL or ZTD_TEST_DATABASE_URL before running queryspec ZTD cases.');
+    throw new Error('Set ZTD_TEST_DATABASE_URL before running queryspec ZTD cases.');
   }
 
   const pool = new Pool({ connectionString });

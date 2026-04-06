@@ -108,15 +108,18 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(gitignore).toMatch(/^\.env$/m);
   expect(gitignore).toMatch(/^\.env\.\*$/m);
   expect(gitignore).toMatch(/^!\.env\.example$/m);
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('copy `.env.example` to `.env` and adjust `ZTD_DB_PORT` if needed before running the DB-backed suites');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('copy `.env.example` to `.env` and adjust the DB settings if needed before running the DB-backed suites');
   expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain('setupFiles');
   expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain(
     ".ztd/support/setup-env.ts"
   );
-  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain(
-    'ZTD_DB_PORT'
-  );
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain('ZTD_DB_HOST');
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain('ZTD_TEST_DATABASE_URL conflicts with the starter DB settings in .env');
+  expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_HOST=127.0.0.1');
   expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_PORT=5432');
+  expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_NAME=ztd');
+  expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_USER=ztd');
+  expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_PASS=ztd');
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
     devDependencies: Record<string, string>;
   };
@@ -158,11 +161,15 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(starterGitignore).toMatch(/^\.env\.\*$/m);
   expect(starterGitignore).toMatch(/^!\.env\.example$/m);
   expect(readNormalizedFile(path.join(workspace, 'compose.yaml'))).toContain('image: postgres:17');
-  expect(readNormalizedFile(path.join(workspace, 'compose.yaml'))).toContain('ZTD_DB_PORT');
-  expect(readNormalizedFile(path.join(workspace, 'compose.yaml'))).toContain(
-    '${ZTD_DB_PORT:-5432}:5432'
-  );
+  expect(readNormalizedFile(path.join(workspace, 'compose.yaml'))).toContain('POSTGRES_DB: ${ZTD_DB_NAME}');
+  expect(readNormalizedFile(path.join(workspace, 'compose.yaml'))).toContain('POSTGRES_PASSWORD: ${ZTD_DB_PASS}');
+  expect(readNormalizedFile(path.join(workspace, 'compose.yaml'))).toContain('POSTGRES_USER: ${ZTD_DB_USER}');
+  expect(readNormalizedFile(path.join(workspace, 'compose.yaml'))).toContain('${ZTD_DB_PORT}:5432');
+  expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_HOST=127.0.0.1');
   expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_PORT=5432');
+  expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_NAME=ztd');
+  expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_USER=ztd');
+  expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_PASS=ztd');
   expect(ddlFiles.length).toBeGreaterThan(0);
   expect(
     readNormalizedFile(path.join(workspace, 'db', 'ddl', ddlFiles[0]))
@@ -172,10 +179,11 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   ).toContain('Starter user directory for the first CRUD feature');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Starter Flow');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('starter-only sample feature');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Copy `.env.example` to `.env` and update `ZTD_DB_PORT` if 5432 is already in use.');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('ZTD_DB_PORT');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Copy `.env.example` to `.env` and adjust the DB settings if needed.');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('ZTD_DB_HOST');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('ZTD_DB_PASS');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
-    'derives `ZTD_TEST_DATABASE_URL` from `ZTD_DB_PORT`'
+    'derives `ZTD_TEST_DATABASE_URL` from the DB settings in `.env`'
   );
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx vitest run src/features/smoke/tests/smoke.entryspec.test.ts src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd feature scaffold --table users --action insert');
@@ -192,8 +200,9 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'queryspec-ztd-types.ts'))).toContain('SmokeQuerySpecZtdCase');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'TEST_PLAN.md'))).toContain('smoke / smoke spec test plan');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'analysis.json'))).toContain('"featureId": "smoke"');
-  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain('ZTD_DB_PORT');
-  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain('ZTD_TEST_DATABASE_URL');
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain('ZTD_DB_HOST');
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain('ZTD_DB_PASS');
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain('ZTD_TEST_DATABASE_URL conflicts with the starter DB settings in .env');
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"ztdRootDir": ".ztd"');
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"defaultSchema": "public"');
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"searchPath": [');
