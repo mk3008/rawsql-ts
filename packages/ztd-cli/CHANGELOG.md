@@ -1,5 +1,11 @@
 # @rawsql-ts/ztd-cli
 
+## 0.24.2
+
+### Patch Changes
+
+- [#722](https://github.com/mk3008/rawsql-ts/pull/722) [`fcc9d19`](https://github.com/mk3008/rawsql-ts/commit/fcc9d1990598483240a64bf0eb92f181c2682ff4) Thanks [@mk3008](https://github.com/mk3008)! - Update the starter smoke scaffold and documentation to use the feature-first layout with query-local ZTD assets under `src/features/<feature>/<query>/tests/`, including the new `smoke` starter structure.
+
 ## 0.24.1
 
 ### Patch Changes
