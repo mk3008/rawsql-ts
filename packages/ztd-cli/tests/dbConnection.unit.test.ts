@@ -8,14 +8,14 @@ import {
 } from '../src/utils/dbConnection';
 
 function withEnv<T>(
-  values: Partial<Record<'DATABASE_URL' | 'ZTD_TEST_DATABASE_URL' | 'ZTD_DB_PORT', string | undefined>>,
+  values: Partial<Record<'DATABASE_URL' | 'ZTD_DB_URL' | 'ZTD_DB_PORT', string | undefined>>,
   fn: () => T
 ): T {
   const previousDatabaseUrl = process.env.DATABASE_URL;
-  const previousZtdTestDatabaseUrl = process.env.ZTD_TEST_DATABASE_URL;
+  const previousZtdDbUrl = process.env.ZTD_DB_URL;
   const previousZtdDbPort = process.env.ZTD_DB_PORT;
   try {
-    for (const [key, value] of Object.entries(values) as Array<['DATABASE_URL' | 'ZTD_TEST_DATABASE_URL' | 'ZTD_DB_PORT', string | undefined]>) {
+    for (const [key, value] of Object.entries(values) as Array<['DATABASE_URL' | 'ZTD_DB_URL' | 'ZTD_DB_PORT', string | undefined]>) {
       if (value === undefined) {
         delete process.env[key];
       } else {
@@ -30,10 +30,10 @@ function withEnv<T>(
       process.env.DATABASE_URL = previousDatabaseUrl;
     }
 
-    if (previousZtdTestDatabaseUrl === undefined) {
-      delete process.env.ZTD_TEST_DATABASE_URL;
+    if (previousZtdDbUrl === undefined) {
+      delete process.env.ZTD_DB_URL;
     } else {
-      process.env.ZTD_TEST_DATABASE_URL = previousZtdTestDatabaseUrl;
+      process.env.ZTD_DB_URL = previousZtdDbUrl;
     }
 
     if (previousZtdDbPort === undefined) {
@@ -44,10 +44,10 @@ function withEnv<T>(
   }
 }
 
-test('ZTD-owned connection uses only ZTD_TEST_DATABASE_URL', () => {
+test('ZTD-owned connection uses only ZTD_DB_URL', () => {
   const connection = withEnv(
     {
-      ZTD_TEST_DATABASE_URL: 'postgres://ztd_user:secret@test-host:5439/ztd_db',
+      ZTD_DB_URL: 'postgres://ztd_user:secret@test-host:5439/ztd_db',
       DATABASE_URL: 'postgres://app_user:secret@app-host:5432/app_db'
     },
     () => resolveZtdOwnedTestConnection()
@@ -95,11 +95,11 @@ test('explicit --db-* flags are used when --url is absent', () => {
   expect(connection.context.database).toBe('flag_db');
 });
 
-test('explicit target resolution ignores DATABASE_URL and ZTD_TEST_DATABASE_URL', () => {
+test('explicit target resolution ignores DATABASE_URL and ZTD_DB_URL', () => {
   const connection = withEnv(
     {
       DATABASE_URL: 'postgres://app_user:secret@app-host:5432/app_db',
-      ZTD_TEST_DATABASE_URL: 'postgres://ztd_user:secret@test-host:5439/ztd_db'
+      ZTD_DB_URL: 'postgres://ztd_user:secret@test-host:5439/ztd_db'
     },
     () =>
       resolveExplicitTargetConnection(
@@ -127,8 +127,8 @@ test('partial explicit --db-* flags fail with a clear error', () => {
 });
 
 test('missing ZTD-owned connection reports actionable error', () => {
-  withEnv({ DATABASE_URL: 'postgres://app_user:secret@app-host:5432/app_db', ZTD_TEST_DATABASE_URL: undefined }, () => {
-    expect(() => resolveZtdOwnedTestConnection()).toThrow(/ZTD_TEST_DATABASE_URL is required/);
+  withEnv({ DATABASE_URL: 'postgres://app_user:secret@app-host:5432/app_db', ZTD_DB_URL: undefined }, () => {
+    expect(() => resolveZtdOwnedTestConnection()).toThrow(/ZTD_DB_URL is required/);
   });
 });
 
@@ -138,7 +138,7 @@ test('ZTD-owned connection derives the starter URL from .env ZTD_DB_PORT when th
   const connection = withEnv(
     {
       DATABASE_URL: 'postgres://app_user:secret@app-host:5432/app_db',
-      ZTD_TEST_DATABASE_URL: undefined,
+      ZTD_DB_URL: undefined,
       ZTD_DB_PORT: undefined,
     },
     () => resolveZtdOwnedTestConnection(workspace)

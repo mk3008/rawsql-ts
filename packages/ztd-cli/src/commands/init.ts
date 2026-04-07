@@ -122,23 +122,15 @@ type FileKey =
   | 'config'
   | 'starterCompose'
   | 'envExample'
-  | 'smokeReadme'
-  | 'smokeSharedFeatureQueryExecutor'
-  | 'smokeSharedLoadSqlResource'
   | 'smokeSpec'
-  | 'smokeEntrySpecTest'
-  | 'smokeQuerySpec'
-  | 'smokeQuerySql'
-  | 'smokeQueryCases'
-  | 'smokeQueryGeneratedTestPlan'
-  | 'smokeQueryGeneratedAnalysis'
-  | 'smokeQueryTypes'
-  | 'smokeQueryQuerySpecTest'
   | 'localSourceGuardScript'
-  | 'testsZtdReadme'
-  | 'testsZtdCaseTypes'
-  | 'testsZtdVerifier'
-  | 'testsZtdHarness'
+  | 'smokeValidationTest'
+  | 'smokeTest'
+  | 'smokeQuerySpecTest'
+  | 'testsSupportZtdReadme'
+  | 'testsSupportZtdCaseTypes'
+  | 'testsSupportZtdVerifier'
+  | 'testsSupportZtdHarness'
   | 'setupEnv'
   | 'starterPostgresTestkit'
   | 'infrastructureReadme'
@@ -146,6 +138,14 @@ type FileKey =
   | 'telemetryRepository'
   | 'telemetryConsoleRepository'
   | 'featureRootReadme'
+  | 'smokeReadme'
+  | 'smokeApplicationReadme'
+  | 'smokeDomainReadme'
+  | 'smokePersistenceReadme'
+  | 'smokeTestsReadme'
+  | 'smokeDomain'
+  | 'smokeApplication'
+  | 'smokeSql'
   | 'globalSetup'
   | 'vitestConfig'
   | 'tsconfig'
@@ -252,36 +252,35 @@ interface InitScaffoldLayout {
   featureReadmeTemplate: string;
   smokeReadmePath: string;
   smokeReadmeTemplate: string;
-  smokeSharedFeatureQueryExecutorPath: string;
-  smokeSharedFeatureQueryExecutorTemplate: string;
-  smokeSharedLoadSqlResourcePath: string;
-  smokeSharedLoadSqlResourceTemplate: string;
+  smokeApplicationReadmePath: string;
+  smokeApplicationReadmeTemplate: string;
+  smokeDomainReadmePath: string;
+  smokeDomainReadmeTemplate: string;
+  smokePersistenceReadmePath: string;
+  smokePersistenceReadmeTemplate: string;
+  smokeTestsReadmePath: string;
+  smokeTestsReadmeTemplate: string;
+  smokeDomainPath: string;
+  smokeDomainTemplate: string;
+  smokeApplicationPath: string;
+  smokeApplicationTemplate: string;
+  smokeSqlPath: string;
   smokeSpecPath: string;
   smokeSpecTemplate: string;
-  smokeEntrySpecTestPath: string;
-  smokeEntrySpecTestTemplate: string;
-  smokeQuerySpecPath: string;
-  smokeQuerySpecTemplate: string;
-  smokeQuerySqlPath: string;
-  smokeQuerySqlTemplate: string;
-  smokeQueryCasesPath: string;
-  smokeQueryCasesTemplate: string;
-  smokeQueryGeneratedTestPlanPath: string;
-  smokeQueryGeneratedTestPlanTemplate: string;
-  smokeQueryGeneratedAnalysisPath: string;
-  smokeQueryGeneratedAnalysisTemplate: string;
-  smokeQueryTypesPath: string;
-  smokeQueryTypesTemplate: string;
-  smokeQueryQuerySpecTestPath: string;
-  smokeQueryQuerySpecTestTemplate: string;
-  testsZtdReadmePath: string;
-  testsZtdReadmeTemplate: string;
-  testsZtdCaseTypesPath: string;
-  testsZtdCaseTypesTemplate: string;
-  testsZtdVerifierPath: string;
-  testsZtdVerifierTemplate: string;
-  testsZtdHarnessPath: string;
-  testsZtdHarnessTemplate: string;
+  smokeValidationTestPath: string;
+  smokeValidationTestTemplate: string;
+  smokeTestPath: string;
+  smokeTestTemplate: string;
+  smokeQuerySpecTestPath: string;
+  smokeQuerySpecTestTemplate: string;
+  testsSupportZtdReadmePath: string;
+  testsSupportZtdReadmeTemplate: string;
+  testsSupportZtdCaseTypesPath: string;
+  testsSupportZtdCaseTypesTemplate: string;
+  testsSupportZtdVerifierPath: string;
+  testsSupportZtdVerifierTemplate: string;
+  testsSupportZtdHarnessPath: string;
+  testsSupportZtdHarnessTemplate: string;
   setupEnvPath: string;
   setupEnvTemplate: string;
   starterPostgresTestkitPath: string;
@@ -376,24 +375,21 @@ const STARTER_COMPOSE_FILE = 'compose.yaml';
 const ENV_EXAMPLE_TEMPLATE = '.env.example';
 const FEATURE_ROOT_README_TEMPLATE = 'src/features/README.md';
 const FEATURE_SMOKE_README_TEMPLATE = 'src/features/smoke/README.md';
-const FEATURE_SMOKE_SHARED_FEATURE_QUERY_EXECUTOR_TEMPLATE = 'src/features/_shared/featureQueryExecutor.ts';
-const FEATURE_SMOKE_SHARED_LOAD_SQL_RESOURCE_TEMPLATE = 'src/features/_shared/loadSqlResource.ts';
-const FEATURE_SMOKE_SPEC_TEMPLATE = 'src/features/smoke/spec.ts';
-const FEATURE_SMOKE_ENTRYSPEC_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.entryspec.test.ts';
-const FEATURE_SMOKE_QUERY_SPEC_TEMPLATE = 'src/features/smoke/queries/smoke/spec.ts';
-const FEATURE_SMOKE_QUERY_SQL_TEMPLATE = 'src/features/smoke/queries/smoke/smoke.sql';
-const FEATURE_SMOKE_QUERY_CASES_TEMPLATE = 'src/features/smoke/queries/smoke/tests/cases/basic.case.ts';
-const FEATURE_SMOKE_QUERY_GENERATED_TEST_PLAN_TEMPLATE =
-  'src/features/smoke/queries/smoke/tests/generated/TEST_PLAN.md';
-const FEATURE_SMOKE_QUERY_GENERATED_ANALYSIS_TEMPLATE =
-  'src/features/smoke/queries/smoke/tests/generated/analysis.json';
-const FEATURE_SMOKE_QUERY_TYPES_TEMPLATE = 'src/features/smoke/queries/smoke/tests/queryspec-ztd-types.ts';
-const FEATURE_SMOKE_QUERY_QUERYSPEC_TEST_TEMPLATE =
-  'src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts';
-const TESTS_ZTD_README_TEMPLATE = 'tests/ztd/README.md';
-const TESTS_ZTD_CASE_TYPES_TEMPLATE = 'tests/ztd/case-types.ts';
-const TESTS_ZTD_VERIFIER_TEMPLATE = 'tests/ztd/verifier.ts';
-const TESTS_ZTD_HARNESS_TEMPLATE = 'tests/ztd/harness.ts';
+const FEATURE_SMOKE_APPLICATION_README_TEMPLATE = 'src/features/smoke/application/README.md';
+const FEATURE_SMOKE_DOMAIN_README_TEMPLATE = 'src/features/smoke/domain/README.md';
+const FEATURE_SMOKE_PERSISTENCE_README_TEMPLATE = 'src/features/smoke/persistence/README.md';
+const FEATURE_SMOKE_TESTS_README_TEMPLATE = 'src/features/smoke/tests/README.md';
+const FEATURE_SMOKE_DOMAIN_TEMPLATE = 'src/features/smoke/domain/smoke-policy.ts';
+const FEATURE_SMOKE_APPLICATION_TEMPLATE = 'src/features/smoke/application/smoke-workflow.ts';
+const FEATURE_SMOKE_SQL_TEMPLATE = 'src/features/smoke/persistence/smoke.sql';
+const FEATURE_SMOKE_SPEC_TEMPLATE = 'src/features/smoke/persistence/smoke.spec.ts';
+const FEATURE_SMOKE_VALIDATION_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.validation.test.ts';
+const FEATURE_SMOKE_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.test.ts';
+const FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.queryspec.test.ts';
+const TESTS_SUPPORT_ZTD_README_TEMPLATE = 'tests/support/ztd/README.md';
+const TESTS_SUPPORT_ZTD_CASE_TYPES_TEMPLATE = 'tests/support/ztd/case-types.ts';
+const TESTS_SUPPORT_ZTD_VERIFIER_TEMPLATE = 'tests/support/ztd/verifier.ts';
+const TESTS_SUPPORT_ZTD_HARNESS_TEMPLATE = 'tests/support/ztd/harness.ts';
 const LOCAL_SOURCE_GUARD_TEMPLATE = 'scripts/local-source-guard.mjs';
 const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
 const SETUP_ENV_TEMPLATE = 'tests/support/setup-env.ts';
@@ -451,13 +447,13 @@ const STARTER_README_APPENDIX = (postgresImage: string): string =>
     '## Starter Flow',
     '',
     '1. Start by reading `src/features/smoke/` as the starter-only sample feature.',
-    '2. Run the feature-boundary smoke test first with `npx vitest run src/features/smoke/tests/smoke.entryspec.test.ts`.',
-    '3. Copy `.env.example` to `.env` and adjust the DB settings if needed.',
+    '2. Run the DB-free smoke tests first with `npx vitest run src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts`.',
+    '3. Copy `.env.example` to `.env` and update `ZTD_DB_PORT` if 5432 is already in use.',
     '4. Start Postgres with `docker compose up -d` when you are ready for the DB-backed smoke path.',
-    `5. The bundled compose file uses \`${postgresImage}\`, and the generated Vitest setup derives \`ZTD_TEST_DATABASE_URL\` from the DB settings in \`.env\`.`,
+    `5. The bundled compose file uses \`${postgresImage}\`, and the generated Vitest setup derives \`ZTD_DB_URL\` from \`ZTD_DB_PORT\`.`,
     '6. Run `npx ztd ztd-config` to regenerate the runtime fixture manifest, DDL-derived test rows, and layout metadata.',
-    '7. Read `tests/ztd/harness.ts` and `src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts` to see the DB-backed starter smoke path through the fixed app-level runner.',
-    '8. Run `npx vitest run src/features/smoke/tests/smoke.entryspec.test.ts src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts` to exercise the boundary and DB-backed smoke tests with the values from `.env`.',
+    '7. Read `.ztd/support/postgres-testkit.ts` and `src/features/smoke/tests/smoke.queryspec.test.ts` to see the DB-backed starter smoke path through `createStarterPostgresTestkitClient` and the underlying `@rawsql-ts/testkit-postgres` API.',
+    '8. Run `npx vitest run` to exercise the DB-free and DB-backed smoke tests with the values from `.env`.',
   '9. Run `npx ztd feature scaffold --table users --action insert` to create the first fixed feature shell.',
   '10. After you finish SQL and DTO edits, run `npx ztd feature tests scaffold --feature users-insert` to create TODO-based test scaffolds, then let AI complete them.',
     ''
@@ -467,18 +463,18 @@ const STARTER_COMPOSE_TEMPLATE = (postgresImage: string): string =>
   [
     '# Starter Postgres environment for ZTD tests.',
     '# Start it with: docker compose up -d',
-    '# Copy .env.example to .env and adjust the DB settings if needed.',
+    '# Copy .env.example to .env and update ZTD_DB_PORT if 5432 is already in use.',
     '# docker compose reads .env from the project root for variable substitution.',
     '',
     'services:',
     '  postgres:',
     `    image: ${postgresImage}`,
     '    environment:',
-    '      POSTGRES_DB: ${ZTD_DB_NAME}',
-    '      POSTGRES_PASSWORD: ${ZTD_DB_PASS}',
-    '      POSTGRES_USER: ${ZTD_DB_USER}',
+    '      POSTGRES_DB: ztd',
+    '      POSTGRES_PASSWORD: ztd',
+    '      POSTGRES_USER: ztd',
     '    ports:',
-    '      - "${ZTD_DB_PORT}:5432"',
+    '      - "${ZTD_DB_PORT:-5432}:5432"',
     ''
   ].join('\n');
 
@@ -506,65 +502,35 @@ function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): In
     featureReadmeTemplate: FEATURE_ROOT_README_TEMPLATE,
     smokeReadmePath: path.join(rootDir, 'src', 'features', 'smoke', 'README.md'),
     smokeReadmeTemplate: FEATURE_SMOKE_README_TEMPLATE,
-    smokeSharedFeatureQueryExecutorPath: path.join(rootDir, 'src', 'features', '_shared', 'featureQueryExecutor.ts'),
-    smokeSharedFeatureQueryExecutorTemplate: FEATURE_SMOKE_SHARED_FEATURE_QUERY_EXECUTOR_TEMPLATE,
-    smokeSharedLoadSqlResourcePath: path.join(rootDir, 'src', 'features', '_shared', 'loadSqlResource.ts'),
-    smokeSharedLoadSqlResourceTemplate: FEATURE_SMOKE_SHARED_LOAD_SQL_RESOURCE_TEMPLATE,
-    smokeSpecPath: path.join(rootDir, 'src', 'features', 'smoke', 'spec.ts'),
+    smokeApplicationReadmePath: path.join(rootDir, 'src', 'features', 'smoke', 'application', 'README.md'),
+    smokeApplicationReadmeTemplate: FEATURE_SMOKE_APPLICATION_README_TEMPLATE,
+    smokeDomainReadmePath: path.join(rootDir, 'src', 'features', 'smoke', 'domain', 'README.md'),
+    smokeDomainReadmeTemplate: FEATURE_SMOKE_DOMAIN_README_TEMPLATE,
+    smokePersistenceReadmePath: path.join(rootDir, 'src', 'features', 'smoke', 'persistence', 'README.md'),
+    smokePersistenceReadmeTemplate: FEATURE_SMOKE_PERSISTENCE_README_TEMPLATE,
+    smokeTestsReadmePath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'README.md'),
+    smokeTestsReadmeTemplate: FEATURE_SMOKE_TESTS_README_TEMPLATE,
+    smokeDomainPath: path.join(rootDir, 'src', 'features', 'smoke', 'domain', 'smoke-policy.ts'),
+    smokeDomainTemplate: FEATURE_SMOKE_DOMAIN_TEMPLATE,
+    smokeApplicationPath: path.join(rootDir, 'src', 'features', 'smoke', 'application', 'smoke-workflow.ts'),
+    smokeApplicationTemplate: FEATURE_SMOKE_APPLICATION_TEMPLATE,
+    smokeSqlPath: path.join(rootDir, 'src', 'features', 'smoke', 'persistence', 'smoke.sql'),
+    smokeSpecPath: path.join(rootDir, 'src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'),
     smokeSpecTemplate: FEATURE_SMOKE_SPEC_TEMPLATE,
-    smokeEntrySpecTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.entryspec.test.ts'),
-    smokeEntrySpecTestTemplate: FEATURE_SMOKE_ENTRYSPEC_TEST_TEMPLATE,
-    smokeQuerySpecPath: path.join(rootDir, 'src', 'features', 'smoke', 'queries', 'smoke', 'spec.ts'),
-    smokeQuerySpecTemplate: FEATURE_SMOKE_QUERY_SPEC_TEMPLATE,
-    smokeQuerySqlPath: path.join(rootDir, 'src', 'features', 'smoke', 'queries', 'smoke', 'smoke.sql'),
-    smokeQuerySqlTemplate: FEATURE_SMOKE_QUERY_SQL_TEMPLATE,
-    smokeQueryCasesPath: path.join(rootDir, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'cases', 'basic.case.ts'),
-    smokeQueryCasesTemplate: FEATURE_SMOKE_QUERY_CASES_TEMPLATE,
-    smokeQueryGeneratedTestPlanPath: path.join(
-      rootDir,
-      'src',
-      'features',
-      'smoke',
-      'queries',
-      'smoke',
-      'tests',
-      'generated',
-      'TEST_PLAN.md'
-    ),
-    smokeQueryGeneratedTestPlanTemplate: FEATURE_SMOKE_QUERY_GENERATED_TEST_PLAN_TEMPLATE,
-    smokeQueryGeneratedAnalysisPath: path.join(
-      rootDir,
-      'src',
-      'features',
-      'smoke',
-      'queries',
-      'smoke',
-      'tests',
-      'generated',
-      'analysis.json'
-    ),
-    smokeQueryGeneratedAnalysisTemplate: FEATURE_SMOKE_QUERY_GENERATED_ANALYSIS_TEMPLATE,
-    smokeQueryTypesPath: path.join(rootDir, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'queryspec-ztd-types.ts'),
-    smokeQueryTypesTemplate: FEATURE_SMOKE_QUERY_TYPES_TEMPLATE,
-    smokeQueryQuerySpecTestPath: path.join(
-      rootDir,
-      'src',
-      'features',
-      'smoke',
-      'queries',
-      'smoke',
-      'tests',
-      'smoke.queryspec.ztd.test.ts'
-    ),
-    smokeQueryQuerySpecTestTemplate: FEATURE_SMOKE_QUERY_QUERYSPEC_TEST_TEMPLATE,
-    testsZtdReadmePath: path.join(rootDir, 'tests', 'ztd', 'README.md'),
-    testsZtdReadmeTemplate: TESTS_ZTD_README_TEMPLATE,
-    testsZtdCaseTypesPath: path.join(rootDir, 'tests', 'ztd', 'case-types.ts'),
-    testsZtdCaseTypesTemplate: TESTS_ZTD_CASE_TYPES_TEMPLATE,
-    testsZtdVerifierPath: path.join(rootDir, 'tests', 'ztd', 'verifier.ts'),
-    testsZtdVerifierTemplate: TESTS_ZTD_VERIFIER_TEMPLATE,
-    testsZtdHarnessPath: path.join(rootDir, 'tests', 'ztd', 'harness.ts'),
-    testsZtdHarnessTemplate: TESTS_ZTD_HARNESS_TEMPLATE,
+    smokeValidationTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'),
+    smokeValidationTestTemplate: FEATURE_SMOKE_VALIDATION_TEST_TEMPLATE,
+    smokeTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'),
+    smokeTestTemplate: FEATURE_SMOKE_TEST_TEMPLATE,
+    smokeQuerySpecTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'),
+    smokeQuerySpecTestTemplate: FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE,
+    testsSupportZtdReadmePath: path.join(rootDir, 'tests', 'support', 'ztd', 'README.md'),
+    testsSupportZtdReadmeTemplate: TESTS_SUPPORT_ZTD_README_TEMPLATE,
+    testsSupportZtdCaseTypesPath: path.join(rootDir, 'tests', 'support', 'ztd', 'case-types.ts'),
+    testsSupportZtdCaseTypesTemplate: TESTS_SUPPORT_ZTD_CASE_TYPES_TEMPLATE,
+    testsSupportZtdVerifierPath: path.join(rootDir, 'tests', 'support', 'ztd', 'verifier.ts'),
+    testsSupportZtdVerifierTemplate: TESTS_SUPPORT_ZTD_VERIFIER_TEMPLATE,
+    testsSupportZtdHarnessPath: path.join(rootDir, 'tests', 'support', 'ztd', 'harness.ts'),
+    testsSupportZtdHarnessTemplate: TESTS_SUPPORT_ZTD_HARNESS_TEMPLATE,
     setupEnvPath: path.join(rootDir, supportDir, 'setup-env.ts'),
     setupEnvTemplate: SETUP_ENV_TEMPLATE,
     starterPostgresTestkitPath: path.join(rootDir, supportDir, 'postgres-testkit.ts'),
@@ -597,10 +563,8 @@ const APP_INTERFACE_SECTION = `---
 7. Guard every behavioral change with feature-local tests so regression risks stay low.
 `;
 
-function resolveTemplateDirectory(localSourceRoot?: string): string {
+function resolveTemplateDirectory(): string {
   const candidates = [
-    // Prefer the monorepo checkout explicitly when local-source mode is active.
-    ...(localSourceRoot ? [path.resolve(localSourceRoot, 'packages', 'ztd-cli', 'templates')] : []),
     // Prefer the installed package layout: <pkg>/dist/commands → <pkg>/templates.
     path.resolve(__dirname, '..', '..', '..', 'templates'),
     // Support legacy layouts that copied templates into dist/.
@@ -619,7 +583,8 @@ function resolveTemplateDirectory(localSourceRoot?: string): string {
   return candidates[0];
 }
 
-let TEMPLATE_DIRECTORY = resolveTemplateDirectory();
+// Resolve templates from a shipped directory so `ztd init` works after `npm install`.
+const TEMPLATE_DIRECTORY = resolveTemplateDirectory();
 
 const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
   ensureDirectory,
@@ -750,21 +715,21 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     localSourceGuardScript: path.join(rootDir, 'scripts', 'local-source-guard.mjs'),
     featureRootReadme: scaffoldLayout.featureReadmePath,
     smokeReadme: scaffoldLayout.smokeReadmePath,
-    smokeSharedFeatureQueryExecutor: scaffoldLayout.smokeSharedFeatureQueryExecutorPath,
-    smokeSharedLoadSqlResource: scaffoldLayout.smokeSharedLoadSqlResourcePath,
+    smokeApplicationReadme: scaffoldLayout.smokeApplicationReadmePath,
+    smokeDomainReadme: scaffoldLayout.smokeDomainReadmePath,
+    smokePersistenceReadme: scaffoldLayout.smokePersistenceReadmePath,
+    smokeTestsReadme: scaffoldLayout.smokeTestsReadmePath,
+    smokeDomain: scaffoldLayout.smokeDomainPath,
+    smokeApplication: scaffoldLayout.smokeApplicationPath,
+    smokeSql: scaffoldLayout.smokeSqlPath,
     smokeSpec: scaffoldLayout.smokeSpecPath,
-    smokeEntrySpecTest: scaffoldLayout.smokeEntrySpecTestPath,
-    smokeQuerySpec: scaffoldLayout.smokeQuerySpecPath,
-    smokeQuerySql: scaffoldLayout.smokeQuerySqlPath,
-    smokeQueryCases: scaffoldLayout.smokeQueryCasesPath,
-    smokeQueryGeneratedTestPlan: scaffoldLayout.smokeQueryGeneratedTestPlanPath,
-    smokeQueryGeneratedAnalysis: scaffoldLayout.smokeQueryGeneratedAnalysisPath,
-    smokeQueryTypes: scaffoldLayout.smokeQueryTypesPath,
-    smokeQueryQuerySpecTest: scaffoldLayout.smokeQueryQuerySpecTestPath,
-    testsZtdReadme: scaffoldLayout.testsZtdReadmePath,
-    testsZtdCaseTypes: scaffoldLayout.testsZtdCaseTypesPath,
-    testsZtdVerifier: scaffoldLayout.testsZtdVerifierPath,
-    testsZtdHarness: scaffoldLayout.testsZtdHarnessPath,
+    smokeValidationTest: scaffoldLayout.smokeValidationTestPath,
+    smokeTest: scaffoldLayout.smokeTestPath,
+    smokeQuerySpecTest: scaffoldLayout.smokeQuerySpecTestPath,
+    testsSupportZtdReadme: scaffoldLayout.testsSupportZtdReadmePath,
+    testsSupportZtdCaseTypes: scaffoldLayout.testsSupportZtdCaseTypesPath,
+    testsSupportZtdVerifier: scaffoldLayout.testsSupportZtdVerifierPath,
+    testsSupportZtdHarness: scaffoldLayout.testsSupportZtdHarnessPath,
     infrastructureReadme: scaffoldLayout.infrastructureReadmePath,
     telemetryTypes: scaffoldLayout.telemetryTypesPath,
     telemetryRepository: scaffoldLayout.telemetryRepositoryPath,
@@ -797,7 +762,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
 
   const summaries: Partial<Record<FileKey, FileSummary>> = {};
   const scaffoldProfile = resolveInitScaffoldProfile(rootDir, options?.localSourceRoot);
-  TEMPLATE_DIRECTORY = resolveTemplateDirectory(scaffoldProfile.localSourceRoot ?? undefined);
 
   // Ask how the user prefers to populate the initial schema.
   if (workflow === 'pg_dump') {
@@ -987,30 +951,92 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
       summaries.smokeReadme = smokeReadmeSummary;
     }
 
-    const smokeSharedFeatureQueryExecutorSummary = await writeTemplateFile(
+    const smokeApplicationReadmeSummary = await writeTemplateFile(
       rootDir,
-      absolutePaths.smokeSharedFeatureQueryExecutor,
-      relativePath('smokeSharedFeatureQueryExecutor'),
-      scaffoldLayout.smokeSharedFeatureQueryExecutorTemplate,
+      absolutePaths.smokeApplicationReadme,
+      relativePath('smokeApplicationReadme'),
+      scaffoldLayout.smokeApplicationReadmeTemplate,
       dependencies,
       prompter,
       overwritePolicy
     );
-    if (smokeSharedFeatureQueryExecutorSummary) {
-      summaries.smokeSharedFeatureQueryExecutor = smokeSharedFeatureQueryExecutorSummary;
+    if (smokeApplicationReadmeSummary) {
+      summaries.smokeApplicationReadme = smokeApplicationReadmeSummary;
     }
 
-    const smokeSharedLoadSqlResourceSummary = await writeTemplateFile(
+    const smokeDomainReadmeSummary = await writeTemplateFile(
       rootDir,
-      absolutePaths.smokeSharedLoadSqlResource,
-      relativePath('smokeSharedLoadSqlResource'),
-      scaffoldLayout.smokeSharedLoadSqlResourceTemplate,
+      absolutePaths.smokeDomainReadme,
+      relativePath('smokeDomainReadme'),
+      scaffoldLayout.smokeDomainReadmeTemplate,
       dependencies,
       prompter,
       overwritePolicy
     );
-    if (smokeSharedLoadSqlResourceSummary) {
-      summaries.smokeSharedLoadSqlResource = smokeSharedLoadSqlResourceSummary;
+    if (smokeDomainReadmeSummary) {
+      summaries.smokeDomainReadme = smokeDomainReadmeSummary;
+    }
+
+    const smokePersistenceReadmeSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.smokePersistenceReadme,
+      relativePath('smokePersistenceReadme'),
+      scaffoldLayout.smokePersistenceReadmeTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (smokePersistenceReadmeSummary) {
+      summaries.smokePersistenceReadme = smokePersistenceReadmeSummary;
+    }
+
+    const smokeTestsReadmeSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.smokeTestsReadme,
+      relativePath('smokeTestsReadme'),
+      scaffoldLayout.smokeTestsReadmeTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (smokeTestsReadmeSummary) {
+      summaries.smokeTestsReadme = smokeTestsReadmeSummary;
+    }
+
+    const smokeDomainSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.smokeDomain,
+      relativePath('smokeDomain'),
+      scaffoldLayout.smokeDomainTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (smokeDomainSummary) {
+      summaries.smokeDomain = smokeDomainSummary;
+    }
+
+    const smokeApplicationSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.smokeApplication,
+      relativePath('smokeApplication'),
+      scaffoldLayout.smokeApplicationTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (smokeApplicationSummary) {
+      summaries.smokeApplication = smokeApplicationSummary;
+    }
+
+    const smokeSqlSummary = writeOptionalTemplateFile(
+      absolutePaths.smokeSql,
+      relativePath('smokeSql'),
+      FEATURE_SMOKE_SQL_TEMPLATE,
+      dependencies
+    );
+    if (smokeSqlSummary) {
+      summaries.smokeSql = smokeSqlSummary;
     }
 
     const smokeSpecSummary = await writeTemplateFile(
@@ -1026,160 +1052,95 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
       summaries.smokeSpec = smokeSpecSummary;
     }
 
-    const smokeEntrySpecTestSummary = await writeTemplateFile(
+    const smokeValidationTestSummary = await writeTemplateFile(
       rootDir,
-      absolutePaths.smokeEntrySpecTest,
-      relativePath('smokeEntrySpecTest'),
-      scaffoldLayout.smokeEntrySpecTestTemplate,
+      absolutePaths.smokeValidationTest,
+      relativePath('smokeValidationTest'),
+      scaffoldLayout.smokeValidationTestTemplate,
       dependencies,
       prompter,
       overwritePolicy
     );
-    if (smokeEntrySpecTestSummary) {
-      summaries.smokeEntrySpecTest = smokeEntrySpecTestSummary;
+    if (smokeValidationTestSummary) {
+      summaries.smokeValidationTest = smokeValidationTestSummary;
     }
 
-    const smokeQuerySpecSummary = await writeTemplateFile(
+    const smokeTestSummary = await writeTemplateFile(
       rootDir,
-      absolutePaths.smokeQuerySpec,
-      relativePath('smokeQuerySpec'),
-      scaffoldLayout.smokeQuerySpecTemplate,
+      absolutePaths.smokeTest,
+      relativePath('smokeTest'),
+      scaffoldLayout.smokeTestTemplate,
       dependencies,
       prompter,
       overwritePolicy
     );
-    if (smokeQuerySpecSummary) {
-      summaries.smokeQuerySpec = smokeQuerySpecSummary;
+    if (smokeTestSummary) {
+      summaries.smokeTest = smokeTestSummary;
     }
 
-    const smokeQuerySqlSummary = await writeTemplateFile(
+    const smokeQuerySpecTestSummary = await writeTemplateFile(
       rootDir,
-      absolutePaths.smokeQuerySql,
-      relativePath('smokeQuerySql'),
-      scaffoldLayout.smokeQuerySqlTemplate,
+      absolutePaths.smokeQuerySpecTest,
+      relativePath('smokeQuerySpecTest'),
+      scaffoldLayout.smokeQuerySpecTestTemplate,
       dependencies,
       prompter,
       overwritePolicy
     );
-    if (smokeQuerySqlSummary) {
-      summaries.smokeQuerySql = smokeQuerySqlSummary;
+    if (smokeQuerySpecTestSummary) {
+      summaries.smokeQuerySpecTest = smokeQuerySpecTestSummary;
     }
 
-    const smokeQueryCasesSummary = await writeTemplateFile(
+    const testsSupportZtdReadmeSummary = await writeTemplateFile(
       rootDir,
-      absolutePaths.smokeQueryCases,
-      relativePath('smokeQueryCases'),
-      scaffoldLayout.smokeQueryCasesTemplate,
+      absolutePaths.testsSupportZtdReadme,
+      relativePath('testsSupportZtdReadme'),
+      scaffoldLayout.testsSupportZtdReadmeTemplate,
       dependencies,
       prompter,
       overwritePolicy
     );
-    if (smokeQueryCasesSummary) {
-      summaries.smokeQueryCases = smokeQueryCasesSummary;
+    if (testsSupportZtdReadmeSummary) {
+      summaries.testsSupportZtdReadme = testsSupportZtdReadmeSummary;
     }
 
-    const smokeQueryGeneratedTestPlanSummary = await writeTemplateFile(
+    const testsSupportZtdCaseTypesSummary = await writeTemplateFile(
       rootDir,
-      absolutePaths.smokeQueryGeneratedTestPlan,
-      relativePath('smokeQueryGeneratedTestPlan'),
-      scaffoldLayout.smokeQueryGeneratedTestPlanTemplate,
+      absolutePaths.testsSupportZtdCaseTypes,
+      relativePath('testsSupportZtdCaseTypes'),
+      scaffoldLayout.testsSupportZtdCaseTypesTemplate,
       dependencies,
       prompter,
       overwritePolicy
     );
-    if (smokeQueryGeneratedTestPlanSummary) {
-      summaries.smokeQueryGeneratedTestPlan = smokeQueryGeneratedTestPlanSummary;
+    if (testsSupportZtdCaseTypesSummary) {
+      summaries.testsSupportZtdCaseTypes = testsSupportZtdCaseTypesSummary;
     }
 
-    const smokeQueryGeneratedAnalysisSummary = await writeTemplateFile(
+    const testsSupportZtdVerifierSummary = await writeTemplateFile(
       rootDir,
-      absolutePaths.smokeQueryGeneratedAnalysis,
-      relativePath('smokeQueryGeneratedAnalysis'),
-      scaffoldLayout.smokeQueryGeneratedAnalysisTemplate,
+      absolutePaths.testsSupportZtdVerifier,
+      relativePath('testsSupportZtdVerifier'),
+      scaffoldLayout.testsSupportZtdVerifierTemplate,
       dependencies,
       prompter,
       overwritePolicy
     );
-    if (smokeQueryGeneratedAnalysisSummary) {
-      summaries.smokeQueryGeneratedAnalysis = smokeQueryGeneratedAnalysisSummary;
+    if (testsSupportZtdVerifierSummary) {
+      summaries.testsSupportZtdVerifier = testsSupportZtdVerifierSummary;
     }
 
-    const smokeQueryTypesSummary = await writeTemplateFile(
+    const testsSupportZtdHarnessSummary = await writeTemplateFile(
       rootDir,
-      absolutePaths.smokeQueryTypes,
-      relativePath('smokeQueryTypes'),
-      scaffoldLayout.smokeQueryTypesTemplate,
+      absolutePaths.testsSupportZtdHarness,
+      relativePath('testsSupportZtdHarness'),
+      scaffoldLayout.testsSupportZtdHarnessTemplate,
       dependencies,
       prompter,
       overwritePolicy
     );
-    if (smokeQueryTypesSummary) {
-      summaries.smokeQueryTypes = smokeQueryTypesSummary;
-    }
-
-    const smokeQueryQuerySpecTestSummary = await writeTemplateFile(
-      rootDir,
-      absolutePaths.smokeQueryQuerySpecTest,
-      relativePath('smokeQueryQuerySpecTest'),
-      scaffoldLayout.smokeQueryQuerySpecTestTemplate,
-      dependencies,
-      prompter,
-      overwritePolicy
-    );
-    if (smokeQueryQuerySpecTestSummary) {
-      summaries.smokeQueryQuerySpecTest = smokeQueryQuerySpecTestSummary;
-    }
-
-    const testsZtdReadmeSummary = await writeTemplateFile(
-      rootDir,
-      absolutePaths.testsZtdReadme,
-      relativePath('testsZtdReadme'),
-      scaffoldLayout.testsZtdReadmeTemplate,
-      dependencies,
-      prompter,
-      overwritePolicy
-    );
-    if (testsZtdReadmeSummary) {
-      summaries.testsZtdReadme = testsZtdReadmeSummary;
-    }
-
-    const testsZtdCaseTypesSummary = await writeTemplateFile(
-      rootDir,
-      absolutePaths.testsZtdCaseTypes,
-      relativePath('testsZtdCaseTypes'),
-      scaffoldLayout.testsZtdCaseTypesTemplate,
-      dependencies,
-      prompter,
-      overwritePolicy
-    );
-    if (testsZtdCaseTypesSummary) {
-      summaries.testsZtdCaseTypes = testsZtdCaseTypesSummary;
-    }
-
-    const testsZtdVerifierSummary = await writeTemplateFile(
-      rootDir,
-      absolutePaths.testsZtdVerifier,
-      relativePath('testsZtdVerifier'),
-      scaffoldLayout.testsZtdVerifierTemplate,
-      dependencies,
-      prompter,
-      overwritePolicy
-    );
-    if (testsZtdVerifierSummary) {
-      summaries.testsZtdVerifier = testsZtdVerifierSummary;
-    }
-
-    const testsZtdHarnessSummary = await writeTemplateFile(
-      rootDir,
-      absolutePaths.testsZtdHarness,
-      relativePath('testsZtdHarness'),
-      scaffoldLayout.testsZtdHarnessTemplate,
-      dependencies,
-      prompter,
-      overwritePolicy
-    );
-    if (testsZtdHarnessSummary) {
-      summaries.testsZtdHarness = testsZtdHarnessSummary;
+    if (testsSupportZtdHarnessSummary) {
+      summaries.testsSupportZtdHarness = testsSupportZtdHarnessSummary;
     }
 
     const infrastructureReadmeSummary = await writeTemplateFile(
@@ -2417,19 +2378,19 @@ function buildNextSteps(
   if (starter) {
     const starterNextSteps = [
       'Inspect src/features/smoke/ and treat it as a starter-only sample feature that can be deleted later',
-      `Run tests (${runScriptCommand('test')} or npx vitest run src/features/smoke/tests/smoke.entryspec.test.ts) to confirm the feature-boundary smoke path is green`,
-  'Read src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts to see the DB-backed QuerySpec path that also checks connectivity',
+      `Run tests (${runScriptCommand('test')} or npx vitest run src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts) to confirm the DB-free smoke path is green`,
+  'Read src/features/smoke/tests/smoke.queryspec.test.ts to see the DB-backed QuerySpec path that also checks connectivity',
       'Run docker compose up -d to start the bundled Postgres container before the DB-backed smoke path',
-      `The bundled compose file uses ${postgresImage}; copy .env.example to .env and keep the DB settings aligned before running src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts`,
-      'Expect src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts to fail until .env is present or the DB is running; that failure is part of the starter guidance',
+      `The bundled compose file uses ${postgresImage}; copy .env.example to .env and keep ZTD_DB_PORT aligned before running src/features/smoke/tests/smoke.queryspec.test.ts`,
+      'Expect src/features/smoke/tests/smoke.queryspec.test.ts to fail until .env is present or the DB is running; that failure is part of the starter guidance',
       ...generationSteps,
   `Start your first real CRUD slice with \`${ztdCommand} feature scaffold --table users --action insert\` after the smoke sample makes sense`,
   `Then run \`${ztdCommand} feature tests scaffold --feature users-insert\` after you finish SQL and DTO edits, and let AI complete the TODO-based tests.`,
       'Delete src/features/smoke/ once you no longer need the starter sample'
     ];
     const starterFallbackSteps = [
-      `If ${ztdCommand} ztd-config fails, keep editing ${schemaRelativePath} and src/features/smoke/queries/smoke/smoke.sql first, then rerun generation after the DDL is ready`,
-      `If ${ztdCommand} model-gen fails, keep src/features/smoke/queries/smoke/smoke.sql and rerun it after ${ztdCommand} ztd-config succeeds; the ztd probe path does not need DATABASE_URL`,
+      `If ${ztdCommand} ztd-config fails, keep editing ${schemaRelativePath} and src/features/smoke/persistence/smoke.sql first, then rerun generation after the DDL is ready`,
+      `If ${ztdCommand} model-gen fails, keep src/features/smoke/persistence/smoke.sql and rerun it after ${ztdCommand} ztd-config succeeds; the ztd probe path does not need DATABASE_URL`,
       'If the DB-backed smoke path fails before .env is configured, finish the DB-free smoke path first and come back after the database is ready'
     ];
     return {
@@ -2568,22 +2529,22 @@ function buildSummaryLines(
     'sqlReadme',
     'featureRootReadme',
     'smokeReadme',
-    'smokeSharedFeatureQueryExecutor',
-    'smokeSharedLoadSqlResource',
+    'smokeApplicationReadme',
+    'smokeDomainReadme',
+    'smokePersistenceReadme',
+    'smokeTestsReadme',
+    'smokeDomain',
+    'smokeApplication',
+    'smokeSql',
     'smokeSpec',
     'localSourceGuardScript',
-    'smokeEntrySpecTest',
-    'smokeQuerySpec',
-    'smokeQuerySql',
-    'smokeQueryCases',
-    'smokeQueryGeneratedTestPlan',
-    'smokeQueryGeneratedAnalysis',
-    'smokeQueryTypes',
-    'smokeQueryQuerySpecTest',
-    'testsZtdReadme',
-    'testsZtdCaseTypes',
-    'testsZtdVerifier',
-    'testsZtdHarness',
+    'smokeValidationTest',
+    'smokeTest',
+    'smokeQuerySpecTest',
+    'testsSupportZtdReadme',
+    'testsSupportZtdCaseTypes',
+    'testsSupportZtdVerifier',
+    'testsSupportZtdHarness',
     'setupEnv',
     'starterPostgresTestkit',
     'infrastructureReadme',
@@ -2633,7 +2594,7 @@ function buildSummaryLines(
     lines.push(` - Bundled Postgres compose image: ${postgresImage}`);
     lines.push(' - Run docker compose up -d before the DB-backed smoke test so the starter DB path is ready.');
     lines.push(
-      ' - The starter smoke path uses tests/ztd/harness.ts with the query-local cases under src/features/smoke/queries/smoke/tests/{generated,cases} so the starter DB path stays thin.'
+      ' - The starter smoke test uses .ztd/support/postgres-testkit.ts, tests/support/ztd/harness.ts, @rawsql-ts/testkit-postgres, and createStarterPostgresTestkitClient to fail fast on setup problems.'
     );
   }
   if (optionalFeatures.aiGuidance) {
@@ -2711,17 +2672,17 @@ export function buildInitDryRunPlan(rootDir: string, options: {
     files.push(
       STARTER_COMPOSE_FILE,
       path.join('src', 'features', 'smoke', 'README.md'),
-      path.join('src', 'features', '_shared', 'featureQueryExecutor.ts'),
-      path.join('src', 'features', '_shared', 'loadSqlResource.ts'),
-      path.join('src', 'features', 'smoke', 'spec.ts'),
-      path.join('src', 'features', 'smoke', 'tests', 'smoke.entryspec.test.ts'),
-      path.join('src', 'features', 'smoke', 'queries', 'smoke', 'spec.ts'),
-      path.join('src', 'features', 'smoke', 'queries', 'smoke', 'smoke.sql'),
-      path.join('src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'queryspec-ztd-types.ts'),
-      path.join('src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'cases', 'basic.case.ts'),
-      path.join('src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'TEST_PLAN.md'),
-      path.join('src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'analysis.json'),
-      path.join('src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.queryspec.ztd.test.ts'),
+      path.join('src', 'features', 'smoke', 'application', 'README.md'),
+      path.join('src', 'features', 'smoke', 'domain', 'README.md'),
+      path.join('src', 'features', 'smoke', 'persistence', 'README.md'),
+      path.join('src', 'features', 'smoke', 'tests', 'README.md'),
+      path.join('src', 'features', 'smoke', 'domain', 'smoke-policy.ts'),
+      path.join('src', 'features', 'smoke', 'application', 'smoke-workflow.ts'),
+      path.join('src', 'features', 'smoke', 'persistence', 'smoke.sql'),
+      path.join('src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'),
+      path.join('src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'),
+      path.join('src', 'features', 'smoke', 'tests', 'smoke.test.ts'),
+      path.join('src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'),
       path.join('src', 'infrastructure', 'README.md'),
       path.join('src', 'infrastructure', 'telemetry', 'types.ts'),
       path.join('src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'),

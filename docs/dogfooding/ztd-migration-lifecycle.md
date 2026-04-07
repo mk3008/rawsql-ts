@@ -23,7 +23,7 @@ These prompts are intended to be copied into a separate AI instance, so the tuto
 - migration artifact creation: `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to generate review output plus SQL; if you hand-edit the migration afterward, run `npx ztd ddl risk --file tmp/users.diff.sql` to re-evaluate the final SQL with the same structured risk contract
 - tuning: use the separate perf guide, not this starter lifecycle
 
-`ZTD_TEST_DATABASE_URL` is the only implicit database owned by ztd-cli. Use `--url` or a full `--db-*` flag set for any other inspection target.
+`ZTD_DB_URL` is the only implicit database owned by ztd-cli. Use `--url` or a full `--db-*` flag set for any other inspection target.
 
 ## DDL change prompt
 
@@ -42,7 +42,7 @@ I changed the SQL for users.
 Read the nearest AGENTS.md files first.
 The starter DDL uses the `users` table, so keep the SQL on that table and do not invent a `user` table.
 Use `npx ztd model-gen --probe-mode ztd src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts` to refresh the spec, then update the feature-local tests that now fail. In VSA layouts, `model-gen` derives the contract from the SQL file location first, so `--sql-root` is only a compatibility helper for older shared SQL roots.
-Keep `ZTD_TEST_DATABASE_URL` set in the same shell when you run Vitest.
+Keep `ZTD_DB_URL` set in the same shell when you run Vitest.
 Do not apply migrations automatically.
 ```
 

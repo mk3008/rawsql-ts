@@ -313,12 +313,12 @@ export function resolveCliConnectionWithProbeGuidance(
     return resolveExplicitCliConnection(options);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (message.includes('ZTD_TEST_DATABASE_URL is required') && probeMode === 'ztd') {
+    if (message.includes('ZTD_DB_URL is required') && probeMode === 'ztd') {
       throw new Error(
         [
           message,
           'model-gen --probe-mode ztd still needs a reachable PostgreSQL connection for ZTD-owned inspection.',
-          'Start Docker/service and provide ZTD_TEST_DATABASE_URL, then rerun.'
+          'Start Docker/service and provide ZTD_DB_URL, then rerun.'
         ].join('\n')
       );
     }
@@ -342,7 +342,7 @@ export function buildModelGenConnectionFailure(error: unknown, probeMode: ModelG
   const message = error instanceof Error ? error.message : String(error);
   const modeHint =
     probeMode === 'ztd'
-      ? 'Ensure ZTD_TEST_DATABASE_URL points to a reachable PostgreSQL instance before ZTD-owned inspection.'
+      ? 'Ensure ZTD_DB_URL points to a reachable PostgreSQL instance before ZTD-owned inspection.'
       : 'Ensure --url or a complete --db-* flag set points to a reachable PostgreSQL instance for explicit target inspection.';
   return new Error(`Failed to connect to PostgreSQL for model-gen. ${modeHint} (${message})`);
 }

@@ -48,7 +48,7 @@
 
   `ztd query uses` now discovers scaffolded feature-local `queryspec.ts` files that load SQL through `loadSqlResource(...)`, so DDL repair and usage search work against the generated VSA layout instead of reporting that no QuerySpec entries were found.
 
-  `ztd model-gen --probe-mode ztd` now handles starter-style `INSERT ... RETURNING` scaffolds more reliably by deriving RETURNING column types from the loaded DDL metadata when direct probing cannot resolve them, and it also reads starter `.env` settings to find the ZTD-owned test database without requiring a manually exported `ZTD_TEST_DATABASE_URL`.
+  `ztd model-gen --probe-mode ztd` now handles starter-style `INSERT ... RETURNING` scaffolds more reliably by deriving RETURNING column types from the loaded DDL metadata when direct probing cannot resolve them, and it also reads starter `.env` settings to find the ZTD-owned test database without requiring a manually exported runtime connection variable.
 
 - [#691](https://github.com/mk3008/rawsql-ts/pull/691) [`774601c`](https://github.com/mk3008/rawsql-ts/commit/774601c7b482e922665ba7ec075f255530720815) Thanks [@mk3008](https://github.com/mk3008)! - Strengthen the starter guidance and repository troubleshooting notes so SQL-backed QuerySpecs are treated as ZTD-backed tests, and SQL shadowing failures are diagnosed before considering schema changes.
 
@@ -71,7 +71,7 @@
 
 - [#687](https://github.com/mk3008/rawsql-ts/pull/687) [`937bb1c`](https://github.com/mk3008/rawsql-ts/commit/937bb1c42484ae4dda72cfac787734d35f485502) Thanks [@mk3008](https://github.com/mk3008)! - `ztd agents init` now installs an opt-in customer-facing Codex bootstrap with visible `AGENTS.md`, `.codex`, and `.agents` guidance. The command surface, templates, status reporting, and docs were updated so reviewers can verify the managed set and the current local `spawn EPERM` blocker separately.
 
-- [#669](https://github.com/mk3008/rawsql-ts/pull/669) [`0d61ffe`](https://github.com/mk3008/rawsql-ts/commit/0d61ffe7a464133d8d8b6720bcdd43aea432fceb) Thanks [@mk3008](https://github.com/mk3008)! - The starter quickstart now uses a `.env`-based setup flow, includes `.env.example` and `.gitignore`, and loads `ZTD_TEST_DATABASE_URL` consistently in Vitest. The generated README and tutorial were updated to keep the database port and test runtime aligned.
+ - [#669](https://github.com/mk3008/rawsql-ts/pull/669) [`0d61ffe`](https://github.com/mk3008/rawsql-ts/commit/0d61ffe7a464133d8d8b6720bcdd43aea432fceb) Thanks [@mk3008](https://github.com/mk3008)! - The starter quickstart now uses a `.env`-based setup flow, includes `.env.example` and `.gitignore`, and loads the starter runtime connection consistently in Vitest. The generated README and tutorial were updated to keep the database port and test runtime aligned.
 
 - [#673](https://github.com/mk3008/rawsql-ts/pull/673) [`7f4035a`](https://github.com/mk3008/rawsql-ts/commit/7f4035a3caeba7f0b15247957bb0d360beef1296) Thanks [@mk3008](https://github.com/mk3008)! - Improve the starter smoke path so it points to `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`, and clarify the generated testkit guidance in the starter docs.
 

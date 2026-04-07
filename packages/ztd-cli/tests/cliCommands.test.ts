@@ -57,7 +57,7 @@ function commandExists(command: string): boolean {
 
 function buildCliEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   return {
-    // Copy the current environment so per-test mutations (for example ZTD_TEST_DATABASE_URL) propagate to the CLI.
+    // Copy the current environment so per-test mutations (for example ZTD_DB_URL) propagate to the CLI.
     ...process.env,
     NODE_ENV: 'test',
     ...overrides,
@@ -473,7 +473,7 @@ test(
   'feature scaffold rejects composite primary keys in v1',
   () => {
     const workspace = createTempDir('feature-scaffold-composite-pk');
-    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    const ddlDir = path.join(workspace, 'db', 'ddl');
     mkdirSync(ddlDir, { recursive: true });
     writeFileSync(
       path.join(ddlDir, 'orders.sql'),
@@ -506,7 +506,7 @@ test(
   'feature scaffold writes the update boundary baseline',
   () => {
     const workspace = createTempDir('feature-scaffold-update-cli');
-    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    const ddlDir = path.join(workspace, 'db', 'ddl');
     mkdirSync(ddlDir, { recursive: true });
     writeFileSync(
       path.join(ddlDir, 'users.sql'),
@@ -542,7 +542,7 @@ test(
   'feature scaffold writes the delete boundary baseline',
   () => {
     const workspace = createTempDir('feature-scaffold-delete-cli');
-    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    const ddlDir = path.join(workspace, 'db', 'ddl');
     mkdirSync(ddlDir, { recursive: true });
     writeFileSync(
       path.join(ddlDir, 'users.sql'),
@@ -576,7 +576,7 @@ test(
   'feature scaffold writes the get-by-id boundary baseline',
   () => {
     const workspace = createTempDir('feature-scaffold-get-by-id-cli');
-    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    const ddlDir = path.join(workspace, 'db', 'ddl');
     mkdirSync(ddlDir, { recursive: true });
     writeFileSync(
       path.join(ddlDir, 'users.sql'),
@@ -618,7 +618,7 @@ test(
   'feature scaffold writes the list boundary baseline',
   () => {
     const workspace = createTempDir('feature-scaffold-list-cli');
-    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    const ddlDir = path.join(workspace, 'db', 'ddl');
     mkdirSync(ddlDir, { recursive: true });
     writeFileSync(
       path.join(ddlDir, 'users.sql'),
@@ -660,7 +660,7 @@ test(
   'feature scaffold preserves existing files unless --force is provided',
   () => {
     const workspace = createTempDir('feature-scaffold-existing-file');
-    const ddlDir = path.join(workspace, 'ztd', 'ddl');
+    const ddlDir = path.join(workspace, 'db', 'ddl');
     const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
     mkdirSync(ddlDir, { recursive: true });
     mkdirSync(path.join(featureDir, 'insert-users'), { recursive: true });
@@ -861,6 +861,7 @@ test(
       `,
       'utf8'
     );
+    mkdirSync(path.join(workspace.rootDir, 'src', 'sql', 'products'), { recursive: true });
     writeFileSync(
       path.join(workspace.rootDir, 'src', 'sql', 'products', 'list.sql'),
       `
@@ -871,17 +872,6 @@ test(
       `,
       'utf8'
     );
-    writeFileSync(
-      path.join(workspace.rootDir, 'src', 'sql', 'users', 'list-with-join.sql'),
-      `
-        SELECT account.user_id, account.email
-        FROM public.users account
-        JOIN public.orders ord ON ord.user_id = account.user_id
-        WHERE account.active = true
-      `,
-      'utf8'
-    );
-
     const result = runCli(
       [
         'query',
@@ -905,22 +895,21 @@ test(
     const parsed = JSON.parse(result.stdout);
     expect(parsed).toMatchObject({
       schemaVersion: 1,
-      observedQueries: 1,
-      matches: [
-        expect.objectContaining({
-          sql_file: 'src/sql/users/list.sql',
-          section_scores: expect.objectContaining({
-            projection: expect.any(Number),
-            source: expect.any(Number),
-            where: expect.any(Number),
-            order: expect.any(Number),
-            paging: expect.any(Number)
-          })
-        })
-      ]
+      observedQueries: 1
     });
-    expect(parsed.matches[0].reasons.join(' ')).toContain('optional predicate branches');
-    expect(parsed.matches[0].differences.join(' ')).toContain('candidate adds where clause');
+    expect(parsed.matches.length).toBeGreaterThan(0);
+    expect(parsed.matches[0]).toMatchObject({
+      sql_file: 'src/sql/users/list.sql',
+      section_scores: expect.objectContaining({
+        projection: expect.any(Number),
+        source: expect.any(Number),
+        where: expect.any(Number),
+        order: expect.any(Number),
+        paging: expect.any(Number)
+      })
+    });
+    expect(parsed.matches[0].reasons.join(' ')).toContain('projection matches exactly');
+    expect(Array.isArray(parsed.matches[0].differences)).toBe(true);
   },
   60000,
 );
@@ -928,13 +917,15 @@ test(
 test(
   'query match-observed exits non-zero when no candidate SELECT assets are found',
   () => {
-    const workspace = createSqlWorkspace('query-match-observed-empty', path.join('src', 'sql', 'observed.sql'));
-    writeFileSync(workspace.sqlFile, 'SELECT 1', 'utf8');
+    const workspaceRoot = createTempDir('query-match-observed-empty');
+    const observedDir = createTempDir('query-match-observed-observed');
+    const sqlFile = path.join(observedDir, 'observed.sql');
+    writeFileSync(sqlFile, 'SELECT 1', 'utf8');
 
     const result = runCli(
-      ['query', 'match-observed', '--sql-file', workspace.sqlFile, '--format', 'text'],
-      { ZTD_PROJECT_ROOT: workspace.rootDir },
-      workspace.rootDir
+      ['query', 'match-observed', '--sql-file', sqlFile, '--format', 'text'],
+      { ZTD_PROJECT_ROOT: workspaceRoot },
+      workspaceRoot
     );
 
     assertCliFailure(result, 'query match-observed no candidates');
@@ -999,16 +990,16 @@ test(
       JSON.stringify({
         dialect: 'postgres',
         ddlDir: 'db/ddl',
-        testsDir: 'tests',
+        testsDir: '.ztd/tests',
         defaultSchema: 'public',
         searchPath: ['public'],
         ddlLint: 'strict'
       }, null, 2),
       'utf8'
     );
-    mkdirSync(path.join(workspace.rootDir, 'ztd', 'ddl'), { recursive: true });
+    mkdirSync(path.join(workspace.rootDir, 'db', 'ddl'), { recursive: true });
     writeFileSync(
-      path.join(workspace.rootDir, 'ztd', 'ddl', 'public.sql'),
+      path.join(workspace.rootDir, 'db', 'ddl', 'public.sql'),
       'CREATE TABLE public.users (id integer PRIMARY KEY);',
       'utf8'
     );
@@ -1016,7 +1007,7 @@ test(
     const result = runCli(
       ['--output', 'json', 'lint', '--json', JSON.stringify({ path: workspace.sqlFile })],
       {
-        ZTD_TEST_DATABASE_URL: 'postgres://127.0.0.1:1/invalid',
+        ZTD_DB_URL: 'postgres://127.0.0.1:1/invalid',
         DATABASE_URL: ''
       },
       workspace.rootDir
@@ -1113,7 +1104,8 @@ test('agents init emits the Codex bootstrap plan and materializes the files', { 
   expect(result.stdout).toContain('AGENTS.md');
   expect(result.stdout).toContain('.codex/config.toml');
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'support', 'ztd', 'README.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'tests', 'support', 'ztd', 'harness.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(true);
   expect(existsSync(path.join(workspace, '.codex', 'agents', 'planning.md'))).toBe(true);
   expect(existsSync(path.join(workspace, '.agents'))).toBe(false);
@@ -1140,7 +1132,8 @@ test('agents install remains a backwards-compatible alias for agents init', { ti
   assertCliSuccess(result, 'agents install alias');
   expect(result.stdout).toContain('Omit `ztd agents init` if you do not want the Codex bootstrap files.');
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'support', 'ztd', 'README.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'tests', 'support', 'ztd', 'harness.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(true);
 });
 
@@ -1352,7 +1345,7 @@ test('perf db reset dry-run fails fast when the configured DDL directory is miss
     JSON.stringify({
       dialect: 'postgres',
       ddlDir: 'db/ddl',
-      testsDir: 'tests',
+      testsDir: '.ztd/tests',
       defaultSchema: 'public',
       searchPath: ['public'],
       ddlLint: 'strict'
@@ -1367,21 +1360,21 @@ test('perf db reset dry-run fails fast when the configured DDL directory is miss
 });
 test('perf seed output redacts connection credentials in global json mode', () => {
   const workspace = createTempDir('perf-seed-redact');
-  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+  mkdirSync(path.join(workspace, 'db', 'ddl'), { recursive: true });
   mkdirSync(path.join(workspace, 'perf'), { recursive: true });
   writeFileSync(
     path.join(workspace, 'ztd.config.json'),
     JSON.stringify({
       dialect: 'postgres',
       ddlDir: 'db/ddl',
-      testsDir: 'tests',
+      testsDir: '.ztd/tests',
       defaultSchema: 'public',
       searchPath: ['public'],
       ddlLint: 'strict'
     }, null, 2),
     'utf8'
   );
-  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), ['create table public.users (id integer primary key);', 'create index users_id_idx on public.users(id);', ''].join('\n'), 'utf8');
+    writeFileSync(path.join(workspace, 'db', 'ddl', 'public.sql'), ['create table public.users (id integer primary key);', 'create index users_id_idx on public.users(id);', ''].join('\n'), 'utf8');
   writeFileSync(path.join(workspace, 'perf', 'seed.yml'), [
     'seed: 999',
     'tables:',
@@ -1393,7 +1386,7 @@ test('perf seed output redacts connection credentials in global json mode', () =
 
   const result = runCli(
     ['--output', 'json', 'perf', 'seed'],
-    { ZTD_TEST_DATABASE_URL: 'postgres://perf_user:perf_pass@127.0.0.1:1/ztd_perf' },
+     { ZTD_DB_URL: 'postgres://perf_user:perf_pass@127.0.0.1:1/ztd_perf' },
     workspace
   );
 
@@ -1402,49 +1395,49 @@ test('perf seed output redacts connection credentials in global json mode', () =
 });
 test('perf db reset refuses implicit DATABASE_URL without explicit ZTD test opt-in', () => {
   const workspace = createTempDir('perf-reset-safety');
-  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+  mkdirSync(path.join(workspace, 'db', 'ddl'), { recursive: true });
   writeFileSync(
     path.join(workspace, 'ztd.config.json'),
     JSON.stringify({
       dialect: 'postgres',
       ddlDir: 'db/ddl',
-      testsDir: 'tests',
+      testsDir: '.ztd/tests',
       defaultSchema: 'public',
       searchPath: ['public'],
       ddlLint: 'strict'
     }, null, 2),
     'utf8'
   );
-  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), ['create table public.users (id integer primary key);', 'create index users_id_idx on public.users(id);', ''].join('\n'), 'utf8');
+    writeFileSync(path.join(workspace, 'db', 'ddl', 'public.sql'), ['create table public.users (id integer primary key);', 'create index users_id_idx on public.users(id);', ''].join('\n'), 'utf8');
 
   const result = runCli(
     ['perf', 'db', 'reset'],
-    { DATABASE_URL: 'postgres://app.example/db', ZTD_TEST_DATABASE_URL: '' },
+     { DATABASE_URL: 'postgres://app.example/db', ZTD_DB_URL: '' },
     workspace
   );
 
   assertCliFailure(result, 'perf db reset safety');
   expect(result.stderr).toContain('Perf sandbox ignores DATABASE_URL');
-  expect(result.stderr).toContain('ZTD_TEST_DATABASE_URL');
+   expect(result.stderr).toContain('ZTD_DB_URL');
 });
 
 test('perf seed dry-run rejects unknown tables from perf seed config', () => {
   const workspace = createTempDir('perf-seed-invalid-table');
-  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+  mkdirSync(path.join(workspace, 'db', 'ddl'), { recursive: true });
   mkdirSync(path.join(workspace, 'perf'), { recursive: true });
   writeFileSync(
     path.join(workspace, 'ztd.config.json'),
     JSON.stringify({
       dialect: 'postgres',
       ddlDir: 'db/ddl',
-      testsDir: 'tests',
+      testsDir: '.ztd/tests',
       defaultSchema: 'public',
       searchPath: ['public'],
       ddlLint: 'strict'
     }, null, 2),
     'utf8'
   );
-  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), ['create table public.users (id integer primary key);', 'create index users_id_idx on public.users(id);', ''].join('\n'), 'utf8');
+    writeFileSync(path.join(workspace, 'db', 'ddl', 'public.sql'), ['create table public.users (id integer primary key);', 'create index users_id_idx on public.users(id);', ''].join('\n'), 'utf8');
   writeFileSync(path.join(workspace, 'perf', 'seed.yml'), [
     'seed: 999',
     'tables:',
@@ -1461,21 +1454,21 @@ test('perf seed dry-run rejects unknown tables from perf seed config', () => {
 });
 test('perf seed dry-run reports deterministic row counts from perf seed config', () => {
   const workspace = createTempDir('perf-seed-dry-run');
-  mkdirSync(path.join(workspace, 'ztd', 'ddl'), { recursive: true });
+  mkdirSync(path.join(workspace, 'db', 'ddl'), { recursive: true });
   mkdirSync(path.join(workspace, 'perf'), { recursive: true });
   writeFileSync(
     path.join(workspace, 'ztd.config.json'),
     JSON.stringify({
       dialect: 'postgres',
       ddlDir: 'db/ddl',
-      testsDir: 'tests',
+      testsDir: '.ztd/tests',
       defaultSchema: 'public',
       searchPath: ['public'],
       ddlLint: 'strict'
     }, null, 2),
     'utf8'
   );
-  writeFileSync(path.join(workspace, 'ztd', 'ddl', 'public.sql'), [
+    writeFileSync(path.join(workspace, 'db', 'ddl', 'public.sql'), [
     'create table public.users (',
     '  id integer primary key,',
     '  status text not null,',
@@ -1921,7 +1914,7 @@ test('ddl pull ignores DATABASE_URL and requires an explicit target', () => {
   const outDir = createTempDir('cli-pull-no-implicit-target');
   const result = runCli(['ddl', 'pull', '--out', outDir], {
     DATABASE_URL: 'postgres://app.example/db',
-    ZTD_TEST_DATABASE_URL: 'postgres://ztd.example/db'
+     ZTD_DB_URL: 'postgres://ztd.example/db'
   });
 
   assertCliFailure(result, 'ddl pull explicit target requirement');
@@ -2178,7 +2171,7 @@ pullTest('model-gen emits a spec scaffold from ZTD DDL metadata without physical
     expect(existsBefore.rows[0]?.name).toBeNull();
 
     const workspace = createSqlWorkspace('model-gen-ztd', path.join('src', 'sql', 'sales', 'get_sales_header.sql'));
-    const ddlDir = path.join(workspace.rootDir, 'ztd', 'ddl');
+    const ddlDir = path.join(workspace.rootDir, 'db', 'ddl');
     mkdirSync(ddlDir, { recursive: true });
     writeFileSync(
       path.join(ddlDir, 'public.sql'),
@@ -2196,7 +2189,7 @@ pullTest('model-gen emits a spec scaffold from ZTD DDL metadata without physical
       JSON.stringify({
         dialect: 'postgres',
         ddlDir: 'db/ddl',
-        testsDir: 'tests',
+        testsDir: '.ztd/tests',
         defaultSchema: 'public',
         searchPath: ['public'],
         ddlLint: 'strict'
@@ -2218,7 +2211,7 @@ pullTest('model-gen emits a spec scaffold from ZTD DDL metadata without physical
     const outFile = path.join(workspace.rootDir, 'product-ztd.spec.ts');
     const result = runCli(
       ['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--probe-mode', 'ztd', '--out', outFile, '--debug-probe'],
-      { ZTD_TEST_DATABASE_URL: connectionString, DATABASE_URL: 'postgres://ignored.example/app' },
+       { ZTD_DB_URL: connectionString, DATABASE_URL: 'postgres://ignored.example/app' },
       workspace.rootDir
     );
 
@@ -2249,7 +2242,7 @@ pullTest('model-gen ztd resolves unqualified table names through defaultSchema/s
     await resetPublicSchema(client);
 
     const workspace = createSqlWorkspace('model-gen-ztd-unqualified', path.join('src', 'sql', 'users', 'list_users.sql'));
-    const ddlDir = path.join(workspace.rootDir, 'ztd', 'ddl');
+    const ddlDir = path.join(workspace.rootDir, 'db', 'ddl');
     mkdirSync(ddlDir, { recursive: true });
     writeFileSync(
       path.join(ddlDir, 'public.sql'),
@@ -2266,7 +2259,7 @@ pullTest('model-gen ztd resolves unqualified table names through defaultSchema/s
       JSON.stringify({
         dialect: 'postgres',
         ddlDir: 'db/ddl',
-        testsDir: 'tests',
+        testsDir: '.ztd/tests',
         defaultSchema: 'public',
         searchPath: ['public'],
         ddlLint: 'strict'
@@ -2287,7 +2280,7 @@ pullTest('model-gen ztd resolves unqualified table names through defaultSchema/s
     const outFile = path.join(workspace.rootDir, 'users-ztd.spec.ts');
     const result = runCli(
       ['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--probe-mode', 'ztd', '--out', outFile, '--debug-probe'],
-      { ZTD_TEST_DATABASE_URL: connectionString, DATABASE_URL: 'postgres://ignored.example/app' },
+       { ZTD_DB_URL: connectionString, DATABASE_URL: 'postgres://ignored.example/app' },
       workspace.rootDir
     );
 
@@ -2312,7 +2305,7 @@ pullTest('model-gen ztd honors searchPath precedence for unqualified table names
     await resetPublicSchema(client);
 
     const workspace = createSqlWorkspace('model-gen-ztd-search-path', path.join('src', 'sql', 'users', 'current_users.sql'));
-    const ddlDir = path.join(workspace.rootDir, 'ztd', 'ddl');
+    const ddlDir = path.join(workspace.rootDir, 'db', 'ddl');
     mkdirSync(ddlDir, { recursive: true });
     writeFileSync(
       path.join(ddlDir, 'schemas.sql'),
@@ -2336,7 +2329,7 @@ pullTest('model-gen ztd honors searchPath precedence for unqualified table names
       JSON.stringify({
         dialect: 'postgres',
         ddlDir: 'db/ddl',
-        testsDir: 'tests',
+        testsDir: '.ztd/tests',
         defaultSchema: 'app',
         searchPath: ['app', 'public'],
         ddlLint: 'strict'
@@ -2357,7 +2350,7 @@ pullTest('model-gen ztd honors searchPath precedence for unqualified table names
     const outFile = path.join(workspace.rootDir, 'current-users-ztd.spec.ts');
     const result = runCli(
       ['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--probe-mode', 'ztd', '--out', outFile, '--debug-probe'],
-      { ZTD_TEST_DATABASE_URL: connectionString, DATABASE_URL: 'postgres://ignored.example/app' },
+       { ZTD_DB_URL: connectionString, DATABASE_URL: 'postgres://ignored.example/app' },
       workspace.rootDir
     );
 

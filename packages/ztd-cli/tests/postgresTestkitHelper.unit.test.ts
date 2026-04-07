@@ -6,7 +6,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import {
   createStarterPostgresTestkitClient,
   loadStarterPostgresDefaults
-} from '../templates/.ztd/support/postgres-testkit';
+} from '../templates/tests/support/postgres-testkit';
 
 const tempDirs: string[] = [];
 
@@ -51,9 +51,9 @@ test('loadStarterPostgresDefaults throws when ztd.config.json is malformed', () 
   expect(() => loadStarterPostgresDefaults(rootDir)).toThrow(/Unexpected end of JSON input|malformed/);
 });
 
-test('createStarterPostgresTestkitClient requires an explicit connectionString or ZTD_TEST_DATABASE_URL', () => {
-  const previous = process.env.ZTD_TEST_DATABASE_URL;
-  delete process.env.ZTD_TEST_DATABASE_URL;
+test('createStarterPostgresTestkitClient requires an explicit connectionString or ZTD_DB_URL', () => {
+  const previous = process.env.ZTD_DB_URL;
+  delete process.env.ZTD_DB_URL;
 
   try {
     expect(() =>
@@ -61,12 +61,12 @@ test('createStarterPostgresTestkitClient requires an explicit connectionString o
         tableDefinitions: [],
         tableRows: []
       })
-    ).toThrow('Set options.connectionString or ZTD_TEST_DATABASE_URL before creating a starter Postgres testkit client.');
+    ).toThrow('Set options.connectionString or ZTD_DB_URL before creating a starter Postgres testkit client.');
   } finally {
     if (previous === undefined) {
-      delete process.env.ZTD_TEST_DATABASE_URL;
+      delete process.env.ZTD_DB_URL;
     } else {
-      process.env.ZTD_TEST_DATABASE_URL = previous;
+      process.env.ZTD_DB_URL = previous;
     }
   }
 });

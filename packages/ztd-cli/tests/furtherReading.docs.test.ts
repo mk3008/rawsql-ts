@@ -50,7 +50,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'cp .env.example .env',
         '# edit ZTD_DB_PORT=5433',
         'docker compose up -d',
-        'The starter setup derives `ZTD_TEST_DATABASE_URL` from `.env`',
+        'The starter setup derives `ZTD_DB_URL` from `.env`',
         'If port `5432` is already in use, update `ZTD_DB_PORT` in `.env` before you rerun the compose path, for example:',
         'Copy-Item .env.example .env',
         'npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail',
@@ -86,7 +86,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'tmp/users.diff.sql',
         'npx ztd ddl risk --file tmp/users.diff.sql',
         'npx ztd model-gen --probe-mode ztd src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts',
-        '`ZTD_TEST_DATABASE_URL` is the only implicit database owned by ztd-cli.',
+        '`ZTD_DB_URL` is the only implicit database owned by ztd-cli.',
         'Use `--url` or a full `--db-*` flag set for any other inspection target.',
         'The feature folder is one narrowed spec set inside the normal project-wide discovery flow.',
         'inspect the structured risks second',
@@ -134,7 +134,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'treat `summary` as the logical diff, treat `risks` as the apply-plan risk list',
         'Use `ztd ddl risk --file <migration.sql>` when you need to evaluate a generated or hand-edited migration SQL file directly',
         '`ztd model-gen` now treats feature-local SQL files as the primary contract source',
-        'ZTD_TEST_DATABASE_URL',
+        'ZTD_DB_URL',
         'Do not assume `DATABASE_URL` is a usable default target',
         'Visible `AGENTS.md` files are opt-in via `ztd agents init`',
         '.codex/config.toml',
@@ -328,7 +328,7 @@ test('quickstart and tutorial spell out the common 5432 collision fallback', () 
   expect(packageReadme).toContain('docker compose up -d');
   expect(packageReadme).toContain('npx vitest run');
   expect(scaffoldReadme).toContain('When you add SQL-backed tests, copy `.env.example` to `.env` and adjust `ZTD_DB_PORT` if needed before running the DB-backed suites.');
-  expect(scaffoldReadme).toContain('The shared runner implementation lives at `tests/ztd/` (application code and reusable harness helpers), while `.ztd/tests/` is reserved for tool-managed support files and generated metadata.');
+  expect(scaffoldReadme).toContain('Starter-owned shared support lives at `tests/support/ztd/`, while `.ztd/` is the tool-managed workspace for generated metadata and support files.');
   expect(tutorial).toContain('If port `5432` is already in use, update `ZTD_DB_PORT` in `.env` before you rerun the compose path, for example:');
   expect(tutorial).toContain('cp .env.example .env');
   expect(tutorial).toContain('Copy-Item .env.example .env');
