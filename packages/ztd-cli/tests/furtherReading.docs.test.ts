@@ -28,11 +28,10 @@ test('package README links every Further Reading guide from the public index', (
     '[Perf Tuning Decision Guide](../../docs/guide/perf-tuning-decision-guide.md)',
     '[JOIN Direction Lint Specification](../../docs/guide/join-direction-lint-spec.md)',
     '[ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md)',
-    '[Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md)',
-    '[Generated-Project Verification Before Merge](../../docs/guide/generated-project-verification.md)',
+    '[Local-Source Development](../../docs/guide/ztd-local-source-dogfooding.md)',
     '[Codex Bootstrap Verification](../../docs/dogfooding/ztd-codex-bootstrap-verification.md)',
     '[ztd-cli spawn EPERM Investigation](../../docs/dogfooding/ztd-cli-spawn-eperm-investigation.md)',
-    '[ztd Onboarding Dogfooding](../../docs/dogfooding/ztd-onboarding-dogfooding.md)'
+    '[ztd Onboarding Verification](../../docs/dogfooding/ztd-onboarding-dogfooding.md)'
   ]);
 });
 
@@ -43,8 +42,8 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       phrases: [
         'This tutorial shows the shortest path from `ztd init --starter` to a small `users` feature',
         'npx ztd agents init',
-        'The smallest DB-backed starter example lives in `src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts`.',
-        'It uses the fixed app-level runner in `tests/ztd/harness.ts`',
+        'The smallest DB-backed starter example lives in `src/features/smoke/tests/smoke.queryspec.test.ts`.',
+        '`@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`',
         'optional customer-facing Codex bootstrap (installed by `npx ztd agents init`)',
         'Docker Desktop or another Docker daemon is already running',
         'cp .env.example .env',
@@ -55,7 +54,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'Copy-Item .env.example .env',
         'npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail',
         'Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.',
-      'npx ztd model-gen --probe-mode ztd src/features/users-insert/queries/insert-users/insert-users.sql --out src/features/users-insert/queries/insert-users/spec.ts',
+        'npx ztd model-gen --probe-mode ztd src/features/users-insert/insert-users/insert-users.sql --out src/features/users-insert/insert-users/queryspec.ts',
         'model-gen` now treats the SQL file location as the primary contract source',
         'Read the review summary first:',
         '- the risks section lists destructive and operational apply-plan risks separately',
@@ -163,8 +162,8 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'npx ztd agents init',
         'If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; check whether `ztd-cli` or `rawsql-ts` changed the manifest or rewrite path.',
         'If you see `user_id: null`, compare the direct database `INSERT ... RETURNING ...` result with the ZTD result and inspect `.ztd/generated/ztd-fixture-manifest.generated.ts` first.',
-        'If a dogfood workspace is meant to reflect a source change, verify that it resolves `rawsql-ts` from the local source tree rather than a registry copy.',
-      'After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`.',
+        'If a local-source workspace is meant to reflect a source change, verify that it resolves `rawsql-ts` from the local source tree rather than a registry copy.',
+        'After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`.',
         'generated/*` is CLI-owned and refreshable, `cases/*` is human/AI-owned and kept, and the thin entrypoint is kept.',
         'Do not apply migrations automatically.'
       ]
@@ -235,22 +234,6 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         '`ztd perf db reset --dry-run`',
         '`ztd perf run`',
         'compare `--strategy direct` and `--strategy decomposed`'
-      ]
-    },
-    {
-      docPath: 'docs/guide/generated-project-verification.md',
-      phrases: [
-        'Use this guide when you change the scaffold or layout that `ztd-cli` writes into a fresh project.',
-        'Build the workspace packages needed by the local-source scaffold path.',
-        'ztd init --starter --yes --local-source-root <repo-root>',
-        'ztd feature scaffold --table users --action insert',
-        'ztd ztd-config',
-        'packages/ztd-cli/src/commands/init.ts',
-        'packages/ztd-cli/src/commands/feature.ts',
-        'packages/ztd-cli/templates/**',
-        'packages/ztd-cli/tests/init.command.test.ts',
-        'packages/ztd-cli/tests/featureScaffold.unit.test.ts',
-        'packages/ztd-cli/README.md'
       ]
     },
     {
