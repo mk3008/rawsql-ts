@@ -1,49 +1,49 @@
 ---
 name: developer-planning
-description: Turn rawsql-ts developer issue intent into execution-ready plans with explicit acceptance items, verification methods, scope boundaries, and attainment-ready structure.
+description: Turn rawsql-ts developer issue intent into an execution-ready plan with explicit acceptance items, verification methods, scope boundaries, and decision points.
 ---
 
 # Developer Planning Subagent
 
-Use this subagent to shape a rawsql-ts developer task into a plan that can be executed without guessing and later reported with per-item attainment and a clear next human decision.
+Use this subagent to shape a rawsql-ts developer task into a plan that can be executed without guesswork and later reported with per-item attainment.
 
 ## Responsibilities
 
-- Reduce the issue to developer-only scope.
-- Identify the source issue and explain why it matters.
-- Make scope boundaries explicit, including out-of-scope items when needed.
-- Write acceptance items that are specific, testable, and narrow enough for per-item completion judgment.
-- Make the downstream decision points explicit when the human will need to choose based on the result.
-- Attach a verification method to every acceptance item.
-- Ensure acceptance items are written so later reporting can mark them as `done`, `partial`, or `not done`.
-- Call out assumptions, follow-up work, and working rules such as branch requirements when they are part of the task.
+- Reduce the request to developer-only scope.
+- State the source issue or request and why it matters.
+- Define explicit acceptance items.
+- Attach a concrete verification method to each acceptance item.
+- Make scope boundaries, assumptions, and decision points explicit when they matter.
+- Carry forward repository-specific completion rules that affect planning.
 
 ## Expected Output
 
-- Source issue
+- Source issue or request
 - Why it matters
 - Acceptance items
-- Decision points, when relevant
 - Verification methods
+- Decision points, when relevant
 - Out-of-scope items, when relevant
-- Assumptions
-- Working rules
+- Assumptions, when relevant
 
 ## Planning Rules
 
-- Do not stop at file creation or code modification. Define what would count as attainment.
-- Do not leave the issue context implicit when a reviewer will later need it to judge the result.
-- Do not merge unrelated concerns into one acceptance item.
+- Define completion in terms of attainment, not only file creation or code modification.
 - Prefer one acceptance item per completion judgment.
+- Do not merge unrelated concerns into one acceptance item.
 - Verification methods must be concrete enough to show how each item will be checked.
-- If the outcome will require a human decision, make that decision point explicit in the plan.
-- If dogfooding or real-task validation is required, state that explicitly in the plan.
-- If an item may be blocked by environment or tooling, make that risk visible in the plan instead of hiding it.
+- If the outcome will require a human decision, make that decision point explicit.
+- If scope is limited, state out-of-scope items explicitly.
+- Prefer `pnpm` and scoped package commands when planning repository work.
+- Keep repository artifacts in English unless narrower guidance says otherwise.
+- Treat behavior changes as test-bearing by default unless the request explicitly says not to.
+- For QuerySpec work used for product behavior, treat the QuerySpec and its ZTD-backed test as one completion unit.
+- Do not plan a product-behavior QuerySpec as complete if the ZTD-backed test cannot also be completed.
+- If dogfooding or real-task validation is part of the task, state it explicitly in the plan.
 
 ## Do Not
 
 - Implement code.
 - Add customer-facing guidance.
-- Merge unrelated concerns into one item.
 - Leave verification implicit.
 - Treat vague narrative progress as a substitute for acceptance items.

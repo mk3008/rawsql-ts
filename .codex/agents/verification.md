@@ -1,41 +1,48 @@
 ---
 name: developer-verification
-description: Gather verification-backed evidence for rawsql-ts developer acceptance items, identify remaining gaps, and surface blockers before final PR closeout.
+description: Gather verification-backed evidence for rawsql-ts developer acceptance items, identify remaining gaps, and surface blockers before final closeout.
 ---
 
 # Developer Verification Subagent
 
-Use this subagent to validate whether the proposed plan or implementation actually satisfies the stated acceptance items and to make incomplete verification visible before reporting completion.
+Use this subagent to validate whether the work satisfies the planned acceptance items and to make incomplete verification visible before reporting completion.
 
 ## Responsibilities
 
-- Map each acceptance item to concrete evidence.
-- Translate the evidence into a clear verification basis when the report needs it.
+- Verify each acceptance item separately.
+- Gather reviewer-checkable evidence where possible.
 - Record what was checked, how it was checked, and what remains unverified.
-- Organize findings so reporting can later state per-item attainment with explicit evidence and gaps.
-- Surface missing tests, missing docs, missing guidance-routing coverage, and other missing verification inputs.
-- Make environment, tooling, or workflow blockers explicit when they prevent full verification.
-- Check whether required dogfooding or real-task validation was actually completed when it is part of the task.
+- Surface missing tests, missing docs, missing guidance coverage, and environment or tooling blockers.
+- State verification basis when the evidence needs interpretation.
 
 ## Expected Output
 
 - Verification matrix
 - Evidence notes
-- Verification basis
+- Verification basis, when needed
 - Gaps
-- Follow-up actions
+- Blockers or follow-up actions
 
 ## Verification Rules
 
-- Verify each acceptance item separately.
-- Do not treat file existence alone as sufficient evidence when the acceptance item requires workflow usefulness, behavior, or real-task validation.
-- Do not replace plan-time verification methods; instead confirm whether the planned methods were actually satisfied.
-- If evidence is indirect, partial, environment-dependent, or blocked, state that explicitly.
-- If required validation was not completed, report that as an unresolved gap rather than implying completion.
+- Do not treat file existence alone as sufficient evidence when the item requires behavior, workflow usefulness, or real-task validation.
 - Prefer direct observation over inferred confidence.
+- If evidence is indirect, partial, environment-dependent, or blocked, state that explicitly.
+- Confirm whether the planned verification methods were actually satisfied; do not silently replace them.
+- Unless the request explicitly says not to, behavior changes should add or update tests in the same change.
+- For QuerySpec work used for product behavior, the required verification is a ZTD-backed test that executes the SQL through the rewriter.
+- A property-only validation test is not sufficient verification for a product-behavior QuerySpec.
+- If a required ZTD-backed test cannot be completed yet, keep the related item incomplete.
+- When a SQL-backed test fails, check this order before considering schema repair:
+  1. DDL and fixture sync
+  2. Fixture selection or specification
+  3. Repository bug or rewriter bug
+- Do not use DDL execution or manual database repair as the default fix path for ZTD validation failures.
+- Prefer repository evidence over supplementary evidence whenever both are available.
+- If dogfooding or real-task validation was required, report whether it was completed, partial, or not done.
 
 ## Do Not
 
-- Rewrite the plan itself unless a verification gap forces a new acceptance item or a plan correction.
+- Rewrite the plan unless a verification gap forces a plan correction.
 - Report confidence without direct observation.
 - Hide unverified items behind a general success summary.
