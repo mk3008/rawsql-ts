@@ -178,7 +178,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
     'derives `ZTD_DB_URL` from `ZTD_DB_PORT`'
   );
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx vitest run src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx vitest run src/features/smoke/tests/smoke.entryspec.test.ts src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd feature scaffold --table users --action insert');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('@rawsql-ts/testkit-postgres');
@@ -205,6 +205,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"defaultSchema": "public"');
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"searchPath": [');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'))).toContain('buildSmokeWorkflow');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.entryspec.test.ts'))).toContain('executeSmokeEntrySpec');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'))).toContain('../domain/smoke-policy.js');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'))).toContain('createStarterPostgresTestkitClient');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'))).toContain('public.users');
@@ -237,6 +238,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(result.summary).toContain('.env.example');
   expect(result.summary).toContain('.ztd/support/setup-env.ts');
   expect(result.summary).toContain('.ztd/support/postgres-testkit.ts');
+  expect(result.summary).toContain('src/features/smoke/tests/smoke.entryspec.test.ts');
   expect(result.summary).toContain('src/features/smoke/tests/smoke.queryspec.test.ts');
   expect(result.summary).toContain('starter-only sample feature');
   expect(result.summary).toContain('ztd agents init');
@@ -260,6 +262,7 @@ test('init dry-run plan matches starter outputs without AGENTS files', () => {
   expect(plan.dryRun).toBe(true);
   expect(plan.files).toEqual(expect.arrayContaining([
     'compose.yaml',
+    'src/features/smoke/tests/smoke.entryspec.test.ts',
     'src/features/smoke/tests/smoke.test.ts',
     'src/infrastructure/telemetry/types.ts',
     '.ztd/support/postgres-testkit.ts'

@@ -125,6 +125,7 @@ type FileKey =
   | 'smokeSpec'
   | 'localSourceGuardScript'
   | 'smokeValidationTest'
+  | 'smokeEntrySpecTest'
   | 'smokeTest'
   | 'smokeQuerySpecTest'
   | 'testsSupportZtdReadme'
@@ -269,6 +270,8 @@ interface InitScaffoldLayout {
   smokeSpecTemplate: string;
   smokeValidationTestPath: string;
   smokeValidationTestTemplate: string;
+  smokeEntrySpecTestPath: string;
+  smokeEntrySpecTestTemplate: string;
   smokeTestPath: string;
   smokeTestTemplate: string;
   smokeQuerySpecTestPath: string;
@@ -384,6 +387,7 @@ const FEATURE_SMOKE_APPLICATION_TEMPLATE = 'src/features/smoke/application/smoke
 const FEATURE_SMOKE_SQL_TEMPLATE = 'src/features/smoke/persistence/smoke.sql';
 const FEATURE_SMOKE_SPEC_TEMPLATE = 'src/features/smoke/persistence/smoke.spec.ts';
 const FEATURE_SMOKE_VALIDATION_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.validation.test.ts';
+const FEATURE_SMOKE_ENTRYSPEC_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.entryspec.test.ts';
 const FEATURE_SMOKE_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.test.ts';
 const FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.queryspec.test.ts';
 const TESTS_SUPPORT_ZTD_README_TEMPLATE = 'tests/support/ztd/README.md';
@@ -447,7 +451,7 @@ const STARTER_README_APPENDIX = (postgresImage: string): string =>
     '## Starter Flow',
     '',
     '1. Start by reading `src/features/smoke/` as the starter-only sample feature.',
-    '2. Run the DB-free smoke tests first with `npx vitest run src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts`.',
+    '2. Run the DB-free smoke tests first with `npx vitest run src/features/smoke/tests/smoke.entryspec.test.ts src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts`.',
     '3. Copy `.env.example` to `.env` and update `ZTD_DB_PORT` if 5432 is already in use.',
     '4. Start Postgres with `docker compose up -d` when you are ready for the DB-backed smoke path.',
     `5. The bundled compose file uses \`${postgresImage}\`, and the generated Vitest setup derives \`ZTD_DB_URL\` from \`ZTD_DB_PORT\`.`,
@@ -519,6 +523,8 @@ function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): In
     smokeSpecTemplate: FEATURE_SMOKE_SPEC_TEMPLATE,
     smokeValidationTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'),
     smokeValidationTestTemplate: FEATURE_SMOKE_VALIDATION_TEST_TEMPLATE,
+    smokeEntrySpecTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.entryspec.test.ts'),
+    smokeEntrySpecTestTemplate: FEATURE_SMOKE_ENTRYSPEC_TEST_TEMPLATE,
     smokeTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'),
     smokeTestTemplate: FEATURE_SMOKE_TEST_TEMPLATE,
     smokeQuerySpecTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'),
@@ -724,6 +730,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     smokeSql: scaffoldLayout.smokeSqlPath,
     smokeSpec: scaffoldLayout.smokeSpecPath,
     smokeValidationTest: scaffoldLayout.smokeValidationTestPath,
+    smokeEntrySpecTest: scaffoldLayout.smokeEntrySpecTestPath,
     smokeTest: scaffoldLayout.smokeTestPath,
     smokeQuerySpecTest: scaffoldLayout.smokeQuerySpecTestPath,
     testsSupportZtdReadme: scaffoldLayout.testsSupportZtdReadmePath,
@@ -1063,6 +1070,19 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     );
     if (smokeValidationTestSummary) {
       summaries.smokeValidationTest = smokeValidationTestSummary;
+    }
+
+    const smokeEntrySpecTestSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.smokeEntrySpecTest,
+      relativePath('smokeEntrySpecTest'),
+      scaffoldLayout.smokeEntrySpecTestTemplate,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (smokeEntrySpecTestSummary) {
+      summaries.smokeEntrySpecTest = smokeEntrySpecTestSummary;
     }
 
     const smokeTestSummary = await writeTemplateFile(
@@ -2539,6 +2559,7 @@ function buildSummaryLines(
     'smokeSpec',
     'localSourceGuardScript',
     'smokeValidationTest',
+    'smokeEntrySpecTest',
     'smokeTest',
     'smokeQuerySpecTest',
     'testsSupportZtdReadme',
@@ -2680,6 +2701,7 @@ export function buildInitDryRunPlan(rootDir: string, options: {
       path.join('src', 'features', 'smoke', 'application', 'smoke-workflow.ts'),
       path.join('src', 'features', 'smoke', 'persistence', 'smoke.sql'),
       path.join('src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'),
+      path.join('src', 'features', 'smoke', 'tests', 'smoke.entryspec.test.ts'),
       path.join('src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'),
       path.join('src', 'features', 'smoke', 'tests', 'smoke.test.ts'),
       path.join('src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'),

@@ -2,7 +2,7 @@
 
 This folder contains the feature-local tests for the removable `smoke` sample.
 
-- `smoke.test.ts` and `smoke.validation.test.ts` stay DB-free and show the smallest unit-test path.
+- `smoke.entryspec.test.ts`, `smoke.test.ts`, and `smoke.validation.test.ts` stay DB-free and show the smallest unit-test path.
 - `smoke.queryspec.test.ts` uses `createStarterPostgresTestkitClient` from `.ztd/support/postgres-testkit.ts`, requires `ZTD_DB_URL`, and proves the starter DB-backed path.
 - The fixed app-level ZTD runner lives in `tests/support/ztd/harness.ts`; query-local cases should live in `tests/cases/` and call into that runner.
 - Real feature scaffolds also add a thin `<query>.queryspec.ztd.test.ts` Vitest entrypoint next to the query-local tests, plus a feature-root `<feature>.entryspec.test.ts` for the mock-based lane.
