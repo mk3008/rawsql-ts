@@ -138,16 +138,16 @@ function assertSupportedProjectLayout(rootDir: string, config: ZtdProjectConfig)
     legacySignals.push(`ztd.config.json uses the unsupported ztdRootDir "${normalizedZtdRootDir}".`);
   }
 
-  const knownLegacyPaths = [
-    'ztd/ddl',
-    'tests/generated',
-    'tests/support',
-    'tests/queryspec.example.test.ts'
-  ];
+  const knownLegacyPaths = ['ztd/ddl', 'tests/generated', 'tests/queryspec.example.test.ts'];
   for (const relativePath of knownLegacyPaths) {
     if (existsSync(path.join(rootDir, relativePath))) {
       legacySignals.push(`Legacy layout detected at ${relativePath}.`);
     }
+  }
+
+  const legacySupportDir = path.join(rootDir, 'tests/support');
+  if (existsSync(legacySupportDir) && !existsSync(path.join(legacySupportDir, 'ztd'))) {
+    legacySignals.push('Legacy layout detected at tests/support.');
   }
 
   if (legacySignals.length === 0) {

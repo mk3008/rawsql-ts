@@ -42,7 +42,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       phrases: [
         'This tutorial shows the shortest path from `ztd init --starter` to a small `users` feature',
         'npx ztd agents init',
-        'The smallest DB-backed starter example lives in `src/features/smoke/tests/smoke.queryspec.ztd.test.ts`.',
+        'The smallest DB-backed starter example lives in `src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts`.',
         '`@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`',
         'optional customer-facing Codex bootstrap (installed by `npx ztd agents init`)',
         'Docker Desktop or another Docker daemon is already running',

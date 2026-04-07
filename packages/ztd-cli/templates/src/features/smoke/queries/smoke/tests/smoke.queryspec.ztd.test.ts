@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { runQuerySpecZtdCases } from '../../../../../../tests/ztd/harness.js';
+import { runQuerySpecZtdCases } from '../../../../../../tests/support/ztd/harness.js';
 import { executeSmokeQuerySpec } from '../spec.js';
 import cases from './cases/basic.case.js';
 import type { SmokeQuerySpecZtdCase } from './queryspec-ztd-types.js';

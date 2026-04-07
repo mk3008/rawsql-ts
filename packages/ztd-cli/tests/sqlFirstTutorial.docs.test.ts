@@ -39,7 +39,7 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
     'npx ztd init --starter',
     'src/features/smoke',
     'db/ddl/public.sql',
-        'The smallest DB-backed starter example lives in `src/features/smoke/tests/smoke.queryspec.ztd.test.ts`.',
+        'The smallest DB-backed starter example lives in `src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts`.',
     'It uses `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`',
     'Docker Desktop or another Docker daemon is already running',
     'cp .env.example .env',

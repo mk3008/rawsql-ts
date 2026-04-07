@@ -182,14 +182,20 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd feature scaffold --table users --action insert');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('@rawsql-ts/testkit-postgres');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('.ztd/support/postgres-testkit.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('fixed app-level ZTD runner');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'README.md'))).toContain('starter-only sample feature');
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('smoke.queryspec.ztd.test.ts');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('setup-env.ts');
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('.ztd/support/postgres-testkit.ts');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('tests/support/ztd/harness.ts');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('ZTD_DB_PORT');
+  expect(existsSync(path.join(workspace, 'src', 'features', '_shared', 'featureQueryExecutor.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'features', '_shared', 'loadSqlResource.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'spec.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'smoke.sql'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'queryspec-ztd-types.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'cases', 'basic.case.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'TEST_PLAN.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'analysis.json'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'persistence', 'smoke.sql'))).toContain(':v1::integer + :v2::integer as result');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'))).toContain(
     "sqlFile: './smoke.sql'"
@@ -207,8 +213,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'))).toContain('buildSmokeWorkflow');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.entryspec.test.ts'))).toContain('executeSmokeEntrySpec');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'))).toContain('../domain/smoke-policy.js');
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.ztd.test.ts'))).toContain('createStarterPostgresTestkitClient');
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.ztd.test.ts'))).toContain('public.users');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.queryspec.ztd.test.ts'))).toContain('runQuerySpecZtdCases');
   expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'types.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'))).toBe(true);
@@ -233,13 +238,13 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(packageJson.devDependencies).toHaveProperty('pg');
   expect(packageJson.devDependencies).toHaveProperty('@types/pg');
   expect(existsSync(path.join(workspace, '.ztd', 'support', 'testkit-client.ts'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.ztd.test.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.queryspec.ztd.test.ts'))).toBe(true);
   expect(result.summary).toContain('compose.yaml');
   expect(result.summary).toContain('.env.example');
   expect(result.summary).toContain('.ztd/support/setup-env.ts');
   expect(result.summary).toContain('.ztd/support/postgres-testkit.ts');
   expect(result.summary).toContain('src/features/smoke/tests/smoke.entryspec.test.ts');
-  expect(result.summary).toContain('src/features/smoke/tests/smoke.queryspec.ztd.test.ts');
+  expect(result.summary).toContain('src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts');
   expect(result.summary).toContain('starter-only sample feature');
   expect(result.summary).toContain('ztd agents init');
   expect(result.summary).toContain('Delete src/features/smoke/');
