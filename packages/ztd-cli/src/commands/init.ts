@@ -389,7 +389,7 @@ const FEATURE_SMOKE_SPEC_TEMPLATE = 'src/features/smoke/persistence/smoke.spec.t
 const FEATURE_SMOKE_VALIDATION_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.validation.test.ts';
 const FEATURE_SMOKE_ENTRYSPEC_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.entryspec.test.ts';
 const FEATURE_SMOKE_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.test.ts';
-const FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.queryspec.test.ts';
+const FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.queryspec.ztd.test.ts';
 const TESTS_SUPPORT_ZTD_README_TEMPLATE = 'tests/support/ztd/README.md';
 const TESTS_SUPPORT_ZTD_CASE_TYPES_TEMPLATE = 'tests/support/ztd/case-types.ts';
 const TESTS_SUPPORT_ZTD_VERIFIER_TEMPLATE = 'tests/support/ztd/verifier.ts';
@@ -456,7 +456,7 @@ const STARTER_README_APPENDIX = (postgresImage: string): string =>
     '4. Start Postgres with `docker compose up -d` when you are ready for the DB-backed smoke path.',
     `5. The bundled compose file uses \`${postgresImage}\`, and the generated Vitest setup derives \`ZTD_DB_URL\` from \`ZTD_DB_PORT\`.`,
     '6. Run `npx ztd ztd-config` to regenerate the runtime fixture manifest, DDL-derived test rows, and layout metadata.',
-    '7. Read `.ztd/support/postgres-testkit.ts` and `src/features/smoke/tests/smoke.queryspec.test.ts` to see the DB-backed starter smoke path through `createStarterPostgresTestkitClient` and the underlying `@rawsql-ts/testkit-postgres` API.',
+    '7. Read `.ztd/support/postgres-testkit.ts` and `src/features/smoke/tests/smoke.queryspec.ztd.test.ts` to see the DB-backed starter smoke path through `createStarterPostgresTestkitClient` and the underlying `@rawsql-ts/testkit-postgres` API.',
     '8. Run `npx vitest run` to exercise the DB-free and DB-backed smoke tests with the values from `.env`.',
   '9. Run `npx ztd feature scaffold --table users --action insert` to create the first fixed feature shell.',
   '10. After you finish SQL and DTO edits, run `npx ztd feature tests scaffold --feature users-insert` to create TODO-based test scaffolds, then let AI complete them.',
@@ -527,7 +527,7 @@ function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): In
     smokeEntrySpecTestTemplate: FEATURE_SMOKE_ENTRYSPEC_TEST_TEMPLATE,
     smokeTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'),
     smokeTestTemplate: FEATURE_SMOKE_TEST_TEMPLATE,
-    smokeQuerySpecTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'),
+    smokeQuerySpecTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.queryspec.ztd.test.ts'),
     smokeQuerySpecTestTemplate: FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE,
     testsSupportZtdReadmePath: path.join(rootDir, 'tests', 'support', 'ztd', 'README.md'),
     testsSupportZtdReadmeTemplate: TESTS_SUPPORT_ZTD_README_TEMPLATE,
@@ -2399,10 +2399,10 @@ function buildNextSteps(
     const starterNextSteps = [
       'Inspect src/features/smoke/ and treat it as a starter-only sample feature that can be deleted later',
       `Run tests (${runScriptCommand('test')} or npx vitest run src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts) to confirm the DB-free smoke path is green`,
-  'Read src/features/smoke/tests/smoke.queryspec.test.ts to see the DB-backed QuerySpec path that also checks connectivity',
+    'Read src/features/smoke/tests/smoke.queryspec.ztd.test.ts to see the DB-backed QuerySpec path that also checks connectivity',
       'Run docker compose up -d to start the bundled Postgres container before the DB-backed smoke path',
-      `The bundled compose file uses ${postgresImage}; copy .env.example to .env and keep ZTD_DB_PORT aligned before running src/features/smoke/tests/smoke.queryspec.test.ts`,
-      'Expect src/features/smoke/tests/smoke.queryspec.test.ts to fail until .env is present or the DB is running; that failure is part of the starter guidance',
+      `The bundled compose file uses ${postgresImage}; copy .env.example to .env and keep ZTD_DB_PORT aligned before running src/features/smoke/tests/smoke.queryspec.ztd.test.ts`,
+      'Expect src/features/smoke/tests/smoke.queryspec.ztd.test.ts to fail until .env is present or the DB is running; that failure is part of the starter guidance',
       ...generationSteps,
   `Start your first real CRUD slice with \`${ztdCommand} feature scaffold --table users --action insert\` after the smoke sample makes sense`,
   `Then run \`${ztdCommand} feature tests scaffold --feature users-insert\` after you finish SQL and DTO edits, and let AI complete the TODO-based tests.`,
@@ -2704,7 +2704,7 @@ export function buildInitDryRunPlan(rootDir: string, options: {
       path.join('src', 'features', 'smoke', 'tests', 'smoke.entryspec.test.ts'),
       path.join('src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'),
       path.join('src', 'features', 'smoke', 'tests', 'smoke.test.ts'),
-      path.join('src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'),
+      path.join('src', 'features', 'smoke', 'tests', 'smoke.queryspec.ztd.test.ts'),
       path.join('src', 'infrastructure', 'README.md'),
       path.join('src', 'infrastructure', 'telemetry', 'types.ts'),
       path.join('src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'),

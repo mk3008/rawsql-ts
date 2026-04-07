@@ -6,8 +6,8 @@ import { afterEach, expect, test, vi } from 'vitest';
 const DB_ENV_KEYS = ['ZTD_DB_HOST', 'ZTD_DB_PORT', 'ZTD_DB_NAME', 'ZTD_DB_USER', 'ZTD_DB_PASS'] as const;
 const tempDirs: string[] = [];
 const originalEnv = Object.fromEntries(
-  [...DB_ENV_KEYS, 'ZTD_TEST_DATABASE_URL'].map((key) => [key, process.env[key]])
-) as Record<(typeof DB_ENV_KEYS)[number] | 'ZTD_TEST_DATABASE_URL', string | undefined>;
+  [...DB_ENV_KEYS, 'ZTD_DB_URL'].map((key) => [key, process.env[key]])
+) as Record<(typeof DB_ENV_KEYS)[number] | 'ZTD_DB_URL', string | undefined>;
 
 function restoreEnv(key: keyof typeof originalEnv, value: string | undefined): void {
   if (value === undefined) {
@@ -50,52 +50,51 @@ afterEach(() => {
   }
 });
 
-test('setup-env derives ZTD_TEST_DATABASE_URL from the starter DB env vars', async () => {
+test('setup-env derives ZTD_DB_URL from the starter DB env vars', async () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-setup-env-derived-'));
   tempDirs.push(rootDir);
   writeStarterEnv(rootDir);
 
   vi.spyOn(process, 'cwd').mockReturnValue(rootDir);
-  delete process.env.ZTD_TEST_DATABASE_URL;
+  delete process.env.ZTD_DB_URL;
 
   await import('../templates/tests/support/setup-env');
 
-  expect(process.env.ZTD_TEST_DATABASE_URL).toBe('postgres://ztd:ztd@127.0.0.1:5433/ztd');
+  expect(process.env.ZTD_DB_URL).toBe('postgres://ztd:ztd@localhost:5433/ztd');
 });
 
-test('setup-env fails fast when ZTD_TEST_DATABASE_URL conflicts with the starter DB env vars', async () => {
-  const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-setup-env-conflict-'));
+test('setup-env preserves an existing ZTD_DB_URL', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-setup-env-existing-'));
   tempDirs.push(rootDir);
   writeStarterEnv(rootDir, { ZTD_DB_PORT: '5434' });
 
   vi.spyOn(process, 'cwd').mockReturnValue(rootDir);
-  process.env.ZTD_TEST_DATABASE_URL = 'postgres://ztd:ztd@127.0.0.1:5433/ztd';
+  process.env.ZTD_DB_URL = 'postgres://example:example@127.0.0.1:6000/example';
 
-  await expect(import('../templates/tests/support/setup-env')).rejects.toThrow(
-    'ZTD_TEST_DATABASE_URL conflicts with the starter DB settings in .env'
-  );
+  await import('../templates/tests/support/setup-env');
+
+  expect(process.env.ZTD_DB_URL).toBe('postgres://example:example@127.0.0.1:6000/example');
 });
 
-test('setup-env fails fast when a starter DB env var is missing', async () => {
-  const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-setup-env-missing-'));
+test('setup-env falls back to the default port when ZTD_DB_PORT is missing', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-setup-env-default-port-'));
   tempDirs.push(rootDir);
   writeStarterEnv(rootDir);
-  rmSync(path.join(rootDir, '.env'));
   writeFileSync(
     path.join(rootDir, '.env'),
     [
       'ZTD_DB_HOST=127.0.0.1',
-      'ZTD_DB_PORT=5433',
       'ZTD_DB_NAME=ztd',
-      'ZTD_DB_USER=ztd'
+      'ZTD_DB_USER=ztd',
+      'ZTD_DB_PASS=ztd'
     ].join('\n'),
     'utf8'
   );
 
   vi.spyOn(process, 'cwd').mockReturnValue(rootDir);
-  delete process.env.ZTD_TEST_DATABASE_URL;
+  delete process.env.ZTD_DB_URL;
 
-  await expect(import('../templates/tests/support/setup-env')).rejects.toThrow(
-    'Set ZTD_DB_PASS in .env before running the starter DB-backed tests.'
-  );
+  await import('../templates/tests/support/setup-env');
+
+  expect(process.env.ZTD_DB_URL).toBe('postgres://ztd:ztd@localhost:5432/ztd');
 });

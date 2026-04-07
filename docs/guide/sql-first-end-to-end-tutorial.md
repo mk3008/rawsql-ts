@@ -51,7 +51,7 @@ The starter generates:
 Run `npx ztd agents init` immediately after scaffold creation when you want the customer-facing Codex bootstrap for the AI-guided path.
 That opt-in bootstrap adds visible `AGENTS.md`, `db/AGENTS.md`, `db/ddl/AGENTS.md`, `src/AGENTS.md`, `src/features/AGENTS.md`, `.codex/config.toml`, and `.codex/agents/*`.
 
-The smallest DB-backed starter example lives in `src/features/smoke/tests/smoke.queryspec.test.ts`.
+The smallest DB-backed starter example lives in `src/features/smoke/tests/smoke.queryspec.ztd.test.ts`.
  It uses `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`, so a missing `ZTD_DB_URL`, a stopped Postgres container, or a schema mismatch fails before you build a larger feature.
 If you want the fixture-loading details, read `packages/testkit-postgres/README.md` after the starter smoke test.
 

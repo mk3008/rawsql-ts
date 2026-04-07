@@ -20,7 +20,7 @@ test('repo-local Codex guidance files exist and point at developer workflows', (
 });
 
 test('planning guidance covers acceptance items and verification methods', () => {
-  const planningSkill = readText('acceptance-planning/SKILL.md');
+  const planningSkill = readText('.agents/skills/acceptance-planning/SKILL.md');
   const planningAgent = readText('.codex/agents/planning.md');
   const verificationAgent = readText('.codex/agents/verification.md');
 
@@ -40,8 +40,8 @@ test('planning guidance covers acceptance items and verification methods', () =>
 });
 
 test('reporting guidance covers reviewer-facing and operator-facing reporting shape', () => {
-  const reportingSkill = readText('attainment-reporting/SKILL.md');
-  const reviewSkill = readText('self-review/SKILL.md');
+  const reportingSkill = readText('.agents/skills/attainment-reporting/SKILL.md');
+  const reviewSkill = readText('.agents/skills/self-review/SKILL.md');
   const reportingAgent = readText('.codex/agents/reporting.md');
   const reviewAgent = readText('.codex/agents/review.md');
   const rootAgents = readText('AGENTS.md');
@@ -69,8 +69,8 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reportingSkill).toContain('`Repository evidence` MUST be the primary evidence class for acceptance judgment.');
   expect(reportingSkill).toContain('`Supplementary evidence` means local logs, external observations');
   expect(reportingSkill).toContain('`Supplementary evidence` alone MUST NOT justify a strong `done` claim');
-  expect(reportingSkill).toContain('Map each acceptance item to `done`, `partial`, or `not done`.');
-  expect(reportingAgent).toContain('normal Codex work report are decision documents, not work logs.');
+  expect(reportingSkill).toContain('Mapping each acceptance item to `done`, `partial`, or `not done`.');
+  expect(reportingAgent).toContain('The PR report and normal Codex work report are decision documents, not work logs.');
   expect(reportingAgent).toContain('Source request or source issue');
   expect(reportingAgent).toContain('Why it matters');
   expect(reportingAgent).toContain('What changed');
@@ -92,7 +92,7 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reportingAgent).toContain('`Repository evidence` means reviewer-checkable evidence');
   expect(reportingAgent).toContain('`Supplementary evidence` means local logs, external observations');
   expect(reportingAgent).toContain('keep the item `partial` or narrow the claim with explicit guarantee limits');
-  expect(reportingAgent).toContain('Map each acceptance item to `done`, `partial`, or `not done`.');
+  expect(reportingAgent).toContain('Map each plan-time acceptance item to `done`, `partial`, or `not done`.');
   expect(reviewSkill).toContain('consistency review');
   expect(reviewSkill).toContain('human acceptance review');
   expect(reviewSkill).toContain('`blocker`, `follow-up`, or `nit`');
@@ -103,7 +103,7 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reviewAgent).toContain('unsupported `done` claims based only on supplementary evidence');
   expect(reviewAgent).toContain('mark the review as not ready for human review');
   expect(rootAgents).toContain('All assistant-user conversation in this repository must be in Japanese.');
-  expect(rootAgents).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
+  expect(rootAgents).toContain('Reports MUST use an itemized structure with:');
   expect(rootAgents).toContain('Final PR text and final implementation reports MUST pass two-cycle self-review before human review.');
   expect(rootAgents).toContain('Review findings MUST be triaged as `blocker`, `follow-up`, or `nit`.');
   expect(rootAgents).toContain('Reports MUST distinguish `Repository evidence` from `Supplementary evidence` when both appear.');
@@ -119,7 +119,7 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
 });
 
 test('reporting guidance fixes the decision-oriented order', () => {
-  const reportingSkill = readText('attainment-reporting/SKILL.md');
+  const reportingSkill = readText('.agents/skills/attainment-reporting/SKILL.md');
   const sourceIndex = reportingSkill.indexOf('Source request or source issue');
   const whyIndex = reportingSkill.indexOf('Why it matters');
   const changedIndex = reportingSkill.indexOf('What changed');

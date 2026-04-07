@@ -26,8 +26,9 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(scaffoldReadme).toContain('feature-first');
   expect(featuresReadme).toContain('smoke');
   expect(smokeReadme).toContain('starter-only sample feature');
-  expect(smokeReadme).toContain('mirrors the fixed `users-insert` layout');
-  expect(smokeReadme).toContain('queries/smoke/spec.ts');
+  expect(smokeReadme).toContain('two narrow paths');
+  expect(smokeReadme).toContain('DB-backed smoke test');
+  expect(smokeReadme).toContain('createStarterPostgresTestkitClient');
   expect(rootReadme).toContain('Migration Repair Loop');
   expect(packageReadme).toContain('Quickstart');
   expect(packageReadme).toContain('Create the Users Insert Feature');
@@ -35,11 +36,13 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('Commands');
   expect(packageReadme).toContain('Glossary');
   expect(packageReadme).toContain('Further Reading');
-  expect(packageReadme).toContain('ZTD here means query-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor.');
+  expect(packageReadme).toContain('ZTD here means queryspec-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor.');
   expect(packageReadme).toContain('Use validation-only cases for boundary checks and DB-backed cases for the success path.');
   expect(packageReadme).toContain('Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.entryspec.test.ts` for mock-based boundary tests.');
-  expect(packageReadme).toContain('The starter `smoke` sample now mirrors the same feature-first layout: `src/features/smoke/spec.ts`, `src/features/smoke/tests/smoke.entryspec.test.ts`, and `src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts`.');
-  expect(packageReadme).toContain('After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`.');
+  expect(packageReadme).toContain('Starter-owned shared support lives under `tests/support/ztd/`; `.ztd/` remains the tool-managed workspace for generated metadata and support files.');
+  expect(packageReadme).toContain('After you finish the SQL and DTO edits');
+  expect(packageReadme).toContain('feature tests scaffold --feature <feature-name>');
+  expect(packageReadme).toContain('tests/generated/TEST_PLAN.md');
   expect(scaffoldReadme).toContain('Make sure the queryspec result executes through the DB-backed ZTD path and checks mapping and validation, not just property values.');
   expect(readNormalizedFile('docs/guide/sql-first-end-to-end-tutorial.md')).toContain('Scenario CLI at a glance');
   expect(readNormalizedFile('docs/dogfooding/ztd-migration-lifecycle.md')).toContain('Preferred CLI by scenario');
