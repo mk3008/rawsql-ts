@@ -56,7 +56,9 @@ test('setup-env derives ZTD_DB_URL from the starter DB env vars', async () => {
   writeStarterEnv(rootDir);
 
   vi.spyOn(process, 'cwd').mockReturnValue(rootDir);
-  delete process.env.ZTD_DB_URL;
+  for (const key of [...DB_ENV_KEYS, 'ZTD_DB_URL'] as const) {
+    delete process.env[key];
+  }
 
   await import('../templates/tests/support/setup-env');
 
@@ -69,6 +71,9 @@ test('setup-env preserves an existing ZTD_DB_URL', async () => {
   writeStarterEnv(rootDir, { ZTD_DB_PORT: '5434' });
 
   vi.spyOn(process, 'cwd').mockReturnValue(rootDir);
+  for (const key of [...DB_ENV_KEYS, 'ZTD_DB_URL'] as const) {
+    delete process.env[key];
+  }
   process.env.ZTD_DB_URL = 'postgres://example:example@127.0.0.1:6000/example';
 
   await import('../templates/tests/support/setup-env');
@@ -92,7 +97,9 @@ test('setup-env falls back to the default port when ZTD_DB_PORT is missing', asy
   );
 
   vi.spyOn(process, 'cwd').mockReturnValue(rootDir);
-  delete process.env.ZTD_DB_URL;
+  for (const key of [...DB_ENV_KEYS, 'ZTD_DB_URL'] as const) {
+    delete process.env[key];
+  }
 
   await import('../templates/tests/support/setup-env');
 

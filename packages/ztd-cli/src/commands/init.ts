@@ -2578,7 +2578,7 @@ function buildNextSteps(
   if (starter) {
     const starterNextSteps = [
       'Inspect src/features/smoke/ and treat it as a starter-only sample feature that can be deleted later',
-      `Run tests (${runScriptCommand('test')} or npx vitest run src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts) to confirm the DB-free smoke path is green`,
+      `Run tests (${runScriptCommand('test')} or npx vitest run src/features/smoke/tests/smoke.entryspec.test.ts src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts) to confirm the DB-free smoke path is green`,
     'Read src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts to see the DB-backed QuerySpec path that also checks connectivity',
       'Run docker compose up -d to start the bundled Postgres container before the DB-backed smoke path',
       `The bundled compose file uses ${postgresImage}; copy .env.example to .env and keep ZTD_DB_PORT aligned before running src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts`,

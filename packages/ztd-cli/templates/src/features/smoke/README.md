@@ -3,7 +3,7 @@
 `smoke` is the starter-only sample feature in the scaffold.
 It lives at `src/features/smoke` and is safe to delete once the first real feature exists.
 
-This feature intentionally contains two narrow paths:
+This feature intentionally contains three narrow paths:
 
 - a DB-free sample function with feature-local unit tests
 - a DB-backed smoke test that uses `createStarterPostgresTestkitClient` from `.ztd/support/postgres-testkit.ts` on top of `@rawsql-ts/testkit-postgres` and checks `ZTD_DB_URL` connectivity
