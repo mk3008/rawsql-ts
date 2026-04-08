@@ -41,21 +41,21 @@ function verifyStarterScaffold(appDir) {
     throw new Error("[generated-project verification] starter scaffold did not install @rawsql-ts/ztd-cli.");
   }
   assertExists(path.join(appDir, "README.md"), "starter README");
-  assertExists(path.join(appDir, "src", "features", "smoke", "tests", "smoke.entryspec.test.ts"), "starter smoke boundary test");
+  assertExists(path.join(appDir, "src", "features", "smoke", "tests", "smoke.boundary.test.ts"), "starter smoke boundary test");
   assertExists(
-    path.join(appDir, "src", "features", "smoke", "queries", "smoke", "tests", "smoke.queryspec.ztd.test.ts"),
+    path.join(appDir, "src", "features", "smoke", "queries", "smoke", "tests", "smoke.boundary.ztd.test.ts"),
     "starter DB-backed smoke test"
   );
 }
 
 function verifyFeatureScaffold(appDir) {
   const featureRoot = path.join(appDir, "src", "features", "users-insert");
-  assertExists(path.join(featureRoot, "spec.ts"), "feature root spec");
+  assertExists(path.join(featureRoot, "boundary.ts"), "feature root boundary");
   assertExists(
-    path.join(featureRoot, "tests", "users-insert.entryspec.test.ts"),
-    "feature entryspec test"
+    path.join(featureRoot, "tests", "users-insert.boundary.test.ts"),
+    "feature boundary test"
   );
-  assertExists(path.join(featureRoot, "queries", "insert-users", "spec.ts"), "feature query spec");
+  assertExists(path.join(featureRoot, "queries", "insert-users", "boundary.ts"), "feature query boundary");
   assertExists(
     path.join(featureRoot, "queries", "insert-users", "insert-users.sql"),
     "feature SQL resource"
@@ -207,10 +207,10 @@ async function main() {
       ],
       files: [
         "README.md",
-        "src/features/smoke/tests/smoke.entryspec.test.ts",
-        "src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts",
-        "src/features/users-insert/tests/users-insert.entryspec.test.ts",
-        "src/features/users-insert/queries/insert-users/spec.ts",
+        "src/features/smoke/tests/smoke.boundary.test.ts",
+        "src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts",
+        "src/features/users-insert/tests/users-insert.boundary.test.ts",
+        "src/features/users-insert/queries/insert-users/boundary.ts",
         "src/features/users-insert/queries/insert-users/insert-users.sql",
       ],
     });
