@@ -1102,10 +1102,13 @@ function renderQuerySpecFile(params: {
 
   return [
     "import { z } from 'zod';",
+    "import { dirname } from 'node:path';",
+    "import { fileURLToPath } from 'node:url';",
     '',
     "import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';",
     "import { loadSqlResource } from '../../../_shared/loadSqlResource.js';",
     '',
+    'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
     '',
     ...renderQuerySpecBoundaryComments(params.action),
@@ -1638,10 +1641,13 @@ function renderGetByIdQuerySpecFile(params: {
 
   return [
     "import { z } from 'zod';",
+    "import { dirname } from 'node:path';",
+    "import { fileURLToPath } from 'node:url';",
     '',
     "import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';",
     "import { loadSqlResource } from '../../../_shared/loadSqlResource.js';",
     '',
+    'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
     '',
     ...renderQuerySpecBoundaryComments(params.action),
@@ -1724,12 +1730,15 @@ function renderListQuerySpecFile(params: {
 
   return [
     "import { z } from 'zod';",
+    "import { dirname } from 'node:path';",
+    "import { fileURLToPath } from 'node:url';",
     '',
     "import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';",
     "import { createCatalogExecutor, type QuerySpec } from '@rawsql-ts/sql-contract';",
     "import { loadSqlResource } from '../../../_shared/loadSqlResource.js';",
     '',
     `const DEFAULT_PAGE_SIZE = ${DEFAULT_PAGE_SIZE};`,
+    'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
     '',
     ...renderQuerySpecBoundaryComments(params.action),

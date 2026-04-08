@@ -320,8 +320,10 @@ const STARTER_DEV_DEPENDENCIES: Record<string, string> = {
 const LOCAL_SOURCE_STACK_PACKAGE_DIRS: Record<string, string> = {
   '@rawsql-ts/sql-contract': path.join('packages', 'sql-contract'),
   '@rawsql-ts/testkit-core': path.join('packages', 'testkit-core'),
-  '@rawsql-ts/testkit-postgres': path.join('packages', 'testkit-postgres'),
   '@rawsql-ts/ztd-cli': path.join('packages', 'ztd-cli')
+};
+const LOCAL_SOURCE_STACK_PACKAGE_DIRS_STARTER: Record<string, string> = {
+  '@rawsql-ts/testkit-postgres': path.join('packages', 'testkit-postgres')
 };
 const ZOD_DEPENDENCY: Record<string, string> = {
   zod: '^4.3.6'
@@ -785,7 +787,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     path.relative(rootDir, absolutePaths[key]).replace(/\\/g, '/') || absolutePaths[key];
 
   const summaries: Partial<Record<FileKey, FileSummary>> = {};
-  const scaffoldProfile = resolveInitScaffoldProfile(rootDir, options?.localSourceRoot);
+  const scaffoldProfile = resolveInitScaffoldProfile(rootDir, options?.localSourceRoot, options?.starter === true);
 
   // Ask how the user prefers to populate the initial schema.
   if (workflow === 'pg_dump') {
@@ -2100,7 +2102,7 @@ function ensurePackageJsonFormatting(
 
   const stackDependencies: Record<string, string> =
     scaffoldProfile.dependencyProfile === 'local-source'
-      ? buildLocalSourceStackDependencies(rootDir, scaffoldProfile)
+      ? buildLocalSourceStackDependencies(rootDir, scaffoldProfile, starter)
       : {
           ...STACK_DEV_DEPENDENCIES
         };
@@ -2438,7 +2440,7 @@ function buildNextSteps(
   const aiGuidanceStep = 'Open README.md and follow the Getting Started With AI section before writing repository code';
   const generationSteps = [
     `Run ${ztdCommand} ztd-config to regenerate DDL-derived test rows and layout metadata`,
-    `Run ${ztdCommand} model-gen --probe-mode ztd <sql-file> --out <boundary-file> to scaffold the query boundary from that SQL file`
+    `Run ${ztdCommand} model-gen --probe-mode ztd <sql-file> to inspect the generated contract before you update the handwritten query boundary`
   ];
   const wiringStep = 'Keep the first slice small and local before extracting shared helpers';
   const firstTestStep = `Run tests (${runScriptCommand('test')} or npx vitest run) to keep the generated scaffold green before adding more features`;
@@ -2508,10 +2510,16 @@ function buildNextSteps(
   };
 }
 
-function resolveInitScaffoldProfile(rootDir: string, localSourceRoot?: string): InitScaffoldProfile {
+function resolveLocalSourceStackPackageDirs(starter: boolean): Record<string, string> {
+  return starter
+    ? { ...LOCAL_SOURCE_STACK_PACKAGE_DIRS, ...LOCAL_SOURCE_STACK_PACKAGE_DIRS_STARTER }
+    : LOCAL_SOURCE_STACK_PACKAGE_DIRS;
+}
+
+function resolveInitScaffoldProfile(rootDir: string, localSourceRoot?: string, starter = false): InitScaffoldProfile {
   const resolvedRoot = localSourceRoot
     ? path.resolve(rootDir, localSourceRoot)
-    : detectImplicitLocalSourceRoot();
+    : detectImplicitLocalSourceRoot(starter);
 
   if (!resolvedRoot) {
     return { dependencyProfile: 'registry', localSourceRoot: null };
@@ -2519,7 +2527,7 @@ function resolveInitScaffoldProfile(rootDir: string, localSourceRoot?: string): 
 
   // Validate every direct rawsql-ts scaffold dependency up front so local-source installs
   // cannot silently mix local packages with registry packages.
-  for (const packageDir of Object.values(LOCAL_SOURCE_STACK_PACKAGE_DIRS)) {
+  for (const packageDir of Object.values(resolveLocalSourceStackPackageDirs(starter))) {
     const packageJsonPath = path.join(resolvedRoot, packageDir, 'package.json');
     if (!existsSync(packageJsonPath)) {
       throw new Error(
@@ -2534,14 +2542,14 @@ function resolveInitScaffoldProfile(rootDir: string, localSourceRoot?: string): 
   };
 }
 
-function detectImplicitLocalSourceRoot(): string | null {
+function detectImplicitLocalSourceRoot(starter = false): string | null {
   const packageRoot = path.resolve(__dirname, '..', '..');
   const workspaceRoot = findAncestorPnpmWorkspaceRoot(packageRoot);
   if (!workspaceRoot) {
     return null;
   }
 
-  for (const packageDir of Object.values(LOCAL_SOURCE_STACK_PACKAGE_DIRS)) {
+  for (const packageDir of Object.values(resolveLocalSourceStackPackageDirs(starter))) {
     if (!existsSync(path.join(workspaceRoot, packageDir, 'package.json'))) {
       return null;
     }
@@ -2552,7 +2560,8 @@ function detectImplicitLocalSourceRoot(): string | null {
 
 function buildLocalSourceStackDependencies(
   rootDir: string,
-  scaffoldProfile: InitScaffoldProfile
+  scaffoldProfile: InitScaffoldProfile,
+  starter = false
 ): Record<string, string> {
   if (scaffoldProfile.dependencyProfile !== 'local-source' || !scaffoldProfile.localSourceRoot) {
     return {
@@ -2563,7 +2572,7 @@ function buildLocalSourceStackDependencies(
   return {
     ...STACK_DEV_DEPENDENCIES,
     ...Object.fromEntries(
-      Object.entries(LOCAL_SOURCE_STACK_PACKAGE_DIRS).map(([packageName, packageDir]) => [
+      Object.entries(resolveLocalSourceStackPackageDirs(starter)).map(([packageName, packageDir]) => [
         packageName,
         toFileDependencySpecifier(rootDir, path.join(scaffoldProfile.localSourceRoot!, packageDir))
       ])
@@ -2797,7 +2806,7 @@ export function buildInitDryRunPlan(rootDir: string, options: {
     files.splice(0, files.length, 'AGENTS.md');
   }
   if (options.localSourceRoot) {
-    resolveInitScaffoldProfile(rootDir, options.localSourceRoot);
+    resolveInitScaffoldProfile(rootDir, options.localSourceRoot, starter);
   }
 
   return {

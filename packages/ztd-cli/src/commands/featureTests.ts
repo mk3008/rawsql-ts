@@ -65,11 +65,11 @@ interface TestPlanDetails extends FeatureTestAnalysis {
 export function registerFeatureTestsScaffoldCommand(featureCommand: Command): void {
   const tests = featureCommand
     .command('tests')
-    .description('Refresh query-boundary ZTD analysis, the thin Vitest entrypoint, and persistent cases for AI and humans');
+    .description('Refresh query-boundary generated analysis, refresh the generated type file, and create the thin Vitest entrypoint when it is missing');
 
   tests
     .command('scaffold')
-    .description('Refresh query-boundary ZTD analysis, the thin Vitest entrypoint, and keep persistent cases for AI and humans')
+    .description('Refresh query-boundary generated analysis, refresh the generated type file, and keep persistent case files untouched')
     .requiredOption('--feature <name>', 'Target feature name')
     .option('--query <name>', 'Target query directory when the feature has more than one query')
     .option('--dry-run', 'Validate inputs and emit the planned scaffold without writing files', false)
@@ -88,8 +88,8 @@ export function registerFeatureTestsScaffoldCommand(featureCommand: Command): vo
         'Created by CLI:',
         ...result.outputs.map((output) => `- ${output.path}`),
         '',
-        'CLI-owned refreshable files:',
-        `- src/features/${result.featureName}/queries/${result.queryName}/tests/${result.queryName}.boundary.ztd.test.ts`,
+        'CLI-owned generated files:',
+        `- src/features/${result.featureName}/queries/${result.queryName}/tests/${result.queryName}.boundary.ztd.test.ts (created only when missing)`,
         `- src/features/${result.featureName}/queries/${result.queryName}/tests/boundary-ztd-types.ts`,
         `- src/features/${result.featureName}/queries/${result.queryName}/tests/generated/TEST_PLAN.md`,
         `- src/features/${result.featureName}/queries/${result.queryName}/tests/generated/analysis.json`,
@@ -159,7 +159,7 @@ export async function runFeatureTestsScaffoldCommand(options: FeatureTestsComman
 
   emitDiagnostic({
     code: 'feature-tests-scaffold.ai-follow-up',
-    message: `CLI created src/features/${featureName}/queries/${queryLayout.queryName}/tests/ only. Keep generated artifacts read-only, leave the Vitest entrypoint in place, and put AI-authored cases under src/features/${featureName}/queries/${queryLayout.queryName}/tests/cases/.`
+    message: `CLI refreshed generated analysis under src/features/${featureName}/queries/${queryLayout.queryName}/tests/generated/, refreshed boundary-ztd-types.ts, created the thin Vitest entrypoint only if it was missing, and left AI-authored cases under src/features/${featureName}/queries/${queryLayout.queryName}/tests/cases/ untouched.`
   });
 
   return {

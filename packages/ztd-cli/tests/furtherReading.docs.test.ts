@@ -54,7 +54,8 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'Copy-Item .env.example .env',
         'npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail',
         'Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.',
-    'npx ztd model-gen --probe-mode ztd src/features/users-insert/queries/insert-users/insert-users.sql --out src/features/users-insert/queries/insert-users/boundary.ts',
+        'npx ztd model-gen --probe-mode ztd src/features/users-insert/queries/insert-users/insert-users.sql',
+        'Do not target `src/features/users-insert/queries/insert-users/boundary.ts` with `--out`, because that file is the runtime boundary that also owns `loadSqlResource` and the execution flow.',
         'model-gen` now treats the SQL file location as the primary contract source',
         'Read the review summary first:',
         '- the risks section lists destructive and operational apply-plan risks separately',
@@ -163,8 +164,9 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; check whether `ztd-cli` or `rawsql-ts` changed the manifest or rewrite path.',
         'If you see `user_id: null`, compare the direct database `INSERT ... RETURNING ...` result with the ZTD result and inspect `.ztd/generated/ztd-fixture-manifest.generated.ts` first.',
         'If a local-source workspace is meant to reflect a source change, verify that it resolves `rawsql-ts` from the local source tree rather than a registry copy.',
-        'After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`.',
-        'generated/*` is CLI-owned and refreshable, `cases/*` is human/AI-owned and kept, and the thin entrypoint is kept.',
+        'After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>`.',
+        'creates the thin Vitest entrypoint `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` only if it is missing.',
+        'Persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/` are human/AI-owned and are not overwritten.',
         'Do not apply migrations automatically.'
       ]
     },

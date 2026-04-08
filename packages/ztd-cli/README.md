@@ -50,6 +50,10 @@ boundary/
 - `tests/` is the verification group owned by that boundary.
 - Cross-boundary tests should use `boundary.ts`, not internal helpers.
 
+`src/features/<feature>/queries/` is the main exception.
+It is a container for child query boundaries and does not expose its own `boundary.ts`.
+The actual query-boundary public surfaces live under `src/features/<feature>/queries/<query>/boundary.ts`.
+
 The starter and feature scaffolds apply that rule under `src/features/<feature>/...`, so the public export surface is visible without reading prose first.
 
 PowerShell:
@@ -107,7 +111,17 @@ npx ztd feature scaffold --table users --action insert
 Scaffold the `users-insert` feature with co-located SQL, boundaries, and a thin tests entrypoint.
 Starter-owned shared support lives under `tests/support/ztd/`; `.ztd/` remains the tool-managed workspace for generated metadata and support files.
 
-After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`. That command also creates the thin Vitest entrypoint `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts`, which stays checked in as a small adapter around the fixed app-level harness. `generated/*` is CLI-owned and refreshable, `cases/*` is human/AI-owned and kept, and the thin entrypoint is kept. ZTD here means query-boundary-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor. Persistent case files belong in `src/features/<feature-name>/queries/<query-name>/tests/cases/`. If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs. `beforeDb` and `afterDb` are schema-qualified pure fixture skeletons. Use validation-only cases for boundary checks and DB-backed cases for the success path. Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts` for mock-based boundary tests. `afterDb` is subset-based per row, rows are treated as an unordered multiset, and row order itself is ignored. The verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding. After the cases are filled, run `npx vitest run src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` to execute the ZTD query test.
+After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>`.
+That command refreshes `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`, refreshes `src/features/<feature-name>/queries/<query-name>/tests/boundary-ztd-types.ts`, and creates the thin Vitest entrypoint `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` only if it is missing.
+Persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/` are human/AI-owned and are not overwritten.
+ZTD here means query-boundary-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor.
+If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs.
+`beforeDb` and `afterDb` are schema-qualified pure fixture skeletons.
+Use validation-only cases for boundary checks and DB-backed cases for the success path.
+Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts` for mock-based boundary tests.
+`afterDb` is subset-based per row, rows are treated as an unordered multiset, and row order itself is ignored.
+The verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding.
+After the cases are filled, run `npx vitest run src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` to execute the ZTD query test.
 
 ## Import Paths
 

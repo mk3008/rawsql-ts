@@ -400,16 +400,16 @@ test('init can opt into dogfooding prompt files when explicitly requested', asyn
   expect(promptDogfood).toContain('Add a feature to this feature-first project.');
   expect(promptDogfood).toContain('Start with `npx ztd feature scaffold --table <table> --action <action>`.');
   expect(promptDogfood).toContain('Keep handwritten SQL, the feature boundary, and the query boundary inside `src/features/<feature-name>`.');
-  expect(promptDogfood).toContain('After you finish SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>`');
-  expect(promptDogfood).toContain('refresh `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`');
-  expect(promptDogfood).toContain('keep the thin `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` Vitest entrypoint in sync');
-  expect(promptDogfood).toContain('keep the persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/` as human/AI-owned ZTD assets around the fixed app-level runner.');
+  expect(promptDogfood).toContain('Before you edit DTOs or write persistent query cases, run `npx ztd feature tests scaffold --feature <feature-name>`.');
+  expect(promptDogfood).toContain('refreshes `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`');
+  expect(promptDogfood).toContain('creates the thin `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` Vitest entrypoint only if it is missing.');
+  expect(promptDogfood).toContain('Persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/` stay human/AI-owned and must not be overwritten.');
   expect(promptDogfood).toContain('If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs.');
   expect(promptDogfood).toContain('`beforeDb` and `afterDb` are pure fixture skeletons with schema-qualified table keys.');
   expect(promptDogfood).toContain('The validation case may stay at the feature boundary, but the success case must execute through the fixed app-level ZTD runner.');
   expect(promptDogfood).toContain('Do not put returned columns into the input fixture.');
   expect(promptDogfood).toContain('Read `TEST_PLAN.md` and `analysis.json` before filling the persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/`.');
-  expect(promptDogfood).toContain('refresh `src/features/<feature-name>/queries/<query-name>/tests/boundary-ztd-types.ts`');
+  expect(promptDogfood).toContain('refreshes `src/features/<feature-name>/queries/<query-name>/tests/boundary-ztd-types.ts`');
   expect(promptDogfood).toContain('`afterDb` is subset-based per row, rows are treated as an unordered multiset, row order is ignored, and the verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding.');
   expect(promptDogfood).toContain('After the cases are ready, run `npx vitest run src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` to execute the ZTD query test.');
   expect(promptDogfood).toContain('If the returned result is null, stop and fix the scaffold or DDL instead of weakening the case.');
@@ -462,10 +462,10 @@ test('init local-source mode links rawsql-ts dependencies from the monorepo with
     expect(packageJson.devDependencies['@rawsql-ts/testkit-core']).toBe(
       `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'testkit-core')).replace(/\\/g, '/')}`
     );
-  expect(packageJson.devDependencies['@rawsql-ts/testkit-postgres']).toBe(
-    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'testkit-postgres')).replace(/\\/g, '/')}`
+  expect(packageJson.devDependencies['@rawsql-ts/testkit-postgres']).toBeUndefined();
+  expect(packageJson.devDependencies['@rawsql-ts/ztd-cli']).toBe(
+    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'ztd-cli')).replace(/\\/g, '/')}`
   );
-  expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/ztd-cli');
 });
 
 test('init starter local-source mode keeps starter rawsql-ts packages on file dependencies', async () => {

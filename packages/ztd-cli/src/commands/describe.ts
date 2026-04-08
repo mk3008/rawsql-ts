@@ -121,6 +121,7 @@ const COMMANDS: CommandDescriptor[] = [
         'src/features/<feature-name>/queries/<query-name>/boundary.ts',
         'src/features/<feature-name>/queries/<query-name>/<query-name>.sql',
         'src/features/<feature-name>/tests/',
+        'src/features/<feature-name>/tests/<feature-name>.boundary.test.ts',
         'src/features/<feature-name>/README.md',
         'src/features/_shared/featureQueryExecutor.ts on first scaffold run',
         'src/features/_shared/loadSqlResource.ts on first scaffold run'

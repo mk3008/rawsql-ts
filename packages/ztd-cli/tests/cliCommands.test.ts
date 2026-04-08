@@ -264,8 +264,8 @@ test(
     expect(result.stdout).toContain('--query <name>');
     expect(result.stdout).toContain('--dry-run');
     expect(result.stdout).toContain('--force');
-    expect(result.stdout).toContain('Refresh query-boundary ZTD analysis');
-    expect(result.stdout).toContain('persistent cases for AI and humans');
+    expect(result.stdout).toContain('Refresh query-boundary generated analysis');
+    expect(result.stdout).toContain('keep persistent case files untouched');
   },
   60000,
 );

@@ -89,4 +89,8 @@ test('path classifiers stay aligned with the enforced policy', () => {
   expect(isPerfSensitiveSourceFile('benchmarks/parser-phase-benchmark.ts')).toBe(true);
   expect(isPerfEvidenceFile('docs/dogfooding/telemetry-dogfooding.md')).toBe(true);
   expect(isLocalTaskLedgerFile('tmp/PLAN.md')).toBe(true);
+  expect(isLocalTaskLedgerFile('tmp/sub/PLAN.md')).toBe(true);
+  expect(isLocalTaskLedgerFile('prefix/tmp/PLAN.md')).toBe(true);
+  expect(isLocalTaskLedgerFile('prefix/tmp/sub/PLAN.md')).toBe(true);
+  expect(isLocalTaskLedgerFile('not_tmp/PLAN.md')).toBe(false);
 });

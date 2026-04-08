@@ -14,7 +14,9 @@ The project is feature-first by default:
 - keep SQL, boundaries, and tests close to each feature
 - use `@rawsql-ts/sql-contract` for query contract metadata and catalog execution
 - keep feature-root boundary tests under `src/features/<feature>/tests/`
-- keep query-local ZTD generated assets under `src/features/<feature>/queries/<query>/tests/{generated,cases}` alongside the thin entrypoint
+- keep CLI-owned generated assets under `src/features/<feature>/queries/<query>/tests/generated`
+- keep human/AI-owned persistent cases under `src/features/<feature>/queries/<query>/tests/cases`
+- keep the thin query-boundary entrypoint next to them under `src/features/<feature>/queries/<query>/tests/`
 - keep starter-owned shared support under `tests/support/ztd/`
 - keep tool-managed fixture metadata under `.ztd/generated/`
 - `ztd.config.json` controls generated metadata and runtime defaults while the feature-local tests stay next to the feature they cover

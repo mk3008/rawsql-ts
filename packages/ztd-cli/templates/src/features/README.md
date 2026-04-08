@@ -38,7 +38,7 @@ Prefer root-based imports once the project grows beyond shallow nesting.
 
 - Recommended direction: add a project-root import convention such as `#src/*` package imports or an equivalent root alias that works in both TypeScript and runtime resolution.
 - Minimum rule: do not let deep relative imports become the public boundary contract.
-- When a boundary depends on another boundary, make the dependency obvious by importing its `boundary.ts` entrypoint rather than walking through internal files.
+- When a boundary depends on another boundary, make the dependency obvious by importing its compiled ESM entrypoint with `.js` specifiers, such as `./boundary.js` or `../boundary.js`, rather than walking through internal files.
 
 ## Sample feature
 
