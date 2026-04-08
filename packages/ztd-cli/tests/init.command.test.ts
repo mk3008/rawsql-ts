@@ -119,6 +119,7 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   );
   expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_PORT=5432');
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    type?: string;
     devDependencies: Record<string, string>;
   };
   expect(packageJson.devDependencies).toHaveProperty('dotenv');
@@ -179,8 +180,8 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
     'derives `ZTD_DB_URL` from `ZTD_DB_PORT`'
   );
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd feature scaffold --table users --action insert');
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd feature scaffold --table users --action insert');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('@rawsql-ts/testkit-postgres');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('fixed app-level ZTD runner');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'README.md'))).toContain('starter-only sample feature');
@@ -480,7 +481,7 @@ test('init starter local-source mode keeps starter rawsql-ts packages on file de
   const workspace = createTempDir('cli-init-starter-local-source');
   const prompter = new TestPrompter([]);
 
-  await runInitCommand(prompter, {
+  const result = await runInitCommand(prompter, {
     rootDir: workspace,
     starter: true,
     forceOverwrite: true,
@@ -508,6 +509,13 @@ test('init starter local-source mode keeps starter rawsql-ts packages on file de
     `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'ztd-cli')).replace(/\\/g, '/')}`
   );
   expect(packageJson.type).toBe('module');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd ztd-config');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd feature scaffold --table users --action insert');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd feature tests scaffold --feature users-insert');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).not.toContain('pnpm exec ztd ztd-config');
+  expect(result.summary).toContain('Run pnpm ztd ztd-config');
+  expect(result.summary).toContain('`pnpm ztd feature scaffold --table users --action insert`');
+  expect(result.summary).toContain('`pnpm ztd feature tests scaffold --feature users-insert`');
 });
 
 test('pnpm nested under a parent workspace uses --ignore-workspace for manual installs', () => {

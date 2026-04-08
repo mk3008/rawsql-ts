@@ -458,7 +458,7 @@ const STARTER_SCHEMA_TEMPLATE = (schemaName: string): string =>
     ''
   ].join('\n');
 
-const STARTER_README_APPENDIX = (postgresImage: string): string =>
+const STARTER_README_APPENDIX = (postgresImage: string, ztdCommand: string): string =>
   [
     '## Starter Flow',
     '',
@@ -467,11 +467,11 @@ const STARTER_README_APPENDIX = (postgresImage: string): string =>
     '3. Copy `.env.example` to `.env` and update `ZTD_DB_PORT` if 5432 is already in use.',
     '4. Start Postgres with `docker compose up -d` when you are ready for the DB-backed smoke path.',
     `5. The bundled compose file uses \`${postgresImage}\`, and the generated Vitest setup derives \`ZTD_DB_URL\` from \`ZTD_DB_PORT\`.`,
-    '6. Run `npx ztd ztd-config` to regenerate the runtime fixture manifest, DDL-derived test rows, and layout metadata.',
+    `6. Run \`${ztdCommand} ztd-config\` to regenerate the runtime fixture manifest, DDL-derived test rows, and layout metadata.`,
     '7. Read `tests/support/ztd/harness.ts` and `src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts` to see the DB-backed starter smoke path through the shared query-boundary harness and starter DB wiring.',
     '8. Run `npx vitest run` to exercise the DB-free and DB-backed smoke tests with the values from `.env`.',
-  '9. Run `npx ztd feature scaffold --table users --action insert` to create the first fixed feature shell.',
-  '10. After you finish SQL and DTO edits, run `npx ztd feature tests scaffold --feature users-insert` to create TODO-based test scaffolds, then let AI complete them.',
+  `9. Run \`${ztdCommand} feature scaffold --table users --action insert\` to create the first fixed feature shell.`,
+  `10. After you finish SQL and DTO edits, run \`${ztdCommand} feature tests scaffold --feature users-insert\` to create TODO-based test scaffolds, then let AI complete them.`,
     ''
   ].join('\n');
 
@@ -498,9 +498,17 @@ const DEMO_SCHEMA_TEMPLATE = (_schemaName: string): string => {
   return loadTemplate(ZTD_DDL_DEMO_TEMPLATE);
 };
 
-function buildStarterReadmeContents(postgresImage: string): string {
+function buildStarterReadmeContents(rootDir: string, scaffoldProfile: InitScaffoldProfile, postgresImage: string): string {
   const base = loadTemplate(README_TEMPLATE).replace(/\r\n/g, '\n').trimEnd();
-  return `${base}\n\n${STARTER_README_APPENDIX(postgresImage)}`;
+  return `${base}\n\n${STARTER_README_APPENDIX(postgresImage, resolveInitZtdCommand(rootDir, scaffoldProfile))}`;
+}
+
+function resolveInitZtdCommand(rootDir: string, scaffoldProfile: InitScaffoldProfile): string {
+  const packageManager = detectPackageManager(rootDir, defaultPackageManagerForScaffold(scaffoldProfile));
+  if (scaffoldProfile.dependencyProfile === 'local-source') {
+    return packageManager === 'npm' ? 'npm run ztd --' : `${packageManager} ztd`;
+  }
+  return packageManager === 'npm' ? 'npx ztd' : packageManager === 'yarn' ? 'yarn exec ztd' : 'pnpm exec ztd';
 }
 
 function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): InitScaffoldLayout {
@@ -881,7 +889,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   const readmeSummary = await writeDocFile(
     absolutePaths.readme,
     relativePath('readme'),
-    starter ? buildStarterReadmeContents(postgresImage) : loadTemplate(README_TEMPLATE),
+    starter ? buildStarterReadmeContents(rootDir, scaffoldProfile, postgresImage) : loadTemplate(README_TEMPLATE),
     dependencies,
     prompter,
     overwritePolicy
@@ -2428,10 +2436,7 @@ function buildNextSteps(
   const installCommand = installStrategy.installCommand;
   const runScriptCommand = (script: 'typecheck' | 'test'): string =>
     packageManager === 'npm' ? `npm run ${script}` : `${packageManager} ${script}`;
-  const runLocalSourceZtdCommand =
-    packageManager === 'npm' ? 'npm run ztd --' : `${packageManager} ztd`;
-  const ztdCommand =
-    packageManager === 'npm' ? 'npx ztd' : packageManager === 'yarn' ? 'yarn exec ztd' : 'pnpm exec ztd';
+  const ztdCommand = resolveInitZtdCommand(rootDir, scaffoldProfile);
   const firstStep =
     workflow === 'pg_dump'
       ? `Review the dumped DDL in ${schemaRelativePath} and adjust it before generating downstream artifacts`
@@ -2481,7 +2486,7 @@ function buildNextSteps(
       `Run ${installCommand}`,
       firstStep,
       sqlStep,
-      ...generationSteps.map((step) => step.replace(ztdCommand, runLocalSourceZtdCommand)),
+      ...generationSteps,
       wiringStep,
       sampleTestStep,
       firstTestStep,
@@ -2489,9 +2494,7 @@ function buildNextSteps(
     ];
     return {
       nextSteps: localSourceSteps.map((step, index) => ` ${index + 1}. ${step}`),
-      fallbackSteps: fallbackSteps
-        .map((step) => step.split(ztdCommand).join(runLocalSourceZtdCommand))
-        .map((step) => ` - ${step}`)
+      fallbackSteps: fallbackSteps.map((step) => ` - ${step}`)
     };
   }
 
