@@ -8,7 +8,7 @@
 - ZTD-specific workflow rules apply here and in the related `src/sql`, `src/catalog`, and `ztd` assets.
 - Persistence adapters MUST keep handwritten SQL, QuerySpecs, and DDL aligned.
 - Repository code MUST rely on explicit contracts and generated/runtime helpers instead of hidden driver behavior.
-- `ZTD_TEST_DATABASE_URL` is the only implicit database owned by `ztd-cli`.
+- `.env` is the SSOT for the runtime connection, and `ZTD_DB_URL` is the only implicit database owned by `ztd-cli`.
 - Non-ZTD database targets MUST be passed explicitly via `--url` or a complete `--db-*` flag set for inspection work.
 - Migration SQL artifacts MAY be generated here, but applying them remains outside `ztd-cli` ownership.
 

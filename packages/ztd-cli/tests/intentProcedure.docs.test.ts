@@ -22,14 +22,14 @@ test('root policy and mirror describe intent and procedure as causality', () => 
   const rootAgents = readNormalizedFile('AGENTS.md');
   const mirrorAgents = readNormalizedFile('.agent/AGENTS.md');
 
-  expect(rootAgents).toContain('# INTENT');
-  expect(rootAgents).toContain('Source assets stay human-owned so the repository keeps a clear edit surface.');
-  expect(rootAgents).toContain('# procedure');
-  expect(rootAgents).toContain('Follow `DDL -> SQL -> generate -> wire -> test` when moving from source assets to downstream artifacts.');
+  expect(rootAgents).toContain('# Repository Scope');
+  expect(rootAgents).toContain('Use the repo-local Codex guidance under `.codex/agents/` and `.agents/skills/` for planning, verification, review, and reporting.');
+  expect(rootAgents).toContain('All assistant-user conversation in this repository must be in Japanese.');
+  expect(rootAgents).toContain('Planning guidance is responsible for making `Source issue`, `Why it matters`, `Acceptance items`, and `Verification methods` explicit.');
 
-  expect(mirrorAgents).toContain('## INTENT');
-  expect(mirrorAgents).toContain('## procedure');
-  expect(mirrorAgents).toContain('Downstream artifacts exist to match the source assets, not to replace their intent.');
+  expect(mirrorAgents).toContain('# Visible Policy Mirror');
+  expect(mirrorAgents).toContain('Use `.codex/agents/planning.md`, `.codex/agents/verification.md`, `.codex/agents/review.md`, and `.codex/agents/reporting.md` for developer workflow support.');
+  expect(mirrorAgents).toContain('Use `.agents/skills/acceptance-planning/SKILL.md`, `.agents/skills/self-review/SKILL.md`, and `.agents/skills/attainment-reporting/SKILL.md` for repeatable planning, review, and reporting workflows.');
 });
 
 test('README exposes the high-level intent and procedure entry point', () => {

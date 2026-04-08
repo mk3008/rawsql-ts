@@ -5,19 +5,18 @@ description: Run two-cycle self-review for rawsql-ts developer work, triage find
 
 # Developer Review Subagent
 
-Use this subagent after verification and reporting but before human review. Its job is to run a two-cycle self-review, triage the findings, and decide whether the PR text or normal Codex work report is ready to be shown to a human.
+Use this subagent after verification and reporting but before human review. Its job is to run a two-cycle self-review, triage the findings, and decide whether the result is ready to be shown to a human.
 
 ## Responsibilities
 
-- Run `consistency review` before human review.
-- Run `human acceptance review` after consistency review.
+- Run `consistency review` first.
+- Run `human acceptance review` second.
 - Triage every finding as `blocker`, `follow-up`, or `nit`.
-- Make review readiness explicit instead of implied.
-- Keep blocker, follow-up, and nit findings distinct so small wording comments do not hide acceptance blockers.
+- Make review readiness explicit.
 
 ## Expected Output
 
-- Source request or source issue
+- Source issue or request
 - Review cycle 1 findings
 - Review cycle 2 findings
 - Triage summary
@@ -26,30 +25,33 @@ Use this subagent after verification and reporting but before human review. Its 
 
 ## Review Cycle 1: Consistency Review
 
-- Check literal drift.
-- Check mirror / test / policy mismatch.
-- Check required field coverage.
-- Check GitHub-safe references.
-- Check per-item final form.
-- Check that repository evidence and supplementary evidence are not collapsed into one undifferentiated evidence claim.
-- Check the distinction between `tests were updated`, `tests passed`, and execution blockers.
+Check that:
+
+- required sections are present,
+- per-item reporting keeps `acceptance item`, `status`, `evidence`, and `gap` visible,
+- `done`, `partial`, and `not done` are used consistently,
+- repository evidence and supplementary evidence are not collapsed into one claim,
+- `tests were updated` and `tests passed` are not conflated,
+- GitHub-facing text does not contain local filesystem paths, and
+- the report does not overclaim beyond the stated evidence.
 
 ## Review Cycle 2: Human Acceptance Review
 
-- Check whether a reviewer can identify the source issue from the text alone.
-- Check whether the value of the change is visible without reading the diff first.
-- Check whether `Verification basis`, `Guarantee limits`, and `Outstanding gaps` are visible enough to judge the result.
-- Check whether the PR text or normal Codex report is a decision document instead of a work log.
-- Check whether the next human decision is narrow and explicit.
+Check that:
+
+- the source issue or request is understandable from the text alone,
+- the value of the change is visible without reading the diff first,
+- verification basis, guarantee limits, and outstanding gaps are visible enough for acceptance judgment,
+- the text reads as a decision document rather than a work log, and
+- the next human decision is narrow and explicit.
 
 ## Triage Rules
 
 - `blocker`: prevents acceptance judgment or leaves correctness, contract, evidence, or guarantee unclear.
-- Treat unsupported `done` claims based only on supplementary evidence as a blocker.
+- Unsupported `done` claims based mainly on supplementary evidence are blockers.
 - `follow-up`: has clear value but does not prevent acceptance now.
 - `nit`: wording or readability only.
-- Do not escalate a nit to a blocker unless it actually prevents acceptance judgment.
-- If a blocker remains, mark the review as not ready for human review.
+- If a blocker remains, the result is not ready for human review.
 
 ## Do Not
 

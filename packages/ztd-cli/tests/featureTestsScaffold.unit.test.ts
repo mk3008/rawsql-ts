@@ -17,11 +17,11 @@ function createTempDir(prefix: string): string {
 test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the current feature files', async () => {
   const workspace = createTempDir('feature-tests-scaffold');
   const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
-  const queryDir = path.join(featureDir, 'queries', 'insert-users');
+  const queryDir = path.join(featureDir, 'insert-users');
   mkdirSync(queryDir, { recursive: true });
 
   writeFileSync(
-    path.join(featureDir, 'spec.ts'),
+    path.join(featureDir, 'entryspec.ts'),
     [
       "import { z } from 'zod';",
       '',
@@ -36,7 +36,7 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
     'utf8'
   );
   writeFileSync(
-    path.join(queryDir, 'spec.ts'),
+    path.join(queryDir, 'queryspec.ts'),
     [
       "export async function executeInsertUsersQuerySpec() {",
       '  return { user_id: "placeholder" };',
@@ -62,30 +62,30 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   });
   expect(result.outputs.map((output) => output.path)).toEqual(
     expect.arrayContaining([
-      'src/features/users-insert/queries/insert-users/tests',
-      'src/features/users-insert/queries/insert-users/tests/generated',
-      'src/features/users-insert/queries/insert-users/tests/cases',
-      'src/features/users-insert/queries/insert-users/tests/insert-users.queryspec.ztd.test.ts',
-      'src/features/users-insert/queries/insert-users/tests/cases/basic.case.ts',
-      'src/features/users-insert/queries/insert-users/tests/generated/TEST_PLAN.md',
-      'src/features/users-insert/queries/insert-users/tests/generated/analysis.json'
+      'src/features/users-insert/insert-users/tests',
+      'src/features/users-insert/insert-users/tests/generated',
+      'src/features/users-insert/insert-users/tests/cases',
+      'src/features/users-insert/insert-users/tests/insert-users.queryspec.ztd.test.ts',
+      'src/features/users-insert/insert-users/tests/cases/basic.case.ts',
+      'src/features/users-insert/insert-users/tests/generated/TEST_PLAN.md',
+      'src/features/users-insert/insert-users/tests/generated/analysis.json'
     ])
   );
 
   const vitestEntrypointFile = readFileSync(
-    path.join(featureDir, 'queries', 'insert-users', 'tests', 'insert-users.queryspec.ztd.test.ts'),
+    path.join(featureDir, 'insert-users', 'tests', 'insert-users.queryspec.ztd.test.ts'),
     'utf8'
   );
   expect(vitestEntrypointFile).toContain("import { expect, test } from 'vitest';");
-  expect(vitestEntrypointFile).toContain("import { runQuerySpecZtdCases } from '../../../../../../tests/ztd/harness.js';");
-  expect(vitestEntrypointFile).toContain("import { executeInsertUsersQuerySpec } from '../spec.js';");
+  expect(vitestEntrypointFile).toContain("import { runQuerySpecZtdCases } from '../../../../../tests/support/ztd/harness.js';");
+  expect(vitestEntrypointFile).toContain("import { executeInsertUsersQuerySpec } from '../queryspec.js';");
   expect(vitestEntrypointFile).toContain("import cases from './cases/basic.case.js';");
   expect(vitestEntrypointFile).toContain("import type { InsertUsersQuerySpecZtdCase } from './queryspec-ztd-types.js';");
   expect(vitestEntrypointFile).toContain('expect(cases.length).toBeGreaterThan(0);');
   expect(vitestEntrypointFile).toContain('await runQuerySpecZtdCases(cases, executeInsertUsersQuerySpec);');
 
   const queryTypesFile = readFileSync(
-    path.join(featureDir, 'queries', 'insert-users', 'tests', 'queryspec-ztd-types.ts'),
+    path.join(featureDir, 'insert-users', 'tests', 'queryspec-ztd-types.ts'),
     'utf8'
   );
   expect(queryTypesFile).toContain('export type InsertUsersBeforeDb = { public: { users: readonly { email?: unknown }[] } };');
@@ -94,22 +94,22 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(queryTypesFile).not.toContain('InsertUsersBeforeDb = Record<string, unknown>');
 
   const testPlanFile = readFileSync(
-    path.join(featureDir, 'queries', 'insert-users', 'tests', 'generated', 'TEST_PLAN.md'),
+    path.join(featureDir, 'insert-users', 'tests', 'generated', 'TEST_PLAN.md'),
     'utf8'
   );
-  expect(testPlanFile).toContain('# users-insert / insert-users spec test plan');
+  expect(testPlanFile).toContain('# users-insert / insert-users queryspec test plan');
   expect(testPlanFile).toContain('schemaVersion: 1');
   expect(testPlanFile).toContain('featureId: users-insert');
   expect(testPlanFile).toContain('testKind: ztd');
   expect(testPlanFile).toContain('resultCardinality: one');
-  expect(testPlanFile).toContain('fixedVerifier: tests/ztd/harness.ts');
-  expect(testPlanFile).toContain('vitestEntrypoint: src/features/users-insert/queries/insert-users/tests/insert-users.queryspec.ztd.test.ts');
-  expect(testPlanFile).toContain('generatedDir: src/features/users-insert/queries/insert-users/tests/generated');
-  expect(testPlanFile).toContain('casesDir: src/features/users-insert/queries/insert-users/tests/cases');
-  expect(testPlanFile).toContain('analysisJson: src/features/users-insert/queries/insert-users/tests/generated/analysis.json');
-  expect(testPlanFile).toContain('src/features/users-insert/spec.ts');
-  expect(testPlanFile).toContain('src/features/users-insert/queries/insert-users/spec.ts');
-  expect(testPlanFile).toContain('src/features/users-insert/queries/insert-users/insert-users.sql');
+  expect(testPlanFile).toContain('fixedVerifier: tests/support/ztd/harness.ts');
+  expect(testPlanFile).toContain('vitestEntrypoint: src/features/users-insert/insert-users/tests/insert-users.queryspec.ztd.test.ts');
+  expect(testPlanFile).toContain('generatedDir: src/features/users-insert/insert-users/tests/generated');
+  expect(testPlanFile).toContain('casesDir: src/features/users-insert/insert-users/tests/cases');
+  expect(testPlanFile).toContain('analysisJson: src/features/users-insert/insert-users/tests/generated/analysis.json');
+  expect(testPlanFile).toContain('src/features/users-insert/entryspec.ts');
+  expect(testPlanFile).toContain('src/features/users-insert/insert-users/queryspec.ts');
+  expect(testPlanFile).toContain('src/features/users-insert/insert-users/insert-users.sql');
   expect(testPlanFile).toContain('Fixture Candidate Tables');
   expect(testPlanFile).toContain('- public.users');
   expect(testPlanFile).toContain('Write Tables');
@@ -118,11 +118,12 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(testPlanFile).toContain('After DB Semantics');
   expect(testPlanFile).toContain('- `afterDb` is optional and must be a pure fixture with schema-qualified table keys.');
   expect(testPlanFile).toContain('unordered multiset');
-  expect(testPlanFile).toContain('subset match');
+  expect(testPlanFile).toContain('subset-based per-row matching');
   expect(testPlanFile).toContain('Row order is ignored');
+  expect(testPlanFile).toContain('restart identity cascade');
 
   const analysisFile = JSON.parse(
-    readFileSync(path.join(featureDir, 'queries', 'insert-users', 'tests', 'generated', 'analysis.json'), 'utf8')
+    readFileSync(path.join(featureDir, 'insert-users', 'tests', 'generated', 'analysis.json'), 'utf8')
   ) as {
     schemaVersion: number;
     featureId: string;
@@ -141,7 +142,7 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
     fixtureCandidateTables: ['public.users'],
     writesTables: ['public.users'],
     validationScenarioHints: expect.arrayContaining([
-      'Keep spec validation separate from the DB-backed execution boundary.',
+      'Keep entryspec validation separate from queryspec DB-backed execution.',
       'Validation failures belong in the feature-root mock test lane.'
     ]),
     dbScenarioHints: expect.arrayContaining([
@@ -155,7 +156,7 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
 test('runFeatureTestsScaffoldCommand refreshes generated analysis without overwriting persistent cases', async () => {
   const workspace = createTempDir('feature-tests-cases');
   const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
-  const queryDir = path.join(featureDir, 'queries', 'insert-users');
+  const queryDir = path.join(featureDir, 'insert-users');
   const testsDir = path.join(queryDir, 'tests');
   const generatedDir = path.join(testsDir, 'generated');
   const casesDir = path.join(testsDir, 'cases');
@@ -164,7 +165,7 @@ test('runFeatureTestsScaffoldCommand refreshes generated analysis without overwr
   mkdirSync(generatedDir, { recursive: true });
 
   writeFileSync(
-    path.join(featureDir, 'spec.ts'),
+    path.join(featureDir, 'entryspec.ts'),
     [
       "import { z } from 'zod';",
       '',
@@ -179,7 +180,7 @@ test('runFeatureTestsScaffoldCommand refreshes generated analysis without overwr
     'utf8'
   );
   writeFileSync(
-    path.join(queryDir, 'spec.ts'),
+    path.join(queryDir, 'queryspec.ts'),
     [
       "export async function executeInsertUsersQuerySpec() {",
       '  return { user_id: "placeholder" };',

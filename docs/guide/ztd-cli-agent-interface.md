@@ -17,7 +17,7 @@
 - When a request is "add an optional filter" to a SQL asset, prefer SSSQL-style truthful SQL branches before suggesting string-built SQL assembly outside the file.
 - The default response pattern for those requests is: update `src/sql/...`, rerun `ztd model-gen --probe-mode ztd` if needed, rerun `ztd lint` plus tests, and only then wire `optionalConditionParameters` for runtime pruning.
 - Do not route routine optional predicates toward redundant `LEFT JOIN` scaffolding plus `removeUnusedLeftJoins` cleanup.
-- `ztd-cli` implicitly uses only `ZTD_TEST_DATABASE_URL` for ZTD-owned workflows.
+- `ztd-cli` implicitly uses only `ZTD_DB_URL` for ZTD-owned workflows.
 - Do not assume `DATABASE_URL` is a usable default target for `ztd-cli`; non-ZTD targets must be passed explicitly with `--url` or complete `--db-*` flags.
 
 - For a scale-sensitive perf request, gather QuerySpec `metadata.perf`, current seed row counts, DDL/index inventory, and whether a captured plan already exists before picking index tuning or pipeline tuning.

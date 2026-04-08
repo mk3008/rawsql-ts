@@ -107,7 +107,7 @@ test('buildInsertStatementsForTable uses DEFAULT VALUES when every column has a 
 
 test('resolvePerfExternalDatabaseUrl only honors the explicit perf variable', () => {
   expect(resolvePerfExternalDatabaseUrl({
-    ZTD_TEST_DATABASE_URL: 'postgres://perf.example/db',
+    ZTD_DB_URL: 'postgres://perf.example/db',
     DATABASE_URL: 'postgres://app.example/db'
   })).toBe('postgres://perf.example/db');
 
@@ -126,7 +126,7 @@ test('inspectPerfDdlInventory counts CREATE INDEX statements so perf reset can r
   writeFileSync(path.join(rootDir, 'ztd.config.json'), JSON.stringify({
     dialect: 'postgres',
     ddlDir: 'db/ddl',
-    testsDir: 'tests',
+    testsDir: '.ztd/tests',
     defaultSchema: 'public',
     searchPath: ['public'],
     ddlLint: 'strict'
@@ -151,7 +151,7 @@ test('inspectPerfDdlInventory fails fast when the configured DDL directory does 
   writeFileSync(path.join(rootDir, 'ztd.config.json'), JSON.stringify({
     dialect: 'postgres',
     ddlDir: 'db/ddl',
-    testsDir: 'tests',
+    testsDir: '.ztd/tests',
     defaultSchema: 'public',
     searchPath: ['public'],
     ddlLint: 'strict'

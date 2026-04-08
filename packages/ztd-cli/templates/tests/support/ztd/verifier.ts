@@ -20,9 +20,9 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
   querySpecCase: QuerySpecZtdCase<BeforeDb, Input, Output>,
   execute: QuerySpecExecutor<Input, Output>
 ): Promise<void> {
-  const connectionString = process.env.ZTD_TEST_DATABASE_URL;
+  const connectionString = process.env.ZTD_DB_URL;
   if (!connectionString) {
-    throw new Error('Set ZTD_TEST_DATABASE_URL before running queryspec ZTD cases.');
+    throw new Error('Set ZTD_DB_URL before running queryspec ZTD cases.');
   }
 
   const pool = new Pool({ connectionString });
@@ -33,8 +33,8 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
     await resetFixtureTables(client, querySpecCase.beforeDb);
     await seedFixture(client, querySpecCase.beforeDb);
 
-    const result = await execute(createQuerySpecExecutor(client), querySpecCase.input);
-    expect(result).toEqual(querySpecCase.output);
+    const result = execute(createQuerySpecExecutor(client), querySpecCase.input);
+    await expect(result).resolves.toEqual(querySpecCase.output);
 
     if (querySpecCase.afterDb) {
       await expectAfterDbState(client, querySpecCase.afterDb);

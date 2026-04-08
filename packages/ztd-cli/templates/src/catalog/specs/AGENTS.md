@@ -29,7 +29,7 @@ Use `npx ztd model-gen <sql-file> --probe-mode ztd --out <spec-file>.ts` to deri
 - `ztd model-gen --probe-mode ztd` is the recommended fast-loop path when the referenced schema already exists in `db/ddl/*.sql`.
 - In `--probe-mode ztd`, unqualified table references follow the configured `defaultSchema` / `searchPath` priority from `ztd.config.json`.
 - The CLI default remains `--probe-mode live` for backward compatibility, but project guidance should treat `--probe-mode ztd` as the preferred inner-loop mode.
-- `ztd model-gen --probe-mode ztd` uses the ZTD-owned test database from `ZTD_TEST_DATABASE_URL`.
+- `ztd model-gen --probe-mode ztd` uses the ZTD-owned test database from `ZTD_DB_URL`.
 - `ztd model-gen --probe-mode live` is an explicit target inspection path and MUST be used with `--url` or a complete `--db-*` flag set.
 - `DATABASE_URL` is a runtime concern and is not read implicitly by `ztd-cli`.
 - Positional placeholders are legacy and should be rewritten whenever possible.

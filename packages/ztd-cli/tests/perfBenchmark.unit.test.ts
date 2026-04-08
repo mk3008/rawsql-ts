@@ -1298,7 +1298,7 @@ test('runPerfBenchmark dry-run reports ddl inventory and pipeline-first tuning g
   writeFileSync(path.join(workspace.rootDir, 'ztd.config.json'), JSON.stringify({
     dialect: 'postgres',
     ddlDir: 'db/ddl',
-    testsDir: 'tests',
+    testsDir: '.ztd/tests',
     defaultSchema: 'public',
     searchPath: ['public'],
     ddlLint: 'strict'

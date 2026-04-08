@@ -138,16 +138,16 @@ function assertSupportedProjectLayout(rootDir: string, config: ZtdProjectConfig)
     legacySignals.push(`ztd.config.json uses the unsupported ztdRootDir "${normalizedZtdRootDir}".`);
   }
 
-  const knownLegacyPaths = [
-    'ztd/ddl',
-    'tests/generated',
-    'tests/support',
-    'tests/queryspec.example.test.ts'
-  ];
+  const knownLegacyPaths = ['ztd/ddl', 'tests/generated', 'tests/queryspec.example.test.ts'];
   for (const relativePath of knownLegacyPaths) {
     if (existsSync(path.join(rootDir, relativePath))) {
       legacySignals.push(`Legacy layout detected at ${relativePath}.`);
     }
+  }
+
+  const legacySupportDir = path.join(rootDir, 'tests/support');
+  if (existsSync(legacySupportDir) && !existsSync(path.join(legacySupportDir, 'ztd'))) {
+    legacySignals.push('Legacy layout detected at tests/support.');
   }
 
   if (legacySignals.length === 0) {
@@ -346,7 +346,7 @@ function emitLegacyConnectionConfigWarning(filePath: string): void {
 
   hasWarnedLegacyConnectionConfig = true;
   process.emitWarning(
-    `Legacy connection settings were found in ${filePath}. ztd-cli no longer uses ztd.config.json.connection for implicit DB resolution. Use ZTD_TEST_DATABASE_URL for ZTD-owned workflows and pass --url or --db-* explicitly for non-ZTD targets.`,
+    `Legacy connection settings were found in ${filePath}. ztd-cli no longer uses ztd.config.json.connection for implicit DB resolution. Use ZTD_DB_URL for ZTD-owned workflows and pass --url or --db-* explicitly for non-ZTD targets.`,
     {
       code: 'ZTD_LEGACY_CONNECTION_CONFIG',
       detail: 'The connection field remains readable for compatibility, but it is deprecated.'

@@ -1,8 +1,8 @@
-# ZTD Harness
+# ZTD Support
 
-This folder holds the fixed app-level runner for queryspec ZTD cases.
+This folder holds the starter-owned shared support for queryspec ZTD cases.
 
-- `harness.ts` exposes the single runner that query-local cases call.
+- `harness.ts` exposes the fixed app-level runner that query-local cases call.
 - `verifier.ts` owns DB-backed setup, execution, assertions, and cleanup.
 - `case-types.ts` defines the small v1 case shape.
 

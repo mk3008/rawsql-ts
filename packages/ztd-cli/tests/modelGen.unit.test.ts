@@ -457,17 +457,15 @@ test('loadModelGenZtdFixtureState preserves searchPath precedence so unqualified
 
 
 test('resolveCliConnectionWithProbeGuidance explains ztd probe DB requirement when connection is missing', () => {
-  const previous = process.env.ZTD_TEST_DATABASE_URL;
+  const previous = process.env.ZTD_DB_URL;
   try {
-    delete process.env.ZTD_TEST_DATABASE_URL;
-    expect(() => resolveCliConnectionWithProbeGuidance({}, 'ztd')).toThrow(
-      /ZTD_TEST_DATABASE_URL/
-    );
+    delete process.env.ZTD_DB_URL;
+    expect(() => resolveCliConnectionWithProbeGuidance({}, 'ztd')).toThrow(/ZTD_DB_URL/);
   } finally {
     if (previous === undefined) {
-      delete process.env.ZTD_TEST_DATABASE_URL;
+      delete process.env.ZTD_DB_URL;
     } else {
-      process.env.ZTD_TEST_DATABASE_URL = previous;
+      process.env.ZTD_DB_URL = previous;
     }
   }
 });

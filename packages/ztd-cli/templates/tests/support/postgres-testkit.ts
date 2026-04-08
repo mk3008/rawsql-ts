@@ -76,10 +76,10 @@ export function loadStarterPostgresDefaults(rootDir: string = process.cwd()): St
 export function createStarterPostgresTestkitClient<RowType extends Record<string, unknown> = Record<string, unknown>>(
   options: StarterPostgresTestkitOptions<RowType>
 ): PostgresTestkitClient<RowType> {
-  const connectionString = options.connectionString ?? process.env.ZTD_TEST_DATABASE_URL;
+  const connectionString = options.connectionString ?? process.env.ZTD_DB_URL;
   if (!connectionString) {
     throw new Error(
-      'Set options.connectionString or ZTD_TEST_DATABASE_URL before creating a starter Postgres testkit client.'
+      'Set options.connectionString or ZTD_DB_URL before creating a starter Postgres testkit client.'
     );
   }
 

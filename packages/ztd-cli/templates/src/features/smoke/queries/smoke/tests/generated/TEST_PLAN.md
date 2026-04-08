@@ -8,7 +8,7 @@ This file snapshots the current scaffold contract before AI adds case files.
 - featureId: smoke
 - testKind: ztd
 - resultCardinality: one
-- fixedVerifier: tests/ztd/harness.ts
+- fixedVerifier: tests/support/ztd/harness.ts
 - vitestEntrypoint: src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts
 - generatedDir: src/features/smoke/queries/smoke/tests/generated
 - casesDir: src/features/smoke/queries/smoke/tests/cases

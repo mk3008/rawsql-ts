@@ -1,4 +1,4 @@
-import type { QuerySpecZtdCase } from '../../../../../../tests/ztd/case-types.js';
+import type { QuerySpecZtdCase } from '../../../../../../tests/support/ztd/case-types.js';
 
 export type SmokeBeforeDb = {
   public: {

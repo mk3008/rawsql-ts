@@ -14,11 +14,12 @@ The project is feature-first by default:
 - keep SQL, specs, and tests close to each feature
 - use `@rawsql-ts/sql-contract` for QuerySpec contracts
 - keep feature-root entryspec tests under `src/features/<feature>/tests/`
-- keep query-local ZTD generated assets under `src/features/<feature>/queries/<query>/tests/{generated,cases}` alongside the thin entrypoint
-- keep tool-managed fixture metadata under `.ztd/generated/`, and reserve `.ztd/tests/` for shared support files only
+- keep query-local ZTD generated assets under `src/features/<feature>/<query>/tests/{generated,cases}` alongside the thin entrypoint
+- keep starter-owned shared support under `tests/support/ztd/`
+- keep tool-managed fixture metadata under `.ztd/generated/`
 - `ztd.config.json` controls generated metadata and runtime defaults while the feature-local tests stay next to the feature they cover
 
-When you add SQL-backed tests, copy `.env.example` to `.env` and adjust the DB settings if needed before running the DB-backed suites. The starter derives `ZTD_TEST_DATABASE_URL` from `ZTD_DB_HOST`, `ZTD_DB_PORT`, `ZTD_DB_NAME`, `ZTD_DB_USER`, and `ZTD_DB_PASS`.
+When you add SQL-backed tests, copy `.env.example` to `.env` and adjust `ZTD_DB_PORT` if needed before running the DB-backed suites.
 
 ```bash
 npx vitest run src/features/**/*.test.ts
@@ -27,7 +28,7 @@ npx vitest run src/features/**/*.test.ts
 The generated runtime manifest is the preferred input for `@rawsql-ts/testkit-postgres`; raw DDL directories remain a fallback for legacy layouts. The generated contract itself is schema metadata only (`tableDefinitions`), so test rows stay explicit.
 The starter keeps `ztdRootDir`, `ddlDir`, `defaultSchema`, and `searchPath` in `ztd.config.json`. The helper reads the project defaults from one place instead of repeating them in every DB-backed test.
 
-`src/features/<feature>/tests/` is where feature-root entryspec tests live. Query-local ZTD assets live under `src/features/<feature>/queries/<query>/tests/{generated,cases}` with the thin entrypoint beside them. The shared runner implementation lives at `tests/ztd/` (application code and reusable harness helpers), while `.ztd/tests/` is reserved for tool-managed support files and generated metadata.
+`src/features/<feature>/tests/` is where feature-root entryspec tests live. Query-local ZTD assets live under `src/features/<feature>/<query>/tests/{generated,cases}` with the thin entrypoint beside them. Starter-owned shared support lives at `tests/support/ztd/`, while `.ztd/` is the tool-managed workspace for generated metadata and support files.
 
 ## Getting Started with AI
 

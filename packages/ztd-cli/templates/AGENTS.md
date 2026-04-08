@@ -8,6 +8,7 @@ Read `README.md` and the nearest `AGENTS.md` before editing files.
 - Keep handwritten SQL, specs, and tests inside the feature that owns them.
 - Treat `db/ddl` as human-owned DDL input.
 - Treat `.ztd/` as the tool-managed workspace for generated and support assets.
+- Treat `ztd.config.json`'s `testsDir` as the tool-managed test workspace root. Feature-authored entryspec and queryspec tests stay under `src/features/<feature>/tests/`.
 - Do not apply migrations automatically.
 - When a request says `ZTD-format tests`, treat that as queryspec-local SQL verification through the project's fixed app-level ZTD harness against the real database engine, not a mocked executor.
 - Entryspec tests are mock-based and live in `src/features/<feature>/tests/<feature>.entryspec.test.ts`.
@@ -17,6 +18,7 @@ Read `README.md` and the nearest `AGENTS.md` before editing files.
 - If a returned id comes back `null`, treat that as a scaffold or DDL mismatch and stop. Do not paper over it by loosening the success-path schema or adding fake seed rows.
 - Before writing the success-path assertion, inspect the scaffolded SQL and QuerySpec contract. If the scaffold does not actually return a non-null id, report the mismatch instead of inventing fixture data or schema overrides.
 - For new feature work, run `ztd feature scaffold` first, then after SQL and DTO edits settle run `ztd feature tests scaffold --feature <feature-name>` to refresh `tests/generated/TEST_PLAN.md` and `analysis.json`, create or keep the thin `tests/<query>.queryspec.ztd.test.ts` Vitest entrypoint, and keep AI-authored cases in `tests/cases/`.
+- If `AGENTS_ztd.md` exists in a legacy workspace, treat it as a fallback mirror only; the root `AGENTS.md` is the authoritative root guidance entrypoint.
 
 ## Safe Next Steps
 
@@ -32,7 +34,7 @@ If this project was set up with `ztd agents init`, use:
 - `.codex/agents/troubleshooting.md` to debug setup or contract drift
 - `.codex/agents/next-steps.md` to suggest the next safe command or feature task
 
-The first useful request after setup is usually: "Read the nearest AGENTS files, inspect `src/features/smoke`, and plan the next `users` feature."
+If the starter flow is enabled, the first useful request after setup is usually: "Read the nearest AGENTS files, inspect `src/features/smoke`, and plan the next `users` feature."
 
 ## SQL Shadowing Troubleshooting
 - When a SQL-backed test fails, first determine whether the query is shadowing the intended SQL path or accidentally touching a physical table directly.

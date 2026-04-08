@@ -25,7 +25,7 @@ export interface ResolvedDatabaseConnection {
 }
 
 const DEFAULT_PORT = 5432;
-const ZTD_TEST_DATABASE_ENV = 'ZTD_TEST_DATABASE_URL';
+const ZTD_DB_URL_ENV = 'ZTD_DB_URL';
 const ZTD_DB_PORT_ENV = 'ZTD_DB_PORT';
 
 /**
@@ -36,7 +36,7 @@ export function resolveZtdOwnedTestConnection(rootDir: string = process.cwd()): 
   const envUrl = resolveManagedDatabaseUrlFromEnvironment(rootDir);
   if (!envUrl) {
     throw new Error(
-      `${ZTD_TEST_DATABASE_ENV} is required for this ZTD-owned workflow. ztd-cli does not read DATABASE_URL implicitly.`
+      `${ZTD_DB_URL_ENV} is required for this ZTD-owned workflow. ztd-cli does not read DATABASE_URL implicitly.`
     );
   }
 
@@ -50,13 +50,13 @@ export function resolveZtdOwnedTestConnection(rootDir: string = process.cwd()): 
 }
 
 function resolveManagedDatabaseUrlFromEnvironment(rootDir: string): string {
-  const directEnvUrl = (process.env[ZTD_TEST_DATABASE_ENV] ?? '').trim();
+  const directEnvUrl = (process.env[ZTD_DB_URL_ENV] ?? '').trim();
   if (directEnvUrl) {
     return directEnvUrl;
   }
 
   const envFileValues = loadDotEnvValues(rootDir);
-  const envFileUrl = envFileValues.get(ZTD_TEST_DATABASE_ENV)?.trim();
+  const envFileUrl = envFileValues.get(ZTD_DB_URL_ENV)?.trim();
   if (envFileUrl) {
     return envFileUrl;
   }
