@@ -16,6 +16,7 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 
 - Use the repo-local guidance under `.codex/agents/` and `.agents/skills/` for planning, verification, review, and reporting details.
 - Root `AGENTS.md` defines repository-wide policy only; detailed output formats and workflows belong to subagent or skill guidance.
+- Before substantial multi-step work, read the relevant guidance under `.codex/agents/` or `.agents/skills/` instead of relying on root policy alone.
 
 ## Documentation Guardrails
 
@@ -71,6 +72,9 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 ## Plan and Reporting Minimums
 
 - Plans must state the source issue or request, acceptance items, verification methods, and explicit out-of-scope items when scope is limited.
+- Multi-step tasks must keep a working ledger in `tmp/PLAN.md` unless a deeper `AGENTS.md` says otherwise.
+- `tmp/PLAN.md` should be updated when the plan changes, when a blocker is discovered, and when a verification or dogfooding result materially changes the current understanding.
+- `tmp/PLAN.md` is local task state, must not be committed, and exists separately from durable workflow rules in `AGENTS.md`.
 - Reports must distinguish `done`, `partial`, and `not done`.
 - Reports must distinguish `tests were updated` from `tests passed`.
 - GitHub-facing reports must not use local filesystem paths.

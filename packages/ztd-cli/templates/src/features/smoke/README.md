@@ -7,6 +7,6 @@ This feature intentionally contains three narrow paths:
 
 - a DB-free sample function with feature-local unit tests
 - a DB-backed smoke test that uses `createStarterPostgresTestkitClient` from `.ztd/support/postgres-testkit.ts` on top of `@rawsql-ts/testkit-postgres` and checks `ZTD_DB_URL` connectivity
-- a minimal named-parameter SQL example that uses `:v1` and `:v2`
+- a minimal named-parameter SQL example that uses `:user_id`
 
 Use it as a pattern for the next real feature, then remove the whole folder when the starter sample is no longer useful. If you add another DB-backed feature, reuse the same thin starter helper and keep the new fixtures near the new test.

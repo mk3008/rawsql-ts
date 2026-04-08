@@ -32,6 +32,8 @@ Use this subagent to shape a rawsql-ts developer task into a plan that can be ex
 - Prefer one acceptance item per completion judgment.
 - Do not merge unrelated concerns into one acceptance item.
 - Verification methods must be concrete enough to show how each item will be checked.
+- Record the active task ledger in `tmp/PLAN.md` unless narrower guidance overrides that location.
+- Update `tmp/PLAN.md` when assumptions, blockers, acceptance items, or dogfooding findings materially change.
 - If the outcome will require a human decision, make that decision point explicit.
 - If scope is limited, state out-of-scope items explicitly.
 - Prefer `pnpm` and scoped package commands when planning repository work.

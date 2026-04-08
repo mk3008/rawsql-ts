@@ -37,25 +37,32 @@ function assertExists(filePath, description) {
 
 function verifyStarterScaffold(appDir) {
   const packageJson = readPackageJson(appDir);
-  if (!packageJson.devDependencies?.["@rawsql-ts/ztd-cli"]) {
+  const ztdCliDependency = packageJson.devDependencies?.["@rawsql-ts/ztd-cli"];
+  if (!ztdCliDependency) {
     throw new Error("[generated-project verification] starter scaffold did not install @rawsql-ts/ztd-cli.");
   }
+  if (!ztdCliDependency.startsWith("file:")) {
+    throw new Error(`[generated-project verification] starter scaffold resolved @rawsql-ts/ztd-cli from a non-local source: ${ztdCliDependency}`);
+  }
+  if (packageJson.type !== "module") {
+    throw new Error(`[generated-project verification] starter scaffold package.json must set type=module, received: ${String(packageJson.type)}`);
+  }
   assertExists(path.join(appDir, "README.md"), "starter README");
-  assertExists(path.join(appDir, "src", "features", "smoke", "tests", "smoke.entryspec.test.ts"), "starter smoke boundary test");
+  assertExists(path.join(appDir, "src", "features", "smoke", "tests", "smoke.boundary.test.ts"), "starter smoke boundary test");
   assertExists(
-    path.join(appDir, "src", "features", "smoke", "queries", "smoke", "tests", "smoke.queryspec.ztd.test.ts"),
+    path.join(appDir, "src", "features", "smoke", "queries", "smoke", "tests", "smoke.boundary.ztd.test.ts"),
     "starter DB-backed smoke test"
   );
 }
 
 function verifyFeatureScaffold(appDir) {
   const featureRoot = path.join(appDir, "src", "features", "users-insert");
-  assertExists(path.join(featureRoot, "spec.ts"), "feature root spec");
+  assertExists(path.join(featureRoot, "boundary.ts"), "feature root boundary");
   assertExists(
-    path.join(featureRoot, "tests", "users-insert.entryspec.test.ts"),
-    "feature entryspec test"
+    path.join(featureRoot, "tests", "users-insert.boundary.test.ts"),
+    "feature boundary test"
   );
-  assertExists(path.join(featureRoot, "queries", "insert-users", "spec.ts"), "feature query spec");
+  assertExists(path.join(featureRoot, "queries", "insert-users", "boundary.ts"), "feature query boundary");
   assertExists(
     path.join(featureRoot, "queries", "insert-users", "insert-users.sql"),
     "feature SQL resource"
@@ -207,10 +214,10 @@ async function main() {
       ],
       files: [
         "README.md",
-        "src/features/smoke/tests/smoke.entryspec.test.ts",
-        "src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts",
-        "src/features/users-insert/tests/users-insert.entryspec.test.ts",
-        "src/features/users-insert/queries/insert-users/spec.ts",
+        "src/features/smoke/tests/smoke.boundary.test.ts",
+        "src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts",
+        "src/features/users-insert/tests/users-insert.boundary.test.ts",
+        "src/features/users-insert/queries/insert-users/boundary.ts",
         "src/features/users-insert/queries/insert-users/insert-users.sql",
       ],
     });

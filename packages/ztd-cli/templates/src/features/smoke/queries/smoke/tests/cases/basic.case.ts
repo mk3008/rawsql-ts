@@ -1,6 +1,6 @@
-import type { SmokeQuerySpecZtdCase } from '../queryspec-ztd-types.js';
+import type { SmokeQueryBoundaryZtdCase } from '../boundary-ztd-types.js';
 
-const cases: readonly SmokeQuerySpecZtdCase[] = [
+const cases: readonly SmokeQueryBoundaryZtdCase[] = [
   {
     name: 'selects the starter users row by id',
     beforeDb: {

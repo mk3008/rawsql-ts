@@ -4,6 +4,7 @@ const {
   collectPolicyViolations,
   isPerfEvidenceFile,
   isPerfSensitiveSourceFile,
+  isLocalTaskLedgerFile,
   isQuerySpecFile,
   isRepositorySourceFile,
   isTestFile,
@@ -14,6 +15,7 @@ const {
   ): string[];
   isPerfEvidenceFile(filePath: string): boolean;
   isPerfSensitiveSourceFile(filePath: string): boolean;
+  isLocalTaskLedgerFile(filePath: string): boolean;
   isQuerySpecFile(filePath: string): boolean;
   isRepositorySourceFile(filePath: string): boolean;
   isTestFile(filePath: string): boolean;
@@ -70,10 +72,25 @@ test('paired tests, telemetry markers, and perf evidence satisfy the policy', ()
   expect(violations).toEqual([]);
 });
 
+test('tmp task ledgers are rejected even when staged explicitly', () => {
+  const violations = collectPolicyViolations([
+    'tmp/PLAN.md',
+  ]);
+
+  expect(violations).toEqual([
+    expect.stringContaining('Local task ledgers under tmp/ must not be committed.'),
+  ]);
+});
+
 test('path classifiers stay aligned with the enforced policy', () => {
   expect(isTestFile('packages/ztd-cli/tests/init.command.test.ts')).toBe(true);
   expect(isQuerySpecFile('packages/demo/src/catalog/specs/orderSummary.spec.ts')).toBe(true);
   expect(isRepositorySourceFile('packages/demo/src/repositories/views/ordersRepository.ts')).toBe(true);
   expect(isPerfSensitiveSourceFile('benchmarks/parser-phase-benchmark.ts')).toBe(true);
   expect(isPerfEvidenceFile('docs/dogfooding/telemetry-dogfooding.md')).toBe(true);
+  expect(isLocalTaskLedgerFile('tmp/PLAN.md')).toBe(true);
+  expect(isLocalTaskLedgerFile('tmp/sub/PLAN.md')).toBe(true);
+  expect(isLocalTaskLedgerFile('prefix/tmp/PLAN.md')).toBe(true);
+  expect(isLocalTaskLedgerFile('prefix/tmp/sub/PLAN.md')).toBe(true);
+  expect(isLocalTaskLedgerFile('not_tmp/PLAN.md')).toBe(false);
 });

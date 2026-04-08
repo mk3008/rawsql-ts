@@ -65,11 +65,11 @@ interface TestPlanDetails extends FeatureTestAnalysis {
 export function registerFeatureTestsScaffoldCommand(featureCommand: Command): void {
   const tests = featureCommand
     .command('tests')
-    .description('Refresh queryspec-owned ZTD analysis, the thin Vitest entrypoint, and persistent cases for AI and humans');
+    .description('Refresh query-boundary generated analysis, refresh the generated type file, and create the thin Vitest entrypoint when it is missing');
 
   tests
     .command('scaffold')
-    .description('Refresh queryspec-owned ZTD analysis, the thin Vitest entrypoint, and keep persistent cases for AI and humans')
+    .description('Refresh query-boundary generated analysis, refresh the generated type file, and keep persistent case files untouched')
     .requiredOption('--feature <name>', 'Target feature name')
     .option('--query <name>', 'Target query directory when the feature has more than one query')
     .option('--dry-run', 'Validate inputs and emit the planned scaffold without writing files', false)
@@ -88,14 +88,14 @@ export function registerFeatureTestsScaffoldCommand(featureCommand: Command): vo
         'Created by CLI:',
         ...result.outputs.map((output) => `- ${output.path}`),
         '',
-        'CLI-owned refreshable files:',
-        `- src/features/${result.featureName}/${result.queryName}/tests/${result.queryName}.queryspec.ztd.test.ts`,
-        `- src/features/${result.featureName}/${result.queryName}/tests/queryspec-ztd-types.ts`,
-        `- src/features/${result.featureName}/${result.queryName}/tests/generated/TEST_PLAN.md`,
-        `- src/features/${result.featureName}/${result.queryName}/tests/generated/analysis.json`,
+        'CLI-owned generated files:',
+        `- src/features/${result.featureName}/queries/${result.queryName}/tests/${result.queryName}.boundary.ztd.test.ts (created only when missing)`,
+        `- src/features/${result.featureName}/queries/${result.queryName}/tests/boundary-ztd-types.ts`,
+        `- src/features/${result.featureName}/queries/${result.queryName}/tests/generated/TEST_PLAN.md`,
+        `- src/features/${result.featureName}/queries/${result.queryName}/tests/generated/analysis.json`,
         '',
         'AI-authored files:',
-        `- src/features/${result.featureName}/${result.queryName}/tests/cases/`
+        `- src/features/${result.featureName}/queries/${result.queryName}/tests/cases/`
       ];
       process.stdout.write(`${lines.join('\n')}\n`);
     });
@@ -110,6 +110,7 @@ export async function runFeatureTestsScaffoldCommand(options: FeatureTestsComman
   }
 
   const queryLayout = resolveQueryLayout(featureDir, featureName, options.query);
+  assertSharedZtdTestSupport(rootDir);
   assertGeneratedWriteSafety([queryLayout.planFile, queryLayout.analysisFile], options.force === true);
 
   const planDetails = buildTestPlanDetails({
@@ -159,7 +160,7 @@ export async function runFeatureTestsScaffoldCommand(options: FeatureTestsComman
 
   emitDiagnostic({
     code: 'feature-tests-scaffold.ai-follow-up',
-    message: `CLI created src/features/${featureName}/${queryLayout.queryName}/tests/ only. Keep generated artifacts read-only, leave the Vitest entrypoint in place, and put AI-authored cases under src/features/${featureName}/${queryLayout.queryName}/tests/cases/.`
+    message: `CLI refreshed generated analysis under src/features/${featureName}/queries/${queryLayout.queryName}/tests/generated/, refreshed boundary-ztd-types.ts, created the thin Vitest entrypoint only if it was missing, and left AI-authored cases under src/features/${featureName}/queries/${queryLayout.queryName}/tests/cases/ untouched.`
   });
 
   return {
@@ -168,6 +169,26 @@ export async function runFeatureTestsScaffoldCommand(options: FeatureTestsComman
     dryRun: false,
     outputs
   };
+}
+
+function assertSharedZtdTestSupport(rootDir: string): void {
+  const requiredSupportFiles = [
+    path.join(rootDir, 'tests', 'support', 'ztd', 'harness.ts'),
+    path.join(rootDir, 'tests', 'support', 'ztd', 'case-types.ts')
+  ];
+
+  const missingFiles = requiredSupportFiles.filter((filePath) => !existsSync(filePath));
+  if (missingFiles.length === 0) {
+    return;
+  }
+
+  const missingList = missingFiles
+    .map((filePath) => toProjectRelativePath(rootDir, filePath))
+    .join(', ');
+
+  throw new Error(
+    `feature tests scaffold requires starter-owned shared ZTD support under tests/support/ztd. Missing: ${missingList}. Run \`ztd init --starter\` for a fresh starter project, or add the shared support files before scaffolding query-boundary tests.`
+  );
 }
 
 function renderFeatureTestScaffoldFiles(params: {
@@ -189,13 +210,13 @@ function renderFeatureTestScaffoldFiles(params: {
     : '- TODO: inspect the scaffolded SQL for write targets.';
   const validationHintsLine = params.planDetails.validationScenarioHints.length > 0
     ? params.planDetails.validationScenarioHints.map((field) => `- ${field}`).join('\n')
-    : '- TODO: inspect the scaffolded entryspec.ts for validation hints.';
+    : '- TODO: inspect the scaffolded boundary.ts for feature-boundary hints.';
   const dbHintsLine = params.planDetails.dbScenarioHints.length > 0
     ? params.planDetails.dbScenarioHints.map((field) => `- ${field}`).join('\n')
-    : '- TODO: inspect the scaffolded QuerySpec and SQL for DB-backed hints.';
+    : '- TODO: inspect the scaffolded query boundary and SQL for DB-backed hints.';
 
   const testPlanFile = [
-    `# ${params.featureName} / ${params.queryName} queryspec test plan`,
+    `# ${params.featureName} / ${params.queryName} boundary test plan`,
     '',
     'This file snapshots the current scaffold contract before AI adds case files.',
     '',
@@ -265,13 +286,13 @@ function renderFeatureTestScaffoldFiles(params: {
     2
   )}\n`;
 
-  const querySpecImportPath = '../queryspec.js';
-  const harnessImportPath = '../../../../../tests/support/ztd/harness.js';
+  const querySpecImportPath = '../boundary.js';
+  const harnessImportPath = '../../../../../../tests/support/ztd/harness.js';
   const casesImportPath = './cases/basic.case.js';
   const executorName = readExportedFunctionName(params.planDetails.querySpecSourcePath, 'execute', 'QuerySpec');
   const queryTypePrefix = toPascalCase(params.queryName);
-  const queryCaseTypeName = `${queryTypePrefix}QuerySpecZtdCase`;
-  const queryTypesImportPath = './queryspec-ztd-types.js';
+  const queryCaseTypeName = `${queryTypePrefix}QueryBoundaryZtdCase`;
+  const queryTypesImportPath = './boundary-ztd-types.js';
   const beforeDbTypeLiteral = buildQueryFixtureTypeLiteral(
     params.planDetails.fixtureCandidateTables,
     buildQueryFixtureRowTypeLiteral(params.planDetails.queryFixtureRowFields)
@@ -296,7 +317,7 @@ function renderFeatureTestScaffoldFiles(params: {
     `import cases from '${casesImportPath}';`,
     `import type { ${queryCaseTypeName} } from '${queryTypesImportPath}';`,
     '',
-    `test('${params.featureName}/${params.queryName} queryspec ZTD cases run through the fixed app-level harness', async () => {`,
+    `test('${params.featureName}/${params.queryName} boundary ZTD cases run through the fixed app-level harness', async () => {`,
     '  expect(cases.length).toBeGreaterThan(0);',
     `  await runQuerySpecZtdCases(cases, ${executorName});`,
     '});',
@@ -304,7 +325,7 @@ function renderFeatureTestScaffoldFiles(params: {
   ].join('\n');
 
   const basicCaseFile = [
-    `import type { ${queryTypePrefix}BeforeDb, ${queryTypePrefix}Input, ${queryTypePrefix}Output${params.planDetails.writesTables.length > 0 ? `, ${queryTypePrefix}AfterDb` : ''}, ${queryCaseTypeName} } from '../queryspec-ztd-types.js';`,
+    `import type { ${queryTypePrefix}BeforeDb, ${queryTypePrefix}Input, ${queryTypePrefix}Output${params.planDetails.writesTables.length > 0 ? `, ${queryTypePrefix}AfterDb` : ''}, ${queryCaseTypeName} } from '../boundary-ztd-types.js';`,
     '',
     `const cases: readonly ${queryCaseTypeName}[] = [`,
     '  {',
@@ -329,7 +350,7 @@ function renderFeatureTestScaffoldFiles(params: {
   ].join('\n');
 
   const queryTypesFile = [
-    `import type { QuerySpecZtdCase } from '../../../../../tests/support/ztd/case-types.js';`,
+    `import type { QuerySpecZtdCase } from '../../../../../../tests/support/ztd/case-types.js';`,
     '',
     `export type ${queryTypePrefix}BeforeDb = ${beforeDbTypeLiteral};`,
     `export type ${queryTypePrefix}Input = ${queryInputTypeLiteral};`,
@@ -359,7 +380,7 @@ function buildTestPlanDetails(params: {
   featureDir: string;
   queryLayout: QueryLayout;
 }): TestPlanDetails {
-  const entrySpecFile = path.join(params.featureDir, 'entryspec.ts');
+  const entrySpecFile = path.join(params.featureDir, 'boundary.ts');
   const entrySpecSource = readFileSync(entrySpecFile, 'utf8');
   const querySpecSource = readFileSync(params.queryLayout.querySpecFile, 'utf8');
   const sqlSource = readFileSync(params.queryLayout.querySqlFile, 'utf8');
@@ -403,14 +424,14 @@ function buildTestPlanDetails(params: {
 
 function buildValidationScenarioHints(requestFields: string[], queryName: string): string[] {
   const hints = [
-    'Keep entryspec validation separate from queryspec DB-backed execution.',
+    'Keep feature-boundary validation separate from query-boundary DB-backed execution.',
     'Validation failures belong in the feature-root mock test lane.'
   ];
 
   if (requestFields.length > 0) {
-    hints.push(`Required request fields in entryspec: ${requestFields.map((field) => `\`${field}\``).join(', ')}.`);
+    hints.push(`Required request fields in feature boundary: ${requestFields.map((field) => `\`${field}\``).join(', ')}.`);
   } else {
-    hints.push(`No required request fields were extracted for ${queryName}; keep the entryspec test focused on normalization and boundary rules.`);
+    hints.push(`No required request fields were extracted for ${queryName}; keep the feature-boundary test focused on normalization and boundary rules.`);
   }
 
   return hints;
@@ -429,7 +450,7 @@ function buildDbScenarioHints(writesTables: string[], queryName: string, fixture
     hints.push(`Read tables for ${queryName}: ${fixtureCandidateTables.map((table) => `\`${table}\``).join(', ')}.`);
     hints.push('DB-backed cases should seed the minimum fixture rows needed to make the query result shape obvious.');
   } else {
-    hints.push(`No table references were discovered for ${queryName}; inspect SQL and QuerySpec manually before filling the case.`);
+    hints.push(`No table references were discovered for ${queryName}; inspect SQL and query boundary manually before filling the case.`);
   }
 
   return hints;
@@ -600,10 +621,15 @@ function normalizeSqlTableName(value: string): string {
 }
 
 function resolveQueryLayout(featureDir: string, featureName: string, selectedQueryName?: string): QueryLayout {
-  const queryDirectories = readdirSync(featureDir, { withFileTypes: true })
+  const queriesRoot = path.join(featureDir, 'queries');
+  if (!existsSync(queriesRoot)) {
+    throw new Error(`No queries directory was discovered under ${featureDir}. Run feature scaffold first.`);
+  }
+
+  const queryDirectories = readdirSync(queriesRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
-    .filter((entry) => existsSync(path.join(featureDir, entry, 'queryspec.ts')))
+    .filter((entry) => existsSync(path.join(queriesRoot, entry, 'boundary.ts')))
     .sort((a, b) => a.localeCompare(b));
 
   if (selectedQueryName) {
@@ -614,7 +640,7 @@ function resolveQueryLayout(featureDir: string, featureName: string, selectedQue
   }
 
   if (queryDirectories.length === 0) {
-    throw new Error(`No queryspec.ts file was discovered under ${featureDir}. Run feature scaffold first.`);
+    throw new Error(`No boundary.ts file was discovered under ${queriesRoot}. Run feature scaffold first.`);
   }
 
   if (queryDirectories.length > 1) {
@@ -625,7 +651,7 @@ function resolveQueryLayout(featureDir: string, featureName: string, selectedQue
 }
 
 function buildQueryLayout(featureDir: string, featureName: string, queryName: string): QueryLayout {
-  const queryDir = path.join(featureDir, queryName);
+  const queryDir = path.join(featureDir, 'queries', queryName);
   const testsDir = path.join(queryDir, 'tests');
   const generatedDir = path.join(testsDir, 'generated');
   const casesDir = path.join(testsDir, 'cases');
@@ -636,12 +662,12 @@ function buildQueryLayout(featureDir: string, featureName: string, queryName: st
     testsDir,
     generatedDir,
     casesDir,
-    entrypointFile: path.join(testsDir, `${queryName}.queryspec.ztd.test.ts`),
-    queryTypesFile: path.join(testsDir, 'queryspec-ztd-types.ts'),
+    entrypointFile: path.join(testsDir, `${queryName}.boundary.ztd.test.ts`),
+    queryTypesFile: path.join(testsDir, 'boundary-ztd-types.ts'),
     planFile: path.join(generatedDir, 'TEST_PLAN.md'),
     analysisFile: path.join(generatedDir, 'analysis.json'),
     basicCaseFile: path.join(casesDir, 'basic.case.ts'),
-    querySpecFile: path.join(queryDir, 'queryspec.ts'),
+    querySpecFile: path.join(queryDir, 'boundary.ts'),
     querySqlFile: path.join(queryDir, `${queryName}.sql`)
   };
 }
@@ -691,7 +717,7 @@ function assertGeneratedWriteSafety(paths: string[], force: boolean): void {
   }
 
   throw new Error(
-    `Refusing to overwrite queryspec-generated feature test scaffold files without --force: ${existingPaths.map(normalizeCliPath).join(', ')}`
+    `Refusing to overwrite query-boundary generated feature test scaffold files without --force: ${existingPaths.map(normalizeCliPath).join(', ')}`
   );
 }
 

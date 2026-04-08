@@ -264,8 +264,8 @@ test(
     expect(result.stdout).toContain('--query <name>');
     expect(result.stdout).toContain('--dry-run');
     expect(result.stdout).toContain('--force');
-    expect(result.stdout).toContain('Refresh queryspec-owned ZTD analysis');
-    expect(result.stdout).toContain('persistent cases for AI and humans');
+    expect(result.stdout).toContain('Refresh query-boundary generated analysis');
+    expect(result.stdout).toContain('keep persistent case files untouched');
   },
   60000,
 );
@@ -320,21 +320,21 @@ test(
       'src/features/_shared/featureQueryExecutor.ts',
       'src/features/_shared/loadSqlResource.ts',
       'src/features/users-insert',
-      'src/features/users-insert/entryspec.ts',
-      'src/features/users-insert/insert-users',
-      'src/features/users-insert/insert-users/queryspec.ts',
-      'src/features/users-insert/insert-users/insert-users.sql',
+      'src/features/users-insert/boundary.ts',
+      'src/features/users-insert/queries/insert-users',
+      'src/features/users-insert/queries/insert-users/boundary.ts',
+      'src/features/users-insert/queries/insert-users/insert-users.sql',
       'src/features/users-insert/tests',
       'src/features/users-insert/README.md'
     ]));
-    expect(plannedPaths.some((entry: string) => entry.endsWith('.queryspec.test.ts'))).toBe(false);
-    expect(plannedPaths.some((entry: string) => entry.endsWith('.feature.test.ts'))).toBe(false);
+    expect(plannedPaths.some((entry: string) => entry.endsWith('.boundary.ztd.test.ts'))).toBe(false);
+    expect(plannedPaths.some((entry: string) => entry.endsWith('.boundary.test.ts'))).toBe(true);
   },
   60000,
 );
 
 test(
-  'feature scaffold writes the entryspec/queryspec baseline without creating test files',
+  'feature scaffold writes the boundary baseline without creating query-local test files',
   () => {
     const workspace = createTempDir('feature-scaffold-write');
     const ddlDir = path.join(workspace, 'db', 'ddl');
@@ -366,95 +366,94 @@ test(
     expect(existsSync(path.join(workspace, 'src', 'features', '_shared', 'queryOneExact.ts'))).toBe(false);
     expect(existsSync(path.join(workspace, 'src', 'features', '_shared', 'featureQueryExecutor.ts'))).toBe(true);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert'))).toBe(true);
-    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users'))).toBe(true);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'tests'))).toBe(true);
-    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).toBe(true);
-    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).toBe(true);
-    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'insert-users.sql'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'insert-users.sql'))).toBe(true);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'adapter-cli.ts'))).toBe(false);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'adapter-api.ts'))).toBe(false);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'adapter-lambda.ts'))).toBe(false);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toBe(true);
-    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'tests', 'users-insert.queryspec.test.ts'))).toBe(false);
-    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'tests', 'users-insert.feature.test.ts'))).toBe(false);
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'insert-users.sql'))).toContain('returning "id";');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).toContain(
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'tests', 'insert-users.boundary.ztd.test.ts'))).toBe(false);
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'insert-users.sql'))).toContain('returning "id";');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toContain(
       'export async function executeUsersInsertEntrySpec'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toContain(
       "import { z } from 'zod';"
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).toContain(
-      "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor';"
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toContain(
+      "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor.js';"
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toContain(
       'const RequestSchema = z.object({'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toContain(
       "const RequestSchema = z.object({\n  email: z.string(),\n}).strict();"
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toContain(
       'function parseRequest'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toContain(
       'function toQueryParams'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).not.toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).not.toContain(
       'QueryParamsSchema'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).not.toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).not.toContain(
       'InsertUsersQueryExecutor'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).not.toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).not.toContain(
       'export type UsersInsertEntryExecutor'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'entryspec.ts'))).not.toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).not.toContain(
       'created_at: request.created_at'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).toContain(
       "const insertUsersSqlResource = loadSqlResource(__dirname, 'insert-users.sql');"
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).toContain(
       '}).strict();'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).toContain(
       "import { z } from 'zod';"
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).toContain(
-      "import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor';"
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).toContain(
+      "import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';"
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).not.toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).not.toContain(
       'queryExactlyOneRow'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).toContain(
       'loadSingleRow'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).not.toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).not.toContain(
       'export const insertUsersQueryParamsSchema'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).not.toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).not.toContain(
       'export interface InsertUsersQueryContract'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).not.toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).not.toContain(
       "id: z.string().min(1, 'id must not be empty.')"
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'))).not.toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).not.toContain(
       'created_at: z.string().min(1'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'insert-users.sql'))).not.toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'insert-users.sql'))).not.toContain(
       ':id'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'insert-users.sql'))).not.toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'insert-users.sql'))).not.toContain(
       ':created_at'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'insert-users', 'insert-users.sql'))).toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'insert-users.sql'))).toContain(
       'now()'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', '_shared', 'featureQueryExecutor.ts'))).toContain(
       'export interface FeatureQueryExecutor {'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toContain(
-      'entryspec.ts` is the feature outer-boundary specification'
+      '`boundary.ts` is the feature boundary public surface'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toContain(
       'When DDL declares a column default, the scaffold writes that default expression into SQL explicitly'
@@ -530,10 +529,10 @@ test(
     ], {}, workspace);
 
     assertCliSuccess(result, 'feature scaffold update write');
-    expect(existsSync(path.join(workspace, 'src', 'features', 'users-update', 'entryspec.ts'))).toBe(true);
-    expect(existsSync(path.join(workspace, 'src', 'features', 'users-update', 'update-users', 'queryspec.ts'))).toBe(true);
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-update', 'update-users', 'update-users.sql'))).toContain('update "public"."users"');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-update', 'update-users', 'update-users.sql'))).toContain('"id" = :id');
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-update', 'boundary.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-update', 'queries', 'update-users', 'boundary.ts'))).toBe(true);
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-update', 'queries', 'update-users', 'update-users.sql'))).toContain('update "public"."users"');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-update', 'queries', 'update-users', 'update-users.sql'))).toContain('"id" = :id');
   },
   60000,
 );
@@ -565,9 +564,9 @@ test(
     ], {}, workspace);
 
     assertCliSuccess(result, 'feature scaffold delete write');
-    expect(existsSync(path.join(workspace, 'src', 'features', 'users-delete', 'entryspec.ts'))).toBe(true);
-    expect(existsSync(path.join(workspace, 'src', 'features', 'users-delete', 'delete-users', 'queryspec.ts'))).toBe(true);
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-delete', 'delete-users', 'delete-users.sql'))).toContain('delete from "public"."users"');
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-delete', 'boundary.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-delete', 'queries', 'delete-users', 'boundary.ts'))).toBe(true);
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-delete', 'queries', 'delete-users', 'delete-users.sql'))).toContain('delete from "public"."users"');
   },
   60000,
 );
@@ -599,17 +598,17 @@ test(
     ], {}, workspace);
 
     assertCliSuccess(result, 'feature scaffold get-by-id write');
-    expect(existsSync(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toBe(true);
-    expect(existsSync(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toBe(true);
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('}).strict();');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('const ResponseRowSchema = z.object({');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('id: z.string()');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('function parseRequest');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'entryspec.ts'))).toContain('function toQueryParams');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toContain('loadOptionalRow');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).not.toContain('queryZeroOrOneRow');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toContain('}).strict();');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'get-by-id', 'queryspec.ts'))).toContain('const RowSchema = z.object({');
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-get-by-id', 'boundary.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).toBe(true);
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'boundary.ts'))).toContain('}).strict();');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'boundary.ts'))).toContain('const ResponseRowSchema = z.object({');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'boundary.ts'))).toContain('id: z.string()');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'boundary.ts'))).toContain('function parseRequest');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'boundary.ts'))).toContain('function toQueryParams');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).toContain('loadOptionalRow');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).not.toContain('queryZeroOrOneRow');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).toContain('}).strict();');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).toContain('const RowSchema = z.object({');
   },
   60000,
 );
@@ -641,17 +640,17 @@ test(
     ], {}, workspace);
 
     assertCliSuccess(result, 'feature scaffold list write');
-    expect(existsSync(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toBe(true);
-    expect(existsSync(path.join(workspace, 'src', 'features', 'users-list', 'list', 'queryspec.ts'))).toBe(true);
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('const RequestSchema = z.object({\n}).strict();');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('const ResponseItemSchema = z.object({');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('id: z.string()');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('function parseRequest');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'entryspec.ts'))).toContain('function toQueryParams');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'list', 'queryspec.ts'))).toContain('createCatalogExecutor');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'list', 'queryspec.ts'))).toContain('const QueryParamsSchema = z.object({\n}).strict();');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'list', 'queryspec.ts'))).toContain('const RowSchema = z.object({');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'list', 'list.sql'))).toContain('limit :limit;');
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-list', 'boundary.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'))).toBe(true);
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'boundary.ts'))).toContain('const RequestSchema = z.object({\n}).strict();');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'boundary.ts'))).toContain('const ResponseItemSchema = z.object({');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'boundary.ts'))).toContain('id: z.string()');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'boundary.ts'))).toContain('function parseRequest');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'boundary.ts'))).toContain('function toQueryParams');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'))).toContain('createCatalogExecutor');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'))).toContain('const QueryParamsSchema = z.object({\n}).strict();');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'))).toContain('const RowSchema = z.object({');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'list.sql'))).toContain('limit :limit;');
   },
   60000,
 );
@@ -663,7 +662,7 @@ test(
     const ddlDir = path.join(workspace, 'db', 'ddl');
     const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
     mkdirSync(ddlDir, { recursive: true });
-    mkdirSync(path.join(featureDir, 'insert-users'), { recursive: true });
+    mkdirSync(path.join(featureDir, 'queries', 'insert-users'), { recursive: true });
     writeFileSync(
       path.join(ddlDir, 'users.sql'),
       [
@@ -674,7 +673,7 @@ test(
       ].join('\n'),
       'utf8'
     );
-    writeFileSync(path.join(featureDir, 'entryspec.ts'), '// existing\n', 'utf8');
+    writeFileSync(path.join(featureDir, 'boundary.ts'), '// existing\n', 'utf8');
 
     const result = runCli([
       'feature',

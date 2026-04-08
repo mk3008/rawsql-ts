@@ -37,6 +37,7 @@ Use this subagent to turn rawsql-ts developer work into a final report that is e
 - The report is a decision document, not a work log.
 - Put `Source issue or request`, `Why it matters`, and `What changed` before file inventory.
 - In `What changed`, explain the meaning of the change before listing touched files.
+- Compare the current report against `tmp/PLAN.md` before claiming attainment for multi-step work.
 - Report each acceptance item separately.
 - Each item must include:
   - `acceptance item`

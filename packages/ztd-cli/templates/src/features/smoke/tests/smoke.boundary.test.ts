@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 
 import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor.js';
-import { executeSmokeEntrySpec } from '../spec.js';
+import { executeSmokeEntrySpec } from '../boundary.js';
 
 function createGuardedExecutor(): FeatureQueryExecutor {
   return {

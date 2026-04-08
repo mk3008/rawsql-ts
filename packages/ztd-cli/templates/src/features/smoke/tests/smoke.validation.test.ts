@@ -1,21 +1,24 @@
 import { expect, test } from 'vitest';
 
-import { addSmokeNumbers } from '../domain/smoke-policy.js';
+import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor.js';
+import { executeSmokeEntrySpec } from '../boundary.js';
 
-test('smoke feature adds positive numbers in the domain layer', () => {
-  const output = addSmokeNumbers({
-    left: 1,
-    right: 4
-  });
+function createGuardedExecutor(): FeatureQueryExecutor {
+  return {
+    async query() {
+      throw new Error('Validation should reject before the query lane runs.');
+    }
+  };
+}
 
-  expect(output).toEqual({ sum: 5 });
+test('rejects zero user_id values at the feature boundary', async () => {
+  await expect(executeSmokeEntrySpec(createGuardedExecutor(), { user_id: 0 })).rejects.toThrow(
+    /user_id|positive|invalid/i
+  );
 });
 
-test('smoke feature adds negative numbers in the domain layer', () => {
-  const output = addSmokeNumbers({
-    left: -2,
-    right: 5
-  });
-
-  expect(output).toEqual({ sum: 3 });
+test('rejects non-object requests at the feature boundary', async () => {
+  await expect(executeSmokeEntrySpec(createGuardedExecutor(), null)).rejects.toThrow(
+    /object|user_id|invalid/i
+  );
 });

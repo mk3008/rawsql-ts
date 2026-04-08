@@ -20,19 +20,20 @@ type FeatureAction = (typeof FEATURE_ACTIONS)[number];
 const DEFAULT_PAGE_SIZE = 50;
 const FIXED_LAYOUT_DESCRIPTION = [
   'src/features/<feature-name>/',
-  '  spec.ts',
+  '  boundary.ts',
   '  tests/',
-  '    <feature-name>.entryspec.test.ts',
+  '    <feature-name>.boundary.test.ts',
   '  queries/',
   '    <query-name>/',
-  '      spec.ts',
+  '      boundary.ts',
   '      <query-name>.sql',
   '      tests/',
-  '        <query-name>.queryspec.ztd.test.ts',
-  '      generated/',
-  '        TEST_PLAN.md',
-  '        analysis.json',
-  '      cases/',
+  '        <query-name>.boundary.ztd.test.ts',
+  '        boundary-ztd-types.ts',
+  '        generated/',
+  '          TEST_PLAN.md',
+  '          analysis.json',
+  '        cases/',
   '  README.md'
 ].join('\n');
 
@@ -79,7 +80,7 @@ interface FeatureScaffoldPaths {
   featureDir: string;
   queryDir: string;
   testsDir: string;
-  entrySpecTestFile: string;
+  entryBoundaryTestFile: string;
   entrySpecFile: string;
   querySpecFile: string;
   querySqlFile: string;
@@ -170,7 +171,7 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
     { path: toProjectRelativePath(rootDir, paths.featureDir), written: !options.dryRun, kind: 'directory' },
     { path: toProjectRelativePath(rootDir, paths.testsDir), written: !options.dryRun, kind: 'directory' },
     { path: toProjectRelativePath(rootDir, paths.queryDir), written: !options.dryRun, kind: 'directory' },
-    { path: toProjectRelativePath(rootDir, paths.entrySpecTestFile), written: !options.dryRun, kind: 'file' },
+    { path: toProjectRelativePath(rootDir, paths.entryBoundaryTestFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.entrySpecFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.querySpecFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.querySqlFile), written: !options.dryRun, kind: 'file' },
@@ -196,7 +197,7 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
   ensureDirectory(paths.queryDir);
   writeFileIfMissing(paths.featureQueryExecutorFile, contents.featureQueryExecutorFile);
   writeFileIfMissing(paths.loadSqlResourceFile, contents.loadSqlResourceFile);
-  writeFileIfMissing(paths.entrySpecTestFile, contents.entrySpecTestFile);
+  writeFileIfMissing(paths.entryBoundaryTestFile, contents.entrySpecTestFile);
   writeFeatureFile(paths.entrySpecFile, contents.entrySpecFile, options.force === true);
   writeFeatureFile(paths.querySpecFile, contents.querySpecFile, options.force === true);
   writeFeatureFile(paths.querySqlFile, contents.querySqlFile, options.force === true);
@@ -204,7 +205,7 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
 
   emitDiagnostic({
     code: 'feature-scaffold.ai-follow-up',
-    message: `CLI created src/features/${featureName}/tests/ only for the spec lane. Run feature tests scaffold after SQL and DTO edits to refresh query-local generated analysis and keep AI-authored cases under src/features/${featureName}/queries/${queryName}/tests/cases/.`
+    message: `CLI created src/features/${featureName}/tests/ only for the feature-boundary lane. Run feature tests scaffold after SQL and DTO edits to refresh query-local generated analysis and keep AI-authored cases under src/features/${featureName}/queries/${queryName}/tests/cases/.`
   });
 
   return {
@@ -485,9 +486,9 @@ function buildFeatureScaffoldPaths(rootDir: string, featureName: string, queryNa
     featureDir,
     queryDir: path.join(featureDir, 'queries', queryName),
     testsDir: path.join(featureDir, 'tests'),
-    entrySpecTestFile: path.join(featureDir, 'tests', `${featureName}.entryspec.test.ts`),
-    entrySpecFile: path.join(featureDir, 'spec.ts'),
-    querySpecFile: path.join(featureDir, 'queries', queryName, 'spec.ts'),
+    entryBoundaryTestFile: path.join(featureDir, 'tests', `${featureName}.boundary.test.ts`),
+    entrySpecFile: path.join(featureDir, 'boundary.ts'),
+    querySpecFile: path.join(featureDir, 'queries', queryName, 'boundary.ts'),
     querySqlFile: path.join(featureDir, 'queries', queryName, `${queryName}.sql`),
     readmeFile: path.join(featureDir, 'README.md'),
     sharedDir,
@@ -961,7 +962,7 @@ function renderEntrySpecFile(params: {
       `  execute${params.queryPascalName}QuerySpec,`,
     `  type ${params.queryPascalName}QueryParams,`,
     `  type ${params.queryPascalName}QueryResult`,
-    `} from './queries/${params.queryName}/spec.js';`,
+    `} from './queries/${params.queryName}/boundary.js';`,
     '',
     ...renderEntrySpecBoundaryComments(params.action),
     '',
@@ -1020,7 +1021,7 @@ function renderEntrySpecTestFile(params: {
   pascalName: string;
   hasRequestFields: boolean;
 }): string {
-  const entrypointImportPath = '../spec.js';
+  const entrypointImportPath = '../boundary.js';
   const sharedExecutorImportPath = '../../_shared/featureQueryExecutor.js';
 
   if (!params.hasRequestFields) {
@@ -1028,11 +1029,11 @@ function renderEntrySpecTestFile(params: {
       "import { test } from 'vitest';",
       '',
       `test.todo('cover feature boundary behavior for ${params.featureName}/${params.queryName}');`,
-      `test.todo('cover normalization and response mapping for ${params.pascalName} spec');`,
+      `test.todo('cover normalization and response mapping for ${params.pascalName} boundary');`,
       '',
       '// AI follow-up note:',
       `// Keep the real assertions in this file if the feature boundary needs more than mock-based boundary checks.`,
-      `// The query-boundary contract lives in queries/${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts.`,
+      `// The query-boundary contract lives in queries/${params.queryName}/tests/${params.queryName}.boundary.ztd.test.ts.`,
       ''
     ].join('\n');
   }
@@ -1046,7 +1047,7 @@ function renderEntrySpecTestFile(params: {
     'function createGuardedExecutor(): FeatureQueryExecutor {',
     '  return {',
     '    async query() {',
-    `      throw new Error('Feature boundary tests stay mock-based for ${params.featureName}; keep DB-backed execution in the spec lane.');`,
+    `      throw new Error('Feature boundary tests stay mock-based for ${params.featureName}; keep DB-backed execution in the boundary lane.');`,
     '    }',
     '  };',
     '}',
@@ -1055,11 +1056,11 @@ function renderEntrySpecTestFile(params: {
     `  await expect(execute${params.pascalName}EntrySpec(createGuardedExecutor(), {})).rejects.toThrow();`,
     '});',
     '',
-    `test.todo('cover normalization and response mapping for ${params.pascalName} spec');`,
+    `test.todo('cover normalization and response mapping for ${params.pascalName} boundary');`,
     '',
     '// AI follow-up note:',
     `// Keep the real assertions in this file if the feature boundary needs more than mock-based boundary checks.`,
-    `// The query-boundary contract lives in queries/${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts.`,
+    `// The query-boundary contract lives in queries/${params.queryName}/tests/${params.queryName}.boundary.ztd.test.ts.`,
     ''
   ].join('\n');
 }
@@ -1101,10 +1102,13 @@ function renderQuerySpecFile(params: {
 
   return [
     "import { z } from 'zod';",
+    "import { dirname } from 'node:path';",
+    "import { fileURLToPath } from 'node:url';",
     '',
     "import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';",
     "import { loadSqlResource } from '../../../_shared/loadSqlResource.js';",
     '',
+    'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
     '',
     ...renderQuerySpecBoundaryComments(params.action),
@@ -1204,9 +1208,9 @@ function renderReadmeFile(params: {
     '',
     '## CLI-created files',
     '',
-    '- `spec.ts`',
-    `- \`tests/${params.featureName}.entryspec.test.ts\``,
-    `- \`queries/${params.queryName}/spec.ts\``,
+    '- `boundary.ts`',
+    `- \`tests/${params.featureName}.boundary.test.ts\``,
+    `- \`queries/${params.queryName}/boundary.ts\``,
     `- \`queries/${params.queryName}/${params.queryName}.sql\``,
     `- \`queries/${params.queryName}/tests/\``,
     '- `README.md`',
@@ -1219,7 +1223,7 @@ function renderReadmeFile(params: {
     '',
     '## CLI-owned generated files',
     '',
-    `- \`queries/${params.queryName}/tests/queryspec-ztd-types.ts\``,
+    `- \`queries/${params.queryName}/tests/boundary-ztd-types.ts\``,
     `- \`queries/${params.queryName}/tests/generated/TEST_PLAN.md\``,
     `- \`queries/${params.queryName}/tests/generated/analysis.json\``,
     `- generated/* is CLI-owned and refreshable.`,
@@ -1228,18 +1232,18 @@ function renderReadmeFile(params: {
     '',
     `- persistent case files under \`queries/${params.queryName}/tests/cases/\``,
     `- cases/* is human/AI-owned and kept.`,
-    `- \`queries/${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts\` is a thin Vitest entrypoint and is kept.`,
+    `- \`queries/${params.queryName}/tests/${params.queryName}.boundary.ztd.test.ts\` is a thin Vitest entrypoint and is kept.`,
     '',
     '## Boundary responsibilities',
     '',
-    '- `spec.ts` is the feature outer-boundary specification for request parsing, normalization, rejection, query-parameter assembly, and response shaping.',
+    '- `boundary.ts` is the feature boundary public surface for request parsing, normalization, rejection, query-parameter assembly, and response shaping.',
     ...renderReadmeEntryspecNotes(params.action, params.parameterColumns),
-    '- `spec.ts` keeps its schema values and helper functions file-local; it converts request data to query params explicitly and depends on the shared executor contract directly.',
-    `- \`queries/${params.queryName}/spec.ts\` is the DB-boundary specification for query params, row shape, query result shape, row-to-result mapping, and SQL execution contract.`,
-    `- \`queries/${params.queryName}/spec.ts\` keeps its \`zod\` schema values, row type, and helper functions private, completes params / row / result parsing internally, and depends on the shared executor contract directly.`,
-    `- \`queries/${params.queryName}/spec.ts\` and \`queries/${params.queryName}/${params.queryName}.sql\` stay co-located as one spec/SQL pair.`,
-    `- \`${params.featureName}/tests/${params.featureName}.entryspec.test.ts\` is the thin Vitest entrypoint for the feature boundary lane.`,
-    `- \`queries/${params.queryName}/tests/${params.queryName}.queryspec.ztd.test.ts\` is the thin Vitest entrypoint for the ZTD query lane.`,
+    '- `boundary.ts` keeps its schema values and helper functions file-local; it converts request data to query params explicitly and depends on the shared executor contract directly.',
+    `- \`queries/${params.queryName}/boundary.ts\` is the query-boundary public surface for query params, row shape, query result shape, row-to-result mapping, and SQL execution contract.`,
+    `- \`queries/${params.queryName}/boundary.ts\` keeps its \`zod\` schema values, row type, and helper functions private, completes params / row / result parsing internally, and depends on the shared executor contract directly.`,
+    `- \`queries/${params.queryName}/boundary.ts\` and \`queries/${params.queryName}/${params.queryName}.sql\` stay co-located as one boundary/SQL pair.`,
+    `- \`tests/${params.featureName}.boundary.test.ts\` is the thin Vitest entrypoint for the feature boundary lane.`,
+    `- \`queries/${params.queryName}/tests/${params.queryName}.boundary.ztd.test.ts\` is the thin Vitest entrypoint for the ZTD query lane.`,
     generatedColumnsLine,
     queryColumnsLine,
     parameterColumnsLine,
@@ -1249,7 +1253,7 @@ function renderReadmeFile(params: {
     '## Follow-up query growth',
     '',
     `- Keep this baseline as one workflow and one primary query by default; add another sibling query directory under \`queries/\` only if a follow-up intentionally expands the feature.`,
-    '- If a follow-up adds another query directory, keep each query directory self-contained with exactly one `spec.ts` and one SQL resource.',
+    '- If a follow-up adds another query directory, keep each query directory self-contained with exactly one `boundary.ts` and one SQL resource.',
     '- Add transport-specific adapters later only when a concrete transport contract exists.',
     '',
     '## Shared helper note',
@@ -1271,34 +1275,34 @@ function renderReadmeFile(params: {
 function renderReadmeEntryspecNotes(action: FeatureAction, parameterColumns: string[]): string[] {
   if (action === 'get-by-id') {
     return [
-      '- `spec.ts` uses `zod` schemas for request and response DTOs and keeps the get-by-id baseline focused on key-only request parsing.',
-      '- `spec.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
+      '- `boundary.ts` uses `zod` schemas for request and response DTOs and keeps the get-by-id baseline focused on key-only request parsing.',
+      '- `boundary.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
       '- The get-by-id baseline keeps not-found handling explicit and non-throwing so follow-up work can decide whether to keep nullable output or move to an exactly-one contract.'
     ];
   }
   if (action === 'list') {
     return [
-      '- `spec.ts` uses `zod` schemas for request and response DTOs, keeps the baseline request minimal, and returns a `{ items: [...] }` response contract.',
-      '- `spec.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
-      '- `spec.ts` does not expose explicit paging inputs in the baseline scaffold; follow-up work can add them once the use case is known.'
+      '- `boundary.ts` uses `zod` schemas for request and response DTOs, keeps the baseline request minimal, and returns a `{ items: [...] }` response contract.',
+      '- `boundary.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
+      '- `boundary.ts` does not expose explicit paging inputs in the baseline scaffold; follow-up work can add them once the use case is known.'
     ];
   }
   const hasStringLikeInput = parameterColumns.length > 0;
   if (action === 'delete') {
     return [
-      '- `spec.ts` uses `zod` schemas for request and response DTOs and keeps the delete baseline focused on key-only request parsing.',
+      '- `boundary.ts` uses `zod` schemas for request and response DTOs and keeps the delete baseline focused on key-only request parsing.',
       '- The delete baseline does not assume string normalization; add transport-specific parsing or policy checks later only when the feature actually needs them.'
     ];
   }
 
   if (hasStringLikeInput) {
     return [
-      '- `spec.ts` uses `zod` schemas for request and response DTOs, and the scaffold includes `trim()` plus empty-string rejection examples for current string inputs.'
+      '- `boundary.ts` uses `zod` schemas for request and response DTOs, and the scaffold includes `trim()` plus empty-string rejection examples for current string inputs.'
     ];
   }
 
   return [
-    '- `spec.ts` uses `zod` schemas for request and response DTOs and leaves string normalization examples for follow-up when string fields appear.'
+    '- `boundary.ts` uses `zod` schemas for request and response DTOs and leaves string normalization examples for follow-up when string fields appear.'
   ];
 }
 
@@ -1312,7 +1316,7 @@ function renderEntrySpecBoundaryComments(action: FeatureAction): string[] {
   if (action === 'list') {
     return [
       '// The list baseline keeps the request contract intentionally minimal.',
-      '// Paging and stable ordering stay inside queries/<query>/spec.ts so the feature boundary remains transport-focused.'
+      '// Paging and stable ordering stay inside queries/<query>/boundary.ts so the feature boundary remains transport-focused.'
     ];
   }
   if (action === 'insert') {
@@ -1342,7 +1346,7 @@ function renderQuerySpecBoundaryComments(action: FeatureAction): string[] {
   }
   if (action === 'list') {
     return [
-      '// queries/<query>/spec.ts owns the list baseline paging and primary-key ordering contract.',
+      '// queries/<query>/boundary.ts owns the list baseline paging and primary-key ordering contract.',
       '// Keep the request contract narrow here; explicit paging inputs can be added later when the use case is known.'
     ];
   }
@@ -1376,7 +1380,7 @@ function renderReadmeOperationNotes(action: FeatureAction, primaryKeyColumn: str
   if (action === 'list') {
     return [
       `- The baseline list query applies stable primary-key ordering by \`${primaryKeyColumn}\` and keeps paging enabled by default.`,
-      `- \`DEFAULT_PAGE_SIZE\` is set to \`${DEFAULT_PAGE_SIZE}\` in queries/<query>/spec.ts so the default can be changed without widening the request contract first.`,
+      `- \`DEFAULT_PAGE_SIZE\` is set to \`${DEFAULT_PAGE_SIZE}\` in queries/<query>/boundary.ts so the default can be changed without widening the request contract first.`,
       '- Generated request and response contracts follow the DDL-derived column types for this feature; the scaffold does not assume that every ID is a 32-bit integer.',
       '- The baseline response is `{ items: [...] }` so paging metadata and other list-level fields can be added later without breaking the response shape.'
     ];
@@ -1410,7 +1414,7 @@ function renderReadmeFollowUpNotes(action: FeatureAction): string[] {
   if (action === 'list') {
     return [
       '- Add explicit paging inputs, filter fields, or richer ordering only after the list use case is known.',
-      '- Keep catalog-based paging and ordering inside `queries/<query>/spec.ts` as the feature grows.'
+      '- Keep catalog-based paging and ordering inside `queries/<query>/boundary.ts` as the feature grows.'
     ];
   }
   if (action === 'update') {
@@ -1460,7 +1464,7 @@ function renderGetByIdEntrySpecFile(params: {
     `  execute${params.queryPascalName}QuerySpec,`,
     `  type ${params.queryPascalName}QueryParams,`,
     `  type ${params.queryPascalName}QueryResult`,
-    `} from './queries/${params.queryName}/spec.js';`,
+    `} from './queries/${params.queryName}/boundary.js';`,
     '',
     ...renderEntrySpecBoundaryComments(params.action),
     '',
@@ -1558,7 +1562,7 @@ function renderListEntrySpecFile(params: {
     `  execute${params.queryPascalName}QuerySpec,`,
     `  type ${params.queryPascalName}QueryParams,`,
     `  type ${params.queryPascalName}QueryResult`,
-    `} from './queries/${params.queryName}/spec.js';`,
+    `} from './queries/${params.queryName}/boundary.js';`,
     '',
     ...renderEntrySpecBoundaryComments(params.action),
     '',
@@ -1637,10 +1641,13 @@ function renderGetByIdQuerySpecFile(params: {
 
   return [
     "import { z } from 'zod';",
+    "import { dirname } from 'node:path';",
+    "import { fileURLToPath } from 'node:url';",
     '',
     "import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';",
     "import { loadSqlResource } from '../../../_shared/loadSqlResource.js';",
     '',
+    'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
     '',
     ...renderQuerySpecBoundaryComments(params.action),
@@ -1723,12 +1730,15 @@ function renderListQuerySpecFile(params: {
 
   return [
     "import { z } from 'zod';",
+    "import { dirname } from 'node:path';",
+    "import { fileURLToPath } from 'node:url';",
     '',
     "import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';",
     "import { createCatalogExecutor, type QuerySpec } from '@rawsql-ts/sql-contract';",
     "import { loadSqlResource } from '../../../_shared/loadSqlResource.js';",
     '',
     `const DEFAULT_PAGE_SIZE = ${DEFAULT_PAGE_SIZE};`,
+    'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
     '',
     ...renderQuerySpecBoundaryComments(params.action),

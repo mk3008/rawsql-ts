@@ -1,4 +1,4 @@
-# smoke / smoke spec test plan
+# smoke / smoke boundary test plan
 
 This file snapshots the current scaffold contract before AI adds case files.
 
@@ -9,17 +9,17 @@ This file snapshots the current scaffold contract before AI adds case files.
 - testKind: ztd
 - resultCardinality: one
 - fixedVerifier: tests/support/ztd/harness.ts
-- vitestEntrypoint: src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts
+- vitestEntrypoint: src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts
 - generatedDir: src/features/smoke/queries/smoke/tests/generated
 - casesDir: src/features/smoke/queries/smoke/tests/cases
 - analysisJson: src/features/smoke/queries/smoke/tests/generated/analysis.json
 
 ## Source Files
 
-- src/features/smoke/spec.ts
-- src/features/smoke/queries/smoke/spec.ts
+- src/features/smoke/boundary.ts
+- src/features/smoke/queries/smoke/boundary.ts
 - src/features/smoke/queries/smoke/smoke.sql
-- src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts
+- src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts
 
 ## Fixture Candidate Tables
 
@@ -27,9 +27,9 @@ This file snapshots the current scaffold contract before AI adds case files.
 
 ## Validation Scenario Hints
 
-- Keep spec validation separate from the DB-backed execution boundary.
+- Keep feature-boundary validation separate from the DB-backed execution boundary.
 - Validation failures belong in the feature-root mock test lane.
-- Required request fields in spec: `user_id`.
+- Required request fields in feature boundary: `user_id`.
 
 ## DB Scenario Hints
 
