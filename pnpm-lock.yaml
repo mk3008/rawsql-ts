@@ -205,8 +205,8 @@ importers:
         specifier: ^8.15.6
         version: 8.15.6
       drizzle-orm:
-        specifier: ^0.31.2
-        version: 0.31.4(@electric-sql/pglite@0.3.14)(@prisma/client@7.2.0(prisma@7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2))(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(@types/react@19.2.6)(better-sqlite3@12.4.1)(mysql2@3.16.1)(pg@8.16.3)(postgres@3.4.7)(prisma@7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(react@19.2.0)(sql.js@1.13.0)
+        specifier: ^0.45.2
+        version: 0.45.2(@electric-sql/pglite@0.3.14)(@prisma/client@7.2.0(prisma@7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2))(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.4.1)(mysql2@3.16.1)(pg@8.16.3)(postgres@3.4.7)(prisma@7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(sql.js@1.13.0)
       prisma:
         specifier: ^7.2.0
         version: 7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2)
@@ -218,7 +218,7 @@ importers:
         version: 5.9.2
       vitest:
         specifier: ^4.0.7
-        version: 4.0.15(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3)
+        version: 4.0.15(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3)
 
   packages/core:
     devDependencies:
@@ -316,7 +316,7 @@ importers:
         version: 5.9.2
       vitest:
         specifier: ^4.0.7
-        version: 4.0.15(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3)
+        version: 4.0.15(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3)
 
   packages/sql-contract:
     devDependencies:
@@ -328,7 +328,7 @@ importers:
         version: 5.9.2
       vitest:
         specifier: ^4.0.7
-        version: 4.0.15(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3)
+        version: 4.0.15(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3)
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -350,7 +350,7 @@ importers:
         version: 5.9.2
       vitest:
         specifier: ^4.0.7
-        version: 4.0.15(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3)
+        version: 4.0.15(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3)
 
   packages/sql-grep-core:
     dependencies:
@@ -363,7 +363,7 @@ importers:
         version: 5.9.2
       vitest:
         specifier: ^4.0.7
-        version: 4.0.15(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3)
+        version: 4.0.15(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3)
 
   packages/test-evidence-core:
     devDependencies:
@@ -372,7 +372,7 @@ importers:
         version: 5.9.2
       vitest:
         specifier: ^4.0.7
-        version: 4.0.15(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3)
+        version: 4.0.15(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3)
 
   packages/test-evidence-renderer-md:
     dependencies:
@@ -385,7 +385,7 @@ importers:
         version: 5.9.2
       vitest:
         specifier: ^4.0.7
-        version: 4.0.15(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3)
+        version: 4.0.15(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3)
 
   packages/testkit-core:
     dependencies:
@@ -398,7 +398,7 @@ importers:
         version: 5.9.2
       vitest:
         specifier: ^4.0.7
-        version: 4.0.7(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3)
+        version: 4.0.7(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3)
 
   packages/testkit-postgres:
     dependencies:
@@ -417,7 +417,7 @@ importers:
         version: 5.9.2
       vitest:
         specifier: ^4.0.7
-        version: 4.0.15(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3)
+        version: 4.0.15(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3)
 
   packages/testkit-sqlite:
     dependencies:
@@ -439,13 +439,13 @@ importers:
         version: 16.6.1
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@types/node@22.19.15)(typescript@5.9.2)
+        version: 10.9.2(@types/node@22.19.17)(typescript@5.9.2)
       typescript:
         specifier: ^5.8.2
         version: 5.9.2
       vitest:
         specifier: ^4.0.7
-        version: 4.0.7(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3)
+        version: 4.0.7(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3)
 
   packages/ztd-cli:
     dependencies:
@@ -1461,8 +1461,8 @@ packages:
   '@types/node@22.18.7':
     resolution: {integrity: sha512-3E97nlWEVp2V6J7aMkR8eOnw/w0pArPwf/5/W0865f+xzBoGL/ZuHkTAKAGN7cOWNwd+sG+hZOqj+fjzeHS75g==}
 
-  '@types/node@22.19.15':
-    resolution: {integrity: sha512-F0R/h2+dsy5wJAUe3tAU6oqa2qbWY5TpNfL/RGmo1y38hiyO1w3x2jPtt76wmuaJI4DQnOBu21cNXQ2STIUUWg==}
+  '@types/node@22.19.17':
+    resolution: {integrity: sha512-wGdMcf+vPYM6jikpS/qhg6WiqSV/OhG+jeeHT/KlVqxYfD40iYJf9/AE1uQxVWFvU7MipKRkRv8NSHiCGgPr8Q==}
 
   '@types/node@22.19.6':
     resolution: {integrity: sha512-qm+G8HuG6hOHQigsi7VGuLjUVu6TtBo/F05zvX04Mw2uCg9Dv0Qxy3Qw7j41SidlTcl5D/5yg0SEZqOB+EqZnQ==}
@@ -2177,35 +2177,36 @@ packages:
     resolution: {integrity: sha512-IrPdXQsk2BbzvCBGBOTmmSH5SodmqZNt4ERAZDmW4CT+tL8VtvinqywuANaFu4bOMWki16nqf0e4oC0QIaDr/g==}
     engines: {node: '>=10'}
 
-  drizzle-orm@0.31.4:
-    resolution: {integrity: sha512-VGD9SH9aStF2z4QOTnVlVX/WghV/EnuEzTmsH3fSVp2E4fFgc8jl3viQrS/XUJx1ekW4rVVLJMH42SfGQdjX3Q==}
+  drizzle-orm@0.45.2:
+    resolution: {integrity: sha512-kY0BSaTNYWnoDMVoyY8uxmyHjpJW1geOmBMdSSicKo9CIIWkSxMIj2rkeSR51b8KAPB7m+qysjuHme5nKP+E5Q==}
     peerDependencies:
       '@aws-sdk/client-rds-data': '>=3'
-      '@cloudflare/workers-types': '>=3'
-      '@electric-sql/pglite': '>=0.1.1'
-      '@libsql/client': '*'
-      '@neondatabase/serverless': '>=0.1'
+      '@cloudflare/workers-types': '>=4'
+      '@electric-sql/pglite': '>=0.2.0'
+      '@libsql/client': '>=0.10.0'
+      '@libsql/client-wasm': '>=0.10.0'
+      '@neondatabase/serverless': '>=0.10.0'
       '@op-engineering/op-sqlite': '>=2'
       '@opentelemetry/api': ^1.4.1
-      '@planetscale/database': '>=1'
+      '@planetscale/database': '>=1.13'
       '@prisma/client': '*'
       '@tidbcloud/serverless': '*'
       '@types/better-sqlite3': '*'
       '@types/pg': '*'
-      '@types/react': '>=18'
       '@types/sql.js': '*'
+      '@upstash/redis': '>=1.34.7'
       '@vercel/postgres': '>=0.8.0'
       '@xata.io/client': '*'
       better-sqlite3: '>=7'
       bun-types: '*'
-      expo-sqlite: '>=13.2.0'
+      expo-sqlite: '>=14.0.0'
+      gel: '>=2'
       knex: '*'
       kysely: '*'
       mysql2: '>=2'
       pg: '>=8'
       postgres: '>=3'
       prisma: '*'
-      react: '>=18'
       sql.js: '>=1'
       sqlite3: '>=5'
     peerDependenciesMeta:
@@ -2216,6 +2217,8 @@ packages:
       '@electric-sql/pglite':
         optional: true
       '@libsql/client':
+        optional: true
+      '@libsql/client-wasm':
         optional: true
       '@neondatabase/serverless':
         optional: true
@@ -2233,9 +2236,9 @@ packages:
         optional: true
       '@types/pg':
         optional: true
-      '@types/react':
-        optional: true
       '@types/sql.js':
+        optional: true
+      '@upstash/redis':
         optional: true
       '@vercel/postgres':
         optional: true
@@ -2246,6 +2249,8 @@ packages:
       bun-types:
         optional: true
       expo-sqlite:
+        optional: true
+      gel:
         optional: true
       knex:
         optional: true
@@ -2258,8 +2263,6 @@ packages:
       postgres:
         optional: true
       prisma:
-        optional: true
-      react:
         optional: true
       sql.js:
         optional: true
@@ -5215,7 +5218,7 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/node@22.19.15':
+  '@types/node@22.19.17':
     dependencies:
       undici-types: 6.21.0
 
@@ -5459,13 +5462,13 @@ snapshots:
     optionalDependencies:
       vite: 7.2.1(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.3)
 
-  '@vitest/mocker@4.0.15(vite@7.2.1(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3))':
+  '@vitest/mocker@4.0.15(vite@7.2.1(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3))':
     dependencies:
       '@vitest/spy': 4.0.15
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.2.1(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3)
+      vite: 7.2.1(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3)
 
   '@vitest/mocker@4.0.15(vite@7.2.1(@types/node@22.19.6)(jiti@2.6.1)(yaml@2.8.3))':
     dependencies:
@@ -5483,13 +5486,13 @@ snapshots:
     optionalDependencies:
       vite: 7.2.1(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.3)
 
-  '@vitest/mocker@4.0.7(vite@7.2.1(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3))':
+  '@vitest/mocker@4.0.7(vite@7.2.1(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3))':
     dependencies:
       '@vitest/spy': 4.0.7
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.2.1(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3)
+      vite: 7.2.1(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3)
 
   '@vitest/pretty-format@4.0.15':
     dependencies:
@@ -6075,19 +6078,17 @@ snapshots:
 
   dotenv@8.6.0: {}
 
-  drizzle-orm@0.31.4(@electric-sql/pglite@0.3.14)(@prisma/client@7.2.0(prisma@7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2))(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(@types/react@19.2.6)(better-sqlite3@12.4.1)(mysql2@3.16.1)(pg@8.16.3)(postgres@3.4.7)(prisma@7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(react@19.2.0)(sql.js@1.13.0):
+  drizzle-orm@0.45.2(@electric-sql/pglite@0.3.14)(@prisma/client@7.2.0(prisma@7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2))(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.4.1)(mysql2@3.16.1)(pg@8.16.3)(postgres@3.4.7)(prisma@7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(sql.js@1.13.0):
     optionalDependencies:
       '@electric-sql/pglite': 0.3.14
       '@prisma/client': 7.2.0(prisma@7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2)
       '@types/better-sqlite3': 7.6.13
       '@types/pg': 8.15.6
-      '@types/react': 19.2.6
       better-sqlite3: 12.4.1
       mysql2: 3.16.1
       pg: 8.16.3
       postgres: 3.4.7
       prisma: 7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2)
-      react: 19.2.0
       sql.js: 1.13.0
 
   eastasianwidth@0.2.0: {}
@@ -7725,14 +7726,14 @@ snapshots:
       v8-compile-cache-lib: 3.0.1
       yn: 3.1.1
 
-  ts-node@10.9.2(@types/node@22.19.15)(typescript@5.9.2):
+  ts-node@10.9.2(@types/node@22.19.17)(typescript@5.9.2):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.11
       '@tsconfig/node12': 1.0.11
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
-      '@types/node': 22.19.15
+      '@types/node': 22.19.17
       acorn: 8.15.0
       acorn-walk: 8.3.4
       arg: 4.1.3
@@ -7864,7 +7865,7 @@ snapshots:
       jiti: 2.6.1
       yaml: 2.8.3
 
-  vite@7.2.1(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3):
+  vite@7.2.1(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3):
     dependencies:
       esbuild: 0.25.10
       fdir: 6.5.0(picomatch@4.0.3)
@@ -7873,7 +7874,7 @@ snapshots:
       rollup: 4.59.0
       tinyglobby: 0.2.15
     optionalDependencies:
-      '@types/node': 22.19.15
+      '@types/node': 22.19.17
       fsevents: 2.3.3
       jiti: 2.6.1
       yaml: 2.8.3
@@ -7978,10 +7979,10 @@ snapshots:
       - tsx
       - yaml
 
-  vitest@4.0.15(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3):
+  vitest@4.0.15(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3):
     dependencies:
       '@vitest/expect': 4.0.15
-      '@vitest/mocker': 4.0.15(vite@7.2.1(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3))
+      '@vitest/mocker': 4.0.15(vite@7.2.1(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3))
       '@vitest/pretty-format': 4.0.15
       '@vitest/runner': 4.0.15
       '@vitest/snapshot': 4.0.15
@@ -7998,10 +7999,10 @@ snapshots:
       tinyexec: 1.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vite: 7.2.1(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3)
+      vite: 7.2.1(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 22.19.15
+      '@types/node': 22.19.17
     transitivePeerDependencies:
       - jiti
       - less
@@ -8090,10 +8091,10 @@ snapshots:
       - tsx
       - yaml
 
-  vitest@4.0.7(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3):
+  vitest@4.0.7(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3):
     dependencies:
       '@vitest/expect': 4.0.7
-      '@vitest/mocker': 4.0.7(vite@7.2.1(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3))
+      '@vitest/mocker': 4.0.7(vite@7.2.1(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3))
       '@vitest/pretty-format': 4.0.7
       '@vitest/runner': 4.0.7
       '@vitest/snapshot': 4.0.7
@@ -8110,10 +8111,10 @@ snapshots:
       tinyexec: 0.3.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vite: 7.2.1(@types/node@22.19.15)(jiti@2.6.1)(yaml@2.8.3)
+      vite: 7.2.1(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 22.19.15
+      '@types/node': 22.19.17
     transitivePeerDependencies:
       - jiti
       - less
