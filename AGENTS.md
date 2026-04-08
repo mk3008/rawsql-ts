@@ -17,6 +17,57 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 - Use the repo-local guidance under `.codex/agents/` and `.agents/skills/` for planning, verification, review, and reporting details.
 - Root `AGENTS.md` defines repository-wide policy only; detailed output formats and workflows belong to subagent or skill guidance.
 
+## Documentation Guardrails
+
+- Treat README and other human-facing repository docs as reader-facing entry documentation, not AI-facing operational notes.
+- Keep human-facing docs scannable: prefer short headings, short paragraphs, short sentences, and strong structure.
+- Prefer separation over deletion: if content is too detailed for README, move it to linked docs instead of silently dropping important information.
+- Keep repository facts, commands, contracts, and file layout accurate and easy to verify.
+
+### README Mode Rules
+
+- Each substantial README section must have one primary mode:
+  - tutorial
+  - how-to
+  - reference
+  - explanation
+- Do not mix modes within the same section unless the boundary is explicit.
+
+### Mode Expectations
+
+- tutorial
+  - learning-oriented
+  - optimize for first success
+  - use small steps
+  - minimize explanation
+  - avoid alternatives unless essential for success
+  - link out for deeper background
+
+- how-to
+  - goal-oriented
+  - solve one concrete task or problem
+  - include only the steps and decisions needed for that goal
+  - avoid broad conceptual teaching
+
+- reference
+  - information-oriented
+  - describe facts, commands, options, file layout, contracts, and limits
+  - stay concise, structured, and neutral
+  - do not add persuasion, narrative, or long explanation
+
+- explanation
+  - understanding-oriented
+  - describe why, tradeoffs, design intent, constraints, and alternatives
+  - do not turn explanation into a procedural guide
+
+### README Defaults for This Repository
+
+- README should lead with what the project is, why it exists, and how to start.
+- Quickstart sections should stay short and copyable.
+- Important concepts must remain available either in README or in clearly linked follow-up docs.
+- Do not remove conceptual sections, follow-up reading, or navigation aids merely to shorten the README.
+- When revising README, confirm that a new reader can understand the project and reach a successful first step from the first screen.
+
 ## Plan and Reporting Minimums
 
 - Plans must state the source issue or request, acceptance items, verification methods, and explicit out-of-scope items when scope is limited.

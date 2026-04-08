@@ -267,8 +267,14 @@ test('init dry-run plan matches starter outputs without AGENTS files', () => {
   expect(plan.dryRun).toBe(true);
   expect(plan.files).toEqual(expect.arrayContaining([
     'compose.yaml',
+    'src/features/_shared/featureQueryExecutor.ts',
+    'src/features/_shared/loadSqlResource.ts',
     'src/features/smoke/tests/smoke.entryspec.test.ts',
     'src/features/smoke/tests/smoke.test.ts',
+    'tests/support/ztd/README.md',
+    'tests/support/ztd/case-types.ts',
+    'tests/support/ztd/verifier.ts',
+    'tests/support/ztd/harness.ts',
     'src/infrastructure/telemetry/types.ts',
     '.ztd/support/postgres-testkit.ts'
   ]));
