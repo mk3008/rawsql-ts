@@ -1,8 +1,8 @@
 # Retro-Aware Final Report Example
 
-Use this reference when `tmp/RETRO.md` affected the final claim or the pre-PR retro gate result must be visible to the reader.
+Use this reference when the retro ledger affected the final claim or the pre-PR retro gate result must be visible to the reader.
 
-## Example: retro item resolved before PR
+## Example: retro workflow added; non-blocking follow-up remains
 
 ```md
 Source issue or request
@@ -17,7 +17,7 @@ What changed
 Acceptance items status
 - acceptance item: Define a local-only retro ledger and its operating shape.
   status: done
-  evidence: `tmp/RETRO.md` now defines entry fields, gate states, and a sample incident.
+  evidence: the retro ledger now defines entry fields, gate states, and a sample incident.
   gap: none
 - acceptance item: Require pre-PR review of unresolved retro items.
   status: done
@@ -25,7 +25,7 @@ Acceptance items status
   gap: none
 - acceptance item: Show how the recent dogfooding mismatch would be captured.
   status: done
-  evidence: `tmp/RETRO.md` includes a sample entry based on the dogfooding interpretation mismatch.
+  evidence: the retro ledger includes a sample entry based on the dogfooding interpretation mismatch.
   gap: none
 
 Verification basis
@@ -38,7 +38,7 @@ Repository evidence
 - Added `.agents/skills/pre-pr-retro-gate`
 
 Supplementary evidence
-- Reviewed `tmp/RETRO.md` locally to confirm the sample entry and gate states read cleanly.
+- Reviewed the retro ledger locally to confirm the sample entry and gate states read cleanly.
 
 Guarantee limits
 - This proves the repository workflow now defines retro capture and gate behavior.
@@ -54,7 +54,7 @@ What the human should decide next
 - Accept the workflow guidance now, or require one more real-task dogfood pass before PR.
 
 Review readiness
-- ready if the reviewer accepts the remaining dogfood gap.
+- ready (no PR-blocking retro item remains).
 ```
 
 ## Example: accepted defer item remains visible
@@ -74,7 +74,7 @@ What changed
 Acceptance items status
 - acceptance item: Define a local-only retro ledger and its operating shape.
   status: done
-  evidence: `tmp/RETRO.md` exists with entry fields and gate semantics.
+  evidence: the retro ledger exists with entry fields and gate semantics.
   gap: none
 - acceptance item: Require pre-PR review of unresolved retro items.
   status: partial
@@ -89,7 +89,7 @@ Repository evidence
 - Updated `.codex/agents/reporting.md`
 
 Supplementary evidence
-- Local review confirmed the defer rationale is written in `tmp/RETRO.md`.
+- Local review confirmed the defer rationale is written in the retro ledger.
 
 Guarantee limits
 - This does not guarantee automatic enforcement; it guarantees only that the remaining risk is surfaced before review.
