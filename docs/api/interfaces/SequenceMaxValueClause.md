@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: SequenceMaxValueClause
 
-Defined in: [packages/core/src/models/DDLStatements.ts:435](https://github.com/mk3008/rawsql-ts/blob/051f1ece328414897260d647c6fda14f90cf5ce3/packages/core/src/models/DDLStatements.ts#L435)
+Defined in: [packages/core/src/models/DDLStatements.ts:435](https://github.com/mk3008/rawsql-ts/blob/c0f0f68e19e11de9d7a4c6a3a888252dc2ccb053/packages/core/src/models/DDLStatements.ts#L435)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:435](https://github.com/m
 
 > **kind**: `"maxValue"`
 
-Defined in: [packages/core/src/models/DDLStatements.ts:436](https://github.com/mk3008/rawsql-ts/blob/051f1ece328414897260d647c6fda14f90cf5ce3/packages/core/src/models/DDLStatements.ts#L436)
+Defined in: [packages/core/src/models/DDLStatements.ts:436](https://github.com/mk3008/rawsql-ts/blob/c0f0f68e19e11de9d7a4c6a3a888252dc2ccb053/packages/core/src/models/DDLStatements.ts#L436)
 
 ***
 
@@ -17,7 +17,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:436](https://github.com/m
 
 > `optional` **value**: [`ValueComponent`](../type-aliases/ValueComponent.md)
 
-Defined in: [packages/core/src/models/DDLStatements.ts:437](https://github.com/mk3008/rawsql-ts/blob/051f1ece328414897260d647c6fda14f90cf5ce3/packages/core/src/models/DDLStatements.ts#L437)
+Defined in: [packages/core/src/models/DDLStatements.ts:437](https://github.com/mk3008/rawsql-ts/blob/c0f0f68e19e11de9d7a4c6a3a888252dc2ccb053/packages/core/src/models/DDLStatements.ts#L437)
 
 ***
 
@@ -25,5 +25,5 @@ Defined in: [packages/core/src/models/DDLStatements.ts:437](https://github.com/m
 
 > `optional` **noValue**: `boolean`
 
-Defined in: [packages/core/src/models/DDLStatements.ts:438](https://github.com/mk3008/rawsql-ts/blob/051f1ece328414897260d647c6fda14f90cf5ce3/packages/core/src/models/DDLStatements.ts#L438)
+Defined in: [packages/core/src/models/DDLStatements.ts:438](https://github.com/mk3008/rawsql-ts/blob/c0f0f68e19e11de9d7a4c6a3a888252dc2ccb053/packages/core/src/models/DDLStatements.ts#L438)
 </div>
