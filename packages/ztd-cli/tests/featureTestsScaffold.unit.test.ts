@@ -14,11 +14,19 @@ function createTempDir(prefix: string): string {
   return mkdtempSync(path.join(tmpRoot, `${prefix}-`));
 }
 
+function seedSharedZtdSupport(workspace: string): void {
+  const supportDir = path.join(workspace, 'tests', 'support', 'ztd');
+  mkdirSync(supportDir, { recursive: true });
+  writeFileSync(path.join(supportDir, 'harness.ts'), 'export async function runQuerySpecZtdCases() {}\n', 'utf8');
+  writeFileSync(path.join(supportDir, 'case-types.ts'), 'export type QuerySpecZtdCase<A, B, C, D> = { beforeDb: A; input: B; output: C; afterDb?: D };\n', 'utf8');
+}
+
 test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the current feature files', async () => {
   const workspace = createTempDir('feature-tests-scaffold');
   const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
   const queryDir = path.join(featureDir, 'queries', 'insert-users');
   mkdirSync(queryDir, { recursive: true });
+  seedSharedZtdSupport(workspace);
 
   writeFileSync(
     path.join(featureDir, 'boundary.ts'),
@@ -164,6 +172,7 @@ test('runFeatureTestsScaffoldCommand refreshes generated analysis without overwr
   mkdirSync(queryDir, { recursive: true });
   mkdirSync(casesDir, { recursive: true });
   mkdirSync(generatedDir, { recursive: true });
+  seedSharedZtdSupport(workspace);
 
   writeFileSync(
     path.join(featureDir, 'boundary.ts'),
@@ -212,4 +221,22 @@ test('runFeatureTestsScaffoldCommand refreshes generated analysis without overwr
   expect(readFileSync(entrypointFile, 'utf8')).toBe("export const entrypointMarker = 'keep-me';\n");
   expect(readFileSync(queryTypesFile, 'utf8')).not.toBe("export const queryTypesMarker = 'refresh-me';\n");
   expect(readFileSync(path.join(generatedDir, 'analysis.json'), 'utf8')).toContain('"schemaVersion": 1');
+});
+
+test('runFeatureTestsScaffoldCommand fails fast when starter-owned ZTD support is missing', async () => {
+  const workspace = createTempDir('feature-tests-missing-support');
+  const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
+  const queryDir = path.join(featureDir, 'queries', 'insert-users');
+  mkdirSync(queryDir, { recursive: true });
+
+  writeFileSync(path.join(featureDir, 'boundary.ts'), 'export const RequestSchema = null;\n', 'utf8');
+  writeFileSync(path.join(queryDir, 'boundary.ts'), 'export async function executeInsertUsersBoundary() { return {}; }\n', 'utf8');
+  writeFileSync(path.join(queryDir, 'insert-users.sql'), 'select 1;', 'utf8');
+
+  await expect(
+    runFeatureTestsScaffoldCommand({
+      feature: 'users-insert',
+      rootDir: workspace
+    })
+  ).rejects.toThrow(/tests\/support\/ztd/);
 });

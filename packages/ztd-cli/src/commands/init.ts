@@ -787,7 +787,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     path.relative(rootDir, absolutePaths[key]).replace(/\\/g, '/') || absolutePaths[key];
 
   const summaries: Partial<Record<FileKey, FileSummary>> = {};
-  const scaffoldProfile = resolveInitScaffoldProfile(rootDir, options?.localSourceRoot, options?.starter === true);
+  const scaffoldProfile = resolveInitScaffoldProfile(rootDir, options?.localSourceRoot, starter);
 
   // Ask how the user prefers to populate the initial schema.
   if (workflow === 'pg_dump') {

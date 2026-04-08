@@ -193,6 +193,9 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'boundary.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'smoke.sql'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'boundary-ztd-types.ts'))).toBe(true);
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'boundary-ztd-types.ts'))).toContain(
+    "from '../../../../../../tests/support/ztd/case-types.js'"
+  );
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'cases', 'basic.case.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'TEST_PLAN.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'analysis.json'))).toBe(true);
@@ -215,6 +218,9 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.boundary.test.ts'))).toContain('executeSmokeEntrySpec');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'))).toContain('Validation should reject before the query lane runs.');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'))).toContain('runQuerySpecZtdCases');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'))).toContain(
+    "from '../../../../../../tests/support/ztd/harness.js'"
+  );
   expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'types.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'))).toBe(true);
@@ -230,6 +236,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'))).toContain('queryId');
   expect(readNormalizedFile(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'))).not.toContain('sqlText');
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    type?: string;
     devDependencies: Record<string, string>;
   };
   expect(packageJson.devDependencies).toHaveProperty('dotenv');
@@ -466,6 +473,7 @@ test('init local-source mode links rawsql-ts dependencies from the monorepo with
   expect(packageJson.devDependencies['@rawsql-ts/ztd-cli']).toBe(
     `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'ztd-cli')).replace(/\\/g, '/')}`
   );
+  expect(packageJson.type).toBe('module');
 });
 
 test('init starter local-source mode keeps starter rawsql-ts packages on file dependencies', async () => {
@@ -483,6 +491,7 @@ test('init starter local-source mode keeps starter rawsql-ts packages on file de
   });
 
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    type?: string;
     devDependencies: Record<string, string>;
   };
 
@@ -498,6 +507,7 @@ test('init starter local-source mode keeps starter rawsql-ts packages on file de
   expect(packageJson.devDependencies['@rawsql-ts/ztd-cli']).toBe(
     `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'ztd-cli')).replace(/\\/g, '/')}`
   );
+  expect(packageJson.type).toBe('module');
 });
 
 test('pnpm nested under a parent workspace uses --ignore-workspace for manual installs', () => {

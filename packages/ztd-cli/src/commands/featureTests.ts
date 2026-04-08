@@ -110,6 +110,7 @@ export async function runFeatureTestsScaffoldCommand(options: FeatureTestsComman
   }
 
   const queryLayout = resolveQueryLayout(featureDir, featureName, options.query);
+  assertSharedZtdTestSupport(rootDir);
   assertGeneratedWriteSafety([queryLayout.planFile, queryLayout.analysisFile], options.force === true);
 
   const planDetails = buildTestPlanDetails({
@@ -168,6 +169,26 @@ export async function runFeatureTestsScaffoldCommand(options: FeatureTestsComman
     dryRun: false,
     outputs
   };
+}
+
+function assertSharedZtdTestSupport(rootDir: string): void {
+  const requiredSupportFiles = [
+    path.join(rootDir, 'tests', 'support', 'ztd', 'harness.ts'),
+    path.join(rootDir, 'tests', 'support', 'ztd', 'case-types.ts')
+  ];
+
+  const missingFiles = requiredSupportFiles.filter((filePath) => !existsSync(filePath));
+  if (missingFiles.length === 0) {
+    return;
+  }
+
+  const missingList = missingFiles
+    .map((filePath) => toProjectRelativePath(rootDir, filePath))
+    .join(', ');
+
+  throw new Error(
+    `feature tests scaffold requires starter-owned shared ZTD support under tests/support/ztd. Missing: ${missingList}. Run \`ztd init --starter\` for a fresh starter project, or add the shared support files before scaffolding query-boundary tests.`
+  );
 }
 
 function renderFeatureTestScaffoldFiles(params: {
