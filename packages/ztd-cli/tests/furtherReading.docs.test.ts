@@ -42,7 +42,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       phrases: [
         'This tutorial shows the shortest path from `ztd init --starter` to a small `users` feature',
         'npx ztd agents init',
-        'The smallest DB-backed starter example lives in `src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts`.',
+    'The smallest DB-backed starter example lives in `src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts`.',
         '`@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`',
         'optional customer-facing Codex bootstrap (installed by `npx ztd agents init`)',
         'Docker Desktop or another Docker daemon is already running',
@@ -54,7 +54,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'Copy-Item .env.example .env',
         'npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail',
         'Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.',
-        'npx ztd model-gen --probe-mode ztd src/features/users-insert/insert-users/insert-users.sql --out src/features/users-insert/insert-users/queryspec.ts',
+    'npx ztd model-gen --probe-mode ztd src/features/users-insert/queries/insert-users/insert-users.sql --out src/features/users-insert/queries/insert-users/boundary.ts',
         'model-gen` now treats the SQL file location as the primary contract source',
         'Read the review summary first:',
         '- the risks section lists destructive and operational apply-plan risks separately',
@@ -163,7 +163,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; check whether `ztd-cli` or `rawsql-ts` changed the manifest or rewrite path.',
         'If you see `user_id: null`, compare the direct database `INSERT ... RETURNING ...` result with the ZTD result and inspect `.ztd/generated/ztd-fixture-manifest.generated.ts` first.',
         'If a local-source workspace is meant to reflect a source change, verify that it resolves `rawsql-ts` from the local source tree rather than a registry copy.',
-        'After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`.',
+        'After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`.',
         'generated/*` is CLI-owned and refreshable, `cases/*` is human/AI-owned and kept, and the thin entrypoint is kept.',
         'Do not apply migrations automatically.'
       ]
@@ -252,7 +252,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       phrases: [
         'throwaway project under `tmp/`',
         '`ztd init --local-source-root <monorepo-root>`',
-        'ztd model-gen src/features/users/persistence/list_users.sql \\',
+        'ztd model-gen src/features/users/queries/list-users/list-users.sql \\',
         '`pnpm install --ignore-workspace`',
         'Do not use it to claim that the published npm consumer flow is already healthy',
         'Use this mode to answer: `can we dogfood the unreleased CLI from source?`'
@@ -310,9 +310,14 @@ test('quickstart and tutorial spell out the common 5432 collision fallback', () 
   expect(packageReadme).toContain('cp .env.example .env');
   expect(packageReadme).toContain('docker compose up -d');
   expect(packageReadme).toContain('npx vitest run');
+  expect(packageReadme).toContain('all predefined address pools have been fully subnetted');
+  expect(packageReadme).toContain('Changing `ZTD_DB_PORT` will not fix it.');
   expect(scaffoldReadme).toContain('When you add SQL-backed tests, copy `.env.example` to `.env` and adjust `ZTD_DB_PORT` if needed before running the DB-backed suites.');
   expect(scaffoldReadme).toContain('Starter-owned shared support lives at `tests/support/ztd/`, while `.ztd/` is the tool-managed workspace for generated metadata and support files.');
+  expect(scaffoldReadme).toContain('all predefined address pools have been fully subnetted');
   expect(tutorial).toContain('If port `5432` is already in use, update `ZTD_DB_PORT` in `.env` before you rerun the compose path, for example:');
   expect(tutorial).toContain('cp .env.example .env');
   expect(tutorial).toContain('Copy-Item .env.example .env');
+  expect(tutorial).toContain('all predefined address pools have been fully subnetted');
+  expect(tutorial).toContain('changing `ZTD_DB_PORT` will not help');
 });

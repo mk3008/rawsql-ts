@@ -26,7 +26,7 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(scaffoldReadme).toContain('feature-first');
   expect(featuresReadme).toContain('smoke');
   expect(smokeReadme).toContain('starter-only sample feature');
-  expect(smokeReadme).toContain('two narrow paths');
+  expect(smokeReadme).toContain('three narrow paths');
   expect(smokeReadme).toContain('DB-backed smoke test');
   expect(smokeReadme).toContain('createStarterPostgresTestkitClient');
   expect(rootReadme).toContain('Migration Repair Loop');
@@ -36,14 +36,14 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('Commands');
   expect(packageReadme).toContain('Glossary');
   expect(packageReadme).toContain('Further Reading');
-  expect(packageReadme).toContain('ZTD here means queryspec-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor.');
+  expect(packageReadme).toContain('ZTD here means query-boundary-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor.');
   expect(packageReadme).toContain('Use validation-only cases for boundary checks and DB-backed cases for the success path.');
-  expect(packageReadme).toContain('Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.entryspec.test.ts` for mock-based boundary tests.');
+  expect(packageReadme).toContain('Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts` for mock-based boundary tests.');
   expect(packageReadme).toContain('Starter-owned shared support lives under `tests/support/ztd/`; `.ztd/` remains the tool-managed workspace for generated metadata and support files.');
   expect(packageReadme).toContain('After you finish the SQL and DTO edits');
   expect(packageReadme).toContain('feature tests scaffold --feature <feature-name>');
   expect(packageReadme).toContain('tests/generated/TEST_PLAN.md');
-  expect(scaffoldReadme).toContain('Make sure the queryspec result executes through the DB-backed ZTD path and checks mapping and validation, not just property values.');
+  expect(scaffoldReadme).toContain('Make sure the query-boundary result executes through the DB-backed ZTD path and checks mapping and validation, not just property values.');
   expect(readNormalizedFile('docs/guide/sql-first-end-to-end-tutorial.md')).toContain('Scenario CLI at a glance');
   expect(readNormalizedFile('docs/dogfooding/ztd-migration-lifecycle.md')).toContain('Preferred CLI by scenario');
   expect(packageReadme).toContain('## Further Reading');
@@ -55,13 +55,13 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   );
 });
 
-test('feature guidance centers the sample feature and role-based folders', () => {
+test('feature guidance centers the sample feature and recursive boundary folders', () => {
   const files = [
     'packages/ztd-cli/templates/src/features/AGENTS.md',
     'packages/ztd-cli/templates/src/features/README.md',
     'packages/ztd-cli/templates/src/features/smoke/README.md',
-    'packages/ztd-cli/templates/src/features/smoke/spec.ts',
-    'packages/ztd-cli/templates/src/features/smoke/tests/smoke.entryspec.test.ts'
+    'packages/ztd-cli/templates/src/features/smoke/boundary.ts',
+    'packages/ztd-cli/templates/src/features/smoke/tests/smoke.boundary.test.ts'
   ];
 
   for (const file of files) {
@@ -71,20 +71,23 @@ test('feature guidance centers the sample feature and role-based folders', () =>
     expect(contents).not.toContain('tables/views');
   }
 
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/AGENTS.md')).toContain('domain');
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/spec.ts')).toContain(
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/AGENTS.md')).toContain(
+    'Treat each feature folder as a boundary'
+  );
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/AGENTS.md')).toContain('boundary.ts');
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/boundary.ts')).toContain(
     'executeSmokeEntrySpec'
   );
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/queries/smoke/spec.ts')).toContain(
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/queries/smoke/boundary.ts')).toContain(
     'executeSmokeQuerySpec'
   );
   expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/queries/smoke/smoke.sql')).toContain(
     'where user_id = :user_id::integer'
   );
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/tests/smoke.entryspec.test.ts')).toContain(
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/tests/smoke.boundary.test.ts')).toContain(
     'executeSmokeEntrySpec'
   );
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts')).toContain(
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts')).toContain(
     'runQuerySpecZtdCases'
   );
   expect(readNormalizedFile('packages/ztd-cli/templates/src/features/_shared/featureQueryExecutor.ts')).toContain(
@@ -104,12 +107,12 @@ test('feature-first scaffold files exist in the template bundle', () => {
     'packages/ztd-cli/templates/src/features/README.md',
     'packages/ztd-cli/templates/src/features/AGENTS.md',
     'packages/ztd-cli/templates/src/features/smoke/README.md',
-    'packages/ztd-cli/templates/src/features/smoke/spec.ts',
-    'packages/ztd-cli/templates/src/features/smoke/tests/smoke.entryspec.test.ts',
-    'packages/ztd-cli/templates/src/features/smoke/queries/smoke/spec.ts',
+    'packages/ztd-cli/templates/src/features/smoke/boundary.ts',
+    'packages/ztd-cli/templates/src/features/smoke/tests/smoke.boundary.test.ts',
+    'packages/ztd-cli/templates/src/features/smoke/queries/smoke/boundary.ts',
     'packages/ztd-cli/templates/src/features/smoke/queries/smoke/smoke.sql',
-    'packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts',
-    'packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/queryspec-ztd-types.ts',
+    'packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts',
+    'packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/boundary-ztd-types.ts',
     'packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/cases/basic.case.ts',
     'packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/generated/TEST_PLAN.md',
     'packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/generated/analysis.json',

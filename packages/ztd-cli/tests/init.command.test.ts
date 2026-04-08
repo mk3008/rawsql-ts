@@ -178,29 +178,30 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
     'derives `ZTD_DB_URL` from `ZTD_DB_PORT`'
   );
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx vitest run src/features/smoke/tests/smoke.entryspec.test.ts src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd feature scaffold --table users --action insert');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('@rawsql-ts/testkit-postgres');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('fixed app-level ZTD runner');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'README.md'))).toContain('starter-only sample feature');
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('setup-env.ts');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('tests/support/ztd/harness.ts');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'README.md'))).toContain('ZTD_DB_PORT');
   expect(existsSync(path.join(workspace, 'src', 'features', '_shared', 'featureQueryExecutor.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', '_shared', 'loadSqlResource.ts'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'spec.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'boundary.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'smoke.sql'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'queryspec-ztd-types.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'boundary-ztd-types.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'cases', 'basic.case.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'TEST_PLAN.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'analysis.json'))).toBe(true);
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'persistence', 'smoke.sql'))).toContain(':v1::integer + :v2::integer as result');
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'))).toContain(
-    "sqlFile: './smoke.sql'"
-  );
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'))).toContain("shape: 'named'");
+  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'application'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'domain'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'persistence'))).toBe(false);
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'smoke.sql'))).toContain('where user_id = :user_id::integer');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'boundary.ts'))).toContain('executeSmokeQuerySpec');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'boundary.ts'))).toContain('loadSqlResource');
   expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain('ZTD_DB_PORT');
   expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain('ZTD_DB_URL');
   expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'postgres-testkit.ts'))).toContain('createPostgresTestkitClient');
@@ -210,10 +211,10 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"ztdRootDir": ".ztd"');
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"defaultSchema": "public"');
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"searchPath": [');
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'))).toContain('buildSmokeWorkflow');
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.entryspec.test.ts'))).toContain('executeSmokeEntrySpec');
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'))).toContain('../domain/smoke-policy.js');
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.queryspec.ztd.test.ts'))).toContain('runQuerySpecZtdCases');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'))).toContain('executeSmokeEntrySpec');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.boundary.test.ts'))).toContain('executeSmokeEntrySpec');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'))).toContain('Validation should reject before the query lane runs.');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'))).toContain('runQuerySpecZtdCases');
   expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'types.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'))).toBe(true);
@@ -238,13 +239,13 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(packageJson.devDependencies).toHaveProperty('pg');
   expect(packageJson.devDependencies).toHaveProperty('@types/pg');
   expect(existsSync(path.join(workspace, '.ztd', 'support', 'testkit-client.ts'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.queryspec.ztd.test.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'))).toBe(true);
   expect(result.summary).toContain('compose.yaml');
   expect(result.summary).toContain('.env.example');
   expect(result.summary).toContain('.ztd/support/setup-env.ts');
   expect(result.summary).toContain('.ztd/support/postgres-testkit.ts');
-  expect(result.summary).toContain('src/features/smoke/tests/smoke.entryspec.test.ts');
-  expect(result.summary).toContain('src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts');
+  expect(result.summary).toContain('src/features/smoke/tests/smoke.boundary.test.ts');
+  expect(result.summary).toContain('src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts');
   expect(result.summary).toContain('starter-only sample feature');
   expect(result.summary).toContain('ztd agents init');
   expect(result.summary).toContain('Delete src/features/smoke/');
@@ -269,7 +270,8 @@ test('init dry-run plan matches starter outputs without AGENTS files', () => {
     'compose.yaml',
     'src/features/_shared/featureQueryExecutor.ts',
     'src/features/_shared/loadSqlResource.ts',
-    'src/features/smoke/tests/smoke.entryspec.test.ts',
+    'src/features/smoke/boundary.ts',
+    'src/features/smoke/tests/smoke.boundary.test.ts',
     'src/features/smoke/tests/smoke.test.ts',
     'tests/support/ztd/README.md',
     'tests/support/ztd/case-types.ts',
@@ -279,6 +281,13 @@ test('init dry-run plan matches starter outputs without AGENTS files', () => {
     '.ztd/support/postgres-testkit.ts'
   ]));
   expect(plan.files).not.toEqual(expect.arrayContaining([
+    'src/features/smoke/application/README.md',
+    'src/features/smoke/domain/README.md',
+    'src/features/smoke/persistence/README.md',
+    'src/features/smoke/domain/smoke-policy.ts',
+    'src/features/smoke/application/smoke-workflow.ts',
+    'src/features/smoke/persistence/smoke.sql',
+    'src/features/smoke/persistence/boundary.ts',
     'AGENTS.md',
     'db/AGENTS.md',
     'db/ddl/AGENTS.md',
@@ -390,21 +399,21 @@ test('init can opt into dogfooding prompt files when explicitly requested', asyn
   const promptDogfood = readNormalizedFile(path.join(workspace, 'PROMPT_DOGFOOD.md'));
   expect(promptDogfood).toContain('Add a feature to this feature-first project.');
   expect(promptDogfood).toContain('Start with `npx ztd feature scaffold --table <table> --action <action>`.');
-  expect(promptDogfood).toContain('Keep handwritten SQL, the feature entrypoint, and QuerySpec inside `src/features/<feature-name>`.');
+  expect(promptDogfood).toContain('Keep handwritten SQL, the feature boundary, and the query boundary inside `src/features/<feature-name>`.');
   expect(promptDogfood).toContain('After you finish SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>`');
-  expect(promptDogfood).toContain('refresh `src/features/<feature-name>/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`');
-  expect(promptDogfood).toContain('keep the thin `src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts` Vitest entrypoint in sync');
-  expect(promptDogfood).toContain('keep the persistent case files under `src/features/<feature-name>/<query-name>/tests/cases/` as human/AI-owned ZTD assets around the fixed app-level runner.');
+  expect(promptDogfood).toContain('refresh `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`');
+  expect(promptDogfood).toContain('keep the thin `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` Vitest entrypoint in sync');
+  expect(promptDogfood).toContain('keep the persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/` as human/AI-owned ZTD assets around the fixed app-level runner.');
   expect(promptDogfood).toContain('If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs.');
   expect(promptDogfood).toContain('`beforeDb` and `afterDb` are pure fixture skeletons with schema-qualified table keys.');
-  expect(promptDogfood).toContain('The validation case may stay at the entry boundary, but the success case must execute through the fixed app-level ZTD runner.');
+  expect(promptDogfood).toContain('The validation case may stay at the feature boundary, but the success case must execute through the fixed app-level ZTD runner.');
   expect(promptDogfood).toContain('Do not put returned columns into the input fixture.');
-  expect(promptDogfood).toContain('Read `TEST_PLAN.md` and `analysis.json` before filling the persistent case files under `src/features/<feature-name>/<query-name>/tests/cases/`.');
-  expect(promptDogfood).toContain('refresh `src/features/<feature-name>/<query-name>/tests/queryspec-ztd-types.ts`');
+  expect(promptDogfood).toContain('Read `TEST_PLAN.md` and `analysis.json` before filling the persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/`.');
+  expect(promptDogfood).toContain('refresh `src/features/<feature-name>/queries/<query-name>/tests/boundary-ztd-types.ts`');
   expect(promptDogfood).toContain('`afterDb` is subset-based per row, rows are treated as an unordered multiset, row order is ignored, and the verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding.');
-  expect(promptDogfood).toContain('After the cases are ready, run `npx vitest run src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts` to execute the ZTD query test.');
+  expect(promptDogfood).toContain('After the cases are ready, run `npx vitest run src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` to execute the ZTD query test.');
   expect(promptDogfood).toContain('If the returned result is null, stop and fix the scaffold or DDL instead of weakening the case.');
-  expect(promptDogfood).toContain('Before writing the success-path assertion, inspect the current SQL and QuerySpec. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.');
+  expect(promptDogfood).toContain('Before writing the success-path assertion, inspect the current SQL and query boundary. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.');
   expect(promptDogfood).toContain('Do not apply migrations automatically.');
 });
 
@@ -450,10 +459,45 @@ test('init local-source mode links rawsql-ts dependencies from the monorepo with
   expect(packageJson.devDependencies['@rawsql-ts/sql-contract']).toBe(
     `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'sql-contract')).replace(/\\/g, '/')}`
   );
+    expect(packageJson.devDependencies['@rawsql-ts/testkit-core']).toBe(
+      `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'testkit-core')).replace(/\\/g, '/')}`
+    );
+  expect(packageJson.devDependencies['@rawsql-ts/testkit-postgres']).toBe(
+    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'testkit-postgres')).replace(/\\/g, '/')}`
+  );
+  expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/ztd-cli');
+});
+
+test('init starter local-source mode keeps starter rawsql-ts packages on file dependencies', async () => {
+  const workspace = createTempDir('cli-init-starter-local-source');
+  const prompter = new TestPrompter([]);
+
+  await runInitCommand(prompter, {
+    rootDir: workspace,
+    starter: true,
+    forceOverwrite: true,
+    nonInteractive: true,
+    workflow: 'demo',
+    validator: 'zod',
+    localSourceRoot: repoRoot
+  });
+
+  const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    devDependencies: Record<string, string>;
+  };
+
+  expect(packageJson.devDependencies['@rawsql-ts/sql-contract']).toBe(
+    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'sql-contract')).replace(/\\/g, '/')}`
+  );
   expect(packageJson.devDependencies['@rawsql-ts/testkit-core']).toBe(
     `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'testkit-core')).replace(/\\/g, '/')}`
   );
-  expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/ztd-cli');
+  expect(packageJson.devDependencies['@rawsql-ts/testkit-postgres']).toBe(
+    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'testkit-postgres')).replace(/\\/g, '/')}`
+  );
+  expect(packageJson.devDependencies['@rawsql-ts/ztd-cli']).toBe(
+    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'ztd-cli')).replace(/\\/g, '/')}`
+  );
 });
 
 test('pnpm nested under a parent workspace uses --ignore-workspace for manual installs', () => {

@@ -1,13 +1,20 @@
 import { expect, test } from 'vitest';
 
-import { buildSmokeWorkflow } from '../application/smoke-workflow.js';
+import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor.js';
+import { executeSmokeEntrySpec } from '../boundary.js';
 
-test('smoke feature adds two numbers through the application workflow', () => {
-  const result = buildSmokeWorkflow({
-    left: 2,
-    right: 3
-  });
+function createMockExecutor(rows: readonly Record<string, unknown>[]): FeatureQueryExecutor {
+  return {
+    async query<T = unknown>() {
+      return [...rows] as T[];
+    }
+  };
+}
 
-  expect(result.feature).toBe('smoke');
-  expect(result.output).toEqual({ sum: 5 });
+test('rejects rows that do not satisfy the feature boundary response contract', async () => {
+  await expect(
+    executeSmokeEntrySpec(createMockExecutor([{ user_id: 1 }]), {
+      user_id: 1
+    })
+  ).rejects.toThrow(/email|required|invalid/i);
 });

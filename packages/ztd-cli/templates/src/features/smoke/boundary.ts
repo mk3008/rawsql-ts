@@ -5,7 +5,7 @@ import {
   executeSmokeQuerySpec,
   type SmokeQueryParams,
   type SmokeQueryResult
-} from './queries/smoke/spec.js';
+} from './queries/smoke/boundary.js';
 
 const RequestSchema = z.object({
   user_id: z.number().int().positive()

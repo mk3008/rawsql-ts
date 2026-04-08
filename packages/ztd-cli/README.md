@@ -5,6 +5,8 @@
 
 `ztd-cli` is a SQL-first CLI for feature-first application development.
 
+It now treats project structure as Architecture as a Framework: boundaries, public surfaces, dependency direction, and test ownership are meant to be readable from the filesystem itself.
+
 ## Highlights
 
 - DDL is the source of truth, and `pg_dump` output can be used to bootstrap it.
@@ -31,6 +33,25 @@ docker compose up -d
 npx vitest run
 ```
 
+## Architecture as a Framework
+
+`ztd-cli` uses one recursive rule for feature-local boundaries:
+
+```text
+boundary/
+  boundary.ts
+  child-boundary/
+  tests/
+```
+
+- A folder is a boundary.
+- `boundary.ts` is that boundary's public surface.
+- Child boundaries are child folders that repeat the same rule.
+- `tests/` is the verification group owned by that boundary.
+- Cross-boundary tests should use `boundary.ts`, not internal helpers.
+
+The starter and feature scaffolds apply that rule under `src/features/<feature>/...`, so the public export surface is visible without reading prose first.
+
 PowerShell:
 
 ```powershell
@@ -56,6 +77,14 @@ docker compose up -d
 npx vitest run
 ```
 
+### Docker Network Pool Exhausted
+
+If `docker compose up -d` fails with `all predefined address pools have been fully subnetted`, this is not a `ZTD_DB_PORT` collision.
+
+- The failure is happening before the container binds its port.
+- Changing `ZTD_DB_PORT` will not fix it.
+- Typical recovery is Docker-side cleanup such as removing unused networks, pruning Docker state, or widening Docker's `default-address-pools` setting.
+
 ### ZTD Runtime Debugging
 
 - If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; check whether `ztd-cli` or `rawsql-ts` changed the manifest or rewrite path.
@@ -75,10 +104,18 @@ Run this first:
 npx ztd feature scaffold --table users --action insert
 ```
 
-Scaffold the `users-insert` feature with co-located SQL, specs, and a thin tests entrypoint.
+Scaffold the `users-insert` feature with co-located SQL, boundaries, and a thin tests entrypoint.
 Starter-owned shared support lives under `tests/support/ztd/`; `.ztd/` remains the tool-managed workspace for generated metadata and support files.
 
-After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`. That command also creates the thin Vitest entrypoint `src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts`, which stays checked in as a small adapter around the fixed app-level harness. `generated/*` is CLI-owned and refreshable, `cases/*` is human/AI-owned and kept, and the thin entrypoint is kept. ZTD here means queryspec-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor. Persistent case files belong in `src/features/<feature-name>/<query-name>/tests/cases/`. If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs. `beforeDb` and `afterDb` are schema-qualified pure fixture skeletons. Use validation-only cases for boundary checks and DB-backed cases for the success path. Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.entryspec.test.ts` for mock-based boundary tests. `afterDb` is subset-based per row, rows are treated as an unordered multiset, and row order itself is ignored. The verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding. After the cases are filled, run `npx vitest run src/features/<feature-name>/<query-name>/tests/<query-name>.queryspec.ztd.test.ts` to execute the ZTD query test.
+After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`. That command also creates the thin Vitest entrypoint `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts`, which stays checked in as a small adapter around the fixed app-level harness. `generated/*` is CLI-owned and refreshable, `cases/*` is human/AI-owned and kept, and the thin entrypoint is kept. ZTD here means query-boundary-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor. Persistent case files belong in `src/features/<feature-name>/queries/<query-name>/tests/cases/`. If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs. `beforeDb` and `afterDb` are schema-qualified pure fixture skeletons. Use validation-only cases for boundary checks and DB-backed cases for the success path. Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts` for mock-based boundary tests. `afterDb` is subset-based per row, rows are treated as an unordered multiset, and row order itself is ignored. The verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding. After the cases are filled, run `npx vitest run src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` to execute the ZTD query test.
+
+## Import Paths
+
+As boundary depth grows, avoid making deep relative imports part of the architecture contract.
+
+- Preferred direction: use a root-based import convention such as package `imports` (`#src/*`) or an equivalent alias that works in both TypeScript and runtime resolution.
+- Minimum rule: imports that cross boundaries should make the target boundary explicit and go through its `boundary.ts` entrypoint.
+- If a project has not adopted a root alias yet, treat the alias migration as recommended follow-up before boundary nesting becomes deep.
 
 ## Troubleshooting
 
@@ -88,13 +125,13 @@ After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --fe
 - When `afterDb` fails, remember that the comparison is subset-based, row order is ignored, and volatile columns such as timestamps may be intentionally omitted from the fixture.
 
 ```text
-Write ZTD-format cases for the queryspec.
-Keep the persistent case files in `src/features/<feature>/<query>/tests/cases/`.
-Use `src/features/<feature>/<query>/tests/generated/TEST_PLAN.md` and `analysis.json` as the source of truth.
+Write ZTD-format cases for the query boundary.
+Keep the persistent case files in `src/features/<feature>/queries/<query>/tests/cases/`.
+Use `src/features/<feature>/queries/<query>/tests/generated/TEST_PLAN.md` and `analysis.json` as the source of truth.
 Do not put returned columns into the input fixture; only assert them after the DB-backed case returns.
-The validation cases may stay at the entry boundary, but the success case must run through the fixed app-level ZTD runner and verify the returned result.
+The validation cases may stay at the feature boundary, but the success case must run through the fixed app-level ZTD runner and verify the returned result.
 If the returned result is `null`, stop and fix the scaffold or DDL instead of weakening the case.
-Before writing the success-path assertion, inspect the current SQL and QuerySpec. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.
+Before writing the success-path assertion, inspect the current SQL and query boundary. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.
 Do not apply migrations automatically.
 ```
 
@@ -111,12 +148,12 @@ If you want a deeper walkthrough, keep that in the linked guides instead of expa
 | Command | Purpose |
 |---|---|
 | `ztd init --starter` | Scaffold the starter project with smoke, DDL, compose, and local Postgres wiring. |
-| `ztd feature scaffold --table <table> --action <insert/update/delete/get-by-id/list>` | Scaffold a feature-local CRUD/SELECT slice with SQL, entrypoint, QuerySpec, README, and a thin tests entrypoint. |
-| `ztd feature tests scaffold --feature <feature-name>` | Refresh `tests/generated/TEST_PLAN.md` and `analysis.json`, create the thin `<query-name>.queryspec.ztd.test.ts` Vitest entrypoint when missing, and keep `tests/cases/` as human/AI-owned persistent cases. |
+| `ztd feature scaffold --table <table> --action <insert/update/delete/get-by-id/list>` | Scaffold a feature-local CRUD/SELECT slice with SQL, `boundary.ts` entrypoints, README, and a thin tests entrypoint. |
+| `ztd feature tests scaffold --feature <feature-name>` | Refresh `tests/generated/TEST_PLAN.md` and `analysis.json`, create the thin `<query-name>.boundary.ztd.test.ts` Vitest entrypoint when missing, and keep `tests/cases/` as human/AI-owned persistent cases. |
 | `ztd agents init` | Add the optional Codex bootstrap files. |
 | `ztd ztd-config` | Regenerate `TestRowMap` and runtime fixture metadata from DDL without Docker. |
 | `ztd lint` | Lint SQL against a temporary Postgres. |
-| `ztd model-gen` | Generate QuerySpec scaffolding from SQL assets. |
+| `ztd model-gen` | Generate query-boundary scaffolding from SQL assets. |
 | `ztd query uses` | Find impacted SQL before changing a table or column. |
 | `ztd query match-observed` | Rank likely source SQL assets from observed SELECT text. |
 | `ztd query sssql scaffold` / `ztd query sssql refresh` | Author and refresh SQL-first optional filter branches. |

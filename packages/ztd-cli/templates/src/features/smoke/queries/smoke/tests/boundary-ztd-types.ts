@@ -16,7 +16,7 @@ export type SmokeInput = { user_id: unknown };
 export type SmokeOutput = { user_id: unknown; email: unknown };
 export type SmokeAfterDb = SmokeBeforeDb;
 
-export type SmokeQuerySpecZtdCase = QuerySpecZtdCase<
+export type SmokeQueryBoundaryZtdCase = QuerySpecZtdCase<
   SmokeBeforeDb,
   SmokeInput,
   SmokeOutput,

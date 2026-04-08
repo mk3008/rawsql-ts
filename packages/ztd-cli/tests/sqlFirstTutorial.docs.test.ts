@@ -32,14 +32,14 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
     'This tutorial shows the shortest path from `ztd init --starter` to a small `users` feature that can be changed, broken, and repaired with AI help.',
     'The tutorial uses one starter project, one `smoke` feature, and one `users` feature.',
     'DDL repair | `npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail`',
-    'SQL repair | `npx ztd model-gen --probe-mode ztd src/features/users-insert/insert-users/insert-users.sql --out src/features/users-insert/insert-users/queryspec.ts`',
+    'SQL repair | `npx ztd model-gen --probe-mode ztd src/features/users-insert/queries/insert-users/insert-users.sql --out src/features/users-insert/queries/insert-users/boundary.ts`',
     'DTO repair | `npx vitest run` after the DTO change',
     'migration | `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to prepare review output plus apply SQL',
     'tuning | `npx ztd query plan <sql-file>` and the perf guide under `docs/guide/`',
     'npx ztd init --starter',
     'src/features/smoke',
     'db/ddl/public.sql',
-        'The smallest DB-backed starter example lives in `src/features/smoke/queries/smoke/tests/smoke.queryspec.ztd.test.ts`.',
+        'The smallest DB-backed starter example lives in `src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts`.',
     'It uses `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`',
     'Docker Desktop or another Docker daemon is already running',
     'cp .env.example .env',
@@ -54,31 +54,31 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
     'npx vitest run',
     'Use `src/features/smoke` as the starter-only teaching example, but scaffold the first real CRUD slice with the CLI:',
     'npx ztd feature scaffold --table users --action insert',
-    'src/features/users-insert/entryspec.ts',
-    'src/features/users-insert/tests/users-insert.entryspec.test.ts',
-    'src/features/users-insert/insert-users/queryspec.ts',
-    'src/features/users-insert/insert-users/insert-users.sql',
-    'src/features/users-insert/insert-users/tests/',
+    'src/features/users-insert/boundary.ts',
+    'src/features/users-insert/tests/users-insert.boundary.test.ts',
+    'src/features/users-insert/queries/insert-users/boundary.ts',
+    'src/features/users-insert/queries/insert-users/insert-users.sql',
+    'src/features/users-insert/queries/insert-users/tests/',
   ]);
 
-  expect(tutorial).toContain('insert-users/tests/insert-users.queryspec.ztd.test.ts');
-  expect(tutorial).toContain('insert-users/tests/generated/');
-  expect(tutorial).toContain('insert-users/tests/cases/');
+  expect(tutorial).toContain('queries/insert-users/tests/insert-users.boundary.ztd.test.ts');
+  expect(tutorial).toContain('queries/insert-users/tests/generated/');
+  expect(tutorial).toContain('queries/insert-users/tests/cases/');
   expect(tutorial).toContain('persistent case files');
   expect(tutorial).toContain('Add a users insert feature to this feature-first project.');
   expect(tutorial).toContain('Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.ztd/agents/*` if present.');
   expect(tutorial).toContain('Start with `npx ztd feature scaffold --table users --action insert`.');
-  expect(tutorial).toContain('Keep `entryspec.ts`, the query-local `queryspec.ts`, and the query-local SQL resource inside `src/features/users-insert`.');
-  expect(tutorial).toContain('The CLI creates the `src/features/users-insert/insert-users/tests/generated/` analysis files, the thin `src/features/users-insert/insert-users/tests/insert-users.queryspec.ztd.test.ts` Vitest entrypoint, and the empty `src/features/users-insert/insert-users/tests/cases/` directory, then leaves the persistent case files for the AI follow-up step.');
-  expect(tutorial).toContain('After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature users-insert` to refresh `src/features/users-insert/insert-users/tests/generated/TEST_PLAN.md` and `analysis.json`, refresh `src/features/users-insert/insert-users/tests/queryspec-ztd-types.ts`, and keep the thin `src/features/users-insert/insert-users/tests/insert-users.queryspec.ztd.test.ts` Vitest entrypoint in sync. Treat `tests/support/ztd/` as starter-owned shared support and read-only for feature-specific work. If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints when you fill the case files. `beforeDb` and `afterDb` are schema-qualified pure fixture skeletons. AI-authored cases belong in `src/features/users-insert/insert-users/tests/cases/`, while the fixed app-level runner stays in `tests/support/ztd/harness.ts`. Keep the feature-root `src/features/users-insert/tests/users-insert.entryspec.test.ts` for mock-based boundary tests. `afterDb` is subset-based per row, rows are treated as an unordered multiset, row order is ignored, and the verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding. When the cases are ready, run `npx vitest run src/features/users-insert/insert-users/tests/insert-users.queryspec.ztd.test.ts` to execute the ZTD query test.');
-  expect(tutorial).toContain('The validation cases may stay at the entry boundary, but the success case must execute through the fixed app-level ZTD runner and verify the returned result.');
+  expect(tutorial).toContain('Keep `boundary.ts`, the query-local `boundary.ts`, and the query-local SQL resource inside `src/features/users-insert`.');
+  expect(tutorial).toContain('The CLI creates the `src/features/users-insert/queries/insert-users/tests/generated/` analysis files, the thin `src/features/users-insert/queries/insert-users/tests/insert-users.boundary.ztd.test.ts` Vitest entrypoint, and the empty `src/features/users-insert/queries/insert-users/tests/cases/` directory, then leaves the persistent case files for the AI follow-up step.');
+  expect(tutorial).toContain('After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature users-insert` to refresh `src/features/users-insert/queries/insert-users/tests/generated/TEST_PLAN.md` and `analysis.json`, refresh `src/features/users-insert/queries/insert-users/tests/boundary-ztd-types.ts`, and keep the thin `src/features/users-insert/queries/insert-users/tests/insert-users.boundary.ztd.test.ts` Vitest entrypoint in sync. Treat `tests/support/ztd/` as starter-owned shared support and read-only for feature-specific work. If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints when you fill the case files. `beforeDb` and `afterDb` are schema-qualified pure fixture skeletons. AI-authored cases belong in `src/features/users-insert/queries/insert-users/tests/cases/`, while the fixed app-level runner stays in `tests/support/ztd/harness.ts`. Keep the feature-root `src/features/users-insert/tests/users-insert.boundary.test.ts` for mock-based boundary tests. `afterDb` is subset-based per row, rows are treated as an unordered multiset, row order is ignored, and the verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding. When the cases are ready, run `npx vitest run src/features/users-insert/queries/insert-users/tests/insert-users.boundary.ztd.test.ts` to execute the ZTD query test.');
+  expect(tutorial).toContain('The validation cases may stay at the feature boundary, but the success case must execute through the fixed app-level ZTD runner and verify the returned result.');
   expect(tutorial).toContain('Do not put returned columns into the input fixture.');
   expect(tutorial).toContain('If the returned id is null, stop and fix the scaffold or DDL instead of weakening the test.');
-  expect(tutorial).toContain('Before writing the success-path assertion, inspect `insert-users.sql` and `queryspec.ts`. If the scaffold does not actually return a non-null id, report that mismatch instead of inventing fixture data or schema overrides.');
-  expect(tutorial).toContain('When the cases are ready, run `npx vitest run src/features/users-insert/insert-users/tests/insert-users.queryspec.ztd.test.ts` to execute the ZTD query test.');
+  expect(tutorial).toContain('Before writing the success-path assertion, inspect `insert-users.sql` and `boundary.ts`. If the scaffold does not actually return a non-null id, report that mismatch instead of inventing fixture data or schema overrides.');
+  expect(tutorial).toContain('When the cases are ready, run `npx vitest run src/features/users-insert/queries/insert-users/tests/insert-users.boundary.ztd.test.ts` to execute the ZTD query test.');
   expect(tutorial).toContain('npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail');
   expect(tutorial).toContain('Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.');
-  expect(tutorial).toContain('For SQL repair, keep the SQL assets under `src/features/users-insert/insert-users/`, keep the query on the starter DDL\'s `users` table, and rerun `model-gen` against `src/features/users-insert/insert-users/insert-users.sql` directly, writing back to `src/features/users-insert/insert-users/queryspec.ts`.');
+  expect(tutorial).toContain('For SQL repair, keep the SQL assets under `src/features/users-insert/queries/insert-users/`, keep the query on the starter DDL\'s `users` table, and rerun `model-gen` against `src/features/users-insert/queries/insert-users/insert-users.sql` directly, writing back to `src/features/users-insert/queries/insert-users/boundary.ts`.');
   expect(tutorial).toContain('In VSA layouts, `model-gen` now treats the SQL file location as the primary contract source, so `--sql-root` is only needed for older shared-root layouts.');
   expect(tutorial).toContain('npx ztd ztd-config');
   expect(tutorial).toContain('npx ztd ddl diff');
