@@ -7,6 +7,8 @@ description: Report per-item attainment for completed rawsql-ts developer work.
 
 Use this skill when a rawsql-ts developer task is ready to be summarized in a PR or normal Codex work report that a human can use as a decision document, not as a work log.
 
+If the task used `tmp/RETRO.md` or the retro gate changed the final attainment claim, read [references/retro-final-report-example.md](references/retro-final-report-example.md) before drafting the final form.
+
 ## Use It For
 - Mapping each acceptance item to `done`, `partial`, or `not done`.
 - Capturing evidence for each status.

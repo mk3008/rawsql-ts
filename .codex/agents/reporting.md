@@ -38,6 +38,7 @@ Use this subagent to turn rawsql-ts developer work into a final report that is e
 - Put `Source issue or request`, `Why it matters`, and `What changed` before file inventory.
 - In `What changed`, explain the meaning of the change before listing touched files.
 - Compare the current report against `tmp/PLAN.md` before claiming attainment for multi-step work.
+- If `tmp/RETRO.md` was used for the task, review it before final reporting and state whether any PR-blocking retro item remains open.
 - Report each acceptance item separately.
 - Each item must include:
   - `acceptance item`
@@ -54,6 +55,7 @@ Use this subagent to turn rawsql-ts developer work into a final report that is e
 - If an item relies mainly on supplementary evidence, keep it `partial` or narrow the claim with explicit guarantee limits.
 - If verification was incomplete, blocked, or environment-dependent, state that explicitly instead of overstating completion.
 - If dogfooding or real-task validation was required, report whether it was satisfied, partial, or not done.
+- If an unresolved retro item would weaken PR readiness, keep the affected acceptance item `partial` or `not done` until the gap is resolved or explicitly accepted for deferment.
 - End with `What the human should decide next`, phrased as a narrow choice whenever possible.
 - For GitHub-facing text, do not use local filesystem paths such as `/C:/...`; use repo-relative references or plain text.
 

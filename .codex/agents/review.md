@@ -11,6 +11,7 @@ Use this subagent after verification and reporting but before human review. Its 
 
 - Run `consistency review` first.
 - Run `human acceptance review` second.
+- Check the pre-PR retro gate before declaring review readiness.
 - Triage every finding as `blocker`, `follow-up`, or `nit`.
 - Make review readiness explicit.
 
@@ -29,6 +30,7 @@ Check that:
 
 - required sections are present,
 - per-item reporting keeps `acceptance item`, `status`, `evidence`, and `gap` visible,
+- unresolved PR-blocking retro items are either closed or explicitly surfaced,
 - `done`, `partial`, and `not done` are used consistently,
 - repository evidence and supplementary evidence are not collapsed into one claim,
 - `tests were updated` and `tests passed` are not conflated,
@@ -51,6 +53,7 @@ Check that:
 - Unsupported `done` claims based mainly on supplementary evidence are blockers.
 - `follow-up`: has clear value but does not prevent acceptance now.
 - `nit`: wording or readability only.
+- An unresolved retro item that should block PR handoff is a blocker.
 - If a blocker remains, the result is not ready for human review.
 
 ## Do Not
