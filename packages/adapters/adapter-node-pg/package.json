@@ -44,7 +44,7 @@
     "@prisma/client-runtime-utils": "^7.2.0",
     "@types/pg": "^8.15.6",
     "@testcontainers/postgresql": "^11.11.0",
-    "drizzle-orm": "^0.31.2",
+    "drizzle-orm": "^0.45.2",
     "prisma": "^7.2.0",
     "testcontainers": "^11.11.0",
     "typescript": "^5.8.2",
