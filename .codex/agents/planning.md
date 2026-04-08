@@ -34,6 +34,8 @@ Use this subagent to shape a rawsql-ts developer task into a plan that can be ex
 - Verification methods must be concrete enough to show how each item will be checked.
 - Record the active task ledger in `tmp/PLAN.md` unless narrower guidance overrides that location.
 - Update `tmp/PLAN.md` when assumptions, blockers, acceptance items, or dogfooding findings materially change.
+- When important recognition mismatches, false completion claims, or verification misses appear during the task, record them in `tmp/RETRO.md` as task-specific reflection instead of trying to fold them into durable policy immediately.
+- If the likely prevention is reusable, make the promotion target explicit in the plan, such as repository guidance, verification steps, scripts, or a Codex skill.
 - If the outcome will require a human decision, make that decision point explicit.
 - If scope is limited, state out-of-scope items explicitly.
 - Prefer `pnpm` and scoped package commands when planning repository work.

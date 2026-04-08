@@ -14,6 +14,7 @@ Use this subagent to validate whether the work satisfies the planned acceptance 
 - Record what was checked, how it was checked, and what remains unverified.
 - Surface missing tests, missing docs, missing guidance coverage, and environment or tooling blockers.
 - State verification basis when the evidence needs interpretation.
+- When the task used `tmp/RETRO.md`, verify whether each PR-blocking retro item is resolved, accepted for deferment, or still open.
 
 ## Expected Output
 
@@ -40,6 +41,7 @@ Use this subagent to validate whether the work satisfies the planned acceptance 
 - Do not use DDL execution or manual database repair as the default fix path for ZTD validation failures.
 - Prefer repository evidence over supplementary evidence whenever both are available.
 - If dogfooding or real-task validation was required, report whether it was completed, partial, or not done.
+- Do not treat a pre-PR gate as satisfied while a retro item marked `open` still blocks PR readiness.
 
 ## Do Not
 

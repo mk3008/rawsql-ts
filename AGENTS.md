@@ -75,6 +75,12 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 - Multi-step tasks must keep a working ledger in `tmp/PLAN.md` unless a deeper `AGENTS.md` says otherwise.
 - `tmp/PLAN.md` should be updated when the plan changes, when a blocker is discovered, and when a verification or dogfooding result materially changes the current understanding.
 - `tmp/PLAN.md` is local task state, must not be committed, and exists separately from durable workflow rules in `AGENTS.md`.
+- Important recognition mismatches, false completion claims, or verification misses must also be captured in `tmp/RETRO.md` when they could plausibly recur within the same task or in a future task.
+- `tmp/RETRO.md` is a local-only reflection ledger for what went wrong, why it happened, whether the fix can be mechanized, whether a durable rule should be promoted, and whether a PR should be blocked until the item is resolved.
+- Keep durable workflow policy in `AGENTS.md`; keep task-specific reflection, examples, and unresolved retro items in `tmp/RETRO.md`.
+- If a retro item suggests a reusable mechanical guardrail, consider promoting it into repository guidance, tests, scripts, or a Codex skill instead of leaving it only as narrative reflection.
+- Record a retro item when the miss caused rework, weakened a completion claim, hid a verification gap, or would be hard to reconstruct reliably from the final diff alone.
+- Do not require retro entries for every small typo or harmless local correction; use it for mistakes that matter to task judgment, workflow safety, or future repeatability.
 - Reports must distinguish `done`, `partial`, and `not done`.
 - Reports must distinguish `tests were updated` from `tests passed`.
 - GitHub-facing reports must not use local filesystem paths.
@@ -84,6 +90,9 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 
 - Final PR text and final implementation reports must pass self-review before human review.
 - Blockers must be resolved or explicitly called out before human review.
+- Before creating or presenting a PR, review `tmp/RETRO.md` and either resolve every PR-blocking retro item or explicitly surface the remaining item and why it is safe to defer.
+- A retro item with `PR gate status: open` blocks PR readiness.
+- `accepted defer` may be used only when the remaining risk, owner, and follow-up path are explicit in the final report or PR text.
 
 ## QuerySpec Completion
 
