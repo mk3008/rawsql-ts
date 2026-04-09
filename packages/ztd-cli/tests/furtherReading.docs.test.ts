@@ -164,6 +164,8 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; check whether `ztd-cli` or `rawsql-ts` changed the manifest or rewrite path.',
         'If you see `user_id: null`, compare the direct database `INSERT ... RETURNING ...` result with the ZTD result and inspect `.ztd/generated/ztd-fixture-manifest.generated.ts` first.',
         'If a local-source workspace is meant to reflect a source change, verify that it resolves `rawsql-ts` from the local source tree rather than a registry copy.',
+        'npx ztd feature query scaffold --feature users-insert --query-name insert-user-audit --table user_audit --action insert',
+        'does not edit the parent `boundary.ts`',
         'After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>`.',
         'creates the thin Vitest entrypoint `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` only if it is missing.',
         'Persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/` are human/AI-owned and are not overwritten.',

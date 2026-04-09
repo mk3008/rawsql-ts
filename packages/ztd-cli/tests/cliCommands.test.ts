@@ -271,6 +271,22 @@ test(
 );
 
 test(
+  'feature query scaffold help exposes the additive child-boundary scaffold contract',
+  () => {
+    const result = runCli(['feature', 'query', 'scaffold', '--help']);
+    assertCliSuccess(result, 'feature query scaffold --help');
+    expect(result.stdout).toContain('--table <table>');
+    expect(result.stdout).toContain('--action <action>');
+    expect(result.stdout).toContain('--query-name <name>');
+    expect(result.stdout).toContain('--feature <name>');
+    expect(result.stdout).toContain('--boundary-dir <path>');
+    expect(result.stdout).toContain('Scaffold one additive query boundary');
+    expect(result.stdout).toContain('rewriting the parent boundary');
+  },
+  60000,
+);
+
+test(
   'feature scaffold dry-run emits JSON and reserves test files for AI follow-up',
   () => {
     const workspace = createTempDir('feature-scaffold-dry-run');
@@ -329,6 +345,71 @@ test(
     ]));
     expect(plannedPaths.some((entry: string) => entry.endsWith('.boundary.ztd.test.ts'))).toBe(false);
     expect(plannedPaths.some((entry: string) => entry.endsWith('.boundary.test.ts'))).toBe(true);
+  },
+  60000,
+);
+
+test(
+  'feature query scaffold dry-run emits JSON and keeps parent orchestration as follow-up work',
+  () => {
+    const workspace = createTempDir('feature-query-scaffold-dry-run');
+    const ddlDir = path.join(workspace, 'db', 'ddl');
+    const featureDir = path.join(workspace, 'src', 'features', 'sales-insert');
+    mkdirSync(ddlDir, { recursive: true });
+    mkdirSync(featureDir, { recursive: true });
+    writeFileSync(path.join(featureDir, 'boundary.ts'), '// existing parent boundary\n', 'utf8');
+    writeFileSync(
+      path.join(ddlDir, 'sales_detail.sql'),
+      [
+        'create table public.sales_detail (',
+        '  id serial primary key,',
+        '  sales_id integer not null,',
+        '  amount numeric not null',
+        ');'
+      ].join('\n'),
+      'utf8'
+    );
+
+    const result = runCli([
+      '--output',
+      'json',
+      'feature',
+      'query',
+      'scaffold',
+      '--feature',
+      'sales-insert',
+      '--query-name',
+      'insert-sales-detail',
+      '--table',
+      'sales_detail',
+      '--action',
+      'insert',
+      '--dry-run'
+    ], {}, workspace);
+
+    assertCliSuccess(result, 'feature query scaffold dry-run json');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      command: 'feature query scaffold',
+      ok: true,
+      data: {
+        boundaryPath: 'src/features/sales-insert',
+        resolutionSource: 'feature',
+        queryName: 'insert-sales-detail',
+        action: 'insert',
+        table: 'public.sales_detail',
+        primaryKeyColumn: 'id',
+        source: 'ddl',
+        dryRun: true
+      }
+    });
+    const plannedPaths = parsed.data.outputs.map((entry: { path: string }) => entry.path);
+    expect(plannedPaths).toEqual(expect.arrayContaining([
+      'src/features/sales-insert/queries',
+      'src/features/sales-insert/queries/insert-sales-detail',
+      'src/features/sales-insert/queries/insert-sales-detail/boundary.ts',
+      'src/features/sales-insert/queries/insert-sales-detail/insert-sales-detail.sql'
+    ]));
   },
   60000,
 );

@@ -4,10 +4,12 @@ import { expect, test } from 'vitest';
 import {
   assessGeneratedMetadataCapability,
   deriveFeatureName,
+  normalizeChildQueryName,
   normalizeFeatureAction,
   normalizeFeatureName,
   resolveFeatureScaffoldInput,
   resolvePrimaryKeyColumn,
+  runExistingBoundaryQueryScaffoldCommand,
   runFeatureScaffoldCommand
 } from '../src/commands/feature';
 import { DEFAULT_ZTD_CONFIG } from '../src/utils/ztdProjectConfig';
@@ -91,6 +93,12 @@ test('normalizeFeatureName enforces resource-action kebab-case', () => {
   expect(normalizeFeatureName('users-insert')).toBe('users-insert');
   expect(() => normalizeFeatureName('users')).toThrow(/resource-action/i);
   expect(() => normalizeFeatureName('3users-insert')).toThrow(/start with a letter/i);
+});
+
+test('normalizeChildQueryName enforces kebab-case child-boundary names', () => {
+  expect(normalizeChildQueryName('insert-sales-detail')).toBe('insert-sales-detail');
+  expect(() => normalizeChildQueryName('insert_sales_detail')).toThrow(/kebab-case/i);
+  expect(() => normalizeChildQueryName('3-insert-sales-detail')).toThrow(/start with a letter/i);
 });
 
 test('generated metadata assessment reports missing PK contract even when manifest exists', () => {
@@ -205,6 +213,203 @@ test('resolvePrimaryKeyColumn rejects missing and composite primary keys', () =>
       columns: []
     })
   ).toThrow(/composite primary keys/i);
+});
+
+test('runExistingBoundaryQueryScaffoldCommand dry-run plans an additive query under an existing feature boundary', async () => {
+  const workspace = createTempDir('feature-query-scaffold-dry-run');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
+  const featureDir = path.join(workspace, 'src', 'features', 'sales-insert');
+  mkdirSync(ddlDir, { recursive: true });
+  mkdirSync(featureDir, { recursive: true });
+  writeFileSync(path.join(featureDir, 'boundary.ts'), '// existing parent boundary\n', 'utf8');
+  writeFileSync(
+    path.join(ddlDir, 'sales_detail.sql'),
+    [
+      'create table public.sales_detail (',
+      '  id serial primary key,',
+      '  sales_id integer not null,',
+      '  amount numeric not null',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  const result = await runExistingBoundaryQueryScaffoldCommand({
+    feature: 'sales-insert',
+    table: 'sales_detail',
+    action: 'insert',
+    queryName: 'insert-sales-detail',
+    dryRun: true,
+    rootDir: workspace
+  });
+
+  expect(result.boundaryPath).toBe('src/features/sales-insert');
+  expect(result.resolutionSource).toBe('feature');
+  expect(result.outputs.map((output) => output.path)).toEqual(expect.arrayContaining([
+    'src/features/sales-insert/queries',
+    'src/features/sales-insert/queries/insert-sales-detail',
+    'src/features/sales-insert/queries/insert-sales-detail/boundary.ts',
+    'src/features/sales-insert/queries/insert-sales-detail/insert-sales-detail.sql'
+  ]));
+});
+
+test('runExistingBoundaryQueryScaffoldCommand writes a child query boundary without touching the parent boundary', async () => {
+  const workspace = createTempDir('feature-query-scaffold-write');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
+  const featureDir = path.join(workspace, 'src', 'features', 'sales-insert');
+  mkdirSync(ddlDir, { recursive: true });
+  mkdirSync(featureDir, { recursive: true });
+  const parentBoundary = path.join(featureDir, 'boundary.ts');
+  writeFileSync(parentBoundary, '// existing parent boundary\n', 'utf8');
+  writeFileSync(
+    path.join(ddlDir, 'sales_detail.sql'),
+    [
+      'create table public.sales_detail (',
+      '  id serial primary key,',
+      '  sales_id integer not null,',
+      '  amount numeric not null',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  await runExistingBoundaryQueryScaffoldCommand({
+    boundaryDir: path.join('src', 'features', 'sales-insert'),
+    table: 'sales_detail',
+    action: 'insert',
+    queryName: 'insert-sales-detail',
+    rootDir: workspace
+  });
+
+  expect(readFileSync(parentBoundary, 'utf8')).toBe('// existing parent boundary\n');
+  expect(existsSync(path.join(featureDir, 'queries', 'insert-sales-detail', 'boundary.ts'))).toBe(true);
+  expect(existsSync(path.join(featureDir, 'queries', 'insert-sales-detail', 'insert-sales-detail.sql'))).toBe(true);
+  expect(existsSync(path.join(featureDir, 'README.md'))).toBe(false);
+});
+
+test('runExistingBoundaryQueryScaffoldCommand renders dynamic shared imports for nested boundaries', async () => {
+  const workspace = createTempDir('feature-query-scaffold-nested');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
+  const boundaryDir = path.join(workspace, 'src', 'features', 'orders', 'write', 'sales-insert');
+  mkdirSync(ddlDir, { recursive: true });
+  mkdirSync(boundaryDir, { recursive: true });
+  writeFileSync(path.join(boundaryDir, 'boundary.ts'), '// nested parent boundary\n', 'utf8');
+  writeFileSync(
+    path.join(ddlDir, 'sales_detail.sql'),
+    [
+      'create table public.sales_detail (',
+      '  id serial primary key,',
+      '  sales_id integer not null,',
+      '  amount numeric not null',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  await runExistingBoundaryQueryScaffoldCommand({
+    boundaryDir: path.join('src', 'features', 'orders', 'write', 'sales-insert'),
+    table: 'sales_detail',
+    action: 'insert',
+    queryName: 'insert-sales-detail',
+    rootDir: workspace
+  });
+
+  const querySpecFile = readFileSync(
+    path.join(boundaryDir, 'queries', 'insert-sales-detail', 'boundary.ts'),
+    'utf8'
+  );
+  expect(querySpecFile).toContain("import type { FeatureQueryExecutor } from '../../../../../_shared/featureQueryExecutor.js';");
+  expect(querySpecFile).toContain("import { loadSqlResource } from '../../../../../_shared/loadSqlResource.js';");
+});
+
+test('runExistingBoundaryQueryScaffoldCommand fails fast when the parent boundary contract is invalid', async () => {
+  const workspace = createTempDir('feature-query-scaffold-invalid-boundary');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
+  const boundaryDir = path.join(workspace, 'src', 'features', 'sales-insert');
+  mkdirSync(ddlDir, { recursive: true });
+  mkdirSync(boundaryDir, { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'sales_detail.sql'),
+    [
+      'create table public.sales_detail (',
+      '  id serial primary key,',
+      '  sales_id integer not null,',
+      '  amount numeric not null',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  await expect(
+    runExistingBoundaryQueryScaffoldCommand({
+      boundaryDir: path.join('src', 'features', 'sales-insert'),
+      table: 'sales_detail',
+      action: 'insert',
+      queryName: 'insert-sales-detail',
+      rootDir: workspace
+    })
+  ).rejects.toThrow(/must contain boundary\.ts/i);
+});
+
+test('runExistingBoundaryQueryScaffoldCommand fails fast when queries is not a directory', async () => {
+  const workspace = createTempDir('feature-query-scaffold-invalid-queries');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
+  const featureDir = path.join(workspace, 'src', 'features', 'sales-insert');
+  mkdirSync(ddlDir, { recursive: true });
+  mkdirSync(featureDir, { recursive: true });
+  writeFileSync(path.join(featureDir, 'boundary.ts'), '// existing parent boundary\n', 'utf8');
+  writeFileSync(
+    path.join(ddlDir, 'sales_detail.sql'),
+    [
+      'create table public.sales_detail (',
+      '  id serial primary key,',
+      '  sales_id integer not null,',
+      '  amount numeric not null',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  writeFileSync(path.join(featureDir, 'queries'), 'not a directory\n', 'utf8');
+  await expect(
+    runExistingBoundaryQueryScaffoldCommand({
+      boundaryDir: path.join('src', 'features', 'sales-insert'),
+      table: 'sales_detail',
+      action: 'insert',
+      queryName: 'insert-sales-detail',
+      rootDir: workspace
+    })
+  ).rejects.toThrow(/queries\/ to be a directory/i);
+});
+
+test('runExistingBoundaryQueryScaffoldCommand fails fast when the target query already exists', async () => {
+  const workspace = createTempDir('feature-query-scaffold-existing-query');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
+  const featureDir = path.join(workspace, 'src', 'features', 'sales-insert');
+  mkdirSync(ddlDir, { recursive: true });
+  mkdirSync(path.join(featureDir, 'queries', 'insert-sales-detail'), { recursive: true });
+  writeFileSync(path.join(featureDir, 'boundary.ts'), '// existing parent boundary\n', 'utf8');
+  writeFileSync(
+    path.join(ddlDir, 'sales_detail.sql'),
+    [
+      'create table public.sales_detail (',
+      '  id serial primary key,',
+      '  sales_id integer not null,',
+      '  amount numeric not null',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  await expect(
+    runExistingBoundaryQueryScaffoldCommand({
+      boundaryDir: path.join('src', 'features', 'sales-insert'),
+      table: 'sales_detail',
+      action: 'insert',
+      queryName: 'insert-sales-detail',
+      rootDir: workspace
+    })
+  ).rejects.toThrow(/already exists/i);
 });
 
 test('runFeatureScaffoldCommand dry-run creates the new insert layout without test files', async () => {
