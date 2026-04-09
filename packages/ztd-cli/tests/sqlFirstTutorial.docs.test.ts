@@ -31,7 +31,7 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
   expectInOrder(tutorial, [
     'This tutorial shows the shortest path from `ztd init --starter` to a small `users` feature that can be changed, broken, and repaired with AI help.',
     'The tutorial uses one starter project, one `smoke` feature, and one `users` feature.',
-    'DDL repair | `npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail`',
+    'DDL repair | `npx ztd query uses column users.email --scope-dir src/features/users-insert --any-schema --view detail`',
     'SQL repair | `npx ztd model-gen --probe-mode ztd src/features/users-insert/queries/insert-users/insert-users.sql`',
     'DTO repair | `npx vitest run` after the DTO change',
     'migration | `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to prepare review output plus apply SQL',
@@ -77,8 +77,9 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
   expect(tutorial).toContain('If the returned id is null, stop and fix the scaffold or DDL instead of weakening the test.');
   expect(tutorial).toContain('Before writing the success-path assertion, inspect `insert-users.sql` and `boundary.ts`. If the scaffold does not actually return a non-null id, report that mismatch instead of inventing fixture data or schema overrides.');
   expect(tutorial).toContain('When the cases are ready, run `npx vitest run src/features/users-insert/queries/insert-users/tests/insert-users.boundary.ztd.test.ts` to execute the ZTD query test.');
-  expect(tutorial).toContain('npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail');
-  expect(tutorial).toContain('Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.');
+  expect(tutorial).toContain('npx ztd query uses column users.email --scope-dir src/features/users-insert --any-schema --view detail');
+  expect(tutorial).toContain('Passing the feature folder as `--scope-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.');
+  expect(tutorial).toContain('The older `--specs-dir` flag still works as a deprecated alias during the transition.');
   expect(tutorial).toContain('For SQL repair, keep the SQL assets under `src/features/users-insert/queries/insert-users/`, keep the query on the starter DDL\'s `users` table, and rerun `model-gen` against `src/features/users-insert/queries/insert-users/insert-users.sql` directly to inspect the generated contract on stdout before you update the handwritten query boundary.');
   expect(tutorial).toContain('If you want to save that output for reference or gradual migration, write it to a dedicated generated-contract file with `--out` instead of overwriting handwritten runtime files.');
   expect(tutorial).toContain('Do not target `src/features/users-insert/queries/insert-users/boundary.ts` with `--out`, because that file is the runtime boundary that also owns `loadSqlResource` and the execution flow.');

@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { applyQueryOutputControls, formatQueryUsageReport } from '../query/format';
 import { applyQueryPatch } from '../query/patch';
 import { buildQueryLintReport, formatQueryLintReport, type QueryLintFormat } from '../query/lint';
@@ -31,6 +31,7 @@ import {
 
 interface QueryUsesOptions {
   format?: string;
+  scopeDir?: string;
   specsDir?: string;
   sqlRoot?: string;
   excludeGenerated?: boolean;
@@ -103,6 +104,9 @@ export const QUERY_USES_COMMAND_SPANS = {
   renderOutput: 'render-query-usage-output',
 } as const;
 
+const QUERY_SCOPE_DIR_HELP = 'Limit discovery to one boundary or QuerySpec subtree instead of scanning the whole project';
+const QUERY_SCOPE_DIR_ALIAS_HELP = 'Deprecated alias for --scope-dir';
+
 /**
  * Register strict-first impact investigation commands on the CLI root.
  */
@@ -130,7 +134,7 @@ Notes:
   - Impact is the default view. Use --view detail for edit-ready locations/snippets.
   - Impact representatives may omit select snippets; use --view detail for edit-ready SELECT occurrences.
   - Project-wide discovery is the default. query uses scans QuerySpec entries discovered under the current project root.
-  - Use --specs-dir only to narrow the active spec set to one slice or sub-tree.
+  - Use --scope-dir only to narrow the active scan to one boundary or sub-tree.
   - Use --sql-root only when specs intentionally point into a shared SQL root instead of staying feature-local.
   - Use --exclude-generated to skip QuerySpec files under generated directories when those files are review-only noise.
   - Static column analysis is inherently uncertain and labels ambiguity via confidence/notes.
@@ -149,7 +153,8 @@ Notes:
     .description('Find statements that use a table target')
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--view <view>', 'Investigation view (impact|detail)', 'impact')
-    .option('--specs-dir <path>', 'Limit discovery to one QuerySpec subtree instead of scanning the whole project')
+    .addOption(new Option('--scope-dir <path>', QUERY_SCOPE_DIR_HELP))
+    .addOption(new Option('--specs-dir <path>', QUERY_SCOPE_DIR_ALIAS_HELP).hideHelp())
     .option('--sql-root <path>', 'Optional fallback root for shared sqlFile layouts when specs are not feature-local')
     .option('--exclude-generated', 'Exclude QuerySpec files under generated directories from scan targets')
     .option('--out <path>', 'Write output to file')
@@ -167,7 +172,8 @@ Notes:
     .description('Find statements that use a column target')
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--view <view>', 'Investigation view (impact|detail)', 'impact')
-    .option('--specs-dir <path>', 'Limit discovery to one QuerySpec subtree instead of scanning the whole project')
+    .addOption(new Option('--scope-dir <path>', QUERY_SCOPE_DIR_HELP))
+    .addOption(new Option('--specs-dir <path>', QUERY_SCOPE_DIR_ALIAS_HELP).hideHelp())
     .option('--sql-root <path>', 'Optional fallback root for shared sqlFile layouts when specs are not feature-local')
     .option('--exclude-generated', 'Exclude QuerySpec files under generated directories from scan targets')
     .option('--out <path>', 'Write output to file')
@@ -182,7 +188,7 @@ Notes:
 Notes:
   - Impact is the default view. Use --view detail if you need edit-ready locations/snippets.
   - Impact representatives may omit select snippets; use --view detail for edit-ready SELECT occurrences.
-  - Project-wide discovery is the default. Use --specs-dir only when you want to narrow the active spec set.
+  - Project-wide discovery is the default. Use --scope-dir only when you want to narrow the active scan.
   - Feature-local spec-relative sqlFile values are the preferred contract. Use --sql-root only for shared-root fallback.
   - exprHints: best-effort only. Absence of exprHints does not imply the feature is not present.
 `
@@ -322,11 +328,16 @@ function runQueryUsesCommand(kind: 'table' | 'column', target: string | undefine
     jsonPayload: Boolean(options.json),
   });
 
+  const scopeDir = normalizeStringOption(resolved.merged.scopeDir) ?? normalizeStringOption(resolved.merged.specsDir);
+  if (!normalizeStringOption(resolved.merged.scopeDir) && normalizeStringOption(resolved.merged.specsDir)) {
+    console.error('Warning: --specs-dir is deprecated for `query uses`; use --scope-dir instead.');
+  }
+
   const report = buildQueryUsageReport({
     kind,
     rawTarget: resolved.resolvedTarget,
     rootDir: process.env.ZTD_PROJECT_ROOT,
-    specsDir: normalizeStringOption(resolved.merged.specsDir),
+    specsDir: scopeDir,
     sqlRoot: normalizeStringOption(resolved.merged.sqlRoot),
     excludeGenerated: normalizeBooleanOption(resolved.merged.excludeGenerated),
     view: resolved.view,

@@ -52,8 +52,9 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'The starter setup derives `ZTD_DB_URL` from `.env`',
         'If port `5432` is already in use, update `ZTD_DB_PORT` in `.env` before you rerun the compose path, for example:',
         'Copy-Item .env.example .env',
-        'npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail',
-        'Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.',
+        'npx ztd query uses column users.email --scope-dir src/features/users-insert --any-schema --view detail',
+        'Passing the feature folder as `--scope-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.',
+        'The older `--specs-dir` flag still works as a deprecated alias during the transition.',
         'npx ztd model-gen --probe-mode ztd src/features/users-insert/queries/insert-users/insert-users.sql',
         'Do not target `src/features/users-insert/queries/insert-users/boundary.ts` with `--out`, because that file is the runtime boundary that also owns `loadSqlResource` and the execution flow.',
         'model-gen` now treats the SQL file location as the primary contract source',
@@ -88,7 +89,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'npx ztd model-gen --probe-mode ztd src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts',
         '`ZTD_DB_URL` is the only implicit database owned by ztd-cli.',
         'Use `--url` or a full `--db-*` flag set for any other inspection target.',
-        'The feature folder is one narrowed spec set inside the normal project-wide discovery flow.',
+        'The feature folder is one narrowed scan scope inside the normal project-wide discovery flow.',
         'inspect the structured risks second',
         'Do not apply migrations automatically.'
       ]
@@ -97,9 +98,10 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       docPath: 'docs/guide/query-uses-impact-checks.md',
       phrases: [
         'The active scan set is **project-wide by default**.',
-        'Use `--specs-dir` only when you want to narrow the scan to one slice or sub-tree.',
+        'Use `--scope-dir` only when you want to narrow the scan to one slice or sub-tree.',
+        '`--specs-dir` remains as a deprecated compatibility alias for now.',
         'prefers feature-local spec-relative paths, then tries project-relative paths',
-        'npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail'
+        'npx ztd query uses column users.email --scope-dir src/features/users/persistence --any-schema --view detail'
       ]
     },
     {
