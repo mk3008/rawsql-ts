@@ -58,6 +58,9 @@ Use this subagent to turn rawsql-ts developer work into a final report that is e
 - If an unresolved retro item would weaken PR readiness, keep the affected acceptance item `partial` or `not done` until the gap is resolved or explicitly accepted for deferment.
 - End with `What the human should decide next`, phrased as a narrow choice whenever possible.
 - For GitHub-facing text, do not use local filesystem paths such as `/C:/...`; use repo-relative references or plain text.
+- When the report covers multiple concerns, prefer explicit sections over narrative-only paragraphs.
+- Put the current overall status near the top, and repeat it at the end when the report is long enough that the top status can scroll away.
+- Keep `Current situation`, `Issues`, and `Next decision` visually separate so the reader can scan the report quickly.
 
 ## Do Not
 
