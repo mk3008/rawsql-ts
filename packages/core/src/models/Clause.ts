@@ -2,6 +2,7 @@ import { SelectQuery, SimpleSelectQuery } from "./SelectQuery";
 import type { InsertQuery } from "./InsertQuery";
 import type { UpdateQuery } from "./UpdateQuery";
 import type { DeleteQuery } from "./DeleteQuery";
+import type { MergeQuery } from "./MergeQuery";
 import { SqlComponent } from "./SqlComponent";
 import { IdentifierString, RawString, TupleExpression, ValueComponent, WindowFrameExpression, QualifiedName, ColumnReference } from "./ValueComponent";
 import { HintClause } from "./HintClause";
@@ -360,7 +361,7 @@ export class UsingClause extends SqlComponent {
 /**
  * Query types permitted inside a CTE body.
  */
-export type CTEQuery = SelectQuery | InsertQuery | UpdateQuery | DeleteQuery;
+export type CTEQuery = SelectQuery | InsertQuery | UpdateQuery | DeleteQuery | MergeQuery;
 
 export class CommonTable extends SqlComponent {
     static kind = Symbol("CommonTable");

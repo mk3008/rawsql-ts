@@ -2952,6 +2952,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(clause.accept(this));
         }
 
+        if (arg.returningClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.returningClause.accept(this));
+        }
+
         return token;
     }
 

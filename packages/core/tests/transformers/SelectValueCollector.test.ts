@@ -177,4 +177,27 @@ describe('SelectItemCollector', () => {
         expect(selectItems.length).toBe(1);
         expect(selectItems[0].name).toBe('total_tax');
     });
+
+    test('collects select items from MERGE RETURNING CTE output', () => {
+        // Arrange
+        const sql = `
+            WITH merged AS (
+                MERGE INTO users AS target
+                USING incoming_users AS source
+                ON target.user_id = source.user_id
+                WHEN MATCHED THEN UPDATE SET name = source.name
+                WHEN NOT MATCHED THEN INSERT (user_id, name) VALUES (source.user_id, source.name)
+                RETURNING target.user_id AS user_id, target.name AS name
+            )
+            SELECT * FROM merged
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SelectValueCollector();
+
+        // Act
+        const selectItems = collector.collect(query);
+
+        // Assert
+        expect(selectItems.map(item => item.name)).toEqual(['user_id', 'name']);
+    });
 });
