@@ -181,7 +181,7 @@ If you want a deeper walkthrough, keep that in the linked guides instead of expa
 |---|---|
 | `ztd init --starter` | Scaffold the starter project with smoke, DDL, compose, and local Postgres wiring. |
 | `ztd feature scaffold --table <table> --action <insert/update/delete/get-by-id/list>` | Scaffold a feature-local CRUD/SELECT slice with SQL, `boundary.ts` entrypoints, README, and a thin tests entrypoint. |
-| `ztd feature query scaffold --query-name <name> --table <table> --action <insert/update/delete/get-by-id/list>` | Add one child query boundary under an existing boundary folder without rewriting the parent boundary. |
+| `ztd feature query scaffold --query-name <name> --table <table> --action <insert/update/delete/get-by-id/list>` | Add one child query boundary under an existing boundary folder without rewriting the parent boundary. Target selection uses `--feature` first, then `--boundary-dir`, then the current working directory. |
 | `ztd feature tests scaffold --feature <feature-name>` | Refresh `tests/generated/TEST_PLAN.md` and `analysis.json`, create the thin `<query-name>.boundary.ztd.test.ts` Vitest entrypoint when missing, and keep `tests/cases/` as human/AI-owned persistent cases. |
 | `ztd agents init` | Add the optional Codex bootstrap files. |
 | `ztd ztd-config` | Regenerate `TestRowMap` and runtime fixture metadata from DDL without Docker. |

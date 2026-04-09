@@ -111,6 +111,9 @@ interface ExistingBoundaryQueryScaffoldPaths {
   querySpecFile: string;
   querySqlFile: string;
   entrySpecFile: string;
+  sharedDir: string;
+  featureQueryExecutorFile: string;
+  loadSqlResourceFile: string;
   createsQueriesDir: boolean;
 }
 
@@ -312,7 +315,7 @@ export async function runExistingBoundaryQueryScaffoldCommand(
   const primaryKeyColumn = resolvePrimaryKeyColumn(input.table);
   const resolvedBoundary = resolveExistingBoundaryFolder(rootDir, options);
   assertExistingBoundaryFolderContract(rootDir, resolvedBoundary.boundaryDir);
-  const paths = buildExistingBoundaryQueryScaffoldPaths(resolvedBoundary.boundaryDir, queryName);
+  const paths = buildExistingBoundaryQueryScaffoldPaths(rootDir, resolvedBoundary.boundaryDir, queryName);
   assertExistingBoundaryQueryWriteSafety(paths);
   const contents = renderExistingBoundaryQueryScaffoldFiles({
     rootDir,
@@ -325,6 +328,7 @@ export async function runExistingBoundaryQueryScaffoldCommand(
   });
 
   const outputs: ExistingBoundaryQueryScaffoldResult['outputs'] = [
+    ...buildSharedOutputs(rootDir, paths, !options.dryRun),
     ...(paths.createsQueriesDir
       ? [{ path: toProjectRelativePath(rootDir, paths.queriesDir), written: !options.dryRun, kind: 'directory' as const }]
       : []),
@@ -347,8 +351,11 @@ export async function runExistingBoundaryQueryScaffoldCommand(
     };
   }
 
+  ensureDirectory(paths.sharedDir);
   ensureDirectory(paths.queriesDir);
   ensureDirectory(paths.queryDir);
+  writeFileIfMissing(paths.featureQueryExecutorFile, contents.featureQueryExecutorFile);
+  writeFileIfMissing(paths.loadSqlResourceFile, contents.loadSqlResourceFile);
   writeFileSync(paths.querySpecFile, contents.querySpecFile, 'utf8');
   writeFileSync(paths.querySqlFile, contents.querySqlFile, 'utf8');
 
@@ -656,11 +663,13 @@ function buildFeatureScaffoldPaths(rootDir: string, featureName: string, queryNa
 }
 
 function buildExistingBoundaryQueryScaffoldPaths(
+  rootDir: string,
   boundaryDir: string,
   queryName: string
 ): ExistingBoundaryQueryScaffoldPaths {
   const queriesDir = path.join(boundaryDir, 'queries');
   const queryDir = path.join(queriesDir, queryName);
+  const sharedDir = path.join(rootDir, 'src', 'features', '_shared');
   return {
     boundaryDir,
     queriesDir,
@@ -668,6 +677,9 @@ function buildExistingBoundaryQueryScaffoldPaths(
     querySpecFile: path.join(queryDir, 'boundary.ts'),
     querySqlFile: path.join(queryDir, `${queryName}.sql`),
     entrySpecFile: path.join(boundaryDir, 'boundary.ts'),
+    sharedDir,
+    featureQueryExecutorFile: path.join(sharedDir, 'featureQueryExecutor.ts'),
+    loadSqlResourceFile: path.join(sharedDir, 'loadSqlResource.ts'),
     createsQueriesDir: !existsSync(queriesDir)
   };
 }
@@ -701,23 +713,7 @@ function renderFeatureScaffoldFiles(params: {
   const requestFields = actionPlan.requestColumns.map((column) => toRenderField(column));
   const responseFields = actionPlan.resultColumns.map((column) => toRenderField(column));
   const sqlFile = renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn);
-  const featureQueryExecutorFile = [
-    '// Shared runtime contract for scaffolded features.',
-    '// Inject your DB execution implementation at this seam from the application runtime.',
-    'export interface FeatureQueryExecutor {',
-    '  query<T = unknown>(sql: string, params: Record<string, unknown>): Promise<T[]>;',
-    '}',
-    ''
-  ].join('\n');
-  const loadSqlResourceFile = [
-    "import { readFileSync } from 'node:fs';",
-    "import path from 'node:path';",
-    '',
-    'export function loadSqlResource(currentDir: string, relativePath: string): string {',
-    "  return readFileSync(path.join(currentDir, relativePath), 'utf8');",
-    '}',
-    ''
-  ].join('\n');
+  const sharedSupportFiles = renderFeatureSharedSupportFiles();
   const entrySpecFile = renderEntrySpecFile({
     action: params.action,
     featureName: params.featureName,
@@ -765,8 +761,8 @@ function renderFeatureScaffoldFiles(params: {
     querySpecFile,
     querySqlFile: sqlFile,
     readmeFile,
-    featureQueryExecutorFile,
-    loadSqlResourceFile
+    featureQueryExecutorFile: sharedSupportFiles.featureQueryExecutorFile,
+    loadSqlResourceFile: sharedSupportFiles.loadSqlResourceFile
   };
 }
 
@@ -850,6 +846,8 @@ function renderExistingBoundaryQueryScaffoldFiles(params: {
 }): {
   querySpecFile: string;
   querySqlFile: string;
+  featureQueryExecutorFile: string;
+  loadSqlResourceFile: string;
 } {
   const sharedImports = resolveFeatureSharedImportPaths(
     params.rootDir,
@@ -861,6 +859,7 @@ function renderExistingBoundaryQueryScaffoldFiles(params: {
   const actionPlan = buildActionPlan(params.action, params.table, params.primaryKeyColumn);
   const requestFields = actionPlan.requestColumns.map((column) => toRenderField(column));
   const responseFields = actionPlan.resultColumns.map((column) => toRenderField(column));
+  const sharedSupportFiles = renderFeatureSharedSupportFiles();
 
   return {
     querySpecFile: renderQuerySpecFile({
@@ -874,7 +873,9 @@ function renderExistingBoundaryQueryScaffoldFiles(params: {
       sharedExecutorImportPath: sharedImports.executorImportPath,
       sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath
     }),
-    querySqlFile: renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn)
+    querySqlFile: renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn),
+    featureQueryExecutorFile: sharedSupportFiles.featureQueryExecutorFile,
+    loadSqlResourceFile: sharedSupportFiles.loadSqlResourceFile
   };
 }
 
@@ -926,11 +927,12 @@ function resolveFeatureSharedImportPaths(
     vitestAliasPrefix: '#features'
   });
   if (importAliasSupport === 'partial') {
-    throw new Error(
-      `${commandLabel} found partial #features alias configuration. Configure package.json#imports, tsconfig.json compilerOptions.paths, and vitest.config.ts resolve.alias together, or remove the partial alias setup.`
-    );
-  }
-  if (importAliasSupport === 'supported') {
+    emitDiagnostic({
+      code: 'feature-scaffold.partial-alias-fallback',
+      severity: 'warning',
+      message: `${commandLabel} found partial #features alias configuration. Falling back to relative imports for generated files. Configure package.json#imports, tsconfig.json compilerOptions.paths, and vitest.config.ts resolve.alias together to enable stable #features imports.`
+    });
+  } else if (importAliasSupport === 'supported') {
     return {
       executorImportPath: FEATURE_SHARED_EXECUTOR_IMPORT_PATH,
       loadSqlResourceImportPath: FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH
@@ -944,6 +946,31 @@ function resolveFeatureSharedImportPaths(
     loadSqlResourceImportPath: normalizeCliPath(
       path.relative(queryDir, path.join(rootDir, 'src', 'features', '_shared', 'loadSqlResource.js'))
     )
+  };
+}
+
+function renderFeatureSharedSupportFiles(): {
+  featureQueryExecutorFile: string;
+  loadSqlResourceFile: string;
+} {
+  return {
+    featureQueryExecutorFile: [
+      '// Shared runtime contract for scaffolded features.',
+      '// Inject your DB execution implementation at this seam from the application runtime.',
+      'export interface FeatureQueryExecutor {',
+      '  query<T = unknown>(sql: string, params: Record<string, unknown>): Promise<T[]>;',
+      '}',
+      ''
+    ].join('\n'),
+    loadSqlResourceFile: [
+      "import { readFileSync } from 'node:fs';",
+      "import path from 'node:path';",
+      '',
+      'export function loadSqlResource(currentDir: string, relativePath: string): string {',
+      "  return readFileSync(path.join(currentDir, relativePath), 'utf8');",
+      '}',
+      ''
+    ].join('\n')
   };
 }
 
@@ -2250,7 +2277,7 @@ function toFeatureResourceSegment(tableName: string): string {
 
 function buildSharedOutputs(
   rootDir: string,
-  paths: FeatureScaffoldPaths,
+  paths: Pick<FeatureScaffoldPaths, 'sharedDir' | 'featureQueryExecutorFile' | 'loadSqlResourceFile'>,
   written: boolean
 ): FeatureScaffoldResult['outputs'] {
   const outputs: FeatureScaffoldResult['outputs'] = [];

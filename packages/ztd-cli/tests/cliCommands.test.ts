@@ -410,6 +410,7 @@ test(
       'src/features/sales-insert/queries/insert-sales-detail/boundary.ts',
       'src/features/sales-insert/queries/insert-sales-detail/insert-sales-detail.sql'
     ]));
+    expect(plannedPaths).not.toContain('src/features/sales-insert/boundary.ts');
   },
   60000,
 );

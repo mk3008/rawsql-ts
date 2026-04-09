@@ -284,6 +284,8 @@ test('runExistingBoundaryQueryScaffoldCommand writes a child query boundary with
   expect(readFileSync(parentBoundary, 'utf8')).toBe('// existing parent boundary\n');
   expect(existsSync(path.join(featureDir, 'queries', 'insert-sales-detail', 'boundary.ts'))).toBe(true);
   expect(existsSync(path.join(featureDir, 'queries', 'insert-sales-detail', 'insert-sales-detail.sql'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'features', '_shared', 'featureQueryExecutor.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'features', '_shared', 'loadSqlResource.ts'))).toBe(true);
   expect(existsSync(path.join(featureDir, 'README.md'))).toBe(false);
 });
 
@@ -410,6 +412,37 @@ test('runExistingBoundaryQueryScaffoldCommand fails fast when the target query a
       rootDir: workspace
     })
   ).rejects.toThrow(/already exists/i);
+});
+
+test('runExistingBoundaryQueryScaffoldCommand rejects feature and boundaryDir together', async () => {
+  const workspace = createTempDir('feature-query-scaffold-exclusive-flags');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
+  const featureDir = path.join(workspace, 'src', 'features', 'sales-insert');
+  mkdirSync(ddlDir, { recursive: true });
+  mkdirSync(featureDir, { recursive: true });
+  writeFileSync(path.join(featureDir, 'boundary.ts'), '// existing parent boundary\n', 'utf8');
+  writeFileSync(
+    path.join(ddlDir, 'sales_detail.sql'),
+    [
+      'create table public.sales_detail (',
+      '  id serial primary key,',
+      '  sales_id integer not null,',
+      '  amount numeric not null',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  await expect(
+    runExistingBoundaryQueryScaffoldCommand({
+      feature: 'sales-insert',
+      boundaryDir: path.join('src', 'features', 'sales-insert'),
+      table: 'sales_detail',
+      action: 'insert',
+      queryName: 'insert-sales-detail',
+      rootDir: workspace
+    })
+  ).rejects.toThrow(/feature.*boundary-dir|boundary-dir.*feature|not both/i);
 });
 
 test('runFeatureScaffoldCommand dry-run creates the new insert layout without test files', async () => {
@@ -644,7 +677,7 @@ test('runFeatureScaffoldCommand uses stable shared imports when the workspace su
   expect(querySpecFile).toContain("import { loadSqlResource } from '#features/_shared/loadSqlResource.js';");
 });
 
-test('runFeatureScaffoldCommand fails fast when #features alias support is partial', async () => {
+test('runFeatureScaffoldCommand falls back to relative imports when #features alias support is partial', async () => {
   const workspace = createTempDir('feature-scaffold-partial-import-alias');
   const ddlDir = path.join(workspace, 'db', 'ddl');
   mkdirSync(ddlDir, { recursive: true });
@@ -674,13 +707,18 @@ test('runFeatureScaffoldCommand fails fast when #features alias support is parti
     'utf8'
   );
 
-  await expect(
-    runFeatureScaffoldCommand({
-      table: 'users',
-      action: 'insert',
-      rootDir: workspace
-    })
-  ).rejects.toThrow(/partial #features alias configuration/i);
+  await runFeatureScaffoldCommand({
+    table: 'users',
+    action: 'insert',
+    rootDir: workspace
+  });
+
+  const querySpecFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'),
+    'utf8'
+  );
+  expect(querySpecFile).toContain("import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';");
+  expect(querySpecFile).toContain("import { loadSqlResource } from '../../../_shared/loadSqlResource.js';");
 });
 
 test('runFeatureScaffoldCommand uses default values when every insert column is DB-generated', async () => {
