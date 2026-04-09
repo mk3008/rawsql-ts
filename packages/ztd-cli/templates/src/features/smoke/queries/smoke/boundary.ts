@@ -2,8 +2,8 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
-import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';
-import { loadSqlResource } from '../../../_shared/loadSqlResource.js';
+import type { FeatureQueryExecutor } from '#features/_shared/featureQueryExecutor.js';
+import { loadSqlResource } from '#features/_shared/loadSqlResource.js';
 
 const smokeSqlResource = loadSqlResource(dirname(fileURLToPath(import.meta.url)), 'smoke.sql');
 

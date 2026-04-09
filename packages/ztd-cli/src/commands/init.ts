@@ -2041,6 +2041,28 @@ function ensurePackageJsonFormatting(
     changed = true;
   }
 
+  const importsField = (parsed.imports as Record<string, unknown> | undefined) ?? {};
+  const requiredImports: Record<string, Record<string, string>> = {
+    '#features/*.js': {
+      types: './src/features/*.ts',
+      default: './dist/features/*.js'
+    },
+    '#tests/*.js': {
+      types: './tests/*.ts',
+      default: './tests/*.ts'
+    }
+  };
+  for (const [key, value] of Object.entries(requiredImports)) {
+    if (JSON.stringify(importsField[key]) === JSON.stringify(value)) {
+      continue;
+    }
+    importsField[key] = value;
+    changed = true;
+  }
+  if (Object.keys(importsField).length > 0) {
+    parsed.imports = importsField;
+  }
+
   const scripts = (parsed.scripts as Record<string, string> | undefined) ?? {};
   const requiredScripts: Record<string, string> = {
     test: 'vitest run --passWithNoTests',

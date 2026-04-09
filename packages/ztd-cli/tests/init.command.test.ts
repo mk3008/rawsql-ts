@@ -114,6 +114,8 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain(
     ".ztd/support/setup-env.ts"
   );
+  expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain("'#features'");
+  expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain("'#tests'");
   expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain(
     'ZTD_DB_PORT'
   );
@@ -121,10 +123,19 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
     type?: string;
     devDependencies: Record<string, string>;
+    imports?: Record<string, { types: string; default: string }>;
   };
   expect(packageJson.devDependencies).toHaveProperty('dotenv');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/sql-contract');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-core');
+  expect(packageJson.imports?.['#features/*.js']).toEqual({
+    types: './src/features/*.ts',
+    default: './dist/features/*.js'
+  });
+  expect(packageJson.imports?.['#tests/*.js']).toEqual({
+    types: './tests/*.ts',
+    default: './tests/*.ts'
+  });
   expect(result.summary).not.toContain('src/features/smoke/tests/smoke.test.ts');
   expect(result.summary).toContain('src/features/README.md');
   expect(result.summary).toContain('.env.example');
@@ -195,7 +206,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'smoke.sql'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'boundary-ztd-types.ts'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'boundary-ztd-types.ts'))).toContain(
-    "from '../../../../../../tests/support/ztd/case-types.js'"
+    "from '#tests/support/ztd/case-types.js'"
   );
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'cases', 'basic.case.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'TEST_PLAN.md'))).toBe(true);
@@ -220,7 +231,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'))).toContain('Validation should reject before the query lane runs.');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'))).toContain('runQuerySpecZtdCases');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'))).toContain(
-    "from '../../../../../../tests/support/ztd/harness.js'"
+    "from '#tests/support/ztd/harness.js'"
   );
   expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'infrastructure', 'telemetry', 'types.ts'))).toBe(true);
@@ -239,6 +250,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
     type?: string;
     devDependencies: Record<string, string>;
+    imports?: Record<string, { types: string; default: string }>;
   };
   expect(packageJson.devDependencies).toHaveProperty('dotenv');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/sql-contract');
@@ -246,6 +258,14 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-postgres');
   expect(packageJson.devDependencies).toHaveProperty('pg');
   expect(packageJson.devDependencies).toHaveProperty('@types/pg');
+  expect(packageJson.imports?.['#features/*.js']).toEqual({
+    types: './src/features/*.ts',
+    default: './dist/features/*.js'
+  });
+  expect(packageJson.imports?.['#tests/*.js']).toEqual({
+    types: './tests/*.ts',
+    default: './tests/*.ts'
+  });
   expect(existsSync(path.join(workspace, '.ztd', 'support', 'testkit-client.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'))).toBe(true);
   expect(result.summary).toContain('compose.yaml');
@@ -458,6 +478,7 @@ test('init local-source mode links rawsql-ts dependencies from the monorepo with
 
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
     devDependencies: Record<string, string>;
+    imports?: Record<string, { types: string; default: string }>;
   };
   const localSourceGuardPath = path.join(workspace, 'scripts', 'local-source-guard.mjs');
 
@@ -475,6 +496,11 @@ test('init local-source mode links rawsql-ts dependencies from the monorepo with
     `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'ztd-cli')).replace(/\\/g, '/')}`
   );
   expect(packageJson.type).toBe('module');
+  expect(packageJson.imports?.['#features/*.js']?.default).toBe('./dist/features/*.js');
+  expect(packageJson.imports?.['#tests/*.js']).toEqual({
+    types: './tests/*.ts',
+    default: './tests/*.ts'
+  });
 });
 
 test('init starter local-source mode keeps starter rawsql-ts packages on file dependencies', async () => {
@@ -494,6 +520,7 @@ test('init starter local-source mode keeps starter rawsql-ts packages on file de
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
     type?: string;
     devDependencies: Record<string, string>;
+    imports?: Record<string, { types: string; default: string }>;
   };
 
   expect(packageJson.devDependencies['@rawsql-ts/sql-contract']).toBe(
@@ -509,6 +536,11 @@ test('init starter local-source mode keeps starter rawsql-ts packages on file de
     `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'ztd-cli')).replace(/\\/g, '/')}`
   );
   expect(packageJson.type).toBe('module');
+  expect(packageJson.imports?.['#features/*.js']?.default).toBe('./dist/features/*.js');
+  expect(packageJson.imports?.['#tests/*.js']).toEqual({
+    types: './tests/*.ts',
+    default: './tests/*.ts'
+  });
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd feature scaffold --table users --action insert');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd feature tests scaffold --feature users-insert');
