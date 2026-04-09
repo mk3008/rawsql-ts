@@ -316,6 +316,9 @@ export class CTECollector implements SqlComponentVisitor<void> {
                 }
             } else if (clause.action instanceof MergeInsertAction && clause.action.values) {
                 clause.action.values.accept(this);
+            } else if (!(clause.action instanceof MergeInsertAction)) {
+                const actionName = clause.action?.constructor?.name ?? 'UnknownMergeAction';
+                throw new Error(`[CTECollector] Unsupported MERGE action type: ${actionName}.`);
             }
         }
 

@@ -335,6 +335,10 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
     }
 
     private visitMergeQuery(query: MergeQuery): void {
+        if (query.withClause) {
+            this.registerCteNames(query.withClause);
+        }
+
         if (!this.selectableOnly && query.withClause) {
             query.withClause.accept(this);
         }
@@ -361,6 +365,9 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
                     }
                 } else if (clause.action instanceof MergeInsertAction && clause.action.values) {
                     clause.action.values.accept(this);
+                } else if (!(clause.action instanceof MergeInsertAction)) {
+                    const actionName = clause.action?.constructor?.name ?? 'UnknownMergeAction';
+                    throw new Error(`[TableSourceCollector] Unsupported MERGE action type: ${actionName}.`);
                 }
             }
         }
@@ -453,6 +460,12 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
      */
     private isCTETable(tableName: string): boolean {
         return this.cteNames.has(tableName);
+    }
+
+    private registerCteNames(withClause: WithClause): void {
+        for (const table of withClause.tables) {
+            this.cteNames.add(table.aliasExpression.table.name);
+        }
     }
 
     private visitParenSource(source: ParenSource): void {

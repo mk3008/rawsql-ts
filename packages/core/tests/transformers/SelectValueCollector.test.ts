@@ -261,4 +261,23 @@ describe('SelectItemCollector', () => {
         // Assert
         expect(selectItems.map(item => item.name)).toEqual(['id', 'name']);
     });
+
+    test('returns no select items for writable CTE without RETURNING', () => {
+        // Arrange
+        const sql = `
+            WITH inserted_no_return AS (
+                INSERT INTO users (name)
+                VALUES ('Alice')
+            )
+            SELECT * FROM inserted_no_return
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SelectValueCollector();
+
+        // Act
+        const selectItems = collector.collect(query);
+
+        // Assert
+        expect(selectItems).toHaveLength(0);
+    });
 });
