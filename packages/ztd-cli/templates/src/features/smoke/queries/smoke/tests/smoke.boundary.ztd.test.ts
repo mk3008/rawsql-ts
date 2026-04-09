@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { runQuerySpecZtdCases } from '../../../../../../tests/support/ztd/harness.js';
+import { runQuerySpecZtdCases } from '#tests/support/ztd/harness.js';
 import { executeSmokeQuerySpec } from '../boundary.js';
 import cases from './cases/basic.case.js';
 

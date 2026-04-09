@@ -289,7 +289,7 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
     'utf8'
   );
   expect(querySpecFile).toContain("import { z } from 'zod';");
-  expect(querySpecFile).toContain("import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';");
+  expect(querySpecFile).toContain("import type { FeatureQueryExecutor } from '#features/_shared/featureQueryExecutor.js';");
   expect(querySpecFile).toContain("const insertUsersSqlResource = loadSqlResource(__dirname, 'insert-users.sql');");
   expect(querySpecFile).toContain('const QueryParamsSchema = z.object({');
   expect(querySpecFile).toContain("}).strict();");

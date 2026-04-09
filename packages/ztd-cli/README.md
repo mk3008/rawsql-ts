@@ -125,11 +125,14 @@ After the cases are filled, run `npx vitest run src/features/<feature-name>/quer
 
 ## Import Paths
 
-As boundary depth grows, avoid making deep relative imports part of the architecture contract.
+As boundary depth grows, avoid making every import depth-sensitive by default.
 
-- Preferred direction: use a root-based import convention such as package `imports` (`#src/*`) or an equivalent alias that works in both TypeScript and runtime resolution.
+- The goal is boundary-change safety, not a blanket root-alias migration.
+- Keep local, nearby references relative when they move with the same boundary.
+- Stabilize only shared references that are likely to break when work is split horizontally and moved into a deeper child boundary, such as `src/features/_shared/*` or `tests/support/*`.
+- One workable tactic is package `imports` or an equivalent alias that works in both TypeScript and runtime resolution, but that is a means, not the architectural goal.
 - Minimum rule: imports that cross boundaries should make the target boundary explicit and go through its `boundary.ts` entrypoint.
-- If a project has not adopted a root alias yet, treat the alias migration as recommended follow-up before boundary nesting becomes deep.
+- Do not treat this issue as a reason to rewrite every scaffolded import to one style.
 
 ## Troubleshooting
 

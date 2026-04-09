@@ -5,6 +5,9 @@ import { Command } from 'commander';
 import { emitDiagnostic, isJsonOutput, writeCommandEnvelope } from '../utils/agentCli';
 import { ensureDirectory } from '../utils/fs';
 
+const TESTS_SUPPORT_HARNESS_IMPORT_PATH = '#tests/support/ztd/harness.js';
+const TESTS_SUPPORT_CASE_TYPES_IMPORT_PATH = '#tests/support/ztd/case-types.js';
+
 type FeatureTestsCommandOptions = {
   feature?: string;
   query?: string;
@@ -287,7 +290,7 @@ function renderFeatureTestScaffoldFiles(params: {
   )}\n`;
 
   const querySpecImportPath = '../boundary.js';
-  const harnessImportPath = '../../../../../../tests/support/ztd/harness.js';
+  const harnessImportPath = TESTS_SUPPORT_HARNESS_IMPORT_PATH;
   const casesImportPath = './cases/basic.case.js';
   const executorName = readExportedFunctionName(params.planDetails.querySpecSourcePath, 'execute', 'QuerySpec');
   const queryTypePrefix = toPascalCase(params.queryName);
@@ -350,7 +353,7 @@ function renderFeatureTestScaffoldFiles(params: {
   ].join('\n');
 
   const queryTypesFile = [
-    `import type { QuerySpecZtdCase } from '../../../../../../tests/support/ztd/case-types.js';`,
+    `import type { QuerySpecZtdCase } from '${TESTS_SUPPORT_CASE_TYPES_IMPORT_PATH}';`,
     '',
     `export type ${queryTypePrefix}BeforeDb = ${beforeDbTypeLiteral};`,
     `export type ${queryTypePrefix}Input = ${queryInputTypeLiteral};`,

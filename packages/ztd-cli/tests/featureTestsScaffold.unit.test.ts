@@ -85,7 +85,7 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
     'utf8'
   );
   expect(vitestEntrypointFile).toContain("import { expect, test } from 'vitest';");
-  expect(vitestEntrypointFile).toContain("import { runQuerySpecZtdCases } from '../../../../../../tests/support/ztd/harness.js';");
+  expect(vitestEntrypointFile).toContain("import { runQuerySpecZtdCases } from '#tests/support/ztd/harness.js';");
   expect(vitestEntrypointFile).toContain("import { executeBoundaryQuerySpec } from '../boundary.js';");
   expect(vitestEntrypointFile).toContain("import cases from './cases/basic.case.js';");
   expect(vitestEntrypointFile).toContain("import type { InsertUsersQueryBoundaryZtdCase } from './boundary-ztd-types.js';");
@@ -99,7 +99,7 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(queryTypesFile).toContain('export type InsertUsersBeforeDb = { public: { users: readonly { email?: unknown }[] } };');
   expect(queryTypesFile).toContain('export type InsertUsersInput = { email: unknown };');
   expect(queryTypesFile).toContain('export type InsertUsersOutput = Record<string, unknown>;');
-  expect(queryTypesFile).toContain("import type { QuerySpecZtdCase } from '../../../../../../tests/support/ztd/case-types.js';");
+  expect(queryTypesFile).toContain("import type { QuerySpecZtdCase } from '#tests/support/ztd/case-types.js';");
   expect(queryTypesFile).not.toContain('InsertUsersBeforeDb = Record<string, unknown>');
 
   const testPlanFile = readFileSync(

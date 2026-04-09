@@ -18,6 +18,8 @@ import { registerFeatureTestsScaffoldCommand } from './featureTests';
 const FEATURE_ACTIONS = ['insert', 'update', 'delete', 'get-by-id', 'list'] as const;
 type FeatureAction = (typeof FEATURE_ACTIONS)[number];
 const DEFAULT_PAGE_SIZE = 50;
+const FEATURE_SHARED_EXECUTOR_IMPORT_PATH = '#features/_shared/featureQueryExecutor.js';
+const FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH = '#features/_shared/loadSqlResource.js';
 const FIXED_LAYOUT_DESCRIPTION = [
   'src/features/<feature-name>/',
   '  boundary.ts',
@@ -1105,8 +1107,8 @@ function renderQuerySpecFile(params: {
     "import { dirname } from 'node:path';",
     "import { fileURLToPath } from 'node:url';",
     '',
-    "import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';",
-    "import { loadSqlResource } from '../../../_shared/loadSqlResource.js';",
+    `import type { FeatureQueryExecutor } from '${FEATURE_SHARED_EXECUTOR_IMPORT_PATH}';`,
+    `import { loadSqlResource } from '${FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH}';`,
     '',
     'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
@@ -1644,8 +1646,8 @@ function renderGetByIdQuerySpecFile(params: {
     "import { dirname } from 'node:path';",
     "import { fileURLToPath } from 'node:url';",
     '',
-    "import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';",
-    "import { loadSqlResource } from '../../../_shared/loadSqlResource.js';",
+    `import type { FeatureQueryExecutor } from '${FEATURE_SHARED_EXECUTOR_IMPORT_PATH}';`,
+    `import { loadSqlResource } from '${FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH}';`,
     '',
     'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
@@ -1733,9 +1735,9 @@ function renderListQuerySpecFile(params: {
     "import { dirname } from 'node:path';",
     "import { fileURLToPath } from 'node:url';",
     '',
-    "import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';",
+    `import type { FeatureQueryExecutor } from '${FEATURE_SHARED_EXECUTOR_IMPORT_PATH}';`,
     "import { createCatalogExecutor, type QuerySpec } from '@rawsql-ts/sql-contract';",
-    "import { loadSqlResource } from '../../../_shared/loadSqlResource.js';",
+    `import { loadSqlResource } from '${FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH}';`,
     '',
     `const DEFAULT_PAGE_SIZE = ${DEFAULT_PAGE_SIZE};`,
     'const __dirname = dirname(fileURLToPath(import.meta.url));',
