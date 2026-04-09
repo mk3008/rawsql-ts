@@ -68,6 +68,21 @@ jobs:
           echo "run=false" >> "$GITHUB_OUTPUT"
         fi
 
+    - name: Detect ztd-cli essential-gate changes
+      id: ztd_cli_gates
+      shell: bash
+      run: |
+        base_sha="${{ github.event.pull_request.base.sha }}"
+        head_sha="${{ github.event.pull_request.head.sha }}"
+        changed_files=$(git diff --name-only "$base_sha...$head_sha")
+        printf '%s\n' "$changed_files"
+
+        if printf '%s\n' "$changed_files" | grep -Eq '^(\.husky/pre-commit|\.github/workflows/pr-check\.yml|scripts/(run-ztd-cli-quality-gates|ztd-cli-quality-gates)\.js|docs/guide/ztd-cli-quality-gates\.md|packages/ztd-cli/|docs/guide/ztd-cli-)'; then
+          echo "run=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "run=false" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Build ZTD CLI dependencies
       if: steps.playground_changes.outputs.run == 'true'
       run: |
@@ -101,6 +116,10 @@ jobs:
     - name: Run generated-project verification lane
       if: steps.generated_project_changes.outputs.run == 'true'
       run: pnpm verify:generated-project-mode
+
+    - name: Run ztd-cli essential gates
+      if: steps.ztd_cli_gates.outputs.run == 'true'
+      run: node scripts/run-ztd-cli-quality-gates.js pr
 
     - name: Run parser benchmark (PR lightweight)
       run: pnpm run benchmark:parser:pr

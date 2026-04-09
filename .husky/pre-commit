@@ -17,7 +17,7 @@ ZTD_ONLY=true
 for file in $STAGED_FILES
 do
   case "$file" in
-    .husky/pre-commit|packages/ztd-cli/*|docs/guide/ztd-cli-*|.changeset/*|README.md)
+    .github/workflows/*|.husky/pre-commit|packages/ztd-cli/*|docs/guide/ztd-cli-*|scripts/run-ztd-cli-quality-gates.js|scripts/ztd-cli-quality-gates.js|.changeset/*|README.md)
       ;;
     *)
       ZTD_ONLY=false
@@ -28,18 +28,7 @@ done
 
 if [ "$ZTD_ONLY" = true ]; then
   echo "[pre-commit] Detected ztd-cli scoped changes."
-
-  echo "[pre-commit] Running ztd-cli typecheck..."
-  pnpm --filter @rawsql-ts/ztd-cli exec tsc --noEmit -p tsconfig.json
-
-  echo "[pre-commit] Running ztd-cli tests..."
-  pnpm --filter @rawsql-ts/ztd-cli test
-
-  echo "[pre-commit] Building ztd-cli..."
-  pnpm --filter @rawsql-ts/ztd-cli build
-
-  echo "[pre-commit] Running ztd-cli lint..."
-  pnpm --filter @rawsql-ts/ztd-cli lint
+  node scripts/run-ztd-cli-quality-gates.js pre-commit
 else
   echo "[pre-commit] Running workspace typecheck..."
   pnpm typecheck
