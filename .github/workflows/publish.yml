@@ -193,7 +193,7 @@ jobs:
           path: |
             tmp/runtime-checks
             tmp/published-package-check
-            ../tmp/published-package-check-standalone
+            tmp/published-package-check-standalone
 
   actual_publish:
     needs: [verify_publish_readiness, build_publish_artifacts, verify_publish_artifacts]

@@ -19,6 +19,7 @@ const tarCommand = "tar";
 const outputRoot = path.join(workspaceRoot, "tmp", "published-package-check");
 const tarballRoot = path.join(outputRoot, "tarballs");
 const packageRoot = path.join(outputRoot, "packages");
+const standalonePackageRoot = path.join(workspaceRoot, "tmp", "published-package-check-standalone");
 
 function parseArgs(argv) {
   const options = {
@@ -415,7 +416,7 @@ function verifyNpmConsumerSmoke(phaseAResult) {
 }
 
 function verifyPnpmStarterPath(packages) {
-  const appDir = path.resolve(workspaceRoot, "..", "tmp", "published-package-check-standalone", "pnpm-starter-path");
+  const appDir = path.join(standalonePackageRoot, "pnpm-starter-path");
   ensureCleanDir(appDir);
 
   const tarballDependencies = createTarballDependencyMap(packages);
@@ -465,7 +466,7 @@ function verifyPnpmStarterPath(packages) {
 }
 
 function verifyPnpmAdapterInstall(packages) {
-  const appDir = path.resolve(workspaceRoot, "..", "tmp", "published-package-check-standalone", "pnpm-adapter-path");
+  const appDir = path.join(standalonePackageRoot, "pnpm-adapter-path");
   ensureCleanDir(appDir);
 
   const tarballDependencies = createTarballDependencyMap(packages);
@@ -513,7 +514,7 @@ function verifyPnpmAdapterInstall(packages) {
 }
 
 function verifyPnpmTutorialModelGen(packages) {
-  const appDir = path.resolve(workspaceRoot, "..", "tmp", "published-package-check-standalone", "pnpm-tutorial-model-gen");
+  const appDir = path.join(standalonePackageRoot, "pnpm-tutorial-model-gen");
   ensureCleanDir(appDir);
 
   const tarballDependencies = createTarballDependencyMap(packages);
