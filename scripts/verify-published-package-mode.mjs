@@ -9,6 +9,7 @@ import {
   PNPM,
   ensureCleanDir,
   getWorkspacePackages,
+  loadValidatedPublishManifestContract,
   runWithOutput,
   writeJson,
 } from "./publish-workspace-utils.mjs";
@@ -18,6 +19,38 @@ const tarCommand = "tar";
 const outputRoot = path.join(workspaceRoot, "tmp", "published-package-check");
 const tarballRoot = path.join(outputRoot, "tarballs");
 const packageRoot = path.join(outputRoot, "packages");
+const standalonePackageRoot = path.join(workspaceRoot, "tmp", "published-package-check-standalone");
+
+function ensureStandaloneWorkspaceRoot() {
+  fs.mkdirSync(standalonePackageRoot, { recursive: true });
+  fs.writeFileSync(
+    path.join(standalonePackageRoot, "pnpm-workspace.yaml"),
+    "packages:\n  - '*'\n",
+    "utf8",
+  );
+}
+
+function parseArgs(argv) {
+  const options = {
+    publishManifestPath: null,
+    publishManifestProvided: false,
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--publish-manifest") {
+      const nextArg = argv[index + 1];
+      options.publishManifestProvided = true;
+      if (typeof nextArg !== "string" || nextArg.trim().length === 0) {
+        throw new Error("[published-package-mode] --publish-manifest requires a non-empty path.");
+      }
+      options.publishManifestPath = nextArg;
+      index += 1;
+    }
+  }
+
+  return options;
+}
 
 function sanitizePackageName(packageName) {
   return packageName.replace(/[^a-zA-Z0-9._-]+/g, "_");
@@ -175,6 +208,14 @@ function runIn(directory, command, args, options = {}) {
   });
 }
 
+function getInstalledBinPath(directory, binName) {
+  return path.join(directory, "node_modules", ".bin", IS_WINDOWS ? `${binName}.cmd` : binName);
+}
+
+function runInstalledZtdCli(directory, args) {
+  return runIn(directory, getInstalledBinPath(directory, "ztd"), args);
+}
+
 function createTarballDependencyMap(packages) {
   return Object.fromEntries(
     packages.map((pkg) => [pkg.name, toFileSpecifier(pkg.tarballPath)]),
@@ -264,6 +305,29 @@ function packPublishedPackages() {
   }
 
   return packed;
+}
+
+function loadPackedPackagesFromManifest(manifestPath) {
+  const resolvedManifestPath = path.isAbsolute(manifestPath)
+    ? manifestPath
+    : path.resolve(workspaceRoot, manifestPath);
+  const manifestContract = loadValidatedPublishManifestContract(resolvedManifestPath);
+
+  return manifestContract.packages.map((pkg) => {
+    const manifest = readPackedManifest(pkg.resolvedTarballPath);
+    const entries = listTarEntries(pkg.resolvedTarballPath);
+
+    assertTarballHasDist(entries, pkg.name);
+    assertNoWorkspaceProtocols(manifest, pkg.name);
+    assertManifestEntrypoints(manifest, entries, pkg.name);
+
+    return {
+      dir: pkg.dir,
+      manifest,
+      name: pkg.name,
+      tarballPath: pkg.resolvedTarballPath,
+    };
+  });
 }
 
 function verifyPackedTarballInstall(packages) {
@@ -369,7 +433,8 @@ function verifyNpmConsumerSmoke(phaseAResult) {
 }
 
 function verifyPnpmStarterPath(packages) {
-  const appDir = path.resolve(workspaceRoot, "..", "tmp", "published-package-check-standalone", "pnpm-starter-path");
+  ensureStandaloneWorkspaceRoot();
+  const appDir = path.join(standalonePackageRoot, "pnpm-starter-path");
   ensureCleanDir(appDir);
 
   const tarballDependencies = createTarballDependencyMap(packages);
@@ -386,10 +451,7 @@ function verifyPnpmStarterPath(packages) {
   });
 
   runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
-  runIn(appDir, PNPM, [
-    "exec",
-    "--",
-    "ztd",
+  runInstalledZtdCli(appDir, [
     "init",
     "--starter",
     "--with-ai-guidance",
@@ -419,7 +481,8 @@ function verifyPnpmStarterPath(packages) {
 }
 
 function verifyPnpmAdapterInstall(packages) {
-  const appDir = path.resolve(workspaceRoot, "..", "tmp", "published-package-check-standalone", "pnpm-adapter-path");
+  ensureStandaloneWorkspaceRoot();
+  const appDir = path.join(standalonePackageRoot, "pnpm-adapter-path");
   ensureCleanDir(appDir);
 
   const tarballDependencies = createTarballDependencyMap(packages);
@@ -436,10 +499,7 @@ function verifyPnpmAdapterInstall(packages) {
   });
 
   runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
-  runIn(appDir, PNPM, [
-    "exec",
-    "--",
-    "ztd",
+  runInstalledZtdCli(appDir, [
     "init",
     "--starter",
     "--with-ai-guidance",
@@ -467,7 +527,8 @@ function verifyPnpmAdapterInstall(packages) {
 }
 
 function verifyPnpmTutorialModelGen(packages) {
-  const appDir = path.resolve(workspaceRoot, "..", "tmp", "published-package-check-standalone", "pnpm-tutorial-model-gen");
+  ensureStandaloneWorkspaceRoot();
+  const appDir = path.join(standalonePackageRoot, "pnpm-tutorial-model-gen");
   ensureCleanDir(appDir);
 
   const tarballDependencies = createTarballDependencyMap(packages);
@@ -484,10 +545,7 @@ function verifyPnpmTutorialModelGen(packages) {
   });
 
   runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
-  runIn(appDir, PNPM, [
-    "exec",
-    "--",
-    "ztd",
+  runInstalledZtdCli(appDir, [
     "init",
     "--starter",
     "--with-ai-guidance",
@@ -526,12 +584,9 @@ function verifyPnpmTutorialModelGen(packages) {
     "utf8",
   );
 
-  runIn(appDir, PNPM, ["exec", "--", "ztd", "ztd-config"]);
+  runInstalledZtdCli(appDir, ["ztd-config"]);
 
   const modelGenArgs = [
-    "exec",
-    "--",
-    "ztd",
     "model-gen",
     "--probe-mode",
     "ztd",
@@ -543,7 +598,7 @@ function verifyPnpmTutorialModelGen(packages) {
   ];
 
   if (process.env.ZTD_TEST_DATABASE_URL) {
-    runIn(appDir, PNPM, modelGenArgs);
+    runInstalledZtdCli(appDir, modelGenArgs);
     const generatedSpec = fs.readFileSync(
       path.join(appDir, "src", "features", "users", "persistence", "users.spec.ts"),
       "utf8",
@@ -552,7 +607,7 @@ function verifyPnpmTutorialModelGen(packages) {
       throw new Error("[packaging contract] tutorial model-gen did not write the expected spec output.");
     }
   } else {
-    const describeOutput = runIn(appDir, PNPM, [...modelGenArgs, "--describe-output", "--output", "json"]);
+    const describeOutput = runInstalledZtdCli(appDir, [...modelGenArgs, "--describe-output", "--output", "json"]);
 
     const parsed = JSON.parse(describeOutput.stdout);
     if (parsed?.data?.outputs?.spec !== "TypeScript QuerySpec scaffold") {
@@ -613,13 +668,17 @@ function verifyOverwriteSafety(packages) {
 }
 
 function main() {
+  const options = parseArgs(process.argv.slice(2));
   ensureCleanDir(outputRoot);
   ensureCleanDir(tarballRoot);
   ensureCleanDir(packageRoot);
 
-  run(PNPM, ["build:publish"]);
-
-  const packedPackages = packPublishedPackages();
+  const packedPackages = options.publishManifestProvided
+    ? loadPackedPackagesFromManifest(options.publishManifestPath)
+    : (() => {
+        run(PNPM, ["build:publish"]);
+        return packPublishedPackages();
+      })();
   const packedInstallApp = verifyPackedTarballInstall(packedPackages);
   const npmPrimaryPathApp = verifyNpmPrimaryPath(packedPackages);
   const npmSmokeApp = verifyNpmConsumerSmoke(npmPrimaryPathApp);
@@ -632,6 +691,7 @@ function main() {
     checkedAt: new Date().toISOString(),
     node: process.version,
     platform: os.platform(),
+    verificationMode: options.publishManifestProvided ? "publish-manifest" : "workspace-pack",
     packedInstallApp,
     npmPrimaryPathApp: npmPrimaryPathApp.appDir,
     firstTestGateApp: npmSmokeApp,

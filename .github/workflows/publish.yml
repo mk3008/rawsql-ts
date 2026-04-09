@@ -2,6 +2,15 @@ name: Publish (manual)
 
 on:
   workflow_dispatch:
+    inputs:
+      verification_mode:
+        description: "release=real publish path, proof=hosted artifact verification without actual publish"
+        required: false
+        default: "release"
+        type: choice
+        options:
+          - release
+          - proof
 
 concurrency:
   group: publish-npm
@@ -20,6 +29,7 @@ env:
   ARTIFACTS_DIAGNOSTICS_ARTIFACT_NAME: publish-artifacts-diagnostics
   ARTIFACTS_CONTRACT_DIR: tmp/publish-contracts/artifacts
   ARTIFACTS_DOWNLOAD_ROOT: tmp/downloaded-contracts/artifacts
+  ARTIFACT_VERIFY_DIAGNOSTICS_ARTIFACT_NAME: publish-artifact-verify-diagnostics
 
 jobs:
   verify_publish_readiness:
@@ -32,6 +42,7 @@ jobs:
           fetch-depth: 0
 
       - name: Fail unless running from main
+        if: ${{ inputs.verification_mode != 'proof' }}
         shell: bash
         run: |
           # npm Trusted Publishing (OIDC) is typically configured against the workflow file on the default branch.
@@ -55,7 +66,18 @@ jobs:
 
       - name: Verify publish readiness
         id: plan
-        run: node ./scripts/publish-plan.mjs --github-output "$GITHUB_OUTPUT" --output-dir "${READINESS_CONTRACT_DIR}"
+        shell: bash
+        run: |
+          if [ "${{ inputs.verification_mode }}" = "proof" ]; then
+            node ./scripts/create-publish-proof-plan.mjs --output-dir "${READINESS_CONTRACT_DIR}"
+            {
+              echo "should_publish=true"
+              echo "publish_plan_path=${READINESS_CONTRACT_DIR}/publish-plan.json"
+              echo "publish_candidate_count=$(node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('${READINESS_CONTRACT_DIR}/publish-plan.json','utf8'));process.stdout.write(String(p.publishCandidates.length))")"
+            } >> "$GITHUB_OUTPUT"
+          else
+            node ./scripts/publish-plan.mjs --github-output "$GITHUB_OUTPUT" --output-dir "${READINESS_CONTRACT_DIR}"
+          fi
 
       - name: Upload publish readiness contract
         uses: actions/upload-artifact@v4
@@ -124,9 +146,58 @@ jobs:
           name: ${{ env.ARTIFACTS_DIAGNOSTICS_ARTIFACT_NAME }}
           path: tmp/runtime-checks
 
-  actual_publish:
+  verify_publish_artifacts:
     needs: [verify_publish_readiness, build_publish_artifacts]
     if: ${{ needs.verify_publish_readiness.outputs.should_publish == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup artifact verification runtime
+        uses: ./.github/actions/setup-publish-runtime
+        with:
+          node-version: "24"
+          use-pnpm: "true"
+          install-dependencies: "true"
+          update-npm: "false"
+          required-commands: "node,npm,pnpm"
+          warn-min-npm-version: "11.5.1"
+          label: "verify-publish-artifacts"
+
+      - name: Download built publish artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.ARTIFACTS_CONTRACT_ARTIFACT_NAME }}
+          path: ${{ env.ARTIFACTS_DOWNLOAD_ROOT }}
+
+      - name: Verify downloaded publish artifact contract
+        id: artifacts_contract
+        run: |
+          node ./scripts/verify-publish-contract.mjs \
+            --contract "artifacts" \
+            --artifact-root "${ARTIFACTS_DOWNLOAD_ROOT}" \
+            --label "verify-publish-artifacts-contract" \
+            --output "tmp/runtime-checks/verify-publish-artifacts-contract.json" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Run publish artifact verification
+        run: |
+          node ./scripts/verify-published-package-mode.mjs \
+            --publish-manifest "${{ steps.artifacts_contract.outputs.publish_manifest_path }}"
+
+      - name: Upload publish artifact verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_VERIFY_DIAGNOSTICS_ARTIFACT_NAME }}
+          path: |
+            tmp/runtime-checks
+            tmp/published-package-check
+            tmp/published-package-check-standalone
+
+  actual_publish:
+    needs: [verify_publish_readiness, build_publish_artifacts, verify_publish_artifacts]
+    if: ${{ needs.verify_publish_readiness.outputs.should_publish == 'true' && inputs.verification_mode != 'proof' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
