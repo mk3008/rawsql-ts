@@ -38,6 +38,13 @@
 - GitHub-facing reports MUST NOT use local filesystem links such as `/C:/...`; use repo-relative references or plain text.
 - If a GitHub-facing report contains a local filesystem path, final form is incomplete.
 - Reports MUST distinguish `tests were updated` from `tests passed`.
+- If any test or check fails, reports MUST name the failing test or check explicitly instead of collapsing it into a generic verification miss.
+- If any test or check fails, reports MUST state whether it is newly introduced by the current change or reproducible on the base branch without the change.
+- If any test or check fails, reports MUST state its decision weight explicitly, such as `required merge gate`, `non-required PR check`, or `local-only`.
+- If work proceeds despite a failing test or check, reports MUST explain why proceeding is acceptable for the current change in terms of category and pre-existing versus new failure status.
+- If work changes GitHub rulesets or branch protection, reports MUST state which merge blockers were changed or verified, not only the intended required status checks.
+- Ruleset or branch-protection reports MUST explicitly call out approval requirements, Code Owner review requirements, signed-commit requirements, and required status checks whenever those settings can affect mergeability.
+- Reports MUST NOT imply that bot review comments or `COMMENTED` review states satisfy an approval requirement; approval claims MUST name an approval-capable actor and review state.
 - If execution is blocked or not run, the affected item MUST remain `partial` or `not done`.
 - Reports MUST distinguish `Repository evidence` from `Supplementary evidence` when both appear.
 - `Repository evidence` means reviewer-checkable evidence that remains in the repo or CI-visible record, such as code, tests, snapshots, checked-in docs, and CI-visible outputs.
