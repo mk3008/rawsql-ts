@@ -7,16 +7,18 @@ const RELEASE_READINESS_PATTERNS = [
     patterns: [
       /^package\.json$/u,
       /^pnpm-lock\.yaml$/u,
+      /^packages\/ztd-cli\/README\.md$/u,
       /^packages\/ztd-cli\/package\.json$/u,
       /^packages\/ztd-cli\/src\/commands\/(?:feature|init)\.ts$/u,
       /^packages\/ztd-cli\/templates\//u,
-      /^docs\/guide\/(?:generated-project-verification|sql-first-end-to-end-tutorial|ztd-local-source-dogfooding)\.md$/u,
+      /^docs\/guide\/(?:generated-project-verification|getting-started|published-package-verification|sql-first-end-to-end-tutorial|ztd-cli-quality-gates|ztd-local-source-dogfooding)\.md$/u,
     ],
   },
   {
     kind: 'package-publish-shape',
     patterns: [
       /^packages\/(?:[^/]+\/)+package\.json$/u,
+      /^packages\/(?:[^/]+\/)+README\.md$/u,
       /^packages\/(?:[^/]+\/)+CHANGELOG\.md$/u,
       /^scripts\/sync-rawsql-dist\.js$/u,
     ],

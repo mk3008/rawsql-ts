@@ -28,6 +28,34 @@ test('release-readiness matches scaffold, publish workflow, and release-note pat
   ]);
 });
 
+test('release-readiness treats onboarding docs and package READMEs as release-affecting', () => {
+  const classification = classifyReleaseReadiness([
+    'packages/ztd-cli/README.md',
+    'docs/guide/published-package-verification.md',
+    'docs/guide/getting-started.md',
+  ]);
+
+  expect(classification.releaseAffecting).toBe(true);
+  expect(classification.matchedKinds).toEqual([
+    'package-publish-shape',
+    'scaffold-layout',
+  ]);
+  expect(classification.matchedFiles).toEqual([
+    {
+      filePath: 'packages/ztd-cli/README.md',
+      kinds: ['scaffold-layout', 'package-publish-shape'],
+    },
+    {
+      filePath: 'docs/guide/published-package-verification.md',
+      kinds: ['scaffold-layout'],
+    },
+    {
+      filePath: 'docs/guide/getting-started.md',
+      kinds: ['scaffold-layout'],
+    },
+  ]);
+});
+
 test('release-readiness matches package manifest changes as publish-shape changes', () => {
   const classification = classifyReleaseReadiness([
     'packages/ztd-cli/package.json',
@@ -62,10 +90,20 @@ test('release-readiness matches nested package manifests as publish-shape change
   ]);
 });
 
+test('release-readiness treats publish helper changes as release-affecting', () => {
+  const classification = classifyReleaseReadiness([
+    'scripts/build-publish-artifacts.mjs',
+    'scripts/verify-published-package-mode.mjs',
+  ]);
+
+  expect(classification.releaseAffecting).toBe(true);
+  expect(classification.matchedKinds).toEqual(['publish-workflow']);
+});
+
 test('release-readiness ignores ordinary package tests and docs outside the checklist', () => {
   const classification = classifyReleaseReadiness([
     'packages/ztd-cli/tests/queryLint.unit.test.ts',
-    'docs/guide/ztd-cli-quality-gates.md',
+    'docs/guide/overview.md',
   ]);
 
   expect(classification.releaseAffecting).toBe(false);

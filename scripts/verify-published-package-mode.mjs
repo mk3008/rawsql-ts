@@ -9,6 +9,7 @@ import {
   PNPM,
   ensureCleanDir,
   getWorkspacePackages,
+  loadValidatedPublishManifestContract,
   runWithOutput,
   writeJson,
 } from "./publish-workspace-utils.mjs";
@@ -18,6 +19,22 @@ const tarCommand = "tar";
 const outputRoot = path.join(workspaceRoot, "tmp", "published-package-check");
 const tarballRoot = path.join(outputRoot, "tarballs");
 const packageRoot = path.join(outputRoot, "packages");
+
+function parseArgs(argv) {
+  const options = {
+    publishManifestPath: null,
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--publish-manifest") {
+      options.publishManifestPath = argv[index + 1] ?? null;
+      index += 1;
+    }
+  }
+
+  return options;
+}
 
 function sanitizePackageName(packageName) {
   return packageName.replace(/[^a-zA-Z0-9._-]+/g, "_");
@@ -264,6 +281,29 @@ function packPublishedPackages() {
   }
 
   return packed;
+}
+
+function loadPackedPackagesFromManifest(manifestPath) {
+  const resolvedManifestPath = path.isAbsolute(manifestPath)
+    ? manifestPath
+    : path.resolve(workspaceRoot, manifestPath);
+  const manifestContract = loadValidatedPublishManifestContract(resolvedManifestPath);
+
+  return manifestContract.packages.map((pkg) => {
+    const manifest = readPackedManifest(pkg.resolvedTarballPath);
+    const entries = listTarEntries(pkg.resolvedTarballPath);
+
+    assertTarballHasDist(entries, pkg.name);
+    assertNoWorkspaceProtocols(manifest, pkg.name);
+    assertManifestEntrypoints(manifest, entries, pkg.name);
+
+    return {
+      dir: pkg.dir,
+      manifest,
+      name: pkg.name,
+      tarballPath: pkg.resolvedTarballPath,
+    };
+  });
 }
 
 function verifyPackedTarballInstall(packages) {
@@ -613,13 +653,17 @@ function verifyOverwriteSafety(packages) {
 }
 
 function main() {
+  const options = parseArgs(process.argv.slice(2));
   ensureCleanDir(outputRoot);
   ensureCleanDir(tarballRoot);
   ensureCleanDir(packageRoot);
 
-  run(PNPM, ["build:publish"]);
-
-  const packedPackages = packPublishedPackages();
+  const packedPackages = options.publishManifestPath
+    ? loadPackedPackagesFromManifest(options.publishManifestPath)
+    : (() => {
+        run(PNPM, ["build:publish"]);
+        return packPublishedPackages();
+      })();
   const packedInstallApp = verifyPackedTarballInstall(packedPackages);
   const npmPrimaryPathApp = verifyNpmPrimaryPath(packedPackages);
   const npmSmokeApp = verifyNpmConsumerSmoke(npmPrimaryPathApp);
@@ -632,6 +676,7 @@ function main() {
     checkedAt: new Date().toISOString(),
     node: process.version,
     platform: os.platform(),
+    verificationMode: options.publishManifestPath ? "publish-manifest" : "workspace-pack",
     packedInstallApp,
     npmPrimaryPathApp: npmPrimaryPathApp.appDir,
     firstTestGateApp: npmSmokeApp,
