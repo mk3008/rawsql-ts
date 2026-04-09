@@ -26,7 +26,7 @@
 ## Plan-Time Requirements
 - Plans MUST make the underlying objective explicit even when the source issue or review comment already proposes a solution.
 - If the source frames a tactic such as a specific import style, fallback, or refactor shape, the plan MUST still check whether that tactic is the real goal or only one possible means.
-- If the objective, decision driver, or success condition remains materially unclear, the recognition gap SHOULD be resolved during planning before implementation starts.
+- If the objective, decision driver, or success condition remains materially unclear, the recognition gap MUST be resolved during planning before implementation starts.
 - Plans MUST state the `Source issue` and `Why it matters`.
 - Acceptance items MUST be explicit.
 - Verification methods MUST be explicit for each acceptance item.
