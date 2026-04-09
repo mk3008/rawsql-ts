@@ -21,6 +21,15 @@ const tarballRoot = path.join(outputRoot, "tarballs");
 const packageRoot = path.join(outputRoot, "packages");
 const standalonePackageRoot = path.join(workspaceRoot, "tmp", "published-package-check-standalone");
 
+function ensureStandaloneWorkspaceRoot() {
+  fs.mkdirSync(standalonePackageRoot, { recursive: true });
+  fs.writeFileSync(
+    path.join(standalonePackageRoot, "pnpm-workspace.yaml"),
+    "packages:\n  - '*'\n",
+    "utf8",
+  );
+}
+
 function parseArgs(argv) {
   const options = {
     publishManifestPath: null,
@@ -197,6 +206,14 @@ function runIn(directory, command, args, options = {}) {
     shell: options.shell ?? IS_WINDOWS,
     ...options,
   });
+}
+
+function getInstalledBinPath(directory, binName) {
+  return path.join(directory, "node_modules", ".bin", IS_WINDOWS ? `${binName}.cmd` : binName);
+}
+
+function runInstalledZtdCli(directory, args) {
+  return runIn(directory, getInstalledBinPath(directory, "ztd"), args);
 }
 
 function createTarballDependencyMap(packages) {
@@ -416,6 +433,7 @@ function verifyNpmConsumerSmoke(phaseAResult) {
 }
 
 function verifyPnpmStarterPath(packages) {
+  ensureStandaloneWorkspaceRoot();
   const appDir = path.join(standalonePackageRoot, "pnpm-starter-path");
   ensureCleanDir(appDir);
 
@@ -433,10 +451,7 @@ function verifyPnpmStarterPath(packages) {
   });
 
   runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
-  runIn(appDir, PNPM, [
-    "exec",
-    "--",
-    "ztd",
+  runInstalledZtdCli(appDir, [
     "init",
     "--starter",
     "--with-ai-guidance",
@@ -466,6 +481,7 @@ function verifyPnpmStarterPath(packages) {
 }
 
 function verifyPnpmAdapterInstall(packages) {
+  ensureStandaloneWorkspaceRoot();
   const appDir = path.join(standalonePackageRoot, "pnpm-adapter-path");
   ensureCleanDir(appDir);
 
@@ -483,10 +499,7 @@ function verifyPnpmAdapterInstall(packages) {
   });
 
   runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
-  runIn(appDir, PNPM, [
-    "exec",
-    "--",
-    "ztd",
+  runInstalledZtdCli(appDir, [
     "init",
     "--starter",
     "--with-ai-guidance",
@@ -514,6 +527,7 @@ function verifyPnpmAdapterInstall(packages) {
 }
 
 function verifyPnpmTutorialModelGen(packages) {
+  ensureStandaloneWorkspaceRoot();
   const appDir = path.join(standalonePackageRoot, "pnpm-tutorial-model-gen");
   ensureCleanDir(appDir);
 
@@ -531,10 +545,7 @@ function verifyPnpmTutorialModelGen(packages) {
   });
 
   runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
-  runIn(appDir, PNPM, [
-    "exec",
-    "--",
-    "ztd",
+  runInstalledZtdCli(appDir, [
     "init",
     "--starter",
     "--with-ai-guidance",
@@ -573,12 +584,9 @@ function verifyPnpmTutorialModelGen(packages) {
     "utf8",
   );
 
-  runIn(appDir, PNPM, ["exec", "--", "ztd", "ztd-config"]);
+  runInstalledZtdCli(appDir, ["ztd-config"]);
 
   const modelGenArgs = [
-    "exec",
-    "--",
-    "ztd",
     "model-gen",
     "--probe-mode",
     "ztd",
@@ -590,7 +598,7 @@ function verifyPnpmTutorialModelGen(packages) {
   ];
 
   if (process.env.ZTD_TEST_DATABASE_URL) {
-    runIn(appDir, PNPM, modelGenArgs);
+    runInstalledZtdCli(appDir, modelGenArgs);
     const generatedSpec = fs.readFileSync(
       path.join(appDir, "src", "features", "users", "persistence", "users.spec.ts"),
       "utf8",
@@ -599,7 +607,7 @@ function verifyPnpmTutorialModelGen(packages) {
       throw new Error("[packaging contract] tutorial model-gen did not write the expected spec output.");
     }
   } else {
-    const describeOutput = runIn(appDir, PNPM, [...modelGenArgs, "--describe-output", "--output", "json"]);
+    const describeOutput = runInstalledZtdCli(appDir, [...modelGenArgs, "--describe-output", "--output", "json"]);
 
     const parsed = JSON.parse(describeOutput.stdout);
     if (parsed?.data?.outputs?.spec !== "TypeScript QuerySpec scaffold") {
