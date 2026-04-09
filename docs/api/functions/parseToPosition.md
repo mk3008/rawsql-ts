@@ -3,7 +3,7 @@
 
 > **parseToPosition**(`sql`, `cursorPosition`, `options`): [`PositionParseResult`](../interfaces/PositionParseResult.md)
 
-Defined in: [packages/core/src/utils/IntelliSenseApi.ts:50](https://github.com/mk3008/rawsql-ts/blob/0d142c7106beb12c8faf9fee59c186a7b771e5c0/packages/core/src/utils/IntelliSenseApi.ts#L50)
+Defined in: [packages/core/src/utils/IntelliSenseApi.ts:50](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/IntelliSenseApi.ts#L50)
 
 Parse SQL up to cursor position with error recovery
 

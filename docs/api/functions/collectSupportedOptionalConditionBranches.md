@@ -3,7 +3,7 @@
 
 > **collectSupportedOptionalConditionBranches**(`query`): [`SupportedOptionalConditionBranch`](../interfaces/SupportedOptionalConditionBranch.md)[]
 
-Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:380](https://github.com/mk3008/rawsql-ts/blob/0d142c7106beb12c8faf9fee59c186a7b771e5c0/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L380)
+Defined in: [packages/core/src/transformers/PruneOptionalConditionBranches.ts:380](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/transformers/PruneOptionalConditionBranches.ts#L380)
 
 Collects supported top-level optional condition branches from the query graph.
 The returned branch expressions keep object identity so callers can move them without re-rendering.
