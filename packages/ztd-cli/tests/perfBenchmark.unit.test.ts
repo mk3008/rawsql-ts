@@ -1292,7 +1292,7 @@ test('runPerfBenchmark dry-run rejects ambiguous QuerySpec perf guidance matches
 test('runPerfBenchmark dry-run reports ddl inventory and pipeline-first tuning guidance for scale dogfooding', async () => {
   const workspace = createSqlWorkspace('perf-benchmark-scale-dogfood', path.join('src', 'sql', 'reports', 'sales_pipeline.sql'));
   const specFile = path.join(workspace.rootDir, 'src', 'catalog', 'specs', 'sales-pipeline.spec.ts');
-  const ddlFile = path.join(workspace.rootDir, 'ztd', 'ddl', 'public.sql');
+  const ddlFile = path.join(workspace.rootDir, 'db', 'ddl', 'public.sql');
   mkdirSync(path.dirname(specFile), { recursive: true });
   mkdirSync(path.dirname(ddlFile), { recursive: true });
   writeFileSync(path.join(workspace.rootDir, 'ztd.config.json'), JSON.stringify({

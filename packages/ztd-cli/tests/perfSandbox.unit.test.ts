@@ -118,7 +118,7 @@ test('resolvePerfExternalDatabaseUrl only honors the explicit perf variable', ()
 
 test('inspectPerfDdlInventory counts CREATE INDEX statements so perf reset can recreate them', () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'perf-ddl-'));
-  const ddlDir = path.join(rootDir, 'ztd', 'ddl');
+  const ddlDir = path.join(rootDir, 'db', 'ddl');
   if (!existsSync(ddlDir)) {
     mkdirSync(ddlDir, { recursive: true });
   }
