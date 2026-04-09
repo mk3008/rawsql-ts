@@ -31,6 +31,8 @@ Use this subagent to shape a rawsql-ts developer task into a plan that can be ex
 - Define completion in terms of attainment, not only file creation or code modification.
 - Prefer one acceptance item per completion judgment.
 - Do not merge unrelated concerns into one acceptance item.
+- When the source issue suggests a solution, explicitly separate `objective` from `proposed tactic` before locking the plan.
+- If the likely goal and the proposed tactic could plausibly diverge, make that uncertainty visible and resolve it during planning instead of carrying it silently into implementation.
 - Verification methods must be concrete enough to show how each item will be checked.
 - Record the active task ledger in `tmp/PLAN.md` unless narrower guidance overrides that location.
 - Update `tmp/PLAN.md` when assumptions, blockers, acceptance items, or dogfooding findings materially change.
@@ -44,6 +46,8 @@ Use this subagent to shape a rawsql-ts developer task into a plan that can be ex
 - For QuerySpec work used for product behavior, treat the QuerySpec and its ZTD-backed test as one completion unit.
 - Do not plan a product-behavior QuerySpec as complete if the ZTD-backed test cannot also be completed.
 - If dogfooding or real-task validation is part of the task, state it explicitly in the plan.
+- If fallback behavior appears to be an option, note why direct repair, fail-fast, or explicit rejection is not sufficient before recommending the fallback.
+- If a question is needed, ask it while planning whenever possible; do not defer an objective-level ambiguity into the implementation phase unless there is a strong reason.
 
 ## Do Not
 

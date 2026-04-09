@@ -71,6 +71,8 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 
 ## Plan and Reporting Minimums
 
+- When an issue, PR comment, or request includes a proposed solution, planning must still make the underlying objective explicit and check whether the proposed solution is only one tactic rather than the actual goal.
+- If there is meaningful uncertainty about the true objective, decision driver, or success condition, resolve that recognition gap during planning before implementation begins.
 - Plans must state the source issue or request, acceptance items, verification methods, and explicit out-of-scope items when scope is limited.
 - Multi-step tasks must keep a working ledger in `tmp/PLAN.md` unless a deeper `AGENTS.md` says otherwise.
 - `tmp/PLAN.md` should be updated when the plan changes, when a blocker is discovered, and when a verification or dogfooding result materially changes the current understanding.
@@ -95,6 +97,20 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 - Final user-facing progress and completion reports should use explicit sections rather than long narrative-only blocks when multiple concerns are being reported.
 - When reporting task status, show the current status label near the top and again at the end when the report is long enough that scrolling could hide it.
 - When reporting multiple concerns, separate at least `status`, `current situation`, and `remaining issues or decisions` so the reader can scan quickly.
+
+## Implementation Decision Rules
+
+- Treat fallback behavior as a last resort, not as a default convenience.
+- Before adding a fallback, first consider whether the problem should instead be fixed directly, rejected as unsupported, or made fail-fast with a clear error.
+- Prefer an explicit error over a silent degradation when silent recovery would hide a configuration problem, weaken guarantees, or make quality harder to judge.
+- If a fallback is still the best option, make the trigger condition and guarantee limits explicit in code, tests, and reporting.
+- Scope decisions should be intentional: do not broaden a task automatically, but do not reject closely aligned follow-up work automatically either; decide based on fit, risk, and verification cost.
+
+## Collaboration and Escalation
+
+- Ask clarification questions during planning when objective, scope, or decision criteria remain materially ambiguous.
+- During implementation, prefer autonomous resolution of local design and coding details whenever the repository evidence is sufficient.
+- Interrupt implementation with a user question only when the remaining ambiguity is consequential enough that proceeding would risk the wrong outcome, unsafe edits, or misleading verification.
 
 ## Review Minimums
 
