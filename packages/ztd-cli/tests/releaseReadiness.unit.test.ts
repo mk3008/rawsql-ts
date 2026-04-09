@@ -42,6 +42,26 @@ test('release-readiness matches package manifest changes as publish-shape change
   ]);
 });
 
+test('release-readiness matches nested package manifests as publish-shape changes', () => {
+  const classification = classifyReleaseReadiness([
+    'packages/adapters/adapter-node-pg/package.json',
+    'packages/adapters/adapter-node-pg/CHANGELOG.md',
+  ]);
+
+  expect(classification.releaseAffecting).toBe(true);
+  expect(classification.matchedKinds).toEqual(['package-publish-shape']);
+  expect(classification.matchedFiles).toEqual([
+    {
+      filePath: 'packages/adapters/adapter-node-pg/package.json',
+      kinds: ['package-publish-shape'],
+    },
+    {
+      filePath: 'packages/adapters/adapter-node-pg/CHANGELOG.md',
+      kinds: ['package-publish-shape'],
+    },
+  ]);
+});
+
 test('release-readiness ignores ordinary package tests and docs outside the checklist', () => {
   const classification = classifyReleaseReadiness([
     'packages/ztd-cli/tests/queryLint.unit.test.ts',

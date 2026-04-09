@@ -16,8 +16,8 @@ const RELEASE_READINESS_PATTERNS = [
   {
     kind: 'package-publish-shape',
     patterns: [
-      /^packages\/[^/]+\/package\.json$/u,
-      /^packages\/[^/]+\/CHANGELOG\.md$/u,
+      /^packages\/(?:[^/]+\/)+package\.json$/u,
+      /^packages\/(?:[^/]+\/)+CHANGELOG\.md$/u,
       /^scripts\/sync-rawsql-dist\.js$/u,
     ],
   },
