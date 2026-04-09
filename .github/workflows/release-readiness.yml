@@ -1,0 +1,46 @@
+name: Release Readiness
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+permissions:
+  contents: read
+
+jobs:
+  release-readiness:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Detect release-affecting changes
+      id: detect
+      run: |
+        node ./scripts/release-readiness.js detect \
+          --base-sha "${{ github.event.pull_request.base.sha }}" \
+          --head-sha "${{ github.event.pull_request.head.sha }}" \
+          --github-output "$GITHUB_OUTPUT"
+
+    - name: Summarize non-release-affecting PR
+      if: steps.detect.outputs.release_affecting != 'true'
+      run: echo "No release-affecting paths matched; release-readiness passes without running publish smoke."
+
+    - name: Setup release-readiness runtime
+      if: steps.detect.outputs.release_affecting == 'true'
+      uses: ./.github/actions/setup-publish-runtime
+      with:
+        node-version: "24"
+        use-pnpm: "true"
+        install-dependencies: "true"
+        update-npm: "false"
+        required-commands: "node,npm,pnpm"
+        min-npm-version: "11.5.1"
+        label: "release-readiness"
+
+    - name: Run release-readiness checks
+      if: steps.detect.outputs.release_affecting == 'true'
+      run: node ./scripts/release-readiness.js check
