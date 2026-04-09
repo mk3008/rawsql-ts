@@ -23,9 +23,9 @@ test('root policy and mirror describe intent and procedure as causality', () => 
   const mirrorAgents = readNormalizedFile('.agent/AGENTS.md');
 
   expect(rootAgents).toContain('# Repository Scope');
-  expect(rootAgents).toContain('Use the repo-local Codex guidance under `.codex/agents/` and `.agents/skills/` for planning, verification, review, and reporting.');
-  expect(rootAgents).toContain('All assistant-user conversation in this repository must be in Japanese.');
-  expect(rootAgents).toContain('Planning guidance is responsible for making `Source issue`, `Why it matters`, `Acceptance items`, and `Verification methods` explicit.');
+  expect(rootAgents).toContain('Use the repo-local guidance under `.codex/agents/` and `.agents/skills/` for planning, verification, review, and reporting details.');
+  expect(rootAgents).toContain('Keep assistant-user conversation in Japanese in this repository.');
+  expect(rootAgents).toContain('Plans must state the source issue or request, acceptance items, verification methods, and explicit out-of-scope items when scope is limited.');
 
   expect(mirrorAgents).toContain('# Visible Policy Mirror');
   expect(mirrorAgents).toContain('Use `.codex/agents/planning.md`, `.codex/agents/verification.md`, `.codex/agents/review.md`, and `.codex/agents/reporting.md` for developer workflow support.');

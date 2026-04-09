@@ -39,7 +39,7 @@ function createJoinDirectionWorkspace(prefix: string): {
   ddlDir: string;
 } {
   const rootDir = createTempDir(prefix);
-  const ddlDir = path.join(rootDir, 'ztd', 'ddl');
+  const ddlDir = path.join(rootDir, 'db', 'ddl');
   const sqlFile = path.join(rootDir, 'src', 'sql', 'query.sql');
   mkdirSync(path.dirname(sqlFile), { recursive: true });
   mkdirSync(ddlDir, { recursive: true });
