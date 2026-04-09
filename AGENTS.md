@@ -83,6 +83,13 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 - Do not require retro entries for every small typo or harmless local correction; use it for mistakes that matter to task judgment, workflow safety, or future repeatability.
 - Reports must distinguish `done`, `partial`, and `not done`.
 - Reports must distinguish `tests were updated` from `tests passed`.
+- If any test or check fails, reports must name the failing test or check explicitly instead of summarizing it only as a generic verification failure.
+- If any test or check fails, reports must state whether the failure is newly introduced by the current change or reproducible on the base branch without the change.
+- If any test or check fails, reports must state the failure's decision weight explicitly: required merge gate, non-required PR check, local-only check, or another clearly named category.
+- If work proceeds despite a failing test or check, reports must explain why proceeding is acceptable for this change, based on the failure's category and whether it is pre-existing.
+- If a task changes GitHub branch protection or rulesets, reports must explicitly state which merge blockers were changed or verified, not just the intended required status checks.
+- Ruleset or branch protection reports must explicitly call out approval requirements, Code Owner review requirements, signed-commit requirements, and required status checks whenever those settings could affect mergeability.
+- Do not imply that bot review comments or `COMMENTED` review states satisfy an approval requirement; approval claims must name the actor and the approval-capable review state.
 - GitHub-facing reports must not use local filesystem paths.
 - Supplementary evidence alone must not justify a strong `done` claim.
 - Final user-facing progress and completion reports should use explicit sections rather than long narrative-only blocks when multiple concerns are being reported.
