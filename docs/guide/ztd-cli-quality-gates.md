@@ -24,4 +24,4 @@ Run on a nightly schedule instead of blocking every local commit or PR.
 - `tests/perfSandbox.unit.test.ts`
 - `tests/queryLint.unit.test.ts`
 
-These lanes stay visible, but they are not part of the always-blocking gate for this issue because the current branch baseline already contains unrelated failures in those suites.
+These lanes stay visible, but they are intentionally not part of the always-blocking gate.

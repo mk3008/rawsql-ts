@@ -80,7 +80,7 @@ jobs:
         changed_files=$(git diff --name-only "$base_sha...$head_sha")
         printf '%s\n' "$changed_files"
 
-        if printf '%s\n' "$changed_files" | grep -Eq '^(\.husky/pre-commit|\.github/workflows/pr-check\.yml|scripts/(run-ztd-cli-quality-gates|ztd-cli-quality-gates)\.js|docs/guide/ztd-cli-quality-gates\.md|packages/ztd-cli/|docs/guide/ztd-cli-)'; then
+        if printf '%s\n' "$changed_files" | grep -Eq '^(\.husky/pre-commit|\.github/workflows/pr-check\.yml|\.github/workflows/ztd-cli-soft-gates\.yml|scripts/(run-ztd-cli-quality-gates|ztd-cli-quality-gates)\.js|docs/guide/ztd-cli-quality-gates\.md|packages/ztd-cli/|docs/guide/ztd-cli-)'; then
           echo "run=true" >> "$GITHUB_OUTPUT"
         else
           echo "run=false" >> "$GITHUB_OUTPUT"

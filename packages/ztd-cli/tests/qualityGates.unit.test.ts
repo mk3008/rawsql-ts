@@ -23,6 +23,7 @@ test('essential suite stays focused on scaffold and CLI contract coverage', () =
       'tests/repoGuidance.unit.test.ts',
       'tests/intentProcedure.docs.test.ts',
       'tests/perfBenchmark.unit.test.ts',
+      'tests/perfSandbox.unit.test.ts',
       'tests/queryLint.unit.test.ts',
     ]),
   );
