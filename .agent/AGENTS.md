@@ -24,10 +24,29 @@
 - Reporting guidance makes `Verification basis`, `Guarantee limits`, `Outstanding gaps`, and `What the human should decide next` visible to reviewers and requesters.
 
 ## Plan-Time Requirements
+- Plans MUST make the underlying objective explicit even when the source issue or review comment already proposes a solution.
+- If the source frames a tactic such as a specific import style, fallback, or refactor shape, the plan MUST still check whether that tactic is the real goal or only one possible means.
+- If the objective, decision driver, or success condition remains materially unclear, the recognition gap MUST be resolved during planning before implementation starts.
 - Plans MUST state the `Source issue` and `Why it matters`.
 - Acceptance items MUST be explicit.
 - Verification methods MUST be explicit for each acceptance item.
 - Downstream `Decision points` SHOULD be explicit when the result will require a human choice.
+
+## Implementation Decision Rules
+- Fallback behavior MUST be treated as a last resort rather than a default convenience.
+- Before adding a fallback, prefer one of these outcomes when justified by the evidence:
+  1. fix the underlying problem directly
+  2. reject the unsupported state explicitly
+  3. fail fast with a clear error
+- Silent degradation SHOULD NOT be used when it would hide a configuration problem, weaken guarantees, or make quality harder to judge.
+- If a fallback is still the best option, the trigger condition and guarantee limits MUST be explicit in code, tests, and reporting.
+- Scope expansion is ALLOWED when it is strongly aligned and still verifiable, but it MUST be an explicit decision rather than an automatic habit.
+- When a likely follow-up is not needed for the current acceptance items, prefer leaving it out of scope and naming it as follow-up work.
+
+## Question Timing
+- Clarifying questions SHOULD be asked during planning when the objective, scope, or decision criteria are materially ambiguous.
+- Implementation SHOULD resolve local design and coding details autonomously when repository evidence is sufficient.
+- Interrupt implementation with a user question only when the remaining ambiguity is consequential enough that proceeding risks the wrong outcome, unsafe edits, or misleading verification.
 
 ## Reporting Format
 - Reports MUST state the `Source request` or `Source issue` and `Why it matters` before item-level status.
