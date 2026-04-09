@@ -93,6 +93,7 @@ test('release-readiness matches nested package manifests as publish-shape change
 test('release-readiness treats publish helper changes as release-affecting', () => {
   const classification = classifyReleaseReadiness([
     'scripts/build-publish-artifacts.mjs',
+    'scripts/create-publish-proof-plan.mjs',
     'scripts/verify-published-package-mode.mjs',
   ]);
 

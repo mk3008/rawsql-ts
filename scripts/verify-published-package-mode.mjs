@@ -23,12 +23,18 @@ const packageRoot = path.join(outputRoot, "packages");
 function parseArgs(argv) {
   const options = {
     publishManifestPath: null,
+    publishManifestProvided: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--publish-manifest") {
-      options.publishManifestPath = argv[index + 1] ?? null;
+      const nextArg = argv[index + 1];
+      options.publishManifestProvided = true;
+      if (typeof nextArg !== "string" || nextArg.trim().length === 0) {
+        throw new Error("[published-package-mode] --publish-manifest requires a non-empty path.");
+      }
+      options.publishManifestPath = nextArg;
       index += 1;
     }
   }
@@ -658,7 +664,7 @@ function main() {
   ensureCleanDir(tarballRoot);
   ensureCleanDir(packageRoot);
 
-  const packedPackages = options.publishManifestPath
+  const packedPackages = options.publishManifestProvided
     ? loadPackedPackagesFromManifest(options.publishManifestPath)
     : (() => {
         run(PNPM, ["build:publish"]);
@@ -676,7 +682,7 @@ function main() {
     checkedAt: new Date().toISOString(),
     node: process.version,
     platform: os.platform(),
-    verificationMode: options.publishManifestPath ? "publish-manifest" : "workspace-pack",
+    verificationMode: options.publishManifestProvided ? "publish-manifest" : "workspace-pack",
     packedInstallApp,
     npmPrimaryPathApp: npmPrimaryPathApp.appDir,
     firstTestGateApp: npmSmokeApp,
