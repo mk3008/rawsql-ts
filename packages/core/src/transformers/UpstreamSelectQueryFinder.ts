@@ -3,6 +3,7 @@ import { CommonTable, CTEQuery, ReturningClause, SelectItem, SubQuerySource, Tab
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
 import { DeleteQuery } from "../models/DeleteQuery";
+import { MergeQuery } from "../models/MergeQuery";
 import { ColumnReference } from "../models/ValueComponent";
 import { SelectableColumnCollector, DuplicateDetectionMode } from "./SelectableColumnCollector";
 import { CTECollector } from "./CTECollector";
@@ -215,7 +216,7 @@ export class UpstreamSelectQueryFinder {
     }
 
     private collectColumnsFromReturning(query: CTEQuery): string[] {
-        if (query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery) {
+        if (query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery || query instanceof MergeQuery) {
             return this.extractReturningColumns(query.returningClause);
         }
         return [];

@@ -10,6 +10,7 @@ import { TableColumnResolver } from './TableColumnResolver';
 import { InsertQuery } from '../models/InsertQuery';
 import { UpdateQuery } from '../models/UpdateQuery';
 import { DeleteQuery } from '../models/DeleteQuery';
+import { MergeQuery } from '../models/MergeQuery';
 
 export class TableSchema {
     public name: string;
@@ -495,7 +496,7 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
             }
 
             // Writable CTEs expose columns via RETURNING when present.
-            if (cte.query instanceof InsertQuery || cte.query instanceof UpdateQuery || cte.query instanceof DeleteQuery) {
+            if (cte.query instanceof InsertQuery || cte.query instanceof UpdateQuery || cte.query instanceof DeleteQuery || cte.query instanceof MergeQuery) {
                 return this.extractColumnsFromReturning(cte.query.returningClause);
             }
 

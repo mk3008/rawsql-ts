@@ -3,6 +3,7 @@ import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
 import { DeleteQuery } from "../models/DeleteQuery";
+import { MergeQuery } from "../models/MergeQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ColumnReference, InlineQuery, LiteralValue, ValueComponent } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
@@ -280,7 +281,7 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
     }
 
     private collectValuesFromReturning(query: CTEQuery): { name: string, value: ValueComponent }[] {
-        if (!(query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery)) {
+        if (!(query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery || query instanceof MergeQuery)) {
             return [];
         }
 

@@ -3,6 +3,7 @@ import { SimpleSelectQuery, BinarySelectQuery } from "../models/SelectQuery";
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
 import { DeleteQuery } from "../models/DeleteQuery";
+import { MergeDeleteAction, MergeInsertAction, MergeQuery, MergeUpdateAction } from "../models/MergeQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression } from "../models/ValueComponent";
 
@@ -116,6 +117,7 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         this.handlers.set(InsertQuery.kind, (query) => this.visitInsertQuery(query as InsertQuery));
         this.handlers.set(UpdateQuery.kind, (query) => this.visitUpdateQuery(query as UpdateQuery));
         this.handlers.set(DeleteQuery.kind, (query) => this.visitDeleteQuery(query as DeleteQuery));
+        this.handlers.set(MergeQuery.kind, (query) => this.visitMergeQuery(query as MergeQuery));
 
         // Value component handlers
         this.handlers.set(ColumnReference.kind, (ref) => this.visitColumnReference(ref as ColumnReference));
@@ -476,6 +478,39 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         if (query.whereClause) {
             query.whereClause.accept(this);
         }
+        if (query.returningClause) {
+            this.visitReturningClause(query.returningClause);
+        }
+    }
+
+    private visitMergeQuery(query: MergeQuery): void {
+        if (query.withClause) {
+            query.withClause.accept(this);
+        }
+
+        query.target.accept(this);
+        query.source.accept(this);
+        query.onCondition.accept(this);
+
+        for (const clause of query.whenClauses) {
+            if (clause.condition) {
+                clause.condition.accept(this);
+            }
+
+            if (clause.action instanceof MergeUpdateAction) {
+                clause.action.setClause.items.forEach(item => item.value.accept(this));
+                if (clause.action.whereClause) {
+                    clause.action.whereClause.accept(this);
+                }
+            } else if (clause.action instanceof MergeDeleteAction) {
+                if (clause.action.whereClause) {
+                    clause.action.whereClause.accept(this);
+                }
+            } else if (clause.action instanceof MergeInsertAction && clause.action.values) {
+                clause.action.values.accept(this);
+            }
+        }
+
         if (query.returningClause) {
             this.visitReturningClause(query.returningClause);
         }

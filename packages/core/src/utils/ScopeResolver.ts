@@ -3,6 +3,7 @@ import { CTEQuery, FromClause, JoinClause, SelectItem, SubQuerySource, TableSour
 import { InsertQuery } from '../models/InsertQuery';
 import { UpdateQuery } from '../models/UpdateQuery';
 import { DeleteQuery } from '../models/DeleteQuery';
+import { MergeQuery } from '../models/MergeQuery';
 import { CTECollector } from '../transformers/CTECollector';
 import { CursorContextAnalyzer } from './CursorContextAnalyzer';
 import { ColumnReference, QualifiedName, ValueComponent } from '../models/ValueComponent';
@@ -310,10 +311,10 @@ export class ScopeResolver {
             }
 
             // Writable CTEs expose columns through RETURNING when available.
-            if (query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery) {
-                if (query.returningClause) {
-                    return this.extractColumnsFromItems(query.returningClause.items);
-                }
+        if (query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery || query instanceof MergeQuery) {
+            if (query.returningClause) {
+                return this.extractColumnsFromItems(query.returningClause.items);
+            }
             }
         } catch (error) {
             // If extraction fails, return undefined

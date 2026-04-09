@@ -4,6 +4,7 @@ import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
 import { DeleteQuery } from "../models/DeleteQuery";
+import { MergeDeleteAction, MergeInsertAction, MergeQuery, MergeUpdateAction } from "../models/MergeQuery";
 import {
     ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
     CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression,
@@ -57,6 +58,7 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
         this.handlers.set(InsertQuery.kind, (expr) => this.visitInsertQuery(expr as InsertQuery));
         this.handlers.set(UpdateQuery.kind, (expr) => this.visitUpdateQuery(expr as UpdateQuery));
         this.handlers.set(DeleteQuery.kind, (expr) => this.visitDeleteQuery(expr as DeleteQuery));
+        this.handlers.set(MergeQuery.kind, (expr) => this.visitMergeQuery(expr as MergeQuery));
 
         // WITH clause and common tables
         this.handlers.set(WithClause.kind, (expr) => this.visitWithClause(expr as WithClause));
@@ -332,6 +334,49 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
         }
     }
 
+    private visitMergeQuery(query: MergeQuery): void {
+        if (query.withClause) {
+            this.registerCteNames(query.withClause);
+        }
+
+        if (!this.selectableOnly && query.withClause) {
+            query.withClause.accept(this);
+        }
+
+        query.target.accept(this);
+        query.source.accept(this);
+
+        if (!this.selectableOnly) {
+            query.onCondition.accept(this);
+
+            for (const clause of query.whenClauses) {
+                if (clause.condition) {
+                    clause.condition.accept(this);
+                }
+
+                if (clause.action instanceof MergeUpdateAction) {
+                    clause.action.setClause.items.forEach(item => item.value.accept(this));
+                    if (clause.action.whereClause) {
+                        clause.action.whereClause.accept(this);
+                    }
+                } else if (clause.action instanceof MergeDeleteAction) {
+                    if (clause.action.whereClause) {
+                        clause.action.whereClause.accept(this);
+                    }
+                } else if (clause.action instanceof MergeInsertAction && clause.action.values) {
+                    clause.action.values.accept(this);
+                } else if (!(clause.action instanceof MergeInsertAction)) {
+                    const actionName = clause.action?.constructor?.name ?? 'UnknownMergeAction';
+                    throw new Error(`[TableSourceCollector] Unsupported MERGE action type: ${actionName}.`);
+                }
+            }
+        }
+
+        if (!this.selectableOnly && query.returningClause) {
+            this.visitReturningClause(query.returningClause);
+        }
+    }
+
     private visitReturningClause(clause: ReturningClause): void {
         for (const item of clause.items) {
             item.value.accept(this);
@@ -415,6 +460,12 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
      */
     private isCTETable(tableName: string): boolean {
         return this.cteNames.has(tableName);
+    }
+
+    private registerCteNames(withClause: WithClause): void {
+        for (const table of withClause.tables) {
+            this.cteNames.add(table.aliasExpression.table.name);
+        }
     }
 
     private visitParenSource(source: ParenSource): void {
