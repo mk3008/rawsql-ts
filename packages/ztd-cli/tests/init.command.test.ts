@@ -497,6 +497,10 @@ test('init local-source mode links rawsql-ts dependencies from the monorepo with
   );
   expect(packageJson.type).toBe('module');
   expect(packageJson.imports?.['#features/*.js']?.default).toBe('./dist/features/*.js');
+  expect(packageJson.imports?.['#tests/*.js']).toEqual({
+    types: './tests/*.ts',
+    default: './tests/*.ts'
+  });
 });
 
 test('init starter local-source mode keeps starter rawsql-ts packages on file dependencies', async () => {
@@ -533,6 +537,10 @@ test('init starter local-source mode keeps starter rawsql-ts packages on file de
   );
   expect(packageJson.type).toBe('module');
   expect(packageJson.imports?.['#features/*.js']?.default).toBe('./dist/features/*.js');
+  expect(packageJson.imports?.['#tests/*.js']).toEqual({
+    types: './tests/*.ts',
+    default: './tests/*.ts'
+  });
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd feature scaffold --table users --action insert');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd feature tests scaffold --feature users-insert');

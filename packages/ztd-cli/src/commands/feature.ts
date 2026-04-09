@@ -12,6 +12,7 @@ import {
 import { emitDiagnostic, isJsonOutput, writeCommandEnvelope } from '../utils/agentCli';
 import { ensureDirectory } from '../utils/fs';
 import { collectSqlFiles, type SqlSource } from '../utils/collectSqlFiles';
+import { inspectImportAliasSupport } from '../utils/importAliasSupport';
 import { loadZtdProjectConfig, resolveGeneratedDir } from '../utils/ztdProjectConfig';
 import { registerFeatureTestsScaffoldCommand } from './featureTests';
 
@@ -20,6 +21,8 @@ type FeatureAction = (typeof FEATURE_ACTIONS)[number];
 const DEFAULT_PAGE_SIZE = 50;
 const FEATURE_SHARED_EXECUTOR_IMPORT_PATH = '#features/_shared/featureQueryExecutor.js';
 const FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH = '#features/_shared/loadSqlResource.js';
+const FEATURE_SHARED_EXECUTOR_RELATIVE_IMPORT_PATH = '../../../_shared/featureQueryExecutor.js';
+const FEATURE_SHARED_LOAD_SQL_RESOURCE_RELATIVE_IMPORT_PATH = '../../../_shared/loadSqlResource.js';
 const FIXED_LAYOUT_DESCRIPTION = [
   'src/features/<feature-name>/',
   '  boundary.ts',
@@ -159,6 +162,7 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
   const primaryKeyColumn = resolvePrimaryKeyColumn(input.table);
   const paths = buildFeatureScaffoldPaths(rootDir, featureName, queryName);
   const contents = renderFeatureScaffoldFiles({
+    rootDir,
     featureName,
     queryName,
     action,
@@ -500,6 +504,7 @@ function buildFeatureScaffoldPaths(rootDir: string, featureName: string, queryNa
 }
 
 function renderFeatureScaffoldFiles(params: {
+  rootDir: string;
   featureName: string;
   queryName: string;
   action: FeatureAction;
@@ -514,6 +519,17 @@ function renderFeatureScaffoldFiles(params: {
   featureQueryExecutorFile: string;
   loadSqlResourceFile: string;
 } {
+  const importAliasSupport = inspectImportAliasSupport(params.rootDir, {
+    packageImportKey: '#features/*.js',
+    tsconfigPathKey: '#features/*',
+    vitestAliasPrefix: '#features'
+  });
+  if (importAliasSupport === 'partial') {
+    throw new Error(
+      'Feature scaffold found partial #features alias configuration. Configure package.json#imports, tsconfig.json compilerOptions.paths, and vitest.config.ts resolve.alias together, or remove the partial alias setup.'
+    );
+  }
+  const useStableSharedImports = importAliasSupport === 'supported';
   const pascalName = toPascalCase(params.featureName);
   const entryCamelName = toCamelCase(params.featureName);
   const queryPascalName = toPascalCase(params.queryName);
@@ -557,7 +573,8 @@ function renderFeatureScaffoldFiles(params: {
     queryPascalName,
     queryCamelName,
     requestFields,
-    responseFields
+    responseFields,
+    useStableSharedImports
   });
   const readmeFile = renderReadmeFile({
     action: params.action,
@@ -1075,6 +1092,7 @@ function renderQuerySpecFile(params: {
   queryCamelName: string;
   requestFields: RenderField[];
   responseFields: RenderField[];
+  useStableSharedImports: boolean;
 }): string {
   if (params.action === 'get-by-id') {
     return renderGetByIdQuerySpecFile(params);
@@ -1107,8 +1125,8 @@ function renderQuerySpecFile(params: {
     "import { dirname } from 'node:path';",
     "import { fileURLToPath } from 'node:url';",
     '',
-    `import type { FeatureQueryExecutor } from '${FEATURE_SHARED_EXECUTOR_IMPORT_PATH}';`,
-    `import { loadSqlResource } from '${FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH}';`,
+    `import type { FeatureQueryExecutor } from '${params.useStableSharedImports ? FEATURE_SHARED_EXECUTOR_IMPORT_PATH : FEATURE_SHARED_EXECUTOR_RELATIVE_IMPORT_PATH}';`,
+    `import { loadSqlResource } from '${params.useStableSharedImports ? FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH : FEATURE_SHARED_LOAD_SQL_RESOURCE_RELATIVE_IMPORT_PATH}';`,
     '',
     'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
@@ -1627,6 +1645,7 @@ function renderGetByIdQuerySpecFile(params: {
   queryCamelName: string;
   requestFields: RenderField[];
   responseFields: RenderField[];
+  useStableSharedImports: boolean;
 }): string {
   const paramsSchema = renderZodObjectSchema('QueryParamsSchema', params.requestFields, {
     trimStrings: false,
@@ -1646,8 +1665,8 @@ function renderGetByIdQuerySpecFile(params: {
     "import { dirname } from 'node:path';",
     "import { fileURLToPath } from 'node:url';",
     '',
-    `import type { FeatureQueryExecutor } from '${FEATURE_SHARED_EXECUTOR_IMPORT_PATH}';`,
-    `import { loadSqlResource } from '${FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH}';`,
+    `import type { FeatureQueryExecutor } from '${params.useStableSharedImports ? FEATURE_SHARED_EXECUTOR_IMPORT_PATH : FEATURE_SHARED_EXECUTOR_RELATIVE_IMPORT_PATH}';`,
+    `import { loadSqlResource } from '${params.useStableSharedImports ? FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH : FEATURE_SHARED_LOAD_SQL_RESOURCE_RELATIVE_IMPORT_PATH}';`,
     '',
     'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
@@ -1716,6 +1735,7 @@ function renderListQuerySpecFile(params: {
   queryCamelName: string;
   requestFields: RenderField[];
   responseFields: RenderField[];
+  useStableSharedImports: boolean;
 }): string {
   const paramsSchema = renderZodObjectSchema('QueryParamsSchema', params.requestFields, {
     trimStrings: false,
@@ -1735,9 +1755,9 @@ function renderListQuerySpecFile(params: {
     "import { dirname } from 'node:path';",
     "import { fileURLToPath } from 'node:url';",
     '',
-    `import type { FeatureQueryExecutor } from '${FEATURE_SHARED_EXECUTOR_IMPORT_PATH}';`,
+    `import type { FeatureQueryExecutor } from '${params.useStableSharedImports ? FEATURE_SHARED_EXECUTOR_IMPORT_PATH : FEATURE_SHARED_EXECUTOR_RELATIVE_IMPORT_PATH}';`,
     "import { createCatalogExecutor, type QuerySpec } from '@rawsql-ts/sql-contract';",
-    `import { loadSqlResource } from '${FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH}';`,
+    `import { loadSqlResource } from '${params.useStableSharedImports ? FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH : FEATURE_SHARED_LOAD_SQL_RESOURCE_RELATIVE_IMPORT_PATH}';`,
     '',
     `const DEFAULT_PAGE_SIZE = ${DEFAULT_PAGE_SIZE};`,
     'const __dirname = dirname(fileURLToPath(import.meta.url));',

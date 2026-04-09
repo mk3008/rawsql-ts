@@ -41,6 +41,7 @@ Prefer stability at recursive boundary seams over one blanket import style.
 - One workable tactic is package `imports` such as `#features/*` and `#tests/*`, or an equivalent alias that works in both TypeScript and runtime resolution.
 - Minimum rule: do not let deep relative imports become the public boundary contract.
 - When a boundary depends on another boundary, make the dependency obvious by importing its compiled ESM entrypoint with `.js` specifiers, such as `./boundary.js` or `../boundary.js`, rather than walking through internal files.
+- Pragmatic exception: designated shared infrastructure such as `src/features/_shared/*` and `tests/support/*` may use stabilized root-level aliases because those files are shared support seams, not another boundary's private implementation.
 
 ## Sample feature
 

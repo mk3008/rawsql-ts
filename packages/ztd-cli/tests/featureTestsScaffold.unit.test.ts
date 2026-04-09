@@ -21,6 +21,50 @@ function seedSharedZtdSupport(workspace: string): void {
   writeFileSync(path.join(supportDir, 'case-types.ts'), 'export type QuerySpecZtdCase<A, B, C, D> = { beforeDb: A; input: B; output: C; afterDb?: D };\n', 'utf8');
 }
 
+function seedStableTestAliases(workspace: string): void {
+  writeFileSync(
+    path.join(workspace, 'package.json'),
+    `${JSON.stringify({
+      name: 'feature-tests-scaffold-test',
+      private: true,
+      type: 'module',
+      imports: {
+        '#tests/*.js': {
+          types: './tests/*.ts',
+          default: './tests/*.ts'
+        }
+      }
+    }, null, 2)}\n`,
+    'utf8'
+  );
+  writeFileSync(
+    path.join(workspace, 'tsconfig.json'),
+    `${JSON.stringify({
+      compilerOptions: {
+        baseUrl: '.',
+        paths: {
+          '#tests/*': ['tests/*']
+        }
+      }
+    }, null, 2)}\n`,
+    'utf8'
+  );
+  writeFileSync(
+    path.join(workspace, 'vitest.config.ts'),
+    [
+      "import { defineConfig } from 'vitest/config';",
+      '',
+      'export default defineConfig({',
+      '  resolve: {',
+      "    alias: { '#tests': '/virtual/tests' }",
+      '  }',
+      '});',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+}
+
 test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the current feature files', async () => {
   const workspace = createTempDir('feature-tests-scaffold');
   const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
@@ -85,7 +129,7 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
     'utf8'
   );
   expect(vitestEntrypointFile).toContain("import { expect, test } from 'vitest';");
-  expect(vitestEntrypointFile).toContain("import { runQuerySpecZtdCases } from '#tests/support/ztd/harness.js';");
+  expect(vitestEntrypointFile).toContain("import { runQuerySpecZtdCases } from '../../../../../../tests/support/ztd/harness.js';");
   expect(vitestEntrypointFile).toContain("import { executeBoundaryQuerySpec } from '../boundary.js';");
   expect(vitestEntrypointFile).toContain("import cases from './cases/basic.case.js';");
   expect(vitestEntrypointFile).toContain("import type { InsertUsersQueryBoundaryZtdCase } from './boundary-ztd-types.js';");
@@ -99,7 +143,7 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(queryTypesFile).toContain('export type InsertUsersBeforeDb = { public: { users: readonly { email?: unknown }[] } };');
   expect(queryTypesFile).toContain('export type InsertUsersInput = { email: unknown };');
   expect(queryTypesFile).toContain('export type InsertUsersOutput = Record<string, unknown>;');
-  expect(queryTypesFile).toContain("import type { QuerySpecZtdCase } from '#tests/support/ztd/case-types.js';");
+  expect(queryTypesFile).toContain("import type { QuerySpecZtdCase } from '../../../../../../tests/support/ztd/case-types.js';");
   expect(queryTypesFile).not.toContain('InsertUsersBeforeDb = Record<string, unknown>');
 
   const testPlanFile = readFileSync(
@@ -221,6 +265,70 @@ test('runFeatureTestsScaffoldCommand refreshes generated analysis without overwr
   expect(readFileSync(entrypointFile, 'utf8')).toBe("export const entrypointMarker = 'keep-me';\n");
   expect(readFileSync(queryTypesFile, 'utf8')).not.toBe("export const queryTypesMarker = 'refresh-me';\n");
   expect(readFileSync(path.join(generatedDir, 'analysis.json'), 'utf8')).toContain('"schemaVersion": 1');
+});
+
+test('runFeatureTestsScaffoldCommand uses stable shared test imports when the workspace supports #tests', async () => {
+  const workspace = createTempDir('feature-tests-stable-imports');
+  const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
+  const queryDir = path.join(featureDir, 'queries', 'insert-users');
+  mkdirSync(queryDir, { recursive: true });
+  seedSharedZtdSupport(workspace);
+  seedStableTestAliases(workspace);
+
+  writeFileSync(path.join(featureDir, 'boundary.ts'), 'export const RequestSchema = null;\n', 'utf8');
+  writeFileSync(path.join(queryDir, 'boundary.ts'), 'export async function executeInsertUsersBoundary() { return {}; }\n', 'utf8');
+  writeFileSync(path.join(queryDir, 'insert-users.sql'), 'select 1;', 'utf8');
+
+  await runFeatureTestsScaffoldCommand({
+    feature: 'users-insert',
+    rootDir: workspace
+  });
+
+  const vitestEntrypointFile = readFileSync(
+    path.join(featureDir, 'queries', 'insert-users', 'tests', 'insert-users.boundary.ztd.test.ts'),
+    'utf8'
+  );
+  expect(vitestEntrypointFile).toContain("import { runQuerySpecZtdCases } from '#tests/support/ztd/harness.js';");
+
+  const queryTypesFile = readFileSync(
+    path.join(featureDir, 'queries', 'insert-users', 'tests', 'boundary-ztd-types.ts'),
+    'utf8'
+  );
+  expect(queryTypesFile).toContain("import type { QuerySpecZtdCase } from '#tests/support/ztd/case-types.js';");
+});
+
+test('runFeatureTestsScaffoldCommand fails fast when #tests alias support is partial', async () => {
+  const workspace = createTempDir('feature-tests-partial-import-alias');
+  const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
+  const queryDir = path.join(featureDir, 'queries', 'insert-users');
+  mkdirSync(queryDir, { recursive: true });
+  seedSharedZtdSupport(workspace);
+  writeFileSync(
+    path.join(workspace, 'package.json'),
+    `${JSON.stringify({
+      name: 'feature-tests-scaffold-test',
+      private: true,
+      type: 'module',
+      imports: {
+        '#tests/*.js': {
+          types: './tests/*.ts',
+          default: './tests/*.ts'
+        }
+      }
+    }, null, 2)}\n`,
+    'utf8'
+  );
+
+  writeFileSync(path.join(featureDir, 'boundary.ts'), 'export const RequestSchema = null;\n', 'utf8');
+  writeFileSync(path.join(queryDir, 'boundary.ts'), 'export async function executeInsertUsersBoundary() { return {}; }\n', 'utf8');
+  writeFileSync(path.join(queryDir, 'insert-users.sql'), 'select 1;', 'utf8');
+
+  await expect(
+    runFeatureTestsScaffoldCommand({
+      feature: 'users-insert',
+      rootDir: workspace
+    })
+  ).rejects.toThrow(/partial #tests alias configuration/i);
 });
 
 test('runFeatureTestsScaffoldCommand fails fast when starter-owned ZTD support is missing', async () => {

@@ -420,7 +420,7 @@ test(
       "import { z } from 'zod';"
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).toContain(
-      "import type { FeatureQueryExecutor } from '#features/_shared/featureQueryExecutor.js';"
+      "import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';"
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).not.toContain(
       'queryExactlyOneRow'

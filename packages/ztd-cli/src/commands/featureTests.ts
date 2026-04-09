@@ -4,6 +4,7 @@ import { Command } from 'commander';
 
 import { emitDiagnostic, isJsonOutput, writeCommandEnvelope } from '../utils/agentCli';
 import { ensureDirectory } from '../utils/fs';
+import { inspectImportAliasSupport } from '../utils/importAliasSupport';
 
 const TESTS_SUPPORT_HARNESS_IMPORT_PATH = '#tests/support/ztd/harness.js';
 const TESTS_SUPPORT_CASE_TYPES_IMPORT_PATH = '#tests/support/ztd/case-types.js';
@@ -123,6 +124,7 @@ export async function runFeatureTestsScaffoldCommand(options: FeatureTestsComman
   });
 
   const files = renderFeatureTestScaffoldFiles({
+    rootDir,
     featureName,
     queryName: queryLayout.queryName,
     planDetails
@@ -195,6 +197,7 @@ function assertSharedZtdTestSupport(rootDir: string): void {
 }
 
 function renderFeatureTestScaffoldFiles(params: {
+  rootDir: string;
   featureName: string;
   queryName: string;
   planDetails: TestPlanDetails;
@@ -205,6 +208,17 @@ function renderFeatureTestScaffoldFiles(params: {
   basicCaseFile: string;
   queryTypesFile: string;
 } {
+  const importAliasSupport = inspectImportAliasSupport(params.rootDir, {
+    packageImportKey: '#tests/*.js',
+    tsconfigPathKey: '#tests/*',
+    vitestAliasPrefix: '#tests'
+  });
+  if (importAliasSupport === 'partial') {
+    throw new Error(
+      'Feature tests scaffold found partial #tests alias configuration. Configure package.json#imports, tsconfig.json compilerOptions.paths, and vitest.config.ts resolve.alias together, or remove the partial alias setup.'
+    );
+  }
+  const useStableTestSupportImports = importAliasSupport === 'supported';
   const fixtureCandidateTablesLine = params.planDetails.fixtureCandidateTables.length > 0
     ? params.planDetails.fixtureCandidateTables.map((field) => `- ${field}`).join('\n')
     : '- TODO: inspect the scaffolded SQL and DDL for fixture candidate tables.';
@@ -290,7 +304,9 @@ function renderFeatureTestScaffoldFiles(params: {
   )}\n`;
 
   const querySpecImportPath = '../boundary.js';
-  const harnessImportPath = TESTS_SUPPORT_HARNESS_IMPORT_PATH;
+  const harnessImportPath = useStableTestSupportImports
+    ? TESTS_SUPPORT_HARNESS_IMPORT_PATH
+    : '../../../../../../tests/support/ztd/harness.js';
   const casesImportPath = './cases/basic.case.js';
   const executorName = readExportedFunctionName(params.planDetails.querySpecSourcePath, 'execute', 'QuerySpec');
   const queryTypePrefix = toPascalCase(params.queryName);
@@ -353,7 +369,7 @@ function renderFeatureTestScaffoldFiles(params: {
   ].join('\n');
 
   const queryTypesFile = [
-    `import type { QuerySpecZtdCase } from '${TESTS_SUPPORT_CASE_TYPES_IMPORT_PATH}';`,
+    `import type { QuerySpecZtdCase } from '${useStableTestSupportImports ? TESTS_SUPPORT_CASE_TYPES_IMPORT_PATH : '../../../../../../tests/support/ztd/case-types.js'}';`,
     '',
     `export type ${queryTypePrefix}BeforeDb = ${beforeDbTypeLiteral};`,
     `export type ${queryTypePrefix}Input = ${queryInputTypeLiteral};`,

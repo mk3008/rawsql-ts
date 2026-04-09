@@ -22,6 +22,50 @@ function createTempDir(prefix: string): string {
   return mkdtempSync(path.join(tmpRoot, `${prefix}-`));
 }
 
+function seedStableFeatureAliases(workspace: string): void {
+  writeFileSync(
+    path.join(workspace, 'package.json'),
+    `${JSON.stringify({
+      name: 'feature-scaffold-test',
+      private: true,
+      type: 'module',
+      imports: {
+        '#features/*.js': {
+          types: './src/features/*.ts',
+          default: './dist/features/*.js'
+        }
+      }
+    }, null, 2)}\n`,
+    'utf8'
+  );
+  writeFileSync(
+    path.join(workspace, 'tsconfig.json'),
+    `${JSON.stringify({
+      compilerOptions: {
+        baseUrl: '.',
+        paths: {
+          '#features/*': ['src/features/*']
+        }
+      }
+    }, null, 2)}\n`,
+    'utf8'
+  );
+  writeFileSync(
+    path.join(workspace, 'vitest.config.ts'),
+    [
+      "import { defineConfig } from 'vitest/config';",
+      '',
+      'export default defineConfig({',
+      '  resolve: {',
+      "    alias: { '#features': '/virtual/src/features' }",
+      '  }',
+      '});',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+}
+
 test('deriveFeatureName defaults to resource-action form', () => {
   expect(deriveFeatureName('users', 'insert')).toBe('users-insert');
   expect(deriveFeatureName('users', 'update')).toBe('users-update');
@@ -289,7 +333,7 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
     'utf8'
   );
   expect(querySpecFile).toContain("import { z } from 'zod';");
-  expect(querySpecFile).toContain("import type { FeatureQueryExecutor } from '#features/_shared/featureQueryExecutor.js';");
+  expect(querySpecFile).toContain("import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';");
   expect(querySpecFile).toContain("const insertUsersSqlResource = loadSqlResource(__dirname, 'insert-users.sql');");
   expect(querySpecFile).toContain('const QueryParamsSchema = z.object({');
   expect(querySpecFile).toContain("}).strict();");
@@ -361,6 +405,77 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
   expect(readmeFile).toContain('featureQueryExecutor.ts` is the shared runtime contract for DB execution injection');
   expect(readmeFile).toContain('Catalog runtime primitives from `@rawsql-ts/sql-contract`');
   expect(readmeFile).toContain('Keep this baseline as one workflow and one primary query by default');
+});
+
+test('runFeatureScaffoldCommand uses stable shared imports when the workspace supports #features', async () => {
+  const workspace = createTempDir('feature-scaffold-stable-imports');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
+  seedStableFeatureAliases(workspace);
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'users.sql'),
+    [
+      'create table public.users (',
+      '  id integer generated always as identity primary key,',
+      '  email text not null,',
+      '  created_at timestamptz not null default now()',
+      ');',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+
+  await runFeatureScaffoldCommand({
+    table: 'users',
+    action: 'insert',
+    rootDir: workspace
+  });
+
+  const querySpecFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'),
+    'utf8'
+  );
+  expect(querySpecFile).toContain("import type { FeatureQueryExecutor } from '#features/_shared/featureQueryExecutor.js';");
+  expect(querySpecFile).toContain("import { loadSqlResource } from '#features/_shared/loadSqlResource.js';");
+});
+
+test('runFeatureScaffoldCommand fails fast when #features alias support is partial', async () => {
+  const workspace = createTempDir('feature-scaffold-partial-import-alias');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(workspace, 'package.json'),
+    `${JSON.stringify({
+      name: 'feature-scaffold-test',
+      private: true,
+      type: 'module',
+      imports: {
+        '#features/*.js': {
+          types: './src/features/*.ts',
+          default: './dist/features/*.js'
+        }
+      }
+    }, null, 2)}\n`,
+    'utf8'
+  );
+  writeFileSync(
+    path.join(ddlDir, 'users.sql'),
+    [
+      'create table public.users (',
+      '  id serial primary key,',
+      '  email text not null',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  await expect(
+    runFeatureScaffoldCommand({
+      table: 'users',
+      action: 'insert',
+      rootDir: workspace
+    })
+  ).rejects.toThrow(/partial #features alias configuration/i);
 });
 
 test('runFeatureScaffoldCommand uses default values when every insert column is DB-generated', async () => {
