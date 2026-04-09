@@ -2,7 +2,6 @@ const ESSENTIAL_TEST_FILES = [
   'tests/checkContract.cli-exit.test.ts',
   'tests/checkContract.cli.test.ts',
   'tests/checkContract.unit.test.ts',
-  'tests/cliCommands.test.ts',
   'tests/featureScaffold.unit.test.ts',
   'tests/featureTestsScaffold.unit.test.ts',
   'tests/gitignoreTemplate.pack.test.ts',

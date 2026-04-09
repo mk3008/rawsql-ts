@@ -13,6 +13,7 @@ Run on every `ztd-cli`-scoped pre-commit and PR check.
 - pre-commit policy tests
 
 These gates protect user-facing command behavior and generated-project expectations.
+Broader CLI integration scenarios still run in the package-level test lanes outside the always-blocking gate.
 
 ## Soft Gate
 

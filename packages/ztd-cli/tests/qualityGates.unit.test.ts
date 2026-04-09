@@ -12,7 +12,6 @@ test('essential suite stays focused on scaffold and CLI contract coverage', () =
   expect(ESSENTIAL_TEST_FILES).toEqual(
     expect.arrayContaining([
       'tests/checkContract.cli.test.ts',
-      'tests/cliCommands.test.ts',
       'tests/featureScaffold.unit.test.ts',
       'tests/init.command.test.ts',
       'tests/precommitEnforcement.unit.test.ts',
