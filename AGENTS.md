@@ -85,6 +85,9 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 - Reports must distinguish `tests were updated` from `tests passed`.
 - GitHub-facing reports must not use local filesystem paths.
 - Supplementary evidence alone must not justify a strong `done` claim.
+- Final user-facing progress and completion reports should use explicit sections rather than long narrative-only blocks when multiple concerns are being reported.
+- When reporting task status, show the current status label near the top and again at the end when the report is long enough that scrolling could hide it.
+- When reporting multiple concerns, separate at least `status`, `current situation`, and `remaining issues or decisions` so the reader can scan quickly.
 
 ## Review Minimums
 

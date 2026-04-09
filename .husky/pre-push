@@ -1,0 +1,5 @@
+#!/bin/sh
+set -e
+
+echo "[pre-push] Checking retro gate..."
+node scripts/check-retro-clean.js
