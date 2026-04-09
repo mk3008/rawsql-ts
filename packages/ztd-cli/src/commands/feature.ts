@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
 import {
@@ -21,8 +21,6 @@ type FeatureAction = (typeof FEATURE_ACTIONS)[number];
 const DEFAULT_PAGE_SIZE = 50;
 const FEATURE_SHARED_EXECUTOR_IMPORT_PATH = '#features/_shared/featureQueryExecutor.js';
 const FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH = '#features/_shared/loadSqlResource.js';
-const FEATURE_SHARED_EXECUTOR_RELATIVE_IMPORT_PATH = '../../../_shared/featureQueryExecutor.js';
-const FEATURE_SHARED_LOAD_SQL_RESOURCE_RELATIVE_IMPORT_PATH = '../../../_shared/loadSqlResource.js';
 const FIXED_LAYOUT_DESCRIPTION = [
   'src/features/<feature-name>/',
   '  boundary.ts',
@@ -49,6 +47,17 @@ type FeatureCommandOptions = {
   dryRun?: boolean;
   force?: boolean;
   rootDir?: string;
+};
+
+type ExistingBoundaryQueryCommandOptions = {
+  table?: string;
+  action?: string;
+  queryName?: string;
+  feature?: string;
+  boundaryDir?: string;
+  dryRun?: boolean;
+  rootDir?: string;
+  workingDir?: string;
 };
 
 type FeatureScaffoldSourceName = 'generated-metadata' | 'ddl';
@@ -95,8 +104,33 @@ interface FeatureScaffoldPaths {
   loadSqlResourceFile: string;
 }
 
+interface ExistingBoundaryQueryScaffoldPaths {
+  boundaryDir: string;
+  queriesDir: string;
+  queryDir: string;
+  querySpecFile: string;
+  querySqlFile: string;
+  entrySpecFile: string;
+  sharedDir: string;
+  featureQueryExecutorFile: string;
+  loadSqlResourceFile: string;
+  createsQueriesDir: boolean;
+}
+
 interface FeatureScaffoldResult {
   featureName: string;
+  queryName: string;
+  action: FeatureAction;
+  table: string;
+  primaryKeyColumn: string;
+  source: FeatureScaffoldSourceName;
+  dryRun: boolean;
+  outputs: Array<{ path: string; written: boolean; kind: 'directory' | 'file' }>;
+}
+
+interface ExistingBoundaryQueryScaffoldResult {
+  boundaryPath: string;
+  resolutionSource: 'feature' | 'boundary-dir' | 'cwd';
   queryName: string;
   action: FeatureAction;
   table: string;
@@ -109,6 +143,9 @@ interface FeatureScaffoldResult {
 export function registerFeatureCommand(program: Command): void {
   const feature = program.command('feature').description('Scaffold feature-local files from schema metadata');
   registerFeatureTestsScaffoldCommand(feature);
+  const featureQuery = feature
+    .command('query')
+    .description('Add a child query boundary under an existing boundary folder');
 
   feature
     .command('scaffold')
@@ -139,6 +176,41 @@ export function registerFeatureCommand(program: Command): void {
       `- Run \`ztd feature tests scaffold --feature ${result.featureName}\` after you finish SQL and DTO edits.`,
       `- That command will refresh src/features/${result.featureName}/queries/${result.queryName}/tests/generated/TEST_PLAN.md and analysis.json, while AI-authored cases stay in src/features/${result.featureName}/queries/${result.queryName}/tests/cases/.`
     ];
+      process.stdout.write(`${lines.join('\n')}\n`);
+    });
+
+  featureQuery
+    .command('scaffold')
+    .description('Scaffold one additive query boundary under an existing boundary folder without rewriting the parent boundary')
+    .requiredOption('--table <table>', 'Target table name for the new query boundary')
+    .requiredOption('--action <action>', 'Query action template to scaffold (v1 supports insert, update, delete, get-by-id, and list)')
+    .requiredOption('--query-name <name>', 'Name of the query boundary to add under queries/')
+    .option('--feature <name>', 'Resolve the target boundary as src/features/<feature-name>')
+    .option('--boundary-dir <path>', 'Explicit existing boundary folder path; defaults to the current working directory when omitted')
+    .option('--dry-run', 'Validate inputs and emit the planned scaffold without writing files', false)
+    .action(async (options: ExistingBoundaryQueryCommandOptions) => {
+      const result = await runExistingBoundaryQueryScaffoldCommand(options);
+      if (isJsonOutput()) {
+        writeCommandEnvelope('feature query scaffold', result);
+        return;
+      }
+
+      const lines = [
+        `Existing-boundary query scaffold ${result.dryRun ? 'plan' : 'completed'}: ${result.queryName}`,
+        `Boundary: ${result.boundaryPath}`,
+        `Resolved by: ${result.resolutionSource}`,
+        `Action: ${result.action}`,
+        `Table: ${result.table}`,
+        `Primary key: ${result.primaryKeyColumn}`,
+        `Source: ${result.source}`,
+        '',
+        'Created by CLI:',
+        ...result.outputs.map((output) => `- ${output.path}`),
+        '',
+        'Reserved for AI/human follow-up (not done by the CLI):',
+        '- Wire the new query boundary into the parent boundary explicitly.',
+        '- Decide orchestration, transaction boundaries, and response shaping at the parent boundary.'
+      ];
       process.stdout.write(`${lines.join('\n')}\n`);
     });
 }
@@ -226,6 +298,85 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
   };
 }
 
+export async function runExistingBoundaryQueryScaffoldCommand(
+  options: ExistingBoundaryQueryCommandOptions
+): Promise<ExistingBoundaryQueryScaffoldResult> {
+  const rootDir = options.rootDir ?? process.cwd();
+  const action = normalizeFeatureAction(options.action);
+  const queryName = normalizeChildQueryName(options.queryName);
+  const config = loadZtdProjectConfig(rootDir);
+  const generatedMetadataAssessment = assessGeneratedMetadataCapability(rootDir);
+  const input = resolveFeatureScaffoldInput({
+    projectRoot: rootDir,
+    table: options.table ?? '',
+    config,
+    generatedMetadataAssessment
+  });
+  const primaryKeyColumn = resolvePrimaryKeyColumn(input.table);
+  const resolvedBoundary = resolveExistingBoundaryFolder(rootDir, options);
+  assertExistingBoundaryFolderContract(rootDir, resolvedBoundary.boundaryDir);
+  const paths = buildExistingBoundaryQueryScaffoldPaths(rootDir, resolvedBoundary.boundaryDir, queryName);
+  assertExistingBoundaryQueryWriteSafety(paths);
+  const contents = renderExistingBoundaryQueryScaffoldFiles({
+    rootDir,
+    boundaryDir: resolvedBoundary.boundaryDir,
+    boundaryRelativeDir: resolvedBoundary.boundaryPath,
+    queryName,
+    action,
+    table: input.table,
+    primaryKeyColumn
+  });
+
+  const outputs: ExistingBoundaryQueryScaffoldResult['outputs'] = [
+    ...buildSharedOutputs(rootDir, paths, !options.dryRun),
+    ...(paths.createsQueriesDir
+      ? [{ path: toProjectRelativePath(rootDir, paths.queriesDir), written: !options.dryRun, kind: 'directory' as const }]
+      : []),
+    { path: toProjectRelativePath(rootDir, paths.queryDir), written: !options.dryRun, kind: 'directory' },
+    { path: toProjectRelativePath(rootDir, paths.querySpecFile), written: !options.dryRun, kind: 'file' },
+    { path: toProjectRelativePath(rootDir, paths.querySqlFile), written: !options.dryRun, kind: 'file' },
+  ];
+
+  if (options.dryRun) {
+    return {
+      boundaryPath: resolvedBoundary.boundaryPath,
+      resolutionSource: resolvedBoundary.resolutionSource,
+      queryName,
+      action,
+      table: input.table.canonicalName,
+      primaryKeyColumn,
+      source: input.source,
+      dryRun: true,
+      outputs
+    };
+  }
+
+  ensureDirectory(paths.sharedDir);
+  ensureDirectory(paths.queriesDir);
+  ensureDirectory(paths.queryDir);
+  writeFileIfMissing(paths.featureQueryExecutorFile, contents.featureQueryExecutorFile);
+  writeFileIfMissing(paths.loadSqlResourceFile, contents.loadSqlResourceFile);
+  writeFileSync(paths.querySpecFile, contents.querySpecFile, 'utf8');
+  writeFileSync(paths.querySqlFile, contents.querySqlFile, 'utf8');
+
+  emitDiagnostic({
+    code: 'feature-query-scaffold.parent-follow-up',
+    message: `CLI added ${resolvedBoundary.boundaryPath}/queries/${queryName}, but it did not modify ${resolvedBoundary.boundaryPath}/boundary.ts. Wire orchestration explicitly in the parent boundary.`
+  });
+
+  return {
+    boundaryPath: resolvedBoundary.boundaryPath,
+    resolutionSource: resolvedBoundary.resolutionSource,
+    queryName,
+    action,
+    table: input.table.canonicalName,
+    primaryKeyColumn,
+    source: input.source,
+    dryRun: false,
+    outputs
+  };
+}
+
 export function deriveFeatureName(tableName: string, action: string): string {
   const resourceSegment = toFeatureResourceSegment(tableName);
   return `${resourceSegment}-${action.trim().toLowerCase()}`;
@@ -245,6 +396,14 @@ export function normalizeFeatureName(value: string): string {
     throw new Error(
       'Feature name must use resource-action kebab-case, start with a letter, and look like users-insert.'
     );
+  }
+  return normalized;
+}
+
+export function normalizeChildQueryName(value: string | undefined): string {
+  const normalized = (value ?? '').trim().toLowerCase();
+  if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(normalized)) {
+    throw new Error('Query name must use kebab-case, start with a letter, and look like insert-sales-detail.');
   }
   return normalized;
 }
@@ -503,6 +662,28 @@ function buildFeatureScaffoldPaths(rootDir: string, featureName: string, queryNa
   };
 }
 
+function buildExistingBoundaryQueryScaffoldPaths(
+  rootDir: string,
+  boundaryDir: string,
+  queryName: string
+): ExistingBoundaryQueryScaffoldPaths {
+  const queriesDir = path.join(boundaryDir, 'queries');
+  const queryDir = path.join(queriesDir, queryName);
+  const sharedDir = path.join(rootDir, 'src', 'features', '_shared');
+  return {
+    boundaryDir,
+    queriesDir,
+    queryDir,
+    querySpecFile: path.join(queryDir, 'boundary.ts'),
+    querySqlFile: path.join(queryDir, `${queryName}.sql`),
+    entrySpecFile: path.join(boundaryDir, 'boundary.ts'),
+    sharedDir,
+    featureQueryExecutorFile: path.join(sharedDir, 'featureQueryExecutor.ts'),
+    loadSqlResourceFile: path.join(sharedDir, 'loadSqlResource.ts'),
+    createsQueriesDir: !existsSync(queriesDir)
+  };
+}
+
 function renderFeatureScaffoldFiles(params: {
   rootDir: string;
   featureName: string;
@@ -519,17 +700,11 @@ function renderFeatureScaffoldFiles(params: {
   featureQueryExecutorFile: string;
   loadSqlResourceFile: string;
 } {
-  const importAliasSupport = inspectImportAliasSupport(params.rootDir, {
-    packageImportKey: '#features/*.js',
-    tsconfigPathKey: '#features/*',
-    vitestAliasPrefix: '#features'
-  });
-  if (importAliasSupport === 'partial') {
-    throw new Error(
-      'Feature scaffold found partial #features alias configuration. Configure package.json#imports, tsconfig.json compilerOptions.paths, and vitest.config.ts resolve.alias together, or remove the partial alias setup.'
-    );
-  }
-  const useStableSharedImports = importAliasSupport === 'supported';
+  const sharedImports = resolveFeatureSharedImportPaths(
+    params.rootDir,
+    path.join(params.rootDir, 'src', 'features', params.featureName, 'queries', params.queryName),
+    'Feature scaffold'
+  );
   const pascalName = toPascalCase(params.featureName);
   const entryCamelName = toCamelCase(params.featureName);
   const queryPascalName = toPascalCase(params.queryName);
@@ -538,23 +713,7 @@ function renderFeatureScaffoldFiles(params: {
   const requestFields = actionPlan.requestColumns.map((column) => toRenderField(column));
   const responseFields = actionPlan.resultColumns.map((column) => toRenderField(column));
   const sqlFile = renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn);
-  const featureQueryExecutorFile = [
-    '// Shared runtime contract for scaffolded features.',
-    '// Inject your DB execution implementation at this seam from the application runtime.',
-    'export interface FeatureQueryExecutor {',
-    '  query<T = unknown>(sql: string, params: Record<string, unknown>): Promise<T[]>;',
-    '}',
-    ''
-  ].join('\n');
-  const loadSqlResourceFile = [
-    "import { readFileSync } from 'node:fs';",
-    "import path from 'node:path';",
-    '',
-    'export function loadSqlResource(currentDir: string, relativePath: string): string {',
-    "  return readFileSync(path.join(currentDir, relativePath), 'utf8');",
-    '}',
-    ''
-  ].join('\n');
+  const sharedSupportFiles = renderFeatureSharedSupportFiles();
   const entrySpecFile = renderEntrySpecFile({
     action: params.action,
     featureName: params.featureName,
@@ -569,12 +728,13 @@ function renderFeatureScaffoldFiles(params: {
   const querySpecFile = renderQuerySpecFile({
     action: params.action,
     queryName: params.queryName,
-    featureName: params.featureName,
+    boundaryRelativeDir: normalizeCliPath(path.join('src', 'features', params.featureName)),
     queryPascalName,
     queryCamelName,
     requestFields,
     responseFields,
-    useStableSharedImports
+    sharedExecutorImportPath: sharedImports.executorImportPath,
+    sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath
   });
   const readmeFile = renderReadmeFile({
     action: params.action,
@@ -601,8 +761,8 @@ function renderFeatureScaffoldFiles(params: {
     querySpecFile,
     querySqlFile: sqlFile,
     readmeFile,
-    featureQueryExecutorFile,
-    loadSqlResourceFile
+    featureQueryExecutorFile: sharedSupportFiles.featureQueryExecutorFile,
+    loadSqlResourceFile: sharedSupportFiles.loadSqlResourceFile
   };
 }
 
@@ -634,6 +794,184 @@ function deriveQueryName(tableName: string, action: FeatureAction): string {
     return action;
   }
   return `${action}-${toFeatureResourceSegment(tableName)}`;
+}
+
+function resolveExistingBoundaryFolder(
+  rootDir: string,
+  options: ExistingBoundaryQueryCommandOptions
+): {
+  boundaryDir: string;
+  boundaryPath: string;
+  resolutionSource: 'feature' | 'boundary-dir' | 'cwd';
+} {
+  if (options.feature && options.boundaryDir) {
+    throw new Error('Use either --feature or --boundary-dir, not both.');
+  }
+
+  if (options.feature) {
+    const featureName = normalizeFeatureName(options.feature);
+    const boundaryDir = path.join(rootDir, 'src', 'features', featureName);
+    return {
+      boundaryDir,
+      boundaryPath: toProjectRelativePath(rootDir, boundaryDir),
+      resolutionSource: 'feature'
+    };
+  }
+
+  if (options.boundaryDir) {
+    const boundaryDir = path.resolve(rootDir, options.boundaryDir);
+    return {
+      boundaryDir,
+      boundaryPath: toProjectRelativePath(rootDir, boundaryDir),
+      resolutionSource: 'boundary-dir'
+    };
+  }
+
+  const boundaryDir = options.workingDir ?? process.cwd();
+  return {
+    boundaryDir,
+    boundaryPath: toProjectRelativePath(rootDir, boundaryDir),
+    resolutionSource: 'cwd'
+  };
+}
+
+function renderExistingBoundaryQueryScaffoldFiles(params: {
+  rootDir: string;
+  boundaryDir: string;
+  boundaryRelativeDir: string;
+  queryName: string;
+  action: FeatureAction;
+  table: DdlTableMetadata;
+  primaryKeyColumn: string;
+}): {
+  querySpecFile: string;
+  querySqlFile: string;
+  featureQueryExecutorFile: string;
+  loadSqlResourceFile: string;
+} {
+  const sharedImports = resolveFeatureSharedImportPaths(
+    params.rootDir,
+    path.join(params.boundaryDir, 'queries', params.queryName),
+    'Feature query scaffold'
+  );
+  const queryPascalName = toPascalCase(params.queryName);
+  const queryCamelName = toCamelCase(params.queryName);
+  const actionPlan = buildActionPlan(params.action, params.table, params.primaryKeyColumn);
+  const requestFields = actionPlan.requestColumns.map((column) => toRenderField(column));
+  const responseFields = actionPlan.resultColumns.map((column) => toRenderField(column));
+  const sharedSupportFiles = renderFeatureSharedSupportFiles();
+
+  return {
+    querySpecFile: renderQuerySpecFile({
+      action: params.action,
+      queryName: params.queryName,
+      boundaryRelativeDir: params.boundaryRelativeDir,
+      queryPascalName,
+      queryCamelName,
+      requestFields,
+      responseFields,
+      sharedExecutorImportPath: sharedImports.executorImportPath,
+      sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath
+    }),
+    querySqlFile: renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn),
+    featureQueryExecutorFile: sharedSupportFiles.featureQueryExecutorFile,
+    loadSqlResourceFile: sharedSupportFiles.loadSqlResourceFile
+  };
+}
+
+function assertExistingBoundaryFolderContract(rootDir: string, boundaryDir: string): void {
+  const relativeBoundary = toProjectRelativePath(rootDir, boundaryDir);
+  if (relativeBoundary.startsWith('..')) {
+    throw new Error(`Boundary folder must stay inside the project root: ${boundaryDir}.`);
+  }
+  if (!existsSync(boundaryDir)) {
+    throw new Error(`Existing boundary folder not found: ${relativeBoundary}.`);
+  }
+  if (!statSync(boundaryDir).isDirectory()) {
+    throw new Error(`Boundary target must be a directory: ${relativeBoundary}.`);
+  }
+
+  const entrySpecFile = path.join(boundaryDir, 'boundary.ts');
+  if (!existsSync(entrySpecFile)) {
+    throw new Error(`Boundary folder must contain boundary.ts: ${relativeBoundary}.`);
+  }
+  if (!statSync(entrySpecFile).isFile()) {
+    throw new Error(`Boundary entrypoint must be a file: ${normalizeCliPath(path.join(relativeBoundary, 'boundary.ts'))}.`);
+  }
+
+  const queriesDir = path.join(boundaryDir, 'queries');
+  if (existsSync(queriesDir) && !statSync(queriesDir).isDirectory()) {
+    throw new Error(`Expected queries/ to be a directory under ${relativeBoundary}.`);
+  }
+}
+
+function assertExistingBoundaryQueryWriteSafety(paths: ExistingBoundaryQueryScaffoldPaths): void {
+  if (existsSync(paths.queryDir)) {
+    throw new Error(
+      `Query boundary already exists: ${normalizeCliPath(path.join(path.basename(paths.boundaryDir), 'queries', path.basename(paths.queryDir)))}.`
+    );
+  }
+}
+
+function resolveFeatureSharedImportPaths(
+  rootDir: string,
+  queryDir: string,
+  commandLabel: string
+): {
+  executorImportPath: string;
+  loadSqlResourceImportPath: string;
+} {
+  const importAliasSupport = inspectImportAliasSupport(rootDir, {
+    packageImportKey: '#features/*.js',
+    tsconfigPathKey: '#features/*',
+    vitestAliasPrefix: '#features'
+  });
+  if (importAliasSupport === 'partial') {
+    emitDiagnostic({
+      code: 'feature-scaffold.partial-alias-fallback',
+      severity: 'warning',
+      message: `${commandLabel} found partial #features alias configuration. Falling back to relative imports for generated files. Configure package.json#imports, tsconfig.json compilerOptions.paths, and vitest.config.ts resolve.alias together to enable stable #features imports.`
+    });
+  } else if (importAliasSupport === 'supported') {
+    return {
+      executorImportPath: FEATURE_SHARED_EXECUTOR_IMPORT_PATH,
+      loadSqlResourceImportPath: FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH
+    };
+  }
+
+  return {
+    executorImportPath: normalizeCliPath(
+      path.relative(queryDir, path.join(rootDir, 'src', 'features', '_shared', 'featureQueryExecutor.js'))
+    ),
+    loadSqlResourceImportPath: normalizeCliPath(
+      path.relative(queryDir, path.join(rootDir, 'src', 'features', '_shared', 'loadSqlResource.js'))
+    )
+  };
+}
+
+function renderFeatureSharedSupportFiles(): {
+  featureQueryExecutorFile: string;
+  loadSqlResourceFile: string;
+} {
+  return {
+    featureQueryExecutorFile: [
+      '// Shared runtime contract for scaffolded features.',
+      '// Inject your DB execution implementation at this seam from the application runtime.',
+      'export interface FeatureQueryExecutor {',
+      '  query<T = unknown>(sql: string, params: Record<string, unknown>): Promise<T[]>;',
+      '}',
+      ''
+    ].join('\n'),
+    loadSqlResourceFile: [
+      "import { readFileSync } from 'node:fs';",
+      "import path from 'node:path';",
+      '',
+      'export function loadSqlResource(currentDir: string, relativePath: string): string {',
+      "  return readFileSync(path.join(currentDir, relativePath), 'utf8');",
+      '}',
+      ''
+    ].join('\n')
+  };
 }
 
 function buildActionPlan(
@@ -1087,12 +1425,13 @@ function renderEntrySpecTestFile(params: {
 function renderQuerySpecFile(params: {
   action: FeatureAction;
   queryName: string;
-  featureName: string;
+  boundaryRelativeDir: string;
   queryPascalName: string;
   queryCamelName: string;
   requestFields: RenderField[];
   responseFields: RenderField[];
-  useStableSharedImports: boolean;
+  sharedExecutorImportPath: string;
+  sharedLoadSqlResourceImportPath: string;
 }): string {
   if (params.action === 'get-by-id') {
     return renderGetByIdQuerySpecFile(params);
@@ -1125,8 +1464,8 @@ function renderQuerySpecFile(params: {
     "import { dirname } from 'node:path';",
     "import { fileURLToPath } from 'node:url';",
     '',
-    `import type { FeatureQueryExecutor } from '${params.useStableSharedImports ? FEATURE_SHARED_EXECUTOR_IMPORT_PATH : FEATURE_SHARED_EXECUTOR_RELATIVE_IMPORT_PATH}';`,
-    `import { loadSqlResource } from '${params.useStableSharedImports ? FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH : FEATURE_SHARED_LOAD_SQL_RESOURCE_RELATIVE_IMPORT_PATH}';`,
+    `import type { FeatureQueryExecutor } from '${params.sharedExecutorImportPath}';`,
+    `import { loadSqlResource } from '${params.sharedLoadSqlResourceImportPath}';`,
     '',
     'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
@@ -1640,12 +1979,13 @@ function renderListEntrySpecFile(params: {
 function renderGetByIdQuerySpecFile(params: {
   action: FeatureAction;
   queryName: string;
-  featureName: string;
+  boundaryRelativeDir: string;
   queryPascalName: string;
   queryCamelName: string;
   requestFields: RenderField[];
   responseFields: RenderField[];
-  useStableSharedImports: boolean;
+  sharedExecutorImportPath: string;
+  sharedLoadSqlResourceImportPath: string;
 }): string {
   const paramsSchema = renderZodObjectSchema('QueryParamsSchema', params.requestFields, {
     trimStrings: false,
@@ -1665,8 +2005,8 @@ function renderGetByIdQuerySpecFile(params: {
     "import { dirname } from 'node:path';",
     "import { fileURLToPath } from 'node:url';",
     '',
-    `import type { FeatureQueryExecutor } from '${params.useStableSharedImports ? FEATURE_SHARED_EXECUTOR_IMPORT_PATH : FEATURE_SHARED_EXECUTOR_RELATIVE_IMPORT_PATH}';`,
-    `import { loadSqlResource } from '${params.useStableSharedImports ? FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH : FEATURE_SHARED_LOAD_SQL_RESOURCE_RELATIVE_IMPORT_PATH}';`,
+    `import type { FeatureQueryExecutor } from '${params.sharedExecutorImportPath}';`,
+    `import { loadSqlResource } from '${params.sharedLoadSqlResourceImportPath}';`,
     '',
     'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
@@ -1730,12 +2070,13 @@ function renderGetByIdQuerySpecFile(params: {
 function renderListQuerySpecFile(params: {
   action: FeatureAction;
   queryName: string;
-  featureName: string;
+  boundaryRelativeDir: string;
   queryPascalName: string;
   queryCamelName: string;
   requestFields: RenderField[];
   responseFields: RenderField[];
-  useStableSharedImports: boolean;
+  sharedExecutorImportPath: string;
+  sharedLoadSqlResourceImportPath: string;
 }): string {
   const paramsSchema = renderZodObjectSchema('QueryParamsSchema', params.requestFields, {
     trimStrings: false,
@@ -1755,9 +2096,9 @@ function renderListQuerySpecFile(params: {
     "import { dirname } from 'node:path';",
     "import { fileURLToPath } from 'node:url';",
     '',
-    `import type { FeatureQueryExecutor } from '${params.useStableSharedImports ? FEATURE_SHARED_EXECUTOR_IMPORT_PATH : FEATURE_SHARED_EXECUTOR_RELATIVE_IMPORT_PATH}';`,
+    `import type { FeatureQueryExecutor } from '${params.sharedExecutorImportPath}';`,
     "import { createCatalogExecutor, type QuerySpec } from '@rawsql-ts/sql-contract';",
-    `import { loadSqlResource } from '${params.useStableSharedImports ? FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH : FEATURE_SHARED_LOAD_SQL_RESOURCE_RELATIVE_IMPORT_PATH}';`,
+    `import { loadSqlResource } from '${params.sharedLoadSqlResourceImportPath}';`,
     '',
     `const DEFAULT_PAGE_SIZE = ${DEFAULT_PAGE_SIZE};`,
     'const __dirname = dirname(fileURLToPath(import.meta.url));',
@@ -1792,8 +2133,8 @@ function renderListQuerySpecFile(params: {
     '}',
     '',
     `const ${params.queryCamelName}CatalogSpec: QuerySpec<${params.queryPascalName}CatalogQueryParams, ${params.queryPascalName}Row> = {`,
-    `  id: '${params.featureName}/queries/${params.queryName}/spec',`,
-    `  sqlFile: 'src/features/${params.featureName}/queries/${params.queryName}/${params.queryName}.sql',`,
+    `  id: '${params.boundaryRelativeDir}/queries/${params.queryName}/spec',`,
+    `  sqlFile: '${params.boundaryRelativeDir}/queries/${params.queryName}/${params.queryName}.sql',`,
     '  params: {',
     "    shape: 'named',",
     '    example: {',
@@ -1936,7 +2277,7 @@ function toFeatureResourceSegment(tableName: string): string {
 
 function buildSharedOutputs(
   rootDir: string,
-  paths: FeatureScaffoldPaths,
+  paths: Pick<FeatureScaffoldPaths, 'sharedDir' | 'featureQueryExecutorFile' | 'loadSqlResourceFile'>,
   written: boolean
 ): FeatureScaffoldResult['outputs'] {
   const outputs: FeatureScaffoldResult['outputs'] = [];
