@@ -14,3 +14,9 @@ test('publish workflow verifies built artifacts before actual publish', () => {
 test('actual_publish depends on publish artifact verification', () => {
   expect(publishWorkflow).toContain('needs: [verify_publish_readiness, build_publish_artifacts, verify_publish_artifacts]');
 });
+
+test('proof mode skips the main-branch requirement and actual publish', () => {
+  expect(publishWorkflow).toContain("if: ${{ inputs.verification_mode != 'proof' }}");
+  expect(publishWorkflow).toContain("if: ${{ needs.verify_publish_readiness.outputs.should_publish == 'true' && inputs.verification_mode != 'proof' }}");
+  expect(publishWorkflow).toContain('create-publish-proof-plan.mjs');
+});

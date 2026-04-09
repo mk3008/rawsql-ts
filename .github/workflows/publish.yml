@@ -2,6 +2,15 @@ name: Publish (manual)
 
 on:
   workflow_dispatch:
+    inputs:
+      verification_mode:
+        description: "release=real publish path, proof=hosted artifact verification without actual publish"
+        required: false
+        default: "release"
+        type: choice
+        options:
+          - release
+          - proof
 
 concurrency:
   group: publish-npm
@@ -33,6 +42,7 @@ jobs:
           fetch-depth: 0
 
       - name: Fail unless running from main
+        if: ${{ inputs.verification_mode != 'proof' }}
         shell: bash
         run: |
           # npm Trusted Publishing (OIDC) is typically configured against the workflow file on the default branch.
@@ -56,7 +66,18 @@ jobs:
 
       - name: Verify publish readiness
         id: plan
-        run: node ./scripts/publish-plan.mjs --github-output "$GITHUB_OUTPUT" --output-dir "${READINESS_CONTRACT_DIR}"
+        shell: bash
+        run: |
+          if [ "${{ inputs.verification_mode }}" = "proof" ]; then
+            node ./scripts/create-publish-proof-plan.mjs --output-dir "${READINESS_CONTRACT_DIR}"
+            {
+              echo "should_publish=true"
+              echo "publish_plan_path=${READINESS_CONTRACT_DIR}/publish-plan.json"
+              echo "publish_candidate_count=$(node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('${READINESS_CONTRACT_DIR}/publish-plan.json','utf8'));process.stdout.write(String(p.publishCandidates.length))")"
+            } >> "$GITHUB_OUTPUT"
+          else
+            node ./scripts/publish-plan.mjs --github-output "$GITHUB_OUTPUT" --output-dir "${READINESS_CONTRACT_DIR}"
+          fi
 
       - name: Upload publish readiness contract
         uses: actions/upload-artifact@v4
@@ -175,7 +196,7 @@ jobs:
 
   actual_publish:
     needs: [verify_publish_readiness, build_publish_artifacts, verify_publish_artifacts]
-    if: ${{ needs.verify_publish_readiness.outputs.should_publish == 'true' }}
+    if: ${{ needs.verify_publish_readiness.outputs.should_publish == 'true' && inputs.verification_mode != 'proof' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

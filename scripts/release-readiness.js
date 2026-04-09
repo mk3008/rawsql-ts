@@ -28,7 +28,7 @@ const RELEASE_READINESS_PATTERNS = [
     patterns: [
       /^\.github\/actions\/setup-publish-runtime\//u,
       /^\.github\/workflows\/(?:publish|release-pr|release-readiness)\.yml$/u,
-      /^scripts\/(?:build-publish-artifacts|ci-publish|publish-plan|publish-workspace-utils|release-readiness|verify-publish-contract|verify-published-package-mode|verify-runtime-prereqs|version-packages-and-lockfile)\.(?:mjs|js)$/u,
+      /^scripts\/(?:build-publish-artifacts|ci-publish|create-publish-proof-plan|publish-plan|publish-workspace-utils|release-readiness|verify-publish-contract|verify-published-package-mode|verify-runtime-prereqs|version-packages-and-lockfile)\.(?:mjs|js)$/u,
     ],
   },
   {
