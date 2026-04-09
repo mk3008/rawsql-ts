@@ -22,7 +22,7 @@ README gives the first-run copy-paste path. This tutorial gives the scenario-lev
 
 | Scenario | Primary CLI | Why |
 | --- | --- | --- |
-| DDL repair | `npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail` | Find the impacted feature-local SQL files before editing them |
+| DDL repair | `npx ztd query uses column users.email --scope-dir src/features/users-insert --any-schema --view detail` | Find the impacted feature-local SQL files before editing them |
 | SQL repair | `npx ztd model-gen --probe-mode ztd src/features/users-insert/queries/insert-users/insert-users.sql` | Inspect the generated contract on stdout before updating the handwritten query boundary |
 | DTO repair | `npx vitest run` after the DTO change | Verify the feature-local runtime and tests after the shape change |
 | migration | `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to prepare review output plus apply SQL | Prepare a manually applied migration without asking ztd-cli to deploy it |
@@ -169,7 +169,7 @@ Use the same `users` project for each scenario:
 
 Each scenario should end with `vitest` passing again.
 
-For DDL repair, run `npx ztd query uses column users.email --specs-dir src/features/users-insert --any-schema --view detail` first so the impacted SQL files come from the CLI, not from guesswork. Passing the feature folder as `--specs-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.
+For DDL repair, run `npx ztd query uses column users.email --scope-dir src/features/users-insert --any-schema --view detail` first so the impacted SQL files come from the CLI, not from guesswork. Passing the feature folder as `--scope-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts. The older `--specs-dir` flag still works as a deprecated alias during the transition.
 
 For SQL repair, keep the SQL assets under `src/features/users-insert/queries/insert-users/`, keep the query on the starter DDL's `users` table, and rerun `model-gen` against `src/features/users-insert/queries/insert-users/insert-users.sql` directly to inspect the generated contract on stdout before you update the handwritten query boundary. If you want to save that output for reference or gradual migration, write it to a dedicated generated-contract file with `--out` instead of overwriting handwritten runtime files. Do not target `src/features/users-insert/queries/insert-users/boundary.ts` with `--out`, because that file is the runtime boundary that also owns `loadSqlResource` and the execution flow. In VSA layouts, `model-gen` now treats the SQL file location as the primary contract source, so `--sql-root` is only needed for older shared-root layouts.
 

@@ -118,9 +118,9 @@ export function buildQueryUsageReport(params: BuildQueryUsageReportParams): Quer
         code: 'no-catalog-specs-found',
         message: params.specsDir
           ? `No QuerySpec entries found under ${activeScope}.
-Hint: pass a narrower --specs-dir only when you need to limit the active spec set.`
+Hint: pass a narrower --scope-dir only when you need to limit the active scan.`
           : `No QuerySpec entries were discovered under ${activeScope}.
-Hint: run "ztd init" or place feature-local specs under your project tree. Use --specs-dir only when you need to narrow the scan.`,
+Hint: run "ztd init" or place feature-local specs under your project tree. Use --scope-dir only when you need to narrow the scan.`,
       });
     }
 

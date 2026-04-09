@@ -17,7 +17,7 @@ These prompts are intended to be copied into a separate AI instance, so the tuto
 
 ## Preferred CLI by scenario
 
-- DDL repair: `npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail`
+- DDL repair: `npx ztd query uses column users.email --scope-dir src/features/users/persistence --any-schema --view detail`
 - SQL repair: `npx ztd model-gen --probe-mode ztd src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts`
 - DTO repair: `npx vitest run`
 - migration artifact creation: `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to generate review output plus SQL; if you hand-edit the migration afterward, run `npx ztd ddl risk --file tmp/users.diff.sql` to re-evaluate the final SQL with the same structured risk contract
@@ -30,7 +30,7 @@ These prompts are intended to be copied into a separate AI instance, so the tuto
 ```text
 I changed the DDL for users.
 Read the nearest AGENTS.md files first.
-Run `npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail` to find the affected SQL files before you edit anything. The feature folder is one narrowed spec set inside the normal project-wide discovery flow.
+Run `npx ztd query uses column users.email --scope-dir src/features/users/persistence --any-schema --view detail` to find the affected SQL files before you edit anything. The feature folder is one narrowed scan scope inside the normal project-wide discovery flow.
 Fix the tests and feature code that now fail.
 Do not apply migrations automatically.
 ```

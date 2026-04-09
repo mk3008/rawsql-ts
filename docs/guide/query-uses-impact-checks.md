@@ -14,7 +14,7 @@ This page covers the `table` and `column` impact checks with examples based on a
 
 Implementation note: the CLI command is provided by `@rawsql-ts/ztd-cli`, while the reusable analysis engine now lives in `@rawsql-ts/sql-grep-core`.
 
-The active scan set is **project-wide by default**. `query uses` discovers QuerySpec entries under the current project root and follows each spec's `sqlFile`. Use `--specs-dir` only when you want to narrow the scan to one slice or sub-tree.
+The active scan set is **project-wide by default**. `query uses` discovers QuerySpec entries under the current project root and follows each spec's `sqlFile`. Use `--scope-dir` only when you want to narrow the scan to one slice or sub-tree. `--specs-dir` remains as a deprecated compatibility alias for now.
 
 ## Quick start
 
@@ -238,7 +238,7 @@ npx ztd query uses table public.users --sql-root src/sql
 For feature-local layouts, keep the spec and SQL together and let the default resolver work without `--sql-root`:
 
 ```bash
-npx ztd query uses column users.email --specs-dir src/features/users/persistence --any-schema --view detail
+npx ztd query uses column users.email --scope-dir src/features/users/persistence --any-schema --view detail
 ```
 
 ### Matches look noisy
@@ -259,6 +259,6 @@ npx ztd query uses table public.sale_items --view detail --exclude-generated
 
 1. Start with the default `impact` view.
 2. Add `--exclude-generated` for rename or type-change checks.
-3. Use `--specs-dir` only when you need to narrow a project-wide search to one feature.
+3. Use `--scope-dir` only when you need to narrow a project-wide search to one feature.
 4. Use `--view detail` only when you need line-level evidence.
 5. Treat `unresolved sql files` as a signal that the scan setup needs attention before you trust the result.

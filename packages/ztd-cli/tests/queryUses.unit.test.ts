@@ -229,6 +229,67 @@ test('query usage report discovers scaffolded feature-local queryspec files that
   ]);
 });
 
+test('query uses command accepts --scope-dir for boundary-first narrowing', async () => {
+  const root = createWorkspace('query-uses-scope-dir-command');
+  mkdirSync(path.join(root, 'src', 'features', 'users-insert', 'insert-users'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'features', 'users-insert', 'insert-users', 'queryspec.ts'),
+    [
+      "import { loadSqlResource } from '../../_shared/loadSqlResource';",
+      '',
+      "const insertUsersSqlResource = loadSqlResource(__dirname, 'insert-users.sql');",
+      '',
+      'export async function executeInsertUsersQuerySpec() {',
+      '  return insertUsersSqlResource;',
+      '}',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'features', 'users-insert', 'insert-users', 'insert-users.sql'),
+    'insert into public.users (email) values (:email) returning user_id;',
+    'utf8'
+  );
+  process.env.ZTD_PROJECT_ROOT = root;
+  const capture = { stdout: [] as string[], stderr: [] as string[] };
+  const program = createProgram(capture);
+  const logSpy = vi.spyOn(console, 'log').mockImplementation((value?: unknown) => {
+    capture.stdout.push(String(value ?? ''));
+  });
+
+  await program.parseAsync(
+    [
+      'query',
+      'uses',
+      'column',
+      'users.email',
+      '--scope-dir',
+      'src/features/users-insert',
+      '--any-schema',
+      '--view',
+      'detail',
+      '--format',
+      'json'
+    ],
+    { from: 'user' }
+  );
+  logSpy.mockRestore();
+
+  const parsed = JSON.parse(capture.stdout.join(''));
+  expect(parsed.summary).toMatchObject({
+    catalogsScanned: 1,
+    matches: 1,
+  });
+  expect(parsed.matches).toEqual([
+    expect.objectContaining({
+      kind: 'detail',
+      sql_file: 'src/features/users-insert/insert-users/insert-users.sql',
+    }),
+  ]);
+  expect(capture.stderr).toEqual([]);
+});
+
 test('impact view resolves sql-root-relative sqlFile values before the legacy spec-relative fallback', () => {
   const root = createWorkspace('query-uses-sql-root-relative');
   mkdirSync(path.join(root, 'src', 'sql', 'sales'), { recursive: true });
@@ -468,6 +529,63 @@ test('query uses command accepts --json payload options and target', async () =>
   });
   expect(parsed.matches).toEqual([]);
   expect(capture.stderr).toEqual([]);
+});
+
+test('query uses command keeps --specs-dir as a deprecated alias for --scope-dir', async () => {
+  const root = createWorkspace('query-uses-deprecated-specs-dir');
+  mkdirSync(path.join(root, 'src', 'features', 'users', 'persistence'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'features', 'users', 'persistence', 'queryspec.ts'),
+    [
+      "import { loadSqlResource } from '../../_shared/loadSqlResource';",
+      '',
+      "const usersSqlResource = loadSqlResource(__dirname, 'users.sql');",
+      '',
+      'export async function executeUsersQuerySpec() {',
+      '  return usersSqlResource;',
+      '}',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'features', 'users', 'persistence', 'users.sql'),
+    'select email from public.users;',
+    'utf8'
+  );
+  process.env.ZTD_PROJECT_ROOT = root;
+  const capture = { stdout: [] as string[], stderr: [] as string[] };
+  const program = createProgram(capture);
+  const logSpy = vi.spyOn(console, 'log').mockImplementation((value?: unknown) => {
+    capture.stdout.push(String(value ?? ''));
+  });
+  const errorSpy = vi.spyOn(console, 'error').mockImplementation((value?: unknown) => {
+    capture.stderr.push(String(value ?? ''));
+  });
+
+  await program.parseAsync(
+    [
+      'query',
+      'uses',
+      'column',
+      'users.email',
+      '--specs-dir',
+      'src/features/users/persistence',
+      '--any-schema',
+      '--format',
+      'json'
+    ],
+    { from: 'user' }
+  );
+  logSpy.mockRestore();
+  errorSpy.mockRestore();
+
+  const parsed = JSON.parse(capture.stdout.join(''));
+  expect(parsed.summary).toMatchObject({
+    catalogsScanned: 1,
+    matches: 1,
+  });
+  expect(capture.stderr).toContain('Warning: --specs-dir is deprecated for `query uses`; use --scope-dir instead.');
 });
 
 test('query usage report excludes generated specs under a custom specsDir', () => {
@@ -799,6 +917,7 @@ test('detail view emits parse warnings, fallback rows, and no-catalog guidance d
     }
   ]);
   expect(formatQueryUsageReport(emptyReport, 'text')).toContain('No QuerySpec entries were discovered under .');
+  expect(formatQueryUsageReport(emptyReport, 'text')).toContain('Use --scope-dir only when you need to narrow the scan.');
 });
 
 test('table impact finds tables referenced from EXISTS subqueries through their FROM nodes', () => {

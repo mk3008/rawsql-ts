@@ -29,7 +29,7 @@ project-root/
 ```
 
 - **Spec files are required.** Plain `.sql` files without a spec are not scanned. If you have not run `ztd init` yet, start there.
-- **Project-wide discovery is the default.** QuerySpec files are discovered recursively under the project root unless you narrow the scan with `--specs-dir`.
+- **Project-wide discovery is the default.** QuerySpec files are discovered recursively under the project root unless you narrow the scan with `--scope-dir`.
 - **Feature-local specs are first-class.** The preferred contract is a spec that keeps `sqlFile` relative to the spec itself, for example `./users.sql`.
 - **Shared SQL roots still work.** If your project intentionally keeps SQL in one shared tree, you can still use `--sql-root` as a fallback resolver.
 - **No database connection is needed.** The analysis is purely static. It parses SQL text, not a live schema.
