@@ -245,12 +245,14 @@ test('runExistingBoundaryQueryScaffoldCommand dry-run plans an additive query un
 
   expect(result.boundaryPath).toBe('src/features/sales-insert');
   expect(result.resolutionSource).toBe('feature');
-  expect(result.outputs.map((output) => output.path)).toEqual(expect.arrayContaining([
+  const plannedPaths = result.outputs.map((output) => output.path);
+  expect(plannedPaths).toEqual(expect.arrayContaining([
     'src/features/sales-insert/queries',
     'src/features/sales-insert/queries/insert-sales-detail',
     'src/features/sales-insert/queries/insert-sales-detail/boundary.ts',
     'src/features/sales-insert/queries/insert-sales-detail/insert-sales-detail.sql'
   ]));
+  expect(plannedPaths).not.toContain('src/features/sales-insert/boundary.ts');
 });
 
 test('runExistingBoundaryQueryScaffoldCommand writes a child query boundary without touching the parent boundary', async () => {
@@ -351,6 +353,63 @@ test('runExistingBoundaryQueryScaffoldCommand fails fast when the parent boundar
       rootDir: workspace
     })
   ).rejects.toThrow(/must contain boundary\.ts/i);
+});
+
+test('runExistingBoundaryQueryScaffoldCommand fails fast when the target boundary does not exist', async () => {
+  const workspace = createTempDir('feature-query-scaffold-missing-boundary');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'sales_detail.sql'),
+    [
+      'create table public.sales_detail (',
+      '  id serial primary key,',
+      '  sales_id integer not null,',
+      '  amount numeric not null',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  await expect(
+    runExistingBoundaryQueryScaffoldCommand({
+      boundaryDir: path.join('src', 'features', 'sales-insert'),
+      table: 'sales_detail',
+      action: 'insert',
+      queryName: 'insert-sales-detail',
+      rootDir: workspace
+    })
+  ).rejects.toThrow(/Existing boundary folder not found/i);
+});
+
+test('runExistingBoundaryQueryScaffoldCommand fails fast when the target boundary is not a directory', async () => {
+  const workspace = createTempDir('feature-query-scaffold-file-boundary');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
+  const boundaryFile = path.join(workspace, 'src', 'features', 'sales-insert');
+  mkdirSync(path.dirname(boundaryFile), { recursive: true });
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(boundaryFile, 'not a directory\n', 'utf8');
+  writeFileSync(
+    path.join(ddlDir, 'sales_detail.sql'),
+    [
+      'create table public.sales_detail (',
+      '  id serial primary key,',
+      '  sales_id integer not null,',
+      '  amount numeric not null',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  await expect(
+    runExistingBoundaryQueryScaffoldCommand({
+      boundaryDir: path.join('src', 'features', 'sales-insert'),
+      table: 'sales_detail',
+      action: 'insert',
+      queryName: 'insert-sales-detail',
+      rootDir: workspace
+    })
+  ).rejects.toThrow(/Boundary target must be a directory/i);
 });
 
 test('runExistingBoundaryQueryScaffoldCommand fails fast when queries is not a directory', async () => {

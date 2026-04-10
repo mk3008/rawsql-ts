@@ -380,6 +380,14 @@ exports[`describe command snapshots the top-level command catalog and every deta
         "writesFiles": true,
       },
       {
+        "name": "feature query scaffold",
+        "summary": "Add one additive child query boundary under an existing boundary without rewriting the parent boundary.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": true,
+        "supportsJsonPayload": false,
+        "writesFiles": true,
+      },
+      {
         "name": "ztd-config",
         "summary": "Generate TestRowMap, runtime fixture metadata, and layout metadata from local DDL.",
         "supportsDescribeOutput": false,
@@ -550,6 +558,64 @@ exports[`describe command snapshots the top-level command catalog and every deta
 }
 `;
 
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > feature query scaffold 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Scaffold completed or dry-run plan emitted.",
+        "1": "Validation, metadata resolution, or filesystem error.",
+      },
+      "flags": [
+        {
+          "description": "Target table name for the new query boundary.",
+          "name": "--table <table>",
+        },
+        {
+          "description": "Query action template to scaffold. v1 supports insert, update, delete, get-by-id, and list.",
+          "name": "--action <action>",
+        },
+        {
+          "description": "Name of the child query boundary to create under queries/.",
+          "name": "--query-name <name>",
+        },
+        {
+          "description": "Resolve the target boundary as src/features/<feature-name>.",
+          "name": "--feature <name>",
+        },
+        {
+          "description": "Resolve the target boundary from an explicit existing boundary folder. Use either --feature or --boundary-dir.",
+          "name": "--boundary-dir <path>",
+        },
+        {
+          "description": "Validate inputs and emit the planned additive scaffold without writing files.",
+          "name": "--dry-run",
+        },
+      ],
+      "name": "feature query scaffold",
+      "output": {
+        "files": [
+          "<target-boundary>/queries/<query-name>/",
+          "<target-boundary>/queries/<query-name>/boundary.ts",
+          "<target-boundary>/queries/<query-name>/<query-name>.sql",
+          "src/features/_shared/featureQueryExecutor.ts on first scaffold run",
+          "src/features/_shared/loadSqlResource.ts on first scaffold run",
+        ],
+        "stdout": "Human additive scaffold summary in text mode, JSON envelope in global json mode.",
+      },
+      "summary": "Add one additive child query boundary under an existing boundary without rewriting the parent boundary.",
+      "supportsDryRun": true,
+      "supportsJsonPayload": false,
+      "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
 exports[`describe command snapshots the top-level command catalog and every detailed descriptor > feature scaffold 1`] = `
 {
   "command": "describe command",
@@ -565,7 +631,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
           "name": "--table <table>",
         },
         {
-          "description": "Action template to scaffold. v1 supports insert, update, and delete.",
+          "description": "Action template to scaffold. v1 supports insert, update, delete, get-by-id, and list.",
           "name": "--action <action>",
         },
         {

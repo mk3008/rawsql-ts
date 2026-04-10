@@ -236,6 +236,7 @@ test(
     expect(result.stdout).toContain('Getting started');
     expect(result.stdout).toContain('model-gen [options] <sql-file>');
     expect(result.stdout).toContain('feature');
+    expect(result.stdout).toContain('feature query scaffold --feature users-insert');
   },
   60000,
 );
@@ -411,6 +412,30 @@ test(
       'src/features/sales-insert/queries/insert-sales-detail/insert-sales-detail.sql'
     ]));
     expect(plannedPaths).not.toContain('src/features/sales-insert/boundary.ts');
+  },
+  60000,
+);
+
+test(
+  'feature query scaffold fails fast when query-name is missing',
+  () => {
+    const result = runCli(['feature', 'query', 'scaffold', '--table', 'sales_detail', '--action', 'insert']);
+
+    assertCliFailure(result, 'feature query scaffold missing query-name');
+    expect(result.stderr || result.stdout).toContain('required option');
+    expect(result.stderr || result.stdout).toContain('--query-name <name>');
+  },
+  60000,
+);
+
+test(
+  'feature query scaffold fails fast when table is missing',
+  () => {
+    const result = runCli(['feature', 'query', 'scaffold', '--query-name', 'insert-sales-detail', '--action', 'insert']);
+
+    assertCliFailure(result, 'feature query scaffold missing table');
+    expect(result.stderr || result.stdout).toContain('required option');
+    expect(result.stderr || result.stdout).toContain('--table <table>');
   },
   60000,
 );
@@ -1352,6 +1377,30 @@ test('describe command reports perf init metadata in global json mode', () => {
     }
   });
 });
+
+test('describe command reports feature query scaffold metadata in global json mode', () => {
+  const result = runCli(['--output', 'json', 'describe', 'command', 'feature query scaffold']);
+
+  assertCliSuccess(result, 'describe feature query scaffold');
+  const parsed = JSON.parse(result.stdout);
+  expect(parsed).toMatchObject({
+    command: 'describe command',
+    ok: true,
+    data: {
+      command: {
+        name: 'feature query scaffold',
+        supportsDryRun: true,
+        writesFiles: true
+      }
+    }
+  });
+  expect(parsed.data.command.flags).toEqual(expect.arrayContaining([
+    expect.objectContaining({ name: '--feature <name>' }),
+    expect.objectContaining({ name: '--boundary-dir <path>' }),
+    expect.objectContaining({ name: '--dry-run' })
+  ]));
+});
+
 test('perf init dry-run emits the planned sandbox scaffold in global json mode', () => {
   const workspace = createTempDir('perf-init-dry-run');
   const result = runCli(['--output', 'json', 'perf', 'init', '--dry-run'], {}, workspace);
