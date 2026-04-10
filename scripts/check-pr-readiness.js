@@ -22,6 +22,7 @@ const CLI_NO_PACKET_LABEL = 'No migration packet required for this CLI change.';
 const CLI_PACKET_LABEL = 'CLI/user-facing surface change and migration packet completed.';
 const SCAFFOLD_NO_PROOF_LABEL = 'No scaffold contract proof required for this PR.';
 const SCAFFOLD_PROOF_LABEL = 'Scaffold contract proof completed.';
+const RELEASE_PR_HEAD_PREFIX = 'changeset-release/';
 
 function normalizePath(filePath) {
   return String(filePath).replace(/\\/gu, '/').replace(/^\.\//u, '');
@@ -55,6 +56,30 @@ function parseArgs(argv) {
   }
 
   return options;
+}
+
+function classifyPullRequestContext(eventPath) {
+  if (!eventPath || !fs.existsSync(eventPath)) {
+    return {
+      isReleasePr: false,
+      headRef: '',
+      title: '',
+      authorLogin: '',
+    };
+  }
+
+  const payload = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
+  const pullRequest = payload.pull_request ?? {};
+  const headRef = typeof pullRequest.head?.ref === 'string' ? pullRequest.head.ref : '';
+  const title = typeof pullRequest.title === 'string' ? pullRequest.title : '';
+  const authorLogin = typeof pullRequest.user?.login === 'string' ? pullRequest.user.login : '';
+
+  return {
+    isReleasePr: headRef.startsWith(RELEASE_PR_HEAD_PREFIX),
+    headRef,
+    title,
+    authorLogin,
+  };
 }
 
 function getChangedFiles(baseSha, headSha) {
@@ -134,9 +159,19 @@ function requireField(errors, body, label, description, validator = null) {
   }
 }
 
-function validatePrReadiness({ body, classification }) {
+function validatePrReadiness({ body, classification, pullRequestContext = null }) {
   const errors = [];
   const normalizedBody = typeof body === 'string' ? body : '';
+  const context = pullRequestContext ?? { isReleasePr: false };
+
+  if (context.isReleasePr) {
+    return {
+      ok: true,
+      errors,
+      classification,
+      skippedBecause: 'release-pr',
+    };
+  }
 
   if (!/##\s+Merge Readiness/iu.test(normalizedBody)) {
     errors.push('Missing "## Merge Readiness" section from the PR body.');
@@ -282,9 +317,13 @@ function runCheck(argv) {
   const changedFiles = getChangedFiles(options.baseSha, options.headSha);
   const classification = classifyPrReadiness(changedFiles);
   const body = readPullRequestBody(options.eventPath);
-  const validation = validatePrReadiness({ body, classification });
+  const pullRequestContext = classifyPullRequestContext(options.eventPath);
+  const validation = validatePrReadiness({ body, classification, pullRequestContext });
 
   console.log(`[pr-readiness] changed files: ${classification.changedFiles.length}`);
+  if (pullRequestContext.isReleasePr) {
+    console.log(`[pr-readiness] release PR detected on ${pullRequestContext.headRef}; skipping human-authored PR body contract.`);
+  }
   if (classification.requiresCliMigrationPacket) {
     console.log(`[pr-readiness] CLI migration packet required for: ${classification.cliMatchedFiles.join(', ')}`);
   }
@@ -314,6 +353,7 @@ if (require.main === module) {
 module.exports = {
   CLI_SURFACE_PATTERNS,
   SCAFFOLD_CONTRACT_PATTERNS,
+  classifyPullRequestContext,
   classifyPrReadiness,
   validatePrReadiness,
 };

@@ -1,9 +1,19 @@
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { expect, test } from 'vitest';
 
 const {
+  classifyPullRequestContext,
   classifyPrReadiness,
   validatePrReadiness,
 } = require('../../../scripts/check-pr-readiness.js') as {
+  classifyPullRequestContext(eventPath: string): {
+    isReleasePr: boolean;
+    headRef: string;
+    title: string;
+    authorLogin: string;
+  };
   classifyPrReadiness(changedFiles: string[]): {
     changedFiles: string[];
     requiresCliMigrationPacket: boolean;
@@ -19,6 +29,12 @@ const {
       requiresScaffoldContractProof: boolean;
       cliMatchedFiles: string[];
       scaffoldMatchedFiles: string[];
+    };
+    pullRequestContext?: {
+      isReleasePr: boolean;
+      headRef: string;
+      title: string;
+      authorLogin: string;
     };
   }): {
     ok: boolean;
@@ -194,4 +210,42 @@ test('pr-readiness rejects scaffold changes without the three proof classes', ()
 
   expect(validation.ok).toBe(false);
   expect(validation.errors.some((error) => error.includes('Scaffold contract proof must include a fail-fast input-contract proof.'))).toBe(true);
+});
+
+test('pr-readiness skips the human-authored body contract for release PRs', () => {
+  const validation = validatePrReadiness({
+    body: 'This PR was opened by the Changesets release GitHub action.',
+    classification: classifyPrReadiness([
+      'packages/ztd-cli/package.json',
+      'packages/core/CHANGELOG.md',
+    ]),
+    pullRequestContext: {
+      isReleasePr: true,
+      headRef: 'changeset-release/main',
+      title: 'chore(release): version packages',
+      authorLogin: 'github-actions[bot]',
+    },
+  });
+
+  expect(validation.ok).toBe(true);
+  expect(validation.errors).toEqual([]);
+});
+
+test('pr-readiness classifies a changeset release branch as a release PR', () => {
+  const rootDir = mkdtempSync(path.join(os.tmpdir(), 'pr-readiness-event-'));
+  const eventPath = path.join(rootDir, 'event.json');
+  writeFileSync(eventPath, JSON.stringify({
+    pull_request: {
+      head: { ref: 'changeset-release/main' },
+      title: 'chore(release): version packages',
+      user: { login: 'github-actions[bot]' },
+    },
+  }), 'utf8');
+
+  expect(classifyPullRequestContext(eventPath)).toEqual({
+    isReleasePr: true,
+    headRef: 'changeset-release/main',
+    title: 'chore(release): version packages',
+    authorLogin: 'github-actions[bot]',
+  });
 });

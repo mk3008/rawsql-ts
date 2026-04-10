@@ -7,6 +7,7 @@ const {
   classifyReleaseReadiness,
   evaluateChangesetGuardrail,
   listPendingChangesetFiles,
+  readPullRequestContext,
   readPullRequestLabels,
 } = require('../../../scripts/release-readiness.js') as {
   classifyReleaseReadiness(
@@ -28,6 +29,13 @@ const {
     hasNoReleaseLabel: boolean;
   };
   listPendingChangesetFiles(rootDir: string): string[];
+  readPullRequestContext(eventPath: string): {
+    isReleasePr: boolean;
+    headRef: string;
+    title: string;
+    authorLogin: string;
+    labelNames: string[];
+  };
   readPullRequestLabels(eventPath: string): string[];
 };
 
@@ -50,6 +58,7 @@ test('release-readiness treats package source and package READMEs as release-aff
   const classification = classifyReleaseReadiness([
     'packages/core/src/transformers/SelectValueCollector.ts',
     'packages/ztd-cli/README.md',
+    'docs/guide/getting-started.md',
   ]);
 
   expect(classification.releaseAffecting).toBe(true);
@@ -61,6 +70,10 @@ test('release-readiness treats package source and package READMEs as release-aff
     },
     {
       filePath: 'packages/ztd-cli/README.md',
+      kinds: ['package-surface'],
+    },
+    {
+      filePath: 'docs/guide/getting-started.md',
       kinds: ['package-surface'],
     },
   ]);
@@ -156,6 +169,33 @@ test('readPullRequestLabels returns sorted label names from a pull_request paylo
   ]);
 });
 
+test('readPullRequestContext detects release PR metadata from the event payload', () => {
+  const rootDir = mkdtempSync(path.join(os.tmpdir(), 'release-readiness-context-'));
+  const eventPath = path.join(rootDir, 'event.json');
+  writeFileSync(eventPath, JSON.stringify({
+    pull_request: {
+      head: { ref: 'changeset-release/main' },
+      title: 'chore(release): version packages',
+      user: { login: 'github-actions[bot]' },
+      labels: [
+        { name: 'z-release' },
+        { name: 'A-label' },
+      ],
+    },
+  }), 'utf8');
+
+  expect(readPullRequestContext(eventPath)).toEqual({
+    isReleasePr: true,
+    headRef: 'changeset-release/main',
+    title: 'chore(release): version packages',
+    authorLogin: 'github-actions[bot]',
+    labelNames: [
+      'A-label',
+      'z-release',
+    ],
+  });
+});
+
 test('changeset guardrail fails release-affecting PRs without a changeset or no-release label', () => {
   expect(
     evaluateChangesetGuardrail({
@@ -168,6 +208,7 @@ test('changeset guardrail fails release-affecting PRs without a changeset or no-
     guardrailPassed: false,
     hasChangeset: false,
     hasNoReleaseLabel: false,
+    isReleasePr: false,
   });
 });
 
@@ -183,6 +224,7 @@ test('changeset guardrail passes when a release-affecting PR includes a changese
     guardrailPassed: true,
     hasChangeset: true,
     hasNoReleaseLabel: false,
+    isReleasePr: false,
   });
 });
 
@@ -198,5 +240,23 @@ test('changeset guardrail passes when a release-affecting PR carries the no-rele
     guardrailPassed: true,
     hasChangeset: false,
     hasNoReleaseLabel: true,
+    isReleasePr: false,
+  });
+});
+
+test('changeset guardrail skips the pending changeset requirement for release PRs', () => {
+  expect(
+    evaluateChangesetGuardrail({
+      releaseAffecting: true,
+      changesetFiles: [],
+      labelNames: [],
+      isReleasePr: true,
+    }),
+  ).toEqual({
+    guardrailRequired: false,
+    guardrailPassed: true,
+    hasChangeset: false,
+    hasNoReleaseLabel: false,
+    isReleasePr: true,
   });
 });

@@ -37,13 +37,19 @@ Or use directly in the browser via CDN:
 ```typescript
 import { DynamicQueryBuilder, SqlFormatter } from "rawsql-ts";
 
-const baseSql = "SELECT id, name, email, created_at FROM users WHERE active = true";
+const baseSql = `
+  SELECT id, name, email, status, created_at
+  FROM users
+  WHERE active = true
+    AND (:status IS NULL OR status = :status)
+`;
 
 const builder = new DynamicQueryBuilder();
 const query = builder.buildQuery(baseSql, {
-  filter: { status: "premium", created_at: { ">": "2024-01-01" } },
+  filter: { status: "premium" },
   sort: { created_at: { desc: true }, name: { asc: true } },
   paging: { page: 2, pageSize: 10 },
+  optionalConditionParameters: { status: "premium" },
 });
 
 const formatter = new SqlFormatter();
