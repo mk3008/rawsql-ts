@@ -66,6 +66,7 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Observed SQL Matching | [guide/observed-sql-matching](./observed-sql-matching.md) | Rank source SQL assets from observed SQL when the stable queryId is missing |
 | Observed SQL Investigation | [guide/observed-sql-investigation](./observed-sql-investigation.md) | Run `ztd query match-observed` and inspect ranked candidates |
 | SQL Tool Happy Paths | [guide/sql-tool-happy-paths](./sql-tool-happy-paths.md) | Decide whether to start with query plan, perf, query uses, telemetry, or SSSQL |
+| Release And Merge Readiness | [guide/release-readiness](./release-readiness.md) | Use the PR readiness contract for baseline exceptions, CLI migration packets, and scaffold proof |
 | JOIN Direction Lint Specification | [guide/join-direction-lint-spec](./join-direction-lint-spec.md) | Review the FK-only v1 pattern table, warnings, skips, suppression, and future inference path |
 | Perf Tuning Decision Guide | [guide/perf-tuning-decision-guide](./perf-tuning-decision-guide.md) | Decide when QuerySpec scale hints should lead to indexes, pipeline tuning, or both |
 | What Is SSSQL? | [guide/sssql-overview](./sssql-overview.md) | Decide whether truthful optional-condition SQL is the right first move |

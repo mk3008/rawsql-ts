@@ -221,6 +221,7 @@ If you want a deeper walkthrough, keep that in the linked guides instead of expa
 ### Advanced User Guides
 
 - [Published-Package Verification Before Release](../../docs/guide/published-package-verification.md) - pack and smoke-test the published-package path
+- [Release And Merge Readiness](../../docs/guide/release-readiness.md) - PR-body contract for baseline exceptions, CLI migration packets, and scaffold proof
 - [What Is SSSQL?](../../docs/guide/sssql-overview.md) - the shortest intro to truthful optional-filter SQL
 - [SSSQL for Humans](../../docs/guide/sssql-for-humans.md) - why SSSQL exists and where it fits in the toolchain
 - [ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md) - when to enable telemetry and why it stays opt-in
