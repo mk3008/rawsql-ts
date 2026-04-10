@@ -123,7 +123,15 @@ If the boundary is deeper in a VSA-style folder tree, point at the exact boundar
 npx ztd feature query scaffold --boundary-dir src/features/orders/write/sales-insert --query-name insert-sales-detail --table sales_detail --action insert
 ```
 
-Choose exactly one target selector: prefer `--feature` for a feature-root boundary, use `--boundary-dir` for a deeper existing boundary folder, or omit both only when the current working directory is already the target boundary. That additive scaffold creates `queries/<query-name>/boundary.ts` plus `queries/<query-name>/<query-name>.sql`, creates `queries/` when it is missing, and does not edit the parent `boundary.ts` even in `--dry-run`. Parent orchestration, transaction decisions, and response shaping stay human/AI-owned.
+Choose exactly one target selector:
+
+- Prefer `--feature` for a feature-root boundary.
+- Use `--boundary-dir` for a deeper existing boundary folder.
+- Omit both only when the current working directory is already the target boundary.
+- The additive scaffold creates `queries/<query-name>/boundary.ts` plus `queries/<query-name>/<query-name>.sql`.
+- It creates `queries/` when it is missing.
+- It does not edit the parent `boundary.ts`, including in `--dry-run`.
+- Parent orchestration, transaction decisions, and response shaping stay human/AI-owned.
 
 After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>`.
 That command refreshes `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`, refreshes `src/features/<feature-name>/queries/<query-name>/tests/boundary-ztd-types.ts`, and creates the thin Vitest entrypoint `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` only if it is missing.

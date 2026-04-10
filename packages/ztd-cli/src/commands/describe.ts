@@ -164,7 +164,7 @@ const COMMANDS: CommandDescriptor[] = [
       { name: '--action <action>', description: 'Query action template to scaffold. v1 supports insert, update, delete, get-by-id, and list.' },
       { name: '--query-name <name>', description: 'Name of the child query boundary to create under queries/.' },
       { name: '--feature <name>', description: 'Resolve the target boundary as src/features/<feature-name>.' },
-      { name: '--boundary-dir <path>', description: 'Resolve the target boundary from an explicit existing boundary folder. Use either --feature or --boundary-dir.' },
+      { name: '--boundary-dir <path>', description: 'Resolve the target boundary from an explicit existing boundary folder. Use either --feature or --boundary-dir, or omit both when the current working directory is already the target boundary.' },
       { name: '--dry-run', description: 'Validate inputs and emit the planned additive scaffold without writing files.' }
     ]
   },

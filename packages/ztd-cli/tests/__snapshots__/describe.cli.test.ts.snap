@@ -585,7 +585,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
           "name": "--feature <name>",
         },
         {
-          "description": "Resolve the target boundary from an explicit existing boundary folder. Use either --feature or --boundary-dir.",
+          "description": "Resolve the target boundary from an explicit existing boundary folder. Use either --feature or --boundary-dir, or omit both when the current working directory is already the target boundary.",
           "name": "--boundary-dir <path>",
         },
         {
