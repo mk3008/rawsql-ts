@@ -57,3 +57,31 @@ When the PR is release-affecting, `release-readiness` validates:
 
 Runtime-version mismatches fail fast in setup instead of surfacing as warning-only diagnostics in this gate.
 Publish-path failures also fail fast because the packed-package smoke step exits non-zero on missing `dist`, broken entrypoints, or broken packaged CLI flows.
+
+## PR Readiness Contract
+
+`PR Check` also enforces a PR-body contract before the heavier package lanes run.
+
+The contract has three goals:
+
+- baseline exceptions must be explicit and linked to tracked remediation
+- CLI surface changes must carry either a migration packet or an explicit no-migration rationale
+- scaffold changes must carry either the standard contract proof set or an explicit no-proof rationale
+
+The author-facing entry point is `.github/pull_request_template.md`.
+The enforcement point is `scripts/check-pr-readiness.js`, which reads the PR body from `GITHUB_EVENT_PATH`.
+
+When scaffold-related files change, the PR body must cover:
+
+- a non-edit assertion
+- fail-fast input-contract proof
+- generated-output viability proof
+
+When CLI-facing files change, the PR body must cover:
+
+- upgrade note
+- deprecation/removal plan or issue
+- docs/help/examples alignment
+- release/changeset wording
+
+See [Release And Merge Readiness](./release-readiness.md) for the full field list and rationale.

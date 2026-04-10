@@ -17,6 +17,13 @@ jobs:
     - name: Check retro gate
       run: node scripts/check-retro-clean.js
 
+    - name: Check PR readiness contract
+      run: |
+        node scripts/check-pr-readiness.js \
+          --base-sha "${{ github.event.pull_request.base.sha }}" \
+          --head-sha "${{ github.event.pull_request.head.sha }}" \
+          --event-path "$GITHUB_EVENT_PATH"
+
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
       with:
@@ -80,7 +87,7 @@ jobs:
         changed_files=$(git diff --name-only "$base_sha...$head_sha")
         printf '%s\n' "$changed_files"
 
-        if printf '%s\n' "$changed_files" | grep -Eq '^(\.husky/pre-commit|\.github/workflows/pr-check\.yml|\.github/workflows/ztd-cli-soft-gates\.yml|scripts/(run-ztd-cli-quality-gates|ztd-cli-quality-gates)\.js|docs/guide/ztd-cli-quality-gates\.md|packages/ztd-cli/|docs/guide/ztd-cli-)'; then
+        if printf '%s\n' "$changed_files" | grep -Eq '^(\.husky/pre-commit|\.github/pull_request_template\.md|\.github/workflows/pr-check\.yml|\.github/workflows/ztd-cli-soft-gates\.yml|scripts/(check-pr-readiness|run-ztd-cli-quality-gates|ztd-cli-quality-gates)\.js|docs/guide/(release-readiness|ztd-cli-quality-gates)\.md|packages/ztd-cli/|docs/guide/ztd-cli-)'; then
           echo "run=true" >> "$GITHUB_OUTPUT"
         else
           echo "run=false" >> "$GITHUB_OUTPUT"
