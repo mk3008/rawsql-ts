@@ -79,7 +79,6 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
   expect(tutorial).toContain('When the cases are ready, run `npx vitest run src/features/users-insert/queries/insert-users/tests/insert-users.boundary.ztd.test.ts` to execute the ZTD query test.');
   expect(tutorial).toContain('npx ztd query uses column users.email --scope-dir src/features/users-insert --any-schema --view detail');
   expect(tutorial).toContain('Passing the feature folder as `--scope-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.');
-  expect(tutorial).toContain('The older `--specs-dir` flag still works as a deprecated alias during the transition.');
   expect(tutorial).toContain('For SQL repair, keep the SQL assets under `src/features/users-insert/queries/insert-users/`, keep the query on the starter DDL\'s `users` table, and rerun `model-gen` against `src/features/users-insert/queries/insert-users/insert-users.sql` directly to inspect the generated contract on stdout before you update the handwritten query boundary.');
   expect(tutorial).toContain('If you want to save that output for reference or gradual migration, write it to a dedicated generated-contract file with `--out` instead of overwriting handwritten runtime files.');
   expect(tutorial).toContain('Do not target `src/features/users-insert/queries/insert-users/boundary.ts` with `--out`, because that file is the runtime boundary that also owns `loadSqlResource` and the execution flow.');

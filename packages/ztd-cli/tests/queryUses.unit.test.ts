@@ -531,7 +531,7 @@ test('query uses command accepts --json payload options and target', async () =>
   expect(capture.stderr).toEqual([]);
 });
 
-test('query uses command keeps --specs-dir as a deprecated alias for --scope-dir', async () => {
+test('query uses command rejects removed --specs-dir alias as an unknown option', async () => {
   const root = createWorkspace('query-uses-deprecated-specs-dir');
   mkdirSync(path.join(root, 'src', 'features', 'users', 'persistence'), { recursive: true });
   writeFileSync(
@@ -556,36 +556,72 @@ test('query uses command keeps --specs-dir as a deprecated alias for --scope-dir
   process.env.ZTD_PROJECT_ROOT = root;
   const capture = { stdout: [] as string[], stderr: [] as string[] };
   const program = createProgram(capture);
-  const logSpy = vi.spyOn(console, 'log').mockImplementation((value?: unknown) => {
-    capture.stdout.push(String(value ?? ''));
+  await expect(
+    program.parseAsync(
+      [
+        'query',
+        'uses',
+        'column',
+        'users.email',
+        '--specs-dir',
+        'src/features/users/persistence',
+        '--any-schema',
+        '--format',
+        'json'
+      ],
+      { from: 'user' }
+    )
+  ).rejects.toMatchObject({
+    code: 'commander.unknownOption'
   });
-  const errorSpy = vi.spyOn(console, 'error').mockImplementation((value?: unknown) => {
-    capture.stderr.push(String(value ?? ''));
-  });
+  expect(capture.stdout).toEqual([]);
+  expect(capture.stderr.join('')).toContain("error: unknown option '--specs-dir'");
+});
 
-  await program.parseAsync(
+test('query uses command rejects removed specsDir JSON payload alias', async () => {
+  const root = createWorkspace('query-uses-json-deprecated-specs-dir');
+  mkdirSync(path.join(root, 'src', 'features', 'users', 'persistence'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'features', 'users', 'persistence', 'queryspec.ts'),
     [
-      'query',
-      'uses',
-      'column',
-      'users.email',
-      '--specs-dir',
-      'src/features/users/persistence',
-      '--any-schema',
-      '--format',
-      'json'
-    ],
-    { from: 'user' }
+      "import { loadSqlResource } from '../../_shared/loadSqlResource';",
+      '',
+      "const usersSqlResource = loadSqlResource(__dirname, 'users.sql');",
+      '',
+      'export async function executeUsersQuerySpec() {',
+      '  return usersSqlResource;',
+      '}',
+      ''
+    ].join('\n'),
+    'utf8'
   );
-  logSpy.mockRestore();
-  errorSpy.mockRestore();
+  writeFileSync(
+    path.join(root, 'src', 'features', 'users', 'persistence', 'users.sql'),
+    'select email from public.users;',
+    'utf8'
+  );
+  process.env.ZTD_PROJECT_ROOT = root;
+  const capture = { stdout: [] as string[], stderr: [] as string[] };
+  const program = createProgram(capture);
 
-  const parsed = JSON.parse(capture.stdout.join(''));
-  expect(parsed.summary).toMatchObject({
-    catalogsScanned: 1,
-    matches: 1,
-  });
-  expect(capture.stderr).toContain('Warning: --specs-dir is deprecated for `query uses`; use --scope-dir instead.');
+  await expect(
+    program.parseAsync(
+      [
+        'query',
+        'uses',
+        'column',
+        '--json',
+        JSON.stringify({
+          target: 'users.email',
+          specsDir: 'src/features/users/persistence',
+          anySchema: true,
+          format: 'json'
+        })
+      ],
+      { from: 'user' }
+    )
+  ).rejects.toThrow(/scopeDir|--scope-dir|specsDir|--specs-dir/);
+  expect(capture.stdout).toEqual([]);
 });
 
 test('query usage report excludes generated specs under a custom specsDir', () => {

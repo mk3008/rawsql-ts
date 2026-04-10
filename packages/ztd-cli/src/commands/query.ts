@@ -32,7 +32,6 @@ import {
 interface QueryUsesOptions {
   format?: string;
   scopeDir?: string;
-  specsDir?: string;
   sqlRoot?: string;
   excludeGenerated?: boolean;
   out?: string;
@@ -105,7 +104,6 @@ export const QUERY_USES_COMMAND_SPANS = {
 } as const;
 
 const QUERY_SCOPE_DIR_HELP = 'Limit discovery to one boundary or QuerySpec subtree instead of scanning the whole project';
-const QUERY_SCOPE_DIR_ALIAS_HELP = 'Deprecated alias for --scope-dir';
 
 /**
  * Register strict-first impact investigation commands on the CLI root.
@@ -154,7 +152,6 @@ Notes:
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--view <view>', 'Investigation view (impact|detail)', 'impact')
     .addOption(new Option('--scope-dir <path>', QUERY_SCOPE_DIR_HELP))
-    .addOption(new Option('--specs-dir <path>', QUERY_SCOPE_DIR_ALIAS_HELP).hideHelp())
     .option('--sql-root <path>', 'Optional fallback root for shared sqlFile layouts when specs are not feature-local')
     .option('--exclude-generated', 'Exclude QuerySpec files under generated directories from scan targets')
     .option('--out <path>', 'Write output to file')
@@ -173,7 +170,6 @@ Notes:
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--view <view>', 'Investigation view (impact|detail)', 'impact')
     .addOption(new Option('--scope-dir <path>', QUERY_SCOPE_DIR_HELP))
-    .addOption(new Option('--specs-dir <path>', QUERY_SCOPE_DIR_ALIAS_HELP).hideHelp())
     .option('--sql-root <path>', 'Optional fallback root for shared sqlFile layouts when specs are not feature-local')
     .option('--exclude-generated', 'Exclude QuerySpec files under generated directories from scan targets')
     .option('--out <path>', 'Write output to file')
@@ -309,6 +305,10 @@ function runQueryUsesCommand(kind: 'table' | 'column', target: string | undefine
   const resolved = withSpanSync(QUERY_USES_COMMAND_SPANS.resolveOptions, () => {
     const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
 
+    if ('specsDir' in merged) {
+      throw new Error('Use scopeDir / --scope-dir instead of the removed specsDir / --specs-dir option.');
+    }
+
     const format = normalizeFormat(normalizeStringOption(merged.format) ?? getAgentOutputFormat());
     const view = normalizeView(normalizeStringOption(merged.view) ?? 'impact');
     const resolvedTarget = normalizeStringOption(merged.target) ?? target;
@@ -328,10 +328,7 @@ function runQueryUsesCommand(kind: 'table' | 'column', target: string | undefine
     jsonPayload: Boolean(options.json),
   });
 
-  const scopeDir = normalizeStringOption(resolved.merged.scopeDir) ?? normalizeStringOption(resolved.merged.specsDir);
-  if (!normalizeStringOption(resolved.merged.scopeDir) && normalizeStringOption(resolved.merged.specsDir)) {
-    console.error('Warning: --specs-dir is deprecated for `query uses`; use --scope-dir instead.');
-  }
+  const scopeDir = normalizeStringOption(resolved.merged.scopeDir);
 
   const report = buildQueryUsageReport({
     kind,
