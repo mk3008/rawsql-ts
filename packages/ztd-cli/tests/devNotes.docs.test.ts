@@ -17,3 +17,11 @@ test('DEV_NOTES.md documents the SQL shadowing troubleshooting order', () => {
   expect(devNotes).toContain('Do not use DDL execution as a repair path for ZTD validation failures.');
   expect(devNotes).toContain('If the database is reachable, treat relation or missing-table errors as a shadowing, fixture, or repository problem before considering schema changes.');
 });
+
+test('DEV_NOTES.md documents branch session guard setup and limits', () => {
+  const devNotes = readNormalizedFile('DEV_NOTES.md');
+
+  expect(devNotes).toContain('After switching to the intended branch for this local worktree, record it with `pnpm guard:branch-session expect-current`.');
+  expect(devNotes).toContain('`pre-push` blocks when no expected branch is recorded');
+  expect(devNotes).toContain('The guard proves only that this local worktree is still on the branch declared for the session;');
+});

@@ -17,6 +17,12 @@
 - Do not use DDL execution as a repair path for ZTD validation failures.
 - If the database is reachable, treat relation or missing-table errors as a shadowing, fixture, or repository problem before considering schema changes.
 
+## Branch Session Guard
+- After switching to the intended branch for this local worktree, record it with `pnpm guard:branch-session expect-current`.
+- If you need to record a named branch explicitly, use `pnpm guard:branch-session expect --branch <branch-name>`.
+- `pre-push` blocks when no expected branch is recorded, when the current branch differs from the recorded branch, or when the worktree is in detached HEAD state.
+- The guard proves only that this local worktree is still on the branch declared for the session; it does not prove task correctness or prevent bypass outside the local hook path.
+
 ## Docs and Demo Operations
 - Rebuild browser bundle for parser/formatter behavior updates.
 - Re-bundle docs demo and update bundled assets.
