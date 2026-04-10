@@ -169,7 +169,7 @@ Use the same `users` project for each scenario:
 
 Each scenario should end with `vitest` passing again.
 
-For DDL repair, run `npx ztd query uses column users.email --scope-dir src/features/users-insert --any-schema --view detail` first so the impacted SQL files come from the CLI, not from guesswork. Passing the feature folder as `--scope-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts. The older `--specs-dir` flag still works as a deprecated alias during the transition.
+For DDL repair, run `npx ztd query uses column users.email --scope-dir src/features/users-insert --any-schema --view detail` first so the impacted SQL files come from the CLI, not from guesswork. Passing the feature folder as `--scope-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.
 
 For SQL repair, keep the SQL assets under `src/features/users-insert/queries/insert-users/`, keep the query on the starter DDL's `users` table, and rerun `model-gen` against `src/features/users-insert/queries/insert-users/insert-users.sql` directly to inspect the generated contract on stdout before you update the handwritten query boundary. If you want to save that output for reference or gradual migration, write it to a dedicated generated-contract file with `--out` instead of overwriting handwritten runtime files. Do not target `src/features/users-insert/queries/insert-users/boundary.ts` with `--out`, because that file is the runtime boundary that also owns `loadSqlResource` and the execution flow. In VSA layouts, `model-gen` now treats the SQL file location as the primary contract source, so `--sql-root` is only needed for older shared-root layouts.
 
