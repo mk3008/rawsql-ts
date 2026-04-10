@@ -1,8 +1,13 @@
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { expect, test } from 'vitest';
 
 const {
   classifyReleaseReadiness,
   evaluateChangesetGuardrail,
+  listPendingChangesetFiles,
+  readPullRequestLabels,
 } = require('../../../scripts/release-readiness.js') as {
   classifyReleaseReadiness(
     changedFiles: string[],
@@ -22,6 +27,8 @@ const {
     hasChangeset: boolean;
     hasNoReleaseLabel: boolean;
   };
+  listPendingChangesetFiles(rootDir: string): string[];
+  readPullRequestLabels(eventPath: string): string[];
 };
 
 test('release-readiness matches package surface, publish workflow, and release-note paths', () => {
@@ -113,6 +120,40 @@ test('release-readiness ignores ordinary package tests and docs outside the chec
   expect(classification.releaseAffecting).toBe(false);
   expect(classification.matchedKinds).toEqual([]);
   expect(classification.matchedFiles).toEqual([]);
+});
+
+test('listPendingChangesetFiles ignores README-like markdown files', () => {
+  const rootDir = mkdtempSync(path.join(os.tmpdir(), 'release-readiness-changesets-'));
+  const changesetDir = path.join(rootDir, '.changeset');
+  mkdirSync(changesetDir, { recursive: true });
+  writeFileSync(path.join(changesetDir, 'README.md'), '# notes\n', 'utf8');
+  writeFileSync(path.join(changesetDir, 'olive-wolves-jump.md'), '---\n---\n', 'utf8');
+  writeFileSync(path.join(changesetDir, '.hidden.md'), 'ignored\n', 'utf8');
+  writeFileSync(path.join(changesetDir, 'config.json'), '{}\n', 'utf8');
+
+  expect(listPendingChangesetFiles(rootDir)).toEqual([
+    '.changeset/olive-wolves-jump.md',
+  ]);
+});
+
+test('readPullRequestLabels returns sorted label names from a pull_request payload', () => {
+  const rootDir = mkdtempSync(path.join(os.tmpdir(), 'release-readiness-labels-'));
+  const eventPath = path.join(rootDir, 'event.json');
+  writeFileSync(eventPath, JSON.stringify({
+    pull_request: {
+      labels: [
+        { name: 'z-release' },
+        { name: 'no-release' },
+        { name: 'A-label' },
+      ],
+    },
+  }), 'utf8');
+
+  expect(readPullRequestLabels(eventPath)).toEqual([
+    'A-label',
+    'no-release',
+    'z-release',
+  ]);
 });
 
 test('changeset guardrail fails release-affecting PRs without a changeset or no-release label', () => {

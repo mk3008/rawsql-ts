@@ -112,7 +112,8 @@ function listPendingChangesetFiles(rootDir) {
   return fs.readdirSync(changesetDir, { withFileTypes: true })
     .filter((entry) => entry.isFile())
     .map((entry) => entry.name)
-    .filter((name) => name.endsWith('.md'))
+    .filter((name) => /^[^.].+\.md$/iu.test(name))
+    .filter((name) => name.toLowerCase() !== 'readme.md')
     .map((name) => normalizePath(path.join('.changeset', name)))
     .sort();
 }
