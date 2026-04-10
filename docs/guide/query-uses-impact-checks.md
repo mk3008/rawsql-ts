@@ -14,7 +14,7 @@ This page covers the `table` and `column` impact checks with examples based on a
 
 Implementation note: the CLI command is provided by `@rawsql-ts/ztd-cli`, while the reusable analysis engine now lives in `@rawsql-ts/sql-grep-core`.
 
-The active scan set is **project-wide by default**. `query uses` discovers QuerySpec entries under the current project root and follows each spec's `sqlFile`. Use `--scope-dir` only when you want to narrow the scan to one slice or sub-tree. `--specs-dir` remains as a deprecated compatibility alias for now.
+The active scan set is **project-wide by default**. `query uses` discovers QuerySpec entries under the current project root and follows each spec's `sqlFile`. Use `--scope-dir` only when you want to narrow the scan to one slice or sub-tree.
 
 ## Quick start
 

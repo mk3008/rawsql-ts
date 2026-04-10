@@ -54,7 +54,6 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'Copy-Item .env.example .env',
         'npx ztd query uses column users.email --scope-dir src/features/users-insert --any-schema --view detail',
         'Passing the feature folder as `--scope-dir` is a normal way to narrow the project-wide scan, not a workaround for feature-local layouts.',
-        'The older `--specs-dir` flag still works as a deprecated alias during the transition.',
         'npx ztd model-gen --probe-mode ztd src/features/users-insert/queries/insert-users/insert-users.sql',
         'Do not target `src/features/users-insert/queries/insert-users/boundary.ts` with `--out`, because that file is the runtime boundary that also owns `loadSqlResource` and the execution flow.',
         'model-gen` now treats the SQL file location as the primary contract source',
@@ -99,7 +98,6 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       phrases: [
         'The active scan set is **project-wide by default**.',
         'Use `--scope-dir` only when you want to narrow the scan to one slice or sub-tree.',
-        '`--specs-dir` remains as a deprecated compatibility alias for now.',
         'prefers feature-local spec-relative paths, then tries project-relative paths',
         'npx ztd query uses column users.email --scope-dir src/features/users/persistence --any-schema --view detail'
       ]
