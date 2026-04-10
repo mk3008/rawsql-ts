@@ -23,14 +23,22 @@ jobs:
         node ./scripts/release-readiness.js detect \
           --base-sha "${{ github.event.pull_request.base.sha }}" \
           --head-sha "${{ github.event.pull_request.head.sha }}" \
+          --event-path "$GITHUB_EVENT_PATH" \
           --github-output "$GITHUB_OUTPUT"
 
     - name: Summarize non-release-affecting PR
       if: steps.detect.outputs.release_affecting != 'true'
       run: echo "No release-affecting paths matched; release-readiness passes without running publish smoke."
 
+    - name: Enforce changeset guardrail
+      if: steps.detect.outputs.changeset_guardrail_required == 'true' && steps.detect.outputs.changeset_guardrail_ok != 'true'
+      run: |
+        echo "release-readiness matched risky publish-facing paths but found no pending changeset."
+        echo "Add a .changeset/*.md file or apply the no-release label when the PR should intentionally bypass release metadata."
+        exit 1
+
     - name: Setup release-readiness runtime
-      if: steps.detect.outputs.release_affecting == 'true'
+      if: steps.detect.outputs.release_affecting == 'true' && steps.detect.outputs.changeset_guardrail_ok == 'true'
       uses: ./.github/actions/setup-publish-runtime
       with:
         node-version: "24"
@@ -42,5 +50,5 @@ jobs:
         label: "release-readiness"
 
     - name: Run release-readiness checks
-      if: steps.detect.outputs.release_affecting == 'true'
+      if: steps.detect.outputs.release_affecting == 'true' && steps.detect.outputs.changeset_guardrail_ok == 'true'
       run: node ./scripts/release-readiness.js check

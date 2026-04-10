@@ -1,26 +1,18 @@
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
+const path = require('node:path');
 
 const RELEASE_READINESS_PATTERNS = [
   {
-    kind: 'scaffold-layout',
+    kind: 'package-surface',
     patterns: [
       /^package\.json$/u,
       /^pnpm-lock\.yaml$/u,
-      /^packages\/ztd-cli\/README\.md$/u,
-      /^packages\/ztd-cli\/package\.json$/u,
-      /^packages\/ztd-cli\/src\/commands\/(?:feature|init)\.ts$/u,
-      /^packages\/ztd-cli\/templates\//u,
-      /^docs\/guide\/(?:generated-project-verification|getting-started|published-package-verification|sql-first-end-to-end-tutorial|ztd-cli-quality-gates|ztd-local-source-dogfooding)\.md$/u,
-    ],
-  },
-  {
-    kind: 'package-publish-shape',
-    patterns: [
+      /^packages\/(?:[^/]+\/)+src\//u,
+      /^packages\/(?:[^/]+\/)+templates\//u,
       /^packages\/(?:[^/]+\/)+package\.json$/u,
       /^packages\/(?:[^/]+\/)+README\.md$/u,
       /^packages\/(?:[^/]+\/)+CHANGELOG\.md$/u,
-      /^scripts\/sync-rawsql-dist\.js$/u,
     ],
   },
   {
@@ -28,7 +20,7 @@ const RELEASE_READINESS_PATTERNS = [
     patterns: [
       /^\.github\/actions\/setup-publish-runtime\//u,
       /^\.github\/workflows\/(?:publish|release-pr|release-readiness)\.yml$/u,
-      /^scripts\/(?:build-publish-artifacts|ci-publish|create-publish-proof-plan|publish-plan|publish-workspace-utils|release-readiness|verify-publish-contract|verify-published-package-mode|verify-runtime-prereqs|version-packages-and-lockfile)\.(?:mjs|js)$/u,
+      /^scripts\/(?:build-publish-artifacts|ci-publish|create-publish-proof-plan|publish-plan|publish-workspace-utils|release-readiness|sync-rawsql-dist|verify-publish-contract|verify-published-package-mode|verify-runtime-prereqs|version-packages-and-lockfile)\.(?:mjs|js)$/u,
     ],
   },
   {
@@ -48,6 +40,7 @@ function parseArgs(argv) {
   const options = {
     baseSha: null,
     headSha: null,
+    eventPath: null,
     githubOutputPath: null,
   };
 
@@ -62,6 +55,11 @@ function parseArgs(argv) {
     }
     if (arg === '--head-sha') {
       options.headSha = next;
+      index += 1;
+      continue;
+    }
+    if (arg === '--event-path') {
+      options.eventPath = next;
       index += 1;
       continue;
     }
@@ -105,6 +103,53 @@ function getMatchingKinds(filePath) {
     .map((entry) => entry.kind);
 }
 
+function listPendingChangesetFiles(rootDir) {
+  const changesetDir = path.join(rootDir, '.changeset');
+  if (!fs.existsSync(changesetDir)) {
+    return [];
+  }
+
+  return fs.readdirSync(changesetDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .filter((name) => /^[^.].+\.md$/iu.test(name))
+    .filter((name) => name.toLowerCase() !== 'readme.md')
+    .map((name) => normalizePath(path.join('.changeset', name)))
+    .sort();
+}
+
+function readPullRequestLabels(eventPath) {
+  if (!eventPath || !fs.existsSync(eventPath)) {
+    return [];
+  }
+
+  const payload = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
+  const labels = payload?.pull_request?.labels;
+  if (!Array.isArray(labels)) {
+    return [];
+  }
+
+  return labels
+    .map((label) => String(label?.name ?? '').trim())
+    .filter(Boolean)
+    .sort();
+}
+
+function evaluateChangesetGuardrail({ releaseAffecting, changesetFiles, labelNames }) {
+  const normalizedLabels = (labelNames ?? []).map((label) => String(label).trim().toLowerCase());
+  const hasNoReleaseLabel = normalizedLabels.includes('no-release');
+  const hasChangeset = (changesetFiles ?? []).length > 0;
+  const guardrailRequired = releaseAffecting;
+  const guardrailPassed = !guardrailRequired || hasChangeset || hasNoReleaseLabel;
+
+  return {
+    guardrailRequired,
+    guardrailPassed,
+    hasChangeset,
+    hasNoReleaseLabel,
+  };
+}
+
 function classifyReleaseReadiness(changedFiles) {
   const normalizedFiles = changedFiles.map((filePath) => normalizePath(filePath)).filter(Boolean);
   const matchedFiles = normalizedFiles
@@ -146,6 +191,13 @@ function runReleaseReadinessChecks() {
 function runDetect(argv) {
   const options = parseArgs(argv);
   const classification = classifyReleaseReadiness(getChangedFiles(options.baseSha, options.headSha));
+  const changesetFiles = listPendingChangesetFiles(process.cwd());
+  const labelNames = readPullRequestLabels(options.eventPath ?? process.env.GITHUB_EVENT_PATH);
+  const guardrail = evaluateChangesetGuardrail({
+    releaseAffecting: classification.releaseAffecting,
+    changesetFiles,
+    labelNames,
+  });
 
   console.log(`[release-readiness] changed files: ${classification.changedFiles.length}`);
   if (classification.releaseAffecting) {
@@ -157,9 +209,21 @@ function runDetect(argv) {
     console.log('[release-readiness] no release-affecting file patterns matched.');
   }
 
+  if (guardrail.guardrailRequired) {
+    console.log(`[release-readiness] changesets present: ${guardrail.hasChangeset ? 'yes' : 'no'}`);
+    console.log(`[release-readiness] no-release label present: ${guardrail.hasNoReleaseLabel ? 'yes' : 'no'}`);
+    if (!guardrail.guardrailPassed) {
+      console.log('[release-readiness] guardrail failed: release-affecting changes need a changeset or the no-release label.');
+    }
+  }
+
   appendGitHubOutputs(options.githubOutputPath, {
     release_affecting: classification.releaseAffecting ? 'true' : 'false',
     release_affecting_kinds: classification.matchedKinds.join(','),
+    changeset_present: guardrail.hasChangeset ? 'true' : 'false',
+    no_release_label_present: guardrail.hasNoReleaseLabel ? 'true' : 'false',
+    changeset_guardrail_required: guardrail.guardrailRequired ? 'true' : 'false',
+    changeset_guardrail_ok: guardrail.guardrailPassed ? 'true' : 'false',
   });
 }
 
@@ -186,6 +250,9 @@ if (require.main === module) {
 module.exports = {
   RELEASE_READINESS_PATTERNS,
   classifyReleaseReadiness,
+  evaluateChangesetGuardrail,
   getMatchingKinds,
+  listPendingChangesetFiles,
+  readPullRequestLabels,
   runReleaseReadinessChecks,
 };
