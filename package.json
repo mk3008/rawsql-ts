@@ -34,6 +34,7 @@
     "playground:typecheck": "pnpm --filter ztd-playground typecheck",
     "playground:test": "pnpm --filter ztd-playground test",
     "prepare": "husky",
+    "guard:branch-session": "node scripts/branch-session-guard.js",
     "verify:publish-readiness": "node scripts/publish-plan.mjs",
     "verify:publish-contract": "node scripts/verify-publish-contract.mjs",
     "verify:runtime-prereqs": "node scripts/verify-runtime-prereqs.mjs",
