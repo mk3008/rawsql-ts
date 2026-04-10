@@ -305,6 +305,10 @@ function runQueryUsesCommand(kind: 'table' | 'column', target: string | undefine
   const resolved = withSpanSync(QUERY_USES_COMMAND_SPANS.resolveOptions, () => {
     const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
 
+    if ('specsDir' in merged) {
+      throw new Error('Use scopeDir / --scope-dir instead of the removed specsDir / --specs-dir option.');
+    }
+
     const format = normalizeFormat(normalizeStringOption(merged.format) ?? getAgentOutputFormat());
     const view = normalizeView(normalizeStringOption(merged.view) ?? 'impact');
     const resolvedTarget = normalizeStringOption(merged.target) ?? target;
