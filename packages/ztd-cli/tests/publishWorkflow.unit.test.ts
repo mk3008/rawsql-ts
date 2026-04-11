@@ -96,7 +96,8 @@ test('generated-project mode skips the initial install and reapplies local-sourc
   expect(generatedProjectModeScript).toContain('"--skip-install"');
   expect(generatedProjectModeScript).toContain('function applyLocalSourceOverrides(appDir) {');
   expect(generatedProjectModeScript).toContain('runIn(generatedProjectRoot, PNPM, ["install", "--ignore-workspace", "--no-frozen-lockfile"])');
-  expect(generatedProjectModeScript).toContain('runIn(generatedProjectRoot, PNPM, [');
-  expect(generatedProjectModeScript).toContain('"run"');
+  expect(generatedProjectModeScript).toContain('runIn(generatedProjectRoot, process.execPath, [');
+  expect(generatedProjectModeScript).toContain('path.join(generatedProjectRoot, "scripts", "local-source-guard.mjs")');
   expect(generatedProjectModeScript).toContain('"ztd"');
+  expect(generatedProjectModeScript).toContain('shell: false');
 });

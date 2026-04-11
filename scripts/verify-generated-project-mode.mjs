@@ -246,7 +246,7 @@ async function main() {
         "ztd init --starter --yes --skip-install --local-source-root <repo-root>",
         "write pnpm.overrides for local rawsql-ts workspace packages",
         "pnpm install --ignore-workspace --no-frozen-lockfile",
-        "pnpm run ztd -- feature scaffold --table users --action insert",
+        "node scripts/local-source-guard.mjs ztd feature scaffold --table users --action insert",
         "docker run -d --rm --name generated-project-check-postgres -P postgres:18",
         "docker port generated-project-check-postgres 5432/tcp",
         "write .env with the mapped Postgres port",
