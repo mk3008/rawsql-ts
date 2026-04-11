@@ -30,6 +30,17 @@ function ensureStandaloneWorkspaceRoot() {
   );
 }
 
+function syncStandaloneWorkspacePackageJson(overrides) {
+  writePackageJson(standalonePackageRoot, {
+    name: "published-package-check-standalone",
+    private: true,
+    version: "0.0.0",
+    pnpm: {
+      overrides,
+    },
+  });
+}
+
 function parseArgs(argv) {
   const options = {
     publishManifestPath: null,
@@ -499,15 +510,13 @@ function verifyPnpmStarterPath(packages) {
   ensureCleanDir(appDir);
 
   const tarballDependencies = createTarballDependencyMap(packages);
+  syncStandaloneWorkspacePackageJson(tarballDependencies);
   writePackageJson(appDir, {
     name: "pnpm-starter-path-check",
     private: true,
     version: "0.0.0",
     devDependencies: {
       "@rawsql-ts/ztd-cli": tarballDependencies["@rawsql-ts/ztd-cli"],
-    },
-    pnpm: {
-      overrides: tarballDependencies,
     },
   });
 
@@ -528,10 +537,6 @@ function verifyPnpmStarterPath(packages) {
       tarballDependencies[dependencyName] ?? version,
     ]),
   );
-  scaffoldPackageJson.pnpm = {
-    ...(scaffoldPackageJson.pnpm ?? {}),
-    overrides: tarballDependencies,
-  };
   assertNoWorkspaceProtocols(scaffoldPackageJson, "starter-scaffold");
 
   // Rebind workspace packages to the freshly packed tarballs so the scaffold install exercises the published manifests.
@@ -547,15 +552,13 @@ function verifyPnpmAdapterInstall(packages) {
   ensureCleanDir(appDir);
 
   const tarballDependencies = createTarballDependencyMap(packages);
+  syncStandaloneWorkspacePackageJson(tarballDependencies);
   writePackageJson(appDir, {
     name: "pnpm-adapter-path-check",
     private: true,
     version: "0.0.0",
     devDependencies: {
       "@rawsql-ts/ztd-cli": tarballDependencies["@rawsql-ts/ztd-cli"],
-    },
-    pnpm: {
-      overrides: tarballDependencies,
     },
   });
 
@@ -573,10 +576,6 @@ function verifyPnpmAdapterInstall(packages) {
   scaffoldPackageJson.devDependencies = {
     ...(scaffoldPackageJson.devDependencies ?? {}),
     "@rawsql-ts/adapter-node-pg": tarballDependencies["@rawsql-ts/adapter-node-pg"],
-  };
-  scaffoldPackageJson.pnpm = {
-    ...(scaffoldPackageJson.pnpm ?? {}),
-    overrides: tarballDependencies,
   };
   assertNoWorkspaceProtocols(scaffoldPackageJson, "adapter-scaffold");
 
@@ -593,15 +592,13 @@ function verifyPnpmTutorialModelGen(packages) {
   ensureCleanDir(appDir);
 
   const tarballDependencies = createTarballDependencyMap(packages);
+  syncStandaloneWorkspacePackageJson(tarballDependencies);
   writePackageJson(appDir, {
     name: "pnpm-tutorial-model-gen-check",
     private: true,
     version: "0.0.0",
     devDependencies: {
       "@rawsql-ts/ztd-cli": tarballDependencies["@rawsql-ts/ztd-cli"],
-    },
-    pnpm: {
-      overrides: tarballDependencies,
     },
   });
 
@@ -619,10 +616,6 @@ function verifyPnpmTutorialModelGen(packages) {
   scaffoldPackageJson.devDependencies = {
     ...(scaffoldPackageJson.devDependencies ?? {}),
     "@rawsql-ts/adapter-node-pg": tarballDependencies["@rawsql-ts/adapter-node-pg"],
-  };
-  scaffoldPackageJson.pnpm = {
-    ...(scaffoldPackageJson.pnpm ?? {}),
-    overrides: tarballDependencies,
   };
   assertNoWorkspaceProtocols(scaffoldPackageJson, "tutorial-model-gen-scaffold");
 
