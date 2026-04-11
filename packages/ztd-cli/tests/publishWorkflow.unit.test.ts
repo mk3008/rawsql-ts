@@ -83,3 +83,12 @@ test('overwrite safety uses the installed ztd bin so npm does not consume --forc
   expect(overwriteSection).toContain('runInstalledZtdCli(appDir, ["init", "--yes", "--force", "--workflow", "demo", "--validator", "zod"])');
   expect(overwriteSection).not.toContain('"exec"');
 });
+
+test('packed tarball install smoke only runs commands for tarballs included in the publish manifest', () => {
+  expect(publishedPackageModeScript).toContain('function hasTarballDependency(tarballDependencies, packageName) {');
+  expect(publishedPackageModeScript).toContain('if (hasTarballDependency(tarballDependencies, "@rawsql-ts/ztd-cli")) {');
+  expect(publishedPackageModeScript).toContain('const smokeImportTargets = [');
+  expect(publishedPackageModeScript).toContain('"@rawsql-ts/testkit-core",');
+  expect(publishedPackageModeScript).toContain('"@rawsql-ts/sql-contract-zod",');
+  expect(publishedPackageModeScript).toContain('.filter((packageName) => hasTarballDependency(tarballDependencies, packageName));');
+});
