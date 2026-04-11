@@ -4,6 +4,8 @@ import { expect, test } from 'vitest';
 
 const publishWorkflowPath = path.resolve(__dirname, '../../../.github/workflows/publish.yml');
 const publishWorkflow = fs.readFileSync(publishWorkflowPath, 'utf8');
+const prCheckWorkflowPath = path.resolve(__dirname, '../../../.github/workflows/pr-check.yml');
+const prCheckWorkflow = fs.readFileSync(prCheckWorkflowPath, 'utf8');
 const releasePrWorkflowPath = path.resolve(__dirname, '../../../.github/workflows/release-pr.yml');
 const releasePrWorkflow = fs.readFileSync(releasePrWorkflowPath, 'utf8');
 const publishedPackageModePath = path.resolve(__dirname, '../../../scripts/verify-published-package-mode.mjs');
@@ -30,6 +32,10 @@ test('release PR workflow requires the changesets PAT instead of silently fallin
   expect(releasePrWorkflow).toContain('Release PR requires the CHANGESETS_TOKEN secret.');
   expect(releasePrWorkflow).toContain('GITHUB_TOKEN: ${{ secrets.CHANGESETS_TOKEN }}');
   expect(releasePrWorkflow).not.toContain('secrets.CHANGESETS_TOKEN || secrets.GITHUB_TOKEN');
+});
+
+test('pr check reruns when the PR body is edited or the draft is marked ready for review', () => {
+  expect(prCheckWorkflow).toContain('types: [opened, reopened, synchronize, edited, ready_for_review]');
 });
 
 test('standalone pnpm proof apps use the installed ztd bin helper instead of pnpm exec', () => {
