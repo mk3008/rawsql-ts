@@ -10,6 +10,8 @@ const releasePrWorkflowPath = path.resolve(__dirname, '../../../.github/workflow
 const releasePrWorkflow = fs.readFileSync(releasePrWorkflowPath, 'utf8');
 const publishedPackageModePath = path.resolve(__dirname, '../../../scripts/verify-published-package-mode.mjs');
 const publishedPackageModeScript = fs.readFileSync(publishedPackageModePath, 'utf8');
+const generatedProjectModePath = path.resolve(__dirname, '../../../scripts/verify-generated-project-mode.mjs');
+const generatedProjectModeScript = fs.readFileSync(generatedProjectModePath, 'utf8');
 
 test('publish workflow verifies built artifacts before actual publish', () => {
   expect(publishWorkflow).toContain('verify_publish_artifacts:');
@@ -82,4 +84,20 @@ test('overwrite safety uses the installed ztd bin so npm does not consume --forc
   expect(overwriteSection).toContain('runInstalledZtdCli(appDir, ["init", "--yes", "--workflow", "demo", "--validator", "zod"])');
   expect(overwriteSection).toContain('runInstalledZtdCli(appDir, ["init", "--yes", "--force", "--workflow", "demo", "--validator", "zod"])');
   expect(overwriteSection).not.toContain('"exec"');
+});
+
+test('standalone pnpm proof apps pin tarball overrides at the workspace root', () => {
+  expect(publishedPackageModeScript).toContain('function syncStandaloneWorkspacePackageJson(overrides) {');
+  expect(publishedPackageModeScript).toContain('writePackageJson(standalonePackageRoot, {');
+  expect(publishedPackageModeScript).toContain('syncStandaloneWorkspacePackageJson(tarballDependencies);');
+});
+
+test('generated-project mode skips the initial install and reapplies local-source overrides before pnpm install', () => {
+  expect(generatedProjectModeScript).toContain('"--skip-install"');
+  expect(generatedProjectModeScript).toContain('function applyLocalSourceOverrides(appDir) {');
+  expect(generatedProjectModeScript).toContain('runIn(generatedProjectRoot, PNPM, ["install", "--ignore-workspace", "--no-frozen-lockfile"])');
+  expect(generatedProjectModeScript).toContain('runIn(generatedProjectRoot, process.execPath, [');
+  expect(generatedProjectModeScript).toContain('path.join(generatedProjectRoot, "scripts", "local-source-guard.mjs")');
+  expect(generatedProjectModeScript).toContain('"ztd"');
+  expect(generatedProjectModeScript).toContain('shell: false');
 });
