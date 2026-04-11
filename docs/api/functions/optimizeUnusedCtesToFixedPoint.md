@@ -3,7 +3,7 @@
 
 > **optimizeUnusedCtesToFixedPoint**(`query`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/OptimizeUnusedLeftJoins.ts:448](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/transformers/OptimizeUnusedLeftJoins.ts#L448)
+Defined in: [packages/core/src/transformers/OptimizeUnusedLeftJoins.ts:448](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/transformers/OptimizeUnusedLeftJoins.ts#L448)
 
 Repeatedly prunes unused CTEs until a fixed point is reached so chained removals complete deterministically.
 

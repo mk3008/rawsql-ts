@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: TableSchema
 
-Defined in: [packages/core/src/transformers/SchemaCollector.ts:14](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/transformers/SchemaCollector.ts#L14)
+Defined in: [packages/core/src/transformers/SchemaCollector.ts:15](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/transformers/SchemaCollector.ts#L15)
 
 ## Constructors
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/transformers/SchemaCollector.ts:14](https://githu
 
 > **new TableSchema**(`name`, `columns`): `TableSchema`
 
-Defined in: [packages/core/src/transformers/SchemaCollector.ts:18](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/transformers/SchemaCollector.ts#L18)
+Defined in: [packages/core/src/transformers/SchemaCollector.ts:19](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/transformers/SchemaCollector.ts#L19)
 
 #### Parameters
 
@@ -31,7 +31,7 @@ Defined in: [packages/core/src/transformers/SchemaCollector.ts:18](https://githu
 
 > **name**: `string`
 
-Defined in: [packages/core/src/transformers/SchemaCollector.ts:15](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/transformers/SchemaCollector.ts#L15)
+Defined in: [packages/core/src/transformers/SchemaCollector.ts:16](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/transformers/SchemaCollector.ts#L16)
 
 ***
 
@@ -39,5 +39,5 @@ Defined in: [packages/core/src/transformers/SchemaCollector.ts:15](https://githu
 
 > **columns**: `string`[]
 
-Defined in: [packages/core/src/transformers/SchemaCollector.ts:16](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/transformers/SchemaCollector.ts#L16)
+Defined in: [packages/core/src/transformers/SchemaCollector.ts:17](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/transformers/SchemaCollector.ts#L17)
 </div>

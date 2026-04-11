@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: ScopeResolver
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:99](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/ScopeResolver.ts#L99)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:100](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/utils/ScopeResolver.ts#L100)
 
 Resolves scope information at cursor positions for SQL IntelliSense
 
@@ -39,7 +39,7 @@ console.log(scope.availableCTEs); // [{ name: 'users', columns: ['id', 'name'] }
 
 > `static` **resolve**(`sql`, `cursorPosition`): [`ScopeInfo`](../interfaces/ScopeInfo.md)
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:107](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/ScopeResolver.ts#L107)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:108](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/utils/ScopeResolver.ts#L108)
 
 Resolve scope information at the specified cursor position
 
@@ -69,7 +69,7 @@ Complete scope information
 
 > `static` **resolveAt**(`sql`, `position`): [`ScopeInfo`](../interfaces/ScopeInfo.md)
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:120](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/ScopeResolver.ts#L120)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:121](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/utils/ScopeResolver.ts#L121)
 
 Resolve scope information at line/column position
 
@@ -105,7 +105,7 @@ Complete scope information
 
 > `static` **getColumnsForTable**(`sql`, `cursorPosition`, `tableOrAlias`): [`AvailableColumn`](../interfaces/AvailableColumn.md)[]
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:136](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/ScopeResolver.ts#L136)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:137](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/utils/ScopeResolver.ts#L137)
 
 Get available columns for a specific table or alias
 

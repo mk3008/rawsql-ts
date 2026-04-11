@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: AvailableTable
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:14](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/ScopeResolver.ts#L14)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:15](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/utils/ScopeResolver.ts#L15)
 
 Information about a table available in the current scope
 
@@ -11,7 +11,7 @@ Information about a table available in the current scope
 
 > **name**: `string`
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:16](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/ScopeResolver.ts#L16)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:17](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/utils/ScopeResolver.ts#L17)
 
 Table name (unqualified)
 
@@ -21,7 +21,7 @@ Table name (unqualified)
 
 > `optional` **alias**: `string`
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:18](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/ScopeResolver.ts#L18)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:19](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/utils/ScopeResolver.ts#L19)
 
 Table alias (if any)
 
@@ -31,7 +31,7 @@ Table alias (if any)
 
 > `optional` **schema**: `string`
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:20](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/ScopeResolver.ts#L20)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:21](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/utils/ScopeResolver.ts#L21)
 
 Schema name (if qualified)
 
@@ -41,7 +41,7 @@ Schema name (if qualified)
 
 > **fullName**: `string`
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:22](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/ScopeResolver.ts#L22)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:23](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/utils/ScopeResolver.ts#L23)
 
 Full qualified name
 
@@ -51,7 +51,7 @@ Full qualified name
 
 > **sourceType**: `"table"` \| `"cte"` \| `"subquery"`
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:24](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/ScopeResolver.ts#L24)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:25](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/utils/ScopeResolver.ts#L25)
 
 Source type: 'table', 'cte', 'subquery'
 
@@ -61,7 +61,7 @@ Source type: 'table', 'cte', 'subquery'
 
 > `optional` **originalQuery**: [`SelectQuery`](SelectQuery.md)
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:26](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/ScopeResolver.ts#L26)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:27](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/utils/ScopeResolver.ts#L27)
 
 Original table reference for subqueries
 </div>

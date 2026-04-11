@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CTECollector
 
-Defined in: [packages/core/src/transformers/CTECollector.ts:28](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/transformers/CTECollector.ts#L28)
+Defined in: [packages/core/src/transformers/CTECollector.ts:29](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/transformers/CTECollector.ts#L29)
 
 A visitor that collects all CommonTable instances from a SQL query structure.
 This includes tables from:
@@ -21,7 +21,7 @@ This includes tables from:
 
 > **new CTECollector**(): `CTECollector`
 
-Defined in: [packages/core/src/transformers/CTECollector.ts:34](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/transformers/CTECollector.ts#L34)
+Defined in: [packages/core/src/transformers/CTECollector.ts:35](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/transformers/CTECollector.ts#L35)
 
 #### Returns
 
@@ -33,7 +33,7 @@ Defined in: [packages/core/src/transformers/CTECollector.ts:34](https://github.c
 
 > **getCommonTables**(): [`CommonTable`](CommonTable.md)[]
 
-Defined in: [packages/core/src/transformers/CTECollector.ts:116](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/transformers/CTECollector.ts#L116)
+Defined in: [packages/core/src/transformers/CTECollector.ts:118](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/transformers/CTECollector.ts#L118)
 
 Get all collected CommonTables
 
@@ -47,7 +47,7 @@ Get all collected CommonTables
 
 > **collect**(`query`): [`CommonTable`](CommonTable.md)[]
 
-Defined in: [packages/core/src/transformers/CTECollector.ts:128](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/transformers/CTECollector.ts#L128)
+Defined in: [packages/core/src/transformers/CTECollector.ts:130](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/transformers/CTECollector.ts#L130)
 
 #### Parameters
 
@@ -65,7 +65,7 @@ Defined in: [packages/core/src/transformers/CTECollector.ts:128](https://github.
 
 > **visit**(`arg`): `void`
 
-Defined in: [packages/core/src/transformers/CTECollector.ts:138](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/transformers/CTECollector.ts#L138)
+Defined in: [packages/core/src/transformers/CTECollector.ts:140](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/transformers/CTECollector.ts#L140)
 
 Main entry point for the visitor pattern.
 Implements the shallow visit pattern to distinguish between root and recursive visits.
@@ -90,7 +90,7 @@ Implements the shallow visit pattern to distinguish between root and recursive v
 
 > **visitPartitionByClause**(`partitionBy`): `void`
 
-Defined in: [packages/core/src/transformers/CTECollector.ts:545](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/transformers/CTECollector.ts#L545)
+Defined in: [packages/core/src/transformers/CTECollector.ts:583](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/transformers/CTECollector.ts#L583)
 
 #### Parameters
 
@@ -108,7 +108,7 @@ Defined in: [packages/core/src/transformers/CTECollector.ts:545](https://github.
 
 > **visitValueList**(`valueList`): `void`
 
-Defined in: [packages/core/src/transformers/CTECollector.ts:549](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/transformers/CTECollector.ts#L549)
+Defined in: [packages/core/src/transformers/CTECollector.ts:587](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/transformers/CTECollector.ts#L587)
 
 #### Parameters
 

@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: MergeQueryParser
 
-Defined in: [packages/core/src/parsers/MergeQueryParser.ts:14](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/parsers/MergeQueryParser.ts#L14)
+Defined in: [packages/core/src/parsers/MergeQueryParser.ts:15](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/parsers/MergeQueryParser.ts#L15)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/parsers/MergeQueryParser.ts:14](https://github.co
 
 > `static` **parse**(`query`): [`MergeQuery`](MergeQuery.md)
 
-Defined in: [packages/core/src/parsers/MergeQueryParser.ts:19](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/parsers/MergeQueryParser.ts#L19)
+Defined in: [packages/core/src/parsers/MergeQueryParser.ts:20](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/parsers/MergeQueryParser.ts#L20)
 
 Parse SQL string to MergeQuery AST.
 
@@ -41,7 +41,7 @@ SQL string
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/MergeQueryParser.ts:32](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/parsers/MergeQueryParser.ts#L32)
+Defined in: [packages/core/src/parsers/MergeQueryParser.ts:33](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/parsers/MergeQueryParser.ts#L33)
 
 Parse from lexeme array (for internal use and tests).
 

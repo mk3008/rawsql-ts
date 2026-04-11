@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: MergeQuery
 
-Defined in: [packages/core/src/models/MergeQuery.ts:119](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/MergeQuery.ts#L119)
+Defined in: [packages/core/src/models/MergeQuery.ts:119](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/MergeQuery.ts#L119)
 
 ## Extends
 
@@ -13,7 +13,7 @@ Defined in: [packages/core/src/models/MergeQuery.ts:119](https://github.com/mk30
 
 > **new MergeQuery**(`params`): `MergeQuery`
 
-Defined in: [packages/core/src/models/MergeQuery.ts:127](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/MergeQuery.ts#L127)
+Defined in: [packages/core/src/models/MergeQuery.ts:128](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/MergeQuery.ts#L128)
 
 #### Parameters
 
@@ -39,6 +39,10 @@ Defined in: [packages/core/src/models/MergeQuery.ts:127](https://github.com/mk30
 
 [`MergeWhenClause`](MergeWhenClause.md)[]
 
+###### returningClause?
+
+`null` \| [`ReturningClause`](ReturningClause.md)
+
 #### Returns
 
 `MergeQuery`
@@ -53,7 +57,7 @@ Defined in: [packages/core/src/models/MergeQuery.ts:127](https://github.com/mk30
 
 > `static` **kind**: `symbol`
 
-Defined in: [packages/core/src/models/MergeQuery.ts:120](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/MergeQuery.ts#L120)
+Defined in: [packages/core/src/models/MergeQuery.ts:120](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/MergeQuery.ts#L120)
 
 #### Overrides
 
@@ -65,7 +69,7 @@ Defined in: [packages/core/src/models/MergeQuery.ts:120](https://github.com/mk30
 
 > **withClause**: `null` \| [`WithClause`](WithClause.md)
 
-Defined in: [packages/core/src/models/MergeQuery.ts:121](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/MergeQuery.ts#L121)
+Defined in: [packages/core/src/models/MergeQuery.ts:121](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/MergeQuery.ts#L121)
 
 ***
 
@@ -73,7 +77,7 @@ Defined in: [packages/core/src/models/MergeQuery.ts:121](https://github.com/mk30
 
 > **target**: [`SourceExpression`](SourceExpression.md)
 
-Defined in: [packages/core/src/models/MergeQuery.ts:122](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/MergeQuery.ts#L122)
+Defined in: [packages/core/src/models/MergeQuery.ts:122](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/MergeQuery.ts#L122)
 
 ***
 
@@ -81,7 +85,7 @@ Defined in: [packages/core/src/models/MergeQuery.ts:122](https://github.com/mk30
 
 > **source**: [`SourceExpression`](SourceExpression.md)
 
-Defined in: [packages/core/src/models/MergeQuery.ts:123](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/MergeQuery.ts#L123)
+Defined in: [packages/core/src/models/MergeQuery.ts:123](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/MergeQuery.ts#L123)
 
 ***
 
@@ -89,7 +93,7 @@ Defined in: [packages/core/src/models/MergeQuery.ts:123](https://github.com/mk30
 
 > **onCondition**: [`ValueComponent`](../type-aliases/ValueComponent.md)
 
-Defined in: [packages/core/src/models/MergeQuery.ts:124](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/MergeQuery.ts#L124)
+Defined in: [packages/core/src/models/MergeQuery.ts:124](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/MergeQuery.ts#L124)
 
 ***
 
@@ -97,7 +101,15 @@ Defined in: [packages/core/src/models/MergeQuery.ts:124](https://github.com/mk30
 
 > **whenClauses**: [`MergeWhenClause`](MergeWhenClause.md)[]
 
-Defined in: [packages/core/src/models/MergeQuery.ts:125](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/MergeQuery.ts#L125)
+Defined in: [packages/core/src/models/MergeQuery.ts:125](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/MergeQuery.ts#L125)
+
+***
+
+### returningClause
+
+> **returningClause**: `null` \| [`ReturningClause`](ReturningClause.md)
+
+Defined in: [packages/core/src/models/MergeQuery.ts:126](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/MergeQuery.ts#L126)
 
 ***
 
@@ -105,7 +117,7 @@ Defined in: [packages/core/src/models/MergeQuery.ts:125](https://github.com/mk30
 
 > **comments**: `null` \| `string`[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L29)
+Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/SqlComponent.ts#L29)
 
 #### Inherited from
 
@@ -117,7 +129,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3
 
 > **positionedComments**: `null` \| [`PositionedComment`](../interfaces/PositionedComment.md)[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L32)
+Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/SqlComponent.ts#L32)
 
 #### Inherited from
 
@@ -129,7 +141,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3
 
 > **getKind**(): `symbol`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L15)
+Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/SqlComponent.ts#L15)
 
 #### Returns
 
@@ -145,7 +157,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3
 
 > **accept**&lt;`T`\&gt;(`visitor`): `T`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L19)
+Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/SqlComponent.ts#L19)
 
 #### Type Parameters
 
@@ -173,7 +185,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3
 
 > **toSqlString**(`formatter`): `string`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L23)
+Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/SqlComponent.ts#L23)
 
 #### Parameters
 
@@ -195,7 +207,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3
 
 > **addPositionedComments**(`position`, `comments`): `void`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L37)
+Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/SqlComponent.ts#L37)
 
 Add comments at a specific position
 
@@ -223,7 +235,7 @@ Add comments at a specific position
 
 > **getPositionedComments**(`position`): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L56)
+Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/SqlComponent.ts#L56)
 
 Get comments for a specific position
 
@@ -247,7 +259,7 @@ Get comments for a specific position
 
 > **getAllPositionedComments**(): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L66)
+Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/SqlComponent.ts#L66)
 
 Get all positioned comments as a flat array in order (before, after)
 

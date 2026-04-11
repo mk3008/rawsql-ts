@@ -3,5 +3,5 @@
 
 > **SequenceOptionClause** = [`SequenceIncrementClause`](../interfaces/SequenceIncrementClause.md) \| [`SequenceStartClause`](../interfaces/SequenceStartClause.md) \| [`SequenceMinValueClause`](../interfaces/SequenceMinValueClause.md) \| [`SequenceMaxValueClause`](../interfaces/SequenceMaxValueClause.md) \| [`SequenceCacheClause`](../interfaces/SequenceCacheClause.md) \| [`SequenceCycleClause`](../interfaces/SequenceCycleClause.md) \| [`SequenceRestartClause`](../interfaces/SequenceRestartClause.md) \| [`SequenceOwnedByClause`](../interfaces/SequenceOwnedByClause.md)
 
-Defined in: [packages/core/src/models/DDLStatements.ts:463](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/DDLStatements.ts#L463)
+Defined in: [packages/core/src/models/DDLStatements.ts:463](https://github.com/mk3008/rawsql-ts/blob/4084a3e1c34cb553d019775fbab6a321705980e8/packages/core/src/models/DDLStatements.ts#L463)
 </div>
