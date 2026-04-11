@@ -233,6 +233,10 @@ function createTarballDependencyMap(packages) {
   );
 }
 
+function hasTarballDependency(tarballDependencies, packageName) {
+  return typeof tarballDependencies[packageName] === "string";
+}
+
 function setPackageTypeModule(directory) {
   const packageJsonPath = path.join(directory, "package.json");
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
@@ -344,22 +348,36 @@ function loadPackedPackagesFromManifest(manifestPath) {
 function verifyPackedTarballInstall(packages) {
   const appDir = path.join(packageRoot, "packed-install");
   ensureCleanDir(appDir);
+  const tarballDependencies = createTarballDependencyMap(packages);
 
   writePackageJson(appDir, {
     name: "packed-install-check",
     private: true,
     version: "0.0.0",
     type: "module",
-    devDependencies: createTarballDependencyMap(packages),
+    devDependencies: tarballDependencies,
   });
 
   runIn(appDir, NPM, ["install"]);
-  runIn(appDir, NPM, ["exec", "--", "ztd", "--help"]);
-  runIn(appDir, process.execPath, [
-    "--input-type=module",
-    "-e",
-    "await import('@rawsql-ts/testkit-core'); await import('@rawsql-ts/sql-contract-zod');",
-  ], { shell: false });
+
+  if (hasTarballDependency(tarballDependencies, "@rawsql-ts/ztd-cli")) {
+    runIn(appDir, NPM, ["exec", "--", "ztd", "--help"]);
+  }
+
+  const smokeImportTargets = [
+    "@rawsql-ts/testkit-core",
+    "@rawsql-ts/sql-contract-zod",
+  ].filter((packageName) => hasTarballDependency(tarballDependencies, packageName));
+
+  if (smokeImportTargets.length > 0) {
+    runIn(appDir, process.execPath, [
+      "--input-type=module",
+      "-e",
+      smokeImportTargets
+        .map((packageName) => `await import(${JSON.stringify(packageName)});`)
+        .join(" "),
+    ], { shell: false });
+  }
 
   return appDir;
 }

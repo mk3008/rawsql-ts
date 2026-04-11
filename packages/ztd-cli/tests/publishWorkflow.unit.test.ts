@@ -101,3 +101,13 @@ test('generated-project mode skips the initial install and reapplies local-sourc
   expect(generatedProjectModeScript).toContain('"ztd"');
   expect(generatedProjectModeScript).toContain('shell: false');
 });
+
+test('packed tarball install smoke only runs commands for tarballs included in the publish manifest', () => {
+  expect(publishedPackageModeScript).toContain('function hasTarballDependency(tarballDependencies, packageName) {');
+  expect(publishedPackageModeScript).toContain('if (hasTarballDependency(tarballDependencies, "@rawsql-ts/ztd-cli")) {');
+  expect(publishedPackageModeScript).toContain('const smokeImportTargets = [');
+  expect(publishedPackageModeScript).toContain('"@rawsql-ts/testkit-core",');
+  expect(publishedPackageModeScript).toContain('"@rawsql-ts/sql-contract-zod",');
+  expect(publishedPackageModeScript).toContain('.filter((packageName) => hasTarballDependency(tarballDependencies, packageName));');
+  expect(publishedPackageModeScript).toContain('if (smokeImportTargets.length > 0) {');
+});
