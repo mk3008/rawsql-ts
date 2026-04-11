@@ -1,5 +1,28 @@
 # @rawsql-ts/ztd-cli
 
+## 0.25.0
+
+### Minor Changes
+
+- [#752](https://github.com/mk3008/rawsql-ts/pull/752) [`6bf1fcc`](https://github.com/mk3008/rawsql-ts/commit/6bf1fccfcf3cdce4b74cc42ef3d086c54defb54b) Thanks [@mk3008](https://github.com/mk3008)! - Add `ztd feature query scaffold` for creating child query boundaries under an existing boundary without rewriting the parent boundary.
+
+  Promote `--scope-dir` as the primary `ztd query uses` narrowing flag while keeping `--specs-dir` as a deprecated compatibility alias.
+
+  Support `MERGE ... RETURNING` as a writable CTE output shape in `rawsql-ts` so downstream SELECT and CTE analysis can resolve returned columns consistently across supported DML forms.
+
+- [#756](https://github.com/mk3008/rawsql-ts/pull/756) [`a4f4b56`](https://github.com/mk3008/rawsql-ts/commit/a4f4b5663b65d2a913158c6916f969f3a05117a6) Thanks [@mk3008](https://github.com/mk3008)! - `ztd query uses` no longer accepts the deprecated `--specs-dir` alias. Use `--scope-dir` when you need to narrow the project-wide QuerySpec scan to one feature or subtree.
+
+### Patch Changes
+
+- [#740](https://github.com/mk3008/rawsql-ts/pull/740) [`36f6e6c`](https://github.com/mk3008/rawsql-ts/commit/36f6e6c249385c8d3e4aded063b100f2e2465d61) Thanks [@mk3008](https://github.com/mk3008)! - Stabilize scaffolded shared imports in deep recursive boundary layouts without rewriting every generated import style.
+
+  Generated query-boundary files now use stable shared specifiers for `src/features/_shared/*` and `tests/support/*`, while nearby boundary-local imports stay relative. Starter scaffolds also add the matching package imports, TypeScript paths, and Vitest aliases so deeper boundary splits are less likely to break when code moves into lower child boundaries.
+
+- Updated dependencies [[`6bf1fcc`](https://github.com/mk3008/rawsql-ts/commit/6bf1fccfcf3cdce4b74cc42ef3d086c54defb54b)]:
+  - rawsql-ts@0.19.0
+  - @rawsql-ts/adapter-node-pg@0.15.7
+  - @rawsql-ts/sql-grep-core@0.1.8
+
 ## 0.24.3
 
 ### Patch Changes
