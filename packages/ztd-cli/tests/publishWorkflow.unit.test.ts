@@ -109,4 +109,5 @@ test('packed tarball install smoke only runs commands for tarballs included in t
   expect(publishedPackageModeScript).toContain('"@rawsql-ts/testkit-core",');
   expect(publishedPackageModeScript).toContain('"@rawsql-ts/sql-contract-zod",');
   expect(publishedPackageModeScript).toContain('.filter((packageName) => hasTarballDependency(tarballDependencies, packageName));');
+  expect(publishedPackageModeScript).toContain('if (smokeImportTargets.length > 0) {');
 });
