@@ -6,6 +6,7 @@ import {
   IS_WINDOWS,
   PNPM,
   ensureCleanDir,
+  getWorkspacePackages,
   run,
   runWithOutput,
   writeJson,
@@ -17,6 +18,14 @@ const generatedProjectRoot = path.join(outputRoot, "starter-app");
 const cliEntryPoint = path.join(workspaceRoot, "packages", "ztd-cli", "dist", "index.js");
 const postgresContainerName = "generated-project-check-postgres";
 
+function isPublishTarget(pkg) {
+  return (
+    !pkg.private
+    && pkg.dir.startsWith(path.join(workspaceRoot, "packages"))
+    && !pkg.dir.includes(`${path.sep}templates${path.sep}`)
+  );
+}
+
 function runIn(directory, command, args, options = {}) {
   return runWithOutput(command, args, {
     cwd: directory,
@@ -27,6 +36,32 @@ function runIn(directory, command, args, options = {}) {
 
 function readPackageJson(directory) {
   return JSON.parse(fs.readFileSync(path.join(directory, "package.json"), "utf8"));
+}
+
+function writePackageJson(directory, packageJson) {
+  fs.writeFileSync(path.join(directory, "package.json"), `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+}
+
+function toLocalFileDependency(rootDir, targetDir) {
+  const relativeTarget = path.relative(rootDir, targetDir).replace(/\\/gu, "/");
+  const withDotPrefix = relativeTarget.startsWith(".") ? relativeTarget : `./${relativeTarget}`;
+  return `file:${withDotPrefix}`;
+}
+
+function buildLocalSourceOverrides(rootDir) {
+  const packages = [...getWorkspacePackages(workspaceRoot).values()].filter(isPublishTarget);
+  return Object.fromEntries(
+    packages.map((pkg) => [pkg.name, toLocalFileDependency(rootDir, pkg.dir)]),
+  );
+}
+
+function applyLocalSourceOverrides(appDir) {
+  const packageJson = readPackageJson(appDir);
+  packageJson.pnpm = {
+    ...(packageJson.pnpm ?? {}),
+    overrides: buildLocalSourceOverrides(appDir),
+  };
+  writePackageJson(appDir, packageJson);
 }
 
 function assertExists(filePath, description) {
@@ -137,17 +172,20 @@ async function main() {
       "init",
       "--starter",
       "--yes",
+      "--skip-install",
       "--local-source-root",
       workspaceRoot,
     ], {
       shell: false,
     });
 
+    applyLocalSourceOverrides(generatedProjectRoot);
+    runIn(generatedProjectRoot, PNPM, ["install", "--ignore-workspace", "--no-frozen-lockfile"]);
+
     verifyStarterScaffold(generatedProjectRoot);
 
-    runIn(generatedProjectRoot, PNPM, [
-      "exec",
-      "--",
+    runIn(generatedProjectRoot, process.execPath, [
+      path.join(generatedProjectRoot, "scripts", "local-source-guard.mjs"),
       "ztd",
       "feature",
       "scaffold",
@@ -155,7 +193,9 @@ async function main() {
       "users",
       "--action",
       "insert",
-    ]);
+    ], {
+      shell: false,
+    });
     verifyFeatureScaffold(generatedProjectRoot);
 
     runIn(generatedProjectRoot, "docker", [
@@ -203,8 +243,10 @@ async function main() {
       dbPort: starterDbPort,
       commands: [
         "build:publish",
-        "ztd init --starter --yes --local-source-root <repo-root>",
-        "ztd feature scaffold --table users --action insert",
+        "ztd init --starter --yes --skip-install --local-source-root <repo-root>",
+        "write pnpm.overrides for local rawsql-ts workspace packages",
+        "pnpm install --ignore-workspace --no-frozen-lockfile",
+        "pnpm run ztd -- feature scaffold --table users --action insert",
         "docker run -d --rm --name generated-project-check-postgres -P postgres:18",
         "docker port generated-project-check-postgres 5432/tcp",
         "write .env with the mapped Postgres port",
