@@ -4,6 +4,10 @@ import { expect, test } from 'vitest';
 
 const publishWorkflowPath = path.resolve(__dirname, '../../../.github/workflows/publish.yml');
 const publishWorkflow = fs.readFileSync(publishWorkflowPath, 'utf8');
+const prCheckWorkflowPath = path.resolve(__dirname, '../../../.github/workflows/pr-check.yml');
+const prCheckWorkflow = fs.readFileSync(prCheckWorkflowPath, 'utf8');
+const releasePrWorkflowPath = path.resolve(__dirname, '../../../.github/workflows/release-pr.yml');
+const releasePrWorkflow = fs.readFileSync(releasePrWorkflowPath, 'utf8');
 const publishedPackageModePath = path.resolve(__dirname, '../../../scripts/verify-published-package-mode.mjs');
 const publishedPackageModeScript = fs.readFileSync(publishedPackageModePath, 'utf8');
 
@@ -21,6 +25,17 @@ test('proof mode skips the main-branch requirement and actual publish', () => {
   expect(publishWorkflow).toContain("if: ${{ inputs.verification_mode != 'proof' }}");
   expect(publishWorkflow).toContain("if: ${{ needs.verify_publish_readiness.outputs.should_publish == 'true' && inputs.verification_mode != 'proof' }}");
   expect(publishWorkflow).toContain('create-publish-proof-plan.mjs');
+});
+
+test('release PR workflow requires the changesets PAT instead of silently falling back to GITHUB_TOKEN', () => {
+  expect(releasePrWorkflow).toContain('name: Require release PR token');
+  expect(releasePrWorkflow).toContain('Release PR requires the CHANGESETS_TOKEN secret.');
+  expect(releasePrWorkflow).toContain('GITHUB_TOKEN: ${{ secrets.CHANGESETS_TOKEN }}');
+  expect(releasePrWorkflow).not.toContain('secrets.CHANGESETS_TOKEN || secrets.GITHUB_TOKEN');
+});
+
+test('pr check reruns when the PR body is edited or the draft is marked ready for review', () => {
+  expect(prCheckWorkflow).toContain('types: [opened, reopened, synchronize, edited, ready_for_review]');
 });
 
 test('standalone pnpm proof apps use the installed ztd bin helper instead of pnpm exec', () => {
@@ -48,4 +63,23 @@ test('standalone pnpm proof apps use the installed ztd bin helper instead of pnp
   );
   expect(tutorialSection).toContain('runInstalledZtdCli(appDir,');
   expect(tutorialSection).not.toContain('"exec",');
+});
+
+test('published-package mode includes the rawsql-ts getting-started smoke path', () => {
+  expect(publishedPackageModeScript).toContain('function verifyCoreGettingStarted(packages) {');
+  expect(publishedPackageModeScript).toContain("name: \"rawsql-ts-getting-started-check\"");
+  expect(publishedPackageModeScript).toContain("await import('rawsql-ts')");
+  expect(publishedPackageModeScript).toContain('const builder = new DynamicQueryBuilder();');
+  expect(publishedPackageModeScript).toContain('const formatter = new SqlFormatter();');
+});
+
+test('overwrite safety uses the installed ztd bin so npm does not consume --force', () => {
+  const overwriteSection = publishedPackageModeScript.slice(
+    publishedPackageModeScript.indexOf('function verifyOverwriteSafety(packages) {'),
+    publishedPackageModeScript.indexOf('function main() {'),
+  );
+
+  expect(overwriteSection).toContain('runInstalledZtdCli(appDir, ["init", "--yes", "--workflow", "demo", "--validator", "zod"])');
+  expect(overwriteSection).toContain('runInstalledZtdCli(appDir, ["init", "--yes", "--force", "--workflow", "demo", "--validator", "zod"])');
+  expect(overwriteSection).not.toContain('"exec"');
 });

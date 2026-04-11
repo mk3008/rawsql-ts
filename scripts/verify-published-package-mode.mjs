@@ -353,6 +353,49 @@ function verifyPackedTarballInstall(packages) {
   return appDir;
 }
 
+function verifyCoreGettingStarted(packages) {
+  const appDir = path.join(packageRoot, "rawsql-ts-getting-started");
+  ensureCleanDir(appDir);
+
+  writePackageJson(appDir, {
+    name: "rawsql-ts-getting-started-check",
+    private: true,
+    version: "0.0.0",
+    type: "module",
+    devDependencies: {
+      "rawsql-ts": createTarballDependencyMap(packages)["rawsql-ts"],
+    },
+  });
+
+  runIn(appDir, NPM, ["install"]);
+  runIn(appDir, process.execPath, [
+    "--input-type=module",
+    "-e",
+    [
+      "const { DynamicQueryBuilder, SqlFormatter } = await import('rawsql-ts');",
+      "const baseSql = `",
+      "  SELECT id, name, email, status, created_at",
+      "  FROM users",
+      "  WHERE active = true",
+      "    AND (:status IS NULL OR status = :status)",
+      "`;",
+      "const builder = new DynamicQueryBuilder();",
+      "const query = builder.buildQuery(baseSql, {",
+      "  filter: { status: 'premium' },",
+      "  sort: { created_at: { desc: true }, name: { asc: true } },",
+      "  paging: { page: 2, pageSize: 10 },",
+      "  optionalConditionParameters: { status: 'premium' },",
+      "});",
+      "const formatter = new SqlFormatter();",
+      "const { formattedSql, params } = formatter.format(query);",
+      "if (!String(formattedSql).includes('users')) throw new Error('formatted SQL did not include the expected table reference');",
+      "if (params == null) throw new Error('formatter did not return params');",
+    ].join(" "),
+  ], { shell: false });
+
+  return appDir;
+}
+
 function verifyNpmPrimaryPath(packages) {
   const appDir = path.join(packageRoot, "npm-primary-path");
   ensureCleanDir(appDir);
@@ -640,7 +683,7 @@ function verifyOverwriteSafety(packages) {
 
   let overwriteFailed = false;
   try {
-    runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "demo", "--validator", "zod"]);
+    runInstalledZtdCli(appDir, ["init", "--yes", "--workflow", "demo", "--validator", "zod"]);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (!message.includes("--force") && !message.includes("already exists")) {
@@ -657,7 +700,7 @@ function verifyOverwriteSafety(packages) {
     throw new Error("[scaffold safety] DDL changed even though init without --force failed.");
   }
 
-  runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--force", "--workflow", "demo", "--validator", "zod"]);
+  runInstalledZtdCli(appDir, ["init", "--yes", "--force", "--workflow", "demo", "--validator", "zod"]);
 
   const schemaContents = fs.readFileSync(ddlPath, "utf8");
   if (schemaContents === originalSchema) {
@@ -680,6 +723,7 @@ function main() {
         return packPublishedPackages();
       })();
   const packedInstallApp = verifyPackedTarballInstall(packedPackages);
+  const coreGettingStartedApp = verifyCoreGettingStarted(packedPackages);
   const npmPrimaryPathApp = verifyNpmPrimaryPath(packedPackages);
   const npmSmokeApp = verifyNpmConsumerSmoke(npmPrimaryPathApp);
   const pnpmStarterApp = verifyPnpmStarterPath(packedPackages);
@@ -693,6 +737,7 @@ function main() {
     platform: os.platform(),
     verificationMode: options.publishManifestProvided ? "publish-manifest" : "workspace-pack",
     packedInstallApp,
+    coreGettingStartedApp,
     npmPrimaryPathApp: npmPrimaryPathApp.appDir,
     firstTestGateApp: npmSmokeApp,
     npmSmokeApp,

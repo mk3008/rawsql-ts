@@ -1,6 +1,7 @@
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const RELEASE_PR_HEAD_PREFIX = 'changeset-release/';
 
 const RELEASE_READINESS_PATTERNS = [
   {
@@ -8,6 +9,7 @@ const RELEASE_READINESS_PATTERNS = [
     patterns: [
       /^package\.json$/u,
       /^pnpm-lock\.yaml$/u,
+      /^docs\/guide\/getting-started\.md$/u,
       /^packages\/(?:[^/]+\/)+src\//u,
       /^packages\/(?:[^/]+\/)+templates\//u,
       /^packages\/(?:[^/]+\/)+package\.json$/u,
@@ -135,18 +137,46 @@ function readPullRequestLabels(eventPath) {
     .sort();
 }
 
-function evaluateChangesetGuardrail({ releaseAffecting, changesetFiles, labelNames }) {
+function readPullRequestContext(eventPath) {
+  if (!eventPath || !fs.existsSync(eventPath)) {
+    return {
+      isReleasePr: false,
+      headRef: '',
+      title: '',
+      authorLogin: '',
+      labelNames: [],
+    };
+  }
+
+  const payload = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
+  const pullRequest = payload?.pull_request ?? {};
+  const labels = Array.isArray(pullRequest.labels) ? pullRequest.labels : [];
+
+  return {
+    isReleasePr: typeof pullRequest.head?.ref === 'string' && pullRequest.head.ref.startsWith(RELEASE_PR_HEAD_PREFIX),
+    headRef: typeof pullRequest.head?.ref === 'string' ? pullRequest.head.ref : '',
+    title: typeof pullRequest.title === 'string' ? pullRequest.title : '',
+    authorLogin: typeof pullRequest.user?.login === 'string' ? pullRequest.user.login : '',
+    labelNames: labels
+      .map((label) => String(label?.name ?? '').trim())
+      .filter(Boolean)
+      .sort(),
+  };
+}
+
+function evaluateChangesetGuardrail({ releaseAffecting, changesetFiles, labelNames, isReleasePr = false }) {
   const normalizedLabels = (labelNames ?? []).map((label) => String(label).trim().toLowerCase());
   const hasNoReleaseLabel = normalizedLabels.includes('no-release');
   const hasChangeset = (changesetFiles ?? []).length > 0;
-  const guardrailRequired = releaseAffecting;
-  const guardrailPassed = !guardrailRequired || hasChangeset || hasNoReleaseLabel;
+  const guardrailRequired = releaseAffecting && !isReleasePr;
+  const guardrailPassed = isReleasePr || !guardrailRequired || hasChangeset || hasNoReleaseLabel;
 
   return {
     guardrailRequired,
     guardrailPassed,
     hasChangeset,
     hasNoReleaseLabel,
+    isReleasePr,
   };
 }
 
@@ -192,11 +222,13 @@ function runDetect(argv) {
   const options = parseArgs(argv);
   const classification = classifyReleaseReadiness(getChangedFiles(options.baseSha, options.headSha));
   const changesetFiles = listPendingChangesetFiles(process.cwd());
-  const labelNames = readPullRequestLabels(options.eventPath ?? process.env.GITHUB_EVENT_PATH);
+  const pullRequestContext = readPullRequestContext(options.eventPath ?? process.env.GITHUB_EVENT_PATH);
+  const labelNames = pullRequestContext.labelNames;
   const guardrail = evaluateChangesetGuardrail({
     releaseAffecting: classification.releaseAffecting,
     changesetFiles,
     labelNames,
+    isReleasePr: pullRequestContext.isReleasePr,
   });
 
   console.log(`[release-readiness] changed files: ${classification.changedFiles.length}`);
@@ -215,6 +247,9 @@ function runDetect(argv) {
     if (!guardrail.guardrailPassed) {
       console.log('[release-readiness] guardrail failed: release-affecting changes need a changeset or the no-release label.');
     }
+  }
+  if (pullRequestContext.isReleasePr) {
+    console.log(`[release-readiness] release PR detected on ${pullRequestContext.headRef}; changeset guardrail is skipped for bot-authored version bump PRs.`);
   }
 
   appendGitHubOutputs(options.githubOutputPath, {
@@ -253,6 +288,7 @@ module.exports = {
   evaluateChangesetGuardrail,
   getMatchingKinds,
   listPendingChangesetFiles,
+  readPullRequestContext,
   readPullRequestLabels,
   runReleaseReadinessChecks,
 };
