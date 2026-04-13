@@ -73,6 +73,7 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | SSSQL for Humans | [guide/sssql-for-humans](./sssql-for-humans.md) | Understand why SSSQL exists, where it fits, and how it complements DynamicQueryBuilder |
 | Dynamic Filter Routing | [guide/dynamic-filter-routing](./dynamic-filter-routing.md) | Decide whether DynamicQueryBuilder filters or SSSQL optional branches should be the first move |
 | ztd-cli SSSQL Authoring | [guide/ztd-cli-sssql-authoring](./ztd-cli-sssql-authoring.md) | Keep optional-condition requests on the SQL-first path while authoring ZTD SQL assets |
+| ztd-cli SSSQL Reference | [guide/ztd-cli-sssql-reference](./ztd-cli-sssql-reference.md) | Look up `list`, `scaffold`, `remove`, `refresh`, supported operators, and runtime pruning |
 | ztd-cli Agent Interface | [guide/ztd-cli-agent-interface](./ztd-cli-agent-interface.md) | Machine-readable CLI usage for automation and AI agents |
 | ztd-cli spawn EPERM investigation | [dogfooding/ztd-cli-spawn-eperm-investigation](../dogfooding/ztd-cli-spawn-eperm-investigation.md) | Review the local Vitest startup blocker before treating Issue #685 acceptance items as done |
 | ztd describe schema | [guide/ztd-cli-describe-schema](./ztd-cli-describe-schema.md) | Contract details for `ztd describe` JSON payloads |

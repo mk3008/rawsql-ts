@@ -5,7 +5,7 @@ outline: deep
 
 # ztd-cli SSSQL Authoring
 
-`ztd-cli` does not execute or rewrite SQL by itself, but it is part of the authoring loop that decides what kind of SQL gets saved under `src/sql/`.
+`ztd-cli` does not execute application SQL by itself, but it is part of the authoring loop that decides what kind of SQL gets saved under `src/sql/`.
 
 When the request is "add an optional filter" or "make this condition optional", prefer **SSSQL** before falling back to string-built SQL assembly outside the SQL file.
 
@@ -45,6 +45,15 @@ const query = builder.buildQuery(sql, {
   },
 });
 ```
+
+When the optional branch is already authored, the CLI can help inspect or undo it:
+
+```bash
+ztd query sssql list src/sql/products/list_products.sql
+ztd query sssql remove src/sql/products/list_products.sql --parameter category_name --preview
+```
+
+If the current rewrite would drop existing SQL comments, the command should fail fast instead of silently writing a damaged file.
 
 ## When to choose SSSQL first
 
@@ -133,14 +142,17 @@ When an AI or scripted caller receives requests like these, the first response s
 A good response shape is:
 
 1. edit the SQL asset with truthful optional predicates
-2. rerun `ztd model-gen --probe-mode ztd` if the contract changed
-3. rerun `ztd lint` and tests
-4. wire `optionalConditionParameters` only for branch pruning
+2. use `ztd query sssql scaffold`, `ztd query sssql list`, or `ztd query sssql remove --preview` when that shortens the authoring loop safely
+3. rerun `ztd model-gen --probe-mode ztd` if the contract changed
+4. rerun `ztd lint` and tests
+5. wire `optionalConditionParameters` only for branch pruning
 
 Do not steer these requests toward string-built `WHERE` concatenation or redundant `LEFT JOIN` scaffolding plus later cleanup.
+Do not suggest runtime optional predicate injection as if `DynamicQueryBuilder` still synthesizes new filter branches from `filter`.
 
 ## Read next
 
+- [ztd-cli SSSQL Reference](./ztd-cli-sssql-reference.md)
 - [What Is SSSQL?](./sssql-overview.md)
 - [SSSQL Optional Branch Pruning MVP](./sssql-optional-branch-pruning.md)
 - [Querybuilding Recipes](./querybuilding-recipes.md)

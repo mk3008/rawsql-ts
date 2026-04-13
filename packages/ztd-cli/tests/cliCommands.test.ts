@@ -802,8 +802,10 @@ test(
   () => {
     const result = runCli(['query', 'sssql', '--help']);
     assertCliSuccess(result, 'query sssql --help');
+    expect(result.stdout).toContain('list [options] <sqlFile>');
     expect(result.stdout).toContain('scaffold [options] <sqlFile>');
     expect(result.stdout).toContain('refresh [options] <sqlFile>');
+    expect(result.stdout).toContain('remove [options] <sqlFile>');
   },
   60000,
 );
@@ -948,6 +950,352 @@ test(
 
     const contents = readFileSync(outFile, 'utf8').replace(/\r\n/g, '\n').trim().toLowerCase();
     expect(contents).toContain('(:status is null or "u"."status" = :status)');
+  },
+  60000,
+);
+
+test(
+  'query sssql list reports discovered branches in json mode',
+  () => {
+    const workspace = createSqlWorkspace('query-sssql-list', path.join('src', 'sql', 'users.sql'));
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        SELECT u.id, u.status
+        FROM users u
+        WHERE (:status IS NULL OR u.status = :status)
+      `,
+      'utf8'
+    );
+
+    const result = runCli(
+      ['query', 'sssql', 'list', workspace.sqlFile, '--format', 'json'],
+      {},
+      workspace.rootDir
+    );
+
+    assertCliSuccess(result, 'query sssql list');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      command: 'query sssql list',
+      ok: true,
+      data: {
+        file: workspace.sqlFile,
+        branch_count: 1,
+        branches: [
+          expect.objectContaining({
+            parameterName: 'status',
+            kind: 'scalar',
+            operator: '=',
+          })
+        ]
+      }
+    });
+  },
+  60000,
+);
+
+test(
+  'query sssql scaffold supports structured operator input and preview diff',
+  () => {
+    const workspace = createSqlWorkspace('query-sssql-operator-preview', path.join('src', 'sql', 'products.sql'));
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        SELECT p.product_id, p.product_name
+        FROM products p
+      `,
+      'utf8'
+    );
+
+    const result = runCli(
+      [
+        'query',
+        'sssql',
+        'scaffold',
+        workspace.sqlFile,
+        '--filter',
+        'products.product_name',
+        '--parameter',
+        'product_name',
+        '--operator',
+        'ilike',
+        '--preview'
+      ],
+      {},
+      workspace.rootDir
+    );
+
+    assertCliSuccess(result, 'query sssql scaffold preview');
+    expect(result.stdout.toLowerCase()).toContain('---');
+    expect(result.stdout.toLowerCase()).toContain('+++');
+    expect(result.stdout.toLowerCase()).toContain('(:product_name is null or "p"."product_name" ilike :product_name)');
+    expect(readNormalizedFile(workspace.sqlFile).toLowerCase()).not.toContain('ilike');
+  },
+  60000,
+);
+
+test(
+  'query sssql scaffold supports structured exists authoring',
+  () => {
+    const workspace = createSqlWorkspace('query-sssql-exists', path.join('src', 'sql', 'products.sql'));
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        SELECT p.product_id, p.product_name
+        FROM products p
+      `,
+      'utf8'
+    );
+
+    const subqueryFile = path.join(workspace.rootDir, 'category-subquery.sql');
+    writeFileSync(
+      subqueryFile,
+      `
+        SELECT 1
+        FROM product_categories pc
+        WHERE pc.product_id = $c0
+          AND pc.category_name = :category_name
+      `,
+      'utf8'
+    );
+
+    const outFile = path.join(workspace.rootDir, 'products.sssql.sql');
+    const result = runCli(
+      [
+        'query',
+        'sssql',
+        'scaffold',
+        workspace.sqlFile,
+        '--format',
+        'json',
+        '--filter',
+        'products.product_id',
+        '--parameter',
+        'category_name',
+        '--kind',
+        'exists',
+        '--query-file',
+        subqueryFile,
+        '--out',
+        outFile
+      ],
+      {},
+      workspace.rootDir
+    );
+
+    assertCliSuccess(result, 'query sssql scaffold exists');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      command: 'query sssql scaffold',
+      ok: true,
+      data: {
+        file: workspace.sqlFile,
+        output_file: outFile,
+        written: true
+      }
+    });
+
+    const contents = readNormalizedFile(outFile).toLowerCase();
+    expect(contents).toContain(':category_name is null or exists');
+    expect(contents).toContain('"pc"."product_id" = "p"."product_id"');
+  },
+  60000,
+);
+
+test(
+  'query sssql remove removes one branch safely and remains idempotent',
+  () => {
+    const workspace = createSqlWorkspace('query-sssql-remove', path.join('src', 'sql', 'users.sql'));
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        SELECT u.id, u.status
+        FROM users u
+        WHERE (:status IS NULL OR u.status = :status)
+      `,
+      'utf8'
+    );
+
+    const removedFile = path.join(workspace.rootDir, 'users.removed.sql');
+    const first = runCli(
+      [
+        'query',
+        'sssql',
+        'remove',
+        workspace.sqlFile,
+        '--parameter',
+        'status',
+        '--out',
+        removedFile
+      ],
+      {},
+      workspace.rootDir
+    );
+
+    assertCliSuccess(first, 'query sssql remove');
+    expect(readNormalizedFile(removedFile).toLowerCase()).not.toContain(':status');
+
+    const secondOut = path.join(workspace.rootDir, 'users.removed-twice.sql');
+    const second = runCli(
+      [
+        'query',
+        'sssql',
+        'remove',
+        removedFile,
+        '--parameter',
+        'status',
+        '--format',
+        'json',
+        '--out',
+        secondOut
+      ],
+      {},
+      workspace.rootDir
+    );
+
+    assertCliSuccess(second, 'query sssql remove idempotent');
+    const parsed = JSON.parse(second.stdout);
+    expect(parsed).toMatchObject({
+      command: 'query sssql remove',
+      ok: true,
+      data: {
+        changed: false,
+        written: true
+      }
+    });
+    expect(readNormalizedFile(secondOut)).toBe(readNormalizedFile(removedFile));
+  },
+  60000,
+);
+
+test(
+  'query sssql remove --all removes every recognized branch in the query',
+  () => {
+    const workspace = createSqlWorkspace('query-sssql-remove-all', path.join('src', 'sql', 'products.sql'));
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        SELECT p.product_id, p.product_name
+        FROM products p
+        WHERE (:product_name IS NULL OR p.product_name ILIKE :product_name)
+          AND (
+            :category_name IS NULL
+            OR EXISTS (
+              SELECT 1
+              FROM product_categories pc
+              WHERE pc.product_id = p.product_id
+                AND pc.category_name = :category_name
+            )
+          )
+      `,
+      'utf8'
+    );
+
+    const removedFile = path.join(workspace.rootDir, 'products.removed.sql');
+    const result = runCli(
+      [
+        'query',
+        'sssql',
+        'remove',
+        workspace.sqlFile,
+        '--all',
+        '--format',
+        'json',
+        '--out',
+        removedFile
+      ],
+      {},
+      workspace.rootDir
+    );
+
+    assertCliSuccess(result, 'query sssql remove --all');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      command: 'query sssql remove',
+      ok: true,
+      data: {
+        changed: true,
+        written: true
+      }
+    });
+
+    const contents = readNormalizedFile(removedFile).toLowerCase();
+    expect(contents).not.toContain(':product_name');
+    expect(contents).not.toContain(':category_name');
+    expect(contents).not.toContain('exists');
+  },
+  60000,
+);
+
+test(
+  'query sssql remove --all rejects targeted remove flags',
+  () => {
+    const workspace = createSqlWorkspace('query-sssql-remove-all-invalid', path.join('src', 'sql', 'users.sql'));
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        SELECT u.id, u.status
+        FROM users u
+        WHERE (:status IS NULL OR u.status = :status)
+      `,
+      'utf8'
+    );
+
+    const result = runCli(
+      [
+        'query',
+        'sssql',
+        'remove',
+        workspace.sqlFile,
+        '--all',
+        '--parameter',
+        'status'
+      ],
+      {},
+      workspace.rootDir
+    );
+
+    assertCliFailure(result, 'query sssql remove --all invalid');
+    expect(result.stderr || result.stdout).toContain('Use --all by itself');
+  },
+  60000,
+);
+
+test(
+  'query sssql scaffold fails fast when rewrite would drop SQL comments',
+  () => {
+    const workspace = createSqlWorkspace('query-sssql-comment-guard', path.join('src', 'sql', 'users.sql'));
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        SELECT
+          u.id, -- keep me
+          u.status
+        FROM users u
+      `,
+      'utf8'
+    );
+
+    const result = runCli(
+      [
+        'query',
+        'sssql',
+        'scaffold',
+        workspace.sqlFile,
+        '--filter',
+        'users.status',
+        '--parameter',
+        'status',
+        '--operator',
+        '='
+      ],
+      {},
+      workspace.rootDir
+    );
+
+    assertCliFailure(result, 'query sssql scaffold comment guard');
+    expect(result.stderr || result.stdout).toContain('would drop SQL comments');
   },
   60000,
 );

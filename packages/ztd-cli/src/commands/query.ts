@@ -1,4 +1,5 @@
 import { Command, Option } from 'commander';
+import { createTwoFilesPatch } from 'diff';
 import { applyQueryOutputControls, formatQueryUsageReport } from '../query/format';
 import { applyQueryPatch } from '../query/patch';
 import { buildQueryLintReport, formatQueryLintReport, type QueryLintFormat } from '../query/lint';
@@ -21,10 +22,15 @@ import {
 import { getAgentOutputFormat, isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
 import { withSpanSync } from '../utils/telemetry';
 import { readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import {
   collectSupportedOptionalConditionBranches,
   SelectQueryParser,
   SSSQLFilterBuilder,
+  type SssqlBranchInfo,
+  type SssqlBranchKind,
+  type SssqlRemoveSpec,
+  type SssqlScaffoldSpec,
   type SssqlScaffoldFilters,
   SqlFormatter
 } from 'rawsql-ts';
@@ -75,14 +81,41 @@ interface QuerySssqlScaffoldOptions {
   format?: string;
   out?: string;
   json?: string;
-  filter?: Record<string, unknown>;
+  preview?: boolean;
+  filter?: unknown;
   filters?: Record<string, unknown>;
+  parameter?: string;
+  operator?: string;
+  kind?: string;
+  query?: string;
+  queryFile?: string;
+  anchorColumns?: unknown;
+  anchorColumn?: unknown;
 }
 
 interface QuerySssqlRefreshOptions {
   format?: string;
   out?: string;
   json?: string;
+  preview?: boolean;
+}
+
+interface QuerySssqlListOptions {
+  format?: string;
+  out?: string;
+  json?: string;
+}
+
+interface QuerySssqlRemoveOptions {
+  format?: string;
+  out?: string;
+  json?: string;
+  preview?: boolean;
+  all?: boolean;
+  parameter?: string;
+  kind?: string;
+  operator?: string;
+  target?: string;
 }
 
 interface QueryMatchObservedOptions {
@@ -268,10 +301,28 @@ Notes:
   const sssql = query.command('sssql').description('Generate and refresh SQL-first optional filter scaffolds');
 
   sssql
+    .command('list <sqlFile>')
+    .description('List supported SSSQL optional branches discovered in the query')
+    .option('--format <format>', 'Output format (text|json)', 'text')
+    .option('--json <payload>', 'Pass command options as a JSON object')
+    .option('--out <path>', 'Write output to file')
+    .action((sqlFile: string, options: QuerySssqlListOptions) => {
+      runQuerySssqlListCommand(sqlFile, options);
+    });
+
+  sssql
     .command('scaffold <sqlFile>')
     .description('Generate SSSQL optional filter scaffolds near the closest source query')
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--json <payload>', 'Pass command options as a JSON object')
+    .option('--filter <name>', 'Target column for scalar scaffold, or primary anchor column for EXISTS/NOT EXISTS')
+    .option('--parameter <name>', 'Explicit parameter name for structured SSSQL scaffold')
+    .option('--operator <operator>', 'Scalar operator (=, <>, !=, <, <=, >, >=, like, ilike)')
+    .option('--kind <kind>', 'Structured branch kind (scalar|exists|not-exists)')
+    .option('--query <sql>', 'Subquery SQL for EXISTS/NOT EXISTS scaffold')
+    .option('--query-file <path>', 'Read subquery SQL for EXISTS/NOT EXISTS scaffold from a file')
+    .option('--anchor-column <names>', 'Comma-separated anchor columns used by $c0, $c1 placeholders')
+    .option('--preview', 'Emit a unified diff without writing files')
     .option('--out <path>', 'Write output to file')
     .action((sqlFile: string, options: QuerySssqlScaffoldOptions) => {
       runQuerySssqlScaffoldCommand(sqlFile, options);
@@ -282,9 +333,26 @@ Notes:
     .description('Refresh existing SSSQL optional filter scaffolds without changing predicate meaning')
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--json <payload>', 'Pass command options as a JSON object')
+    .option('--preview', 'Emit a unified diff without writing files')
     .option('--out <path>', 'Write output to file')
     .action((sqlFile: string, options: QuerySssqlRefreshOptions) => {
       runQuerySssqlRefreshCommand(sqlFile, options);
+    });
+
+  sssql
+    .command('remove <sqlFile>')
+    .description('Remove one supported SSSQL optional filter branch safely')
+    .option('--format <format>', 'Output format (text|json)', 'text')
+    .option('--json <payload>', 'Pass command options as a JSON object')
+    .option('--all', 'Remove all recognized SSSQL branches in the query')
+    .option('--parameter <name>', 'Parameter name that identifies the target branch')
+    .option('--kind <kind>', 'Optional branch kind filter (scalar|exists|not-exists|expression)')
+    .option('--operator <operator>', 'Optional scalar operator filter when removing scalar branches')
+    .option('--target <target>', 'Optional target column filter when removing scalar branches')
+    .option('--preview', 'Emit a unified diff without writing files')
+    .option('--out <path>', 'Write output to file')
+    .action((sqlFile: string, options: QuerySssqlRemoveOptions) => {
+      runQuerySssqlRemoveCommand(sqlFile, options);
     });
 
   query
@@ -517,68 +585,103 @@ function runQueryPatchApplyCommand(sqlFile: string, options: QueryPatchApplyOpti
   process.stdout.write('\n');
 }
 
-function runQuerySssqlScaffoldCommand(sqlFile: string, options: QuerySssqlScaffoldOptions): void {
+function runQuerySssqlListCommand(sqlFile: string, options: QuerySssqlListOptions): void {
   const resolved = options.json
     ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') }
     : options;
-  const filters = normalizeSssqlFilters(resolved.filter ?? resolved.filters);
   const sql = readFileSync(sqlFile, 'utf8');
-  const result = new SSSQLFilterBuilder().scaffold(sql, filters);
-  const formatted = new SqlFormatter().format(result).formattedSql;
-  const outputFile = normalizeStringOption(resolved.out);
+  const branches = new SSSQLFilterBuilder().list(sql);
   const format = normalizeFormat(normalizeStringOption(resolved.format) ?? getAgentOutputFormat());
+  const outputFile = normalizeStringOption(resolved.out);
+  const contents = format === 'json'
+    ? JSON.stringify({
+      command: 'query sssql list',
+      ok: true,
+      data: {
+        file: sqlFile,
+        branch_count: branches.length,
+        branches: branches.map((branch, index) => serializeSssqlBranch(branch, index))
+      }
+    })
+    : formatSssqlBranchList(branches);
 
   if (outputFile) {
-    writeFileSync(outputFile, `${formatted}\n`, 'utf8');
+    writeQueryUsageOutput(outputFile, contents);
     if (format !== 'json') {
       return;
     }
   }
 
   if (format === 'json') {
-    writeCommandEnvelope('query sssql scaffold', {
-      file: sqlFile,
-      output_file: outputFile ?? null,
-      written: Boolean(outputFile),
-      sql: formatted,
-    });
+    process.stdout.write(outputFile ? `${contents}\n` : contents);
     return;
   }
 
-  process.stdout.write(`${formatted}\n`);
+  process.stdout.write(contents.endsWith('\n') ? contents : `${contents}\n`);
+}
+
+function runQuerySssqlScaffoldCommand(sqlFile: string, options: QuerySssqlScaffoldOptions): void {
+  const resolved = options.json
+    ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') }
+    : options;
+  const filters = normalizeSssqlFilters(resolved.filters ?? (isLegacyFilterObject(resolved.filter) ? resolved.filter : undefined));
+  const spec = buildStructuredSssqlScaffoldSpec(resolved);
+  const report = applySssqlRewrite(sqlFile, {
+    commandName: 'query sssql scaffold',
+    out: normalizeStringOption(resolved.out),
+    preview: normalizeBooleanOption(resolved.preview),
+    transform: (sql) => {
+      const builder = new SSSQLFilterBuilder();
+      if (spec) {
+        return builder.scaffoldBranch(sql, spec);
+      }
+      return builder.scaffold(sql, filters);
+    }
+  });
+
+  emitSssqlRewriteReport(report, normalizeFormat(normalizeStringOption(resolved.format) ?? getAgentOutputFormat()));
 }
 
 function runQuerySssqlRefreshCommand(sqlFile: string, options: QuerySssqlRefreshOptions): void {
   const resolved = options.json
     ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') }
     : options;
-  const sql = readFileSync(sqlFile, 'utf8');
-  const parsed = SelectQueryParser.parse(sql);
-  const existingBranches = collectSupportedOptionalConditionBranches(parsed);
-  const filters = Object.fromEntries(existingBranches.map((branch) => [branch.parameterName, null]));
-  const result = new SSSQLFilterBuilder().refresh(parsed, filters);
-  const formatted = new SqlFormatter().format(result).formattedSql;
-  const outputFile = normalizeStringOption(resolved.out);
-  const format = normalizeFormat(normalizeStringOption(resolved.format) ?? getAgentOutputFormat());
-
-  if (outputFile) {
-    writeFileSync(outputFile, `${formatted}\n`, 'utf8');
-    if (format !== 'json') {
-      return;
+  const report = applySssqlRewrite(sqlFile, {
+    commandName: 'query sssql refresh',
+    out: normalizeStringOption(resolved.out),
+    preview: normalizeBooleanOption(resolved.preview),
+    transform: (sql) => {
+      const parsed = SelectQueryParser.parse(sql);
+      const existingBranches = collectSupportedOptionalConditionBranches(parsed);
+      const filters = Object.fromEntries(existingBranches.map((branch) => [branch.parameterName, null]));
+      return new SSSQLFilterBuilder().refresh(parsed, filters);
     }
-  }
+  });
 
-  if (format === 'json') {
-    writeCommandEnvelope('query sssql refresh', {
-      file: sqlFile,
-      output_file: outputFile ?? null,
-      written: Boolean(outputFile),
-      sql: formatted,
-    });
-    return;
-  }
+  emitSssqlRewriteReport(report, normalizeFormat(normalizeStringOption(resolved.format) ?? getAgentOutputFormat()));
+}
 
-  process.stdout.write(`${formatted}\n`);
+function runQuerySssqlRemoveCommand(sqlFile: string, options: QuerySssqlRemoveOptions): void {
+  const resolved = options.json
+    ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') }
+    : options;
+  const report = applySssqlRewrite(sqlFile, {
+    commandName: 'query sssql remove',
+    out: normalizeStringOption(resolved.out),
+    preview: normalizeBooleanOption(resolved.preview),
+    transform: (sql) => {
+      const builder = new SSSQLFilterBuilder();
+      if (normalizeBooleanOption(resolved.all)) {
+        assertNoTargetedRemoveOptions(resolved);
+        return builder.removeAll(sql);
+      }
+
+      const spec = normalizeSssqlRemoveSpec(resolved);
+      return builder.remove(sql, spec);
+    }
+  });
+
+  emitSssqlRewriteReport(report, normalizeFormat(normalizeStringOption(resolved.format) ?? getAgentOutputFormat()));
 }
 
 function normalizeLimit(value: unknown): number | undefined {
@@ -665,6 +768,241 @@ function normalizeSssqlFilters(value: unknown): SssqlScaffoldFilters {
   }
 
   return normalized;
+}
+
+function isLegacyFilterObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function buildStructuredSssqlScaffoldSpec(value: QuerySssqlScaffoldOptions): SssqlScaffoldSpec | undefined {
+  const explicitFilter = normalizeStringOption(value.filter);
+  const explicitKind = normalizeStringOption(value.kind)?.trim().toLowerCase();
+  const explicitQuery = normalizeStringOption(value.query);
+  const explicitQueryFile = normalizeStringOption(value.queryFile);
+  const operator = normalizeStringOption(value.operator);
+  const parameter = normalizeStringOption(value.parameter);
+  const anchorColumns = normalizeListOption(value.anchorColumns ?? value.anchorColumn, '--anchor-column');
+
+  const hasStructuredInputs = Boolean(explicitFilter || explicitKind || explicitQuery || explicitQueryFile || operator || parameter || anchorColumns?.length);
+  if (!hasStructuredInputs) {
+    return undefined;
+  }
+
+  const target = explicitFilter;
+  const query = resolveSssqlSubqueryInput(explicitQuery, explicitQueryFile);
+
+  if (explicitKind === 'exists' || explicitKind === 'not-exists' || query) {
+    return {
+      kind: normalizeSssqlExistsKind(explicitKind),
+      parameterName: normalizeRequiredStringOption(parameter, '--parameter'),
+      query: normalizeRequiredStringOption(query, '--query or --query-file'),
+      anchorColumns: anchorColumns ?? [normalizeRequiredStringOption(target, '--filter')]
+    };
+  }
+
+  return {
+    target: normalizeRequiredStringOption(target, '--filter'),
+    parameterName: parameter,
+    operator: operator as SssqlScaffoldSpec extends infer _ ? string : never
+  } as SssqlScaffoldSpec;
+}
+
+function normalizeSssqlExistsKind(value: string | undefined): 'exists' | 'not-exists' {
+  if (!value || value === 'exists') {
+    return 'exists';
+  }
+  if (value === 'not-exists') {
+    return 'not-exists';
+  }
+  throw new Error(`Unsupported SSSQL branch kind: ${value}. Use exists or not-exists.`);
+}
+
+function normalizeSssqlRemoveSpec(value: QuerySssqlRemoveOptions): SssqlRemoveSpec {
+  const kindValue = normalizeStringOption(value.kind)?.trim().toLowerCase();
+  return {
+    parameterName: normalizeRequiredStringOption(value.parameter, '--parameter'),
+    kind: kindValue ? normalizeSssqlBranchKind(kindValue) : undefined,
+    operator: normalizeStringOption(value.operator) as SssqlRemoveSpec['operator'],
+    target: normalizeStringOption(value.target)
+  };
+}
+
+function assertNoTargetedRemoveOptions(value: QuerySssqlRemoveOptions): void {
+  if (
+    normalizeStringOption(value.parameter) ||
+    normalizeStringOption(value.kind) ||
+    normalizeStringOption(value.operator) ||
+    normalizeStringOption(value.target)
+  ) {
+    throw new Error('Use --all by itself. Do not combine it with --parameter, --kind, --operator, or --target.');
+  }
+}
+
+function normalizeSssqlBranchKind(value: string): SssqlBranchKind {
+  if (value === 'scalar' || value === 'exists' || value === 'not-exists' || value === 'expression') {
+    return value;
+  }
+  throw new Error(`Unsupported SSSQL branch kind: ${value}.`);
+}
+
+function resolveSssqlSubqueryInput(sqlText: string | undefined, sqlFile: string | undefined): string | undefined {
+  if (sqlText && sqlFile) {
+    throw new Error('Use either --query or --query-file, not both.');
+  }
+
+  if (sqlText) {
+    return sqlText;
+  }
+
+  if (sqlFile) {
+    return readFileSync(sqlFile, 'utf8');
+  }
+
+  return undefined;
+}
+
+function serializeSssqlBranch(branch: SssqlBranchInfo, index: number): Record<string, unknown> {
+  return {
+    index: index + 1,
+    parameterName: branch.parameterName,
+    kind: branch.kind,
+    operator: branch.operator ?? null,
+    target: branch.target ?? null,
+    sql: branch.sql
+  };
+}
+
+function formatSssqlBranchList(branches: SssqlBranchInfo[]): string {
+  if (branches.length === 0) {
+    return 'No supported SSSQL branches found.\n';
+  }
+
+  const lines: string[] = [];
+  branches.forEach((branch, index) => {
+    lines.push(`${index + 1}. parameter: ${branch.parameterName}`);
+    lines.push(`   kind: ${branch.kind}`);
+    if (branch.operator) {
+      lines.push(`   operator: ${branch.operator}`);
+    }
+    if (branch.target) {
+      lines.push(`   target: ${branch.target}`);
+    }
+    lines.push(`   sql: ${branch.sql}`);
+  });
+
+  return `${lines.join('\n')}\n`;
+}
+
+interface SssqlRewriteReport {
+  commandName: string;
+  file: string;
+  output_file: string | null;
+  preview: boolean;
+  changed: boolean;
+  written: boolean;
+  sql: string;
+  diff: string;
+}
+
+function applySssqlRewrite(
+  sqlFile: string,
+  options: {
+    commandName: string;
+    out?: string;
+    preview?: boolean;
+    transform: (sql: string) => unknown;
+  }
+): SssqlRewriteReport {
+  const absoluteInputPath = path.resolve(sqlFile);
+  const originalSql = readFileSync(absoluteInputPath, 'utf8');
+  const transformed = options.transform(originalSql);
+  const formatted = new SqlFormatter().format(transformed as never).formattedSql;
+  const updatedSql = `${formatted}\n`;
+  assertNoCommentLoss(originalSql, updatedSql, options.commandName);
+
+  SelectQueryParser.parse(updatedSql);
+
+  const outputFile = options.out ? path.resolve(options.out) : null;
+  const preview = Boolean(options.preview);
+  const changed = normalizeLineEndings(originalSql) !== normalizeLineEndings(updatedSql);
+  const diff = createTwoFilesPatch(
+    normalizePath(absoluteInputPath),
+    normalizePath(outputFile ?? absoluteInputPath),
+    normalizeLineEndings(originalSql),
+    normalizeLineEndings(updatedSql),
+    '',
+    '',
+    { context: 3 }
+  );
+
+  if (outputFile && !preview) {
+    writeFileSync(outputFile, updatedSql, 'utf8');
+  }
+
+  return {
+    commandName: options.commandName,
+    file: absoluteInputPath,
+    output_file: outputFile,
+    preview,
+    changed,
+    written: Boolean(outputFile) && !preview,
+    sql: formatted,
+    diff
+  };
+}
+
+function emitSssqlRewriteReport(report: SssqlRewriteReport, format: 'text' | 'json'): void {
+  if (format === 'json') {
+    writeCommandEnvelope(report.commandName, {
+      file: report.file,
+      output_file: report.output_file,
+      preview: report.preview,
+      changed: report.changed,
+      written: report.written,
+      sql: report.sql,
+      diff: report.diff
+    });
+    return;
+  }
+
+  if (report.preview) {
+    process.stdout.write(report.diff.endsWith('\n') ? report.diff : `${report.diff}\n`);
+    return;
+  }
+
+  if (report.output_file) {
+    return;
+  }
+
+  process.stdout.write(`${report.sql}\n`);
+}
+
+function normalizeLineEndings(value: string): string {
+  return value.replace(/\r\n/g, '\n');
+}
+
+function normalizePath(value: string): string {
+  return value.split(path.sep).join('/');
+}
+
+function assertNoCommentLoss(before: string, after: string, commandName: string): void {
+  const beforeComments = extractSqlCommentFragments(before);
+  if (beforeComments.length === 0) {
+    return;
+  }
+
+  const normalizedAfter = normalizeLineEndings(after);
+  const missing = beforeComments.filter(comment => !normalizedAfter.includes(comment));
+  if (missing.length > 0) {
+    throw new Error(`${commandName} would drop SQL comments during rewrite. Remove or relocate the comments before applying this command.`);
+  }
+}
+
+function extractSqlCommentFragments(sql: string): string[] {
+  const normalized = normalizeLineEndings(sql);
+  const matches = normalized.match(/--.*$/gm) ?? [];
+  const blockMatches = normalized.match(/\/\*[\s\S]*?\*\//g) ?? [];
+  return [...matches, ...blockMatches].map(comment => comment.trim()).filter(Boolean);
 }
 
 function resolveObservedSqlInput(options: QueryMatchObservedOptions): string {

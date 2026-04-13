@@ -183,7 +183,11 @@ npx vitest run
 
 If you want a deeper walkthrough, keep that in the linked guides instead of expanding this README.
 
-## Commands
+## Command Index
+
+This section is a reader-facing index of the main `ztd-cli` entry points.
+It is not the exhaustive command reference for every subcommand and flag.
+Use `ztd describe` for machine-readable discovery, and follow the linked guides when one command family has a deeper workflow.
 
 | Command | Purpose |
 |---|---|
@@ -197,7 +201,7 @@ If you want a deeper walkthrough, keep that in the linked guides instead of expa
 | `ztd model-gen` | Generate query-boundary scaffolding from SQL assets. |
 | `ztd query uses` | Find impacted SQL before changing a table or column. |
 | `ztd query match-observed` | Rank likely source SQL assets from observed SELECT text. |
-| `ztd query sssql scaffold` / `ztd query sssql refresh` | Author and refresh SQL-first optional filter branches. |
+| `ztd query sssql list` / `scaffold` / `remove` / `refresh` | Inspect, author, undo, and re-anchor SQL-first optional filter branches. See [ztd-cli SSSQL Reference](../../docs/guide/ztd-cli-sssql-reference.md). |
 | `ztd ddl pull` / `ztd ddl diff` | Inspect a target and prepare migration SQL. |
 | `ztd perf init` / `ztd perf run` | Run the tuning loop for index or pipeline investigation. |
 | `ztd describe` | Inspect commands in machine-readable form. |
@@ -232,6 +236,7 @@ If you want a deeper walkthrough, keep that in the linked guides instead of expa
 - [Release And Merge Readiness](../../docs/guide/release-readiness.md) - PR-body contract for baseline exceptions, CLI migration packets, and scaffold proof
 - [What Is SSSQL?](../../docs/guide/sssql-overview.md) - the shortest intro to truthful optional-filter SQL
 - [SSSQL for Humans](../../docs/guide/sssql-for-humans.md) - why SSSQL exists and where it fits in the toolchain
+- [ztd-cli SSSQL Reference](../../docs/guide/ztd-cli-sssql-reference.md) - one-page command and runtime reference for `ztd query sssql`
 - [ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md) - when to enable telemetry and why it stays opt-in
 - [ztd-cli Telemetry Policy](../../docs/guide/ztd-cli-telemetry-policy.md) - which event fields are allowed and how redaction works
 - [ztd-cli Telemetry Export Modes](../../docs/guide/ztd-cli-telemetry-export-modes.md) - how to send telemetry to console, debug, file, or OTLP
