@@ -15,7 +15,7 @@
     "coverage:workspaces": "pnpm -r --if-present coverage",
     "build": "pnpm -r --if-present build",
     "build:core": "pnpm --filter rawsql-ts build",
-    "build:publish": "pnpm -r --workspace-concurrency=1 --filter ./packages/** --if-present run build",
+    "build:publish": "pnpm -r --workspace-concurrency=1 --filter \"./packages/**\" --if-present run build",
     "build:publish-artifacts": "node scripts/build-publish-artifacts.mjs",
     "changeset": "changeset",
     "changesets:version": "changeset version",
