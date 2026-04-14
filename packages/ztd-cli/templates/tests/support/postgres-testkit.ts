@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import path from 'node:path';
 
+import { createPostgresTestkitClient, type CreatePostgresTestkitClientOptions, type PostgresTestkitClient } from '@rawsql-ts/testkit-postgres';
 import { Pool } from 'pg';
 
 interface StarterProjectConfigFile {
@@ -17,37 +17,8 @@ export interface StarterPostgresDefaults {
   searchPath: string[];
 }
 
-interface StarterDdlOptions {
-  directories: string[];
-}
-
-type StarterOnExecuteHook = (sql: string, params: unknown[], fixtures?: string[]) => void;
-
-interface StarterCreatePostgresTestkitClientOptions<RowType extends Record<string, unknown> = Record<string, unknown>> {
-  queryExecutor: (
-    sql: string,
-    params: unknown[]
-  ) => Promise<{ rows: RowType[]; rowCount?: number }>;
-  defaultSchema?: string;
-  searchPath?: string[];
-  tableDefinitions?: unknown;
-  tableRows?: unknown;
-  ddl?: StarterDdlOptions;
-  onExecute?: StarterOnExecuteHook;
-  disposeExecutor?: () => Promise<void>;
-}
-
-export interface StarterPostgresTestkitClient<RowType extends Record<string, unknown> = Record<string, unknown>> {
-  query(sql: string, params?: unknown[]): Promise<{ rows: RowType[]; rowCount?: number }>;
-  close(): Promise<void>;
-}
-
-type CreatePostgresTestkitClient = <RowType extends Record<string, unknown> = Record<string, unknown>>(
-  options: StarterCreatePostgresTestkitClientOptions<RowType>
-) => StarterPostgresTestkitClient<RowType>;
-
 export interface StarterPostgresTestkitOptions<RowType extends Record<string, unknown> = Record<string, unknown>>
-  extends Pick<StarterCreatePostgresTestkitClientOptions<RowType>, 'tableDefinitions' | 'tableRows' | 'ddl' | 'onExecute'> {
+  extends Pick<CreatePostgresTestkitClientOptions<RowType>, 'tableDefinitions' | 'tableRows' | 'ddl' | 'onExecute'> {
   rootDir?: string;
   connectionString?: string;
   defaultSchema?: string;
@@ -104,7 +75,7 @@ export function loadStarterPostgresDefaults(rootDir: string = process.cwd()): St
  */
 export function createStarterPostgresTestkitClient<RowType extends Record<string, unknown> = Record<string, unknown>>(
   options: StarterPostgresTestkitOptions<RowType>
-): StarterPostgresTestkitClient<RowType> {
+): PostgresTestkitClient<RowType> {
   const connectionString = options.connectionString ?? process.env.ZTD_DB_URL;
   if (!connectionString) {
     throw new Error(
@@ -150,28 +121,4 @@ function resolveStarterDdlOptions(projectRootDir: string): StarterDdlOptions | u
 
 function isMissingConfigFileError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'ENOENT';
-}
-
-function resolveCreatePostgresTestkitClient(): CreatePostgresTestkitClient {
-  const requireFromHere = createRequire(import.meta.url);
-  const candidates = ['@rawsql-ts/testkit-postgres', '@rawsql-ts/testkit-postgres/dist/index.js'];
-  let lastError: unknown;
-
-  for (const candidate of candidates) {
-    try {
-      const resolved = requireFromHere.resolve(candidate);
-      const loaded = requireFromHere(resolved) as { createPostgresTestkitClient?: unknown };
-      if (typeof loaded.createPostgresTestkitClient === 'function') {
-        return loaded.createPostgresTestkitClient as CreatePostgresTestkitClient;
-      }
-      lastError = new Error(`Resolved ${candidate}, but createPostgresTestkitClient was not exported.`);
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  const details = lastError instanceof Error ? lastError.message : String(lastError);
-  throw new Error(
-    `Failed to load @rawsql-ts/testkit-postgres from known entrypoints. Details: ${details}`
-  );
 }
