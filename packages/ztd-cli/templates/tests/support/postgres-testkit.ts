@@ -18,7 +18,7 @@ export interface StarterPostgresDefaults {
 }
 
 export interface StarterPostgresTestkitOptions<RowType extends Record<string, unknown> = Record<string, unknown>>
-  extends Pick<CreatePostgresTestkitClientOptions<RowType>, 'tableDefinitions' | 'tableRows'> {
+  extends Pick<CreatePostgresTestkitClientOptions<RowType>, 'tableDefinitions' | 'tableRows' | 'ddl' | 'onExecute'> {
   rootDir?: string;
   connectionString?: string;
   defaultSchema?: string;
@@ -98,11 +98,24 @@ export function createStarterPostgresTestkitClient<RowType extends Record<string
     searchPath: options.searchPath ?? defaults.searchPath,
     tableDefinitions: options.tableDefinitions,
     tableRows: options.tableRows,
+    ddl: options.ddl ?? resolveStarterDdlOptions(defaults.projectRootDir),
+    onExecute: options.onExecute,
     // Let the client own pool shutdown so test cleanup stays a single close() call.
     disposeExecutor: async () => {
       await pool.end();
     }
   });
+}
+
+function resolveStarterDdlOptions(projectRootDir: string): CreatePostgresTestkitClientOptions['ddl'] {
+  const defaultDdlDirectory = path.join(projectRootDir, 'db', 'ddl');
+  if (!existsSync(defaultDdlDirectory)) {
+    return undefined;
+  }
+
+  return {
+    directories: [defaultDdlDirectory]
+  };
 }
 
 function isMissingConfigFileError(error: unknown): boolean {

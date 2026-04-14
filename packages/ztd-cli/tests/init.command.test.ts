@@ -230,6 +230,8 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.boundary.test.ts'))).toContain('executeSmokeEntrySpec');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'))).toContain('Validation should reject before the query lane runs.');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'))).toContain('runQuerySpecZtdCases');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'))).toContain("entry.mode === 'ztd'");
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'))).toContain('entry.physicalSetupUsed === false');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'))).toContain(
     "from '#tests/support/ztd/harness.js'"
   );
@@ -433,12 +435,14 @@ test('init can opt into dogfooding prompt files when explicitly requested', asyn
   expect(promptDogfood).toContain('creates the thin `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` Vitest entrypoint only if it is missing.');
   expect(promptDogfood).toContain('Persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/` stay human/AI-owned and must not be overwritten.');
   expect(promptDogfood).toContain('If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs.');
-  expect(promptDogfood).toContain('`beforeDb` and `afterDb` are pure fixture skeletons with schema-qualified table keys.');
+  expect(promptDogfood).toContain('`beforeDb` is a pure fixture skeleton with schema-qualified table keys.');
   expect(promptDogfood).toContain('The validation case may stay at the feature boundary, but the success case must execute through the fixed app-level ZTD runner.');
   expect(promptDogfood).toContain('Do not put returned columns into the input fixture.');
   expect(promptDogfood).toContain('Read `TEST_PLAN.md` and `analysis.json` before filling the persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/`.');
   expect(promptDogfood).toContain('refreshes `src/features/<feature-name>/queries/<query-name>/tests/boundary-ztd-types.ts`');
-  expect(promptDogfood).toContain('`afterDb` is subset-based per row, rows are treated as an unordered multiset, row order is ignored, and the verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding.');
+  expect(promptDogfood).toContain('Assert the returned evidence in the ZTD entrypoint (`mode=ztd`, `physicalSetupUsed=false`) so execution mode is machine-checkable.');
+  expect(promptDogfood).toContain('Enable SQL trace only when needed with `ZTD_SQL_TRACE=1` (optional `ZTD_SQL_TRACE_DIR`).');
+  expect(promptDogfood).toContain('`afterDb` assertions are intentionally excluded from this ZTD lane; use a traditional DB-state lane when you need post-state assertions.');
   expect(promptDogfood).toContain('After the cases are ready, run `npx vitest run src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` to execute the ZTD query test.');
   expect(promptDogfood).toContain('If the returned result is null, stop and fix the scaffold or DDL instead of weakening the case.');
   expect(promptDogfood).toContain('Before writing the success-path assertion, inspect the current SQL and query boundary. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.');

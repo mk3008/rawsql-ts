@@ -134,7 +134,9 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(vitestEntrypointFile).toContain("import cases from './cases/basic.case.js';");
   expect(vitestEntrypointFile).toContain("import type { InsertUsersQueryBoundaryZtdCase } from './boundary-ztd-types.js';");
   expect(vitestEntrypointFile).toContain('expect(cases.length).toBeGreaterThan(0);');
-  expect(vitestEntrypointFile).toContain('await runQuerySpecZtdCases(cases, executeBoundaryQuerySpec);');
+  expect(vitestEntrypointFile).toContain('const evidence = await runQuerySpecZtdCases(cases, executeBoundaryQuerySpec);');
+  expect(vitestEntrypointFile).toContain("expect(evidence.every((entry) => entry.mode === 'ztd')).toBe(true);");
+  expect(vitestEntrypointFile).toContain('expect(evidence.every((entry) => entry.physicalSetupUsed === false)).toBe(true);');
 
   const queryTypesFile = readFileSync(
     path.join(featureDir, 'queries', 'insert-users', 'tests', 'boundary-ztd-types.ts'),
@@ -169,11 +171,10 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(testPlanFile).toContain('Validation Scenario Hints');
   expect(testPlanFile).toContain('DB Scenario Hints');
   expect(testPlanFile).toContain('After DB Semantics');
-  expect(testPlanFile).toContain('- `afterDb` is optional and must be a pure fixture with schema-qualified table keys.');
-  expect(testPlanFile).toContain('unordered multiset');
-  expect(testPlanFile).toContain('subset-based per-row matching');
-  expect(testPlanFile).toContain('Row order is ignored');
-  expect(testPlanFile).toContain('restart identity cascade');
+  expect(testPlanFile).toContain('machine-checkable evidence');
+  expect(testPlanFile).toContain('physicalSetupUsed=false');
+  expect(testPlanFile).toContain('`afterDb` assertions are not supported in this ZTD lane');
+  expect(testPlanFile).toContain('ZTD_SQL_TRACE=1');
 
   const analysisFile = JSON.parse(
     readFileSync(path.join(featureDir, 'queries', 'insert-users', 'tests', 'generated', 'analysis.json'), 'utf8')

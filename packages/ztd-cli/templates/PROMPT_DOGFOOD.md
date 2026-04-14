@@ -19,11 +19,13 @@ That command refreshes `src/features/<feature-name>/queries/<query-name>/tests/g
 Persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/` stay human/AI-owned and must not be overwritten.
 Treat `tests/support/ztd/` as starter-owned shared support and read-only for feature-specific work.
 If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs.
-`beforeDb` and `afterDb` are pure fixture skeletons with schema-qualified table keys.
+`beforeDb` is a pure fixture skeleton with schema-qualified table keys.
 The validation case may stay at the feature boundary, but the success case must execute through the fixed app-level ZTD runner.
 Do not put returned columns into the input fixture.
 Read `TEST_PLAN.md` and `analysis.json` before filling the persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/`.
-`afterDb` is subset-based per row, rows are treated as an unordered multiset, row order is ignored, and the verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding.
+Assert the returned evidence in the ZTD entrypoint (`mode=ztd`, `physicalSetupUsed=false`) so execution mode is machine-checkable.
+Enable SQL trace only when needed with `ZTD_SQL_TRACE=1` (optional `ZTD_SQL_TRACE_DIR`).
+`afterDb` assertions are intentionally excluded from this ZTD lane; use a traditional DB-state lane when you need post-state assertions.
 After the cases are ready, run `npx vitest run src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` to execute the ZTD query test.
 Do not edit `tests/support/ztd/` unless you are updating the starter-owned shared support.
 If the returned result is null, stop and fix the scaffold or DDL instead of weakening the case.
@@ -37,7 +39,7 @@ Troubleshooting reminder:
 - If you see `user_id: null`, inspect the fixture manifest and rewrite path before weakening the case.
 - Compare the direct database `INSERT ... RETURNING ...` result with the ZTD result so you can separate the DB from manifest or rewrite issues.
 - Verify a dogfood workspace resolves `rawsql-ts` from the local source tree instead of a registry copy when you expect a source change to be reflected.
-- For `afterDb` false negatives, remember that the comparison is subset-based per row, rows are treated as an unordered multiset, row order is ignored, and volatile columns can stay out of the persistent case.
+- Use `ZTD_SQL_TRACE=1` only while debugging rewrite behavior so local and CI logs stay quiet by default.
 - Treat `tests/generated/*` as CLI refresh output, not an AI edit target.
 
 ## Prompt 2: Fix a DDL change
