@@ -905,6 +905,54 @@ test(
 );
 
 test(
+  'query sssql scaffold overwrites the input file by default on non-preview runs',
+  () => {
+    const workspace = createSqlWorkspace('query-sssql-scaffold-overwrite', path.join('src', 'sql', 'users.sql'));
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        SELECT u.id, u.status
+        FROM users u
+      `,
+      'utf8'
+    );
+
+    const result = runCli(
+      [
+        'query',
+        'sssql',
+        'scaffold',
+        workspace.sqlFile,
+        '--format',
+        'json',
+        '--json',
+        JSON.stringify({
+          filters: { status: 'premium' }
+        })
+      ],
+      {},
+      workspace.rootDir
+    );
+
+    assertCliSuccess(result, 'query sssql scaffold overwrite');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      command: 'query sssql scaffold',
+      ok: true,
+      data: {
+        file: workspace.sqlFile,
+        output_file: workspace.sqlFile,
+        written: true
+      }
+    });
+
+    const contents = readNormalizedFile(workspace.sqlFile).toLowerCase();
+    expect(contents).toContain('(:status is null or "u"."status" = :status)');
+  },
+  60000,
+);
+
+test(
   'query sssql refresh accepts a JSON payload for machine-readable automation',
   () => {
     const workspace = createSqlWorkspace('query-sssql-refresh-json', path.join('src', 'sql', 'users.sql'));

@@ -194,6 +194,42 @@ describe('SSSQLFilterBuilder', () => {
         expect(normalizeSql(new SqlFormatter().format(removedAgain).formattedSql)).toBe(normalized);
     });
 
+    it('removes not-exists branches idempotently', () => {
+        const builder = new SSSQLFilterBuilder();
+        const scaffolded = builder.scaffoldBranch(
+            `
+                SELECT p.product_id, p.product_name
+                FROM products p
+            `,
+            {
+                kind: 'not-exists',
+                parameterName: 'archived_name',
+                anchorColumns: ['products.product_id'],
+                query: `
+                    SELECT 1
+                    FROM archived_products ap
+                    WHERE ap.product_id = $c0
+                      AND ap.product_name = :archived_name
+                `
+            }
+        );
+
+        expect(builder.list(scaffolded)).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                parameterName: 'archived_name',
+                kind: 'not-exists'
+            })
+        ]));
+
+        const removed = builder.remove(scaffolded, { parameterName: 'archived_name', kind: 'not-exists' });
+        const normalized = normalizeSql(new SqlFormatter().format(removed).formattedSql);
+        expect(normalized).toBe('select "p"."product_id", "p"."product_name" from "products" as "p"');
+
+        const removedAgain = builder.remove(removed, { parameterName: 'archived_name', kind: 'not-exists' });
+        expect(normalizeSql(new SqlFormatter().format(removedAgain).formattedSql)).toBe(normalized);
+        expect(normalizeSql(new SqlFormatter().format(builder.removeAll(scaffolded)).formattedSql)).toBe(normalized);
+    });
+
     it('removes all recognized branches in one call', () => {
         const builder = new SSSQLFilterBuilder();
         const scaffolded = builder.scaffoldBranch(
@@ -223,6 +259,28 @@ describe('SSSQLFilterBuilder', () => {
         const removed = builder.removeAll(withExists);
         const normalized = normalizeSql(new SqlFormatter().format(removed).formattedSql);
         expect(normalized).toBe('select "p"."product_id", "p"."product_name" from "products" as "p"');
+    });
+
+    it('fails fast when exists scaffolding has no anchor columns', () => {
+        const builder = new SSSQLFilterBuilder();
+
+        expect(() => builder.scaffoldBranch(
+            `
+                SELECT p.product_id, p.product_name
+                FROM products p
+            `,
+            {
+                kind: 'exists',
+                parameterName: 'category_name',
+                anchorColumns: [],
+                query: `
+                    SELECT 1
+                    FROM product_categories pc
+                    WHERE pc.product_id = $c0
+                      AND pc.category_name = :category_name
+                `
+            }
+        )).toThrow(/at least one anchorcolumn/i);
     });
 
 });

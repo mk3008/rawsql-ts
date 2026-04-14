@@ -14,8 +14,8 @@ import {
 } from "../models/ValueComponent";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 import { UpstreamSelectQueryFinder } from "./UpstreamSelectQueryFinder";
-import { SelectableColumnCollector, DuplicateDetectionMode } from "./SelectableColumnCollector";
 import { ColumnReferenceCollector } from "./ColumnReferenceCollector";
+import { SelectableColumnCollector, DuplicateDetectionMode } from "./SelectableColumnCollector";
 import { ParameterCollector } from "./ParameterCollector";
 import { SqlFormatter } from "./SqlFormatter";
 import {
@@ -310,22 +310,29 @@ const getScalarBranchDetails = (
         return null;
     }
 
-    const operator = normalizeScalarOperator(predicate.operator.value as SssqlScalarOperatorInput);
     const left = unwrapParens(predicate.left);
     const right = unwrapParens(predicate.right);
 
     if (left instanceof ColumnReference && right instanceof ParameterExpression && right.name.value === parameterName) {
-        return {
-            operator,
-            target: normalizeColumnReferenceText(left)
-        };
+        try {
+            return {
+                operator: normalizeScalarOperator(predicate.operator.value as SssqlScalarOperatorInput),
+                target: normalizeColumnReferenceText(left)
+            };
+        } catch {
+            return null;
+        }
     }
 
     if (right instanceof ColumnReference && left instanceof ParameterExpression && left.name.value === parameterName) {
-        return {
-            operator,
-            target: normalizeColumnReferenceText(right)
-        };
+        try {
+            return {
+                operator: normalizeScalarOperator(predicate.operator.value as SssqlScalarOperatorInput),
+                target: normalizeColumnReferenceText(right)
+            };
+        } catch {
+            return null;
+        }
     }
 
     return null;
@@ -566,6 +573,9 @@ export class SSSQLFilterBuilder {
         const parameterName = spec.parameterName.trim();
         if (!parameterName) {
             throw new Error("SSSQL EXISTS/NOT EXISTS scaffold requires parameterName.");
+        }
+        if (spec.anchorColumns.length === 0) {
+            throw new Error("SSSQL EXISTS/NOT EXISTS scaffold requires at least one anchorColumn.");
         }
 
         const anchorTargets = spec.anchorColumns.map(anchorColumn => this.resolveTarget(root, anchorColumn));

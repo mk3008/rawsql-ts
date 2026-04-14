@@ -922,12 +922,12 @@ function applySssqlRewrite(
 
   SelectQueryParser.parse(updatedSql);
 
-  const outputFile = options.out ? path.resolve(options.out) : null;
   const preview = Boolean(options.preview);
+  const outputFile = path.resolve(options.out ?? absoluteInputPath);
   const changed = normalizeLineEndings(originalSql) !== normalizeLineEndings(updatedSql);
   const diff = createTwoFilesPatch(
     normalizePath(absoluteInputPath),
-    normalizePath(outputFile ?? absoluteInputPath),
+    normalizePath(outputFile),
     normalizeLineEndings(originalSql),
     normalizeLineEndings(updatedSql),
     '',
@@ -935,7 +935,7 @@ function applySssqlRewrite(
     { context: 3 }
   );
 
-  if (outputFile && !preview) {
+  if (!preview) {
     writeFileSync(outputFile, updatedSql, 'utf8');
   }
 
@@ -945,7 +945,7 @@ function applySssqlRewrite(
     output_file: outputFile,
     preview,
     changed,
-    written: Boolean(outputFile) && !preview,
+    written: !preview,
     sql: formatted,
     diff
   };
@@ -970,11 +970,7 @@ function emitSssqlRewriteReport(report: SssqlRewriteReport, format: 'text' | 'js
     return;
   }
 
-  if (report.output_file) {
-    return;
-  }
-
-  process.stdout.write(`${report.sql}\n`);
+  return;
 }
 
 function normalizeLineEndings(value: string): string {
