@@ -1,5 +1,4 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import path from 'node:path';
 import { expect } from 'vitest';
 import { Pool } from 'pg';
@@ -67,7 +66,7 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
   querySpecCase: QuerySpecZtdCase<BeforeDb, Input, Output>,
   execute: QuerySpecExecutor<Input, Output>
 ): Promise<QuerySpecExecutionEvidence> {
-  const createPostgresTestkitClient = resolveCreatePostgresTestkitClient();
+  const createPostgresTestkitClient = await resolveCreatePostgresTestkitClient();
   const connectionString = process.env.ZTD_DB_URL;
   if (!connectionString) {
     throw new Error('Set ZTD_DB_URL before running queryspec ZTD cases.');
@@ -497,15 +496,19 @@ function consumeIdentifier(sql: string, start: number): number {
   return index;
 }
 
-function resolveCreatePostgresTestkitClient(): CreatePostgresTestkitClient {
-  const requireFromHere = createRequire(import.meta.url);
-  const candidates = ['@rawsql-ts/testkit-postgres', '@rawsql-ts/testkit-postgres/dist/index.js'];
+async function resolveCreatePostgresTestkitClient(): Promise<CreatePostgresTestkitClient> {
+  const candidates = [
+    '@rawsql-ts/testkit-postgres',
+    '@rawsql-ts/testkit-postgres/dist/index.js',
+    '@rawsql-ts/testkit-postgres/src/index.ts'
+  ];
   let lastError: unknown;
 
   for (const candidate of candidates) {
     try {
-      const resolved = requireFromHere.resolve(candidate);
-      const loaded = requireFromHere(resolved) as { createPostgresTestkitClient?: unknown };
+      const loaded = (await import(/* @vite-ignore */ candidate)) as {
+        createPostgresTestkitClient?: unknown;
+      };
       if (typeof loaded.createPostgresTestkitClient === 'function') {
         return loaded.createPostgresTestkitClient as CreatePostgresTestkitClient;
       }
