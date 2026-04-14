@@ -18,7 +18,7 @@ function seedSharedZtdSupport(workspace: string): void {
   const supportDir = path.join(workspace, 'tests', 'support', 'ztd');
   mkdirSync(supportDir, { recursive: true });
   writeFileSync(path.join(supportDir, 'harness.ts'), 'export async function runQuerySpecZtdCases() {}\n', 'utf8');
-  writeFileSync(path.join(supportDir, 'case-types.ts'), 'export type QuerySpecZtdCase<A, B, C, D> = { beforeDb: A; input: B; output: C; afterDb?: D };\n', 'utf8');
+  writeFileSync(path.join(supportDir, 'case-types.ts'), 'export type QuerySpecZtdCase<A, B, C> = { beforeDb: A; input: B; output: C };\n', 'utf8');
 }
 
 function seedStableTestAliases(workspace: string): void {
@@ -146,6 +146,7 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(queryTypesFile).toContain('export type InsertUsersInput = { email: unknown };');
   expect(queryTypesFile).toContain('export type InsertUsersOutput = Record<string, unknown>;');
   expect(queryTypesFile).toContain("import type { QuerySpecZtdCase } from '../../../../../../tests/support/ztd/case-types.js';");
+  expect(queryTypesFile).not.toContain('AfterDb');
   expect(queryTypesFile).not.toContain('InsertUsersBeforeDb = Record<string, unknown>');
 
   const testPlanFile = readFileSync(
@@ -173,7 +174,7 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(testPlanFile).toContain('After DB Semantics');
   expect(testPlanFile).toContain('machine-checkable evidence');
   expect(testPlanFile).toContain('physicalSetupUsed=false');
-  expect(testPlanFile).toContain('`afterDb` assertions are not supported in this ZTD lane');
+  expect(testPlanFile).toContain('This ZTD lane does not expose `afterDb`');
   expect(testPlanFile).toContain('ZTD_SQL_TRACE=1');
 
   const analysisFile = JSON.parse(

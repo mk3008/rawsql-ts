@@ -47,6 +47,14 @@ interface StarterProjectConfigFile {
   searchPath?: string[];
 }
 
+interface StarterProjectDefaults {
+  projectRootDir: string;
+  ztdRootDir: string;
+  defaultSchema: string;
+  searchPath: string[];
+  ddlDirectories: string[];
+}
+
 export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input, Output>(
   querySpecCase: QuerySpecZtdCase<BeforeDb, Input, Output>,
   execute: QuerySpecExecutor<Input, Output>
@@ -56,12 +64,6 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
     throw new Error('Set ZTD_DB_URL before running queryspec ZTD cases.');
   }
 
-  if (querySpecCase.afterDb) {
-    throw new Error(
-      'afterDb assertions are not supported in ZTD mode. Use output assertions or run a traditional DB state test lane.'
-    );
-  }
-
   const tableRows = flattenFixtureTableRows(querySpecCase.beforeDb).map((tableFixture) => ({
     tableName: tableFixture.tableName,
     rows: tableFixture.rows
@@ -69,41 +71,52 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
 
   const trace: QueryExecutionTrace[] = [];
   const defaults = loadStarterDefaults(process.cwd());
-  const pool = new Pool({ connectionString });
-  const { createPostgresTestkitClient } = await import('@rawsql-ts/testkit-postgres');
-
-  const testkitClient = createPostgresTestkitClient({
-    queryExecutor: async (sql, params) => {
-      const result = await pool.query(sql, params as unknown[]);
-      return {
-        rows: result.rows,
-        rowCount: result.rowCount ?? undefined
-      };
-    },
-    defaultSchema: defaults.defaultSchema,
-    searchPath: defaults.searchPath,
-    tableRows,
-    ddl: defaults.ddlDirectories.length > 0 ? { directories: defaults.ddlDirectories } : undefined,
-    onExecute: (sql, params, fixtures) => {
-      const latestTrace = trace[trace.length - 1];
-      if (!latestTrace) {
-        return;
-      }
-
-      latestTrace.executedSql = sql;
-      latestTrace.executedParams = params;
-      latestTrace.fixturesApplied = fixtures;
-      latestTrace.rewriteApplied =
-        normalizeSql(latestTrace.boundSql) !== normalizeSql(sql) || (fixtures?.length ?? 0) > 0;
-    }
-  });
+  let pool: Pool | undefined;
+  let testkitClient: PostgresTestkitClient | undefined;
 
   try {
+    pool = new Pool({ connectionString });
+    const { createPostgresTestkitClient } = await import('@rawsql-ts/testkit-postgres');
+    testkitClient = createPostgresTestkitClient({
+      queryExecutor: async (sql, params) => {
+        const result = await pool!.query(sql, params as unknown[]);
+        return {
+          rows: result.rows,
+          rowCount: result.rowCount ?? undefined
+        };
+      },
+      defaultSchema: defaults.defaultSchema,
+      searchPath: defaults.searchPath,
+      tableRows,
+      ddl: defaults.ddlDirectories.length > 0 ? { directories: defaults.ddlDirectories } : undefined,
+      onExecute: (sql, params, fixtures) => {
+        const latestTrace = trace[trace.length - 1];
+        if (!latestTrace) {
+          return;
+        }
+
+        latestTrace.executedSql = sql;
+        latestTrace.executedParams = params;
+        latestTrace.fixturesApplied = fixtures;
+        latestTrace.rewriteApplied =
+          normalizeSql(latestTrace.boundSql) !== normalizeSql(sql) || (fixtures?.length ?? 0) > 0;
+      }
+    });
+
     const result = execute(createQuerySpecExecutor(testkitClient, trace), querySpecCase.input);
     await expect(result).resolves.toEqual(querySpecCase.output);
+    if (trace.length === 0) {
+      throw new Error(
+        `ZTD verifier did not execute any SQL for case "${querySpecCase.name}". Check the query boundary and fixture setup before accepting the case.`
+      );
+    }
   } finally {
-    await testkitClient.close();
-    await pool.end();
+    if (testkitClient) {
+      await testkitClient.close();
+    }
+    if (pool) {
+      await pool.end();
+    }
   }
 
   const evidence: QuerySpecExecutionEvidence = {
@@ -183,22 +196,23 @@ function createQuerySpecExecutor(
   };
 }
 
-function loadStarterDefaults(rootDir: string): {
-  defaultSchema: string;
-  searchPath: string[];
-  ddlDirectories: string[];
-} {
+function loadStarterDefaults(rootDir: string): StarterProjectDefaults {
   const config = loadStarterProjectConfig(rootDir);
   const defaultSchema =
     typeof config.defaultSchema === 'string' && config.defaultSchema.length > 0
       ? config.defaultSchema
       : 'public';
   const searchPath = normalizeSearchPath(config.searchPath);
-  const configuredDdlDir =
-    typeof config.ddlDir === 'string' && config.ddlDir.trim().length > 0 ? config.ddlDir : 'db/ddl';
-  const ddlDirectory = path.resolve(rootDir, configuredDdlDir);
+  const projectRootDir = path.resolve(rootDir);
+  const ztdRootDir = path.resolve(rootDir, config.ztdRootDir ?? '.ztd');
+  const ddlDirectory = path.resolve(
+    projectRootDir,
+    typeof config.ddlDir === 'string' && config.ddlDir.trim().length > 0 ? config.ddlDir : 'db/ddl'
+  );
 
   return {
+    projectRootDir,
+    ztdRootDir,
     defaultSchema,
     searchPath: searchPath.length > 0 ? searchPath : [defaultSchema],
     ddlDirectories: existsSync(ddlDirectory) ? [ddlDirectory] : []

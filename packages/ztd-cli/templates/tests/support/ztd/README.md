@@ -10,7 +10,7 @@ Query-local AI work should live in `src/features/<feature>/<query>/tests/cases/`
 Generated analysis belongs in `src/features/<feature>/<query>/tests/generated/`.
 The Vitest entrypoint `src/features/<feature>/<query>/tests/<query>.queryspec.ztd.test.ts` should stay thin and only adapt the cases to the fixed runner.
 `beforeDb` is a pure fixture skeleton with schema-qualified table keys.
+The queryspec ZTD case type only carries `beforeDb`, `input`, and `output`; use a traditional DB-state lane when you need post-state assertions.
 The verifier returns machine-checkable evidence (`mode`, `rewriteApplied`, `physicalSetupUsed`) for each case.
 Enable SQL trace only when needed with `ZTD_SQL_TRACE=1` (optional `ZTD_SQL_TRACE_DIR`).
-`afterDb` assertions are intentionally excluded from this ZTD lane; use a traditional DB-state test lane when you need post-state assertions.
 Do not use `--force` to overwrite persistent case files.
