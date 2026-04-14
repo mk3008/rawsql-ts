@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { expect } from 'vitest';
-import { createPostgresTestkitClient } from '@rawsql-ts/testkit-postgres';
 import { Pool } from 'pg';
 
 import type { QuerySpecZtdCase } from './case-types.js';
@@ -47,10 +47,27 @@ interface StarterProjectConfigFile {
   searchPath?: string[];
 }
 
+type PostgresTestkitOnExecuteHook = (sql: string, params: unknown[], fixtures?: string[]) => void;
+
+interface QuerySpecPostgresTestkitClient {
+  query(sql: string, params?: unknown[]): Promise<{ rows: unknown[] }>;
+  close(): Promise<void>;
+}
+
+type CreatePostgresTestkitClient = (options: {
+  queryExecutor: (sql: string, params: unknown[]) => Promise<{ rows: unknown[]; rowCount?: number }>;
+  defaultSchema?: string;
+  searchPath?: string[];
+  tableRows?: FixtureTableRows;
+  ddl?: { directories: string[] };
+  onExecute?: PostgresTestkitOnExecuteHook;
+}) => QuerySpecPostgresTestkitClient;
+
 export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input, Output>(
   querySpecCase: QuerySpecZtdCase<BeforeDb, Input, Output>,
   execute: QuerySpecExecutor<Input, Output>
 ): Promise<QuerySpecExecutionEvidence> {
+  const createPostgresTestkitClient = resolveCreatePostgresTestkitClient();
   const connectionString = process.env.ZTD_DB_URL;
   if (!connectionString) {
     throw new Error('Set ZTD_DB_URL before running queryspec ZTD cases.');
@@ -162,7 +179,7 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function createQuerySpecExecutor(
-  testkitClient: ReturnType<typeof createPostgresTestkitClient>,
+  testkitClient: QuerySpecPostgresTestkitClient,
   trace: QueryExecutionTrace[]
 ): QuerySpecExecutorClient {
   return {
@@ -478,4 +495,28 @@ function consumeIdentifier(sql: string, start: number): number {
     index += 1;
   }
   return index;
+}
+
+function resolveCreatePostgresTestkitClient(): CreatePostgresTestkitClient {
+  const requireFromHere = createRequire(import.meta.url);
+  const candidates = ['@rawsql-ts/testkit-postgres', '@rawsql-ts/testkit-postgres/dist/index.js'];
+  let lastError: unknown;
+
+  for (const candidate of candidates) {
+    try {
+      const resolved = requireFromHere.resolve(candidate);
+      const loaded = requireFromHere(resolved) as { createPostgresTestkitClient?: unknown };
+      if (typeof loaded.createPostgresTestkitClient === 'function') {
+        return loaded.createPostgresTestkitClient as CreatePostgresTestkitClient;
+      }
+      lastError = new Error(`Resolved ${candidate}, but createPostgresTestkitClient was not exported.`);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  const details = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(
+    `Failed to load @rawsql-ts/testkit-postgres from known entrypoints. Details: ${details}`
+  );
 }
