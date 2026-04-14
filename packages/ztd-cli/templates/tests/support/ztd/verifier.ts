@@ -73,6 +73,7 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
   const defaults = loadStarterDefaults(process.cwd());
   let pool: Pool | undefined;
   let testkitClient: PostgresTestkitClient | undefined;
+  let failure: unknown;
 
   try {
     pool = new Pool({ connectionString });
@@ -110,6 +111,8 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
         `ZTD verifier did not execute any SQL for case "${querySpecCase.name}". Check the query boundary and fixture setup before accepting the case.`
       );
     }
+  } catch (error) {
+    failure = error;
   } finally {
     if (testkitClient) {
       await testkitClient.close();
@@ -126,9 +129,13 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
     executedQueryCount: trace.length
   };
 
-  const traceFilePath = writeTraceFileIfEnabled(querySpecCase.name, trace, evidence);
+  const traceFilePath = writeTraceFileIfEnabled(querySpecCase.name, trace, evidence, failure);
   if (traceFilePath) {
     evidence.traceFilePath = traceFilePath;
+  }
+
+  if (failure) {
+    throw failure;
   }
 
   return evidence;
@@ -251,7 +258,8 @@ function normalizeSearchPath(searchPath: unknown): string[] {
 function writeTraceFileIfEnabled(
   caseName: string,
   trace: QueryExecutionTrace[],
-  evidence: QuerySpecExecutionEvidence
+  evidence: QuerySpecExecutionEvidence,
+  failure?: unknown
 ): string | undefined {
   if (!isTraceEnabled()) {
     return undefined;
@@ -265,19 +273,39 @@ function writeTraceFileIfEnabled(
 
   writeFileSync(
     traceFilePath,
-    `${JSON.stringify(
-      {
-        caseName,
-        evidence,
-        trace
-      },
-      null,
-      2
-    )}\n`,
+      `${JSON.stringify(
+        {
+          caseName,
+          evidence,
+          failure: serializeTraceFailure(failure),
+          trace
+        },
+        null,
+        2
+      )}\n`,
     'utf8'
   );
 
   return traceFilePath;
+}
+
+function serializeTraceFailure(failure: unknown): Record<string, unknown> | undefined {
+  if (failure === undefined) {
+    return undefined;
+  }
+
+  if (failure instanceof Error) {
+    return {
+      name: failure.name,
+      message: failure.message,
+      stack: failure.stack
+    };
+  }
+
+  return {
+    name: 'Error',
+    message: String(failure)
+  };
 }
 
 function isTraceEnabled(): boolean {
