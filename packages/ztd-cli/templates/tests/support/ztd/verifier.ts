@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect } from 'vitest';
-import { createPostgresTestkitClient } from '@rawsql-ts/testkit-postgres';
+import { createPostgresTestkitClient } from '@rawsql-ts/testkit-postgres/dist/index.js';
 import { Pool } from 'pg';
 
 import type { QuerySpecZtdCase } from './case-types.js';

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { createPostgresTestkitClient, type CreatePostgresTestkitClientOptions, type PostgresTestkitClient } from '@rawsql-ts/testkit-postgres';
+import { createPostgresTestkitClient, type CreatePostgresTestkitClientOptions, type PostgresTestkitClient } from '@rawsql-ts/testkit-postgres/dist/index.js';
 import { Pool } from 'pg';
 
 interface StarterProjectConfigFile {
