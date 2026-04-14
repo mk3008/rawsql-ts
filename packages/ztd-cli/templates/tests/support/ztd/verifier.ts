@@ -1,9 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect } from 'vitest';
-import { createPostgresTestkitClient } from '@rawsql-ts/testkit-postgres';
 import { Pool } from 'pg';
 
+import type { PostgresTestkitClient } from '@rawsql-ts/testkit-postgres';
 import type { QuerySpecZtdCase } from './case-types.js';
 
 type QuerySpecExecutorClient = {
@@ -70,6 +70,7 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
   const trace: QueryExecutionTrace[] = [];
   const defaults = loadStarterDefaults(process.cwd());
   const pool = new Pool({ connectionString });
+  const { createPostgresTestkitClient } = await import('@rawsql-ts/testkit-postgres');
 
   const testkitClient = createPostgresTestkitClient({
     queryExecutor: async (sql, params) => {
@@ -162,7 +163,7 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function createQuerySpecExecutor(
-  testkitClient: ReturnType<typeof createPostgresTestkitClient>,
+  testkitClient: PostgresTestkitClient,
   trace: QueryExecutionTrace[]
 ): QuerySpecExecutorClient {
   return {
