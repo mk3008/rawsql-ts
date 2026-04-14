@@ -20,6 +20,7 @@ Why full baseline is not required:
 - [ ] No migration packet required for this CLI change.
 - [ ] CLI/user-facing surface change and migration packet completed.
 
+<!-- Fill the fields below as plain label lines. Do not add list markers like "-" before labels. -->
 No-migration rationale:
 Upgrade note:
 Deprecation/removal plan or issue:
@@ -31,6 +32,7 @@ Release/changeset wording:
 - [ ] No scaffold contract proof required for this PR.
 - [ ] Scaffold contract proof completed.
 
+<!-- Fill the fields below as plain label lines. Do not add list markers like "-" before labels. -->
 No-proof rationale:
 Non-edit assertion:
 Fail-fast input-contract proof:
