@@ -1,6 +1,6 @@
 # Dynamic Filter Routing Dogfooding
 
-This scenario preserves the routing rule between `DynamicQueryBuilder` optional filters and `SSSQL` optional branches.
+This scenario preserves the routing rule between binding existing mandatory placeholders and authoring new `SSSQL` optional branches.
 
 ## Use this scenario when
 
@@ -13,8 +13,8 @@ Use this scenario when a prompt sounds like:
 ## Happy-path routing
 
 1. Check whether the requested filter only touches columns already available in the current query.
-2. If yes, prefer `DynamicQueryBuilder` filter injection.
-3. If the filter needs a table or branch the query does not already contain, switch to `SSSQL`.
+2. If the predicate already exists in SQL, bind the existing placeholder only.
+3. If the request would add a new removable condition, switch to `SSSQL`.
 4. Keep hardcoded predicates mandatory unless the SQL explicitly authors a removable SSSQL branch.
 5. Use `optionalConditionParameters` only for those explicitly removable branches.
 
@@ -27,6 +27,6 @@ Use this scenario when a prompt sounds like:
 
 ## What this scenario protects
 
-- AI chooses `DynamicQueryBuilder` before SSSQL for ordinary optional filters.
+- AI does not recommend runtime injection of new optional predicates.
 - AI switches to SSSQL when a filter needs tables that are not already in the query.
 - Mandatory hardcoded predicates are not confused with removable SSSQL branches.

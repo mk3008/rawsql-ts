@@ -22,8 +22,12 @@ Supported branch forms:
 (:p IS NULL OR EXISTS (... :p ...))
 ```
 
-Scalar predicates currently accept the standard comparison operators handled by the matcher.
-`EXISTS` branches are only eligible when the subquery references the same parameter and no additional parameters appear in that branch.
+```sql
+(:p IS NULL OR NOT EXISTS (... :p ...))
+```
+
+Scalar predicates currently accept the comparison and match operators handled by the matcher.
+`EXISTS` / `NOT EXISTS` branches are only eligible when the subquery references the same parameter and no additional parameters appear in that branch.
 
 ## Unsupported syntax shapes
 
