@@ -9,7 +9,7 @@
 - Repositories MUST use catalog runtime helpers (`ensure*`, `map*`) for input/output validation.
 - Repository CUD behavior MUST follow contract rules for `RETURNING`, rowCount handling, and explicit unsupported-driver failures.
 - Repository modules MUST reference SQL by stable logical keys.
-- Repository constructors SHOULD accept an optional telemetry dependency from `src/infrastructure/telemetry/repositoryTelemetry.ts`.
+- Repository constructors SHOULD accept an optional telemetry dependency from `src/libraries/telemetry/repositoryTelemetry.ts`.
 - Public repository methods MUST be covered by tests.
 
 ## ALLOWED

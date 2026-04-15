@@ -1,6 +1,6 @@
 # Multiple DB Clients in One Workflow
 
-`ztd-config` can produce separate artifacts for multiple DB contexts. At runtime, treat each context as its own `SqlClient` and keep the clients side by side when a single workflow needs to talk to more than one database.
+`ztd-config` can produce separate artifacts for multiple DB contexts. At runtime, treat each context as its own `SqlClient` from `src/libraries/sql/sql-client.ts` and keep the clients side by side when a single workflow needs to talk to more than one database.
 
 ```ts
 type AppClients = {

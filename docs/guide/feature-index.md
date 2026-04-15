@@ -43,8 +43,10 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 
 | Feature | Location | When to use |
 |---------|----------|-------------|
-| SqlClient interface | `src/db/sql-client.ts` | Define the app ↔ driver boundary |
-| SqlClient adapter (pg) | `src/db/sql-client-adapters.ts` | Convert `pg` Client/Pool to SqlClient |
+| SqlClient interface | `src/libraries/sql/sql-client.ts` | Define the app ↔ driver boundary |
+| SqlClient adapter (pg) | `src/adapters/pg/sql-client.ts` | Convert `pg` Client/Pool to `SqlClient` |
+| Repository telemetry contract | `src/libraries/telemetry/repositoryTelemetry.ts` | Keep the shared telemetry seam driver-neutral |
+| Repository telemetry console sink | `src/adapters/console/repositoryTelemetry.ts` | Emit safe local logs without widening the shared contract |
 | Runtime coercions | `src/catalog/runtime/_coercions.ts` | Driver-type normalization before validation |
 | Internal agent manifest | `.ztd/agents/*` | Default AI-assisted development context |
 | Spec files | `src/catalog/specs/` | Define catalog contracts with validators |

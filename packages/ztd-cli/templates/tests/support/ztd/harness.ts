@@ -11,7 +11,7 @@ export type QuerySpecExecutorClient<RowShape extends Record<string, unknown>> = 
 };
 
 /**
- * Fixed runner for queryspec ZTD cases.
+ * Fixed runner for query-boundary ZTD cases.
  *
  * Keep the app-level harness stable and let query-local case files evolve.
  */

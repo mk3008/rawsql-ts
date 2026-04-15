@@ -12,6 +12,8 @@ Check `package.json` to see which mode you are in. If you see `file:` dependenci
 The project is feature-first by default:
 
 - keep SQL, boundaries, and tests close to each feature
+- use `src/features`, `src/adapters`, and `src/libraries` as the app-code roots
+- keep `db/` for DDL, migration, and schema assets only
 - use `@rawsql-ts/sql-contract` for query contract metadata and catalog execution
 - keep feature-root boundary tests under `src/features/<feature>/tests/`
 - keep CLI-owned generated assets under `src/features/<feature>/queries/<query>/tests/generated`
@@ -32,7 +34,7 @@ npx vitest run src/features/**/*.test.ts
 The generated runtime manifest is the preferred input for `@rawsql-ts/testkit-postgres`; raw DDL directories remain a fallback for legacy layouts. The generated contract itself is schema metadata only (`tableDefinitions`), so test rows stay explicit.
 The starter keeps `ztdRootDir`, `ddlDir`, `defaultSchema`, and `searchPath` in `ztd.config.json`. The helper reads the project defaults from one place instead of repeating them in every DB-backed test.
 
-`src/features/<feature>/tests/` is where feature-root boundary tests live. Query-local ZTD assets live under `src/features/<feature>/queries/<query>/tests/{generated,cases}` with the thin entrypoint beside them. Starter-owned shared support lives at `tests/support/ztd/`, while `.ztd/` is the tool-managed workspace for generated metadata and support files.
+`src/features/<feature>/tests/` is where feature-root boundary tests live. Query-local ZTD assets live under `src/features/<feature>/queries/<query>/tests/{generated,cases}` with the thin entrypoint beside them. Starter-owned shared support lives at `tests/support/ztd/`, while `.ztd/` is the tool-managed workspace for generated metadata and support files. Keep `FeatureQueryExecutor` in `src/features/_shared/`, keep the driver-neutral `SqlClient` contract in `src/libraries/sql/sql-client.ts`, and put driver or sink bindings under `src/adapters/<tech>/`.
 
 ## Getting Started with AI
 
@@ -46,6 +48,9 @@ Every boundary folder exposes only `boundary.ts`, and sub-boundaries repeat the 
 Keep handwritten SQL, query boundaries, repository code, and tests inside `src/features/<feature-name>`.
 Treat the query boundary contract and its ZTD-backed test as one completion unit; do not stop at a property-only check.
 Keep feature-boundary tests mock-based in `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts`.
+Keep shared feature seams in `src/features/_shared/*`, shared verification seams in `tests/support/*`, and tool-managed files in `.ztd/*`.
+Keep the driver-neutral `SqlClient` contract in `src/libraries/sql/sql-client.ts`.
+Put driver or sink bindings under `src/adapters/<tech>/` instead of under `db/`.
 Make sure the query-boundary result executes through the DB-backed ZTD path and checks mapping and validation, not just property values.
 Do not put returned columns into the input fixture; assert them only after the DB-backed result returns.
 If the returned result is `null`, stop and fix the scaffold or DDL instead of weakening the success-path schema or seeding fake rows.

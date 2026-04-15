@@ -16,12 +16,12 @@ pnpm add -D @rawsql-ts/sql-contract
 
 - Use `createReader` (and `createWriter` when you need CUD helpers) to wrap the executor that appears in `tests/support/testkit-client.ts`.
 - Bind domain-specific `rowMapping` definitions to the reader so DTO shapes stay explicit and reusable.
-- Refer to `tests/generated/ztd-row-map.generated.ts` for authoritative row types and `src/repositories/*` for repository contracts.
+- Refer to `.ztd/generated/ztd-row-map.generated.ts` for authoritative row types and `src/features/*` or `src/libraries/*` for runtime contracts.
 
 ### Example (`tests/support/testkit-client.ts`)
 
 ```ts
-import type { SqlClient } from '../../src/db/sql-client';
+import type { SqlClient } from '../../src/libraries/sql/sql-client';
 import { createReader } from '@rawsql-ts/sql-contract/mapper';
 import { rowMapping } from '@rawsql-ts/sql-contract/mapper';
 import { getSqlClient } from '../support/sql-client-factory';

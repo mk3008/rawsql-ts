@@ -55,6 +55,8 @@ It is a container for child query boundaries and does not expose its own `bounda
 The actual query-boundary public surfaces live under `src/features/<feature>/queries/<query>/boundary.ts`.
 
 The starter and feature scaffolds apply that rule under `src/features/<feature>/...`, so the public export surface is visible without reading prose first.
+Outside feature-owned boundaries, keep shared feature seams under `src/features/_shared/*`, driver-neutral contracts under `src/libraries/*`, driver or sink bindings under `src/adapters/<tech>/*`, shared verification seams under `tests/support/*`, and tool-managed assets under `.ztd/*`.
+Reserve `db/` for DDL, migration, and schema assets; do not place runtime clients or adapters there.
 
 PowerShell:
 
@@ -155,7 +157,7 @@ As boundary depth grows, avoid making every import depth-sensitive by default.
 - Stabilize only shared references that are likely to break when work is split horizontally and moved into a deeper child boundary, such as `src/features/_shared/*` or `tests/support/*`.
 - One workable tactic is package `imports` or an equivalent alias that works in both TypeScript and runtime resolution, but that is a means, not the architectural goal.
 - Minimum rule: imports that cross boundaries should make the target boundary explicit and go through its `boundary.ts` entrypoint.
-- Pragmatic exception: designated shared infrastructure such as `src/features/_shared/*` and `tests/support/*` may use stabilized root-level aliases or package-style imports because they are shared support seams, not another boundary's private internals.
+- Pragmatic exception: designated shared seams such as `src/features/_shared/*` and `tests/support/*` may use stabilized root-level aliases or package-style imports because they are shared support seams, not another boundary's private internals.
 - Do not treat this issue as a reason to rewrite every scaffolded import to one style.
 
 ## Troubleshooting
@@ -195,7 +197,7 @@ Use `ztd describe` for machine-readable discovery, and follow the linked guides 
 | `ztd init --starter` | Scaffold the starter project with smoke, DDL, compose, and local Postgres wiring. |
 | `ztd feature scaffold --table <table> --action <insert/update/delete/get-by-id/list>` | Scaffold a feature-local CRUD/SELECT slice with SQL, `boundary.ts` entrypoints, README, and a thin tests entrypoint. |
 | `ztd feature query scaffold --query-name <name> --table <table> --action <insert/update/delete/get-by-id/list>` | Add one child query boundary under an existing boundary folder without rewriting the parent boundary. Use exactly one of `--feature` or `--boundary-dir`, or omit both only when the current working directory is already the target boundary. |
-| `ztd feature tests scaffold --feature <feature-name>` | Refresh `tests/generated/TEST_PLAN.md` and `analysis.json`, create the thin `<query-name>.boundary.ztd.test.ts` Vitest entrypoint when missing, and keep `tests/cases/` as human/AI-owned persistent cases. |
+| `ztd feature tests scaffold --feature <feature-name>` | Refresh `src/features/<feature>/queries/<query>/tests/generated/TEST_PLAN.md` and `analysis.json`, create the thin `src/features/<feature>/queries/<query>/tests/<query>.boundary.ztd.test.ts` Vitest entrypoint when missing, and keep `src/features/<feature>/queries/<query>/tests/cases/` as human/AI-owned persistent cases. |
 | `ztd agents init` | Add the optional Codex bootstrap files. |
 | `ztd ztd-config` | Regenerate `TestRowMap` and runtime fixture metadata from DDL without Docker. |
 | `ztd lint` | Lint SQL against a temporary Postgres. |

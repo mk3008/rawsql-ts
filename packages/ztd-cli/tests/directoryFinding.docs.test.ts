@@ -33,16 +33,19 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('Quickstart');
   expect(packageReadme).toContain('Create the Users Insert Feature');
   expect(packageReadme).toContain('Highlights');
-  expect(packageReadme).toContain('Commands');
+  expect(packageReadme).toContain('Command Index');
   expect(packageReadme).toContain('Glossary');
   expect(packageReadme).toContain('Further Reading');
   expect(packageReadme).toContain('ZTD here means query-boundary-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor.');
   expect(packageReadme).toContain('Use validation-only cases for boundary checks and DB-backed cases for the success path.');
   expect(packageReadme).toContain('Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts` for mock-based boundary tests.');
   expect(packageReadme).toContain('Starter-owned shared support lives under `tests/support/ztd/`; `.ztd/` remains the tool-managed workspace for generated metadata and support files.');
+  expect(packageReadme).toContain('src/adapters/<tech>');
+  expect(packageReadme).toContain('src/libraries/*');
   expect(packageReadme).toContain('After you finish the SQL and DTO edits');
   expect(packageReadme).toContain('feature tests scaffold --feature <feature-name>');
   expect(packageReadme).toContain('tests/generated/TEST_PLAN.md');
+  expect(scaffoldReadme).toContain('src/features`, `src/adapters`, and `src/libraries` as the app-code roots');
   expect(scaffoldReadme).toContain('Make sure the query-boundary result executes through the DB-backed ZTD path and checks mapping and validation, not just property values.');
   expect(readNormalizedFile('docs/guide/sql-first-end-to-end-tutorial.md')).toContain('Scenario CLI at a glance');
   expect(readNormalizedFile('docs/dogfooding/ztd-migration-lifecycle.md')).toContain('Preferred CLI by scenario');
@@ -96,6 +99,8 @@ test('feature guidance centers the sample feature and recursive boundary folders
   expect(readNormalizedFile('packages/ztd-cli/templates/src/features/_shared/loadSqlResource.ts')).toContain(
     'loadSqlResource'
   );
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/libraries/sql/sql-client.ts')).toContain('SqlClient');
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/adapters/pg/sql-client.ts')).toContain('fromPg');
 });
 
 test('feature-first scaffold files exist in the template bundle', () => {
@@ -117,7 +122,13 @@ test('feature-first scaffold files exist in the template bundle', () => {
     'packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/generated/TEST_PLAN.md',
     'packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/generated/analysis.json',
     'packages/ztd-cli/templates/src/features/_shared/featureQueryExecutor.ts',
-    'packages/ztd-cli/templates/src/features/_shared/loadSqlResource.ts'
+    'packages/ztd-cli/templates/src/features/_shared/loadSqlResource.ts',
+    'packages/ztd-cli/templates/src/libraries/README.md',
+    'packages/ztd-cli/templates/src/libraries/sql/sql-client.ts',
+    'packages/ztd-cli/templates/src/libraries/telemetry/repositoryTelemetry.ts',
+    'packages/ztd-cli/templates/src/adapters/README.md',
+    'packages/ztd-cli/templates/src/adapters/pg/sql-client.ts',
+    'packages/ztd-cli/templates/src/adapters/console/repositoryTelemetry.ts'
   ];
 
   for (const requiredPath of requiredPaths) {
