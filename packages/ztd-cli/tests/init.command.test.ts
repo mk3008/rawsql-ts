@@ -335,6 +335,33 @@ test('init dry-run plan matches starter outputs without AGENTS files', () => {
   ]));
 });
 
+test('init dry-run plan for non-starter init excludes starter-only readmes', () => {
+  const workspace = createTempDir('cli-init-dry-run-plan-default');
+  const plan = buildInitDryRunPlan(workspace, {
+    appShape: 'default',
+    starter: false,
+    withAiGuidance: false,
+    withDogfooding: false,
+    withAppInterface: false,
+    workflow: 'empty',
+    validator: 'zod',
+    localSourceRoot: null
+  });
+
+  expect(plan.dryRun).toBe(true);
+  expect(plan.files).toEqual(expect.arrayContaining([
+    'src/libraries/sql/sql-client.ts',
+    'src/adapters/pg/sql-client.ts'
+  ]));
+  expect(plan.files).not.toEqual(expect.arrayContaining([
+    'src/libraries/README.md',
+    'src/libraries/sql/README.md',
+    'src/adapters/README.md',
+    'compose.yaml',
+    'src/features/smoke/README.md'
+  ]));
+});
+
 test('init starter keeps visible AGENTS out even when internal AI guidance is enabled', { timeout: 60_000 }, async () => {
   const workspace = createTempDir('cli-init-starter-ai-guidance');
   const prompter = new TestPrompter([]);

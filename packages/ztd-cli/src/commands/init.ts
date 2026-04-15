@@ -2805,10 +2805,7 @@ export function buildInitDryRunPlan(rootDir: string, options: {
     'README.md',
     '.env.example',
     '.gitignore',
-    'src/libraries/README.md',
-    'src/libraries/sql/README.md',
     'src/libraries/sql/sql-client.ts',
-    'src/adapters/README.md',
     'src/adapters/pg/sql-client.ts',
     'vitest.config.ts',
     'tsconfig.json'
@@ -2816,6 +2813,9 @@ export function buildInitDryRunPlan(rootDir: string, options: {
 
   if (starter) {
     files.push(
+      path.join('src', 'libraries', 'README.md'),
+      path.join('src', 'libraries', 'sql', 'README.md'),
+      path.join('src', 'adapters', 'README.md'),
       STARTER_COMPOSE_FILE,
       path.join('src', 'features', '_shared', 'featureQueryExecutor.ts'),
       path.join('src', 'features', '_shared', 'loadSqlResource.ts'),

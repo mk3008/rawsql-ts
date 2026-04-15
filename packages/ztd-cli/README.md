@@ -55,9 +55,20 @@ It is a container for child query boundaries and does not expose its own `bounda
 The actual query-boundary public surfaces live under `src/features/<feature>/queries/<query>/boundary.ts`.
 
 The starter and feature scaffolds apply that rule under `src/features/<feature>/...`, so the public export surface is visible without reading prose first.
-Outside feature-owned boundaries, keep shared feature seams under `src/features/_shared/*`, driver-neutral contracts under `src/libraries/*`, driver- or sink-specific bindings under `src/adapters/<tech>/*`, shared verification seams under `tests/support/*`, and tool-managed assets under `.ztd/*`.
-Treat `src/adapters/pg/` as the adapter boundary when `<tech>` names one concrete technology. If `<tech>` names a family or plural container such as `aws` or `cloud`, treat `src/adapters/<tech>/` as a parent container and put each concrete adapter in its own child boundary such as `src/adapters/aws/s3/` or `src/adapters/aws/lambda/`.
-Reserve `db/` for DDL, migration, and schema assets; do not place runtime clients or adapters there.
+Outside feature-owned boundaries:
+
+- Keep shared feature seams under `src/features/_shared/*`.
+- Keep driver-neutral contracts under `src/libraries/*`.
+- Keep driver- or sink-specific bindings under `src/adapters/<tech>/*`.
+- Keep shared verification seams under `tests/support/*`.
+- Keep tool-managed assets under `.ztd/*`.
+
+Adapter boundary rule:
+
+- If `<tech>` is one concrete technology, treat `src/adapters/<tech>/` as the adapter boundary, for example `src/adapters/pg/`.
+- If `<tech>` is a family or plural container such as `aws` or `cloud`, treat `src/adapters/<tech>/` as a parent and create child boundaries such as `src/adapters/aws/s3/` and `src/adapters/aws/lambda/`.
+
+Reserve `db/` for DDL, migration, and schema assets only; do not place runtime clients or adapters there.
 
 PowerShell:
 
@@ -198,7 +209,7 @@ Use `ztd describe` for machine-readable discovery, and follow the linked guides 
 | `ztd init --starter` | Scaffold the starter project with smoke, DDL, compose, and local Postgres wiring. |
 | `ztd feature scaffold --table <table> --action <insert/update/delete/get-by-id/list>` | Scaffold a feature-local CRUD/SELECT slice with SQL, `boundary.ts` entrypoints, README, and a thin tests entrypoint. |
 | `ztd feature query scaffold --query-name <name> --table <table> --action <insert/update/delete/get-by-id/list>` | Add one child query boundary under an existing boundary folder without rewriting the parent boundary. Use exactly one of `--feature` or `--boundary-dir`, or omit both only when the current working directory is already the target boundary. |
-| `ztd feature tests scaffold --feature <feature-name>` | Refresh `src/features/<feature>/queries/<query>/tests/generated/TEST_PLAN.md` and `analysis.json`, create the thin `src/features/<feature>/queries/<query>/tests/<query>.boundary.ztd.test.ts` Vitest entrypoint when missing, and keep `src/features/<feature>/queries/<query>/tests/cases/` as human/AI-owned persistent cases. |
+| `ztd feature tests scaffold --feature <feature-name>` | Refresh `src/features/<feature>/queries/<query>/tests/generated/TEST_PLAN.md`, `analysis.json`, and `src/features/<feature>/queries/<query>/tests/boundary-ztd-types.ts`; create the thin `src/features/<feature>/queries/<query>/tests/<query>.boundary.ztd.test.ts` Vitest entrypoint when missing; keep `src/features/<feature>/queries/<query>/tests/cases/` as human/AI-owned persistent cases. |
 | `ztd agents init` | Add the optional Codex bootstrap files. |
 | `ztd ztd-config` | Regenerate `TestRowMap` and runtime fixture metadata from DDL without Docker. |
 | `ztd lint` | Lint SQL against a temporary Postgres. |
