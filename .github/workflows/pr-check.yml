@@ -128,6 +128,15 @@ jobs:
       if: steps.generated_project_changes.outputs.run == 'true'
       run: pnpm verify:generated-project-mode
 
+    - name: Build ztd-cli gate dependencies
+      if: steps.ztd_cli_gates.outputs.run == 'true'
+      run: |
+        pnpm --filter rawsql-ts run build
+        pnpm --filter @rawsql-ts/sql-grep-core run build
+        pnpm --filter @rawsql-ts/test-evidence-core run build
+        pnpm --filter @rawsql-ts/test-evidence-renderer-md run build
+        pnpm --filter @rawsql-ts/testkit-core run build
+
     - name: Run ztd-cli essential gates
       if: steps.ztd_cli_gates.outputs.run == 'true'
       run: node scripts/run-ztd-cli-quality-gates.js pr

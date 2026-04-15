@@ -84,6 +84,28 @@ describe('pruneOptionalConditionBranches', () => {
         expect(formattedSql).not.toContain('where');
     });
 
+    it('prunes a top-level optional not-exists branch when the targeted parameter is null', () => {
+        const sql = `
+            SELECT p.product_id
+            FROM products p
+            WHERE (
+                :archived_name IS NULL
+                OR NOT EXISTS (
+                    SELECT 1
+                    FROM archived_products ap
+                    WHERE ap.product_id = p.product_id
+                      AND ap.product_name = :archived_name
+                )
+            )
+        `;
+
+        const formattedSql = formatSql(sql, { archived_name: null });
+
+        expect(formattedSql).toBe('select "p"."product_id" from "products" as "p"');
+        expect(formattedSql).not.toContain('not exists');
+        expect(formattedSql).not.toContain(':archived_name');
+    });
+
     it('prunes only the null-targeted branch when multiple optional branches are present', () => {
         const sql = `
             SELECT p.product_id
