@@ -1,4 +1,4 @@
-import { WhereClause, type SourceExpression, TableSource } from "../models/Clause";
+import { WhereClause, type SourceExpression, SubQuerySource, TableSource } from "../models/Clause";
 import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import {
     BinaryExpression,
@@ -18,6 +18,7 @@ import { ColumnReferenceCollector } from "./ColumnReferenceCollector";
 import { SelectableColumnCollector, DuplicateDetectionMode } from "./SelectableColumnCollector";
 import { ParameterCollector } from "./ParameterCollector";
 import { SqlFormatter } from "./SqlFormatter";
+import { CTECollector } from "./CTECollector";
 import {
     collectSupportedOptionalConditionBranches,
     type SupportedOptionalConditionBranch
@@ -76,6 +77,21 @@ interface ResolvedFilterTarget {
 interface ParsedFilterName {
     table: string;
     column: string;
+}
+
+interface ExistsPredicateDetails {
+    kind: "exists" | "not-exists";
+    subquery: SelectQuery;
+}
+
+interface CorrelatedAnchorReference {
+    namespace: string;
+    column: string;
+}
+
+interface CorrelatedRefreshPlan {
+    target: ResolvedFilterTarget;
+    sourceAlias: string;
 }
 
 const formatter = new SqlFormatter();
@@ -338,6 +354,45 @@ const getScalarBranchDetails = (
     return null;
 };
 
+const hasSelectQuery = (value: unknown): value is { selectQuery: SelectQuery } => {
+    return typeof value === "object" && value !== null && "selectQuery" in value;
+};
+
+const collectColumnReferencesDeep = (value: unknown): ColumnReference[] => {
+    const references: ColumnReference[] = [];
+    const visited = new WeakSet<object>();
+
+    const walk = (candidate: unknown): void => {
+        if (!candidate || typeof candidate !== "object") {
+            return;
+        }
+
+        if (candidate instanceof ColumnReference) {
+            references.push(candidate);
+            return;
+        }
+
+        if (visited.has(candidate)) {
+            return;
+        }
+        visited.add(candidate);
+
+        if (Array.isArray(candidate)) {
+            for (const item of candidate) {
+                walk(item);
+            }
+            return;
+        }
+
+        for (const child of Object.values(candidate as Record<string, unknown>)) {
+            walk(child);
+        }
+    };
+
+    walk(value);
+    return references;
+};
+
 const getExistsBranchKind = (
     expression: ValueComponent,
     parameterName: string
@@ -350,8 +405,16 @@ const getExistsBranchKind = (
     }
 
     const predicate = unwrapParens(meaningfulTerms[0]!);
+    const isInlineQueryValue = (value: ValueComponent): value is InlineQuery => {
+        return value instanceof InlineQuery || hasSelectQuery(value);
+    };
+
     if (predicate instanceof UnaryExpression && predicate.operator.value.trim().toLowerCase() === "exists") {
-        return predicate.expression instanceof InlineQuery ? "exists" : null;
+        return isInlineQueryValue(unwrapParens(predicate.expression)) ? "exists" : null;
+    }
+
+    if (predicate instanceof UnaryExpression && predicate.operator.value.trim().toLowerCase() === "not exists") {
+        return isInlineQueryValue(unwrapParens(predicate.expression)) ? "not-exists" : null;
     }
 
     if (
@@ -360,8 +423,67 @@ const getExistsBranchKind = (
         unwrapParens(predicate.expression) instanceof UnaryExpression
     ) {
         const nested = unwrapParens(predicate.expression) as UnaryExpression;
-        if (nested.operator.value.trim().toLowerCase() === "exists" && nested.expression instanceof InlineQuery) {
+        if (
+            nested.operator.value.trim().toLowerCase() === "exists"
+            && isInlineQueryValue(unwrapParens(nested.expression))
+        ) {
             return "not-exists";
+        }
+    }
+
+    return null;
+};
+
+const getExistsPredicateDetails = (
+    expression: ValueComponent,
+    parameterName: string
+): ExistsPredicateDetails | null => {
+    const meaningfulTerms = collectTopLevelOrTerms(expression)
+        .filter(term => getGuardedParameterName(term) !== parameterName);
+
+    if (meaningfulTerms.length !== 1) {
+        return null;
+    }
+
+    const predicate = unwrapParens(meaningfulTerms[0]!);
+    const isInlineQueryValue = (value: ValueComponent): value is InlineQuery => {
+        return value instanceof InlineQuery || hasSelectQuery(value);
+    };
+
+    if (predicate instanceof UnaryExpression && predicate.operator.value.trim().toLowerCase() === "exists") {
+        const candidate = unwrapParens(predicate.expression);
+        if (isInlineQueryValue(candidate)) {
+            return {
+                kind: "exists",
+                subquery: candidate.selectQuery
+            };
+        }
+        return null;
+    }
+
+    if (predicate instanceof UnaryExpression && predicate.operator.value.trim().toLowerCase() === "not exists") {
+        const candidate = unwrapParens(predicate.expression);
+        if (isInlineQueryValue(candidate)) {
+            return {
+                kind: "not-exists",
+                subquery: candidate.selectQuery
+            };
+        }
+        return null;
+    }
+
+    if (
+        predicate instanceof UnaryExpression &&
+        predicate.operator.value.trim().toLowerCase() === "not" &&
+        unwrapParens(predicate.expression) instanceof UnaryExpression
+    ) {
+        const nested = unwrapParens(predicate.expression) as UnaryExpression;
+        const candidate = unwrapParens(nested.expression);
+        if (nested.operator.value.trim().toLowerCase() === "exists" && isInlineQueryValue(candidate)) {
+            return {
+                kind: "not-exists",
+                subquery: candidate.selectQuery
+            };
         }
     }
 
@@ -454,11 +576,23 @@ export class SSSQLFilterBuilder {
         const parsed = this.parseQuery(query);
 
         for (const [filterName, filterValue] of Object.entries(filters)) {
-            const target = this.resolveTarget(parsed, filterName);
-            const matches = collectSupportedOptionalConditionBranches(parsed)
-                .filter(branch => branch.parameterName === target.parameterName);
+            let parameterName = filterName;
+            let target: ResolvedFilterTarget | null = null;
+            let matches = collectSupportedOptionalConditionBranches(parsed)
+                .filter(branch => branch.parameterName === parameterName);
 
             if (matches.length === 0) {
+                target = this.resolveTarget(parsed, filterName);
+                parameterName = target.parameterName;
+                matches = collectSupportedOptionalConditionBranches(parsed)
+                    .filter(branch => branch.parameterName === parameterName);
+            }
+
+            if (matches.length === 0) {
+                if (!target) {
+                    target = this.resolveTarget(parsed, filterName);
+                    parameterName = target.parameterName;
+                }
                 if (!isExplicitEqualityScaffoldValue(filterValue)) {
                     throw new Error(
                         `No existing SSSQL branch was found for '${filterName}', and v1 scaffold only supports equality filters.`
@@ -474,7 +608,7 @@ export class SSSQLFilterBuilder {
             }
 
             if (matches.length > 1) {
-                throw new Error(`Multiple SSSQL branches matched parameter ':${target.parameterName}'. Refresh is ambiguous.`);
+                throw new Error(`Multiple SSSQL branches matched parameter ':${parameterName}'. Refresh is ambiguous.`);
             }
 
             const [match] = matches;
@@ -482,13 +616,26 @@ export class SSSQLFilterBuilder {
                 continue;
             }
 
-            if (match.query === target.query) {
+            const correlatedPlan = this.buildCorrelatedRefreshPlan(parsed, match);
+            if (correlatedPlan) {
+                if (correlatedPlan.target.query === match.query) {
+                    continue;
+                }
+
+                this.rebaseMovedBranchByAlias(match.expression, correlatedPlan.sourceAlias, correlatedPlan.target.column);
+                rebuildWhereWithoutTerm(match.query, match.expression);
+                correlatedPlan.target.query.appendWhere(match.expression);
                 continue;
             }
 
-            this.rebaseMovedBranch(match.expression, match.query, target.column);
-            rebuildWhereWithoutTerm(match.query, match.expression);
-            target.query.appendWhere(match.expression);
+            if (!target) {
+                target = this.resolveTarget(parsed, filterName);
+            }
+            if (match.query !== target.query) {
+                this.rebaseMovedBranch(match.expression, match.query, target.column);
+                rebuildWhereWithoutTerm(match.query, match.expression);
+                target.query.appendWhere(match.expression);
+            }
         }
 
         return parsed;
@@ -733,6 +880,203 @@ export class SSSQLFilterBuilder {
         return source.getAliasName() ?? source.datasource.table.name;
     }
 
+    private buildCorrelatedRefreshPlan(
+        root: SelectQuery,
+        branch: SupportedOptionalConditionBranch
+    ): CorrelatedRefreshPlan | null {
+        const details = getExistsPredicateDetails(branch.expression, branch.parameterName);
+        if (!details) {
+            return null;
+        }
+
+        const sourceAliases = this.collectSourceAliases(branch.query);
+        const candidatesByKey = new Map<string, CorrelatedAnchorReference>();
+
+        for (const reference of new ColumnReferenceCollector().collect(details.subquery)) {
+            const namespace = normalizeIdentifier(reference.getNamespace());
+            if (!namespace || !sourceAliases.has(namespace)) {
+                continue;
+            }
+
+            const column = normalizeIdentifier(reference.column.name);
+            const key = `${namespace}.${column}`;
+            if (!candidatesByKey.has(key)) {
+                candidatesByKey.set(key, { namespace, column });
+            }
+        }
+
+        const candidates = [...candidatesByKey.values()];
+        if (candidates.length === 0) {
+            throw new Error(
+                `SSSQL refresh could not infer a correlated anchor for ':${branch.parameterName}'.`
+            );
+        }
+        if (candidates.length > 1) {
+            const listed = candidates.map(candidate => `${candidate.namespace}.${candidate.column}`).join(", ");
+            throw new Error(
+                `SSSQL refresh found multiple correlated anchor candidates for ':${branch.parameterName}' (${listed}).`
+            );
+        }
+
+        const [anchor] = candidates;
+        if (!anchor) {
+            throw new Error(
+                `SSSQL refresh could not infer a correlated anchor for ':${branch.parameterName}'.`
+            );
+        }
+
+        return {
+            target: this.resolveCorrelatedAnchorTarget(root, branch.query, anchor, branch.parameterName),
+            sourceAlias: anchor.namespace
+        };
+    }
+
+    private collectSourceAliases(query: SimpleSelectQuery): Set<string> {
+        const aliases = new Set<string>();
+        for (const source of query.fromClause?.getSources() ?? []) {
+            const sourceAlias = this.getSourceAlias(source);
+            if (sourceAlias) {
+                aliases.add(sourceAlias);
+            }
+        }
+        return aliases;
+    }
+
+    private resolveCorrelatedAnchorTarget(
+        root: SelectQuery,
+        sourceQuery: SimpleSelectQuery,
+        anchor: CorrelatedAnchorReference,
+        parameterName: string
+    ): ResolvedFilterTarget {
+        const sourceExpression = this.findSourceExpressionByAlias(sourceQuery, anchor.namespace, parameterName);
+        const upstreamQuery = this.resolveSourceExpressionToUpstreamQuery(root, sourceExpression, parameterName);
+        if (!upstreamQuery) {
+            return {
+                query: sourceQuery,
+                column: new ColumnReference(anchor.namespace, anchor.column),
+                parameterName
+            };
+        }
+
+        return this.resolveAnchorTargetInQuery(upstreamQuery, anchor, parameterName);
+    }
+
+    private findSourceExpressionByAlias(
+        query: SimpleSelectQuery,
+        alias: string,
+        parameterName: string
+    ): SourceExpression {
+        const matches = (query.fromClause?.getSources() ?? [])
+            .filter(source => this.getSourceAlias(source) === alias);
+
+        if (matches.length === 0) {
+            throw new Error(
+                `SSSQL refresh could not resolve correlated alias '${alias}' for ':${parameterName}'.`
+            );
+        }
+        if (matches.length > 1) {
+            throw new Error(
+                `SSSQL refresh found multiple correlated sources for alias '${alias}' and ':${parameterName}'.`
+            );
+        }
+
+        return matches[0]!;
+    }
+
+    private resolveSourceExpressionToUpstreamQuery(
+        root: SelectQuery,
+        source: SourceExpression,
+        parameterName: string
+    ): SimpleSelectQuery | null {
+        if (source.datasource instanceof SubQuerySource) {
+            if (source.datasource.query instanceof SimpleSelectQuery) {
+                return source.datasource.query;
+            }
+            throw new Error(
+                `SSSQL refresh requires a simple query anchor for ':${parameterName}'.`
+            );
+        }
+
+        if (!(source.datasource instanceof TableSource)) {
+            return null;
+        }
+
+        const cteName = normalizeIdentifier(source.datasource.table.name);
+        const cteMatches = new CTECollector()
+            .collect(root)
+            .filter(cte => normalizeIdentifier(cte.getSourceAliasName()) === cteName);
+
+        if (cteMatches.length === 0) {
+            return null;
+        }
+        if (cteMatches.length > 1) {
+            throw new Error(
+                `SSSQL refresh found multiple CTE anchors for ':${parameterName}' (${source.datasource.table.name}).`
+            );
+        }
+
+        const [cte] = cteMatches;
+        if (!cte) {
+            return null;
+        }
+
+        const cteQuery = cte.query as unknown;
+        if (!(cteQuery instanceof SimpleSelectQuery)) {
+            throw new Error(
+                `SSSQL refresh requires a simple CTE anchor for ':${parameterName}'.`
+            );
+        }
+
+        return cteQuery;
+    }
+
+    private resolveAnchorTargetInQuery(
+        query: SimpleSelectQuery,
+        anchor: CorrelatedAnchorReference,
+        parameterName: string
+    ): ResolvedFilterTarget {
+        const collector = new SelectableColumnCollector(
+            this.tableColumnResolver,
+            false,
+            DuplicateDetectionMode.FullName,
+            { upstream: true }
+        );
+
+        const matches = collector.collect(query)
+            .filter((entry): entry is { name: string; value: ColumnReference } => entry.value instanceof ColumnReference)
+            .filter(entry => normalizeIdentifier(entry.name) === anchor.column);
+
+        if (matches.length === 0) {
+            throw new Error(
+                `SSSQL refresh could not resolve correlated anchor column '${anchor.column}' for ':${parameterName}'.`
+            );
+        }
+        if (matches.length > 1) {
+            throw new Error(
+                `SSSQL refresh found multiple correlated anchor columns '${anchor.column}' for ':${parameterName}'.`
+            );
+        }
+
+        return {
+            query,
+            column: matches[0]!.value,
+            parameterName
+        };
+    }
+
+    private getSourceAlias(source: SourceExpression): string | null {
+        const explicitAlias = source.getAliasName();
+        if (explicitAlias) {
+            return normalizeIdentifier(explicitAlias);
+        }
+
+        if (source.datasource instanceof TableSource) {
+            return normalizeIdentifier(source.datasource.table.name);
+        }
+
+        return null;
+    }
+
     private rebaseMovedBranch(
         expression: ValueComponent,
         sourceQuery: SimpleSelectQuery,
@@ -743,8 +1087,7 @@ export class SSSQLFilterBuilder {
             : null;
         const targetColumnName = normalizeIdentifier(targetColumn.column.name);
         const sourceAliases = new Set(
-            new ColumnReferenceCollector()
-                .collect(expression)
+            collectColumnReferencesDeep(expression)
                 .filter(reference => normalizeIdentifier(reference.column.name) === targetColumnName)
                 .map(reference => normalizeIdentifier(reference.getNamespace()))
                 .filter(namespace => namespace.length > 0)
@@ -773,8 +1116,31 @@ export class SSSQLFilterBuilder {
             return;
         }
 
-        for (const reference of new ColumnReferenceCollector().collect(expression)) {
+        for (const reference of collectColumnReferencesDeep(expression)) {
             if (normalizeIdentifier(reference.getNamespace()) !== sourceAlias) {
+                continue;
+            }
+
+            reference.qualifiedName.namespaces = targetNamespace?.map(namespace => new IdentifierString(namespace)) ?? null;
+        }
+    }
+
+    private rebaseMovedBranchByAlias(
+        expression: ValueComponent,
+        sourceAlias: string,
+        targetColumn: ColumnReference
+    ): void {
+        const normalizedSourceAlias = normalizeIdentifier(sourceAlias);
+        if (!normalizedSourceAlias) {
+            return;
+        }
+
+        const targetNamespace = targetColumn.qualifiedName.namespaces
+            ? targetColumn.qualifiedName.namespaces.map(namespace => namespace.name)
+            : null;
+
+        for (const reference of collectColumnReferencesDeep(expression)) {
+            if (normalizeIdentifier(reference.getNamespace()) !== normalizedSourceAlias) {
                 continue;
             }
 
