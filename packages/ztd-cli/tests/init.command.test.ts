@@ -239,10 +239,14 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
     "from '#tests/support/ztd/harness.js'"
   );
   expect(existsSync(path.join(workspace, 'src', 'libraries', 'README.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'libraries', 'sql', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'libraries', 'telemetry', 'types.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'libraries', 'telemetry', 'repositoryTelemetry.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'adapters', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'adapters', 'console', 'repositoryTelemetry.ts'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'README.md'))).toContain('Shared runtime contracts and reusable helpers live here.');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'sql', 'README.md'))).toContain('Keep driver-neutral SQL contracts here.');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'adapters', 'README.md'))).toContain('Technology-specific bindings live here.');
   expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'telemetry', 'repositoryTelemetry.ts'))).toContain('createNoopRepositoryTelemetry');
   expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'telemetry', 'repositoryTelemetry.ts'))).toContain('defaultRepositoryTelemetry');
   expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'telemetry', 'repositoryTelemetry.ts'))).not.toContain('sqlText');
@@ -305,6 +309,8 @@ test('init dry-run plan matches starter outputs without AGENTS files', () => {
     'src/features/smoke/boundary.ts',
     'src/features/smoke/tests/smoke.boundary.test.ts',
     'src/features/smoke/tests/smoke.test.ts',
+    'src/libraries/sql/README.md',
+    'src/adapters/README.md',
     'tests/support/ztd/README.md',
     'tests/support/ztd/case-types.ts',
     'tests/support/ztd/verifier.ts',

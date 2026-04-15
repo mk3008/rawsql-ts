@@ -61,6 +61,7 @@ Fields:
       "stdout": "Status or JSON envelope.",
       "files": [
         ".ztd/generated/ztd-row-map.generated.ts",
+        ".ztd/generated/ztd-fixture-manifest.generated.ts",
         ".ztd/generated/ztd-layout.generated.ts"
       ]
     },

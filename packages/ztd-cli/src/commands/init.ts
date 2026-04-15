@@ -141,6 +141,7 @@ type FileKey =
   | 'setupEnv'
   | 'starterPostgresTestkit'
   | 'infrastructureReadme'
+  | 'adaptersReadme'
   | 'telemetryTypes'
   | 'telemetryRepository'
   | 'telemetryConsoleRepository'
@@ -414,6 +415,7 @@ const TSCONFIG_TEMPLATE = 'tsconfig.json';
 const SQL_CLIENT_TEMPLATE = 'src/libraries/sql/sql-client.ts';
 const SQL_CLIENT_ADAPTERS_TEMPLATE = 'src/adapters/pg/sql-client.ts';
 const INFRASTRUCTURE_README_TEMPLATE = 'src/libraries/README.md';
+const ADAPTERS_README_TEMPLATE = 'src/adapters/README.md';
 const TELEMETRY_TYPES_TEMPLATE = 'src/libraries/telemetry/types.ts';
 const TELEMETRY_REPOSITORY_TEMPLATE = 'src/libraries/telemetry/repositoryTelemetry.ts';
 const TELEMETRY_CONSOLE_REPOSITORY_TEMPLATE = 'src/adapters/console/repositoryTelemetry.ts';
@@ -765,6 +767,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     testsSupportZtdVerifier: scaffoldLayout.testsSupportZtdVerifierPath,
     testsSupportZtdHarness: scaffoldLayout.testsSupportZtdHarnessPath,
     infrastructureReadme: scaffoldLayout.infrastructureReadmePath,
+    adaptersReadme: path.join(rootDir, 'src', 'adapters', 'README.md'),
     telemetryTypes: scaffoldLayout.telemetryTypesPath,
     telemetryRepository: scaffoldLayout.telemetryRepositoryPath,
     telemetryConsoleRepository: scaffoldLayout.telemetryConsoleRepositoryPath,
@@ -1230,6 +1233,32 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     );
     if (infrastructureReadmeSummary) {
       summaries.infrastructureReadme = infrastructureReadmeSummary;
+    }
+
+    const sqlReadmeSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.sqlReadme,
+      relativePath('sqlReadme'),
+      SQL_README_TEMPLATE,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (sqlReadmeSummary) {
+      summaries.sqlReadme = sqlReadmeSummary;
+    }
+
+    const adaptersReadmeSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.adaptersReadme,
+      relativePath('adaptersReadme'),
+      ADAPTERS_README_TEMPLATE,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (adaptersReadmeSummary) {
+      summaries.adaptersReadme = adaptersReadmeSummary;
     }
 
     const telemetryTypesSummary = await writeTemplateFile(
@@ -2658,6 +2687,7 @@ function buildSummaryLines(
     'setupEnv',
     'starterPostgresTestkit',
     'infrastructureReadme',
+    'adaptersReadme',
     'telemetryTypes',
     'telemetryRepository',
     'telemetryConsoleRepository',
@@ -2806,7 +2836,6 @@ export function buildInitDryRunPlan(rootDir: string, options: {
       path.join('tests', 'support', 'ztd', 'case-types.ts'),
       path.join('tests', 'support', 'ztd', 'verifier.ts'),
       path.join('tests', 'support', 'ztd', 'harness.ts'),
-      path.join('src', 'libraries', 'README.md'),
       path.join('src', 'libraries', 'telemetry', 'types.ts'),
       path.join('src', 'libraries', 'telemetry', 'repositoryTelemetry.ts'),
       path.join('src', 'adapters', 'console', 'repositoryTelemetry.ts'),
@@ -2827,9 +2856,6 @@ export function buildInitDryRunPlan(rootDir: string, options: {
   if (options.withDogfooding) {
     files.push('PROMPT_DOGFOOD.md');
   }
-
-  files.push(normalizeCliPath(path.relative(rootDir, scaffoldLayout.sqlClientPath)));
-  files.push(normalizeCliPath(path.relative(rootDir, scaffoldLayout.sqlClientAdaptersPath)));
 
   if (options.withAppInterface) {
     files.splice(0, files.length, 'AGENTS.md');

@@ -41,6 +41,8 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts` for mock-based boundary tests.');
   expect(packageReadme).toContain('Starter-owned shared support lives under `tests/support/ztd/`; `.ztd/` remains the tool-managed workspace for generated metadata and support files.');
   expect(packageReadme).toContain('src/adapters/<tech>');
+  expect(packageReadme).toContain('src/adapters/pg/');
+  expect(packageReadme).toContain('src/adapters/aws/s3/');
   expect(packageReadme).toContain('src/libraries/*');
   expect(packageReadme).toContain('After you finish the SQL and DTO edits');
   expect(packageReadme).toContain('feature tests scaffold --feature <feature-name>');
@@ -124,6 +126,7 @@ test('feature-first scaffold files exist in the template bundle', () => {
     'packages/ztd-cli/templates/src/features/_shared/featureQueryExecutor.ts',
     'packages/ztd-cli/templates/src/features/_shared/loadSqlResource.ts',
     'packages/ztd-cli/templates/src/libraries/README.md',
+    'packages/ztd-cli/templates/src/libraries/sql/README.md',
     'packages/ztd-cli/templates/src/libraries/sql/sql-client.ts',
     'packages/ztd-cli/templates/src/libraries/telemetry/repositoryTelemetry.ts',
     'packages/ztd-cli/templates/src/adapters/README.md',

@@ -55,7 +55,8 @@ It is a container for child query boundaries and does not expose its own `bounda
 The actual query-boundary public surfaces live under `src/features/<feature>/queries/<query>/boundary.ts`.
 
 The starter and feature scaffolds apply that rule under `src/features/<feature>/...`, so the public export surface is visible without reading prose first.
-Outside feature-owned boundaries, keep shared feature seams under `src/features/_shared/*`, driver-neutral contracts under `src/libraries/*`, driver or sink bindings under `src/adapters/<tech>/*`, shared verification seams under `tests/support/*`, and tool-managed assets under `.ztd/*`.
+Outside feature-owned boundaries, keep shared feature seams under `src/features/_shared/*`, driver-neutral contracts under `src/libraries/*`, driver- or sink-specific bindings under `src/adapters/<tech>/*`, shared verification seams under `tests/support/*`, and tool-managed assets under `.ztd/*`.
+Treat `src/adapters/pg/` as the adapter boundary when `<tech>` names one concrete technology. If `<tech>` names a family or plural container such as `aws` or `cloud`, treat `src/adapters/<tech>/` as a parent container and put each concrete adapter in its own child boundary such as `src/adapters/aws/s3/` or `src/adapters/aws/lambda/`.
 Reserve `db/` for DDL, migration, and schema assets; do not place runtime clients or adapters there.
 
 PowerShell:
