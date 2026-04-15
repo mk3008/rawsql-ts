@@ -6,7 +6,7 @@ It is intentionally scoped as a design/plan artifact, not an implementation comm
 ## Status
 
 - Current status: `done` (planning artifact for Issue #767)
-- Implementation status: `not done` (separate issues/PRs are expected)
+- Implementation status: `partial` (CLI lane-aware scaffold is shipped; library adapter wiring remains follow-up)
 
 ## Objective
 
@@ -69,9 +69,9 @@ src/features/<feature>/queries/<query>/tests/
   <query>.boundary.traditional.test.ts
   cases/
   generated/
-    TEST_PLAN.ztd.md
+    TEST_PLAN.md
     TEST_PLAN.traditional.md
-    analysis.ztd.json
+    analysis.json
     analysis.traditional.json
 ```
 

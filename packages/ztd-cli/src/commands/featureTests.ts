@@ -460,7 +460,7 @@ function buildTestPlanDetails(params: {
     fixtureCandidateTables,
     writesTables,
     validationScenarioHints: buildValidationScenarioHints(requestFields, params.queryLayout.queryName),
-    dbScenarioHints: buildDbScenarioHints(writesTables, params.queryLayout.queryName, fixtureCandidateTables),
+    dbScenarioHints: buildDbScenarioHints(params.testKind, writesTables, params.queryLayout.queryName, fixtureCandidateTables),
     resultCardinality,
     queryInputFields: resolvedInputFields,
     queryOutputFields: resolvedOutputFields,
@@ -494,15 +494,29 @@ function buildValidationScenarioHints(requestFields: string[], queryName: string
   return hints;
 }
 
-function buildDbScenarioHints(writesTables: string[], queryName: string, fixtureCandidateTables: string[]): string[] {
-  const hints = [
-    'Use the fixed app-level harness and query-local cases to keep the ZTD path thin.',
-    'Keep db/input/output visible in the case file so the AI can fill the query contract without re-deriving the scaffold.'
-  ];
+function buildDbScenarioHints(
+  testKind: FeatureTestKind,
+  writesTables: string[],
+  queryName: string,
+  fixtureCandidateTables: string[]
+): string[] {
+  const hints = testKind === 'ztd'
+    ? [
+      'Use the fixed app-level harness and query-local cases to keep the ZTD path thin.',
+      'Keep db/input/output visible in the case file so the AI can fill the query contract without re-deriving the scaffold.'
+    ]
+    : [
+      'Use this scaffold as a lane-specific starting point and wire execution through the library traditional mode API adapter.',
+      'Keep db/input/output/afterDb visible in the case file so physical-state verification intent stays explicit.'
+    ];
 
   if (writesTables.length > 0) {
     hints.push(`Write tables for ${queryName}: ${writesTables.map((table) => `\`${table}\``).join(', ')}.`);
-    hints.push('Switch to a traditional DB-state lane when you need post-execution table assertions.');
+    hints.push(
+      testKind === 'ztd'
+        ? 'Switch to a traditional DB-state lane when you need post-execution table assertions.'
+        : 'Add post-execution table assertions in this lane when physical-state verification is required.'
+    );
   } else if (fixtureCandidateTables.length > 0) {
     hints.push(`Read tables for ${queryName}: ${fixtureCandidateTables.map((table) => `\`${table}\``).join(', ')}.`);
     hints.push('DB-backed cases should seed the minimum fixture rows needed to make the query result shape obvious.');

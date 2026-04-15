@@ -398,8 +398,10 @@ test('runFeatureTestsScaffoldCommand writes traditional lane scaffolds without o
 
   const traditionalAnalysis = JSON.parse(
     readFileSync(path.join(featureDir, 'queries', 'insert-users', 'tests', 'generated', 'analysis.traditional.json'), 'utf8')
-  ) as { testKind: string };
+  ) as { testKind: string; dbScenarioHints: string[] };
   expect(traditionalAnalysis.testKind).toBe('traditional');
+  expect(traditionalAnalysis.dbScenarioHints.join('\n')).toContain('library traditional mode API adapter');
+  expect(traditionalAnalysis.dbScenarioHints.join('\n')).not.toContain('fixed app-level harness');
 
   expect(
     existsSync(path.join(featureDir, 'queries', 'insert-users', 'tests', 'insert-users.boundary.ztd.test.ts'))
