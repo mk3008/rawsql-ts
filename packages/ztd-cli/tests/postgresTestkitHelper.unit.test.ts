@@ -37,8 +37,10 @@ test('loadStarterPostgresDefaults reads top-level starter defaults and falls bac
 
   expect(loadStarterPostgresDefaults(rootDir)).toEqual({
     projectRootDir: rootDir,
+    ztdRootDir: rootDir,
     defaultSchema: 'app',
-    searchPath: ['app']
+    searchPath: ['app'],
+    ddlDirectories: []
   });
 });
 

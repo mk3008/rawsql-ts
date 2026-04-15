@@ -94,7 +94,8 @@ If `docker compose up -d` fails with `all predefined address pools have been ful
 - If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; check whether `ztd-cli` or `rawsql-ts` changed the manifest or rewrite path.
 - If you see `user_id: null`, compare the direct database `INSERT ... RETURNING ...` result with the ZTD result and inspect `.ztd/generated/ztd-fixture-manifest.generated.ts` first.
 - If a local-source workspace is meant to reflect a source change, verify that it resolves `rawsql-ts` from the local source tree rather than a registry copy.
-- If `afterDb` looks wrong, remember that the verifier uses subset-based per-row matching, ignores row order, treats rows as an unordered multiset, and may omit volatile columns from the persistent case.
+- Check ZTD evidence first (`mode=ztd`, `physicalSetupUsed=false`) before assuming fixture data is wrong.
+- Enable SQL trace only when needed with `ZTD_SQL_TRACE=1` (optional `ZTD_SQL_TRACE_DIR`).
 
 ## Create the Users Insert Feature
 
@@ -138,11 +139,11 @@ That command refreshes `src/features/<feature-name>/queries/<query-name>/tests/g
 Persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/` are human/AI-owned and are not overwritten.
 ZTD here means query-boundary-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor.
 If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs.
-`beforeDb` and `afterDb` are schema-qualified pure fixture skeletons.
+`beforeDb` is a schema-qualified pure fixture skeleton.
 Use validation-only cases for boundary checks and DB-backed cases for the success path.
 Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts` for mock-based boundary tests.
-`afterDb` is subset-based per row, rows are treated as an unordered multiset, and row order itself is ignored.
-The verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding.
+The ZTD verifier returns machine-checkable evidence (`mode`, `rewriteApplied`, `physicalSetupUsed`) per case.
+`afterDb` assertions are intentionally excluded from this ZTD lane; use a traditional DB-state lane when you need post-state assertions.
 After the cases are filled, run `npx vitest run src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` to execute the ZTD query test.
 
 ## Import Paths
@@ -162,7 +163,7 @@ As boundary depth grows, avoid making every import depth-sensitive by default.
 - If a DB-backed ZTD case returns `user_id: null`, check the fixture manifest and rewrite path before weakening the case.
 - Compare the direct database `INSERT ... RETURNING ...` result with the ZTD result so you can separate a DB issue from a manifest or rewrite issue.
 - If the workspace is meant to reflect a source change, verify it resolves `rawsql-ts` from the local source tree instead of a registry copy.
-- When `afterDb` fails, remember that the comparison is subset-based, row order is ignored, and volatile columns such as timestamps may be intentionally omitted from the fixture.
+- When debugging rewrite behavior, use `ZTD_SQL_TRACE=1` to emit per-case trace JSON without adding always-on log noise.
 
 ```text
 Write ZTD-format cases for the query boundary.

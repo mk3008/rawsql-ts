@@ -1,5 +1,5 @@
 import type { QuerySpecZtdCase } from './case-types.js';
-import { verifyQuerySpecZtdCase } from './verifier.js';
+import { verifyQuerySpecZtdCase, type QuerySpecExecutionEvidence } from './verifier.js';
 
 type QuerySpecExecutor<RowShape extends Record<string, unknown>, Input, Output> = (
   client: QuerySpecExecutorClient<RowShape>,
@@ -18,10 +18,12 @@ export type QuerySpecExecutorClient<RowShape extends Record<string, unknown>> = 
 export async function runQuerySpecZtdCases<RowShape extends Record<string, unknown>, Input, Output>(
   cases: readonly QuerySpecZtdCase<RowShape, Input, Output>[],
   execute: QuerySpecExecutor<RowShape, Input, Output>
-): Promise<void> {
+): Promise<QuerySpecExecutionEvidence[]> {
+  const evidence: QuerySpecExecutionEvidence[] = [];
   for (const querySpecCase of cases) {
-    await verifyQuerySpecZtdCase(querySpecCase, execute);
+    evidence.push(await verifyQuerySpecZtdCase(querySpecCase, execute));
   }
+  return evidence;
 }
 
 /**
@@ -31,3 +33,4 @@ export const runZtdCases = runQuerySpecZtdCases;
 
 export type { QuerySpecZtdCase } from './case-types.js';
 export type QuerySpecHarnessClient<RowShape extends Record<string, unknown>> = QuerySpecExecutorClient<RowShape>;
+export type { QuerySpecExecutionEvidence } from './verifier.js';

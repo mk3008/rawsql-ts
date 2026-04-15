@@ -4,6 +4,14 @@
   "description": "Postgres-specific fixture/rewriter logic that stays driver-agnostic.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const npm=process.platform==='win32'?'npm.cmd':'npm';if(!fs.existsSync('dist/index.js')){process.exit(cp.spawnSync(npm,['run','build'],{stdio:'inherit'}).status??1)}\"",
     "build": "pnpm --filter rawsql-ts run build && pnpm --filter @rawsql-ts/sql-contract run build && pnpm --filter @rawsql-ts/testkit-core run build && tsc -p tsconfig.build.json",

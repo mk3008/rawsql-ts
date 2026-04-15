@@ -18,7 +18,7 @@ function seedSharedZtdSupport(workspace: string): void {
   const supportDir = path.join(workspace, 'tests', 'support', 'ztd');
   mkdirSync(supportDir, { recursive: true });
   writeFileSync(path.join(supportDir, 'harness.ts'), 'export async function runQuerySpecZtdCases() {}\n', 'utf8');
-  writeFileSync(path.join(supportDir, 'case-types.ts'), 'export type QuerySpecZtdCase<A, B, C, D> = { beforeDb: A; input: B; output: C; afterDb?: D };\n', 'utf8');
+  writeFileSync(path.join(supportDir, 'case-types.ts'), 'export type QuerySpecZtdCase<A, B, C> = { beforeDb: A; input: B; output: C };\n', 'utf8');
 }
 
 function seedStableTestAliases(workspace: string): void {
@@ -134,7 +134,9 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(vitestEntrypointFile).toContain("import cases from './cases/basic.case.js';");
   expect(vitestEntrypointFile).toContain("import type { InsertUsersQueryBoundaryZtdCase } from './boundary-ztd-types.js';");
   expect(vitestEntrypointFile).toContain('expect(cases.length).toBeGreaterThan(0);');
-  expect(vitestEntrypointFile).toContain('await runQuerySpecZtdCases(cases, executeBoundaryQuerySpec);');
+  expect(vitestEntrypointFile).toContain('const evidence = await runQuerySpecZtdCases(cases, executeBoundaryQuerySpec);');
+  expect(vitestEntrypointFile).toContain("expect(evidence.every((entry) => entry.mode === 'ztd')).toBe(true);");
+  expect(vitestEntrypointFile).toContain('expect(evidence.every((entry) => entry.physicalSetupUsed === false)).toBe(true);');
 
   const queryTypesFile = readFileSync(
     path.join(featureDir, 'queries', 'insert-users', 'tests', 'boundary-ztd-types.ts'),
@@ -144,6 +146,7 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(queryTypesFile).toContain('export type InsertUsersInput = { email: unknown };');
   expect(queryTypesFile).toContain('export type InsertUsersOutput = Record<string, unknown>;');
   expect(queryTypesFile).toContain("import type { QuerySpecZtdCase } from '../../../../../../tests/support/ztd/case-types.js';");
+  expect(queryTypesFile).not.toContain('AfterDb');
   expect(queryTypesFile).not.toContain('InsertUsersBeforeDb = Record<string, unknown>');
 
   const testPlanFile = readFileSync(
@@ -169,11 +172,10 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(testPlanFile).toContain('Validation Scenario Hints');
   expect(testPlanFile).toContain('DB Scenario Hints');
   expect(testPlanFile).toContain('After DB Semantics');
-  expect(testPlanFile).toContain('- `afterDb` is optional and must be a pure fixture with schema-qualified table keys.');
-  expect(testPlanFile).toContain('unordered multiset');
-  expect(testPlanFile).toContain('subset-based per-row matching');
-  expect(testPlanFile).toContain('Row order is ignored');
-  expect(testPlanFile).toContain('restart identity cascade');
+  expect(testPlanFile).toContain('machine-checkable evidence');
+  expect(testPlanFile).toContain('physicalSetupUsed=false');
+  expect(testPlanFile).toContain('This ZTD lane does not expose `afterDb`');
+  expect(testPlanFile).toContain('ZTD_SQL_TRACE=1');
 
   const analysisFile = JSON.parse(
     readFileSync(path.join(featureDir, 'queries', 'insert-users', 'tests', 'generated', 'analysis.json'), 'utf8')

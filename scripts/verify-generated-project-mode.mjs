@@ -231,6 +231,11 @@ async function main() {
 
     writeProjectEnvFile(generatedProjectRoot, starterDbPort);
     await waitForPostgres(generatedProjectRoot);
+    runIn(generatedProjectRoot, PNPM, [
+      "vitest",
+      "run",
+      "src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts",
+    ]);
     applyStarterSchema(generatedProjectRoot);
     runIn(generatedProjectRoot, PNPM, ["exec", "--", "ztd", "ztd-config"]);
     runIn(generatedProjectRoot, PNPM, ["test"]);
@@ -250,6 +255,7 @@ async function main() {
         "docker run -d --rm --name generated-project-check-postgres -P postgres:18",
         "docker port generated-project-check-postgres 5432/tcp",
         "write .env with the mapped Postgres port",
+        "pnpm vitest run src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts",
         "docker cp db/ddl/public.sql and apply it to the starter Postgres container",
         "ztd ztd-config",
         "pnpm test",

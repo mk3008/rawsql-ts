@@ -1,7 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { createPostgresTestkitClient, type CreatePostgresTestkitClientOptions, type PostgresTestkitClient } from '@rawsql-ts/testkit-postgres';
+import {
+  createPostgresTestkitClient,
+  type CreatePostgresTestkitClientOptions,
+  type PostgresTestkitClient
+} from '@rawsql-ts/testkit-postgres';
+import type { DdlFixtureLoaderOptions } from '@rawsql-ts/testkit-core';
 import { Pool } from 'pg';
 
 interface StarterProjectConfigFile {
@@ -13,12 +18,14 @@ interface StarterProjectConfigFile {
 
 export interface StarterPostgresDefaults {
   projectRootDir: string;
+  ztdRootDir: string;
   defaultSchema: string;
   searchPath: string[];
+  ddlDirectories: string[];
 }
 
 export interface StarterPostgresTestkitOptions<RowType extends Record<string, unknown> = Record<string, unknown>>
-  extends Pick<CreatePostgresTestkitClientOptions<RowType>, 'tableDefinitions' | 'tableRows'> {
+  extends Pick<CreatePostgresTestkitClientOptions<RowType>, 'tableDefinitions' | 'tableRows' | 'ddl' | 'onExecute'> {
   rootDir?: string;
   connectionString?: string;
   defaultSchema?: string;
@@ -51,17 +58,26 @@ function loadStarterProjectConfig(rootDir: string = process.cwd()): StarterProje
 
 export function loadStarterPostgresDefaults(rootDir: string = process.cwd()): StarterPostgresDefaults {
   const projectConfig = loadStarterProjectConfig(rootDir);
-  const resolvedProjectRootDir = path.resolve(rootDir, projectConfig.ztdRootDir ?? '.');
+  const resolvedProjectRootDir = path.resolve(rootDir);
+  const resolvedZtdRootDir = path.resolve(rootDir, projectConfig.ztdRootDir ?? '.ztd');
   const defaultSchema =
     typeof projectConfig.defaultSchema === 'string' && projectConfig.defaultSchema.length > 0
       ? projectConfig.defaultSchema
       : 'public';
   const searchPath = normalizeSearchPath(projectConfig.searchPath);
+  const resolvedDdlDir = path.resolve(
+    resolvedProjectRootDir,
+    typeof projectConfig.ddlDir === 'string' && projectConfig.ddlDir.trim().length > 0
+      ? projectConfig.ddlDir
+      : 'db/ddl'
+  );
 
   return {
     projectRootDir: resolvedProjectRootDir,
+    ztdRootDir: resolvedZtdRootDir,
     defaultSchema,
-    searchPath: searchPath.length > 0 ? searchPath : [defaultSchema]
+    searchPath: searchPath.length > 0 ? searchPath : [defaultSchema],
+    ddlDirectories: existsSync(resolvedDdlDir) ? [resolvedDdlDir] : []
   };
 }
 
@@ -98,11 +114,23 @@ export function createStarterPostgresTestkitClient<RowType extends Record<string
     searchPath: options.searchPath ?? defaults.searchPath,
     tableDefinitions: options.tableDefinitions,
     tableRows: options.tableRows,
+    ddl: options.ddl ?? resolveStarterDdlOptions(defaults.ddlDirectories),
+    onExecute: options.onExecute,
     // Let the client own pool shutdown so test cleanup stays a single close() call.
     disposeExecutor: async () => {
       await pool.end();
     }
   });
+}
+
+function resolveStarterDdlOptions(ddlDirectories: string[]): DdlFixtureLoaderOptions | undefined {
+  if (ddlDirectories.length === 0) {
+    return undefined;
+  }
+
+  return {
+    directories: ddlDirectories
+  };
 }
 
 function isMissingConfigFileError(error: unknown): boolean {

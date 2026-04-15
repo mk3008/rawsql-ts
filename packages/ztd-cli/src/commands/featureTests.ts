@@ -274,11 +274,10 @@ function renderFeatureTestScaffoldFiles(params: {
     '',
     '## After DB Semantics',
     '',
-    '- `afterDb` is optional and must be a pure fixture with schema-qualified table keys.',
-    '- The harness compares post-execution rows as an unordered multiset with subset-based per-row matching.',
-    '- Row order is ignored, but row content must still match the fields you spell out.',
-    '- Use `afterDb` for post-execution snapshots when you want to assert the rows you spell out.',
-    '- The verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding.',
+    '- ZTD queryspec execution is fixture-rewrite based and does not perform physical DB setup.',
+    '- `mode=ztd`, `physicalSetupUsed=false`, and `rewriteApplied` are returned as machine-checkable evidence.',
+    '- This ZTD lane does not expose `afterDb`; use output assertions or a traditional DB-state lane for post-state checks.',
+    '- Set `ZTD_SQL_TRACE=1` to emit per-case SQL trace JSON; optionally set `ZTD_SQL_TRACE_DIR` to override the output directory.',
     '',
     '## Ownership',
     '',
@@ -316,16 +315,7 @@ function renderFeatureTestScaffoldFiles(params: {
     params.planDetails.fixtureCandidateTables,
     buildQueryFixtureRowTypeLiteral(params.planDetails.queryFixtureRowFields)
   );
-  const afterDbTypeLiteral = params.planDetails.writesTables.length > 0
-    ? buildQueryFixtureTypeLiteral(
-        params.planDetails.writesTables,
-        buildQueryFixtureRowTypeLiteral(params.planDetails.queryFixtureRowFields)
-      )
-    : beforeDbTypeLiteral;
   const beforeDbValueLiteral = buildQueryFixtureValueLiteral(params.planDetails.fixtureCandidateTables);
-  const afterDbValueLiteral = params.planDetails.writesTables.length > 0
-    ? buildQueryFixtureValueLiteral(params.planDetails.writesTables)
-    : beforeDbValueLiteral;
   const queryInputTypeLiteral = buildRecordShapeTypeLiteral(params.planDetails.queryInputFields);
   const queryOutputTypeLiteral = buildRecordShapeTypeLiteral(params.planDetails.queryOutputFields);
   const vitestEntrypointFile = [
@@ -338,13 +328,15 @@ function renderFeatureTestScaffoldFiles(params: {
     '',
     `test('${params.featureName}/${params.queryName} boundary ZTD cases run through the fixed app-level harness', async () => {`,
     '  expect(cases.length).toBeGreaterThan(0);',
-    `  await runQuerySpecZtdCases(cases, ${executorName});`,
+    `  const evidence = await runQuerySpecZtdCases(cases, ${executorName});`,
+    "  expect(evidence.every((entry) => entry.mode === 'ztd')).toBe(true);",
+    '  expect(evidence.every((entry) => entry.physicalSetupUsed === false)).toBe(true);',
     '});',
     ''
   ].join('\n');
 
   const basicCaseFile = [
-    `import type { ${queryTypePrefix}BeforeDb, ${queryTypePrefix}Input, ${queryTypePrefix}Output${params.planDetails.writesTables.length > 0 ? `, ${queryTypePrefix}AfterDb` : ''}, ${queryCaseTypeName} } from '../boundary-ztd-types.js';`,
+    `import type { ${queryTypePrefix}BeforeDb, ${queryTypePrefix}Input, ${queryTypePrefix}Output, ${queryCaseTypeName} } from '../boundary-ztd-types.js';`,
     '',
     `const cases: readonly ${queryCaseTypeName}[] = [`,
     '  {',
@@ -352,15 +344,6 @@ function renderFeatureTestScaffoldFiles(params: {
     `    beforeDb: ${beforeDbValueLiteral} as ${queryTypePrefix}BeforeDb,`,
     `    input: {} as ${queryTypePrefix}Input,`,
     `    output: {} as ${queryTypePrefix}Output,`,
-    ...(params.planDetails.writesTables.length > 0
-      ? [
-          `    afterDb: ${afterDbValueLiteral} as ${queryTypePrefix}AfterDb,`
-        ]
-      : [
-          '    // afterDb: {',
-          '    //   // TODO: add post-execution DB expectations when the query mutates state.',
-          '    // }'
-        ]),
     '  }',
     '];',
     '',
@@ -374,13 +357,11 @@ function renderFeatureTestScaffoldFiles(params: {
     `export type ${queryTypePrefix}BeforeDb = ${beforeDbTypeLiteral};`,
     `export type ${queryTypePrefix}Input = ${queryInputTypeLiteral};`,
     `export type ${queryTypePrefix}Output = ${queryOutputTypeLiteral};`,
-    `export type ${queryTypePrefix}AfterDb = ${afterDbTypeLiteral};`,
     '',
     `export type ${queryCaseTypeName} = QuerySpecZtdCase<`,
     `  ${queryTypePrefix}BeforeDb,`,
     `  ${queryTypePrefix}Input,`,
-    `  ${queryTypePrefix}Output,`,
-    `  ${queryTypePrefix}AfterDb`,
+    `  ${queryTypePrefix}Output`,
     '>;',
     ''
   ].join('\n');
@@ -464,7 +445,7 @@ function buildDbScenarioHints(writesTables: string[], queryName: string, fixture
 
   if (writesTables.length > 0) {
     hints.push(`Write tables for ${queryName}: ${writesTables.map((table) => `\`${table}\``).join(', ')}.`);
-    hints.push('Add afterDb when the query mutates state and you need to assert the post-execution table snapshot.');
+    hints.push('Switch to a traditional DB-state lane when you need post-execution table assertions.');
   } else if (fixtureCandidateTables.length > 0) {
     hints.push(`Read tables for ${queryName}: ${fixtureCandidateTables.map((table) => `\`${table}\``).join(', ')}.`);
     hints.push('DB-backed cases should seed the minimum fixture rows needed to make the query result shape obvious.');
