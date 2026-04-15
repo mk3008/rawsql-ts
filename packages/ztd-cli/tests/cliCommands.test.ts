@@ -263,6 +263,7 @@ test(
     assertCliSuccess(result, 'feature tests scaffold --help');
     expect(result.stdout).toContain('--feature <name>');
     expect(result.stdout).toContain('--query <name>');
+    expect(result.stdout).toContain('--test-kind <kind>');
     expect(result.stdout).toContain('--dry-run');
     expect(result.stdout).toContain('--force');
     expect(result.stdout).toContain('Refresh query-boundary generated analysis');
