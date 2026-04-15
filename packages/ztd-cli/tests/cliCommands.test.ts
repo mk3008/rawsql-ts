@@ -1004,6 +1004,151 @@ test(
 );
 
 test(
+  'query sssql scaffold -> refresh -> remove --all works for exists/not-exists branches',
+  () => {
+    const workspace = createSqlWorkspace('query-sssql-roundtrip-exists', path.join('src', 'sql', 'products.sql'));
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        SELECT p.product_id, p.product_name
+        FROM products p
+      `,
+      'utf8'
+    );
+
+    const authoredFile = path.join(workspace.rootDir, 'products.authored.sql');
+    const scaffoldExists = runCli(
+      [
+        'query',
+        'sssql',
+        'scaffold',
+        workspace.sqlFile,
+        '--kind',
+        'exists',
+        '--parameter',
+        'category_name',
+        '--filter',
+        'products.product_id',
+        '--query',
+        'select 1 from product_categories pc where pc.product_id = $c0 and pc.category_name = :category_name',
+        '--out',
+        authoredFile
+      ],
+      {},
+      workspace.rootDir
+    );
+    assertCliSuccess(scaffoldExists, 'query sssql scaffold exists round-trip');
+
+    const scaffoldNotExists = runCli(
+      [
+        'query',
+        'sssql',
+        'scaffold',
+        authoredFile,
+        '--kind',
+        'not-exists',
+        '--parameter',
+        'archived_name',
+        '--filter',
+        'products.product_id',
+        '--query',
+        'select 1 from archived_products ap where ap.product_id = $c0 and ap.product_name = :archived_name'
+      ],
+      {},
+      workspace.rootDir
+    );
+    assertCliSuccess(scaffoldNotExists, 'query sssql scaffold not-exists round-trip');
+
+    const refreshedFile = path.join(workspace.rootDir, 'products.refreshed.sql');
+    const refresh = runCli(
+      ['query', 'sssql', 'refresh', authoredFile, '--out', refreshedFile],
+      {},
+      workspace.rootDir
+    );
+    assertCliSuccess(refresh, 'query sssql refresh round-trip');
+
+    const refreshed = readNormalizedFile(refreshedFile).toLowerCase();
+    expect(refreshed).toContain(':category_name is null or exists');
+    expect(refreshed).toContain(':archived_name is null or not exists');
+
+    const removedFile = path.join(workspace.rootDir, 'products.removed-all.sql');
+    const removeAll = runCli(
+      ['query', 'sssql', 'remove', refreshedFile, '--all', '--out', removedFile],
+      {},
+      workspace.rootDir
+    );
+    assertCliSuccess(removeAll, 'query sssql remove --all round-trip');
+
+    const removed = readNormalizedFile(removedFile).toLowerCase();
+    expect(removed).not.toContain(':category_name');
+    expect(removed).not.toContain(':archived_name');
+    expect(removed).not.toContain('exists');
+  },
+  60000,
+);
+
+test(
+  'query sssql refresh relocates correlated exists once and stays idempotent on rerun',
+  () => {
+    const workspace = createSqlWorkspace('query-sssql-refresh-correlated', path.join('src', 'sql', 'products.sql'));
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        WITH base_products AS (
+          SELECT p.product_id, p.product_name
+          FROM products p
+        )
+        SELECT bp.product_id
+        FROM base_products bp
+        WHERE (
+          :category_name IS NULL
+          OR EXISTS (
+            SELECT 1
+            FROM product_categories pc
+            WHERE pc.product_id = bp.product_id
+              AND pc.category_name = :category_name
+          )
+        )
+      `,
+      'utf8'
+    );
+
+    const onceFile = path.join(workspace.rootDir, 'products.refreshed.once.sql');
+    const first = runCli(
+      ['query', 'sssql', 'refresh', workspace.sqlFile, '--out', onceFile],
+      {},
+      workspace.rootDir
+    );
+    assertCliSuccess(first, 'query sssql refresh correlated first');
+
+    const once = readNormalizedFile(onceFile).toLowerCase();
+    expect(once).toContain('with "base_products" as (select "p"."product_id", "p"."product_name" from "products" as "p" where (:category_name is null or exists');
+    expect(once).toContain('"pc"."product_id" = "p"."product_id"');
+    expect(once).not.toContain('from "base_products" as "bp" where (:category_name is null or exists');
+
+    const twiceFile = path.join(workspace.rootDir, 'products.refreshed.twice.sql');
+    const second = runCli(
+      ['query', 'sssql', 'refresh', onceFile, '--format', 'json', '--out', twiceFile],
+      {},
+      workspace.rootDir
+    );
+    assertCliSuccess(second, 'query sssql refresh correlated second');
+    const payload = JSON.parse(second.stdout);
+    expect(payload).toMatchObject({
+      command: 'query sssql refresh',
+      ok: true,
+      data: {
+        changed: false,
+        written: true
+      }
+    });
+
+    expect(readNormalizedFile(twiceFile)).toBe(readNormalizedFile(onceFile));
+  },
+  60000,
+);
+
+test(
   'query sssql list reports discovered branches in json mode',
   () => {
     const workspace = createSqlWorkspace('query-sssql-list', path.join('src', 'sql', 'users.sql'));

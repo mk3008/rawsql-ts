@@ -145,6 +145,110 @@ describe('SSSQLFilterBuilder', () => {
         expect(normalized).toContain(':archived_name is null or not exists');
     });
 
+    it('refresh relocates correlated exists branches and rebases the outer alias safely', () => {
+        const builder = new SSSQLFilterBuilder();
+        const refreshed = builder.refresh(
+            `
+                WITH base_products AS (
+                    SELECT p.product_id, p.product_name
+                    FROM products p
+                )
+                SELECT bp.product_id
+                FROM base_products bp
+                WHERE (
+                    :category_name IS NULL
+                    OR EXISTS (
+                        SELECT 1
+                        FROM product_categories pc
+                        WHERE pc.product_id = bp.product_id
+                          AND pc.category_name = :category_name
+                    )
+                )
+            `,
+            { category_name: null }
+        );
+
+        const normalized = normalizeSql(new SqlFormatter().format(refreshed).formattedSql);
+        expect(normalized).toContain('with "base_products" as (select "p"."product_id", "p"."product_name" from "products" as "p" where (:category_name is null or exists');
+        expect(normalized).toContain('"pc"."product_id" = "p"."product_id"');
+        expect(normalized).not.toContain('from "base_products" as "bp" where (:category_name is null or exists');
+    });
+
+    it('refresh relocates correlated not-exists branches and rebases the outer alias safely', () => {
+        const builder = new SSSQLFilterBuilder();
+        const refreshed = builder.refresh(
+            `
+                WITH base_products AS (
+                    SELECT p.product_id, p.product_name
+                    FROM products p
+                )
+                SELECT bp.product_id
+                FROM base_products bp
+                WHERE (
+                    :archived_name IS NULL
+                    OR NOT EXISTS (
+                        SELECT 1
+                        FROM archived_products ap
+                        WHERE ap.product_id = bp.product_id
+                          AND ap.product_name = :archived_name
+                    )
+                )
+            `,
+            { archived_name: null }
+        );
+
+        const normalized = normalizeSql(new SqlFormatter().format(refreshed).formattedSql);
+        expect(normalized).toContain('with "base_products" as (select "p"."product_id", "p"."product_name" from "products" as "p" where (:archived_name is null or not exists');
+        expect(normalized).toContain('"ap"."product_id" = "p"."product_id"');
+        expect(normalized).not.toContain('from "base_products" as "bp" where (:archived_name is null or not exists');
+    });
+
+    it('refresh fails fast when correlated exists anchors are ambiguous', () => {
+        const builder = new SSSQLFilterBuilder();
+
+        expect(() => builder.refresh(
+            `
+                WITH base_products AS (
+                    SELECT p.product_id, p.product_name
+                    FROM products p
+                )
+                SELECT bp.product_id
+                FROM base_products bp
+                WHERE (
+                    :category_name IS NULL
+                    OR EXISTS (
+                        SELECT 1
+                        FROM product_categories pc
+                        WHERE pc.product_id = bp.product_id
+                          AND pc.product_name = bp.product_name
+                          AND pc.category_name = :category_name
+                    )
+                )
+            `,
+            { category_name: null }
+        )).toThrow(/multiple correlated anchor candidates/i);
+    });
+
+    it('refresh fails fast when correlated exists anchors cannot be inferred', () => {
+        const builder = new SSSQLFilterBuilder();
+
+        expect(() => builder.refresh(
+            `
+                SELECT p.product_id
+                FROM products p
+                WHERE (
+                    :category_name IS NULL
+                    OR EXISTS (
+                        SELECT 1
+                        FROM product_categories pc
+                        WHERE pc.category_name = :category_name
+                    )
+                )
+            `,
+            { category_name: null }
+        )).toThrow(/could not infer a correlated anchor/i);
+    });
+
     it('lists supported branch metadata and removes a targeted branch idempotently', () => {
         const builder = new SSSQLFilterBuilder();
         const scaffolded = builder.scaffoldBranch(

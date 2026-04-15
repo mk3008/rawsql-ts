@@ -252,6 +252,16 @@ ztd query sssql refresh src/sql/products/list_products.sql --preview
 `refresh` does not invent new optional predicates.
 It only repositions supported authored branches so they stay attached to the best matching query block after query structure changes.
 
+`refresh` also supports correlated `EXISTS` / `NOT EXISTS` branches.
+When a branch is still attached to an outer query but the anchor column now belongs in an inner query or CTE, `refresh` can move the whole branch and rebase the correlated alias safely.
+
+Correlated `EXISTS` / `NOT EXISTS` refresh rules:
+
+- infer one anchor candidate from the correlated outer reference
+- fail fast when zero anchor candidates are found
+- fail fast when multiple anchor candidates are found
+- keep scalar branch behavior unchanged
+
 ## Safety Rules
 
 These commands are intentionally strict.
