@@ -80,6 +80,54 @@ jobs:
         env:
           CHANGESETS_TOKEN: ${{ env.CHANGESETS_TOKEN }}
 
+      - name: Write PR body
+        shell: bash
+        run: |
+          cat <<'EOF' > tmp/refresh-demo-bundle-pr-body.md
+          ## Summary
+
+          - rebuild the rawsql-ts browser output via `pnpm --filter rawsql-ts build:browser`
+          - regenerate `docs/public/demo/vendor/rawsql.browser.js` via esbuild
+
+          ## Verification
+
+          - `pnpm --filter rawsql-ts build`
+          - `pnpm --filter @rawsql-ts/testkit-core build`
+          - `pnpm --filter @rawsql-ts/ztd-cli build`
+          - `pnpm --filter rawsql-ts build:browser`
+          - `pnpm run docs:build`
+
+          ## Merge Readiness
+
+          - [x] No baseline exception requested.
+          - [ ] Baseline exception requested and linked below.
+
+          Tracking issue:
+          Scoped checks run:
+          Why full baseline is not required:
+
+          ## CLI Surface Migration
+
+          - [x] No migration packet required for this CLI change.
+          - [ ] CLI/user-facing surface change and migration packet completed.
+
+          No-migration rationale: This PR refreshes the generated demo browser bundle artifact and does not change CLI commands, flags, output, or migration guidance.
+          Upgrade note:
+          Deprecation/removal plan or issue:
+          Docs/help/examples updated:
+          Release/changeset wording:
+
+          ## Scaffold Contract Proof
+
+          - [x] No scaffold contract proof required for this PR.
+          - [ ] Scaffold contract proof completed.
+
+          No-proof rationale: This PR only updates the generated demo browser bundle artifact and does not modify scaffold commands, templates, or generated project outputs.
+          Non-edit assertion:
+          Fail-fast input-contract proof:
+          Generated-output viability proof:
+          EOF
+
       - name: Create PR with refreshed bundle
         uses: peter-evans/create-pull-request@v5
         with:
@@ -87,10 +135,7 @@ jobs:
           commit-message: 'chore: refresh demo browser bundle'
           branch: 'refresh-demo-bundle-${{ github.run_id }}'
           title: Refresh demo browser bundle
-          body: |
-            ## Summary
-            - rebuild the rawsql-ts browser output via `pnpm --filter rawsql-ts build:browser`
-            - regenerate `docs/public/demo/vendor/rawsql.browser.js` via esbuild
+          body-path: tmp/refresh-demo-bundle-pr-body.md
           add-paths: |
             docs/public/demo/vendor/rawsql.browser.js
           labels: demo
