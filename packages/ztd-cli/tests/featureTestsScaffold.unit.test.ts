@@ -110,6 +110,7 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(result).toMatchObject({
     featureName: 'users-insert',
     queryName: 'insert-users',
+    testKind: 'ztd',
     dryRun: false
   });
   expect(result.outputs.map((output) => output.path)).toEqual(
@@ -349,4 +350,86 @@ test('runFeatureTestsScaffoldCommand fails fast when starter-owned ZTD support i
       rootDir: workspace
     })
   ).rejects.toThrow(/tests\/support\/ztd/);
+});
+
+test('runFeatureTestsScaffoldCommand writes traditional lane scaffolds without overwriting ztd lane artifacts', async () => {
+  const workspace = createTempDir('feature-tests-traditional-scaffold');
+  const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
+  const queryDir = path.join(featureDir, 'queries', 'insert-users');
+  mkdirSync(queryDir, { recursive: true });
+  seedSharedZtdSupport(workspace);
+
+  writeFileSync(path.join(featureDir, 'boundary.ts'), 'export const RequestSchema = null;\n', 'utf8');
+  writeFileSync(path.join(queryDir, 'boundary.ts'), 'export async function executeInsertUsersBoundary() { return {}; }\n', 'utf8');
+  writeFileSync(path.join(queryDir, 'insert-users.sql'), 'insert into public.users (email) values (:email) returning user_id;', 'utf8');
+
+  await runFeatureTestsScaffoldCommand({
+    feature: 'users-insert',
+    rootDir: workspace
+  });
+
+  const result = await runFeatureTestsScaffoldCommand({
+    feature: 'users-insert',
+    rootDir: workspace,
+    testKind: 'traditional'
+  });
+
+  expect(result).toMatchObject({
+    featureName: 'users-insert',
+    queryName: 'insert-users',
+    testKind: 'traditional',
+    dryRun: false
+  });
+  expect(result.outputs.map((output) => output.path)).toEqual(
+    expect.arrayContaining([
+      'src/features/users-insert/queries/insert-users/tests/insert-users.boundary.traditional.test.ts',
+      'src/features/users-insert/queries/insert-users/tests/boundary-traditional-types.ts',
+      'src/features/users-insert/queries/insert-users/tests/cases/basic.traditional.case.ts',
+      'src/features/users-insert/queries/insert-users/tests/generated/TEST_PLAN.traditional.md',
+      'src/features/users-insert/queries/insert-users/tests/generated/analysis.traditional.json'
+    ])
+  );
+
+  const traditionalEntrypoint = readFileSync(
+    path.join(featureDir, 'queries', 'insert-users', 'tests', 'insert-users.boundary.traditional.test.ts'),
+    'utf8'
+  );
+  expect(traditionalEntrypoint).toContain("test.skip('users-insert/insert-users boundary traditional lane scaffold placeholder'");
+
+  const traditionalAnalysis = JSON.parse(
+    readFileSync(path.join(featureDir, 'queries', 'insert-users', 'tests', 'generated', 'analysis.traditional.json'), 'utf8')
+  ) as { testKind: string; dbScenarioHints: string[] };
+  expect(traditionalAnalysis.testKind).toBe('traditional');
+  expect(traditionalAnalysis.dbScenarioHints.join('\n')).toContain('library traditional mode API adapter');
+  expect(traditionalAnalysis.dbScenarioHints.join('\n')).not.toContain('fixed app-level harness');
+
+  expect(
+    existsSync(path.join(featureDir, 'queries', 'insert-users', 'tests', 'insert-users.boundary.ztd.test.ts'))
+  ).toBe(true);
+  expect(
+    existsSync(path.join(featureDir, 'queries', 'insert-users', 'tests', 'generated', 'TEST_PLAN.md'))
+  ).toBe(true);
+  expect(
+    existsSync(path.join(featureDir, 'queries', 'insert-users', 'tests', 'generated', 'analysis.json'))
+  ).toBe(true);
+});
+
+test('runFeatureTestsScaffoldCommand rejects unsupported test-kind values', async () => {
+  const workspace = createTempDir('feature-tests-invalid-kind');
+  const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
+  const queryDir = path.join(featureDir, 'queries', 'insert-users');
+  mkdirSync(queryDir, { recursive: true });
+  seedSharedZtdSupport(workspace);
+
+  writeFileSync(path.join(featureDir, 'boundary.ts'), 'export const RequestSchema = null;\n', 'utf8');
+  writeFileSync(path.join(queryDir, 'boundary.ts'), 'export async function executeInsertUsersBoundary() { return {}; }\n', 'utf8');
+  writeFileSync(path.join(queryDir, 'insert-users.sql'), 'select 1;', 'utf8');
+
+  await expect(
+    runFeatureTestsScaffoldCommand({
+      feature: 'users-insert',
+      rootDir: workspace,
+      testKind: 'legacy'
+    })
+  ).rejects.toThrow(/supports only ztd, traditional/i);
 });

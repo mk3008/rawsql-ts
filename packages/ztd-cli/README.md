@@ -230,6 +230,7 @@ Use `ztd describe` for machine-readable discovery, and follow the linked guides 
 - [Repository Telemetry Setup](../../docs/guide/repository-telemetry-setup.md) - how to edit the scaffold, emit logs, and investigate with `queryId`
 - [Observed SQL Investigation](../../docs/guide/observed-sql-investigation.md) - how to use `ztd query match-observed` when `queryId` is missing
 - [ztd-cli Agent Interface](../../docs/guide/ztd-cli-agent-interface.md) - machine-readable command surface
+- [Traditional Lane Follow-up Plan](../../docs/guide/ztd-cli-traditional-lane-followup-plan.md) - design plan for exposing `--test-kind ztd|traditional` and coexisting lane scaffolds
 
 ### Advanced User Guides
 
