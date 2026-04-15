@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HUSKY: 0
+      CHANGESETS_TOKEN: ${{ secrets.CHANGESETS_TOKEN }}
 
     steps:
       - name: Checkout
@@ -68,10 +69,21 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
+      - name: Require refresh PR token
+        shell: bash
+        run: |
+          if [ -z "${CHANGESETS_TOKEN}" ]; then
+            echo "Refresh demo browser bundle requires the CHANGESETS_TOKEN secret."
+            echo "A workflow-created PR must use a PAT so pull_request checks can run on the bot-created PR branch."
+            exit 1
+          fi
+        env:
+          CHANGESETS_TOKEN: ${{ env.CHANGESETS_TOKEN }}
+
       - name: Create PR with refreshed bundle
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CHANGESETS_TOKEN }}
           commit-message: 'chore: refresh demo browser bundle'
           branch: 'refresh-demo-bundle-${{ github.run_id }}'
           title: Refresh demo browser bundle
@@ -79,6 +91,8 @@ jobs:
             ## Summary
             - rebuild the rawsql-ts browser output via `pnpm --filter rawsql-ts build:browser`
             - regenerate `docs/public/demo/vendor/rawsql.browser.js` via esbuild
+          add-paths: |
+            docs/public/demo/vendor/rawsql.browser.js
           labels: demo
           base: main
           delete-branch: true
