@@ -494,7 +494,10 @@ test('init can opt into dogfooding prompt files when explicitly requested', asyn
   const promptDogfood = readNormalizedFile(path.join(workspace, 'PROMPT_DOGFOOD.md'));
   expect(promptDogfood).toContain('Add a feature to this feature-first project.');
   expect(promptDogfood).toContain('Start with `npx ztd feature scaffold --table <table> --action <action>`.');
+  expect(promptDogfood).toContain('Use `root-boundary`, `feature-boundary`, and `sub-boundary` as the BFA vocabulary.');
+  expect(promptDogfood).toContain('Treat `src/features`, `src/adapters`, and `src/libraries` as the only concrete root-boundaries in this app.');
   expect(promptDogfood).toContain('Keep handwritten SQL, the feature boundary, and the query boundary inside `src/features/<feature-name>`.');
+  expect(promptDogfood).toContain('Treat `queries/` as a child-boundary container rather than a public boundary of its own.');
   expect(promptDogfood).toContain('Before you edit DTOs or write persistent query cases, run `npx ztd feature tests scaffold --feature <feature-name>`.');
   expect(promptDogfood).toContain('refreshes `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`');
   expect(promptDogfood).toContain('creates the thin `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` Vitest entrypoint only if it is missing.');
@@ -512,6 +515,7 @@ test('init can opt into dogfooding prompt files when explicitly requested', asyn
   expect(promptDogfood).toContain('If the returned result is null, stop and fix the scaffold or DDL instead of weakening the case.');
   expect(promptDogfood).toContain('Before writing the success-path assertion, inspect the current SQL and query boundary. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.');
   expect(promptDogfood).toContain('Do not apply migrations automatically.');
+  expect(promptDogfood).not.toContain('Every boundary folder exposes only `boundary.ts`');
 });
 
 test('with-app-interface appends to AGENTS.md when both root files exist', async () => {

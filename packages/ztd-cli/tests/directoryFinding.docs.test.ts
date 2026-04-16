@@ -40,6 +40,11 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('Use validation-only cases for boundary checks and DB-backed cases for the success path.');
   expect(packageReadme).toContain('Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts` for mock-based boundary tests.');
   expect(packageReadme).toContain('Starter-owned shared support lives under `tests/support/ztd/`; `.ztd/` remains the tool-managed workspace for generated metadata and support files.');
+  expect(packageReadme).toContain('`root-boundary` is the app-level boundary layer.');
+  expect(packageReadme).toContain('the concrete root boundaries are only `src/features`, `src/adapters`, and `src/libraries`');
+  expect(packageReadme).toContain('`queries/` is a child-boundary container and does not expose its own public surface.');
+  expect(packageReadme).toContain('`boundary.ts` is a feature-scoped convention for discoverability and scaffold compatibility');
+  expect(packageReadme).toContain('Do not count `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, or `db/` as extra root boundaries.');
   expect(packageReadme).toContain('src/adapters/<tech>');
   expect(packageReadme).toContain('src/adapters/pg/');
   expect(packageReadme).toContain('src/adapters/aws/s3/');
@@ -47,8 +52,16 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('After you finish the SQL and DTO edits');
   expect(packageReadme).toContain('feature tests scaffold --feature <feature-name>');
   expect(packageReadme).toContain('tests/generated/TEST_PLAN.md');
-  expect(scaffoldReadme).toContain('src/features`, `src/adapters`, and `src/libraries` as the app-code roots');
+  expect(scaffoldReadme).toContain('`src/features`, `src/adapters`, and `src/libraries` as the only concrete root-boundaries in this app.');
+  expect(scaffoldReadme).toContain('Treat `queries/` as a child-boundary container rather than a public boundary of its own.');
+  expect(scaffoldReadme).toContain('Do not count `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, or `db/` as root-boundaries.');
   expect(scaffoldReadme).toContain('Make sure the query-boundary result executes through the DB-backed ZTD path and checks mapping and validation, not just property values.');
+  expect(featuresReadme).toContain('the concrete root boundaries are `src/features`, `src/adapters`, and `src/libraries`');
+  expect(featuresReadme).toContain('`queries/`: the child-boundary container; it is not itself a public boundary');
+  expect(featuresReadme).toContain('`boundary.ts` is the default scaffold entrypoint for `feature-boundary` and `sub-boundary` code.');
+  expect(featuresReadme).toContain('Do not count `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, or `db/` as root boundaries.');
+  expect(featuresReadme).not.toContain('A folder is a boundary.');
+  expect(scaffoldReadme).not.toContain('Every boundary folder exposes only `boundary.ts`');
   expect(readNormalizedFile('docs/guide/sql-first-end-to-end-tutorial.md')).toContain('Scenario CLI at a glance');
   expect(readNormalizedFile('docs/dogfooding/ztd-migration-lifecycle.md')).toContain('Preferred CLI by scenario');
   expect(packageReadme).toContain('## Further Reading');
@@ -79,7 +92,15 @@ test('feature guidance centers the sample feature and recursive boundary folders
   expect(readNormalizedFile('packages/ztd-cli/templates/src/features/AGENTS.md')).toContain(
     'Treat each feature folder as a boundary'
   );
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/AGENTS.md')).toContain('boundary.ts');
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/AGENTS.md')).toContain(
+    'Use `boundary.ts` as the default public entrypoint for feature-owned boundaries and sub-boundaries under `src/features/*`.'
+  );
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/AGENTS.md')).toContain(
+    'Treat `queries/` itself as a child-boundary container rather than a public boundary.'
+  );
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/AGENTS.md')).not.toContain(
+    'Use `boundary.ts` as the single public surface file for each boundary folder.'
+  );
   expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/boundary.ts')).toContain(
     'executeSmokeEntrySpec'
   );

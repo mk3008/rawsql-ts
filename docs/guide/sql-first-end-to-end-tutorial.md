@@ -109,7 +109,7 @@ Use `src/features/smoke` as the starter-only teaching example, but scaffold the 
 npx ztd feature scaffold --table users --action insert
 ```
 
-That v1 scaffold fixes the initial layout to the recursive boundary rule:
+That v1 scaffold fixes the initial layout to the feature-boundary convention:
 
 - `src/features/users-insert/boundary.ts`
 - `src/features/users-insert/tests/users-insert.boundary.test.ts`
@@ -119,8 +119,12 @@ That v1 scaffold fixes the initial layout to the recursive boundary rule:
 - `src/features/users-insert/queries/insert-users/tests/cases/`
 - `src/features/users-insert/README.md`
 
-Each folder is a boundary, each `boundary.ts` is that boundary's public surface, and each boundary keeps its own `tests/` group nearby.
+In the full BFA model, `src/features`, `src/adapters`, and `src/libraries` are the concrete `root-boundary` folders.
+`src/features/users-insert/` is the `feature-boundary`, and `queries/insert-users/` is one `sub-boundary`.
+`queries/` is only the child-boundary container; it does not expose its own public surface.
+Within `src/features/*`, `boundary.ts` is the default scaffold entrypoint for feature-boundaries and sub-boundaries.
 Outside feature-owned boundaries, keep shared feature seams under `src/features/_shared/*`, keep shared verification seams under `tests/support/*`, keep driver-neutral contracts under `src/libraries/*`, keep driver or sink bindings under `src/adapters/<tech>/*`, and keep `.ztd/*` tool-managed.
+Do not count `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, or `db/` as extra root boundaries.
 Keep `db/` reserved for DDL, migration, and schema assets; do not place runtime clients or adapters there.
 
 The feature scaffold creates the boundary files, SQL file, feature-root boundary test, and the query-local `tests/generated/` plus `tests/cases/` directories.
@@ -147,8 +151,12 @@ This prompt is meant to be copied into another AI instance so we can observe whe
 Add a users insert feature to this feature-first project.
 Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.ztd/agents/*` if present.
 Start with `npx ztd feature scaffold --table users --action insert`.
+Use `root-boundary`, `feature-boundary`, and `sub-boundary` as the BFA vocabulary.
+Treat `src/features`, `src/adapters`, and `src/libraries` as the only concrete root-boundaries in this app.
 Keep `boundary.ts`, the query-local `boundary.ts`, and the query-local SQL resource inside `src/features/users-insert`.
+Treat `queries/` as a child-boundary container rather than a boundary with its own public surface.
 Keep shared feature seams under `src/features/_shared/*`, shared verification seams under `tests/support/*`, driver-neutral contracts under `src/libraries/*`, and driver or sink bindings under `src/adapters/<tech>/*`.
+Keep `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, and `db/` in their own roles without counting them as root-boundaries.
 Before you edit DTOs or write persistent query cases, run `npx ztd feature tests scaffold --feature users-insert`. That command refreshes `src/features/users-insert/queries/insert-users/tests/generated/TEST_PLAN.md` and `analysis.json`, refreshes `src/features/users-insert/queries/insert-users/tests/boundary-ztd-types.ts`, and creates the thin `src/features/users-insert/queries/insert-users/tests/insert-users.boundary.ztd.test.ts` Vitest entrypoint only if it is missing. Persistent case files under `src/features/users-insert/queries/insert-users/tests/cases/` stay human/AI-owned and are not overwritten. If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints when you fill the case files. The validation cases may stay at the feature boundary, but the success case must execute through the fixed app-level ZTD runner and verify the returned result. Do not put returned columns into the input fixture. Read `TEST_PLAN.md` and `analysis.json` before filling the persistent case files under `src/features/users-insert/queries/insert-users/tests/cases/`. `afterDb` is subset-based per row, rows are treated as an unordered multiset, row order is ignored, and the verifier truncates tables named in `beforeDb` with `restart identity cascade` before seeding. After the cases are ready, run `npx vitest run src/features/users-insert/queries/insert-users/tests/insert-users.boundary.ztd.test.ts` to execute the ZTD feature test.
 If the returned id is null, stop and fix the scaffold or DDL instead of weakening the test.
 Before writing the success-path assertion, inspect `insert-users.sql` and `boundary.ts`. If the scaffold does not actually return a non-null id, report that mismatch instead of inventing fixture data or schema overrides.

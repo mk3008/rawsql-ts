@@ -53,13 +53,17 @@ Choose `ztd init` or `ztd init --starter` based on whether you want the removabl
 ```text
 I want to build a feature-first application with @rawsql-ts/ztd-cli.
 Treat the project structure as Architecture as a Framework.
-Every boundary folder exposes only `boundary.ts`, and sub-boundaries repeat the same rule.
+Use `root-boundary`, `feature-boundary`, and `sub-boundary` as the three BFA layers.
+Treat `src/features`, `src/adapters`, and `src/libraries` as the only concrete root-boundaries in this app.
+Use `boundary.ts` as the default public entrypoint only inside `src/features/<feature-name>/` child boundaries where the scaffold already expects it.
 Keep handwritten SQL, query boundaries, repository code, and tests inside `src/features/<feature-name>`.
 Treat the query boundary contract and its ZTD-backed test as one completion unit; do not stop at a property-only check.
 Keep feature-boundary tests mock-based in `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts`.
+Treat `queries/` as a child-boundary container rather than a public boundary of its own.
 Keep shared feature seams in `src/features/_shared/*`, shared verification seams in `tests/support/*`, and tool-managed files in `.ztd/*`.
 Keep the driver-neutral `SqlClient` contract in `src/libraries/sql/sql-client.ts`.
 Put driver or sink bindings under `src/adapters/<tech>/` instead of under `db/`.
+Do not count `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, or `db/` as root-boundaries.
 Make sure the query-boundary result executes through the DB-backed ZTD path and checks mapping and validation, not just property values.
 Do not put returned columns into the input fixture; assert them only after the DB-backed result returns.
 If the returned result is `null`, stop and fix the scaffold or DDL instead of weakening the success-path schema or seeding fake rows.

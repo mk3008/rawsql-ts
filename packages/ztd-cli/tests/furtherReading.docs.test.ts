@@ -161,6 +161,11 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       docPath: 'packages/ztd-cli/README.md',
       phrases: [
         'npx ztd agents init',
+        '`root-boundary` is the app-level boundary layer.',
+        'the concrete root boundaries are only `src/features`, `src/adapters`, and `src/libraries`',
+        '`queries/` is a child-boundary container and does not expose its own public surface.',
+        '`boundary.ts` is a feature-scoped convention for discoverability and scaffold compatibility',
+        'Do not count `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, or `db/` as extra root boundaries.',
         'If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; check whether `ztd-cli` or `rawsql-ts` changed the manifest or rewrite path.',
         'If you see `user_id: null`, compare the direct database `INSERT ... RETURNING ...` result with the ZTD result and inspect `.ztd/generated/ztd-fixture-manifest.generated.ts` first.',
         'If a local-source workspace is meant to reflect a source change, verify that it resolves `rawsql-ts` from the local source tree rather than a registry copy.',
@@ -324,4 +329,6 @@ test('quickstart and tutorial spell out the common 5432 collision fallback', () 
   expect(tutorial).toContain('Copy-Item .env.example .env');
   expect(tutorial).toContain('all predefined address pools have been fully subnetted');
   expect(tutorial).toContain('changing `ZTD_DB_PORT` will not help');
+  expect(packageReadme).not.toContain('A folder is a boundary.');
+  expect(scaffoldReadme).not.toContain('Every boundary folder exposes only `boundary.ts`');
 });

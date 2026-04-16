@@ -68,7 +68,11 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
   expect(tutorial).toContain('Add a users insert feature to this feature-first project.');
   expect(tutorial).toContain('Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.ztd/agents/*` if present.');
   expect(tutorial).toContain('Start with `npx ztd feature scaffold --table users --action insert`.');
+  expect(tutorial).toContain('`src/features`, `src/adapters`, and `src/libraries` are the concrete `root-boundary` folders.');
+  expect(tutorial).toContain('`src/features/users-insert/` is the `feature-boundary`, and `queries/insert-users/` is one `sub-boundary`.');
+  expect(tutorial).toContain('`queries/` is only the child-boundary container; it does not expose its own public surface.');
   expect(tutorial).toContain('Keep `boundary.ts`, the query-local `boundary.ts`, and the query-local SQL resource inside `src/features/users-insert`.');
+  expect(tutorial).toContain('Use `root-boundary`, `feature-boundary`, and `sub-boundary` as the BFA vocabulary.');
   expect(tutorial).toContain('Keep shared feature seams under `src/features/_shared/*`, shared verification seams under `tests/support/*`, driver-neutral contracts under `src/libraries/*`, and driver or sink bindings under `src/adapters/<tech>/*`.');
   expect(tutorial).toContain('The feature scaffold creates the boundary files, SQL file, feature-root boundary test, and the query-local `tests/generated/` plus `tests/cases/` directories.');
   expect(tutorial).toContain('That command refreshes `src/features/users-insert/queries/insert-users/tests/generated/TEST_PLAN.md` and `analysis.json`, refreshes `src/features/users-insert/queries/insert-users/tests/boundary-ztd-types.ts`, and creates the thin `src/features/users-insert/queries/insert-users/tests/insert-users.boundary.ztd.test.ts` Vitest entrypoint only if it is missing.');
@@ -91,6 +95,8 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
   expect(tutorial).toContain('generated `tableDefinitions` are the normal runtime path after `ztd-config`');
   expect(tutorial).toContain('explicit `tableDefinitions` / `tableRows` are for local tests that want direct fixtures');
   expect(tutorial).toContain('`ddl.directories` is the fallback only when no generated manifest exists');
+  expect(tutorial).not.toContain('Every boundary folder exposes only `boundary.ts`');
+  expect(tutorial).not.toContain('A folder is a boundary');
   expect(tutorial).toContain('the agent edits the `users-insert` feature only');
 });
 
