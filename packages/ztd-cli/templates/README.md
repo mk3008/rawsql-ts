@@ -36,6 +36,15 @@ The starter keeps `ztdRootDir`, `ddlDir`, `defaultSchema`, and `searchPath` in `
 
 `src/features/<feature>/tests/` is where feature-root boundary tests live. Query-local ZTD assets live under `src/features/<feature>/queries/<query>/tests/{generated,cases}` with the thin entrypoint beside them. Starter-owned shared support lives at `tests/support/ztd/`, while `.ztd/` is the tool-managed workspace for generated metadata and support files. Keep `FeatureQueryExecutor` in `src/features/_shared/`, keep the driver-neutral `SqlClient` contract in `src/libraries/sql/sql-client.ts`, and put driver or sink bindings under `src/adapters/<tech>/`.
 
+When an import crosses one of the canonical roots, use the root alias instead of a depth-sensitive relative path:
+
+- `#features/*` for `src/features/*`
+- `#libraries/*` for `src/libraries/*`
+- `#adapters/*` for `src/adapters/*`
+- `#tests/*` for `tests/*`
+
+Keep local same-root references relative when they move with the same boundary. Use the alias when the import crosses a root boundary or points at shared support.
+
 ## Getting Started with AI
 
 Use this short prompt:

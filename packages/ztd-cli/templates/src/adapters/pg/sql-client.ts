@@ -1,4 +1,4 @@
-import type { SqlClient } from '../../libraries/sql/sql-client.js';
+import type { SqlClient } from '#libraries/sql/sql-client.js';
 
 /**
  * Adapt a `pg`-style queryable (Client or Pool) into a SqlClient.
