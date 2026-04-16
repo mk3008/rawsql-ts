@@ -353,6 +353,13 @@ if (require.main === module) {
 module.exports = {
   CLI_SURFACE_PATTERNS,
   SCAFFOLD_CONTRACT_PATTERNS,
+  MERGE_NO_EXCEPTION_LABEL,
+  MERGE_EXCEPTION_LABEL,
+  CLI_NO_PACKET_LABEL,
+  CLI_PACKET_LABEL,
+  SCAFFOLD_NO_PROOF_LABEL,
+  SCAFFOLD_PROOF_LABEL,
+  getChangedFiles,
   classifyPullRequestContext,
   classifyPrReadiness,
   validatePrReadiness,
