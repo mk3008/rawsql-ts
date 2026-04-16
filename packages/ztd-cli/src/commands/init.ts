@@ -141,6 +141,7 @@ type FileKey =
   | 'setupEnv'
   | 'starterPostgresTestkit'
   | 'infrastructureReadme'
+  | 'adaptersReadme'
   | 'telemetryTypes'
   | 'telemetryRepository'
   | 'telemetryConsoleRepository'
@@ -411,13 +412,14 @@ const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
 const SETUP_ENV_TEMPLATE = 'tests/support/setup-env.ts';
 const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
 const TSCONFIG_TEMPLATE = 'tsconfig.json';
-const SQL_CLIENT_TEMPLATE = 'src/db/sql-client.ts';
-const SQL_CLIENT_ADAPTERS_TEMPLATE = 'src/db/sql-client-adapters.ts';
-const INFRASTRUCTURE_README_TEMPLATE = 'src/infrastructure/README.md';
-const TELEMETRY_TYPES_TEMPLATE = 'src/infrastructure/telemetry/types.ts';
-const TELEMETRY_REPOSITORY_TEMPLATE = 'src/infrastructure/telemetry/repositoryTelemetry.ts';
-const TELEMETRY_CONSOLE_REPOSITORY_TEMPLATE = 'src/infrastructure/telemetry/consoleRepositoryTelemetry.ts';
-const SQL_README_TEMPLATE = 'src/sql/README.md';
+const SQL_CLIENT_TEMPLATE = 'src/libraries/sql/sql-client.ts';
+const SQL_CLIENT_ADAPTERS_TEMPLATE = 'src/adapters/pg/sql-client.ts';
+const INFRASTRUCTURE_README_TEMPLATE = 'src/libraries/README.md';
+const ADAPTERS_README_TEMPLATE = 'src/adapters/README.md';
+const TELEMETRY_TYPES_TEMPLATE = 'src/libraries/telemetry/types.ts';
+const TELEMETRY_REPOSITORY_TEMPLATE = 'src/libraries/telemetry/repositoryTelemetry.ts';
+const TELEMETRY_CONSOLE_REPOSITORY_TEMPLATE = 'src/adapters/console/repositoryTelemetry.ts';
+const SQL_README_TEMPLATE = 'src/libraries/sql/README.md';
 const JOBS_README_TEMPLATE = 'src/jobs/README.md';
 const ZTD_README_TEMPLATE = 'ztd/README.md';
 const ZTD_DDL_DEMO_TEMPLATE = 'db/ddl/demo.sql';
@@ -566,16 +568,16 @@ function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): In
     setupEnvTemplate: SETUP_ENV_TEMPLATE,
     starterPostgresTestkitPath: path.join(rootDir, supportDir, 'postgres-testkit.ts'),
     starterPostgresTestkitTemplate: 'tests/support/postgres-testkit.ts',
-    infrastructureReadmePath: path.join(rootDir, 'src', 'infrastructure', 'README.md'),
+    infrastructureReadmePath: path.join(rootDir, 'src', 'libraries', 'README.md'),
     infrastructureReadmeTemplate: INFRASTRUCTURE_README_TEMPLATE,
-    telemetryTypesPath: path.join(rootDir, 'src', 'infrastructure', 'telemetry', 'types.ts'),
+    telemetryTypesPath: path.join(rootDir, 'src', 'libraries', 'telemetry', 'types.ts'),
     telemetryTypesTemplate: TELEMETRY_TYPES_TEMPLATE,
-    telemetryRepositoryPath: path.join(rootDir, 'src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'),
+    telemetryRepositoryPath: path.join(rootDir, 'src', 'libraries', 'telemetry', 'repositoryTelemetry.ts'),
     telemetryRepositoryTemplate: TELEMETRY_REPOSITORY_TEMPLATE,
-    telemetryConsoleRepositoryPath: path.join(rootDir, 'src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'),
+    telemetryConsoleRepositoryPath: path.join(rootDir, 'src', 'adapters', 'console', 'repositoryTelemetry.ts'),
     telemetryConsoleRepositoryTemplate: TELEMETRY_CONSOLE_REPOSITORY_TEMPLATE,
-    sqlClientPath: path.join(rootDir, 'src', 'db', 'sql-client.ts'),
-    sqlClientAdaptersPath: path.join(rootDir, 'src', 'db', 'sql-client-adapters.ts')
+    sqlClientPath: path.join(rootDir, 'src', 'libraries', 'sql', 'sql-client.ts'),
+    sqlClientAdaptersPath: path.join(rootDir, 'src', 'adapters', 'pg', 'sql-client.ts')
   };
 }
 
@@ -765,6 +767,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     testsSupportZtdVerifier: scaffoldLayout.testsSupportZtdVerifierPath,
     testsSupportZtdHarness: scaffoldLayout.testsSupportZtdHarnessPath,
     infrastructureReadme: scaffoldLayout.infrastructureReadmePath,
+    adaptersReadme: path.join(rootDir, 'src', 'adapters', 'README.md'),
     telemetryTypes: scaffoldLayout.telemetryTypesPath,
     telemetryRepository: scaffoldLayout.telemetryRepositoryPath,
     telemetryConsoleRepository: scaffoldLayout.telemetryConsoleRepositoryPath,
@@ -777,7 +780,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     internalAgentsSrc: path.join(rootDir, '.ztd', 'agents', 'src.md'),
     internalAgentsTests: path.join(rootDir, '.ztd', 'agents', 'tests.md'),
     internalAgentsZtd: path.join(rootDir, '.ztd', 'agents', 'db.md'),
-    sqlReadme: path.join(rootDir, 'src', 'sql', 'README.md'),
+    sqlReadme: path.join(rootDir, 'src', 'libraries', 'sql', 'README.md'),
     sqlClient: scaffoldLayout.sqlClientPath,
     sqlClientAdapters: scaffoldLayout.sqlClientAdaptersPath,
     globalSetup: path.join(rootDir, supportDir, 'global-setup.ts'),
@@ -1230,6 +1233,32 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     );
     if (infrastructureReadmeSummary) {
       summaries.infrastructureReadme = infrastructureReadmeSummary;
+    }
+
+    const sqlReadmeSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.sqlReadme,
+      relativePath('sqlReadme'),
+      SQL_README_TEMPLATE,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (sqlReadmeSummary) {
+      summaries.sqlReadme = sqlReadmeSummary;
+    }
+
+    const adaptersReadmeSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.adaptersReadme,
+      relativePath('adaptersReadme'),
+      ADAPTERS_README_TEMPLATE,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (adaptersReadmeSummary) {
+      summaries.adaptersReadme = adaptersReadmeSummary;
     }
 
     const telemetryTypesSummary = await writeTemplateFile(
@@ -2658,6 +2687,7 @@ function buildSummaryLines(
     'setupEnv',
     'starterPostgresTestkit',
     'infrastructureReadme',
+    'adaptersReadme',
     'telemetryTypes',
     'telemetryRepository',
     'telemetryConsoleRepository',
@@ -2775,13 +2805,17 @@ export function buildInitDryRunPlan(rootDir: string, options: {
     'README.md',
     '.env.example',
     '.gitignore',
-    'src/sql/README.md',
+    'src/libraries/sql/sql-client.ts',
+    'src/adapters/pg/sql-client.ts',
     'vitest.config.ts',
     'tsconfig.json'
   ];
 
   if (starter) {
     files.push(
+      path.join('src', 'libraries', 'README.md'),
+      path.join('src', 'libraries', 'sql', 'README.md'),
+      path.join('src', 'adapters', 'README.md'),
       STARTER_COMPOSE_FILE,
       path.join('src', 'features', '_shared', 'featureQueryExecutor.ts'),
       path.join('src', 'features', '_shared', 'loadSqlResource.ts'),
@@ -2802,10 +2836,9 @@ export function buildInitDryRunPlan(rootDir: string, options: {
       path.join('tests', 'support', 'ztd', 'case-types.ts'),
       path.join('tests', 'support', 'ztd', 'verifier.ts'),
       path.join('tests', 'support', 'ztd', 'harness.ts'),
-      path.join('src', 'infrastructure', 'README.md'),
-      path.join('src', 'infrastructure', 'telemetry', 'types.ts'),
-      path.join('src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'),
-      path.join('src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'),
+      path.join('src', 'libraries', 'telemetry', 'types.ts'),
+      path.join('src', 'libraries', 'telemetry', 'repositoryTelemetry.ts'),
+      path.join('src', 'adapters', 'console', 'repositoryTelemetry.ts'),
       path.join(resolveSupportDir(DEFAULT_ZTD_CONFIG), 'postgres-testkit.ts')
     );
   }
@@ -2823,9 +2856,6 @@ export function buildInitDryRunPlan(rootDir: string, options: {
   if (options.withDogfooding) {
     files.push('PROMPT_DOGFOOD.md');
   }
-
-  files.push(normalizeCliPath(path.relative(rootDir, scaffoldLayout.sqlClientPath)));
-  files.push(normalizeCliPath(path.relative(rootDir, scaffoldLayout.sqlClientAdaptersPath)));
 
   if (options.withAppInterface) {
     files.splice(0, files.length, 'AGENTS.md');

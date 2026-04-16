@@ -13,6 +13,8 @@ Start with `npx ztd feature scaffold --table <table> --action <action>`.
 Treat the project structure as Architecture as a Framework.
 Every boundary folder exposes only `boundary.ts`, and child boundaries repeat the same rule.
 Keep handwritten SQL, the feature boundary, and the query boundary inside `src/features/<feature-name>`.
+Keep shared feature seams under `src/features/_shared/*`, shared verification seams under `tests/support/*`, and tool-managed assets under `.ztd/*`.
+Keep driver-neutral contracts in `src/libraries/*` and driver or sink bindings in `src/adapters/<tech>/*`.
 Keep feature-boundary tests mock-based in `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts`.
 Before you edit DTOs or write persistent query cases, run `npx ztd feature tests scaffold --feature <feature-name>`.
 That command refreshes `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`, refreshes `src/features/<feature-name>/queries/<query-name>/tests/boundary-ztd-types.ts`, and creates the thin `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` Vitest entrypoint only if it is missing.
@@ -40,7 +42,7 @@ Troubleshooting reminder:
 - Compare the direct database `INSERT ... RETURNING ...` result with the ZTD result so you can separate the DB from manifest or rewrite issues.
 - Verify a dogfood workspace resolves `rawsql-ts` from the local source tree instead of a registry copy when you expect a source change to be reflected.
 - Use `ZTD_SQL_TRACE=1` only while debugging rewrite behavior so local and CI logs stay quiet by default.
-- Treat `tests/generated/*` as CLI refresh output, not an AI edit target.
+- Treat query-local `tests/generated/*` as CLI refresh output, not an AI edit target.
 
 ## Prompt 2: Fix a DDL change
 

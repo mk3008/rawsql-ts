@@ -7,6 +7,7 @@ A monorepo for **rawsql-ts**: a SQL-first toolkit for parsing, testing, inspecti
 By parsing SQL into abstract syntax trees, rawsql-ts enables type-safe query building, static validation, and transparent result mapping — all while preserving the expressiveness and control of handwritten SQL. AST-based rewriting also powers Zero Table Dependency (ZTD) testing, which transforms application queries to run against in-memory fixtures instead of physical tables, enabling deterministic unit tests without database setup overhead. The repo additionally covers AST-based impact analysis, deterministic test evidence, schema documentation, and `ztd-cli` workflows for inspection and SQL artifact generation.
 
 The `ztd init` scaffold now starts from a feature-first layout under `src/features/<feature>/` and includes `src/features/smoke/` as the removable teaching feature.
+Shared feature seams live under `src/features/_shared/`, driver-neutral runtime contracts under `src/libraries/`, driver or sink bindings under `src/adapters/<tech>/`, shared verification seams under `tests/support/`, and tool-managed assets under `.ztd/`.
 `src/catalog` may still exist as internal support, but it is no longer the user-facing standard location.
 
 > [!Note]
@@ -128,7 +129,7 @@ See the [Core Package Documentation](./packages/core/README.md) for usage exampl
 
 Treat each query as one unit: 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.
 
-Keep handwritten SQL assets close to each feature in `src/features/<feature>/persistence/` so the SQL, specs, and tests stay in one place.
+Keep handwritten SQL assets close to each feature in `src/features/<feature>/queries/<query>/` so the SQL, boundary contract, and query-local tests stay in one place.
 
 Use this repo by treating DDL and SQL as source assets, and generated specs, repositories, and tests as downstream artifacts that must stay in sync.
 

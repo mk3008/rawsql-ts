@@ -69,6 +69,7 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
   expect(tutorial).toContain('Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.ztd/agents/*` if present.');
   expect(tutorial).toContain('Start with `npx ztd feature scaffold --table users --action insert`.');
   expect(tutorial).toContain('Keep `boundary.ts`, the query-local `boundary.ts`, and the query-local SQL resource inside `src/features/users-insert`.');
+  expect(tutorial).toContain('Keep shared feature seams under `src/features/_shared/*`, shared verification seams under `tests/support/*`, driver-neutral contracts under `src/libraries/*`, and driver or sink bindings under `src/adapters/<tech>/*`.');
   expect(tutorial).toContain('The feature scaffold creates the boundary files, SQL file, feature-root boundary test, and the query-local `tests/generated/` plus `tests/cases/` directories.');
   expect(tutorial).toContain('That command refreshes `src/features/users-insert/queries/insert-users/tests/generated/TEST_PLAN.md` and `analysis.json`, refreshes `src/features/users-insert/queries/insert-users/tests/boundary-ztd-types.ts`, and creates the thin `src/features/users-insert/queries/insert-users/tests/insert-users.boundary.ztd.test.ts` Vitest entrypoint only if it is missing.');
   expect(tutorial).toContain('Persistent case files under `src/features/users-insert/queries/insert-users/tests/cases/` stay human/AI-owned and are not overwritten.');

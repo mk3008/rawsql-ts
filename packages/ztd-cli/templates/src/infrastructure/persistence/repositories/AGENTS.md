@@ -8,7 +8,7 @@
 - Repositories MUST load SQL assets from `src/sql` through shared loader infrastructure.
 - Repository CUD behavior MUST follow contract rules for `RETURNING`, rowCount handling, and explicit unsupported-driver failures.
 - Repositories MUST reference SQL by stable logical keys.
-- Constructors for repositories SHOULD accept an optional telemetry dependency from `src/infrastructure/telemetry/repositoryTelemetry.ts`.
+- Constructors for repositories SHOULD accept an optional telemetry dependency from `src/libraries/telemetry/repositoryTelemetry.ts`.
 - Tests MUST cover every public repository method.
 
 ## PROHIBITED

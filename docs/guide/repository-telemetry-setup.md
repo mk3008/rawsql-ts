@@ -10,9 +10,9 @@ Use this guide after `ztd init --starter` when you want repository telemetry tha
 
 Start with these files in the generated project:
 
-- `src/infrastructure/telemetry/types.ts`
-- `src/infrastructure/telemetry/repositoryTelemetry.ts`
-- `src/infrastructure/telemetry/consoleRepositoryTelemetry.ts`
+- `src/libraries/telemetry/types.ts`
+- `src/libraries/telemetry/repositoryTelemetry.ts`
+- `src/adapters/console/repositoryTelemetry.ts`
 
 Then wire telemetry into the repository or service layer that actually runs SQL.
 
@@ -31,7 +31,7 @@ import {
   defaultRepositoryTelemetry,
   resolveRepositoryTelemetry,
   type RepositoryTelemetry
-} from './infrastructure/telemetry/repositoryTelemetry.js';
+} from './libraries/telemetry/repositoryTelemetry.js';
 
 type RepositoryDeps = {
   telemetry?: RepositoryTelemetry;
@@ -73,7 +73,7 @@ export class UsersRepository {
 For a console sink, the generated scaffold already provides `createConsoleRepositoryTelemetry()`. You can pass your own logger later:
 
 ```ts
-import { createConsoleRepositoryTelemetry } from './infrastructure/telemetry/repositoryTelemetry.js';
+import { createConsoleRepositoryTelemetry } from './adapters/console/repositoryTelemetry.js';
 
 const telemetry = createConsoleRepositoryTelemetry({
   logger: console

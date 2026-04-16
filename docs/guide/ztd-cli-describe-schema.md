@@ -60,8 +60,9 @@ Fields:
     "output": {
       "stdout": "Status or JSON envelope.",
       "files": [
-        "tests/generated/ztd-row-map.generated.ts",
-        "tests/generated/ztd-layout.generated.ts"
+        ".ztd/generated/ztd-row-map.generated.ts",
+        ".ztd/generated/ztd-fixture-manifest.generated.ts",
+        ".ztd/generated/ztd-layout.generated.ts"
       ]
     },
     "exitCodes": {

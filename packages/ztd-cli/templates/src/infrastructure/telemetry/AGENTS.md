@@ -1,5 +1,5 @@
 # Package Scope
-- Applies to `packages/ztd-cli/templates/src/infrastructure/telemetry`.
+- Applies to the starter telemetry template files.
 - Defines repository telemetry seams and adapters.
 
 # Policy

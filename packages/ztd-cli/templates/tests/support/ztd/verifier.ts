@@ -61,7 +61,7 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
 ): Promise<QuerySpecExecutionEvidence> {
   const connectionString = process.env.ZTD_DB_URL;
   if (!connectionString) {
-    throw new Error('Set ZTD_DB_URL before running queryspec ZTD cases.');
+    throw new Error('Set ZTD_DB_URL before running query-boundary ZTD cases.');
   }
 
   const tableRows = flattenFixtureTableRows(querySpecCase.beforeDb).map((tableFixture) => ({
@@ -163,7 +163,7 @@ function flattenFixtureTableRows(
     }
 
     throw new Error(
-      `Queryspec fixture entry ${nextPathSegments.join('.')} must be an object or an array of rows.`
+      `Query-boundary fixture entry ${nextPathSegments.join('.')} must be an object or an array of rows.`
     );
   }
 
@@ -175,7 +175,7 @@ function assertRecordRow(value: unknown, tableName: string): Record<string, unkn
     return value;
   }
 
-  throw new Error(`Queryspec fixture rows for ${tableName} must be objects.`);
+  throw new Error(`Query-boundary fixture rows for ${tableName} must be objects.`);
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
