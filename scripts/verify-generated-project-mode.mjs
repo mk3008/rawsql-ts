@@ -70,6 +70,13 @@ function assertExists(filePath, description) {
   }
 }
 
+function assertFileContains(filePath, needle, description) {
+  const contents = fs.readFileSync(filePath, "utf8");
+  if (!contents.includes(needle)) {
+    throw new Error(`[generated-project verification] ${description} missing expected text ${needle}: ${filePath}`);
+  }
+}
+
 function verifyStarterScaffold(appDir) {
   const packageJson = readPackageJson(appDir);
   const ztdCliDependency = packageJson.devDependencies?.["@rawsql-ts/ztd-cli"];
@@ -82,11 +89,48 @@ function verifyStarterScaffold(appDir) {
   if (packageJson.type !== "module") {
     throw new Error(`[generated-project verification] starter scaffold package.json must set type=module, received: ${String(packageJson.type)}`);
   }
+  const requiredImports = {
+    "#features/*.js": {
+      types: "./src/features/*.ts",
+      default: "./dist/features/*.js",
+    },
+    "#libraries/*.js": {
+      types: "./src/libraries/*.ts",
+      default: "./dist/libraries/*.js",
+    },
+    "#adapters/*.js": {
+      types: "./src/adapters/*.ts",
+      default: "./dist/adapters/*.js",
+    },
+    "#tests/*.js": {
+      types: "./tests/*.ts",
+      default: "./tests/*.ts",
+    },
+  };
+  for (const [key, value] of Object.entries(requiredImports)) {
+    if (JSON.stringify(packageJson.imports?.[key]) !== JSON.stringify(value)) {
+      throw new Error(`[generated-project verification] starter scaffold package.json is missing ${key}: ${JSON.stringify(packageJson.imports?.[key])}`);
+    }
+  }
   assertExists(path.join(appDir, "README.md"), "starter README");
   assertExists(path.join(appDir, "src", "features", "smoke", "tests", "smoke.boundary.test.ts"), "starter smoke boundary test");
   assertExists(
     path.join(appDir, "src", "features", "smoke", "queries", "smoke", "tests", "smoke.boundary.ztd.test.ts"),
     "starter DB-backed smoke test"
+  );
+  assertFileContains(path.join(appDir, "tsconfig.json"), "\"#libraries/*\"", "starter tsconfig");
+  assertFileContains(path.join(appDir, "tsconfig.json"), "\"#adapters/*\"", "starter tsconfig");
+  assertFileContains(path.join(appDir, "vitest.config.ts"), "'#libraries'", "starter vitest config");
+  assertFileContains(path.join(appDir, "vitest.config.ts"), "'#adapters'", "starter vitest config");
+  assertFileContains(
+    path.join(appDir, "src", "adapters", "pg", "sql-client.ts"),
+    "from '#libraries/sql/sql-client.js'",
+    "starter pg adapter import"
+  );
+  assertFileContains(
+    path.join(appDir, "src", "adapters", "console", "repositoryTelemetry.ts"),
+    "from '#libraries/telemetry/types.js'",
+    "starter console adapter import"
   );
 }
 

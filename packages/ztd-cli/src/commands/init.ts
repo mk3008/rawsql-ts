@@ -2076,6 +2076,14 @@ function ensurePackageJsonFormatting(
       types: './src/features/*.ts',
       default: './dist/features/*.js'
     },
+    '#libraries/*.js': {
+      types: './src/libraries/*.ts',
+      default: './dist/libraries/*.js'
+    },
+    '#adapters/*.js': {
+      types: './src/adapters/*.ts',
+      default: './dist/adapters/*.js'
+    },
     '#tests/*.js': {
       types: './tests/*.ts',
       default: './tests/*.ts'

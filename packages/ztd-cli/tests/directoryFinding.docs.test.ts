@@ -103,6 +103,15 @@ test('feature guidance centers the sample feature and recursive boundary folders
   );
   expect(readNormalizedFile('packages/ztd-cli/templates/src/libraries/sql/sql-client.ts')).toContain('SqlClient');
   expect(readNormalizedFile('packages/ztd-cli/templates/src/adapters/pg/sql-client.ts')).toContain('fromPg');
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/adapters/pg/sql-client.ts')).toContain(
+    "from '#libraries/sql/sql-client.js'"
+  );
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/adapters/console/repositoryTelemetry.ts')).toContain(
+    "from '#libraries/telemetry/types.js'"
+  );
+  expect(readNormalizedFile('packages/ztd-cli/templates/tests/support/testkit-client.webapi.ts')).toContain(
+    "from '#libraries/sql/sql-client.js'"
+  );
 });
 
 test('feature-first scaffold files exist in the template bundle', () => {

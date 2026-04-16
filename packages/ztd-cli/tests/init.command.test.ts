@@ -118,7 +118,14 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
     ".ztd/support/setup-env.ts"
   );
   expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain("'#features'");
+  expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain("'#libraries'");
+  expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain("'#adapters'");
   expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain("'#tests'");
+  expect(readNormalizedFile(path.join(workspace, 'tsconfig.json'))).toContain('"#libraries/*"');
+  expect(readNormalizedFile(path.join(workspace, 'tsconfig.json'))).toContain('"#adapters/*"');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'adapters', 'pg', 'sql-client.ts'))).toContain(
+    "from '#libraries/sql/sql-client.js'"
+  );
   expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain(
     'ZTD_DB_PORT'
   );
@@ -134,6 +141,14 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(packageJson.imports?.['#features/*.js']).toEqual({
     types: './src/features/*.ts',
     default: './dist/features/*.js'
+  });
+  expect(packageJson.imports?.['#libraries/*.js']).toEqual({
+    types: './src/libraries/*.ts',
+    default: './dist/libraries/*.js'
+  });
+  expect(packageJson.imports?.['#adapters/*.js']).toEqual({
+    types: './src/adapters/*.ts',
+    default: './dist/adapters/*.js'
   });
   expect(packageJson.imports?.['#tests/*.js']).toEqual({
     types: './tests/*.ts',
@@ -253,6 +268,12 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'telemetry', 'types.ts'))).toContain('paramsShape');
   expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'telemetry', 'types.ts'))).toContain('transformations');
   expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'telemetry', 'types.ts'))).not.toContain('parameterValues');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'adapters', 'pg', 'sql-client.ts'))).toContain(
+    "from '#libraries/sql/sql-client.js'"
+  );
+  expect(readNormalizedFile(path.join(workspace, 'src', 'adapters', 'console', 'repositoryTelemetry.ts'))).toContain(
+    "from '#libraries/telemetry/types.js'"
+  );
   expect(readNormalizedFile(path.join(workspace, 'src', 'adapters', 'console', 'repositoryTelemetry.ts'))).toContain('queryId');
   expect(readNormalizedFile(path.join(workspace, 'src', 'adapters', 'console', 'repositoryTelemetry.ts'))).not.toContain('sqlText');
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
@@ -269,6 +290,14 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(packageJson.imports?.['#features/*.js']).toEqual({
     types: './src/features/*.ts',
     default: './dist/features/*.js'
+  });
+  expect(packageJson.imports?.['#libraries/*.js']).toEqual({
+    types: './src/libraries/*.ts',
+    default: './dist/libraries/*.js'
+  });
+  expect(packageJson.imports?.['#adapters/*.js']).toEqual({
+    types: './src/adapters/*.ts',
+    default: './dist/adapters/*.js'
   });
   expect(packageJson.imports?.['#tests/*.js']).toEqual({
     types: './tests/*.ts',
@@ -537,6 +566,14 @@ test('init local-source mode links rawsql-ts dependencies from the monorepo with
   );
   expect(packageJson.type).toBe('module');
   expect(packageJson.imports?.['#features/*.js']?.default).toBe('./dist/features/*.js');
+  expect(packageJson.imports?.['#libraries/*.js']).toEqual({
+    types: './src/libraries/*.ts',
+    default: './dist/libraries/*.js'
+  });
+  expect(packageJson.imports?.['#adapters/*.js']).toEqual({
+    types: './src/adapters/*.ts',
+    default: './dist/adapters/*.js'
+  });
   expect(packageJson.imports?.['#tests/*.js']).toEqual({
     types: './tests/*.ts',
     default: './tests/*.ts'
@@ -577,6 +614,14 @@ test('init starter local-source mode keeps starter rawsql-ts packages on file de
   );
   expect(packageJson.type).toBe('module');
   expect(packageJson.imports?.['#features/*.js']?.default).toBe('./dist/features/*.js');
+  expect(packageJson.imports?.['#libraries/*.js']).toEqual({
+    types: './src/libraries/*.ts',
+    default: './dist/libraries/*.js'
+  });
+  expect(packageJson.imports?.['#adapters/*.js']).toEqual({
+    types: './src/adapters/*.ts',
+    default: './dist/adapters/*.js'
+  });
   expect(packageJson.imports?.['#tests/*.js']).toEqual({
     types: './tests/*.ts',
     default: './tests/*.ts'

@@ -1,4 +1,4 @@
-import type { SqlClient } from '../../src/libraries/sql/sql-client.js';
+import type { SqlClient } from '#libraries/sql/sql-client.js';
 
 export type TestkitClient = SqlClient & {
   close(): Promise<void>;
