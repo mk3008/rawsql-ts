@@ -140,8 +140,10 @@ function uniqueNonEmpty(values) {
 }
 
 function resolveChangedFiles(options) {
-  if (options.changedFiles.length > 0) {
-    return uniqueNonEmpty(options.changedFiles);
+  const changedFiles = Array.isArray(options.changedFiles) ? options.changedFiles : [];
+
+  if (changedFiles.length > 0) {
+    return uniqueNonEmpty(changedFiles);
   }
 
   if (options.baseSha && options.headSha) {

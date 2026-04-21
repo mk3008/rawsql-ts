@@ -12,6 +12,7 @@
 - [ ] Baseline exception requested and linked below.
 
 <!-- Write values on the same line as each label, or generate this section via `pnpm pr:readiness:prepare ...`. -->
+<!-- Do not add list markers like "-" before these labels; `Tracking issue:` and `Scoped checks run:` must start at column 0. -->
 Tracking issue: 
 Scoped checks run: 
 Why full baseline is not required: 

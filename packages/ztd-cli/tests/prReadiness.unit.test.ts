@@ -343,3 +343,12 @@ test('pr-readiness preparation fails fast when classified CLI changes omit a mod
     baselineMode: 'no-exception',
   })).toThrow('CLI-facing changes require --cli-mode set to "no-packet" or "packet".');
 });
+
+test('pr-readiness preparation fails fast when classified scaffold changes omit a mode selection', () => {
+  expect(() => buildPreparedPrReadiness({
+    changedFiles: ['packages/ztd-cli/templates/src/features/smoke/boundary.ts'],
+    summaryLines: ['omit scaffold mode to prove fail-fast guidance'],
+    verificationLines: ['pnpm --filter @rawsql-ts/ztd-cli test -- prReadiness.unit.test.ts'],
+    baselineMode: 'no-exception',
+  })).toThrow(/--scaffold-mode/);
+});
