@@ -1,5 +1,21 @@
 # rawsql-ts
 
+## 0.20.0
+
+### Minor Changes
+
+- [#773](https://github.com/mk3008/rawsql-ts/pull/773) [`e9e425f`](https://github.com/mk3008/rawsql-ts/commit/e9e425f77b51402fcca03393305ac36bc99d7576) Thanks [@mk3008](https://github.com/mk3008)! - Improve SSSQL `refresh` so correlated `EXISTS` / `NOT EXISTS` branches can be safely re-anchored after query structure changes.
+
+  `rawsql-ts` now relocates correlated optional branches by inferring a single anchor from outer references, rebases aliases when moving branches across query scopes, and fails fast when anchor inference is missing or ambiguous.
+
+  `@rawsql-ts/ztd-cli` adds regression coverage for correlated `refresh` round-trips and `remove --all` interoperability so SQL-first optional branch maintenance stays deterministic after scaffolding.
+
+- [#765](https://github.com/mk3008/rawsql-ts/pull/765) [`6a1cb41`](https://github.com/mk3008/rawsql-ts/commit/6a1cb415366f3b8c0650f1caac67d9235ed1a130) Thanks [@mk3008](https://github.com/mk3008)! - Expand SSSQL authoring and inspection across the core library and `ztd-cli`.
+
+  `ztd query sssql` now supports `list`, `remove`, `remove --all`, richer scalar operators, and structured `EXISTS` / `NOT EXISTS` scaffold input with preview-friendly rewrite flows. The CLI also fails fast when a rewrite would drop existing SQL comments.
+
+  `rawsql-ts` now exposes the branch metadata and removal helpers needed to inspect, remove, and bulk-remove recognized SSSQL branches while keeping runtime pruning explicit through `optionalConditionParameters`.
+
 ## 0.19.0
 
 ### Minor Changes

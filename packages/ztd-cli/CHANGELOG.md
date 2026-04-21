@@ -1,5 +1,50 @@
 # @rawsql-ts/ztd-cli
 
+## 0.26.0
+
+### Minor Changes
+
+- [#773](https://github.com/mk3008/rawsql-ts/pull/773) [`e9e425f`](https://github.com/mk3008/rawsql-ts/commit/e9e425f77b51402fcca03393305ac36bc99d7576) Thanks [@mk3008](https://github.com/mk3008)! - Improve SSSQL `refresh` so correlated `EXISTS` / `NOT EXISTS` branches can be safely re-anchored after query structure changes.
+
+  `rawsql-ts` now relocates correlated optional branches by inferring a single anchor from outer references, rebases aliases when moving branches across query scopes, and fails fast when anchor inference is missing or ambiguous.
+
+  `@rawsql-ts/ztd-cli` adds regression coverage for correlated `refresh` round-trips and `remove --all` interoperability so SQL-first optional branch maintenance stays deterministic after scaffolding.
+
+- [#772](https://github.com/mk3008/rawsql-ts/pull/772) [`595f86c`](https://github.com/mk3008/rawsql-ts/commit/595f86c2631f034b01c70533b4a6063e696544c6) Thanks [@mk3008](https://github.com/mk3008)! - Add `--test-kind ztd|traditional` to `ztd feature tests scaffold` and keep `ztd` as the default.
+
+  This update enables side-by-side lane scaffolding for query tests without breaking existing ZTD-only workflows:
+  - `ztd` lane keeps generating the current files (`<query>.boundary.ztd.test.ts`, `generated/TEST_PLAN.md`, `generated/analysis.json`).
+  - `traditional` lane generates lane-specific scaffold files (`<query>.boundary.traditional.test.ts`, `boundary-traditional-types.ts`, `generated/TEST_PLAN.traditional.md`, `generated/analysis.traditional.json`, and `cases/basic.traditional.case.ts`).
+
+  The new lane scaffold is intentionally thin and keeps mode execution responsibility in the library layer.
+
+- [#777](https://github.com/mk3008/rawsql-ts/pull/777) [`9ee5744`](https://github.com/mk3008/rawsql-ts/commit/9ee57445c0dd3a691ff4f227d6f4024960086ab2) Thanks [@mk3008](https://github.com/mk3008)! - Align the starter scaffold and guidance with the canonical directory taxonomy.
+
+  Starter projects now treat `src/features`, `src/adapters`, and `src/libraries` as the app-code roots, keep `db/` for DDL and migration assets, keep shared verification support under `tests/support/*`, and keep `.ztd/*` tool-managed.
+
+  The scaffolded `SqlClient` and telemetry seams now follow that layout, and the generated README, AGENTS guidance, and tutorial docs describe the same ownership model.
+
+- [#765](https://github.com/mk3008/rawsql-ts/pull/765) [`6a1cb41`](https://github.com/mk3008/rawsql-ts/commit/6a1cb415366f3b8c0650f1caac67d9235ed1a130) Thanks [@mk3008](https://github.com/mk3008)! - Expand SSSQL authoring and inspection across the core library and `ztd-cli`.
+
+  `ztd query sssql` now supports `list`, `remove`, `remove --all`, richer scalar operators, and structured `EXISTS` / `NOT EXISTS` scaffold input with preview-friendly rewrite flows. The CLI also fails fast when a rewrite would drop existing SQL comments.
+
+  `rawsql-ts` now exposes the branch metadata and removal helpers needed to inspect, remove, and bulk-remove recognized SSSQL branches while keeping runtime pruning explicit through `optionalConditionParameters`.
+
+### Patch Changes
+
+- [#770](https://github.com/mk3008/rawsql-ts/pull/770) [`5eeb927`](https://github.com/mk3008/rawsql-ts/commit/5eeb927fec2e09e611ca2d764973e95d04c9e154) Thanks [@mk3008](https://github.com/mk3008)! - Make the starter ZTD helper a thin adapter over library mode execution and return machine-checkable run evidence.
+
+  The generated ZTD harness now asserts `mode=ztd` and `physicalSetupUsed=false`, supports opt-in SQL trace output, and is covered by starter acceptance that runs `vitest` before schema setup in generated-project verification.
+
+- [#780](https://github.com/mk3008/rawsql-ts/pull/780) [`3f9cab6`](https://github.com/mk3008/rawsql-ts/commit/3f9cab6fd9eb782aa1f92bb3c19e83c6bbe4ecb1) Thanks [@mk3008](https://github.com/mk3008)! - Align generated project root aliases across `package.json`, `tsconfig.json`, and `vitest.config.ts` so scaffolded code can use `#features/*`, `#libraries/*`, `#adapters/*`, and `#tests/*` consistently.
+
+  Starter and scaffold templates now use root aliases for imports that cross canonical roots instead of deep relative paths, which makes generated projects easier to move and reorganize without rewriting import depth.
+
+- Updated dependencies [[`e9e425f`](https://github.com/mk3008/rawsql-ts/commit/e9e425f77b51402fcca03393305ac36bc99d7576), [`6a1cb41`](https://github.com/mk3008/rawsql-ts/commit/6a1cb415366f3b8c0650f1caac67d9235ed1a130)]:
+  - rawsql-ts@0.20.0
+  - @rawsql-ts/adapter-node-pg@0.15.8
+  - @rawsql-ts/sql-grep-core@0.1.9
+
 ## 0.25.0
 
 ### Minor Changes
