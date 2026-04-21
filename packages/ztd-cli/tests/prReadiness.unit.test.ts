@@ -43,6 +43,7 @@ const {
 };
 const {
   buildPreparedPrReadiness,
+  parseArgs,
 } = require('../../../scripts/prepare-pr-readiness.js') as {
   buildPreparedPrReadiness(input: {
     baseSha?: string | null;
@@ -75,6 +76,7 @@ const {
     };
     body: string;
   };
+  parseArgs(argv: string[]): Record<string, unknown>;
 };
 
 function createBaseBody(): string {
@@ -351,4 +353,14 @@ test('pr-readiness preparation fails fast when classified scaffold changes omit 
     verificationLines: ['pnpm --filter @rawsql-ts/ztd-cli test -- prReadiness.unit.test.ts'],
     baselineMode: 'no-exception',
   })).toThrow(/--scaffold-mode/);
+});
+
+test('pr-readiness parseArgs fails fast when --changed-file has no operand', () => {
+  expect(() => parseArgs(['--changed-file', '--summary-line', 'body']))
+    .toThrow('--changed-file requires a non-empty value.');
+});
+
+test('pr-readiness parseArgs fails fast when --summary-line has a blank operand', () => {
+  expect(() => parseArgs(['--summary-line', '   ']))
+    .toThrow('--summary-line requires a non-empty value.');
 });

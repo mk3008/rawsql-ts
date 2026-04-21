@@ -42,89 +42,97 @@ function parseArgs(argv) {
     const arg = argv[index];
     const next = argv[index + 1] ?? null;
 
+    function requireOperand(flag) {
+      const value = typeof next === 'string' ? next.trim() : '';
+      if (!value || value.startsWith('--')) {
+        throw new Error(`${flag} requires a non-empty value.`);
+      }
+      return next;
+    }
+
     switch (arg) {
       case '--base-sha':
-        options.baseSha = next;
+        options.baseSha = requireOperand(arg);
         index += 1;
         break;
       case '--head-sha':
-        options.headSha = next;
+        options.headSha = requireOperand(arg);
         index += 1;
         break;
       case '--changed-file':
-        options.changedFiles.push(next);
+        options.changedFiles.push(requireOperand(arg));
         index += 1;
         break;
       case '--summary-line':
-        options.summaryLines.push(next);
+        options.summaryLines.push(requireOperand(arg));
         index += 1;
         break;
       case '--verification':
-        options.verificationLines.push(next);
+        options.verificationLines.push(requireOperand(arg));
         index += 1;
         break;
       case '--baseline-mode':
-        options.baselineMode = next;
+        options.baselineMode = requireOperand(arg);
         index += 1;
         break;
       case '--tracking-issue':
-        options.trackingIssue = next;
+        options.trackingIssue = requireOperand(arg);
         index += 1;
         break;
       case '--scoped-check':
-        options.scopedChecks.push(next);
+        options.scopedChecks.push(requireOperand(arg));
         index += 1;
         break;
       case '--baseline-rationale':
-        options.baselineRationale = next;
+        options.baselineRationale = requireOperand(arg);
         index += 1;
         break;
       case '--cli-mode':
-        options.cliMode = next;
+        options.cliMode = requireOperand(arg);
         index += 1;
         break;
       case '--cli-no-migration-rationale':
-        options.cliNoMigrationRationale = next;
+        options.cliNoMigrationRationale = requireOperand(arg);
         index += 1;
         break;
       case '--upgrade-note':
-        options.upgradeNote = next;
+        options.upgradeNote = requireOperand(arg);
         index += 1;
         break;
       case '--deprecation-plan':
-        options.deprecationPlan = next;
+        options.deprecationPlan = requireOperand(arg);
         index += 1;
         break;
       case '--docs-updated':
-        options.docsUpdated = next;
+        options.docsUpdated = requireOperand(arg);
         index += 1;
         break;
       case '--release-wording':
-        options.releaseWording = next;
+        options.releaseWording = requireOperand(arg);
         index += 1;
         break;
       case '--scaffold-mode':
-        options.scaffoldMode = next;
+        options.scaffoldMode = requireOperand(arg);
         index += 1;
         break;
       case '--no-proof-rationale':
-        options.noProofRationale = next;
+        options.noProofRationale = requireOperand(arg);
         index += 1;
         break;
       case '--non-edit-assertion':
-        options.nonEditAssertion = next;
+        options.nonEditAssertion = requireOperand(arg);
         index += 1;
         break;
       case '--fail-fast-proof':
-        options.failFastProof = next;
+        options.failFastProof = requireOperand(arg);
         index += 1;
         break;
       case '--generated-output-proof':
-        options.generatedOutputProof = next;
+        options.generatedOutputProof = requireOperand(arg);
         index += 1;
         break;
       case '--write':
-        options.outputPath = next;
+        options.outputPath = requireOperand(arg);
         index += 1;
         break;
       default:
