@@ -109,7 +109,7 @@ Use `src/features/smoke` as the starter-only teaching example, but scaffold the 
 npx ztd feature scaffold --table users --action insert
 ```
 
-That v1 scaffold fixes the initial layout to the feature-boundary convention:
+That v1 scaffold fixes the initial layout to the RFBA feature-boundary convention:
 
 - `src/features/users-insert/boundary.ts`
 - `src/features/users-insert/tests/users-insert.boundary.test.ts`
@@ -119,10 +119,11 @@ That v1 scaffold fixes the initial layout to the feature-boundary convention:
 - `src/features/users-insert/queries/insert-users/tests/cases/`
 - `src/features/users-insert/README.md`
 
-In the full BFA model, `src/features`, `src/adapters`, and `src/libraries` are the concrete `root-boundary` folders.
+In the full RFBA model, `src/features`, `src/adapters`, and `src/libraries` are the concrete `root-boundary` folders.
 `src/features/users-insert/` is the `feature-boundary`, and `queries/insert-users/` is one `sub-boundary`.
 `queries/` is only the child-boundary container; it does not expose its own public surface.
 Within `src/features/*`, `boundary.ts` is the default scaffold entrypoint for feature-boundaries and sub-boundaries.
+RFBA is about splitting files by review responsibility: DDL stays the data-structure source of truth, SQL remains the strongest query review boundary, and DTO/mapping/test support stays close to the SQL it serves.
 Outside feature-owned boundaries, keep shared feature seams under `src/features/_shared/*`, keep shared verification seams under `tests/support/*`, keep driver-neutral contracts under `src/libraries/*`, keep driver or sink bindings under `src/adapters/<tech>/*`, and keep `.ztd/*` tool-managed.
 Do not count `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, or `db/` as extra root boundaries.
 Keep `db/` reserved for DDL, migration, and schema assets; do not place runtime clients or adapters there.
@@ -151,9 +152,10 @@ This prompt is meant to be copied into another AI instance so we can observe whe
 Add a users insert feature to this feature-first project.
 Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.ztd/agents/*` if present.
 Start with `npx ztd feature scaffold --table users --action insert`.
-Use `root-boundary`, `feature-boundary`, and `sub-boundary` as the BFA vocabulary.
+Use `root-boundary`, `feature-boundary`, and `sub-boundary` as the ztd-cli structural vocabulary for RFBA.
 Treat `src/features`, `src/adapters`, and `src/libraries` as the only concrete root-boundaries in this app.
 Keep `boundary.ts`, the query-local `boundary.ts`, and the query-local SQL resource inside `src/features/users-insert`.
+Treat RFBA as review-responsibility structure, not as a universal file naming rule.
 Treat `queries/` as a child-boundary container rather than a boundary with its own public surface.
 Keep shared feature seams under `src/features/_shared/*`, shared verification seams under `tests/support/*`, driver-neutral contracts under `src/libraries/*`, and driver or sink bindings under `src/adapters/<tech>/*`.
 Keep `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, and `db/` in their own roles without counting them as root-boundaries.

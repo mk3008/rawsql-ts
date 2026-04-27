@@ -2,10 +2,11 @@
 
 This scaffold organizes application work under `src/features/<feature>/`.
 
-## Architecture as a Framework
+## RFBA layout
 
-The feature layout treats architecture as a framework contract, not a naming convention.
-Within the full app model, the layers are:
+This feature layout follows RFBA (Review-First Backend Architecture).
+RFBA splits backend files by review responsibility so SQL, orchestration, public surfaces, dependency direction, and verification scope stay easy to inspect.
+Within the ztd-cli app model, the structural layers are:
 
 ```text
 root-boundary/
@@ -15,7 +16,7 @@ root-boundary/
 
 - `root-boundary` is the app-level boundary layer. In rawsql-ts, the concrete root boundaries are `src/features`, `src/adapters`, and `src/libraries`.
 - `feature-boundary` is a feature-owned boundary under `src/features/<feature>/`.
-- `sub-boundary` is an optional child boundary inside one feature when responsibility, allowed dependencies, public surface, or verification scope changes.
+- `sub-boundary` is an optional child boundary inside one feature when review responsibility, allowed dependencies, public surface, or verification scope changes.
 
 ## Default shape
 
@@ -26,7 +27,9 @@ root-boundary/
 - `queries/<query>/tests`: the query-local verification group, including a thin `queries/<query>/tests/<query>.boundary.ztd.test.ts` Vitest entrypoint for the ZTD lane
 - add more child folders only when a real `sub-boundary` is needed; keep its public surface and verification local to that child folder
 
-Inside `src/features/*`, `boundary.ts` is the default scaffold entrypoint for `feature-boundary` and `sub-boundary` code. It is a feature-scoped convention for discoverability and scaffold compatibility, not the full definition of BFA and not a universal filename requirement.
+Inside `src/features/*`, `boundary.ts` is the default scaffold entrypoint for `feature-boundary` and `sub-boundary` code.
+It is a feature-scoped convention for discoverability and scaffold compatibility, not the full definition of RFBA and not a universal filename requirement.
+The query folder is the query unit: SQL, row/result mapping, execution contract, and query-local tests move together for review.
 
 `ztd.config.json` owns the tool-managed workspace under `.ztd/generated/` and `.ztd/tests/` support files. Feature-authored boundary tests stay under `src/features/<feature>/tests/`, while query-local ZTD assets stay under `src/features/<feature>/queries/<query>/tests/{generated,cases}`.
 Use `src/features/_shared/*` only for feature-facing shared seams such as `FeatureQueryExecutor`; it is not a fourth root-boundary.

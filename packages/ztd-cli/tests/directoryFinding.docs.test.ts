@@ -36,6 +36,9 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('Command Index');
   expect(packageReadme).toContain('Glossary');
   expect(packageReadme).toContain('Further Reading');
+  expect(packageReadme).toContain('RFBA (Review-First Backend Architecture)');
+  expect(packageReadme).toContain('RFBA is a backend architecture for making AI-assisted work reviewable by humans.');
+  expect(packageReadme).toContain('It splits files by review responsibility');
   expect(packageReadme).toContain('ZTD here means query-boundary-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor.');
   expect(packageReadme).toContain('Use validation-only cases for boundary checks and DB-backed cases for the success path.');
   expect(packageReadme).toContain('Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts` for mock-based boundary tests.');
@@ -43,6 +46,7 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('`root-boundary` is the app-level boundary layer.');
   expect(packageReadme).toContain('the concrete root boundaries are only `src/features`, `src/adapters`, and `src/libraries`');
   expect(packageReadme).toContain('`queries/` is a child-boundary container and does not expose its own public surface.');
+  expect(packageReadme).toContain('A query sub-boundary is the feature-local query unit');
   expect(packageReadme).toContain('`boundary.ts` is a feature-scoped convention for discoverability and scaffold compatibility');
   expect(packageReadme).toContain('Do not count `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, or `db/` as extra root boundaries.');
   expect(packageReadme).toContain('src/adapters/<tech>');
@@ -52,13 +56,19 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('After you finish the SQL and DTO edits');
   expect(packageReadme).toContain('feature tests scaffold --feature <feature-name>');
   expect(packageReadme).toContain('tests/generated/TEST_PLAN.md');
+  expect(scaffoldReadme).toContain('feature-first RFBA application');
+  expect(scaffoldReadme).toContain('Review-First Backend Architecture');
   expect(scaffoldReadme).toContain('`src/features`, `src/adapters`, and `src/libraries` as the only concrete root-boundaries in this app.');
+  expect(scaffoldReadme).toContain('Split files by review responsibility');
   expect(scaffoldReadme).toContain('Treat `queries/` as a child-boundary container rather than a public boundary of its own.');
   expect(scaffoldReadme).toContain('Do not count `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, or `db/` as root-boundaries.');
   expect(scaffoldReadme).toContain('Make sure the query-boundary result executes through the DB-backed ZTD path and checks mapping and validation, not just property values.');
+  expect(featuresReadme).toContain('RFBA (Review-First Backend Architecture)');
+  expect(featuresReadme).toContain('RFBA splits backend files by review responsibility');
   expect(featuresReadme).toContain('the concrete root boundaries are `src/features`, `src/adapters`, and `src/libraries`');
   expect(featuresReadme).toContain('`queries/`: the child-boundary container; it is not itself a public boundary');
   expect(featuresReadme).toContain('`boundary.ts` is the default scaffold entrypoint for `feature-boundary` and `sub-boundary` code.');
+  expect(featuresReadme).toContain('The query folder is the query unit');
   expect(featuresReadme).toContain('Do not count `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, or `db/` as root boundaries.');
   expect(featuresReadme).not.toContain('A folder is a boundary.');
   expect(scaffoldReadme).not.toContain('Every boundary folder exposes only `boundary.ts`');

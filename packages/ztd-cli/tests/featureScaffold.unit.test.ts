@@ -683,11 +683,14 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
     path.join(workspace, 'src', 'features', 'users-insert', 'README.md'),
     'utf8'
   );
-  expect(readmeFile).toContain('`boundary.ts` is the feature boundary public surface');
+  expect(readmeFile).toContain('## RFBA review responsibilities');
+  expect(readmeFile).toContain('RFBA splits files by review responsibility');
+  expect(readmeFile).toContain('`boundary.ts` is the default feature-boundary public surface');
   expect(readmeFile).toContain('uses `zod` schemas for request and response DTOs');
   expect(readmeFile).toContain('keeps its schema values and helper functions file-local');
   expect(readmeFile).toContain('depends on the shared executor contract directly');
   expect(readmeFile).toContain('queries/insert-users/boundary.ts');
+  expect(readmeFile).toContain('queries/insert-users/` is the query unit');
   expect(readmeFile).toContain('## CLI-owned generated files');
   expect(readmeFile).toContain('queries/insert-users/tests/boundary-ztd-types.ts');
   expect(readmeFile).toContain('insert-users/tests/generated/TEST_PLAN.md');
