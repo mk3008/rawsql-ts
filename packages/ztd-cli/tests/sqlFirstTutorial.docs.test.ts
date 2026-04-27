@@ -66,7 +66,9 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
   expect(tutorial).toContain('queries/insert-users/tests/cases/');
   expect(tutorial).toContain('persistent case files');
   expect(tutorial).toContain('Add a users insert feature to this feature-first project.');
-  expect(tutorial).toContain('Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.ztd/agents/*` if present.');
+  expect(tutorial).not.toContain('AGENTS.md');
+  expect(tutorial).not.toContain('.codex/agents');
+  expect(tutorial).not.toContain('.ztd/agents');
   expect(tutorial).toContain('Start with `npx ztd feature scaffold --table users --action insert`.');
   expect(tutorial).toContain('Keep `boundary.ts`, the query-local `boundary.ts`, and the query-local SQL resource inside `src/features/users-insert`.');
   expect(tutorial).toContain('Keep shared feature seams under `src/features/_shared/*`, shared verification seams under `tests/support/*`, driver-neutral contracts under `src/libraries/*`, and driver or sink bindings under `src/adapters/<tech>/*`.');

@@ -4,7 +4,7 @@
 Issue #685
 
 ## Why it matters
-Issue #685 changes the customer-facing onboarding path by inserting `ztd agents init` into the first-run Codex workflow. Verifying only the managed bootstrap files is not enough; reviewers also need evidence that the README Quickstart and the starter tutorial still form a coherent path from fresh project creation to the first `smoke -> users` development step.
+Issue #685 originally changed the customer-facing onboarding path by inserting an AI-control bootstrap into the first-run Codex workflow. The current CLI no longer ships that bootstrap, so reviewers need evidence that the README Quickstart and starter tutorial still form a coherent path from fresh project creation to the first `smoke -> users` development step.
 
 ## What was run
 - README Quickstart path in a fresh directory outside the monorepo workspace root.
@@ -14,11 +14,10 @@ Issue #685 changes the customer-facing onboarding path by inserting `ztd agents 
 ## Exact order
 1. `npm install -D @rawsql-ts/ztd-cli vitest typescript`
 2. `npx ztd init --starter`
-3. `npx ztd agents init`
-4. `.env.example` -> `.env`
-5. `docker compose up -d`
-6. `npx ztd ztd-config`
-7. `npx vitest run`
+3. `.env.example` -> `.env`
+4. `docker compose up -d`
+5. `npx ztd ztd-config`
+6. `npx vitest run`
 
 ## README Quickstart environment
 - OS: Windows
@@ -35,11 +34,7 @@ Issue #685 changes the customer-facing onboarding path by inserting `ztd agents 
 - `npx ztd init --starter`
   - status: `partial`
   - evidence: scaffold creation completed and generated the starter project files.
-  - gap: the published package immediately reported `Visible AGENTS.md files installed for the starter flow` and then hit a local `npm install` `spawn EPERM` during dependency sync. This behavior does not match the branch under review, where the Codex bootstrap is supposed to stay opt-in.
-- `npx ztd agents init`
-  - status: `not done`
-  - evidence: the published package exposed `ztd agents install` but not `ztd agents init`.
-  - gap: the exact README command cannot be validated against the currently published npm package because the branch behavior has not been published yet.
+  - gap: the published package immediately reported that AI-control guidance was installed for the starter flow and then hit a local `npm install` `spawn EPERM` during dependency sync. This behavior does not match the branch under review, where customer-facing AI-control guidance is removed.
 - `.env.example` -> `.env`
   - status: `not done`
   - evidence: the scaffold generated `compose.yaml`, but no `.env.example` file was present in the published-package run.
@@ -58,19 +53,18 @@ Issue #685 changes the customer-facing onboarding path by inserting `ztd agents 
   - gap: the local Windows environment still hit `spawn EPERM` during Vitest startup, consistent with the earlier investigation.
 
 ## What succeeded
-- The exact README order is conceptually natural: package install -> starter scaffold -> Codex bootstrap -> env -> Docker -> generation -> tests.
-- The new bootstrap belongs immediately after `ztd init --starter`, before the first AI-guided `smoke -> users` step.
+- The exact README order is conceptually natural: package install -> starter scaffold -> env -> Docker -> generation -> tests.
+- The README and starter scaffold are enough to locate `smoke` as the teaching example before the first AI-guided `smoke -> users` step.
 - The starter scaffold still communicates that `src/features/smoke` is the teaching example and `src/features/users` is the next real feature.
 
-## Where the new bootstrap helped
-- It makes the first AI-oriented onboarding step explicit right after scaffold creation.
-- It keeps the `smoke -> users` progression aligned with the README prompt and the tutorial narrative.
-- It gives a natural place to read nearest guidance before CRUD feature creation, instead of introducing the bootstrap later in the flow.
+## Where the removed bootstrap had helped
+- It made the first AI-oriented onboarding step explicit right after scaffold creation.
+- It gave a natural place to look before CRUD feature creation.
 
-## Where the new bootstrap was redundant or confusing
-- The published `packages/ztd-cli/README.md` and released `AGENTS.md` guidance still reflect the older wording where `npx ztd agents init` looked like a later optional step, even though this branch already updates `packages/ztd-cli/README.md` to the `if you skipped that step` wording.
-- The tutorial still described `ztd agents init` as optional visible `AGENTS.md` guidance, which is stale after the Codex bootstrap change.
-- The published npm package `0.22.5` does not yet expose the same onboarding shape as this branch, so exact README Quickstart dogfooding against the published package currently mixes release-lag evidence with local-environment evidence.
+## Where the removed bootstrap was redundant or confusing
+- The generated README and tutorial already describe the `smoke -> users` progression.
+- The extra AI-control files made onboarding depend on text artifacts that were not required for the scaffolded commands.
+- Published-package evidence can lag behind branch behavior, so bootstrap-specific claims mixed release-lag evidence with local-environment evidence.
 
 ## Tutorial starting conditions
 - The tutorial starts after `ztd init --starter`.
@@ -78,16 +72,16 @@ Issue #685 changes the customer-facing onboarding path by inserting `ztd agents 
 - The `smoke -> users` structure remains natural and consistent with the README prompt.
 
 ## Tutorial consistency result
-- `ztd agents init` belongs immediately after `ztd init --starter` when the tutorial is read as the AI-guided starter path.
+- The tutorial can start immediately after `ztd init --starter` when it is read as the AI-guided starter path.
 - The tutorial flow from `src/features/smoke` to `src/features/users` remains coherent.
-- The tutorial wording was partially stale because it still talked about visible `AGENTS.md` only, not the wider Codex bootstrap.
+- The tutorial wording should avoid assuming AI-control files are present.
 
 ## What remains unverified
-- The exact README Quickstart cannot yet be treated as a clean published-package proof for this branch because the published `@rawsql-ts/ztd-cli@0.22.5` package does not match the new `ztd agents init` onboarding shape.
+- The exact README Quickstart cannot yet be treated as a clean published-package proof for this branch because the published `@rawsql-ts/ztd-cli@0.22.5` package does not match the branch onboarding shape.
 - The DB-backed path remains blocked in this local environment by Docker access and the previously documented `spawn EPERM` startup issue.
 - CI or an alternate environment is still required to close the end-to-end Quickstart and tutorial execution path.
 
 ## Reviewer conclusion
-- The onboarding order introduced by Issue #685 is coherent, and placing `ztd agents init` immediately after starter scaffold creation is natural.
-- The tutorial flow remains coherent, but its wording needed to be updated from visible-AGENTS phrasing to Codex-bootstrap phrasing.
+- The onboarding order remains coherent without the AI-control bootstrap.
+- The tutorial flow remains coherent, but its wording needs to stay centered on README/help/scaffold behavior instead of AI-control guidance.
 - Current evidence is enough to review onboarding shape and wording, but not enough to mark the end-to-end onboarding execution path as fully verified.

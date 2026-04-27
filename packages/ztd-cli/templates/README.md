@@ -76,16 +76,13 @@ After the SQL and DTO edits settle, run `ztd feature tests scaffold --feature <f
 - A `user_id: null` symptom usually points at fixture manifest, metadata, or rewrite path trouble rather than the DB engine itself.
 - When a local-source workspace should reflect a source change, verify the local `rawsql-ts` checkout is being resolved instead of a registry copy.
 - Enable `ZTD_SQL_TRACE=1` only when investigating rewrite issues so normal logs stay quiet.
-Read the nearest AGENTS.md files first.
 Do not apply migrations automatically.
 ```
-
-Add the optional prompt-review file if you want `PROMPT_DOGFOOD.md` for prompt review.
 
 The feature-first path is successful when:
 
 - `users` is the next feature to add
 - SQL, boundary entrypoints, and tests stay feature-local
-- the same vocabulary appears in the README, AGENTS files, and tutorial docs
+- the same vocabulary appears in the README, CLI help, and tutorial docs
 
 If you need the deeper change scenarios, consult the source-repository guides when you are working from the monorepo checkout; this generated workspace may not contain `docs/`.

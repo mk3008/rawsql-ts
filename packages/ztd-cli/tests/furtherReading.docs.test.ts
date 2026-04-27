@@ -29,7 +29,6 @@ test('package README links every Further Reading guide from the public index', (
     '[JOIN Direction Lint Specification](../../docs/guide/join-direction-lint-spec.md)',
     '[ztd-cli Telemetry Philosophy](../../docs/guide/ztd-cli-telemetry-philosophy.md)',
     '[Local-Source Development](../../docs/guide/ztd-local-source-dogfooding.md)',
-    '[Codex Bootstrap Verification](../../docs/dogfooding/ztd-codex-bootstrap-verification.md)',
     '[ztd-cli spawn EPERM Investigation](../../docs/dogfooding/ztd-cli-spawn-eperm-investigation.md)',
     '[ztd Onboarding Verification](../../docs/dogfooding/ztd-onboarding-dogfooding.md)'
   ]);
@@ -41,10 +40,8 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       docPath: 'docs/guide/sql-first-end-to-end-tutorial.md',
       phrases: [
         'This tutorial shows the shortest path from `ztd init --starter` to a small `users` feature',
-        'npx ztd agents init',
     'The smallest DB-backed starter example lives in `src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts`.',
         '`@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`',
-        'optional customer-facing Codex bootstrap (installed by `npx ztd agents init`)',
         'Docker Desktop or another Docker daemon is already running',
         'cp .env.example .env',
         '# edit ZTD_DB_PORT=5433',
@@ -128,39 +125,31 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'Use `ztd --output json ...` to request a JSON envelope on stdout.',
         'Prefer `--dry-run` before commands that write files.',
         'Use `--json <payload>` on supported commands when nested option construction is easier than individual flags.',
-        'Use `ztd init --with-ai-guidance` to write managed internal guidance under `.ztd/agents/`',
-        'Use `ztd agents status` to inspect customer-facing bootstrap targets separately from internal `.ztd` guidance, and to distinguish managed templates from user-owned instruction files.',
-        'Use `ztd agents init --dry-run` when you want the planned customer-facing bootstrap set before writing files.',
         'treat `summary` as the logical diff, treat `risks` as the apply-plan risk list',
         'Use `ztd ddl risk --file <migration.sql>` when you need to evaluate a generated or hand-edited migration SQL file directly',
         '`ztd model-gen` now treats feature-local SQL files as the primary contract source',
         'ZTD_DB_URL',
-        'Do not assume `DATABASE_URL` is a usable default target',
-        'Visible `AGENTS.md` files are opt-in via `ztd agents init`',
-        '.codex/config.toml',
-        '`managed`',
-        '`unmanaged-conflict`'
+        'Do not assume `DATABASE_URL` is a usable default target'
       ]
     },
     {
       docPath: 'docs/guide/feature-index.md',
       phrases: [
-        'Codex bootstrap init',
-        'ztd agents init'
+        'SQL-first End-to-End Tutorial',
+        'Non-interactive init'
       ]
     },
     {
       docPath: 'docs/dogfooding/ztd-application-lifecycle.md',
       phrases: [
-        'confirm that an AI agent can read the Codex bootstrap files after you opt in with `ztd agents init`',
-        '`ztd agents init`',
-        '.codex/agents/*'
+        'confirm that an AI agent can work from the generated README and CLI scaffold',
+        '`ztd init --starter`',
+        'Do not apply migrations automatically.'
       ]
     },
     {
       docPath: 'packages/ztd-cli/README.md',
       phrases: [
-        'npx ztd agents init',
         'If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; check whether `ztd-cli` or `rawsql-ts` changed the manifest or rewrite path.',
         'If you see `user_id: null`, compare the direct database `INSERT ... RETURNING ...` result with the ZTD result and inspect `.ztd/generated/ztd-fixture-manifest.generated.ts` first.',
         'If a local-source workspace is meant to reflect a source change, verify that it resolves `rawsql-ts` from the local source tree rather than a registry copy.',
@@ -170,18 +159,6 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'creates the thin Vitest entrypoint `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` only if it is missing.',
         'Persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/` are human/AI-owned and are not overwritten.',
         'Do not apply migrations automatically.'
-      ]
-    },
-    {
-      docPath: 'docs/dogfooding/ztd-codex-bootstrap-verification.md',
-      phrases: [
-        'reviewer-checkable verification pass',
-        'Fresh Project Verification',
-        'What Was Installed',
-        'How To Verify',
-        'What Becomes Possible',
-        'Guarantee Limits',
-        'Weak Spots Or Out Of Scope Areas'
       ]
     },
     {
@@ -199,7 +176,7 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         '## Reviewer conclusion',
         'pnpm --filter @rawsql-ts/ztd-cli test',
         'pnpm --filter @rawsql-ts/ztd-cli exec vitest',
-        'pnpm --filter @rawsql-ts/ztd-cli test -- --run tests/utils/agents.test.ts',
+        'pnpm --filter @rawsql-ts/ztd-cli test',
         'build` -> passed',
         'lint` -> passed',
         'child_process.spawn(',
@@ -215,18 +192,17 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         '## What was run',
         '## Exact order',
         '## README Quickstart step-by-step outcome',
-        '## Where the new bootstrap helped',
-        '## Where the new bootstrap was redundant or confusing',
+        '## Where the removed bootstrap had helped',
+        '## Where the removed bootstrap was redundant or confusing',
         '## What remains unverified',
         'npm install -D @rawsql-ts/ztd-cli vitest typescript',
         'npx ztd init --starter',
-        'npx ztd agents init',
         '.env.example',
         'docker compose up -d',
         'npx ztd ztd-config',
         'npx vitest run',
         'README Quickstart path in a fresh directory outside the monorepo workspace root.',
-        'The onboarding order introduced by Issue #685 is coherent'
+        'The onboarding order remains coherent without the AI-control bootstrap'
       ]
     },
     {

@@ -11,9 +11,6 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Feature | Command / Location | When to use |
 |---------|-------------------|-------------|
 | Non-interactive init | `ztd init --yes --workflow demo --validator zod` | CI/CD pipelines, agent-driven scaffolding |
-| Internal agent guidance | `.ztd/agents/manifest.json` | Default AI/project guidance without repo-visible `AGENTS.md` files |
-| Codex bootstrap init | `ztd agents init` | Materialize the opt-in Codex bootstrap: visible `AGENTS.md`, `.codex`, and `.agents` |
-| AGENTS status | `ztd agents status` | Check managed guidance state and drift |
 | DDL pull from explicit target | `ztd ddl pull --url <target>` | Inspect schema state from an existing Postgres database |
 | DDL diff | `ztd ddl diff --url <target>` | Compare local DDL against an explicit target database after changes |
 | Watch mode | `ztd ztd-config --watch` | Continuous type regeneration while editing DDL |
@@ -48,7 +45,6 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Repository telemetry contract | `src/libraries/telemetry/repositoryTelemetry.ts` | Keep the shared telemetry seam driver-neutral |
 | Repository telemetry console sink | `src/adapters/console/repositoryTelemetry.ts` | Emit safe local logs without widening the shared contract |
 | Runtime coercions | `src/catalog/runtime/_coercions.ts` | Driver-type normalization before validation |
-| Internal agent manifest | `.ztd/agents/*` | Default AI-assisted development context |
 | Spec files | `src/catalog/specs/` | Define catalog contracts with validators |
 | Global test setup | `tests/support/global-setup.ts` | Test-runner initialization hooks |
 
