@@ -3,14 +3,12 @@
 - Feature folders are the default teaching and change surface.
 - Treat each feature folder as a boundary that may contain child boundaries.
 - Keep handwritten SQL, `boundary.ts`, and tests feature-local unless the project already chose a shared compatibility layout.
-- Use `boundary.ts` as the default public entrypoint for feature-owned boundaries and sub-boundaries under `src/features/*`.
+- Use `boundary.ts` as the single public surface file for each boundary folder.
 - Prefer `queries/` as the default container folder for query boundaries, with each query folder owning exactly one `boundary.ts`.
-- Treat `queries/` itself as a child-boundary container rather than a public boundary.
 - Keep feature-boundary tests at `src/features/<feature>/tests/<feature>.boundary.test.ts`.
 - Keep query-boundary ZTD assets colocated with each query directory under `src/features/<feature>/queries/<query>/tests/`.
-- Keep shared feature-facing seams under `src/features/_shared/*`; this is not a root-boundary.
-- Put driver or sink bindings under `src/adapters/<tech>/*` and shared driver-neutral contracts under `src/libraries/*`; the concrete root-boundaries are `src/features`, `src/adapters`, and `src/libraries`.
-- Treat `tests/support/*`, `.ztd/*`, and `db/` as important support areas, not root-boundaries.
+- Keep shared feature-facing seams under `src/features/_shared/*`.
+- Put driver or sink bindings under `src/adapters/<tech>/*` and shared driver-neutral contracts under `src/libraries/*`.
 - Do not place runtime clients or adapters under `db/`.
 - Treat `smoke` as the removable starter sample when it exists.
 - `users` is the normal first feature after `smoke`.

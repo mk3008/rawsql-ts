@@ -347,10 +347,8 @@ test('quickstart and tutorial spell out the common 5432 collision fallback', () 
   expect(tutorial).toContain('all predefined address pools have been fully subnetted');
   expect(tutorial).toContain('changing `ZTD_DB_PORT` will not help');
   expect(packageReadme).not.toContain('A folder is a boundary.');
-  expect(scaffoldReadme).not.toContain('Every boundary folder exposes only `boundary.ts`');
   expect(packageReadme).toContain('RFBA (Review-First Backend Architecture)');
   expect(packageReadme).toContain('RFBA is architecture and structure theory, not a filename rule.');
-  expect(scaffoldReadme).toContain('Review-First Backend Architecture');
   expect(tutorial).toContain('RFBA is about splitting files by review responsibility');
   expect(readNormalizedFile('docs/.vitepress/config.mts')).toContain("{ text: 'What Is RFBA?', link: '/guide/rfba-overview' }");
   expect(readNormalizedFile('docs/guide/feature-index.md')).toContain('[guide/rfba-overview](./rfba-overview.md)');

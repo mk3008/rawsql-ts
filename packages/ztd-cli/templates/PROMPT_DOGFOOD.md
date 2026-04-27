@@ -11,14 +11,10 @@ Add a feature to this feature-first project.
 Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.ztd/agents/*` if present.
 Start with `npx ztd feature scaffold --table <table> --action <action>`.
 Treat the project structure as Architecture as a Framework.
-Use `root-boundary`, `feature-boundary`, and `sub-boundary` as the BFA vocabulary.
-Treat `src/features`, `src/adapters`, and `src/libraries` as the only concrete root-boundaries in this app.
-Use `boundary.ts` as the default public entrypoint only for `src/features/<feature-name>` boundaries where the scaffold already expects it.
+Every boundary folder exposes only `boundary.ts`, and child boundaries repeat the same rule.
 Keep handwritten SQL, the feature boundary, and the query boundary inside `src/features/<feature-name>`.
-Treat `queries/` as a child-boundary container rather than a public boundary of its own.
 Keep shared feature seams under `src/features/_shared/*`, shared verification seams under `tests/support/*`, and tool-managed assets under `.ztd/*`.
 Keep driver-neutral contracts in `src/libraries/*` and driver or sink bindings in `src/adapters/<tech>/*`.
-Do not count `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, or `db/` as root-boundaries.
 Keep feature-boundary tests mock-based in `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts`.
 Before you edit DTOs or write persistent query cases, run `npx ztd feature tests scaffold --feature <feature-name>`.
 That command refreshes `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`, refreshes `src/features/<feature-name>/queries/<query-name>/tests/boundary-ztd-types.ts`, and creates the thin `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` Vitest entrypoint only if it is missing.
