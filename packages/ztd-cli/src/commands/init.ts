@@ -5,7 +5,6 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 
 import { ensureDirectory } from '../utils/fs';
-import { copyAgentsTemplate, writeInternalAgentsArtifacts } from '../utils/agents';
 import {
   DEFAULT_ZTD_CONFIG,
   resolveGeneratedDir,
@@ -154,13 +153,6 @@ type FileKey =
   | 'ztdDocsReadme'
   | 'sqlReadme'
   | 'readme'
-  | 'context'
-  | 'promptDogfood'
-  | 'internalAgentsManifest'
-  | 'internalAgentsRoot'
-  | 'internalAgentsSrc'
-  | 'internalAgentsTests'
-  | 'internalAgentsZtd'
   | 'featureQueryExecutor'
   | 'loadSqlResource'
   | 'sqlClient'
@@ -198,7 +190,6 @@ export interface ZtdConfigWriterDependencies {
   runGenerateZtdConfig: (options: ZtdConfigGenerationOptions) => Promise<unknown> | unknown;
   checkPgDump: () => boolean;
   log: (message: string) => void;
-  copyAgentsTemplate: (rootDir: string) => string | null;
   installPackages: (options: {
     rootDir: string;
     kind: PackageInstallKind;
@@ -216,9 +207,6 @@ export interface InitCommandOptions {
   appShape?: InitAppShape;
   starter?: boolean;
   postgresImage?: string;
-  withAiGuidance?: boolean;
-  withDogfooding?: boolean;
-  withAppInterface?: boolean;
   skipInstall?: boolean;
   forceOverwrite?: boolean;
   nonInteractive?: boolean;
@@ -234,8 +222,6 @@ type InitAppShape = 'default' | 'webapi';
 
 interface OptionalFeatures {
   validator: ValidatorBackend;
-  aiGuidance: boolean;
-  dogfooding: boolean;
 }
 
 interface InitScaffoldProfile {
@@ -245,9 +231,6 @@ interface InitScaffoldProfile {
 
 interface InitScaffoldLayout {
   readmeTemplate: string;
-  contextTemplate: string;
-  promptDogfoodPath: string | null;
-  promptDogfoodTemplate: string | null;
   featureQueryExecutorPath: string;
   featureQueryExecutorTemplate: string;
   loadSqlResourcePath: string;
@@ -356,15 +339,11 @@ function resolveCurrentCliVersion(): string {
 async function gatherOptionalFeatures(
   prompter: Prompter,
   _dependencies: ZtdConfigWriterDependencies,
-  validatorOverride?: ValidatorBackend,
-  aiGuidanceOverride?: boolean,
-  dogfoodingOverride?: boolean
+  validatorOverride?: ValidatorBackend
 ): Promise<OptionalFeatures> {
   if (validatorOverride) {
     return {
-      validator: validatorOverride,
-      aiGuidance: aiGuidanceOverride ?? false,
-      dogfooding: dogfoodingOverride ?? false
+      validator: validatorOverride
     };
   }
   const validatorChoice = await prompter.selectChoice(
@@ -373,17 +352,13 @@ async function gatherOptionalFeatures(
   );
   const validator: ValidatorBackend = validatorChoice === 0 ? 'zod' : 'arktype';
   return {
-    validator,
-    aiGuidance: aiGuidanceOverride ?? false,
-    dogfooding: dogfoodingOverride ?? false
+    validator
   };
 }
 
 type InitWorkflow = 'pg_dump' | 'empty' | 'demo';
 
 const README_TEMPLATE = 'README.md';
-const CONTEXT_TEMPLATE = 'CONTEXT.md';
-const PROMPT_DOGFOOD_TEMPLATE = 'PROMPT_DOGFOOD.md';
 const DEFAULT_POSTGRES_IMAGE = 'postgres:18';
 const STARTER_COMPOSE_FILE = 'compose.yaml';
 const ENV_EXAMPLE_TEMPLATE = '.env.example';
@@ -517,9 +492,6 @@ function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): In
   const supportDir = resolveSupportDir(DEFAULT_ZTD_CONFIG);
   return {
     readmeTemplate: README_TEMPLATE,
-    contextTemplate: CONTEXT_TEMPLATE,
-    promptDogfoodPath: path.join(rootDir, 'PROMPT_DOGFOOD.md'),
-    promptDogfoodTemplate: PROMPT_DOGFOOD_TEMPLATE,
     featureQueryExecutorPath: path.join(rootDir, 'src', 'features', '_shared', 'featureQueryExecutor.ts'),
     featureQueryExecutorTemplate: FEATURE_SHARED_FEATURE_QUERY_EXECUTOR_TEMPLATE,
     loadSqlResourcePath: path.join(rootDir, 'src', 'features', '_shared', 'loadSqlResource.ts'),
@@ -581,21 +553,6 @@ function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): In
   };
 }
 
-const AGENTS_FILE_CANDIDATES = ['AGENTS.md', 'AGENTS_ztd.md'];
-
-const APP_INTERFACE_SECTION_MARKER = '## Application Interface Guidance';
-const APP_INTERFACE_SECTION = `---
-## Application Interface Guidance
-
-1. Feature folders are the default change unit.
-2. Keep domain, application, persistence, and tests close to the feature they support.
-3. Input validation should happen at the feature boundary before SQL runs.
-4. Only validated inputs reach SQL execution; reject raw external objects as soon as possible.
-5. Keep \`smoke\` small enough to delete after the first real feature is added.
-6. Build the slice first and revisit shared extraction during review, not before the feature works.
-7. Guard every behavioral change with feature-local tests so regression risks stay low.
-`;
-
 function resolveTemplateDirectory(): string {
   const candidates = [
     // Prefer the installed package layout: <pkg>/dist/commands → <pkg>/templates.
@@ -633,7 +590,6 @@ const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
   log: (message: string) => {
     console.log(message);
   },
-  copyAgentsTemplate,
   installPackages: ({ rootDir, kind, packages, packageManager }) => {
     // Use the Windows shim executables so spawnSync finds the package manager in PATH.
     const executable = resolvePackageManagerExecutable(packageManager);
@@ -692,16 +648,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     force: options?.forceOverwrite ?? false,
     nonInteractive: options?.nonInteractive ?? false
   };
-
-  if (options?.withAppInterface) {
-    // Provide the documentation-only path before triggering any scaffolding work.
-    const summary = await appendAppInterfaceGuidance(rootDir, dependencies);
-    dependencies.log(`Appended application interface guidance to ${summary.relativePath}.`);
-    return {
-      summary: `App interface guidance appended to ${summary.relativePath}.`,
-      files: [summary]
-    };
-  }
 
   // Determine workflow: use explicit flag, non-interactive default, starter preset, or prompt.
   let workflow: InitWorkflow;
@@ -773,13 +719,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     telemetryConsoleRepository: scaffoldLayout.telemetryConsoleRepositoryPath,
     starterPostgresTestkit: scaffoldLayout.starterPostgresTestkitPath,
     readme: path.join(rootDir, 'README.md'),
-    context: path.join(rootDir, 'CONTEXT.md'),
-    promptDogfood: scaffoldLayout.promptDogfoodPath ?? path.join(rootDir, 'PROMPT_DOGFOOD.md'),
-    internalAgentsManifest: path.join(rootDir, '.ztd', 'agents', 'manifest.json'),
-    internalAgentsRoot: path.join(rootDir, '.ztd', 'agents', 'root.md'),
-    internalAgentsSrc: path.join(rootDir, '.ztd', 'agents', 'src.md'),
-    internalAgentsTests: path.join(rootDir, '.ztd', 'agents', 'tests.md'),
-    internalAgentsZtd: path.join(rootDir, '.ztd', 'agents', 'db.md'),
     sqlReadme: path.join(rootDir, 'src', 'libraries', 'sql', 'README.md'),
     sqlClient: scaffoldLayout.sqlClientPath,
     sqlClientAdapters: scaffoldLayout.sqlClientAdaptersPath,
@@ -883,9 +822,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   const optionalFeatures = await gatherOptionalFeatures(
     prompter,
     dependencies,
-    validatorOverride,
-    options?.withAiGuidance,
-    options?.withDogfooding
+    validatorOverride
   );
 
   // Emit supporting documentation that describes the workflow for contributors.
@@ -911,54 +848,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
       overwritePolicy
     );
     summaries.starterCompose = composeSummary;
-  }
-
-  if (optionalFeatures.aiGuidance) {
-    const contextSummary = await writeTemplateFile(
-      rootDir,
-      absolutePaths.context,
-      relativePath('context'),
-      scaffoldLayout.contextTemplate,
-      dependencies,
-      prompter,
-      overwritePolicy,
-      true
-    );
-    if (contextSummary) {
-      summaries.context = contextSummary;
-    }
-  }
-
-  if (optionalFeatures.dogfooding && scaffoldLayout.promptDogfoodTemplate) {
-    const promptDogfoodSummary = await writeTemplateFile(
-      rootDir,
-      absolutePaths.promptDogfood,
-      relativePath('promptDogfood'),
-      scaffoldLayout.promptDogfoodTemplate,
-      dependencies,
-      prompter,
-      overwritePolicy,
-      true
-    );
-    if (promptDogfoodSummary) {
-      summaries.promptDogfood = promptDogfoodSummary;
-    }
-  }
-
-  if (optionalFeatures.aiGuidance) {
-    for (const summary of writeInternalAgentsArtifacts(rootDir)) {
-      if (summary.relativePath === relativePath('internalAgentsManifest')) {
-        summaries.internalAgentsManifest = summary;
-      } else if (summary.relativePath === relativePath('internalAgentsRoot')) {
-        summaries.internalAgentsRoot = summary;
-      } else if (summary.relativePath === relativePath('internalAgentsSrc')) {
-        summaries.internalAgentsSrc = summary;
-      } else if (summary.relativePath === relativePath('internalAgentsTests')) {
-        summaries.internalAgentsTests = summary;
-      } else if (summary.relativePath === relativePath('internalAgentsZtd')) {
-        summaries.internalAgentsZtd = summary;
-      }
-    }
   }
 
   const featureRootReadmeSummary = await writeTemplateFile(
@@ -2398,59 +2287,6 @@ export function sanitizeSchemaFileName(schemaName: string): string {
   return sanitized || 'schema';
 }
 
-interface AgentsFileResolution {
-  absolutePath: string;
-  created: boolean;
-}
-
-function resolveOrCreateAgentsFile(
-  rootDir: string,
-  dependencies: ZtdConfigWriterDependencies
-): AgentsFileResolution | null {
-  // Prefer materializing the bundled template before looking for existing attention files.
-  const templateTarget = dependencies.copyAgentsTemplate(rootDir);
-  if (templateTarget) {
-    return { absolutePath: templateTarget, created: true };
-  }
-
-  for (const candidate of AGENTS_FILE_CANDIDATES) {
-    const candidatePath = path.join(rootDir, candidate);
-    if (dependencies.fileExists(candidatePath)) {
-      return { absolutePath: candidatePath, created: false };
-    }
-  }
-
-  return null;
-}
-
-async function appendAppInterfaceGuidance(
-  rootDir: string,
-  dependencies: ZtdConfigWriterDependencies
-): Promise<FileSummary> {
-  const resolution = resolveOrCreateAgentsFile(rootDir, dependencies);
-  if (!resolution) {
-    throw new Error('Failed to locate or create an AGENTS file for application guidance.');
-  }
-
-  const relativePath = normalizeRelative(rootDir, resolution.absolutePath);
-  const existingContents = readFileSync(resolution.absolutePath, 'utf8');
-
-  // Skip appending when the guidance section already exists to avoid duplicates.
-  if (existingContents.includes(APP_INTERFACE_SECTION_MARKER)) {
-    return { relativePath, outcome: 'unchanged' };
-  }
-
-  // Ensure the appended block is separated by blank lines for readability.
-  const baseline = existingContents.endsWith('\n') ? existingContents : `${existingContents}\n`;
-  const spacer = baseline.endsWith('\n\n') ? '' : '\n';
-  dependencies.writeFile(
-    resolution.absolutePath,
-    `${baseline}${spacer}${APP_INTERFACE_SECTION}\n`
-  );
-
-  return { relativePath, outcome: 'overwritten' };
-}
-
 function isRootMarkdown(relative: string): boolean {
   return relative.toLowerCase().endsWith('.md') && !relative.includes('/');
 }
@@ -2664,13 +2500,6 @@ function buildSummaryLines(
     'starterCompose',
     'envExample',
     'readme',
-    'context',
-    'promptDogfood',
-    'internalAgentsManifest',
-    'internalAgentsRoot',
-    'internalAgentsSrc',
-    'internalAgentsTests',
-    'internalAgentsZtd',
     'ztdDocsReadme',
     'sqlReadme',
     'featureRootReadme',
@@ -2740,17 +2569,11 @@ function buildSummaryLines(
   lines.push(` - Validator backend: ${validatorLabel}`);
   if (starter) {
     lines.push('', 'Starter flow:');
-    lines.push(' - Visible AGENTS.md files are optional. Add them later with: ztd agents init');
     lines.push(` - Bundled Postgres compose image: ${postgresImage}`);
     lines.push(' - Run docker compose up -d before the DB-backed smoke test so the starter DB path is ready.');
     lines.push(
       ' - The starter smoke test uses tests/support/ztd/harness.ts, the query-local smoke spec under src/features/smoke/queries/smoke/tests/, and the starter DB wiring under .ztd/support/ to fail fast on setup problems.'
     );
-  }
-  if (optionalFeatures.aiGuidance) {
-    lines.push('', 'AI guidance:');
-    lines.push(' - Internal guidance is managed under .ztd/agents/.');
-    lines.push(' - Visible AGENTS.md files are separate. Enable them with: ztd agents init');
   }
   if (installNote) {
     lines.push('', 'Dependency installation:');
@@ -2789,9 +2612,6 @@ export function buildInitDryRunPlan(rootDir: string, options: {
   appShape: InitAppShape;
   starter?: boolean;
   postgresImage?: string;
-  withAiGuidance?: boolean;
-  withDogfooding?: boolean;
-  withAppInterface?: boolean;
   workflow: InitWorkflow;
   validator: ValidatorBackend;
   localSourceRoot?: string;
@@ -2851,23 +2671,6 @@ export function buildInitDryRunPlan(rootDir: string, options: {
     );
   }
 
-  if (options.withAiGuidance) {
-    files.push('.ztd/agents/manifest.json');
-    files.push('.ztd/agents/root.md');
-    files.push('.ztd/agents/src.md');
-    files.push('.ztd/agents/src-features.md');
-    files.push('.ztd/agents/tests.md');
-    files.push('.ztd/agents/db.md');
-    files.push('CONTEXT.md');
-  }
-
-  if (options.withDogfooding) {
-    files.push('PROMPT_DOGFOOD.md');
-  }
-
-  if (options.withAppInterface) {
-    files.splice(0, files.length, 'AGENTS.md');
-  }
   if (options.localSourceRoot) {
     resolveInitScaffoldProfile(rootDir, options.localSourceRoot, starter);
   }
@@ -2899,9 +2702,6 @@ export function registerInitCommand(program: Command): void {
     .option('--app-shape <type>', 'Deprecated compatibility option; the vertical scaffold ignores it')
     .option('--starter', 'Generate the recommended starter flow with compose, smoke tests, and sample DDL')
     .option('--postgres-image <image>', 'Postgres image/tag to use in the starter compose file (default: postgres:18)')
-    .option('--with-ai-guidance', 'Generate internal AI guidance files such as CONTEXT.md and .ztd/agents/*')
-    .option('--with-dogfooding', 'Generate PROMPT_DOGFOOD.md for AI prompt dogfooding and debugging')
-    .option('--with-app-interface', 'Append application interface guidance to AGENTS.md only')
     .option('--skip-install', 'Create the scaffold without installing dependencies')
     .option('--yes', 'Accept defaults without interactive prompts')
     .option('--force', 'Allow ztd init to overwrite files it owns')
@@ -2917,9 +2717,6 @@ export function registerInitCommand(program: Command): void {
       appShape?: string;
       starter?: boolean;
       postgresImage?: string;
-      withAiGuidance?: boolean;
-      withDogfooding?: boolean;
-      withAppInterface?: boolean;
       skipInstall?: boolean;
       yes?: boolean;
       force?: boolean;
@@ -2938,9 +2735,6 @@ export function registerInitCommand(program: Command): void {
       validateJsonBooleanFlag(merged.dryRun, 'dry-run');
       validateJsonBooleanFlag(merged.force, 'force');
       validateJsonBooleanFlag(merged.starter, 'starter');
-      validateJsonBooleanFlag(merged.withAiGuidance, 'with-ai-guidance');
-      validateJsonBooleanFlag(merged.withDogfooding, 'with-dogfooding');
-      validateJsonBooleanFlag(merged.withAppInterface, 'with-app-interface');
       validateJsonBooleanFlag(merged.skipInstall, 'skip-install');
       if (merged.postgresImage !== undefined && typeof merged.postgresImage !== 'string') {
         console.error('Invalid --postgres-image value in --json payload. Expected a string.');
@@ -2980,9 +2774,6 @@ export function registerInitCommand(program: Command): void {
           appShape,
           starter,
           postgresImage,
-          withAiGuidance: merged.withAiGuidance === true,
-          withDogfooding: merged.withDogfooding === true,
-          withAppInterface: merged.withAppInterface === true,
           workflow: workflow ?? 'demo',
           validator: validator ?? 'zod',
           localSourceRoot: merged.localSourceRoot
@@ -3001,9 +2792,6 @@ export function registerInitCommand(program: Command): void {
           appShape,
           starter,
           postgresImage,
-          withAiGuidance: merged.withAiGuidance === true,
-          withDogfooding: merged.withDogfooding === true,
-          withAppInterface: merged.withAppInterface === true,
           skipInstall: merged.skipInstall === true,
           forceOverwrite: merged.force === true,
           nonInteractive: isNonInteractive,

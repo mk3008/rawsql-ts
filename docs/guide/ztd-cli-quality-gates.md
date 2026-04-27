@@ -70,6 +70,7 @@ The contract has three goals:
 
 The author-facing entry point is `.github/pull_request_template.md`.
 The enforcement point is `scripts/check-pr-readiness.js`, which reads the PR body from `GITHUB_EVENT_PATH`.
+For mechanical authoring, use `pnpm pr:readiness:prepare ...` to generate a validator-compatible body from the changed-file classification and structured field inputs before opening the PR.
 
 When scaffold-related files change, the PR body must cover:
 

@@ -66,7 +66,9 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
   expect(tutorial).toContain('queries/insert-users/tests/cases/');
   expect(tutorial).toContain('persistent case files');
   expect(tutorial).toContain('Add a users insert feature to this feature-first project.');
-  expect(tutorial).toContain('Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.ztd/agents/*` if present.');
+  expect(tutorial).not.toContain('AGENTS.md');
+  expect(tutorial).not.toContain('.codex/agents');
+  expect(tutorial).not.toContain('.ztd/agents');
   expect(tutorial).toContain('Start with `npx ztd feature scaffold --table users --action insert`.');
   expect(tutorial).toContain('`src/features`, `src/adapters`, and `src/libraries` are the concrete `root-boundary` folders.');
   expect(tutorial).toContain('`src/features/users-insert/` is the `feature-boundary`, and `queries/insert-users/` is one `sub-boundary`.');

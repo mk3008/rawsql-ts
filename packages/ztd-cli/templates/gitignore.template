@@ -8,4 +8,3 @@ coverage/
 !.env.example
 
 .ztd/generated/**
-!.ztd/generated/AGENTS.md

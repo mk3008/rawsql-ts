@@ -36,8 +36,6 @@ Run:
 
 ```bash
 npx ztd init --starter
-# Optional: install the customer-facing Codex bootstrap for the AI-guided path
-npx ztd agents init
 ```
 
 The starter generates:
@@ -45,11 +43,7 @@ The starter generates:
 - `src/features/smoke`
 - `db/ddl/public.sql`
 - `compose.yaml`
-- optional customer-facing Codex bootstrap (installed by `npx ztd agents init`)
 - Vitest smoke tests
-
-Run `npx ztd agents init` immediately after scaffold creation when you want the customer-facing Codex bootstrap for the AI-guided path.
-That opt-in bootstrap adds visible `AGENTS.md`, `db/AGENTS.md`, `db/ddl/AGENTS.md`, `src/AGENTS.md`, `src/features/AGENTS.md`, `.codex/config.toml`, and `.codex/agents/*`.
 
 The smallest DB-backed starter example lives in `src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts`.
  It uses `@rawsql-ts/testkit-postgres` and `createPostgresTestkitClient`, so a missing `ZTD_DB_URL`, a stopped Postgres container, or a schema mismatch fails before you build a larger feature.
@@ -144,13 +138,12 @@ When the cases are ready, run `npx vitest run src/features/users-insert/queries/
 
 ## 4. Run the CRUD scenario
 
-Use the prompt from `packages/ztd-cli/README.md` or `PROMPT_DOGFOOD.md`:
+Use this prompt:
 
-This prompt is meant to be copied into another AI instance so we can observe whether the scaffold and AGENTS guidance are enough on their own.
+This prompt is meant to be copied into another AI instance so we can observe whether the scaffold, generated README, and CLI guidance are enough on their own.
 
 ```text
 Add a users insert feature to this feature-first project.
-Read the nearest AGENTS.md files first. Then read `.codex/agents/*` and `.ztd/agents/*` if present.
 Start with `npx ztd feature scaffold --table users --action insert`.
 Use `root-boundary`, `feature-boundary`, and `sub-boundary` as the ztd-cli structural vocabulary for RFBA.
 Treat `src/features`, `src/adapters`, and `src/libraries` as the only concrete root-boundaries in this app.
@@ -230,4 +223,4 @@ After the starter flow is green, the user should be able to answer these questio
 - Which files stay feature-local?
 - How do I prepare a migration without making `ztd-cli` deploy it for me?
 
-If the answer is unclear, fix the scaffold, the prompt, or the AGENTS guidance before adding more tutorial content.
+If the answer is unclear, fix the scaffold, generated README, CLI help, or prompt before adding more tutorial content.

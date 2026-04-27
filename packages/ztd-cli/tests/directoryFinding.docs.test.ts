@@ -69,9 +69,8 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   );
 });
 
-test('feature guidance centers the sample feature and recursive boundary folders', () => {
+test('feature README and scaffold files center the sample feature and recursive boundary folders', () => {
   const files = [
-    'packages/ztd-cli/templates/src/features/AGENTS.md',
     'packages/ztd-cli/templates/src/features/README.md',
     'packages/ztd-cli/templates/src/features/smoke/README.md',
     'packages/ztd-cli/templates/src/features/smoke/boundary.ts',
@@ -85,10 +84,8 @@ test('feature guidance centers the sample feature and recursive boundary folders
     expect(contents).not.toContain('tables/views');
   }
 
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/AGENTS.md')).toContain(
-    'Treat each feature folder as a boundary'
-  );
-  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/AGENTS.md')).toContain('boundary.ts');
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/README.md').toLowerCase()).toContain('feature-first');
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/README.md')).toContain('boundary.ts');
   expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/boundary.ts')).toContain(
     'executeSmokeEntrySpec'
   );
@@ -125,12 +122,7 @@ test('feature guidance centers the sample feature and recursive boundary folders
 
 test('feature-first scaffold files exist in the template bundle', () => {
   const requiredPaths = [
-    'packages/ztd-cli/templates/.codex/config.toml',
-    'packages/ztd-cli/templates/.codex/agents/planning.md',
-    'packages/ztd-cli/templates/.codex/agents/troubleshooting.md',
-    'packages/ztd-cli/templates/.codex/agents/next-steps.md',
     'packages/ztd-cli/templates/src/features/README.md',
-    'packages/ztd-cli/templates/src/features/AGENTS.md',
     'packages/ztd-cli/templates/src/features/smoke/README.md',
     'packages/ztd-cli/templates/src/features/smoke/boundary.ts',
     'packages/ztd-cli/templates/src/features/smoke/tests/smoke.boundary.test.ts',
@@ -157,11 +149,13 @@ test('feature-first scaffold files exist in the template bundle', () => {
   }
 
   const removedPaths = [
-    'packages/ztd-cli/templates/.agents',
-    'packages/ztd-cli/templates/.agents/skills',
-    'packages/ztd-cli/templates/.agents/skills/quickstart',
-    'packages/ztd-cli/templates/.agents/skills/troubleshooting',
-    'packages/ztd-cli/templates/.agents/skills/next-steps',
+    'packages/ztd-cli/templates/AGENTS.md',
+    'packages/ztd-cli/templates/CONTEXT.md',
+    'packages/ztd-cli/templates/PROMPT_DOGFOOD.md',
+    'packages/ztd-cli/templates/.codex/config.toml',
+    'packages/ztd-cli/templates/.codex/agents/planning.md',
+    'packages/ztd-cli/templates/.codex/agents/troubleshooting.md',
+    'packages/ztd-cli/templates/.codex/agents/next-steps.md',
     'packages/ztd-cli/templates/.agents/skills/quickstart/SKILL.md',
     'packages/ztd-cli/templates/.agents/skills/troubleshooting/SKILL.md',
     'packages/ztd-cli/templates/.agents/skills/next-steps/SKILL.md'

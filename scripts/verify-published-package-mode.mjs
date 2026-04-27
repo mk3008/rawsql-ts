@@ -461,8 +461,10 @@ function verifyNpmPrimaryPath(packages) {
   );
   assertIncludes(readme, "Use this short prompt:", "phase-a scaffold-readme");
   assertIncludes(readme, "Choose `ztd init` or `ztd init --starter` based on whether you want the removable starter sample.", "phase-a scaffold-readme");
-  assertIncludes(readme, "Add the optional prompt-review file if you want `PROMPT_DOGFOOD.md` for prompt review.", "phase-a scaffold-readme");
+  assertIncludes(readme, "the same vocabulary appears in the README, CLI help, and tutorial docs", "phase-a scaffold-readme");
   assertIncludes(readme, "The feature-first path is successful when:", "phase-a scaffold-readme");
+  assertExcludes(readme, "AGENTS.md", "phase-a scaffold-readme");
+  assertExcludes(readme, "PROMPT_DOGFOOD.md", "phase-a scaffold-readme");
   assertExcludes(readme, "pnpm exec ztd ztd-config", "phase-a scaffold-readme");
 
   restoreTarballDependencies(appDir, tarballDependencies);
@@ -524,8 +526,6 @@ function verifyPnpmStarterPath(packages) {
   runInstalledZtdCli(appDir, [
     "init",
     "--starter",
-    "--with-ai-guidance",
-    "--with-dogfooding",
     "--yes",
     "--skip-install",
   ]);
@@ -566,8 +566,6 @@ function verifyPnpmAdapterInstall(packages) {
   runInstalledZtdCli(appDir, [
     "init",
     "--starter",
-    "--with-ai-guidance",
-    "--with-dogfooding",
     "--yes",
     "--skip-install",
   ]);
@@ -606,8 +604,6 @@ function verifyPnpmTutorialModelGen(packages) {
   runInstalledZtdCli(appDir, [
     "init",
     "--starter",
-    "--with-ai-guidance",
-    "--with-dogfooding",
     "--yes",
     "--skip-install",
   ]);

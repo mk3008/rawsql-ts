@@ -312,7 +312,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(result.summary).toContain('src/features/smoke/tests/smoke.boundary.test.ts');
   expect(result.summary).toContain('src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts');
   expect(result.summary).toContain('starter-only sample feature');
-  expect(result.summary).toContain('ztd agents init');
+  expect(result.summary).not.toContain('ztd agents init');
   expect(result.summary).toContain('Delete src/features/smoke/');
 });
 
@@ -322,9 +322,6 @@ test('init dry-run plan matches starter outputs without AGENTS files', () => {
     appShape: 'default',
     starter: true,
     postgresImage: 'postgres:17',
-    withAiGuidance: false,
-    withDogfooding: false,
-    withAppInterface: false,
     workflow: 'demo',
     validator: 'zod',
     localSourceRoot: null
@@ -369,9 +366,6 @@ test('init dry-run plan for non-starter init excludes starter-only readmes', () 
   const plan = buildInitDryRunPlan(workspace, {
     appShape: 'default',
     starter: false,
-    withAiGuidance: false,
-    withDogfooding: false,
-    withAppInterface: false,
     workflow: 'empty',
     validator: 'zod',
     localSourceRoot: null
@@ -391,33 +385,7 @@ test('init dry-run plan for non-starter init excludes starter-only readmes', () 
   ]));
 });
 
-test('init starter keeps visible AGENTS out even when internal AI guidance is enabled', { timeout: 60_000 }, async () => {
-  const workspace = createTempDir('cli-init-starter-ai-guidance');
-  const prompter = new TestPrompter([]);
-
-  const result = await runInitCommand(prompter, {
-    rootDir: workspace,
-    nonInteractive: true,
-    forceOverwrite: true,
-    workflow: 'demo',
-    validator: 'zod',
-    starter: true,
-    withAiGuidance: true
-  });
-
-  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'src', 'AGENTS.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'db', 'AGENTS.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(false);
-  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'CONTEXT.md'))).toBe(true);
-  expect(result.summary).toContain('Internal guidance is managed under .ztd/agents/.');
-  expect(result.summary).toContain('Visible AGENTS.md files are separate. Enable them with: ztd agents init');
-  expect(result.summary).not.toContain('Visible AGENTS.md files are installed for the starter flow.');
-});
-
-test('default scaffold still omits the customer Codex bootstrap', async () => {
+test('default scaffold omits AI control files', async () => {
   const workspace = createTempDir('cli-init-then-bootstrap');
   const prompter = new TestPrompter([]);
 
@@ -436,100 +404,9 @@ test('default scaffold still omits the customer Codex bootstrap', async () => {
   expect(existsSync(path.join(workspace, 'src', 'features', 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'db', 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'db', 'ddl', 'AGENTS.md'))).toBe(false);
-});
-
-test('init can opt into AI guidance files when explicitly requested', async () => {
-  const workspace = createTempDir('cli-init-ai-guidance');
-  const prompter = new TestPrompter([]);
-
-  await runInitCommand(prompter, {
-    rootDir: workspace,
-    nonInteractive: true,
-    forceOverwrite: true,
-    workflow: 'empty',
-    validator: 'zod',
-    withAiGuidance: true
-  });
-
-  expect(existsSync(path.join(workspace, 'CONTEXT.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'src-features.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'src-features-smoke.md'))).toBe(false);
-  expect(readNormalizedFile(path.join(workspace, 'CONTEXT.md'))).toContain('Start with `ztd init --starter`');
-  expect(readNormalizedFile(path.join(workspace, 'CONTEXT.md'))).toContain('src/features/smoke');
-  expect(readNormalizedFile(path.join(workspace, 'CONTEXT.md'))).toContain('src/features/users');
-  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'src-features-application.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'src-features-domain.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'src-features-persistence.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'src-features-tests.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'src-sql.md'))).toBe(false);
-
-  const manifest = JSON.parse(readNormalizedFile(path.join(workspace, '.ztd', 'agents', 'manifest.json'))) as {
-    routing_rules: Array<{ paths: string[]; scope: string }>;
-  };
-  expect(manifest.routing_rules).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({ scope: 'src-features' }),
-      expect.objectContaining({ scope: 'src' }),
-      expect.objectContaining({ scope: 'db' })
-    ])
-  );
-});
-
-test('init can opt into dogfooding prompt files when explicitly requested', async () => {
-  const workspace = createTempDir('cli-init-dogfooding');
-  const prompter = new TestPrompter([]);
-
-  await runInitCommand(prompter, {
-    rootDir: workspace,
-    nonInteractive: true,
-    forceOverwrite: true,
-    workflow: 'empty',
-    validator: 'zod',
-    withDogfooding: true
-  });
-
   expect(existsSync(path.join(workspace, 'CONTEXT.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toBe(true);
-  const promptDogfood = readNormalizedFile(path.join(workspace, 'PROMPT_DOGFOOD.md'));
-  expect(promptDogfood).toContain('Add a feature to this feature-first project.');
-  expect(promptDogfood).toContain('Start with `npx ztd feature scaffold --table <table> --action <action>`.');
-  expect(promptDogfood).toContain('Keep handwritten SQL, the feature boundary, and the query boundary inside `src/features/<feature-name>`.');
-  expect(promptDogfood).toContain('Before you edit DTOs or write persistent query cases, run `npx ztd feature tests scaffold --feature <feature-name>`.');
-  expect(promptDogfood).toContain('refreshes `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`');
-  expect(promptDogfood).toContain('creates the thin `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` Vitest entrypoint only if it is missing.');
-  expect(promptDogfood).toContain('Persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/` stay human/AI-owned and must not be overwritten.');
-  expect(promptDogfood).toContain('If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs.');
-  expect(promptDogfood).toContain('`beforeDb` is a pure fixture skeleton with schema-qualified table keys.');
-  expect(promptDogfood).toContain('The validation case may stay at the feature boundary, but the success case must execute through the fixed app-level ZTD runner.');
-  expect(promptDogfood).toContain('Do not put returned columns into the input fixture.');
-  expect(promptDogfood).toContain('Read `TEST_PLAN.md` and `analysis.json` before filling the persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/`.');
-  expect(promptDogfood).toContain('refreshes `src/features/<feature-name>/queries/<query-name>/tests/boundary-ztd-types.ts`');
-  expect(promptDogfood).toContain('Assert the returned evidence in the ZTD entrypoint (`mode=ztd`, `physicalSetupUsed=false`) so execution mode is machine-checkable.');
-  expect(promptDogfood).toContain('Enable SQL trace only when needed with `ZTD_SQL_TRACE=1` (optional `ZTD_SQL_TRACE_DIR`).');
-  expect(promptDogfood).toContain('`afterDb` assertions are intentionally excluded from this ZTD lane; use a traditional DB-state lane when you need post-state assertions.');
-  expect(promptDogfood).toContain('After the cases are ready, run `npx vitest run src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` to execute the ZTD query test.');
-  expect(promptDogfood).toContain('If the returned result is null, stop and fix the scaffold or DDL instead of weakening the case.');
-  expect(promptDogfood).toContain('Before writing the success-path assertion, inspect the current SQL and query boundary. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.');
-  expect(promptDogfood).toContain('Do not apply migrations automatically.');
-});
-
-test('with-app-interface appends to AGENTS.md when both root files exist', async () => {
-  const workspace = createTempDir('cli-init-app-interface-both');
-  writeFileSync(path.join(workspace, 'AGENTS.md'), '# root\n', 'utf8');
-  writeFileSync(path.join(workspace, 'AGENTS_ztd.md'), '# ztd root\n', 'utf8');
-  const prompter = new TestPrompter([]);
-
-  const result = await runInitCommand(prompter, {
-    rootDir: workspace,
-    withAppInterface: true,
-    nonInteractive: true,
-    forceOverwrite: true
-  });
-
-  expect(result.summary).toContain('AGENTS.md');
-  expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toContain('## Application Interface Guidance');
-  expect(readNormalizedFile(path.join(workspace, 'AGENTS_ztd.md'))).not.toContain('## Application Interface Guidance');
+  expect(existsSync(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(false);
 });
 
 test('init local-source mode links rawsql-ts dependencies from the monorepo without exposing local-source shims to consumer code', async () => {

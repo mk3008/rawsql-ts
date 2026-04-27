@@ -1709,189 +1709,22 @@ test('init rejects non-boolean force in --json payload', { timeout: 60_000 }, ()
   expect(result.stderr).toContain('Invalid --force value in --json payload. Expected a boolean.');
 });
 
-test('init CLI keeps AI guidance files out of the default scaffold', { timeout: 60_000 }, () => {
+test('init CLI does not scaffold AI control files', { timeout: 60_000 }, () => {
   const workspace = createTempDir('init-default-no-ai-guidance');
   const result = runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace);
 
-  assertCliSuccess(result, 'init default agents');
+  assertCliSuccess(result, 'init without ai control files');
   expect(result.stdout).not.toContain('Internal guidance is managed under .ztd/agents/.');
   expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(false);
   expect(existsSync(path.join(workspace, '.ztd', 'agents', 'root.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'CONTEXT.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'PROMPT_DOGFOOD.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
   expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(false);
 },
 60000,
 );
-
-test('init CLI can opt into internal AI guidance explicitly', { timeout: 60_000 }, () => {
-  const workspace = createTempDir('init-with-ai-guidance');
-  const result = runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod', '--with-ai-guidance'], {}, workspace);
-
-  assertCliSuccess(result, 'init with ai guidance');
-  expect(result.stdout).toContain('Internal guidance is managed under .ztd/agents/.');
-  expect(result.stdout).toContain('Visible AGENTS.md files are separate. Enable them with: ztd agents init');
-  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'manifest.json'))).toBe(true);
-  expect(existsSync(path.join(workspace, '.ztd', 'agents', 'root.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'CONTEXT.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(false);
-});
-
-test('agents init emits the Codex bootstrap plan and materializes the files', { timeout: 60_000 }, () => {
-  const workspace = createTempDir('agents-init');
-  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before init-agents');
-
-  const result = runCli(['agents', 'init'], {}, workspace);
-  assertCliSuccess(result, 'agents init');
-  expect(result.stdout).toContain('About to create:');
-  expect(result.stdout).toContain('No files will be overwritten.');
-  expect(result.stdout).toContain('Omit `ztd agents init` if you do not want the Codex bootstrap files.');
-  expect(result.stdout).toContain('AGENTS.md');
-  expect(result.stdout).toContain('.codex/config.toml');
-  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'tests', 'support', 'ztd', 'README.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'tests', 'support', 'ztd', 'harness.ts'))).toBe(false);
-  expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(true);
-  expect(existsSync(path.join(workspace, '.codex', 'agents', 'planning.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, '.agents'))).toBe(false);
-  expect(existsSync(path.join(workspace, '.agents', 'skills'))).toBe(false);
-  expect(existsSync(path.join(workspace, '.agents', 'skills', 'quickstart', 'SKILL.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(false);
-  expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toContain('## SQL Shadowing Troubleshooting');
-  expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toContain(
-    'If the SQL is not shadowing correctly, check the failure in this order:'
-  );
-  expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toContain(
-    'DDL and fixture sync'
-  );
-  expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toContain(
-    'Do not use DDL execution as a repair path for ZTD validation failures.'
-  );
-});
-
-test('agents install remains a backwards-compatible alias for agents init', { timeout: 60_000 }, () => {
-  const workspace = createTempDir('agents-install-alias');
-  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before alias');
-
-  const result = runCli(['agents', 'install'], {}, workspace);
-  assertCliSuccess(result, 'agents install alias');
-  expect(result.stdout).toContain('Omit `ztd agents init` if you do not want the Codex bootstrap files.');
-  expect(existsSync(path.join(workspace, 'AGENTS.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'tests', 'support', 'ztd', 'README.md'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'tests', 'support', 'ztd', 'harness.ts'))).toBe(false);
-  expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(true);
-});
-
-test('agents init preserves an existing root AGENTS.md and falls back to AGENTS_ztd.md', { timeout: 60_000 }, () => {
-  const workspace = createTempDir('agents-init-root-fallback');
-  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before fallback install');
-  writeFileSync(path.join(workspace, 'AGENTS.md'), '# existing root\n', 'utf8');
-
-  const result = runCli(['agents', 'init'], {}, workspace);
-  assertCliSuccess(result, 'agents init fallback');
-  expect(result.stdout).toContain('AGENTS_ztd.md');
-  expect(readNormalizedFile(path.join(workspace, 'AGENTS.md'))).toBe('# existing root\n');
-  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(true);
-});
-
-test('agents init supports dry-run for the Codex bootstrap plan', { timeout: 60_000 }, () => {
-  const workspace = createTempDir('agents-init-dry-run');
-  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before dry-run');
-
-  const result = runCli(['--output', 'json', 'agents', 'init', '--dry-run'], {}, workspace);
-  assertCliSuccess(result, 'agents init dry-run');
-  const parsed = JSON.parse(result.stdout);
-  expect(parsed.data).toMatchObject({
-    dryRun: true,
-    plannedPaths: expect.arrayContaining([
-      'AGENTS.md',
-      '.codex/config.toml',
-      '.codex/agents/planning.md',
-    ]),
-    conflictPaths: [],
-    customizedPaths: []
-  });
-  expect(parsed.data.plannedPaths.some((entry: string) => entry.includes('.agents/skills'))).toBe(false);
-  expect(existsSync(path.join(workspace, '.codex', 'config.toml'))).toBe(false);
-});
-
-test('agents status reports bootstrap files and install recommendation before install', { timeout: 60_000 }, () => {
-  const workspace = createTempDir('agents-status');
-  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before status');
-
-  const result = runCli(['--output', 'json', 'agents', 'status'], {}, workspace);
-  assertCliSuccess(result, 'agents status');
-  const parsed = JSON.parse(result.stdout);
-  expect(parsed.data).toMatchObject({
-    recommended_actions: expect.arrayContaining(['install-codex-bootstrap']),
-    bootstrap_targets: expect.arrayContaining([
-      expect.objectContaining({
-        path: 'AGENTS.md',
-        installed: false,
-        status: 'missing',
-        managed: false,
-        drift: 'none'
-      }),
-      expect.objectContaining({
-        path: '.codex/config.toml',
-        installed: false,
-        status: 'missing',
-        managed: false,
-        drift: 'none'
-      })
-    ]),
-    internal_targets: expect.arrayContaining([
-      expect.objectContaining({
-        path: '.ztd/agents/manifest.json',
-        installed: false,
-        status: 'missing',
-        managed: false,
-        drift: 'none'
-      })
-    ]),
-    targets: expect.arrayContaining([
-      expect.objectContaining({
-        path: '.ztd/agents/manifest.json',
-        installed: false,
-        status: 'missing',
-        managed: false,
-        drift: 'none'
-      }),
-      expect.objectContaining({
-        path: 'AGENTS.md',
-        installed: false,
-        status: 'missing',
-        managed: false,
-        drift: 'none'
-      }),
-      expect.objectContaining({
-        path: '.codex/config.toml',
-        installed: false,
-        status: 'missing',
-        managed: false,
-        drift: 'none'
-      })
-    ])
-  });
-});
-
-test('agents status text output separates customer bootstrap targets from internal guidance', { timeout: 60_000 }, () => {
-  const workspace = createTempDir('agents-status-text');
-  assertCliSuccess(runCli(['init', '--yes', '--workflow', 'empty', '--validator', 'zod'], {}, workspace), 'init before status text');
-
-  const result = runCli(['agents', 'status'], {}, workspace);
-  assertCliSuccess(result, 'agents status text');
-  expect(result.stdout).toContain('Customer bootstrap targets:');
-  expect(result.stdout).toContain('Internal .ztd guidance targets (written by `ztd init --with-ai-guidance`):');
-  expect(result.stdout).toContain('- AGENTS.md: status=missing');
-  expect(result.stdout).toContain('- .ztd/agents/manifest.json: status=missing');
-});
-
-
-
 
 test('top-level help exposes perf init as an opt-in sandbox workflow', () => {
   const result = runCli(['--help']);
