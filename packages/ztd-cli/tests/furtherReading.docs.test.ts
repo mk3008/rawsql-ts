@@ -24,6 +24,7 @@ test('package README links every Further Reading guide from the public index', (
   expectInOrder(readme, [
     '## Further Reading',
     '[SQL-first End-to-End Tutorial](../../docs/guide/sql-first-end-to-end-tutorial.md)',
+    '[What Is RFBA?](../../docs/guide/rfba-overview.md)',
     '[SQL Tool Happy Paths](../../docs/guide/sql-tool-happy-paths.md)',
     '[Perf Tuning Decision Guide](../../docs/guide/perf-tuning-decision-guide.md)',
     '[JOIN Direction Lint Specification](../../docs/guide/join-direction-lint-spec.md)',
@@ -37,6 +38,22 @@ test('package README links every Further Reading guide from the public index', (
 
 test('Further Reading docs stay aligned with the current standalone and CLI behavior', () => {
   const expectations: Array<{ docPath: string; phrases: string[] }> = [
+    {
+      docPath: 'docs/guide/rfba-overview.md',
+      phrases: [
+        'RFBA means **Review-First Backend Architecture**.',
+        'The goal is to make AI-produced work reviewable by humans.',
+        'RFBA does this by splitting files by review responsibility.',
+        'RFBA is intentionally scoped to backend work, especially database applications.',
+        'RFBA treats DDL as the source of truth for data structure',
+        'raw SQL is a natural review boundary',
+        '`root-boundary`: the app-level boundary layer.',
+        '`feature-boundary`: a feature-owned boundary under `src/features/<feature>/`.',
+        '`sub-boundary`: an optional child boundary inside a feature',
+        'RFBA is not a universal file naming rule.',
+        '`boundary.ts` is the default `ztd-cli` feature scaffold convention'
+      ]
+    },
     {
       docPath: 'docs/guide/sql-first-end-to-end-tutorial.md',
       phrases: [
@@ -335,4 +352,6 @@ test('quickstart and tutorial spell out the common 5432 collision fallback', () 
   expect(packageReadme).toContain('RFBA is architecture and structure theory, not a filename rule.');
   expect(scaffoldReadme).toContain('Review-First Backend Architecture');
   expect(tutorial).toContain('RFBA is about splitting files by review responsibility');
+  expect(readNormalizedFile('docs/.vitepress/config.mts')).toContain("{ text: 'What Is RFBA?', link: '/guide/rfba-overview' }");
+  expect(readNormalizedFile('docs/guide/feature-index.md')).toContain('[guide/rfba-overview](./rfba-overview.md)');
 });

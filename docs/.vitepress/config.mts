@@ -28,6 +28,7 @@ export default defineConfig({
       '/guide/': [
         { text: 'Overview', link: '/guide/overview' },
         { text: 'Getting Started', link: '/guide/getting-started' },
+        { text: 'What Is RFBA?', link: '/guide/rfba-overview' },
         { text: 'SQL-first End-to-End Tutorial', link: '/guide/sql-first-end-to-end-tutorial' },
         {
           text: 'Execution',

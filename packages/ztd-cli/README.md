@@ -254,6 +254,7 @@ Use `ztd describe` for machine-readable discovery, and follow the linked guides 
 ### User Guides
 
 - [SQL-first End-to-End Tutorial](../../docs/guide/sql-first-end-to-end-tutorial.md) - starter flow, repair loops, and scenario-specific CLI guidance
+- [What Is RFBA?](../../docs/guide/rfba-overview.md) - review-first backend architecture, review responsibilities, and ztd-cli structural vocabulary
 - [SQL Tool Happy Paths](../../docs/guide/sql-tool-happy-paths.md) - choose between query plan, perf, query uses, and telemetry
 - [Dynamic Filter Routing](../../docs/guide/dynamic-filter-routing.md) - decide between DynamicQueryBuilder filters and SSSQL branches
 - [ztd.config.json Top-Level Settings](../../docs/guide/ztd-config-top-level-settings.md) - where schema resolution lives and how to read the generated config

@@ -57,6 +57,7 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Guide | Path | When to read |
 |-------|------|-------------|
 | Happy Path Quickstart | [ztd-cli README](https://github.com/mk3008/rawsql-ts/blob/main/packages/ztd-cli/README.md#happy-path-quickstart) | First-time setup |
+| What Is RFBA? | [guide/rfba-overview](./rfba-overview.md) | Understand review-first backend architecture, review responsibilities, and ztd-cli structural vocabulary |
 | SQL-first End-to-End Tutorial | [guide/sql-first-end-to-end-tutorial](./sql-first-end-to-end-tutorial.md) | Walk from DDL to the first passing test with one table and one SQL asset |
 | After DDL Changes | [ztd-cli README](https://github.com/mk3008/rawsql-ts/blob/main/packages/ztd-cli/README.md#after-ddlschema-changes) | Schema evolution workflow |
 | Mapping vs Validation pipeline | [recipes/mapping-vs-validation](../recipes/mapping-vs-validation.md) | Avoid coerce/validator conflicts |
