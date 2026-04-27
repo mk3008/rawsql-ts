@@ -50,21 +50,20 @@ function assertPolicyContains(contents: string, assertions: string[]): void {
 test('root AGENTS.md defines global guardrails and routing', () => {
   const contents = readPolicy(rootAgentsPath);
 
-  expect(contents).toContain('## Interpretation');
-  expect(contents).toContain('`MUST` and `REQUIRED` define completion criteria.');
-  expect(contents).toContain('`ALLOWED` means permitted but not required.');
-  expect(contents).toContain('`PROHIBITED` means disallowed unless a narrower rule explicitly allows it.');
-  expect(contents).toContain('This repository guidance is for rawsql-ts developers only.');
-  expect(contents).toContain('Reports MUST state the `Verification basis` and `Guarantee limits` when evidence does not fully close an item.');
-  expect(contents).toContain('Reports MUST state `Outstanding gaps` explicitly.');
-  expect(contents).toContain('Consistency review MUST check literal drift, mirror / test / policy mismatch, required field coverage, GitHub-safe references, per-item final form, and `tests were updated` versus `tests passed` wording.');
-  expect(contents).toContain('Human acceptance review MUST check whether a reviewer can judge the result from the text alone without reconstructing the issue, value, evidence, guarantee limits, or gaps from memory.');
-  expect(contents).toContain('`Supplementary evidence` alone MUST NOT justify a strong `done` claim');
-  assertPolicyContains(contents, SHARED_POLICY_ASSERTIONS);
-  expect(contents).toContain('.codex/agents/planning.md');
-  expect(contents).toContain('.codex/agents/review.md');
-  expect(contents).toContain('acceptance-planning/SKILL.md');
-  expect(contents).toContain('self-review/SKILL.md');
+  expect(contents).toContain('# Repository Scope');
+  expect(contents).toContain('This file defines repository-wide rules for rawsql-ts developers.');
+  expect(contents).toContain('Deeper `AGENTS.md` files take precedence when they add stricter or narrower rules without weakening completion criteria.');
+  expect(contents).toContain('## Global Guardrails');
+  expect(contents).toContain('Keep generated artifacts, fixtures, and derived docs aligned with their source assets.');
+  expect(contents).toContain('Do not weaken completion criteria or skip required verification.');
+  expect(contents).toContain('Do not mix customer-facing guidance into this repository policy.');
+  expect(contents).toContain('## Guidance Routing');
+  expect(contents).toContain('Root `AGENTS.md` defines repository-wide policy only; detailed output formats and workflows belong to subagent or skill guidance.');
+  expect(contents).toContain('Reports must distinguish `done`, `partial`, and `not done`.');
+  expect(contents).toContain('Reports must distinguish `tests were updated` from `tests passed`.');
+  expect(contents).toContain('Supplementary evidence alone must not justify a strong `done` claim.');
+  expect(contents).toContain('.codex/agents/');
+  expect(contents).toContain('.agents/skills/');
 });
 
 test('.agent/AGENTS.md mirrors the routing and guardrail policy', () => {
@@ -87,7 +86,6 @@ test('policy precedence is described without weakening completion criteria', () 
   const rootContents = readPolicy(rootAgentsPath);
   const mirrorContents = readPolicy(visibleMirrorPath);
 
-  expect(rootContents).toContain('When this file and a deeper `AGENTS.md` both apply');
-  expect(rootContents).toContain('may narrow scope only if it does not weaken a completion criterion');
+  expect(rootContents).toContain('Deeper `AGENTS.md` files take precedence when they add stricter or narrower rules without weakening completion criteria.');
   expect(mirrorContents).toContain('deeper files may only narrow scope without weakening completion criteria');
 });

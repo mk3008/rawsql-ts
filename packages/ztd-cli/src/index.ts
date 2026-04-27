@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { registerAgentsCommand } from './commands/agents';
 import { CheckContractRuntimeError, registerCheckContractCommand } from './commands/checkContract';
 import { registerDescribeCommand } from './commands/describe';
 import { registerDdlCommands } from './commands/ddl';
@@ -85,7 +84,6 @@ export function buildProgram(): Command {
   });
 
   registerInitCommand(program);
-  registerAgentsCommand(program);
   registerFeatureCommand(program);
   registerLintCommand(program);
   registerModelGenCommand(program);
@@ -103,7 +101,6 @@ Getting started:
   $ ztd init                   Create a new ZTD project (interactive)
   $ ztd init --yes             Create a new ZTD project (non-interactive, demo + Zod defaults)
   $ ztd init --yes --force     Allow non-interactive overwrite of scaffold-owned files
-  $ ztd agents init            Install the opt-in Codex bootstrap files
   $ ztd feature scaffold --table users --action insert --dry-run
   $ ztd feature query scaffold --feature users-insert --query-name insert-user-audit --table user_audit --action insert --dry-run
   $ ztd feature tests scaffold --feature users-insert

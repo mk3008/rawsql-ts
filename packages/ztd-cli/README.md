@@ -25,7 +25,6 @@ Run these in order.
 npm install -D @rawsql-ts/ztd-cli vitest typescript
 npx ztd init --starter
 # starter scaffold generates compose.yaml, starter DDL, config, and test stubs
-npx ztd agents init
 cp .env.example .env
 # edit ZTD_DB_PORT=5433 if needed
 npx ztd ztd-config
@@ -76,7 +75,6 @@ PowerShell:
 npm install -D @rawsql-ts/ztd-cli vitest typescript
 npx ztd init --starter
 # starter scaffold generates compose.yaml, starter DDL, config, and test stubs
-npx ztd agents init
 Copy-Item .env.example .env
 # edit ZTD_DB_PORT=5433 if needed
 npx ztd ztd-config
@@ -208,7 +206,6 @@ Use `ztd describe` for machine-readable discovery, and follow the linked guides 
 | `ztd feature scaffold --table <table> --action <insert/update/delete/get-by-id/list>` | Scaffold a feature-local CRUD/SELECT slice with SQL, `boundary.ts` entrypoints, README, and a thin tests entrypoint. |
 | `ztd feature query scaffold --query-name <name> --table <table> --action <insert/update/delete/get-by-id/list>` | Add one child query boundary under an existing boundary folder without rewriting the parent boundary. Use exactly one of `--feature` or `--boundary-dir`, or omit both only when the current working directory is already the target boundary. |
 | `ztd feature tests scaffold --feature <feature-name>` | Refresh `src/features/<feature>/queries/<query>/tests/generated/TEST_PLAN.md`, `analysis.json`, and `src/features/<feature>/queries/<query>/tests/boundary-ztd-types.ts`; create the thin `src/features/<feature>/queries/<query>/tests/<query>.boundary.ztd.test.ts` Vitest entrypoint when missing; keep `src/features/<feature>/queries/<query>/tests/cases/` as human/AI-owned persistent cases. |
-| `ztd agents init` | Add the optional Codex bootstrap files. |
 | `ztd ztd-config` | Regenerate `TestRowMap` and runtime fixture metadata from DDL without Docker. |
 | `ztd lint` | Lint SQL against a temporary Postgres. |
 | `ztd model-gen` | Generate query-boundary scaffolding from SQL assets. |
@@ -260,7 +257,6 @@ Use `ztd describe` for machine-readable discovery, and follow the linked guides 
 ### Developer Guides
 
 - [Local-Source Development](../../docs/guide/ztd-local-source-dogfooding.md) - unpublished local checkout workflow
-- [Codex Bootstrap Verification](../../docs/dogfooding/ztd-codex-bootstrap-verification.md) - reviewer-checkable fresh-project verification for `ztd agents init`
 - [ztd-cli spawn EPERM Investigation](../../docs/dogfooding/ztd-cli-spawn-eperm-investigation.md) - reviewer-checkable root-cause investigation for the local Vitest startup blocker
 - [ztd Onboarding Verification](../../docs/dogfooding/ztd-onboarding-dogfooding.md) - reviewer-checkable README Quickstart and tutorial verification for the customer-facing onboarding path
 

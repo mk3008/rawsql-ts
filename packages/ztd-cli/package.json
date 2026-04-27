@@ -70,7 +70,6 @@
   "files": [
     "dist",
     "templates",
-    "AGENTS.md",
     "README.md"
   ]
 }

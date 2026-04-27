@@ -47,108 +47,6 @@ exports[`describe command emits JSON envelope when global output is json 1`] = `
 }
 `;
 
-exports[`describe command snapshots the top-level command catalog and every detailed descriptor > agents init 1`] = `
-{
-  "command": "describe command",
-  "data": {
-    "command": {
-      "exitCodes": {
-        "0": "Codex bootstrap initialization completed, was already up to date, or dry-run output was emitted.",
-        "1": "Filesystem or validation error.",
-      },
-      "flags": [
-        {
-          "description": "Emit the planned Codex bootstrap files without writing them.",
-          "name": "--dry-run",
-        },
-      ],
-      "name": "agents init",
-      "output": {
-        "files": [
-          "AGENTS.md or AGENTS_ztd.md",
-          "db/**/AGENTS.md",
-          "src/**/AGENTS.md",
-          ".codex/config.toml",
-          ".codex/agents/*.md",
-        ],
-        "stdout": "Human init summary in text mode, JSON envelope in global json mode.",
-      },
-      "summary": "Initialize the opt-in Codex bootstrap files from the managed templates.",
-      "supportsDryRun": true,
-      "supportsJsonPayload": false,
-      "writesFiles": true,
-    },
-    "schemaVersion": 1,
-  },
-  "ok": true,
-  "schemaVersion": 1,
-}
-`;
-
-exports[`describe command snapshots the top-level command catalog and every detailed descriptor > agents install 1`] = `
-{
-  "command": "describe command",
-  "data": {
-    "command": {
-      "exitCodes": {
-        "0": "Codex bootstrap initialization completed, was already up to date, or dry-run output was emitted.",
-        "1": "Filesystem or validation error.",
-      },
-      "flags": [
-        {
-          "description": "Emit the planned Codex bootstrap files without writing them.",
-          "name": "--dry-run",
-        },
-      ],
-      "name": "agents install",
-      "output": {
-        "files": [
-          "AGENTS.md or AGENTS_ztd.md",
-          "db/**/AGENTS.md",
-          "src/**/AGENTS.md",
-          ".codex/config.toml",
-          ".codex/agents/*.md",
-        ],
-        "stdout": "Human init summary in text mode, JSON envelope in global json mode.",
-      },
-      "summary": "Alias for agents init.",
-      "supportsDryRun": true,
-      "supportsJsonPayload": false,
-      "writesFiles": true,
-    },
-    "schemaVersion": 1,
-  },
-  "ok": true,
-  "schemaVersion": 1,
-}
-`;
-
-exports[`describe command snapshots the top-level command catalog and every detailed descriptor > agents status 1`] = `
-{
-  "command": "describe command",
-  "data": {
-    "command": {
-      "exitCodes": {
-        "0": "Status emitted.",
-        "1": "Filesystem or parsing error.",
-      },
-      "flags": [],
-      "name": "agents status",
-      "output": {
-        "stdout": "Human status report in text mode, JSON envelope in global json mode.",
-      },
-      "summary": "Report managed Codex bootstrap and AGENTS guidance state and drift signals.",
-      "supportsDryRun": false,
-      "supportsJsonPayload": false,
-      "writesFiles": false,
-    },
-    "schemaVersion": 1,
-  },
-  "ok": true,
-  "schemaVersion": 1,
-}
-`;
-
 exports[`describe command snapshots the top-level command catalog and every detailed descriptor > check contract 1`] = `
 {
   "command": "describe command",
@@ -346,30 +244,6 @@ exports[`describe command snapshots the top-level command catalog and every deta
         "supportsDryRun": true,
         "supportsJsonPayload": true,
         "writesFiles": true,
-      },
-      {
-        "name": "agents init",
-        "summary": "Initialize the opt-in Codex bootstrap files from the managed templates.",
-        "supportsDescribeOutput": false,
-        "supportsDryRun": true,
-        "supportsJsonPayload": false,
-        "writesFiles": true,
-      },
-      {
-        "name": "agents install",
-        "summary": "Alias for agents init.",
-        "supportsDescribeOutput": false,
-        "supportsDryRun": true,
-        "supportsJsonPayload": false,
-        "writesFiles": true,
-      },
-      {
-        "name": "agents status",
-        "summary": "Report managed Codex bootstrap and AGENTS guidance state and drift signals.",
-        "supportsDescribeOutput": false,
-        "supportsDryRun": false,
-        "supportsJsonPayload": false,
-        "writesFiles": false,
       },
       {
         "name": "feature scaffold",
@@ -704,8 +578,6 @@ exports[`describe command snapshots the top-level command catalog and every deta
           "ztd.config.json",
           "db/ddl/*.sql",
           ".ztd/generated/*",
-          ".ztd/agents/*",
-          "CONTEXT.md",
         ],
         "stdout": "Human summary in text mode, JSON envelope in global json mode.",
       },
