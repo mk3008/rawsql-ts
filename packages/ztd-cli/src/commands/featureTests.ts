@@ -684,7 +684,7 @@ function extractSqlInsertColumns(sqlSource: string): string[] {
 }
 
 function extractSqlReturningColumns(sqlSource: string): string[] {
-  const match = sqlSource.match(/\breturning\s+([^;]+)$/i);
+  const match = sqlSource.match(/\breturning\s+([^;]+)\s*;?\s*$/i);
   if (!match || !match[1]) {
     return [];
   }

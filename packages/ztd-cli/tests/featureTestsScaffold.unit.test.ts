@@ -153,15 +153,16 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(basicCaseFile).toContain('CLI hints: email.');
   expect(basicCaseFile).toContain('input: {} as InsertUsersInput,');
   expect(basicCaseFile).toContain('TODO: Replace the placeholder output with the exact result expected from the query boundary.');
+  expect(basicCaseFile).toContain('CLI hints: user_id.');
   expect(basicCaseFile).toContain('output: {} as InsertUsersOutput,');
 
   const queryTypesFile = readFileSync(
     path.join(featureDir, 'queries', 'insert-users', 'tests', 'boundary-ztd-types.ts'),
     'utf8'
   );
-  expect(queryTypesFile).toContain('export type InsertUsersBeforeDb = { public: { users: readonly { email?: unknown }[] } };');
+  expect(queryTypesFile).toContain('export type InsertUsersBeforeDb = { public: { users: readonly { email?: unknown; user_id?: unknown }[] } };');
   expect(queryTypesFile).toContain('export type InsertUsersInput = { email: unknown };');
-  expect(queryTypesFile).toContain('export type InsertUsersOutput = Record<string, unknown>;');
+  expect(queryTypesFile).toContain('export type InsertUsersOutput = { user_id: unknown };');
   expect(queryTypesFile).toContain("import type { QuerySpecZtdCase } from '../../../../../../tests/support/ztd/case-types.js';");
   expect(queryTypesFile).not.toContain('AfterDb');
   expect(queryTypesFile).not.toContain('InsertUsersBeforeDb = Record<string, unknown>');
