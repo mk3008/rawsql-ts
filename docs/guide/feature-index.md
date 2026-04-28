@@ -45,7 +45,8 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Repository telemetry contract | `src/libraries/telemetry/repositoryTelemetry.ts` | Keep the shared telemetry seam driver-neutral |
 | Repository telemetry console sink | `src/adapters/console/repositoryTelemetry.ts` | Emit safe local logs without widening the shared contract |
 | Runtime coercions | `src/catalog/runtime/_coercions.ts` | Driver-type normalization before validation |
-| Spec files | `src/catalog/specs/` | Define catalog contracts with validators |
+| QuerySpec files | Feature-local query boundaries under `src/features/**` | Define SQL contracts near the boundary under review |
+| Legacy spec files | `src/catalog/specs/` | Maintain fixed catalog contracts in older projects |
 | Global test setup | `tests/support/global-setup.ts` | Test-runner initialization hooks |
 
 ## Documentation

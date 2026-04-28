@@ -32,7 +32,7 @@ This regression surface keeps the shortest export loop in git so future changes 
 
 ## Shortest happy path
 
-1. Prepare a workspace with SQL specs plus `tests/specs/index` exports.
+1. Prepare a workspace with either feature-local QuerySpecs, legacy SQL specs, or `tests/specs/index.*` exports.
 2. Run `ztd evidence test-doc --out artifacts/test-evidence/test-documentation.md`.
 3. Inspect the Markdown for catalog summaries, case lists, fixture notes, and expected results.
 
@@ -40,10 +40,10 @@ This regression surface keeps the shortest export loop in git so future changes 
 
 ### 1. Prepare a minimal workspace
 
-The workspace needs both sides of the evidence model:
+The workspace must include at least one of the following:
 
-- `src/catalog/specs/*.spec.json` for SQL catalog metadata
-- `tests/specs/index.*` for function and SQL catalog case exports
+- Option A, feature-side: Feature-local QuerySpec-like files under `src/features/**`, or legacy `src/catalog/specs/*.spec.json`, for SQL catalog metadata.
+- Option B, test-side: `tests/specs/index.*` for function and SQL catalog case exports.
 
 ### 2. Export the documentation
 

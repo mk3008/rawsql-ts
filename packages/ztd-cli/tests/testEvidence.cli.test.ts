@@ -69,6 +69,17 @@ function createProgram(): Command {
   return program;
 }
 
+function createCapturingProgram(capture: { stdout: string[]; stderr: string[] }): Command {
+  const program = new Command();
+  program.exitOverride();
+  program.configureOutput({
+    writeOut: (str) => capture.stdout.push(str),
+    writeErr: (str) => capture.stderr.push(str)
+  });
+  registerTestEvidenceCommand(program);
+  return program;
+}
+
 function escapeRegex(input: string): string {
   return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -163,6 +174,70 @@ test('CLI: evidence writes json and markdown artifacts', async () => {
   expect(markdown).toContain('"active": 1');
   expect(markdown).toContain('```json');
   expect(markdown).not.toContain('select order_id from orders where active = @active');
+});
+
+test('CLI: evidence help documents scopeDir and legacy specsDir across evidence commands', async () => {
+  for (const args of [
+    ['evidence', '--help'],
+    ['evidence', 'test-doc', '--help'],
+    ['evidence', 'pr', '--help']
+  ]) {
+    const capture = { stdout: [] as string[], stderr: [] as string[] };
+    const program = createCapturingProgram(capture);
+
+    await expect(program.parseAsync(args, { from: 'user' })).rejects.toMatchObject({
+      code: 'commander.helpDisplayed'
+    });
+
+    const help = capture.stdout.join('');
+    expect(help).toContain('--scope-dir <path>');
+    expect(help).toContain('Limit QuerySpec discovery to one feature, boundary');
+    expect(help).toContain('subtree');
+    expect(help).toContain('--specs-dir <path>');
+    expect(help).toContain('Legacy override for a fixed SQL catalog specs');
+    expect(help).toContain('directory');
+  }
+});
+
+test('CLI: evidence accepts scopeDir from --json payload', async () => {
+  const root = createWorkspace('evidence-cli-scope-json');
+  const queryDir = path.join(root, 'src', 'features', 'users', 'queries', 'list-users');
+  mkdirSync(queryDir, { recursive: true });
+  writeFileSync(path.join(queryDir, 'list-users.sql'), 'SELECT id FROM users WHERE active = :active', 'utf8');
+  writeFileSync(
+    path.join(queryDir, 'queryspec.ts'),
+    [
+      "const listUsersSql = loadSqlResource(__dirname, 'list-users.sql');",
+      "export const listUsersQuerySpec = { label: 'features.users.list-users', sql: listUsersSql };",
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+
+  process.env.ZTD_PROJECT_ROOT = root;
+  const outDir = path.join(root, 'artifacts-scope');
+  const program = createProgram();
+  await program.parseAsync(
+    [
+      'evidence',
+      '--json',
+      JSON.stringify({
+        mode: 'specification',
+        format: 'json',
+        outDir,
+        scopeDir: path.join('src', 'features', 'users')
+      })
+    ],
+    { from: 'user' }
+  );
+
+  expect(process.exitCode).toBe(0);
+  const parsedJson = JSON.parse(readFileSync(path.join(outDir, 'test-specification.json'), 'utf8'));
+  expect(parsedJson.summary).toMatchObject({ sqlCatalogCount: 1, specFilesScanned: 1 });
+  expect(parsedJson.sqlCatalogs[0]).toMatchObject({
+    id: 'features.users.list-users',
+    specFile: 'src/features/users/queries/list-users/queryspec.ts'
+  });
 });
 
 test('CLI: evidence summary-only writes compact artifacts', async () => {

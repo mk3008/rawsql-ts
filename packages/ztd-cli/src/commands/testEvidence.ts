@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -20,6 +20,7 @@ import {
   type RemovedDetailLevel
 } from '@rawsql-ts/test-evidence-renderer-md';
 import {
+  discoverProjectSqlCatalogSpecFiles,
   isPlainObject,
   loadSqlCatalogSpecsFromFile,
   walkSqlCatalogSpecFiles,
@@ -164,6 +165,7 @@ interface TestEvidenceCommandOptions {
   mode: string;
   format: string;
   outDir: string;
+  scopeDir?: string;
   specsDir?: string;
   testsDir?: string;
   specModule?: string;
@@ -179,6 +181,7 @@ interface TestEvidencePrCommandOptions {
   allowEmptyBase?: boolean;
   removedDetail?: string;
   outDir?: string;
+  scopeDir?: string;
   specsDir?: string;
   testsDir?: string;
   specModule?: string;
@@ -189,6 +192,7 @@ interface TestEvidencePrCommandOptions {
 
 interface TestDocCommandOptions {
   out?: string;
+  scopeDir?: string;
   specsDir?: string;
   testsDir?: string;
   specModule?: string;
@@ -260,7 +264,8 @@ export function registerTestEvidenceCommand(program: Command): void {
     .option('--mode <mode>', 'Evidence mode (specification)', 'specification')
     .option('--format <format>', 'Output format (json|markdown|both)', 'both')
     .option('--out-dir <path>', 'Output directory', '.ztd/test-evidence')
-    .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
+    .option('--scope-dir <path>', 'Limit QuerySpec discovery to one feature, boundary, or subtree')
+    .option('--specs-dir <path>', 'Legacy override for a fixed SQL catalog specs directory')
     .option('--tests-dir <path>', 'Override tests directory (default: tests)')
     .option('--spec-module <path>', 'Explicit evidence module path (default: tests/specs/index)')
     .option('--json <payload>', 'Pass evidence options as a JSON object')
@@ -275,6 +280,7 @@ export function registerTestEvidenceCommand(program: Command): void {
           runTestEvidenceSpecification({
           mode,
           rootDir: process.env.ZTD_PROJECT_ROOT,
+          scopeDir: merged.scopeDir as string | undefined,
           specsDir: merged.specsDir as string | undefined,
           testsDir: merged.testsDir as string | undefined,
           specModule: merged.specModule as string | undefined
@@ -301,7 +307,8 @@ export function registerTestEvidenceCommand(program: Command): void {
     .command('test-doc')
     .description('Generate human-readable Markdown test documentation from ZTD test assets')
     .option('--out <path>', 'Output markdown path', '.ztd/test-evidence/test-documentation.md')
-    .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
+    .option('--scope-dir <path>', 'Limit QuerySpec discovery to one feature, boundary, or subtree')
+    .option('--specs-dir <path>', 'Legacy override for a fixed SQL catalog specs directory')
     .option('--tests-dir <path>', 'Override tests directory (default: tests)')
     .option('--spec-module <path>', 'Explicit evidence module path (default: tests/specs/index)')
     .option('--json <payload>', 'Pass test-doc options as a JSON object')
@@ -311,6 +318,7 @@ export function registerTestEvidenceCommand(program: Command): void {
         const report = runTestEvidenceSpecification({
           mode: 'specification',
           rootDir: process.env.ZTD_PROJECT_ROOT,
+          scopeDir: merged.scopeDir as string | undefined,
           specsDir: merged.specsDir as string | undefined,
           testsDir: merged.testsDir as string | undefined,
           specModule: merged.specModule as string | undefined
@@ -337,7 +345,8 @@ export function registerTestEvidenceCommand(program: Command): void {
     .option('--allow-empty-base', 'Allow empty base evidence when head has catalogs')
     .option('--removed-detail <level>', 'Removed case detail level (none|input|full)', 'input')
     .option('--out-dir <path>', 'Output directory', 'artifacts/test-evidence')
-    .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
+    .option('--scope-dir <path>', 'Limit QuerySpec discovery to one feature, boundary, or subtree')
+    .option('--specs-dir <path>', 'Legacy override for a fixed SQL catalog specs directory')
     .option('--tests-dir <path>', 'Override tests directory (default: tests)')
     .option('--spec-module <path>', 'Explicit evidence module path (default: tests/specs/index)')
     .option('--json <payload>', 'Pass PR evidence options as a JSON object')
@@ -354,6 +363,7 @@ export function registerTestEvidenceCommand(program: Command): void {
           removedDetail: normalizeRemovedDetail(String(merged.removedDetail ?? 'input')),
           outDir: String(merged.outDir ?? 'artifacts/test-evidence'),
           rootDir: process.env.ZTD_PROJECT_ROOT,
+          scopeDir: merged.scopeDir as string | undefined,
           specsDir: merged.specsDir as string | undefined,
           testsDir: merged.testsDir as string | undefined,
           specModule: merged.specModule as string | undefined,
@@ -406,15 +416,15 @@ function normalizeRemovedDetail(level: string): RemovedDetailLevel {
 export function runTestEvidenceSpecification(options: {
   mode: TestEvidenceMode;
   rootDir?: string;
+  scopeDir?: string;
   specsDir?: string;
   testsDir?: string;
   specModule?: string;
 }): TestSpecificationEvidence {
   const root = path.resolve(options.rootDir ?? process.cwd());
-  const specsDir = options.specsDir ? path.resolve(root, options.specsDir) : path.resolve(root, 'src', 'catalog', 'specs');
   const testsDir = options.testsDir ? path.resolve(root, options.testsDir) : path.resolve(root, 'tests');
 
-  const sqlSpecFiles = existsSync(specsDir) ? walkSqlCatalogSpecFiles(specsDir) : [];
+  const sqlSpecFiles = resolveTestEvidenceSpecFiles(root, options);
   const evidenceModule = loadEvidenceModule(root, testsDir, options.specModule);
   const testCaseCatalogFiles = existsSync(testsDir) ? walkFiles(testsDir, isTestCaseCatalogFile) : [];
   const legacyTestCases = evidenceModule ? [] : testCaseCatalogFiles.flatMap((filePath) => loadTestCaseCatalogEvidence(root, filePath));
@@ -431,7 +441,7 @@ export function runTestEvidenceSpecification(options: {
   const sqlCaseCatalogsFromModule = evidenceModule ? readSqlCaseCatalogsFromModule(evidenceModule) : [];
   if (sqlSpecFiles.length === 0 && testCasesFromModule.length === 0 && legacyTestCases.length === 0 && sqlCaseCatalogsFromModule.length === 0) {
     throw new TestEvidenceRuntimeError(
-      `No catalog specs or test-case evidence exports were found. Checked specsDir=${specsDir}, testsDir=${testsDir}`,
+      `No catalog specs or test-case evidence exports were found. Checked scope=${describeSpecDiscoveryScope(root, options)}, testsDir=${testsDir}`,
       { code: 'NO_SPECS_FOUND' }
     );
   }
@@ -463,6 +473,52 @@ export function runTestEvidenceSpecification(options: {
     testCaseCatalogs,
     testCases
   };
+}
+
+function resolveTestEvidenceSpecFiles(
+  root: string,
+  options: { scopeDir?: string; specsDir?: string }
+): string[] {
+  if (options.scopeDir && options.specsDir) {
+    throw new TestEvidenceRuntimeError('Use either --scope-dir or --specs-dir, not both.');
+  }
+
+  if (options.specsDir) {
+    const specsDir = resolveDirectoryOption(root, options.specsDir, 'Spec directory');
+    return walkSqlCatalogSpecFiles(specsDir);
+  }
+
+  if (options.scopeDir) {
+    const scopeDir = resolveDirectoryOption(root, options.scopeDir, 'Scope directory');
+    return discoverProjectSqlCatalogSpecFiles(scopeDir);
+  }
+
+  return discoverProjectSqlCatalogSpecFiles(root);
+}
+
+function resolveDirectoryOption(root: string, value: string, label: string): string {
+  const resolved = path.resolve(root, value);
+  const relative = path.relative(root, resolved);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new TestEvidenceRuntimeError(`${label} must be inside the project root: ${resolved}`);
+  }
+  if (!existsSync(resolved)) {
+    throw new TestEvidenceRuntimeError(`${label} not found: ${resolved}`);
+  }
+  if (!statSync(resolved).isDirectory()) {
+    throw new TestEvidenceRuntimeError(`${label} is not a directory: ${resolved}`);
+  }
+  return resolved;
+}
+
+function describeSpecDiscoveryScope(root: string, options: { scopeDir?: string; specsDir?: string }): string {
+  if (options.scopeDir) {
+    return path.resolve(root, options.scopeDir);
+  }
+  if (options.specsDir) {
+    return path.resolve(root, options.specsDir);
+  }
+  return root;
 }
 
 /**
@@ -582,6 +638,7 @@ export function runTestEvidencePr(options: {
   removedDetail?: RemovedDetailLevel;
   outDir: string;
   rootDir?: string;
+  scopeDir?: string;
   specsDir?: string;
   testsDir?: string;
   specModule?: string;
@@ -602,6 +659,8 @@ export function runTestEvidencePr(options: {
       ? resolveGitMergeBase(root, options.baseRef, options.headRef)
       : resolveGitSha(root, options.baseRef);
   const currentHeadSha = resolveGitSha(root, 'HEAD');
+  const normalizedScopeDir = normalizeDiscoveryDirForWorktree(root, options.scopeDir, 'Scope directory');
+  const normalizedSpecsDir = normalizeDiscoveryDirForWorktree(root, options.specsDir, 'Spec directory');
 
   try {
     const headMaterialized = materializeEvidenceForRef({
@@ -611,9 +670,10 @@ export function runTestEvidencePr(options: {
       allowCurrentWorkspace: resolvedHeadSha === currentHeadSha,
       tempRoot,
       createdWorktrees,
-      specsDir: options.specsDir,
+      specsDir: normalizedSpecsDir,
       testsDir: options.testsDir,
       specModule: options.specModule,
+      scopeDir: normalizedScopeDir,
       summaryOnly: options.summaryOnly,
       limit: options.limit
     });
@@ -624,9 +684,10 @@ export function runTestEvidencePr(options: {
       allowCurrentWorkspace: resolvedBaseSha === currentHeadSha,
       tempRoot,
       createdWorktrees,
-      specsDir: options.specsDir,
+      specsDir: normalizedSpecsDir,
       testsDir: options.testsDir,
       specModule: options.specModule,
+      scopeDir: normalizedScopeDir,
       summaryOnly: options.summaryOnly,
       limit: options.limit
     });
@@ -669,6 +730,14 @@ export function runTestEvidencePr(options: {
   } finally {
     cleanupWorktrees(root, createdWorktrees);
   }
+}
+
+function normalizeDiscoveryDirForWorktree(root: string, value: string | undefined, label: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const resolved = resolveDirectoryOption(root, value, label);
+  return path.relative(root, resolved) || '.';
 }
 
 function writeArtifacts(args: {
@@ -942,6 +1011,7 @@ function materializeEvidenceForRef(args: {
   allowCurrentWorkspace: boolean;
   tempRoot: string;
   createdWorktrees: string[];
+  scopeDir?: string;
   specsDir?: string;
   testsDir?: string;
   specModule?: string;
@@ -954,6 +1024,7 @@ function materializeEvidenceForRef(args: {
         runTestEvidenceSpecification({
           mode: 'specification',
           rootDir,
+          scopeDir: args.scopeDir,
           specsDir: args.specsDir,
           testsDir: args.testsDir,
           specModule: args.specModule

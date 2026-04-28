@@ -82,7 +82,7 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 **What changed:** Project migrated from one validator to another.
 
-**Steps:** Update spec files in `src/catalog/specs/` → update runtime files → update `package.json` dependencies → re-run tests.
+**Steps:** Update feature-local QuerySpec files, or legacy spec files in `src/catalog/specs/` when the project still uses that layout → update runtime files → update `package.json` dependencies → re-run tests.
 
 **Takeaway:** Validator-agnostic design means the switch is limited to spec/runtime files. The SQL layer and `rowMapping` are unaffected.
 
