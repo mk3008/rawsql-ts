@@ -105,7 +105,7 @@ export function registerFeatureTestsScaffoldCommand(featureCommand: Command): vo
         `- src/features/${result.featureName}/queries/${result.queryName}/tests/generated/${result.testKind === 'ztd' ? 'analysis.json' : 'analysis.traditional.json'}`,
         '',
         'AI-authored files:',
-        `- src/features/${result.featureName}/queries/${result.queryName}/tests/cases/`
+        `- src/features/${result.featureName}/queries/${result.queryName}/tests/cases/ (${result.testKind === 'ztd' ? 'TODO-based cases; fill them before enabling the generated test' : 'TODO-based cases for the future traditional runner'})`
       ];
       process.stdout.write(`${lines.join('\n')}\n`);
     });
@@ -177,7 +177,9 @@ export async function runFeatureTestsScaffoldCommand(options: FeatureTestsComman
 
   emitDiagnostic({
     code: 'feature-tests-scaffold.ai-follow-up',
-    message: `CLI refreshed generated analysis under src/features/${featureName}/queries/${queryLayout.queryName}/tests/generated/ for test-kind=${testKind}, refreshed boundary-${testKind}-types.ts, created the thin Vitest entrypoint only if it was missing, and left AI-authored cases under src/features/${featureName}/queries/${queryLayout.queryName}/tests/cases/ untouched.`
+    message: testKind === 'ztd'
+      ? `CLI refreshed generated analysis under src/features/${featureName}/queries/${queryLayout.queryName}/tests/generated/ for test-kind=${testKind}, refreshed boundary-${testKind}-types.ts, created the skipped Vitest entrypoint only if it was missing, and left TODO-based AI-authored cases under src/features/${featureName}/queries/${queryLayout.queryName}/tests/cases/ untouched. Fill the case values, then enable the generated test.`
+      : `CLI refreshed generated analysis under src/features/${featureName}/queries/${queryLayout.queryName}/tests/generated/ for test-kind=${testKind}, refreshed boundary-${testKind}-types.ts, created the skipped Vitest entrypoint only if it was missing, and left TODO-based AI-authored cases under src/features/${featureName}/queries/${queryLayout.queryName}/tests/cases/ untouched. Keep this lane skipped until the traditional runner is wired.`
   });
 
   return {
@@ -246,11 +248,14 @@ function renderFeatureTestScaffoldFiles(params: {
   const dbHintsLine = params.planDetails.dbScenarioHints.length > 0
     ? params.planDetails.dbScenarioHints.map((field) => `- ${field}`).join('\n')
     : '- TODO: inspect the scaffolded query boundary and SQL for DB-backed hints.';
+  const caseReadinessLine = isZtdLane
+    ? '- Generated ZTD cases are intentionally placeholders. Fill `beforeDb`, `input`, and `output`, then change the generated Vitest entrypoint from `test.skip` to `test`.'
+    : '- Generated traditional cases are intentionally placeholders until the traditional runner is wired.';
 
   const testPlanFile = [
     `# ${params.featureName} / ${params.queryName} boundary test plan`,
     '',
-    'This file snapshots the current scaffold contract before AI adds case files.',
+    'This file snapshots the current scaffold contract before AI completes the TODO-based case files.',
     '',
     '## Contract Snapshot',
     '',
@@ -287,6 +292,10 @@ function renderFeatureTestScaffoldFiles(params: {
     '',
     dbHintsLine,
     '',
+    '## Case Readiness',
+    '',
+    caseReadinessLine,
+    '',
     '## After DB Semantics',
     '',
     ...(isZtdLane
@@ -306,7 +315,7 @@ function renderFeatureTestScaffoldFiles(params: {
     '## Ownership',
     '',
     `- Generated files live under ${params.planDetails.generatedDirPath}.`,
-    `- AI-authored case files live under ${params.planDetails.casesDirPath}.`,
+    `- AI-authored TODO case files live under ${params.planDetails.casesDirPath}.`,
     '- Do not edit generated files by hand unless you are intentionally repairing them with --force.',
     ''
   ].join('\n');
@@ -342,6 +351,18 @@ function renderFeatureTestScaffoldFiles(params: {
   const beforeDbValueLiteral = buildQueryFixtureValueLiteral(params.planDetails.fixtureCandidateTables);
   const queryInputTypeLiteral = buildRecordShapeTypeLiteral(params.planDetails.queryInputFields);
   const queryOutputTypeLiteral = buildRecordShapeTypeLiteral(params.planDetails.queryOutputFields);
+  const beforeDbTodoLines = renderTodoCommentLines(
+    'TODO: Fill fixture rows for the tables the CLI could identify. Remove rows that are not needed for this case.',
+    params.planDetails.fixtureCandidateTables
+  );
+  const inputTodoLines = renderTodoCommentLines(
+    'TODO: Replace the placeholder input with concrete query parameters before enabling the generated test.',
+    params.planDetails.queryInputFields
+  );
+  const outputTodoLines = renderTodoCommentLines(
+    'TODO: Replace the placeholder output with the exact result expected from the query boundary.',
+    params.planDetails.queryOutputFields
+  );
   const vitestEntrypointFile = isZtdLane
     ? [
       `import { expect, test } from 'vitest';`,
@@ -351,7 +372,8 @@ function renderFeatureTestScaffoldFiles(params: {
       `import cases from '${casesImportPath}';`,
       `import type { ${queryCaseTypeName} } from '${queryTypesImportPath}';`,
       '',
-      `test('${params.featureName}/${params.queryName} boundary ZTD cases run through the fixed app-level harness', async () => {`,
+      `test.skip('${params.featureName}/${params.queryName} boundary ZTD case scaffold placeholder', async () => {`,
+      '  // TODO: Fill tests/cases/basic.case.ts, then change this to test(...).',
       '  expect(cases.length).toBeGreaterThan(0);',
       `  const evidence = await runQuerySpecZtdCases(cases, ${executorName});`,
       "  expect(evidence.every((entry) => entry.mode === 'ztd')).toBe(true);",
@@ -380,8 +402,11 @@ function renderFeatureTestScaffoldFiles(params: {
     `const cases: readonly ${queryCaseTypeName}[] = [`,
     '  {',
     "    name: 'basic-success',",
+    ...beforeDbTodoLines,
     `    beforeDb: ${beforeDbValueLiteral} as ${queryTypePrefix}BeforeDb,`,
+    ...inputTodoLines,
     `    input: {} as ${queryTypePrefix}Input,`,
+    ...outputTodoLines,
     `    output: {} as ${queryTypePrefix}Output,`,
     '  }',
     '];',
@@ -585,6 +610,18 @@ function buildRecordShapeTypeLiteral(fieldNames: string[]): string {
   }
 
   return `{ ${normalized.map((field) => `${field}: unknown`).join('; ')} }`;
+}
+
+function renderTodoCommentLines(message: string, hints: string[]): string[] {
+  const lines = [`    // ${message}`];
+  const normalized = dedupeStrings(hints);
+  if (normalized.length === 0) {
+    lines.push('    // CLI hints: none discovered; inspect boundary.ts, SQL, DDL, and TEST_PLAN.md.');
+    return lines;
+  }
+
+  lines.push(`    // CLI hints: ${normalized.join(', ')}.`);
+  return lines;
 }
 
 function buildQueryFixtureValueLiteral(tableNames: string[]): string {
