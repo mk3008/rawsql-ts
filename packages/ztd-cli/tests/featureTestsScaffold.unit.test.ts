@@ -134,18 +134,35 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(vitestEntrypointFile).toContain("import { executeBoundaryQuerySpec } from '../boundary.js';");
   expect(vitestEntrypointFile).toContain("import cases from './cases/basic.case.js';");
   expect(vitestEntrypointFile).toContain("import type { InsertUsersQueryBoundaryZtdCase } from './boundary-ztd-types.js';");
+  expect(vitestEntrypointFile).toContain("test.skip('users-insert/insert-users boundary ZTD case scaffold placeholder'");
+  expect(vitestEntrypointFile).toContain('TODO: Fill tests/cases/basic.case.ts, then change this to test(...).');
+  expect(vitestEntrypointFile).not.toContain("test('users-insert/insert-users boundary ZTD cases run through the fixed app-level harness'");
   expect(vitestEntrypointFile).toContain('expect(cases.length).toBeGreaterThan(0);');
   expect(vitestEntrypointFile).toContain('const evidence = await runQuerySpecZtdCases(cases, executeBoundaryQuerySpec);');
   expect(vitestEntrypointFile).toContain("expect(evidence.every((entry) => entry.mode === 'ztd')).toBe(true);");
   expect(vitestEntrypointFile).toContain('expect(evidence.every((entry) => entry.physicalSetupUsed === false)).toBe(true);');
 
+  const basicCaseFile = readFileSync(
+    path.join(featureDir, 'queries', 'insert-users', 'tests', 'cases', 'basic.case.ts'),
+    'utf8'
+  );
+  expect(basicCaseFile).toContain('TODO: Fill fixture rows for the tables the CLI could identify.');
+  expect(basicCaseFile).toContain('CLI hints: public.users.');
+  expect(basicCaseFile).toContain('beforeDb: { public: { users: [] } } as InsertUsersBeforeDb,');
+  expect(basicCaseFile).toContain('TODO: Replace the placeholder input with concrete query parameters before enabling the generated test.');
+  expect(basicCaseFile).toContain('CLI hints: email.');
+  expect(basicCaseFile).toContain('input: {} as InsertUsersInput,');
+  expect(basicCaseFile).toContain('TODO: Replace the placeholder output with the exact result expected from the query boundary.');
+  expect(basicCaseFile).toContain('CLI hints: user_id.');
+  expect(basicCaseFile).toContain('output: {} as InsertUsersOutput,');
+
   const queryTypesFile = readFileSync(
     path.join(featureDir, 'queries', 'insert-users', 'tests', 'boundary-ztd-types.ts'),
     'utf8'
   );
-  expect(queryTypesFile).toContain('export type InsertUsersBeforeDb = { public: { users: readonly { email?: unknown }[] } };');
+  expect(queryTypesFile).toContain('export type InsertUsersBeforeDb = { public: { users: readonly { email?: unknown; user_id?: unknown }[] } };');
   expect(queryTypesFile).toContain('export type InsertUsersInput = { email: unknown };');
-  expect(queryTypesFile).toContain('export type InsertUsersOutput = Record<string, unknown>;');
+  expect(queryTypesFile).toContain('export type InsertUsersOutput = { user_id: unknown };');
   expect(queryTypesFile).toContain("import type { QuerySpecZtdCase } from '../../../../../../tests/support/ztd/case-types.js';");
   expect(queryTypesFile).not.toContain('AfterDb');
   expect(queryTypesFile).not.toContain('InsertUsersBeforeDb = Record<string, unknown>');
@@ -172,6 +189,9 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(testPlanFile).toContain('Write Tables');
   expect(testPlanFile).toContain('Validation Scenario Hints');
   expect(testPlanFile).toContain('DB Scenario Hints');
+  expect(testPlanFile).toContain('Case Readiness');
+  expect(testPlanFile).toContain('Generated ZTD cases are intentionally placeholders.');
+  expect(testPlanFile).toContain('change the generated Vitest entrypoint from `test.skip` to `test`');
   expect(testPlanFile).toContain('After DB Semantics');
   expect(testPlanFile).toContain('machine-checkable evidence');
   expect(testPlanFile).toContain('physicalSetupUsed=false');

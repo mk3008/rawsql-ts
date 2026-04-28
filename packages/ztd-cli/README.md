@@ -72,6 +72,18 @@ src/features/<feature>/
 
 The starter and feature scaffolds apply that convention under `src/features/<feature>/...`, so the feature-local public surface stays easy to discover.
 
+### Inspect RFBA Boundaries
+
+Reviewers and agents can inspect the current RFBA boundary map before editing:
+
+```bash
+npx ztd rfba inspect
+npx ztd rfba inspect --format json
+```
+
+The command is read-only. It reports concrete starter root boundaries, feature-boundaries, query sub-boundaries, likely public surface files, SQL assets, generated artifacts, local verification files, and structural warnings.
+The JSON output is deterministic and omits timestamps so it can be consumed by agents and review checks.
+
 Important repo areas outside the concrete root-boundary list:
 
 - Keep shared feature seams under `src/features/_shared/*`.

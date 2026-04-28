@@ -11,6 +11,7 @@ import { registerLintCommand } from './commands/lint';
 import { registerModelGenCommand } from './commands/modelGen';
 import { registerPerfCommands } from './commands/perf';
 import { registerQueryCommands } from './commands/query';
+import { registerRfbaCommand } from './commands/rfba';
 import { TestEvidenceRuntimeError, registerTestEvidenceCommand } from './commands/testEvidence';
 import { registerZtdConfigCommand } from './commands/ztdConfigCommand';
 import { setAgentOutputFormat } from './utils/agentCli';
@@ -94,6 +95,7 @@ export function buildProgram(): Command {
   registerTestEvidenceCommand(program);
   registerZtdConfigCommand(program);
   registerDdlCommands(program);
+  registerRfbaCommand(program);
   registerDescribeCommand(program);
 
   program.addHelpText('after', `
@@ -112,6 +114,7 @@ Getting started:
   $ ztd --telemetry --telemetry-export file --telemetry-file tmp/telemetry/perf-run.jsonl perf run --query src/sql/report.sql --dry-run
   $ ztd query uses table public.users
   $ ztd query uses column public.users.email --format json
+  $ ztd rfba inspect --format json
   $ ztd --telemetry --telemetry-export debug query uses table public.users
 
 Common workflow:
