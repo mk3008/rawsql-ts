@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
 import { BinarySelectQuery, ColumnReference, DeleteQuery, MultiQuerySplitter, SimpleSelectQuery, SqlParser, UpdateQuery } from 'rawsql-ts';
@@ -173,7 +173,9 @@ export function runCheckContract(options: {
     loadSqlCatalogSpecsFromFile(filePath, (message) => new CheckContractRuntimeError(message))
   );
   const violations: ContractViolation[] = [];
-  const sqlDir = path.resolve(root, 'src', 'sql');
+  const sqlDir = options.scopeDir
+    ? resolveDirectoryOption(root, options.scopeDir, 'Scope directory')
+    : path.resolve(root, 'src', 'sql');
   const sqlFiles = existsSync(sqlDir) ? walkSqlFiles(sqlDir) : [];
 
   const coveredSqlFiles = new Set<string>();
@@ -306,22 +308,31 @@ function resolveCheckContractSpecFiles(
   }
 
   if (options.specsDir) {
-    const specsDir = path.resolve(root, options.specsDir);
-    if (!existsSync(specsDir)) {
-      throw new CheckContractRuntimeError(`Spec directory not found: ${specsDir}`);
-    }
+    const specsDir = resolveDirectoryOption(root, options.specsDir, 'Spec directory');
     return walkSqlCatalogSpecFiles(specsDir, { excludeTestFiles: true });
   }
 
   if (options.scopeDir) {
-    const scopeDir = path.resolve(root, options.scopeDir);
-    if (!existsSync(scopeDir)) {
-      throw new CheckContractRuntimeError(`Scope directory not found: ${scopeDir}`);
-    }
+    const scopeDir = resolveDirectoryOption(root, options.scopeDir, 'Scope directory');
     return discoverProjectSqlCatalogSpecFiles(scopeDir, { excludeTestFiles: true });
   }
 
   return discoverProjectSqlCatalogSpecFiles(root, { excludeTestFiles: true });
+}
+
+function resolveDirectoryOption(root: string, value: string, label: string): string {
+  const resolved = path.resolve(root, value);
+  const relative = path.relative(root, resolved);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new CheckContractRuntimeError(`${label} must be inside the project root: ${resolved}`);
+  }
+  if (!existsSync(resolved)) {
+    throw new CheckContractRuntimeError(`${label} not found: ${resolved}`);
+  }
+  if (!statSync(resolved).isDirectory()) {
+    throw new CheckContractRuntimeError(`${label} is not a directory: ${resolved}`);
+  }
+  return resolved;
 }
 
 function applySafetyChecks(

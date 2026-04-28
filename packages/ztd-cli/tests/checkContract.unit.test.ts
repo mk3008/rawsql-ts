@@ -85,6 +85,34 @@ describe('runCheckContract', () => {
     expect(legacy.violations.some((v) => v.specId === 'features.users.list-users')).toBe(false);
   });
 
+  test('limits uncovered SQL detection to scopeDir', () => {
+    const root = createWorkspace();
+    writeFeatureLocalQuerySpec(root, 'users', 'SELECT id FROM users WHERE active = :active');
+    writeFileSync(path.join(root, 'src', 'sql', 'outside-scope.sql'), 'SELECT 1', 'utf8');
+
+    const result = runCheckContract({
+      strict: true,
+      rootDir: root,
+      scopeDir: path.join('src', 'features', 'users')
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.violations).toEqual([]);
+  });
+
+  test('rejects non-directory scopeDir and specsDir options', () => {
+    const root = createWorkspace();
+    writeFileSync(path.join(root, 'src', 'features-file'), 'not a directory', 'utf8');
+    writeFileSync(path.join(root, 'src', 'catalog', 'specs-file'), 'not a directory', 'utf8');
+
+    expect(() =>
+      runCheckContract({ strict: true, rootDir: root, scopeDir: path.join('src', 'features-file') })
+    ).toThrow(/Scope directory is not a directory/);
+    expect(() =>
+      runCheckContract({ strict: true, rootDir: root, specsDir: path.join('src', 'catalog', 'specs-file') })
+    ).toThrow(/Spec directory is not a directory/);
+  });
+
   test('detects params shape mismatches', () => {
     const root = createWorkspace();
     writeFileSync(path.join(root, 'src', 'sql', 'a.sql'), 'SELECT 1', 'utf8');

@@ -203,6 +203,40 @@ test('runTestEvidenceSpecification supports scopeDir and legacy specsDir discove
   expect(legacy.sqlCatalogs.map((item) => item.id)).toEqual(['legacy']);
 });
 
+test('runTestEvidenceSpecification rejects ambiguous scopeDir and specsDir discovery', () => {
+  const root = createWorkspace('evidence-conflicting-discovery');
+
+  expect(() =>
+    runTestEvidenceSpecification({
+      mode: 'specification',
+      rootDir: root,
+      scopeDir: path.join('src', 'features', 'users'),
+      specsDir: path.join('src', 'catalog', 'specs')
+    })
+  ).toThrowError(TestEvidenceRuntimeError);
+});
+
+test('runTestEvidenceSpecification rejects non-directory or external discovery roots', () => {
+  const root = createWorkspace('evidence-invalid-discovery');
+  const outsideRoot = mkdtempSync(path.join(os.tmpdir(), 'evidence-outside-'));
+  writeFileSync(path.join(root, 'src', 'features-file'), 'not a directory', 'utf8');
+
+  expect(() =>
+    runTestEvidenceSpecification({
+      mode: 'specification',
+      rootDir: root,
+      scopeDir: path.join('src', 'features-file')
+    })
+  ).toThrow(/Scope directory is not a directory/);
+  expect(() =>
+    runTestEvidenceSpecification({
+      mode: 'specification',
+      rootDir: root,
+      specsDir: outsideRoot
+    })
+  ).toThrow(/Spec directory must be inside the project root/);
+});
+
 test('formatTestEvidenceOutput emits deterministic markdown and json text', () => {
   const root = createWorkspace('evidence-format');
   writeFileSync(

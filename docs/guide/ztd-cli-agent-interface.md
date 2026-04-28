@@ -74,6 +74,8 @@ ztd lint --json '{"path":"src/sql/**/*.sql"}'
 
 `ztd check contract` and `ztd evidence` discover QuerySpec-like assets project-wide by default, including RFBA feature-local query boundaries. Use `--scope-dir` or `scopeDir` only when a review should focus on one feature or subtree. `--specs-dir` remains available for legacy fixed catalog-spec directories.
 
+`--scope-dir`/`scopeDir` and `--specs-dir` are mutually exclusive. Passing both is a runtime error. Omit both to scan project-wide, pass only `--scope-dir src/features/users` for a feature subtree, or pass only `--specs-dir src/catalog/specs` for a legacy fixed catalog-spec directory.
+
 ## Write Safety
 
 These commands support `--dry-run`:

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -484,16 +484,31 @@ function resolveTestEvidenceSpecFiles(
   }
 
   if (options.specsDir) {
-    const specsDir = path.resolve(root, options.specsDir);
-    return existsSync(specsDir) ? walkSqlCatalogSpecFiles(specsDir) : [];
+    const specsDir = resolveDirectoryOption(root, options.specsDir, 'Spec directory');
+    return walkSqlCatalogSpecFiles(specsDir);
   }
 
   if (options.scopeDir) {
-    const scopeDir = path.resolve(root, options.scopeDir);
-    return existsSync(scopeDir) ? discoverProjectSqlCatalogSpecFiles(scopeDir) : [];
+    const scopeDir = resolveDirectoryOption(root, options.scopeDir, 'Scope directory');
+    return discoverProjectSqlCatalogSpecFiles(scopeDir);
   }
 
   return discoverProjectSqlCatalogSpecFiles(root);
+}
+
+function resolveDirectoryOption(root: string, value: string, label: string): string {
+  const resolved = path.resolve(root, value);
+  const relative = path.relative(root, resolved);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new TestEvidenceRuntimeError(`${label} must be inside the project root: ${resolved}`);
+  }
+  if (!existsSync(resolved)) {
+    throw new TestEvidenceRuntimeError(`${label} not found: ${resolved}`);
+  }
+  if (!statSync(resolved).isDirectory()) {
+    throw new TestEvidenceRuntimeError(`${label} is not a directory: ${resolved}`);
+  }
+  return resolved;
 }
 
 function describeSpecDiscoveryScope(root: string, options: { scopeDir?: string; specsDir?: string }): string {

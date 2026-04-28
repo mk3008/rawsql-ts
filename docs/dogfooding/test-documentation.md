@@ -40,10 +40,10 @@ This regression surface keeps the shortest export loop in git so future changes 
 
 ### 1. Prepare a minimal workspace
 
-The workspace needs at least one side of the evidence model:
+The workspace must include at least one of the following:
 
-- Feature-local QuerySpec-like files under `src/features/**`, or legacy `src/catalog/specs/*.spec.json`, for SQL catalog metadata
-- `tests/specs/index.*` for function and SQL catalog case exports
+- Option A, feature-side: Feature-local QuerySpec-like files under `src/features/**`, or legacy `src/catalog/specs/*.spec.json`, for SQL catalog metadata.
+- Option B, test-side: `tests/specs/index.*` for function and SQL catalog case exports.
 
 ### 2. Export the documentation
 
