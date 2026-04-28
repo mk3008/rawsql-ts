@@ -382,6 +382,14 @@ exports[`describe command snapshots the top-level command catalog and every deta
         "writesFiles": false,
       },
       {
+        "name": "rfba inspect",
+        "summary": "Inspect RFBA root, feature, and query sub-boundaries without writing files.",
+        "supportsDescribeOutput": false,
+        "supportsDryRun": false,
+        "supportsJsonPayload": true,
+        "writesFiles": false,
+      },
+      {
         "name": "evidence",
         "summary": "Generate deterministic specification evidence artifacts.",
         "supportsDescribeOutput": false,
@@ -989,6 +997,45 @@ exports[`describe command snapshots the top-level command catalog and every deta
       "supportsDryRun": false,
       "supportsJsonPayload": true,
       "writesFiles": true,
+    },
+    "schemaVersion": 1,
+  },
+  "ok": true,
+  "schemaVersion": 1,
+}
+`;
+
+exports[`describe command snapshots the top-level command catalog and every detailed descriptor > rfba inspect 1`] = `
+{
+  "command": "describe command",
+  "data": {
+    "command": {
+      "exitCodes": {
+        "0": "Boundary report emitted.",
+        "1": "Validation or filesystem error.",
+      },
+      "flags": [
+        {
+          "description": "Output format (text|json).",
+          "name": "--format <format>",
+        },
+        {
+          "description": "Project root to inspect.",
+          "name": "--root <path>",
+        },
+        {
+          "description": "Pass inspect options as a JSON object.",
+          "name": "--json",
+        },
+      ],
+      "name": "rfba inspect",
+      "output": {
+        "stdout": "Text boundary map or deterministic JSON report.",
+      },
+      "summary": "Inspect RFBA root, feature, and query sub-boundaries without writing files.",
+      "supportsDryRun": false,
+      "supportsJsonPayload": true,
+      "writesFiles": false,
     },
     "schemaVersion": 1,
   },

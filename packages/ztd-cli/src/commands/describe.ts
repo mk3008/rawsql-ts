@@ -406,6 +406,25 @@ const COMMANDS: CommandDescriptor[] = [
     ]
   },
   {
+    name: 'rfba inspect',
+    summary: 'Inspect RFBA root, feature, and query sub-boundaries without writing files.',
+    writesFiles: false,
+    supportsDryRun: false,
+    supportsJsonPayload: true,
+    output: {
+      stdout: 'Text boundary map or deterministic JSON report.'
+    },
+    exitCodes: {
+      '0': 'Boundary report emitted.',
+      '1': 'Validation or filesystem error.'
+    },
+    flags: [
+      { name: '--format <format>', description: 'Output format (text|json).' },
+      { name: '--root <path>', description: 'Project root to inspect.' },
+      { name: '--json', description: 'Pass inspect options as a JSON object.' }
+    ]
+  },
+  {
     name: 'evidence',
     summary: 'Generate deterministic specification evidence artifacts.',
     writesFiles: true,
