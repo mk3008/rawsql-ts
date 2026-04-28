@@ -24,6 +24,7 @@ test('package README links every Further Reading guide from the public index', (
   expectInOrder(readme, [
     '## Further Reading',
     '[SQL-first End-to-End Tutorial](../../docs/guide/sql-first-end-to-end-tutorial.md)',
+    '[What Is RFBA?](../../docs/guide/rfba-overview.md)',
     '[SQL Tool Happy Paths](../../docs/guide/sql-tool-happy-paths.md)',
     '[Perf Tuning Decision Guide](../../docs/guide/perf-tuning-decision-guide.md)',
     '[JOIN Direction Lint Specification](../../docs/guide/join-direction-lint-spec.md)',
@@ -36,6 +37,22 @@ test('package README links every Further Reading guide from the public index', (
 
 test('Further Reading docs stay aligned with the current standalone and CLI behavior', () => {
   const expectations: Array<{ docPath: string; phrases: string[] }> = [
+    {
+      docPath: 'docs/guide/rfba-overview.md',
+      phrases: [
+        'RFBA means **Review-First Backend Architecture**.',
+        'The goal is to make AI-produced work reviewable by humans.',
+        'RFBA does this by splitting files by review responsibility.',
+        'RFBA is intentionally scoped to backend work, especially database applications.',
+        'RFBA treats DDL as the source of truth for data structure',
+        'raw SQL is a natural review boundary',
+        '`root-boundary`: the app-level boundary layer.',
+        '`feature-boundary`: a feature-owned boundary under `src/features/<feature>/`.',
+        '`sub-boundary`: an optional child boundary inside a feature',
+        'RFBA is not a universal file naming rule.',
+        '`boundary.ts` is the default `ztd-cli` feature scaffold convention'
+      ]
+    },
     {
       docPath: 'docs/guide/sql-first-end-to-end-tutorial.md',
       phrases: [
@@ -150,6 +167,11 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
     {
       docPath: 'packages/ztd-cli/README.md',
       phrases: [
+        '`root-boundary` is the app-level boundary layer.',
+        'the concrete root boundaries are only `src/features`, `src/adapters`, and `src/libraries`',
+        '`queries/` is a child-boundary container and does not expose its own public surface.',
+        '`boundary.ts` is a feature-scoped convention for discoverability and scaffold compatibility',
+        'Do not count `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, or `db/` as extra root boundaries.',
         'If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; check whether `ztd-cli` or `rawsql-ts` changed the manifest or rewrite path.',
         'If you see `user_id: null`, compare the direct database `INSERT ... RETURNING ...` result with the ZTD result and inspect `.ztd/generated/ztd-fixture-manifest.generated.ts` first.',
         'If a local-source workspace is meant to reflect a source change, verify that it resolves `rawsql-ts` from the local source tree rather than a registry copy.',
@@ -300,4 +322,11 @@ test('quickstart and tutorial spell out the common 5432 collision fallback', () 
   expect(tutorial).toContain('Copy-Item .env.example .env');
   expect(tutorial).toContain('all predefined address pools have been fully subnetted');
   expect(tutorial).toContain('changing `ZTD_DB_PORT` will not help');
+  expect(packageReadme).not.toContain('A folder is a boundary.');
+  expect(packageReadme).not.toContain('Every boundary folder exposes only `boundary.ts`');
+  expect(packageReadme).toContain('RFBA (Review-First Backend Architecture)');
+  expect(packageReadme).toContain('RFBA is architecture and structure theory, not a filename rule.');
+  expect(tutorial).toContain('RFBA is about splitting files by review responsibility');
+  expect(readNormalizedFile('docs/.vitepress/config.mts')).toContain("{ text: 'What Is RFBA?', link: '/guide/rfba-overview' }");
+  expect(readNormalizedFile('docs/guide/feature-index.md')).toContain('[guide/rfba-overview](./rfba-overview.md)');
 });

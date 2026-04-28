@@ -561,7 +561,7 @@ test(
       'export interface FeatureQueryExecutor {'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toContain(
-      '`boundary.ts` is the feature boundary public surface'
+      '`boundary.ts` is the default feature-boundary public surface'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toContain(
       'When DDL declares a column default, the scaffold writes that default expression into SQL explicitly'

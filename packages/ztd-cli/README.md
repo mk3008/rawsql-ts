@@ -3,9 +3,10 @@
 ![npm version](https://img.shields.io/npm/v/@rawsql-ts/ztd-cli)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-`ztd-cli` is a SQL-first CLI for feature-first application development.
+`ztd-cli` is a SQL-first CLI for feature-first RFBA (Review-First Backend Architecture) application development.
 
-It now treats project structure as Architecture as a Framework: boundaries, public surfaces, dependency direction, and test ownership are meant to be readable from the filesystem itself.
+RFBA is a backend architecture for making AI-assisted work reviewable by humans.
+It splits files by review responsibility, keeps dependency direction and public surfaces visible, treats DDL as the data-structure source of truth, and exposes SQL as a strong review boundary.
 
 ## Highlights
 
@@ -16,6 +17,7 @@ It now treats project structure as Architecture as a Framework: boundaries, publ
 - Migration artifacts are generated for review, not applied automatically.
 - No extra DSL is required.
 - VSA-style feature-local SQL layouts are supported.
+- RFBA keeps review-heavy SQL and orchestration visible while letting DTOs, mapping, and tests use scaffolded structure.
 
 ## Quickstart
 
@@ -32,35 +34,52 @@ docker compose up -d
 npx vitest run
 ```
 
-## Architecture as a Framework
+## RFBA Architecture
 
-`ztd-cli` uses one recursive rule for feature-local boundaries:
+RFBA is architecture and structure theory, not a filename rule.
+`ztd-cli` implements RFBA with three structural layers:
 
 ```text
-boundary/
+root-boundary/
+  feature-boundary/
+    sub-boundary/
+```
+
+- `root-boundary` is the app-level boundary layer.
+- In rawsql-ts, the concrete root boundaries are only `src/features`, `src/adapters`, and `src/libraries`.
+- `feature-boundary` is a feature-owned boundary under `src/features/<feature>/`.
+- `sub-boundary` is an optional child boundary inside one feature when review responsibility, allowed dependencies, public surface, or verification scope changes.
+
+For feature-owned work, the default scaffold convention is:
+
+```text
+src/features/<feature>/
   boundary.ts
-  child-boundary/
+  queries/
+    <query>/
+      boundary.ts
+      tests/
   tests/
 ```
 
-- A folder is a boundary.
-- `boundary.ts` is that boundary's public surface.
-- Child boundaries are child folders that repeat the same rule.
-- `tests/` is the verification group owned by that boundary.
-- Cross-boundary tests should use `boundary.ts`, not internal helpers.
+- A `feature-boundary` owns that feature's SQL, QuerySpec, orchestration entrypoint, and feature-local verification.
+- A query sub-boundary is the feature-local query unit: it keeps the SQL, row/result mapping contract, execution contract, and query-local verification together.
+- `queries/` is a child-boundary container and does not expose its own public surface.
+- The actual child query public surface lives in `queries/<query>/boundary.ts`.
+- Inside `src/features/*`, `boundary.ts` is the default scaffold entrypoint for feature-boundaries and sub-boundaries.
+- `boundary.ts` is a feature-scoped convention for discoverability and scaffold compatibility, not the definition of RFBA itself.
+- Cross-boundary calls should go through the target boundary's public surface instead of reaching into private helpers.
 
-`src/features/<feature>/queries/` is the main exception.
-It is a container for child query boundaries and does not expose its own `boundary.ts`.
-The actual query-boundary public surfaces live under `src/features/<feature>/queries/<query>/boundary.ts`.
+The starter and feature scaffolds apply that convention under `src/features/<feature>/...`, so the feature-local public surface stays easy to discover.
 
-The starter and feature scaffolds apply that rule under `src/features/<feature>/...`, so the public export surface is visible without reading prose first.
-Outside feature-owned boundaries:
+Important repo areas outside the concrete root-boundary list:
 
 - Keep shared feature seams under `src/features/_shared/*`.
-- Keep driver-neutral contracts under `src/libraries/*`.
-- Keep driver- or sink-specific bindings under `src/adapters/<tech>/*`.
+- Keep driver-neutral contracts under `src/libraries/*`; `src/libraries` itself is one concrete root-boundary.
+- Keep driver- or sink-specific bindings under `src/adapters/<tech>/*`; `src/adapters` itself is one concrete root-boundary.
 - Keep shared verification seams under `tests/support/*`.
 - Keep tool-managed assets under `.ztd/*`.
+- Do not count `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, or `db/` as extra root boundaries.
 
 Adapter boundary rule:
 
@@ -68,6 +87,7 @@ Adapter boundary rule:
 - If `<tech>` is a family or plural container such as `aws` or `cloud`, treat `src/adapters/<tech>/` as a parent and create child boundaries such as `src/adapters/aws/s3/` and `src/adapters/aws/lambda/`.
 
 Reserve `db/` for DDL, migration, and schema assets only; do not place runtime clients or adapters there.
+Code outside a feature may still use `boundary.ts` when it helps locally, but it is not a required filename outside feature-boundaries and sub-boundaries.
 
 PowerShell:
 
@@ -231,6 +251,7 @@ Use `ztd describe` for machine-readable discovery, and follow the linked guides 
 ### User Guides
 
 - [SQL-first End-to-End Tutorial](../../docs/guide/sql-first-end-to-end-tutorial.md) - starter flow, repair loops, and scenario-specific CLI guidance
+- [What Is RFBA?](../../docs/guide/rfba-overview.md) - review-first backend architecture, review responsibilities, and ztd-cli structural vocabulary
 - [SQL Tool Happy Paths](../../docs/guide/sql-tool-happy-paths.md) - choose between query plan, perf, query uses, and telemetry
 - [Dynamic Filter Routing](../../docs/guide/dynamic-filter-routing.md) - decide between DynamicQueryBuilder filters and SSSQL branches
 - [ztd.config.json Top-Level Settings](../../docs/guide/ztd-config-top-level-settings.md) - where schema resolution lives and how to read the generated config
