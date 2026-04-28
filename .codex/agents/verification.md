@@ -30,6 +30,9 @@ Use this subagent to validate whether the work satisfies the planned acceptance 
 - Prefer direct observation over inferred confidence.
 - If evidence is indirect, partial, environment-dependent, or blocked, state that explicitly.
 - Confirm whether the planned verification methods were actually satisfied; do not silently replace them.
+- Treat every failed required verification command as branch-local until proven otherwise, even when the failing file was not edited in the current diff.
+- Do not mark a required-check failure as out of scope without repository evidence. Acceptable evidence is: same command and environment reproduced the failure on the base branch; repository guidance says the check is non-blocking for this change; or a named external prerequisite is unavailable and not needed for the acceptance item.
+- If that evidence is missing, keep the verification item blocked and route back to implementation instead of reporting completion.
 - Unless the request explicitly says not to, behavior changes should add or update tests in the same change.
 - For QuerySpec work used for product behavior, the required verification is a ZTD-backed test that executes the SQL through the rewriter.
 - A property-only validation test is not sufficient verification for a product-behavior QuerySpec.

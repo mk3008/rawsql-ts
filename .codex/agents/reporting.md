@@ -54,6 +54,8 @@ Use this subagent to turn rawsql-ts developer work into a final report that is e
 - `Supplementary evidence` must be labeled as supplementary and must not be presented as equivalent to repository evidence.
 - If an item relies mainly on supplementary evidence, keep it `partial` or narrow the claim with explicit guarantee limits.
 - If verification was incomplete, blocked, or environment-dependent, state that explicitly instead of overstating completion.
+- A failed required verification command must be reported as in-scope unless repository evidence proves otherwise. Do not call it unrelated solely because it points to a file outside the current diff.
+- If a required check failed and was later fixed, report the original failure cause and the final passing command so reviewers can see the gate was closed.
 - If dogfooding or real-task validation was required, report whether it was satisfied, partial, or not done.
 - If an unresolved retro item would weaken PR readiness, keep the affected acceptance item `partial` or `not done` until the gap is resolved or explicitly accepted for deferment.
 - End with `What the human should decide next`, phrased as a narrow choice whenever possible.

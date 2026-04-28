@@ -275,31 +275,41 @@ test('runTestEvidencePr normalizes absolute discovery roots before materializing
   git(root, ['commit', '-m', 'head']);
   const headSha = git(root, ['rev-parse', 'HEAD']);
 
-  const result = runTestEvidencePr({
-    baseRef: baseSha,
-    headRef: headSha,
-    baseMode: 'ref',
-    outDir: 'artifacts/test-evidence',
-    rootDir: root,
-    specsDir: path.join(root, 'src', 'catalog', 'specs'),
-    summaryOnly: true
-  });
+  const originalGitIndexFile = process.env.GIT_INDEX_FILE;
+  process.env.GIT_INDEX_FILE = path.join(root, 'missing-parent-hook-index');
+  try {
+    const result = runTestEvidencePr({
+      baseRef: baseSha,
+      headRef: headSha,
+      baseMode: 'ref',
+      outDir: 'artifacts/test-evidence',
+      rootDir: root,
+      specsDir: path.join(root, 'src', 'catalog', 'specs'),
+      summaryOnly: true
+    });
 
-  expect(result.baseReport.summary.sqlCatalogCount).toBe(1);
-  expect(result.headReport.summary.sqlCatalogCount).toBe(1);
+    expect(result.baseReport.summary.sqlCatalogCount).toBe(1);
+    expect(result.headReport.summary.sqlCatalogCount).toBe(1);
 
-  const scopedResult = runTestEvidencePr({
-    baseRef: baseSha,
-    headRef: headSha,
-    baseMode: 'ref',
-    outDir: 'artifacts/test-evidence-scoped',
-    rootDir: root,
-    scopeDir: path.join(root, 'src', 'features', 'users'),
-    summaryOnly: true
-  });
+    const scopedResult = runTestEvidencePr({
+      baseRef: baseSha,
+      headRef: headSha,
+      baseMode: 'ref',
+      outDir: 'artifacts/test-evidence-scoped',
+      rootDir: root,
+      scopeDir: path.join(root, 'src', 'features', 'users'),
+      summaryOnly: true
+    });
 
-  expect(scopedResult.baseReport.summary.sqlCatalogCount).toBe(1);
-  expect(scopedResult.headReport.summary.sqlCatalogCount).toBe(1);
+    expect(scopedResult.baseReport.summary.sqlCatalogCount).toBe(1);
+    expect(scopedResult.headReport.summary.sqlCatalogCount).toBe(1);
+  } finally {
+    if (originalGitIndexFile === undefined) {
+      delete process.env.GIT_INDEX_FILE;
+    } else {
+      process.env.GIT_INDEX_FILE = originalGitIndexFile;
+    }
+  }
 });
 
 test('formatTestEvidenceOutput emits deterministic markdown and json text', () => {

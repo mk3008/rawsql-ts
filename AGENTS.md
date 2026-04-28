@@ -89,6 +89,9 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 - If any test or check fails, reports must state whether the failure is newly introduced by the current change or reproducible on the base branch without the change.
 - If any test or check fails, reports must state the failure's decision weight explicitly: required merge gate, non-required PR check, local-only check, or another clearly named category.
 - If work proceeds despite a failing test or check, reports must explain why proceeding is acceptable for this change, based on the failure's category and whether it is pre-existing.
+- A failed required verification command is in scope for the current branch until proven otherwise. Do not classify it as unrelated merely because the stack trace points at a file outside the current diff.
+- Before calling a failed required check out-of-scope, provide one of these forms of repository evidence: the same command fails on the base branch in the same environment; repository guidance marks the check as non-blocking for this change; or the failure depends on an unavailable external prerequisite that is not required for the acceptance item.
+- If none of that evidence exists, fix the failure or keep PR readiness blocked. Reporting must not downgrade the failure to `partial` or `non-blocking` by assertion alone.
 - If a task changes GitHub branch protection or rulesets, reports must explicitly state which merge blockers were changed or verified, not just the intended required status checks.
 - Ruleset or branch protection reports must explicitly call out approval requirements, Code Owner review requirements, signed-commit requirements, and required status checks whenever those settings could affect mergeability.
 - Do not imply that bot review comments or `COMMENTED` review states satisfy an approval requirement; approval claims must name the actor and the approval-capable review state.

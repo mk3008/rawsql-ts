@@ -188,6 +188,10 @@ Use validation-only cases for boundary checks and DB-backed cases for the succes
 Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts` for mock-based boundary tests.
 The ZTD verifier returns machine-checkable evidence (`mode`, `rewriteApplied`, `physicalSetupUsed`) per case.
 `afterDb` assertions are intentionally excluded from this ZTD lane; use a traditional DB-state lane when you need post-state assertions.
+
+`ztd feature tests scaffold --test-kind traditional` creates an active `.boundary.traditional.test.ts` entrypoint that calls the shared mode runner.
+Traditional cases keep the same `beforeDb`, `input`, and `output` shape and can add optional `afterDb` assertions.
+The traditional runner physically prepares DDL and fixture rows, then reports `mode=traditional` and `physicalSetupUsed=true`.
 After the cases are filled, run `npx vitest run src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` to execute the ZTD query test.
 
 ## Import Paths

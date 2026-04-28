@@ -145,6 +145,33 @@ test('inspectPerfDdlInventory counts CREATE INDEX statements so perf reset can r
   expect(inventory.indexNames).toEqual(['users_email_idx']);
   expect(inventory.statements.map((statement) => statement.kind)).toEqual(['table', 'index']);
 });
+
+test('inspectPerfDdlInventory ignores comment-only DDL placeholders', () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'perf-ddl-comments-'));
+  const ddlDir = path.join(rootDir, 'db', 'ddl');
+  mkdirSync(ddlDir, { recursive: true });
+
+  writeFileSync(path.join(rootDir, 'ztd.config.json'), JSON.stringify({
+    dialect: 'postgres',
+    ddlDir: 'db/ddl',
+    testsDir: '.ztd/tests',
+    defaultSchema: 'public',
+    searchPath: ['public'],
+    ddlLint: 'strict'
+  }, null, 2), 'utf8');
+  writeFileSync(path.join(ddlDir, 'public.sql'), [
+    '-- DDL for schema "public".',
+    '-- Add CREATE TABLE statements here.',
+    ''
+  ].join('\n'), 'utf8');
+
+  const inventory = inspectPerfDdlInventory(rootDir);
+
+  expect(inventory.files).toHaveLength(1);
+  expect(inventory.ddlStatementCount).toBe(0);
+  expect(inventory.statements).toEqual([]);
+});
+
 test('inspectPerfDdlInventory fails fast when the configured DDL directory does not exist', () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'perf-ddl-missing-'));
 

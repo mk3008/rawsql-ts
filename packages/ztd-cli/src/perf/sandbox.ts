@@ -169,7 +169,10 @@ export function inspectPerfDdlInventory(rootDir: string, options: { requireExist
         continue;
       }
 
-      const parsed = SqlParser.parse(sql);
+      const parsed = parseOptionalDdlStatement(sql);
+      if (!parsed) {
+        continue;
+      }
       let kind: PerfDdlStatement['kind'] = 'other';
       if (parsed instanceof CreateTableQuery) {
         kind = 'table';
@@ -196,6 +199,18 @@ export function inspectPerfDdlInventory(rootDir: string, options: { requireExist
     indexCount,
     indexNames
   };
+}
+
+function parseOptionalDdlStatement(sql: string): ReturnType<typeof SqlParser.parse> | undefined {
+  try {
+    return SqlParser.parse(sql);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('[SqlParser] No SQL statements found in input.')) {
+      return undefined;
+    }
+    throw error;
+  }
 }
 
 export async function resetPerfSandbox(rootDir: string): Promise<PerfResetResult> {
@@ -465,7 +480,10 @@ function loadTableDefinitions(rootDir: string, ddlDir: string): TableDefinitionM
         continue;
       }
 
-      const parsed = SqlParser.parse(sql);
+      const parsed = parseOptionalDdlStatement(sql);
+      if (!parsed) {
+        continue;
+      }
       if (!(parsed instanceof CreateTableQuery)) {
         continue;
       }

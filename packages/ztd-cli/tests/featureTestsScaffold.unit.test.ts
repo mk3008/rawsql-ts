@@ -17,8 +17,16 @@ function createTempDir(prefix: string): string {
 function seedSharedZtdSupport(workspace: string): void {
   const supportDir = path.join(workspace, 'tests', 'support', 'ztd');
   mkdirSync(supportDir, { recursive: true });
-  writeFileSync(path.join(supportDir, 'harness.ts'), 'export async function runQuerySpecZtdCases() {}\n', 'utf8');
-  writeFileSync(path.join(supportDir, 'case-types.ts'), 'export type QuerySpecZtdCase<A, B, C> = { beforeDb: A; input: B; output: C };\n', 'utf8');
+  writeFileSync(
+    path.join(supportDir, 'harness.ts'),
+    'export async function runQuerySpecZtdCases() {}\nexport async function runQuerySpecTraditionalCases() {}\n',
+    'utf8'
+  );
+  writeFileSync(
+    path.join(supportDir, 'case-types.ts'),
+    'export type QuerySpecZtdCase<A, B, C> = { beforeDb: A; input: B; output: C };\nexport type QuerySpecTraditionalCase<A, B, C> = { beforeDb: A; input: B; output: C; afterDb?: A };\n',
+    'utf8'
+  );
 }
 
 function seedStableTestAliases(workspace: string): void {
@@ -414,14 +422,35 @@ test('runFeatureTestsScaffoldCommand writes traditional lane scaffolds without o
     path.join(featureDir, 'queries', 'insert-users', 'tests', 'insert-users.boundary.traditional.test.ts'),
     'utf8'
   );
-  expect(traditionalEntrypoint).toContain("test.skip('users-insert/insert-users boundary traditional lane scaffold placeholder'");
+  expect(traditionalEntrypoint).toContain("import { runQuerySpecTraditionalCases } from '../../../../../../tests/support/ztd/harness.js';");
+  expect(traditionalEntrypoint).toContain("test('users-insert/insert-users boundary traditional cases run through physical DB setup'");
+  expect(traditionalEntrypoint).toContain('const evidence = await runQuerySpecTraditionalCases(cases, executeBoundaryQuerySpec);');
+  expect(traditionalEntrypoint).toContain("expect(evidence.every((entry) => entry.mode === 'traditional')).toBe(true);");
+  expect(traditionalEntrypoint).toContain('expect(evidence.every((entry) => entry.physicalSetupUsed === true)).toBe(true);');
+  expect(traditionalEntrypoint).not.toContain('test.skip');
+
+  const traditionalTypes = readFileSync(
+    path.join(featureDir, 'queries', 'insert-users', 'tests', 'boundary-traditional-types.ts'),
+    'utf8'
+  );
+  expect(traditionalTypes).toContain("import type { QuerySpecTraditionalCase } from '../../../../../../tests/support/ztd/case-types.js';");
+  expect(traditionalTypes).toContain('export type InsertUsersQueryBoundaryTraditionalCase = QuerySpecTraditionalCase<');
 
   const traditionalAnalysis = JSON.parse(
     readFileSync(path.join(featureDir, 'queries', 'insert-users', 'tests', 'generated', 'analysis.traditional.json'), 'utf8')
   ) as { testKind: string; dbScenarioHints: string[] };
   expect(traditionalAnalysis.testKind).toBe('traditional');
-  expect(traditionalAnalysis.dbScenarioHints.join('\n')).toContain('library traditional mode API adapter');
+  expect(traditionalAnalysis.dbScenarioHints.join('\n')).toContain('shared mode-switching harness');
   expect(traditionalAnalysis.dbScenarioHints.join('\n')).not.toContain('fixed app-level harness');
+
+  const traditionalPlan = readFileSync(
+    path.join(featureDir, 'queries', 'insert-users', 'tests', 'generated', 'TEST_PLAN.traditional.md'),
+    'utf8'
+  );
+  expect(traditionalPlan).toContain('fixedVerifier: tests/support/ztd/harness.ts#runQuerySpecTraditionalCases');
+  expect(traditionalPlan).toContain('physically prepares DDL and fixture rows');
+  expect(traditionalPlan).toContain('physicalSetupUsed=true');
+  expect(traditionalPlan).toContain('Optional `afterDb` assertions');
 
   expect(
     existsSync(path.join(featureDir, 'queries', 'insert-users', 'tests', 'insert-users.boundary.ztd.test.ts'))
