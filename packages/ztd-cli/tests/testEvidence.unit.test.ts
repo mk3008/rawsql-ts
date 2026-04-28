@@ -18,6 +18,27 @@ function createWorkspace(prefix: string): string {
   return root;
 }
 
+function writeFeatureLocalQuerySpec(root: string, featureName: string): void {
+  const queryDir = path.join(root, 'src', 'features', featureName, 'queries', 'list-users');
+  mkdirSync(queryDir, { recursive: true });
+  writeFileSync(path.join(queryDir, 'list-users.sql'), 'SELECT id FROM users WHERE active = :active', 'utf8');
+  writeFileSync(
+    path.join(queryDir, 'queryspec.ts'),
+    [
+      "import { loadSqlResource } from '../../../_shared/loadSqlResource';",
+      '',
+      "const listUsersSql = loadSqlResource(__dirname, 'list-users.sql');",
+      '',
+      'export const listUsersQuerySpec = {',
+      `  label: 'features.${featureName}.list-users',`,
+      '  sql: listUsersSql',
+      '};',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+}
+
 function writeSpecModule(root: string, options?: { testCaseIds?: string[]; includeSqlCase?: boolean }): void {
   const testCaseIds = options?.testCaseIds ?? ['returns-active-users', 'skipped-case'];
   const sqlCaseBlock = options?.includeSqlCase === false
@@ -134,6 +155,52 @@ test('runTestEvidenceSpecification extracts SQL catalogs, SQL case catalogs, and
 test('runTestEvidenceSpecification throws when neither specs nor evidence module exports exist', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'evidence-empty-'));
   expect(() => runTestEvidenceSpecification({ mode: 'specification', rootDir: root })).toThrowError(TestEvidenceRuntimeError);
+});
+
+test('runTestEvidenceSpecification discovers feature-local QuerySpecs project-wide by default', () => {
+  const root = createWorkspace('evidence-feature-local');
+  writeFeatureLocalQuerySpec(root, 'users');
+
+  const report = runTestEvidenceSpecification({ mode: 'specification', rootDir: root });
+
+  expect(report.summary).toMatchObject({
+    sqlCatalogCount: 1,
+    specFilesScanned: 1
+  });
+  expect(report.sqlCatalogs).toEqual([
+    expect.objectContaining({
+      id: 'features.users.list-users',
+      specFile: 'src/features/users/queries/list-users/queryspec.ts',
+      sqlFile: './list-users.sql',
+      sqlFileResolved: true
+    })
+  ]);
+});
+
+test('runTestEvidenceSpecification supports scopeDir and legacy specsDir discovery', () => {
+  const root = createWorkspace('evidence-scope-dir');
+  writeFeatureLocalQuerySpec(root, 'users');
+  writeFeatureLocalQuerySpec(root, 'orders');
+  writeFileSync(path.join(root, 'src', 'sql', 'legacy.sql'), 'select 1', 'utf8');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'legacy.spec.json'),
+    JSON.stringify({ id: 'legacy', sqlFile: '../../sql/legacy.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+
+  const scoped = runTestEvidenceSpecification({
+    mode: 'specification',
+    rootDir: root,
+    scopeDir: path.join('src', 'features', 'users')
+  });
+  expect(scoped.sqlCatalogs.map((item) => item.id)).toEqual(['features.users.list-users']);
+
+  const legacy = runTestEvidenceSpecification({
+    mode: 'specification',
+    rootDir: root,
+    specsDir: path.join('src', 'catalog', 'specs')
+  });
+  expect(legacy.sqlCatalogs.map((item) => item.id)).toEqual(['legacy']);
 });
 
 test('formatTestEvidenceOutput emits deterministic markdown and json text', () => {

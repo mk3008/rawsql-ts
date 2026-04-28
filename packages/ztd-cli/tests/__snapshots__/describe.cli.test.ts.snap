@@ -63,6 +63,14 @@ exports[`describe command snapshots the top-level command catalog and every deta
           "name": "--format json",
         },
         {
+          "description": "Limit QuerySpec discovery to one feature, boundary, or subtree.",
+          "name": "--scope-dir",
+        },
+        {
+          "description": "Legacy fixed catalog specs directory override.",
+          "name": "--specs-dir",
+        },
+        {
           "description": "Pass check options as a JSON object.",
           "name": "--json",
         },
@@ -71,7 +79,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
       "output": {
         "stdout": "Human report or deterministic JSON report.",
       },
-      "summary": "Validate SQL contract specs and emit deterministic findings.",
+      "summary": "Validate project QuerySpec-backed SQL contracts and emit deterministic findings.",
       "supportsDryRun": false,
       "supportsJsonPayload": true,
       "writesFiles": true,
@@ -311,7 +319,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
       },
       {
         "name": "check contract",
-        "summary": "Validate SQL contract specs and emit deterministic findings.",
+        "summary": "Validate project QuerySpec-backed SQL contracts and emit deterministic findings.",
         "supportsDescribeOutput": false,
         "supportsDryRun": false,
         "supportsJsonPayload": true,
@@ -383,7 +391,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
       },
       {
         "name": "evidence",
-        "summary": "Generate deterministic specification evidence artifacts.",
+        "summary": "Generate deterministic specification evidence artifacts from project QuerySpec and test assets.",
         "supportsDescribeOutput": false,
         "supportsDryRun": false,
         "supportsJsonPayload": true,
@@ -409,6 +417,14 @@ exports[`describe command snapshots the top-level command catalog and every deta
       },
       "flags": [
         {
+          "description": "Limit QuerySpec discovery to one feature, boundary, or subtree.",
+          "name": "--scope-dir",
+        },
+        {
+          "description": "Legacy fixed catalog specs directory override.",
+          "name": "--specs-dir",
+        },
+        {
           "description": "Pass evidence options as a JSON object.",
           "name": "--json",
         },
@@ -420,7 +436,7 @@ exports[`describe command snapshots the top-level command catalog and every deta
           "<out-dir>/test-specification.md",
         ],
       },
-      "summary": "Generate deterministic specification evidence artifacts.",
+      "summary": "Generate deterministic specification evidence artifacts from project QuerySpec and test assets.",
       "supportsDryRun": false,
       "supportsJsonPayload": true,
       "writesFiles": true,

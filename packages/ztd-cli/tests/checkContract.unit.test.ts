@@ -11,6 +11,27 @@ function createWorkspace(): string {
   return dir;
 }
 
+function writeFeatureLocalQuerySpec(root: string, featureName: string, sql: string): void {
+  const queryDir = path.join(root, 'src', 'features', featureName, 'queries', 'list-users');
+  mkdirSync(queryDir, { recursive: true });
+  writeFileSync(path.join(queryDir, 'list-users.sql'), sql, 'utf8');
+  writeFileSync(
+    path.join(queryDir, 'queryspec.ts'),
+    [
+      "import { loadSqlResource } from '../../../_shared/loadSqlResource';",
+      '',
+      "const listUsersSql = loadSqlResource(__dirname, 'list-users.sql');",
+      '',
+      'export const listUsersQuerySpec = {',
+      `  label: 'features.${featureName}.list-users',`,
+      '  sql: listUsersSql',
+      '};',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+}
+
 describe('runCheckContract', () => {
   test('detects duplicate spec ids', () => {
     const root = createWorkspace();
@@ -28,6 +49,40 @@ describe('runCheckContract', () => {
 
     const result = runCheckContract({ strict: true, rootDir: root });
     expect(result.violations).toEqual(expect.arrayContaining([expect.objectContaining({ rule: 'unresolved-sql-file', specId: 'a' })]));
+  });
+
+  test('discovers feature-local QuerySpec assets project-wide by default', () => {
+    const root = createWorkspace();
+    writeFeatureLocalQuerySpec(root, 'users', 'SELECT id FROM users WHERE active = :active');
+
+    const result = runCheckContract({ strict: true, rootDir: root });
+
+    expect(result).toMatchObject({
+      ok: true,
+      filesChecked: 1,
+      specsChecked: 1
+    });
+    expect(result.violations).toEqual([]);
+  });
+
+  test('limits project discovery with scopeDir and preserves legacy specsDir', () => {
+    const root = createWorkspace();
+    writeFeatureLocalQuerySpec(root, 'users', 'SELECT id FROM users WHERE active = :active');
+    writeFeatureLocalQuerySpec(root, 'orders', 'SELECT * FROM orders');
+    writeFileSync(path.join(root, 'src', 'sql', 'legacy.sql'), 'SELECT 1', 'utf8');
+    writeFileSync(
+      path.join(root, 'src', 'catalog', 'specs', 'legacy.json'),
+      JSON.stringify({ id: 'legacy', sqlFile: '../../sql/legacy.sql', params: { shape: 'positional', example: [] } }),
+      'utf8'
+    );
+
+    const scoped = runCheckContract({ strict: true, rootDir: root, scopeDir: path.join('src', 'features', 'users') });
+    expect(scoped).toMatchObject({ filesChecked: 1, specsChecked: 1 });
+    expect(scoped.violations.some((v) => v.specId === 'features.orders.list-users')).toBe(false);
+
+    const legacy = runCheckContract({ strict: true, rootDir: root, specsDir: path.join('src', 'catalog', 'specs') });
+    expect(legacy).toMatchObject({ filesChecked: 1, specsChecked: 1 });
+    expect(legacy.violations.some((v) => v.specId === 'features.users.list-users')).toBe(false);
   });
 
   test('detects params shape mismatches', () => {
