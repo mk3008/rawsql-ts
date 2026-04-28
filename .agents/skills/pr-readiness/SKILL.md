@@ -22,8 +22,9 @@ Use this skill before creating or editing a rawsql-ts pull request.
    - `CLI Surface Migration` when CLI-facing files changed
    - `Scaffold Contract Proof` when scaffold-related files changed
 6. Fill required same-line fields exactly as labels appear in the template.
-7. Before or immediately after `gh pr create` / `gh pr edit`, run the readiness script against the PR body.
-8. Do not present the PR as ready while the readiness script fails.
+7. After implementation verification, run the repo self-review workflow as the finishing review pass before PR authoring.
+8. Before `gh pr create` / `gh pr edit`, validate the prepared PR body by running the readiness script locally.
+9. Do not present the PR as ready while self-review has unresolved blockers or the readiness script fails.
 
 ## Local Validation
 When validating a PR body locally, create a temporary event payload containing the PR body, then run:
@@ -38,11 +39,13 @@ Use the actual base and head SHAs from the PR or from `git merge-base` / `git re
 - If CI reports a PR readiness failure, fix the PR body first.
 - If the failure is caused by missing template sections, treat it as an authoring process defect, not a product-code defect.
 - If the current task caused the miss, add or update a repo-local skill or AGENTS rule before claiming the prevention is durable.
+- If a reviewer finds a correctness issue after the PR is opened, treat that as evidence that the finishing self-review pass was missing or too weak; update this skill or the relevant review checklist when the miss is reusable.
 
 ## Output Shape
 - Template sections preserved
 - Required gates selected
 - Required fields filled
+- Self-review blockers resolved or explicitly surfaced
 - Local readiness command
 - Readiness result
 - Remaining blockers

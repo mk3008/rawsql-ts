@@ -114,6 +114,8 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 
 ## Review Minimums
 
+- Development has two completion stages: first prove the feature and regression tests, then run a separate finishing review pass before PR handoff.
+- The finishing review pass must use the available self-review workflow or repo-local review skill, and it must look for cross-mode regressions such as direct command versus PR/worktree command behavior.
 - Final PR text and final implementation reports must pass self-review before human review.
 - Before creating or editing a PR, read `.github/pull_request_template.md` and use `.agents/skills/pr-readiness/SKILL.md` when present.
 - Before claiming a PR is ready, run the repository PR readiness script locally when `scripts/check-pr-readiness.js` exists, or explicitly state why it could not be run.

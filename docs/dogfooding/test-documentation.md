@@ -32,7 +32,7 @@ This regression surface keeps the shortest export loop in git so future changes 
 
 ## Shortest happy path
 
-1. Prepare a workspace with feature-local QuerySpecs or legacy SQL specs plus `tests/specs/index` exports.
+1. Prepare a workspace with either feature-local QuerySpecs, legacy SQL specs, or `tests/specs/index.*` exports.
 2. Run `ztd evidence test-doc --out artifacts/test-evidence/test-documentation.md`.
 3. Inspect the Markdown for catalog summaries, case lists, fixture notes, and expected results.
 

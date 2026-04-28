@@ -1,4 +1,5 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { expect, test } from 'vitest';
@@ -6,6 +7,7 @@ import {
   applyEvidenceOutputControls,
   formatTestDocumentationOutput,
   formatTestEvidenceOutput,
+  runTestEvidencePr,
   runTestEvidenceSpecification,
   TestEvidenceRuntimeError
 } from '../src/commands/testEvidence';
@@ -102,6 +104,22 @@ function withoutGitHubEnv<T>(fn: () => T): T {
       }
     });
   }
+}
+
+function git(root: string, args: string[]): string {
+  const { GIT_DIR: _gitDir, GIT_WORK_TREE: _gitWorkTree, ...env } = process.env;
+  return execFileSync('git', args, {
+    cwd: root,
+    env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf8'
+  }).trim();
+}
+
+function initGitRepository(root: string): void {
+  git(root, ['init']);
+  git(root, ['config', 'user.email', 'test@example.com']);
+  git(root, ['config', 'user.name', 'Test User']);
 }
 
 test('runTestEvidenceSpecification extracts SQL catalogs, SQL case catalogs, and test-case catalogs deterministically', () => {
@@ -235,6 +253,53 @@ test('runTestEvidenceSpecification rejects non-directory or external discovery r
       specsDir: outsideRoot
     })
   ).toThrow(/Spec directory must be inside the project root/);
+});
+
+test('runTestEvidencePr normalizes absolute discovery roots before materializing worktrees', () => {
+  const root = createWorkspace('evidence-pr-absolute-specs');
+  initGitRepository(root);
+  writeFeatureLocalQuerySpec(root, 'users');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
+    JSON.stringify({ id: 'legacy.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(path.join(root, 'src', 'sql', 'users.sql'), 'select id from users', 'utf8');
+  writeSpecModule(root, { testCaseIds: ['works'], includeSqlCase: false });
+  git(root, ['add', '.']);
+  git(root, ['commit', '-m', 'base']);
+  const baseSha = git(root, ['rev-parse', 'HEAD']);
+
+  writeFileSync(path.join(root, 'src', 'sql', 'users.sql'), 'select id, name from users', 'utf8');
+  git(root, ['add', '.']);
+  git(root, ['commit', '-m', 'head']);
+  const headSha = git(root, ['rev-parse', 'HEAD']);
+
+  const result = runTestEvidencePr({
+    baseRef: baseSha,
+    headRef: headSha,
+    baseMode: 'ref',
+    outDir: 'artifacts/test-evidence',
+    rootDir: root,
+    specsDir: path.join(root, 'src', 'catalog', 'specs'),
+    summaryOnly: true
+  });
+
+  expect(result.baseReport.summary.sqlCatalogCount).toBe(1);
+  expect(result.headReport.summary.sqlCatalogCount).toBe(1);
+
+  const scopedResult = runTestEvidencePr({
+    baseRef: baseSha,
+    headRef: headSha,
+    baseMode: 'ref',
+    outDir: 'artifacts/test-evidence-scoped',
+    rootDir: root,
+    scopeDir: path.join(root, 'src', 'features', 'users'),
+    summaryOnly: true
+  });
+
+  expect(scopedResult.baseReport.summary.sqlCatalogCount).toBe(1);
+  expect(scopedResult.headReport.summary.sqlCatalogCount).toBe(1);
 });
 
 test('formatTestEvidenceOutput emits deterministic markdown and json text', () => {

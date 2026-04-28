@@ -659,6 +659,8 @@ export function runTestEvidencePr(options: {
       ? resolveGitMergeBase(root, options.baseRef, options.headRef)
       : resolveGitSha(root, options.baseRef);
   const currentHeadSha = resolveGitSha(root, 'HEAD');
+  const normalizedScopeDir = normalizeDiscoveryDirForWorktree(root, options.scopeDir, 'Scope directory');
+  const normalizedSpecsDir = normalizeDiscoveryDirForWorktree(root, options.specsDir, 'Spec directory');
 
   try {
     const headMaterialized = materializeEvidenceForRef({
@@ -668,10 +670,10 @@ export function runTestEvidencePr(options: {
       allowCurrentWorkspace: resolvedHeadSha === currentHeadSha,
       tempRoot,
       createdWorktrees,
-      specsDir: options.specsDir,
+      specsDir: normalizedSpecsDir,
       testsDir: options.testsDir,
       specModule: options.specModule,
-      scopeDir: options.scopeDir,
+      scopeDir: normalizedScopeDir,
       summaryOnly: options.summaryOnly,
       limit: options.limit
     });
@@ -682,10 +684,10 @@ export function runTestEvidencePr(options: {
       allowCurrentWorkspace: resolvedBaseSha === currentHeadSha,
       tempRoot,
       createdWorktrees,
-      specsDir: options.specsDir,
+      specsDir: normalizedSpecsDir,
       testsDir: options.testsDir,
       specModule: options.specModule,
-      scopeDir: options.scopeDir,
+      scopeDir: normalizedScopeDir,
       summaryOnly: options.summaryOnly,
       limit: options.limit
     });
@@ -728,6 +730,14 @@ export function runTestEvidencePr(options: {
   } finally {
     cleanupWorktrees(root, createdWorktrees);
   }
+}
+
+function normalizeDiscoveryDirForWorktree(root: string, value: string | undefined, label: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const resolved = resolveDirectoryOption(root, value, label);
+  return path.relative(root, resolved) || '.';
 }
 
 function writeArtifacts(args: {
