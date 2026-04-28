@@ -37,6 +37,23 @@ test('describe command emits JSON envelope when global output is json', async ()
   expect(capture.stderr).toEqual([]);
 });
 
+test('describe metadata documents RFBA scope discovery options for contract and evidence commands', () => {
+  const descriptors = getDescribeCommandDescriptors();
+  const checkContract = descriptors.find((descriptor) => descriptor.name === 'check contract');
+  const evidence = descriptors.find((descriptor) => descriptor.name === 'evidence');
+
+  expect(checkContract?.flags).toEqual(expect.arrayContaining([
+    expect.objectContaining({ name: '--scope-dir' }),
+    expect.objectContaining({ name: '--specs-dir', description: expect.stringContaining('Legacy') })
+  ]));
+  expect(checkContract?.summary).toContain('QuerySpec-backed');
+  expect(evidence?.flags).toEqual(expect.arrayContaining([
+    expect.objectContaining({ name: '--scope-dir' }),
+    expect.objectContaining({ name: '--specs-dir', description: expect.stringContaining('Legacy') })
+  ]));
+  expect(evidence?.summary).toContain('project QuerySpec');
+});
+
 test('describe command snapshots the top-level command catalog and every detailed descriptor', async () => {
   setAgentOutputFormat('json');
   const rootCapture = { stdout: [] as string[], stderr: [] as string[] };

@@ -67,9 +67,12 @@ Examples:
 ```bash
 ztd ztd-config --json '{"ddlDir":"ztd/ddl","extensions":".sql,.ddl","dryRun":true}'
 ztd check contract --json '{"format":"json","strict":true}'
+ztd check contract --json '{"format":"json","scopeDir":"src/features/users"}'
 ztd query uses column --json '{"target":"public.users.email","format":"json","summaryOnly":true}'
 ztd lint --json '{"path":"src/sql/**/*.sql"}'
 ```
+
+`ztd check contract` and `ztd evidence` discover QuerySpec-like assets project-wide by default, including RFBA feature-local query boundaries. Use `--scope-dir` or `scopeDir` only when a review should focus on one feature or subtree. `--specs-dir` remains available for legacy fixed catalog-spec directories.
 
 ## Write Safety
 

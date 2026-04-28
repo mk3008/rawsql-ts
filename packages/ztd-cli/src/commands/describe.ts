@@ -228,7 +228,7 @@ const COMMANDS: CommandDescriptor[] = [
   },
   {
     name: 'check contract',
-    summary: 'Validate SQL contract specs and emit deterministic findings.',
+    summary: 'Validate project QuerySpec-backed SQL contracts and emit deterministic findings.',
     writesFiles: true,
     supportsDryRun: false,
     supportsJsonPayload: true,
@@ -242,6 +242,8 @@ const COMMANDS: CommandDescriptor[] = [
     },
     flags: [
       { name: '--format json', description: 'Emit the report as deterministic JSON.' },
+      { name: '--scope-dir', description: 'Limit QuerySpec discovery to one feature, boundary, or subtree.' },
+      { name: '--specs-dir', description: 'Legacy fixed catalog specs directory override.' },
       { name: '--json', description: 'Pass check options as a JSON object.' }
     ]
   },
@@ -407,7 +409,7 @@ const COMMANDS: CommandDescriptor[] = [
   },
   {
     name: 'evidence',
-    summary: 'Generate deterministic specification evidence artifacts.',
+    summary: 'Generate deterministic specification evidence artifacts from project QuerySpec and test assets.',
     writesFiles: true,
     supportsDryRun: false,
     supportsJsonPayload: true,
@@ -420,6 +422,8 @@ const COMMANDS: CommandDescriptor[] = [
       '2': 'Runtime or config error.'
     },
     flags: [
+      { name: '--scope-dir', description: 'Limit QuerySpec discovery to one feature, boundary, or subtree.' },
+      { name: '--specs-dir', description: 'Legacy fixed catalog specs directory override.' },
       { name: '--json', description: 'Pass evidence options as a JSON object.' }
     ]
   }

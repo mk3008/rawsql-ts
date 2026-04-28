@@ -3,6 +3,7 @@ import path from 'node:path';
 import { Command } from 'commander';
 import { BinarySelectQuery, ColumnReference, DeleteQuery, MultiQuerySplitter, SimpleSelectQuery, SqlParser, UpdateQuery } from 'rawsql-ts';
 import {
+  discoverProjectSqlCatalogSpecFiles,
   isPlainObject,
   loadSqlCatalogSpecsFromFile,
   walkSqlCatalogSpecFiles,
@@ -66,6 +67,7 @@ interface CheckCommandOptions {
   format?: string;
   out?: string;
   strict?: boolean;
+  scopeDir?: string;
   specsDir?: string;
   json?: string;
 }
@@ -80,7 +82,8 @@ export function registerCheckContractCommand(program: Command): void {
     .option('--format <format>', 'Output format (human|json)')
     .option('--out <path>', 'Write output to file')
     .option('--strict', 'Treat safety warnings as violations')
-    .option('--specs-dir <path>', 'Override specs directory (default: src/catalog/specs)')
+    .option('--scope-dir <path>', 'Limit QuerySpec discovery to one feature, boundary, or subtree')
+    .option('--specs-dir <path>', 'Legacy override for a fixed SQL catalog specs directory')
     .option('--json <payload>', 'Pass command options as a JSON object')
     .action(async (options: CheckCommandOptions) => {
       try {
@@ -89,6 +92,7 @@ export function registerCheckContractCommand(program: Command): void {
         const result = runCheckContract({
           strict: normalizeBooleanOption(merged.strict),
           rootDir: process.env.ZTD_PROJECT_ROOT,
+          scopeDir: normalizeStringOption(merged.scopeDir),
           specsDir: normalizeStringOption(merged.specsDir)
         });
         const text = formatOutput(result, format);
@@ -154,16 +158,17 @@ function normalizeBooleanOption(value: unknown): boolean {
  * Run deterministic contract checks for catalog specs under a project root.
  * @param options.strict Treat safety checks as errors when true, warnings otherwise.
  * @param options.rootDir Optional project root override.
- * @param options.specsDir Optional specs directory override (relative to rootDir).
+ * @param options.scopeDir Optional feature/boundary subtree override (relative to rootDir).
+ * @param options.specsDir Optional legacy specs directory override (relative to rootDir).
  */
-export function runCheckContract(options: { strict: boolean; rootDir?: string; specsDir?: string }): CheckContractResult {
+export function runCheckContract(options: {
+  strict: boolean;
+  rootDir?: string;
+  scopeDir?: string;
+  specsDir?: string;
+}): CheckContractResult {
   const root = path.resolve(options.rootDir ?? process.cwd());
-  const specsDir = options.specsDir ? path.resolve(root, options.specsDir) : path.resolve(root, 'src', 'catalog', 'specs');
-  if (!existsSync(specsDir)) {
-    throw new CheckContractRuntimeError(`Spec directory not found: ${specsDir}`);
-  }
-
-  const specFiles = walkSqlCatalogSpecFiles(specsDir, { excludeTestFiles: true });
+  const specFiles = resolveCheckContractSpecFiles(root, options);
   const loadedSpecs = specFiles.flatMap((filePath) =>
     loadSqlCatalogSpecsFromFile(filePath, (message) => new CheckContractRuntimeError(message))
   );
@@ -290,6 +295,33 @@ export function runCheckContract(options: { strict: boolean; rootDir?: string; s
     filesChecked: specFiles.length,
     specsChecked: loadedSpecs.length
   };
+}
+
+function resolveCheckContractSpecFiles(
+  root: string,
+  options: { scopeDir?: string; specsDir?: string }
+): string[] {
+  if (options.scopeDir && options.specsDir) {
+    throw new CheckContractRuntimeError('Use either --scope-dir or --specs-dir, not both.');
+  }
+
+  if (options.specsDir) {
+    const specsDir = path.resolve(root, options.specsDir);
+    if (!existsSync(specsDir)) {
+      throw new CheckContractRuntimeError(`Spec directory not found: ${specsDir}`);
+    }
+    return walkSqlCatalogSpecFiles(specsDir, { excludeTestFiles: true });
+  }
+
+  if (options.scopeDir) {
+    const scopeDir = path.resolve(root, options.scopeDir);
+    if (!existsSync(scopeDir)) {
+      throw new CheckContractRuntimeError(`Scope directory not found: ${scopeDir}`);
+    }
+    return discoverProjectSqlCatalogSpecFiles(scopeDir, { excludeTestFiles: true });
+  }
+
+  return discoverProjectSqlCatalogSpecFiles(root, { excludeTestFiles: true });
 }
 
 function applySafetyChecks(
