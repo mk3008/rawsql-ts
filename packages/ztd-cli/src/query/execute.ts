@@ -63,7 +63,7 @@ export interface ExecuteQueryPipelineOptions {
 }
 
 export interface QueryPipelineExecutionStepResult {
-  kind: 'materialize' | 'scalar-filter-bind' | 'final-query';
+  kind: 'materialize' | 'materialize-returning' | 'scalar-filter-bind' | 'final-query';
   target: string;
   sql: string;
   params?: unknown[] | Record<string, unknown>;
@@ -140,7 +140,7 @@ export async function executeQueryPipeline(
 
   try {
     for (const step of plan.steps) {
-      if (step.kind === 'materialize') {
+      if (step.kind === 'materialize' || step.kind === 'materialize-returning') {
         const stage = await buildPipelineStageQuery(source, session, {
           cte: step.target,
           runtimeParams: options.params,
@@ -242,14 +242,18 @@ async function buildTargetStageQuery(
   );
   const scalarSteps = await bindScalarFilterPredicatesInCtes(includedCtes, bindingContext, session);
   const formatter = createPipelineFormatter(options.runtimeParams);
-  const targetQuery = assertSelectQuery(targetCte.query);
-  const withComponent = dependencyCtes.length > 0 ? new WithClause(getWithClause(parsed)?.recursive ?? false, dependencyCtes) : null;
+  const isReturningCte = isReturningDmlQuery(targetCte.query);
+  const withCtes = isReturningCte ? [...dependencyCtes, targetCte] : dependencyCtes;
+  const targetQuery = isReturningCte ? buildSelectFromTargetQuery(targetName, options.limit) : assertSelectQuery(targetCte.query);
+  const withComponent = withCtes.length > 0 ? new WithClause(getWithClause(parsed)?.recursive ?? false, withCtes) : null;
   const withResult = withComponent
     ? formatter.format(withComponent)
     : { formattedSql: '', params: emptyFormatterParams(options.runtimeParams) };
 
   let mainResult: { formattedSql: string; params: unknown[] | Record<string, unknown> };
-  if (options.limit !== undefined) {
+  if (isReturningCte) {
+    mainResult = formatter.format(targetQuery);
+  } else if (options.limit !== undefined) {
     if (targetQuery instanceof SimpleSelectQuery) {
       targetQuery.limitClause = new LimitClause(new LiteralValue(options.limit));
       mainResult = formatter.format(targetQuery);
@@ -361,7 +365,10 @@ async function bindScalarFilterPredicatesInCtes(
 ): Promise<QueryPipelineExecutionStepResult[]> {
   const steps: QueryPipelineExecutionStepResult[] = [];
   for (const cte of ctes) {
-    steps.push(...await bindScalarFilterPredicates(assertSelectQuery(cte.query), context, session));
+    if (!isSelectQuery(cte.query)) {
+      continue;
+    }
+    steps.push(...await bindScalarFilterPredicates(cte.query, context, session));
   }
   return steps;
 }
@@ -1097,6 +1104,24 @@ function assertSelectQuery(statement: unknown): SimpleSelectQuery | BinarySelect
   }
 
   throw new Error('Expected a SELECT-compatible statement for query execution.');
+}
+
+function isSelectQuery(statement: unknown): statement is SimpleSelectQuery | BinarySelectQuery | ValuesQuery {
+  return (
+    statement instanceof SimpleSelectQuery ||
+    statement instanceof BinarySelectQuery ||
+    statement instanceof ValuesQuery
+  );
+}
+
+function isReturningDmlQuery(statement: unknown): statement is InsertQuery | UpdateQuery | DeleteQuery {
+  if (statement instanceof InsertQuery || statement instanceof UpdateQuery || statement instanceof DeleteQuery) {
+    if (!statement.returningClause) {
+      throw new Error('DML CTE materialization requires a RETURNING clause.');
+    }
+    return true;
+  }
+  return false;
 }
 
 function getSelectWithClause(statement: SimpleSelectQuery | BinarySelectQuery | ValuesQuery): WithClause | null {
