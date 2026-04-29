@@ -117,4 +117,48 @@ describe('ResultSelectRewriter', () => {
     expect(result.sql).toContain('from "public_users"');
     expect(result.fixturesApplied).toEqual(['public.users']);
   });
+
+  it('injects DDL-derived view CTE shadows for result SELECT rewrites', () => {
+    const resolver = new TableNameResolver({ defaultSchema: 'public' });
+    const fixtures = new DefaultFixtureProvider(
+      [
+        {
+          name: 'public.users',
+          columns: [
+            { name: 'id', typeName: 'INTEGER' },
+            { name: 'name', typeName: 'TEXT' },
+            { name: 'role', typeName: 'TEXT' },
+          ],
+        },
+      ],
+      [
+        {
+          tableName: 'public.users',
+          rows: [{ id: 1, name: 'Alice', role: 'admin' }],
+        },
+      ],
+      resolver
+    );
+    const rewriter = new ResultSelectRewriter(
+      fixtures,
+      'error',
+      undefined,
+      resolver,
+      [
+        {
+          name: 'public.active_users',
+          cteName: 'active_users',
+          sql: "SELECT id, name FROM public.users WHERE role = 'admin'",
+        },
+      ]
+    );
+
+    const result = rewriter.rewrite('select id, name from public.active_users');
+    const normalized = result.sql.toLowerCase();
+
+    expect(normalized).toContain('with "public_users" as');
+    expect(normalized).toContain('"active_users" as');
+    expect(normalized).toContain('from "public_users"');
+    expect(normalized).toContain('from "active_users"');
+  });
 });

@@ -1,4 +1,4 @@
-import type { DdlFixtureLoaderOptions, DdlProcessedFixture, TableRowsFixture } from '@rawsql-ts/testkit-core';
+import type { DdlFixtureLoaderOptions, DdlProcessedFixture, DdlViewDefinition, TableRowsFixture } from '@rawsql-ts/testkit-core';
 import { DdlFixtureLoader } from '@rawsql-ts/testkit-core';
 import type { TableDefinitionModel } from 'rawsql-ts';
 import type { TableNameResolver } from '@rawsql-ts/testkit-core';
@@ -13,6 +13,7 @@ export interface FixtureResolutionOptions {
 
 export interface ResolvedFixtureState {
   ddlFixtures: DdlProcessedFixture[];
+  viewDefinitions: DdlViewDefinition[];
   tableDefinitions: TableDefinitionModel[];
   tableRows: TableRowsFixture[];
 }
@@ -33,6 +34,7 @@ export function resolveFixtureState(
       })
     : undefined;
   const ddlFixtures = loader?.getFixtures() ?? [];
+  const viewDefinitions = loader?.getViewDefinitions() ?? [];
 
   // Combine generated definitions with any explicit metadata the caller provided.
   const tableDefinitions = [
@@ -53,6 +55,7 @@ export function resolveFixtureState(
 
   return {
     ddlFixtures,
+    viewDefinitions,
     tableDefinitions,
     tableRows,
   };

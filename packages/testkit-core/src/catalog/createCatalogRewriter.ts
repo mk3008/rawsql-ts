@@ -71,6 +71,10 @@ function toSelectRewriteContext(
     context.fixtures = executionOptions.fixtures as SelectRewriteContext['fixtures'];
   }
 
+  if (Array.isArray(executionOptions.views)) {
+    context.views = executionOptions.views as SelectRewriteContext['views'];
+  }
+
   if (isPlainObject(executionOptions.formatterOptions)) {
     context.formatterOptions =
       executionOptions.formatterOptions as SelectRewriteContext['formatterOptions'];
