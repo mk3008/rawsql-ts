@@ -686,6 +686,10 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
   expect(readmeFile).toContain('## RFBA review responsibilities');
   expect(readmeFile).toContain('RFBA splits files by review responsibility');
   expect(readmeFile).toContain('`boundary.ts` is the default feature-boundary public surface');
+  expect(readmeFile).toContain('Feature-boundary tests mock child query boundaries and verify feature validation, mapping, and orchestration.');
+  expect(readmeFile).toContain('Query-boundary tests own SQL behavior through ZTD or another SQL-specific lane.');
+  expect(readmeFile).toContain('Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.');
+  expect(readmeFile).toContain('Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package');
   expect(readmeFile).toContain('uses `zod` schemas for request and response DTOs');
   expect(readmeFile).toContain('keeps its schema values and helper functions file-local');
   expect(readmeFile).toContain('depends on the shared executor contract directly');
