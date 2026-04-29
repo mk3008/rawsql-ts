@@ -88,6 +88,7 @@ Important repo areas outside the concrete root-boundary list:
 
 - Keep shared feature seams under `src/features/_shared/*`.
 - Keep driver-neutral contracts under `src/libraries/*`; `src/libraries` itself is one concrete root-boundary.
+- Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package; keep feature-specific validation and helpers inside the owning feature.
 - Keep driver- or sink-specific bindings under `src/adapters/<tech>/*`; `src/adapters` itself is one concrete root-boundary.
 - Keep shared verification seams under `tests/support/*`.
 - Keep tool-managed assets under `.ztd/*`.
@@ -186,6 +187,9 @@ If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.genera
 `beforeDb` is a schema-qualified pure fixture skeleton.
 Use validation-only cases for boundary checks and DB-backed cases for the success path.
 Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts` for mock-based boundary tests.
+Feature-boundary tests mock child query boundaries and verify feature validation, mapping, and orchestration.
+Query-boundary tests own SQL behavior through ZTD or another SQL-specific lane.
+Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.
 The ZTD verifier returns machine-checkable evidence (`mode`, `rewriteApplied`, `physicalSetupUsed`) per case.
 `afterDb` assertions are intentionally excluded from this ZTD lane; use a traditional DB-state lane when you need post-state assertions.
 

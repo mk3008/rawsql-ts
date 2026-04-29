@@ -91,6 +91,10 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('keep starter-owned shared support under `tests/support/ztd/`');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('keep tool-managed fixture metadata under `.ztd/generated/`');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/features`, `src/adapters`, and `src/libraries` as the app-code roots');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Feature-boundary tests mock child query boundaries and verify feature validation, mapping, and orchestration.');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Query-boundary tests own SQL behavior through ZTD or another SQL-specific lane.');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('this generated workspace may not contain `docs/`');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('`ztd.config.json` controls generated metadata and runtime defaults while the feature-local tests stay next to the feature they cover');
   expect(existsSync(path.join(workspace, 'src', 'features', 'README.md'))).toBe(true);
@@ -260,6 +264,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(existsSync(path.join(workspace, 'src', 'adapters', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'adapters', 'console', 'repositoryTelemetry.ts'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'README.md'))).toContain('Shared runtime contracts and reusable helpers live here.');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'README.md'))).toContain('Do not move feature-specific validation, mapping, or orchestration helpers here');
   expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'sql', 'README.md'))).toContain('Keep driver-neutral SQL contracts here.');
   expect(readNormalizedFile(path.join(workspace, 'src', 'adapters', 'README.md'))).toContain('Technology-specific bindings live here.');
   expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'telemetry', 'repositoryTelemetry.ts'))).toContain('createNoopRepositoryTelemetry');

@@ -42,6 +42,9 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('ZTD here means query-boundary-local cases that execute through the fixed app-level harness against the real database engine, not a mocked executor.');
   expect(packageReadme).toContain('Use validation-only cases for boundary checks and DB-backed cases for the success path.');
   expect(packageReadme).toContain('Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts` for mock-based boundary tests.');
+  expect(packageReadme).toContain('Feature-boundary tests mock child query boundaries and verify feature validation, mapping, and orchestration.');
+  expect(packageReadme).toContain('Query-boundary tests own SQL behavior through ZTD or another SQL-specific lane.');
+  expect(packageReadme).toContain('Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.');
   expect(packageReadme).toContain('Starter-owned shared support lives under `tests/support/ztd/`; `.ztd/` remains the tool-managed workspace for generated metadata and support files.');
   expect(packageReadme).toContain('`root-boundary` is the app-level boundary layer.');
   expect(packageReadme).toContain('the concrete root boundaries are only `src/features`, `src/adapters`, and `src/libraries`');
@@ -53,11 +56,17 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(packageReadme).toContain('src/adapters/pg/');
   expect(packageReadme).toContain('src/adapters/aws/s3/');
   expect(packageReadme).toContain('src/libraries/*');
+  expect(packageReadme).toContain('Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package');
   expect(packageReadme).toContain('After you finish the SQL and DTO edits');
   expect(packageReadme).toContain('feature tests scaffold --feature <feature-name>');
   expect(packageReadme).toContain('tests/generated/TEST_PLAN.md');
   expect(scaffoldReadme).toContain('src/features`, `src/adapters`, and `src/libraries` as the app-code roots');
   expect(scaffoldReadme).toContain('Make sure the query-boundary result executes through the DB-backed ZTD path and checks mapping and validation, not just property values.');
+  expect(scaffoldReadme).toContain('Feature-boundary tests mock child query boundaries and verify feature validation, mapping, and orchestration.');
+  expect(scaffoldReadme).toContain('Query-boundary tests own SQL behavior through ZTD or another SQL-specific lane.');
+  expect(scaffoldReadme).toContain('Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.');
+  expect(featuresReadme).toContain('Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package');
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/libraries/README.md')).toContain('Do not move feature-specific validation, mapping, or orchestration helpers here');
   expect(readNormalizedFile('docs/guide/sql-first-end-to-end-tutorial.md')).toContain('Scenario CLI at a glance');
   expect(readNormalizedFile('docs/dogfooding/ztd-migration-lifecycle.md')).toContain('Preferred CLI by scenario');
   expect(packageReadme).toContain('## Further Reading');
