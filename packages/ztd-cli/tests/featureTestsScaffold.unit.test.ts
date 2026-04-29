@@ -98,6 +98,9 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   writeFileSync(
     path.join(queryDir, 'boundary.ts'),
     [
+      'export type InsertUsersQueryParams = { email: string };',
+      'export type InsertUsersQueryResult = { user_id: string };',
+      '',
       "export async function executeInsertUsersBoundary() {",
       '  return { user_id: "placeholder" };',
       '}'
@@ -169,9 +172,10 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
     'utf8'
   );
   expect(queryTypesFile).toContain('export type InsertUsersBeforeDb = { public: { users: readonly { email?: unknown; user_id?: unknown }[] } };');
-  expect(queryTypesFile).toContain('export type InsertUsersInput = { email: unknown };');
-  expect(queryTypesFile).toContain('export type InsertUsersOutput = { user_id: unknown };');
   expect(queryTypesFile).toContain("import type { QuerySpecZtdCase } from '../../../../../../tests/support/ztd/case-types.js';");
+  expect(queryTypesFile).toContain("import type { InsertUsersQueryParams, InsertUsersQueryResult } from '../boundary.js';");
+  expect(queryTypesFile).toContain('export type InsertUsersInput = InsertUsersQueryParams;');
+  expect(queryTypesFile).toContain('export type InsertUsersOutput = InsertUsersQueryResult;');
   expect(queryTypesFile).not.toContain('AfterDb');
   expect(queryTypesFile).not.toContain('InsertUsersBeforeDb = Record<string, unknown>');
 
@@ -307,7 +311,11 @@ test('runFeatureTestsScaffoldCommand uses stable shared test imports when the wo
   seedStableTestAliases(workspace);
 
   writeFileSync(path.join(featureDir, 'boundary.ts'), 'export const RequestSchema = null;\n', 'utf8');
-  writeFileSync(path.join(queryDir, 'boundary.ts'), 'export async function executeInsertUsersBoundary() { return {}; }\n', 'utf8');
+  writeFileSync(
+    path.join(queryDir, 'boundary.ts'),
+    'export type InsertUsersQueryParams = Record<string, never>;\nexport type InsertUsersQueryResult = Record<string, never>;\nexport async function executeInsertUsersBoundary() { return {}; }\n',
+    'utf8'
+  );
   writeFileSync(path.join(queryDir, 'insert-users.sql'), 'select 1;', 'utf8');
 
   await runFeatureTestsScaffoldCommand({
@@ -326,6 +334,7 @@ test('runFeatureTestsScaffoldCommand uses stable shared test imports when the wo
     'utf8'
   );
   expect(queryTypesFile).toContain("import type { QuerySpecZtdCase } from '#tests/support/ztd/case-types.js';");
+  expect(queryTypesFile).toContain("import type { InsertUsersQueryParams, InsertUsersQueryResult } from '../boundary.js';");
 });
 
 test('runFeatureTestsScaffoldCommand fails fast when #tests alias support is partial', async () => {
@@ -351,7 +360,11 @@ test('runFeatureTestsScaffoldCommand fails fast when #tests alias support is par
   );
 
   writeFileSync(path.join(featureDir, 'boundary.ts'), 'export const RequestSchema = null;\n', 'utf8');
-  writeFileSync(path.join(queryDir, 'boundary.ts'), 'export async function executeInsertUsersBoundary() { return {}; }\n', 'utf8');
+  writeFileSync(
+    path.join(queryDir, 'boundary.ts'),
+    'export type InsertUsersQueryParams = Record<string, never>;\nexport type InsertUsersQueryResult = Record<string, never>;\nexport async function executeInsertUsersBoundary() { return {}; }\n',
+    'utf8'
+  );
   writeFileSync(path.join(queryDir, 'insert-users.sql'), 'select 1;', 'utf8');
 
   await expect(
@@ -434,6 +447,9 @@ test('runFeatureTestsScaffoldCommand writes traditional lane scaffolds without o
     'utf8'
   );
   expect(traditionalTypes).toContain("import type { QuerySpecTraditionalCase } from '../../../../../../tests/support/ztd/case-types.js';");
+  expect(traditionalTypes).toContain("import type { InsertUsersQueryParams, InsertUsersQueryResult } from '../boundary.js';");
+  expect(traditionalTypes).toContain('export type InsertUsersInput = InsertUsersQueryParams;');
+  expect(traditionalTypes).toContain('export type InsertUsersOutput = InsertUsersQueryResult;');
   expect(traditionalTypes).toContain('export type InsertUsersQueryBoundaryTraditionalCase = QuerySpecTraditionalCase<');
 
   const traditionalCaseFile = readFileSync(

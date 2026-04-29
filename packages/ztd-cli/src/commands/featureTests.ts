@@ -347,8 +347,6 @@ function renderFeatureTestScaffoldFiles(params: {
     buildQueryFixtureRowTypeLiteral(params.planDetails.queryFixtureRowFields)
   );
   const beforeDbValueLiteral = buildQueryFixtureValueLiteral(params.planDetails.fixtureCandidateTables);
-  const queryInputTypeLiteral = buildRecordShapeTypeLiteral(params.planDetails.queryInputFields);
-  const queryOutputTypeLiteral = buildRecordShapeTypeLiteral(params.planDetails.queryOutputFields);
   const beforeDbTodoLines = renderTodoCommentLines(
     'TODO: Fill fixture rows for the tables the CLI could identify. Remove rows that are not needed for this case.',
     params.planDetails.fixtureCandidateTables
@@ -424,10 +422,11 @@ function renderFeatureTestScaffoldFiles(params: {
   const queryTypesFile = isZtdLane
     ? [
       `import type { QuerySpecZtdCase } from '${useStableTestSupportImports ? TESTS_SUPPORT_CASE_TYPES_IMPORT_PATH : '../../../../../../tests/support/ztd/case-types.js'}';`,
+      `import type { ${queryTypePrefix}QueryParams, ${queryTypePrefix}QueryResult } from '../boundary.js';`,
       '',
       `export type ${queryTypePrefix}BeforeDb = ${beforeDbTypeLiteral};`,
-      `export type ${queryTypePrefix}Input = ${queryInputTypeLiteral};`,
-      `export type ${queryTypePrefix}Output = ${queryOutputTypeLiteral};`,
+      `export type ${queryTypePrefix}Input = ${queryTypePrefix}QueryParams;`,
+      `export type ${queryTypePrefix}Output = ${queryTypePrefix}QueryResult;`,
       '',
       `export type ${queryCaseTypeName} = QuerySpecZtdCase<`,
       `  ${queryTypePrefix}BeforeDb,`,
@@ -438,10 +437,11 @@ function renderFeatureTestScaffoldFiles(params: {
     ].join('\n')
     : [
       `import type { QuerySpecTraditionalCase } from '${useStableTestSupportImports ? TESTS_SUPPORT_CASE_TYPES_IMPORT_PATH : '../../../../../../tests/support/ztd/case-types.js'}';`,
+      `import type { ${queryTypePrefix}QueryParams, ${queryTypePrefix}QueryResult } from '../boundary.js';`,
       '',
       `export type ${queryTypePrefix}BeforeDb = ${beforeDbTypeLiteral};`,
-      `export type ${queryTypePrefix}Input = ${queryInputTypeLiteral};`,
-      `export type ${queryTypePrefix}Output = ${queryOutputTypeLiteral};`,
+      `export type ${queryTypePrefix}Input = ${queryTypePrefix}QueryParams;`,
+      `export type ${queryTypePrefix}Output = ${queryTypePrefix}QueryResult;`,
       '',
       `export type ${queryCaseTypeName} = QuerySpecTraditionalCase<`,
       `  ${queryTypePrefix}BeforeDb,`,
@@ -607,15 +607,6 @@ function buildQueryFixtureRowTypeLiteral(fieldNames: string[]): string {
   }
 
   return `{ ${normalized.map((field) => `${field}?: unknown`).join('; ')} }`;
-}
-
-function buildRecordShapeTypeLiteral(fieldNames: string[]): string {
-  const normalized = dedupeStrings(fieldNames);
-  if (normalized.length === 0) {
-    return 'Record<string, unknown>';
-  }
-
-  return `{ ${normalized.map((field) => `${field}: unknown`).join('; ')} }`;
 }
 
 function renderTodoCommentLines(message: string, hints: string[]): string[] {

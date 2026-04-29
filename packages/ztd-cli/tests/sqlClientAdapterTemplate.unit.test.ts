@@ -14,15 +14,14 @@ test('fromPg unwraps QueryResult.rows from the underlying pg queryable', async (
   expect(queryable.query).toHaveBeenCalledWith('select id from users where team_id = $1', [7]);
 });
 
-test('fromPg rejects named parameter objects before calling the underlying queryable', () => {
+test('fromPg forwards queries without values to the underlying pg queryable', async () => {
   const queryable = {
-    query: vi.fn()
+    query: vi.fn().mockResolvedValue({ rows: [{ ok: true }] })
   };
 
   const client = fromPg(queryable);
+  const rows = await client.query<{ ok: boolean }>('select true as ok');
 
-  expect(() => client.query('select id from users where id = :id', { id: 7 })).toThrowError(
-    'fromPg adapter does not support named parameter objects; use positional parameter arrays'
-  );
-  expect(queryable.query).not.toHaveBeenCalled();
+  expect(rows).toEqual([{ ok: true }]);
+  expect(queryable.query).toHaveBeenCalledWith('select true as ok', undefined);
 });

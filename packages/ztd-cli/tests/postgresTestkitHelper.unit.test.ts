@@ -26,8 +26,8 @@ test('loadStarterPostgresDefaults reads top-level starter defaults and falls bac
     JSON.stringify(
       {
         ztdRootDir: '.',
-        defaultSchema: 'app',
-        searchPath: ['app']
+        defaultSchema: ' app ',
+        searchPath: [' app ', '', ' public ']
       },
       null,
       2
@@ -39,7 +39,7 @@ test('loadStarterPostgresDefaults reads top-level starter defaults and falls bac
     projectRootDir: rootDir,
     ztdRootDir: rootDir,
     defaultSchema: 'app',
-    searchPath: ['app'],
+    searchPath: ['app', 'public'],
     ddlDirectories: []
   });
 });

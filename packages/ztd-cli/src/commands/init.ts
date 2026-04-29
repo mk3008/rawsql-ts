@@ -2020,7 +2020,7 @@ function ensurePackageJsonFormatting(
   // Provide lint-staged wiring for the formatting pipeline when no configuration is present.
   if (!('lint-staged' in parsed)) {
     parsed['lint-staged'] = {
-      '*.{ts,tsx,js,jsx,json,md,sql}': ['pnpm format']
+      '*.{ts,tsx,js,jsx,json,md,sql}': ['prettier --write']
     };
     changed = true;
   }

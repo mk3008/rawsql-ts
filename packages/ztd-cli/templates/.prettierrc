@@ -9,13 +9,13 @@
   "plugins": ["prettier-plugin-sql"],
   "overrides": [
     {
-      "files": "*.sql",
+      "files": "**/*.sql",
       "options": {
         "parser": "sql"
       }
     },
     {
-      "files": "*.md",
+      "files": "**/*.md",
       "options": {
         "parser": "markdown"
       }

@@ -19,14 +19,9 @@ export function fromPg(
   return {
     query<T extends Record<string, unknown> = Record<string, unknown>>(
       text: string,
-      values?: readonly unknown[] | Record<string, unknown>
+      values?: readonly unknown[]
     ): Promise<T[]> {
-      if (values != null && !Array.isArray(values)) {
-        throw new Error('fromPg adapter does not support named parameter objects; use positional parameter arrays');
-      }
-      return queryable
-        .query(text, values as readonly unknown[])
-        .then((result) => result.rows as T[]);
+      return queryable.query(text, values).then((result) => result.rows as T[]);
     }
   };
 }

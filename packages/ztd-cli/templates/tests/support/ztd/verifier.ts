@@ -278,7 +278,7 @@ async function createPhysicalQuerySpecExecutor(
 
   try {
     await client.query(`CREATE SCHEMA ${quoteIdentifier(schemaName)}`);
-    await client.query(`SET search_path TO ${quoteIdentifier(schemaName)}, public`);
+    await client.query(`SET search_path TO ${buildPhysicalSearchPath(defaults.searchPath, schemaName)}`);
     await applySqlFiles(client, defaults.ddlDirectories, defaults.defaultSchema, schemaName);
     await seedFixtureRows(client, flattenFixtureTableRows(beforeDb), defaults.defaultSchema, schemaName);
   } catch (error) {
@@ -393,27 +393,117 @@ function toPhysicalTableName(tableName: string, defaultSchema: string, schemaNam
 }
 
 function rewriteSchemaQualifiedSql(sql: string, defaultSchema: string, schemaName: string): string {
-  const escapedDefaultSchema = escapeRegExp(defaultSchema);
-  return sql.replace(
-    new RegExp(`(?<![A-Za-z0-9_"])${escapedDefaultSchema}\\.([A-Za-z_][A-Za-z0-9_]*)`, 'g'),
-    `${quoteIdentifier(schemaName)}.$1`
-  );
+  let rewritten = '';
+  let index = 0;
+
+  while (index < sql.length) {
+    const current = sql[index];
+    const next = sql[index + 1] ?? '';
+
+    if (current === '\'') {
+      const end = skipSingleQuotedString(sql, index);
+      rewritten += sql.slice(index, end);
+      index = end;
+      continue;
+    }
+    if (current === '-' && next === '-') {
+      const end = skipLineComment(sql, index);
+      rewritten += sql.slice(index, end);
+      index = end;
+      continue;
+    }
+    if (current === '/' && next === '*') {
+      const end = skipBlockComment(sql, index);
+      rewritten += sql.slice(index, end);
+      index = end;
+      continue;
+    }
+    if (current === '$') {
+      const dollarQuote = readDollarQuoteDelimiter(sql, index);
+      if (dollarQuote) {
+        const end = skipDollarQuotedString(sql, index, dollarQuote);
+        rewritten += sql.slice(index, end);
+        index = end;
+        continue;
+      }
+    }
+
+    const qualifier = readDefaultSchemaQualifier(sql, index, defaultSchema);
+    if (qualifier) {
+      rewritten += `${quoteIdentifier(schemaName)}.`;
+      index = qualifier.end;
+      continue;
+    }
+
+    rewritten += current;
+    index += 1;
+  }
+
+  return rewritten;
 }
 
 function quoteIdentifier(value: string): string {
   return `"${value.replace(/"/g, '""')}"`;
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function buildPhysicalSearchPath(searchPath: string[], schemaName: string): string {
+  const schemas = [schemaName, ...searchPath.filter((entry) => entry !== schemaName)];
+  return schemas.map(quoteIdentifier).join(', ');
+}
+
+function readDefaultSchemaQualifier(
+  sql: string,
+  start: number,
+  defaultSchema: string
+): { end: number } | null {
+  const previous = sql[start - 1] ?? '';
+  if (previous === '.' || /[A-Za-z0-9_"]/.test(previous)) {
+    return null;
+  }
+
+  if (sql[start] === '"') {
+    const quoted = readQuotedIdentifier(sql, start);
+    if (!quoted || quoted.value !== defaultSchema || sql[quoted.end] !== '.') {
+      return null;
+    }
+    return { end: quoted.end + 1 };
+  }
+
+  if (!/[A-Za-z_]/.test(sql[start] ?? '')) {
+    return null;
+  }
+
+  const end = consumeIdentifier(sql, start);
+  if (sql.slice(start, end) !== defaultSchema || sql[end] !== '.') {
+    return null;
+  }
+
+  return { end: end + 1 };
+}
+
+function readQuotedIdentifier(sql: string, start: number): { end: number; value: string } | null {
+  let index = start + 1;
+  let value = '';
+  while (index < sql.length) {
+    if (sql[index] === '"' && sql[index + 1] === '"') {
+      value += '"';
+      index += 2;
+      continue;
+    }
+    if (sql[index] === '"') {
+      return { end: index + 1, value };
+    }
+    value += sql[index];
+    index += 1;
+  }
+  return null;
 }
 
 function loadStarterDefaults(rootDir: string): StarterProjectDefaults {
   const config = loadStarterProjectConfig(rootDir);
-  const defaultSchema =
-    typeof config.defaultSchema === 'string' && config.defaultSchema.length > 0
-      ? config.defaultSchema
-      : 'public';
+  const configuredDefaultSchema =
+    typeof config.defaultSchema === 'string' ? config.defaultSchema.trim() : '';
+  const defaultSchema = configuredDefaultSchema.length > 0 ? configuredDefaultSchema : 'public';
   const searchPath = normalizeSearchPath(config.searchPath);
   const projectRootDir = path.resolve(rootDir);
   const ztdRootDir = path.resolve(rootDir, config.ztdRootDir ?? '.ztd');
@@ -457,7 +547,10 @@ function normalizeSearchPath(searchPath: unknown): string[] {
     return [];
   }
 
-  return searchPath.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+  return searchPath
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 }
 
 function writeTraceFileIfEnabled(
