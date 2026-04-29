@@ -457,6 +457,58 @@ importers:
         specifier: ^4.0.7
         version: 4.0.7(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.8.3)
 
+  packages/transfer:
+    dependencies:
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@rawsql-ts/sql-contract':
+        specifier: workspace:*
+        version: link:../sql-contract
+      '@rawsql-ts/testkit-core':
+        specifier: workspace:*
+        version: link:../testkit-core
+      '@rawsql-ts/testkit-postgres':
+        specifier: workspace:*
+        version: link:../testkit-postgres
+      '@rawsql-ts/ztd-cli':
+        specifier: workspace:*
+        version: link:../ztd-cli
+      '@testcontainers/postgresql':
+        specifier: ^11.14.0
+        version: 11.14.0
+      '@types/node':
+        specifier: 22.18.7
+        version: 22.18.7
+      dotenv:
+        specifier: ^16.6.1
+        version: 16.6.1
+      eslint:
+        specifier: ^9.22.0
+        version: 9.39.2(jiti@2.6.1)
+      lint-staged:
+        specifier: ^16.2.7
+        version: 16.4.0
+      pg:
+        specifier: ^8.11.1
+        version: 8.20.0
+      prettier:
+        specifier: ^3.7.4
+        version: 3.7.4
+      prettier-plugin-sql:
+        specifier: ^0.19.2
+        version: 0.19.2(prettier@3.7.4)
+      simple-git-hooks:
+        specifier: ^2.13.1
+        version: 2.13.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.2
+      vitest:
+        specifier: ^4.0.7
+        version: 4.1.5(@types/node@22.18.7)(vite@7.3.2(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.3))
+
   packages/ztd-cli:
     dependencies:
       '@rawsql-ts/sql-grep-core':
@@ -5280,7 +5332,7 @@ snapshots:
 
   '@types/better-sqlite3@7.6.13':
     dependencies:
-      '@types/node': 22.19.6
+      '@types/node': 22.19.17
 
   '@types/chai@5.2.3':
     dependencies:
@@ -5293,19 +5345,19 @@ snapshots:
 
   '@types/docker-modem@3.0.6':
     dependencies:
-      '@types/node': 22.19.6
+      '@types/node': 22.18.7
       '@types/ssh2': 1.15.5
 
   '@types/dockerode@3.3.47':
     dependencies:
       '@types/docker-modem': 3.0.6
-      '@types/node': 22.19.6
+      '@types/node': 22.18.7
       '@types/ssh2': 1.15.5
 
   '@types/dockerode@4.0.1':
     dependencies:
       '@types/docker-modem': 3.0.6
-      '@types/node': 22.19.17
+      '@types/node': 22.18.7
       '@types/ssh2': 1.15.5
 
   '@types/estree@1.0.8': {}
@@ -5361,15 +5413,15 @@ snapshots:
 
   '@types/readable-stream@4.0.23':
     dependencies:
-      '@types/node': 22.19.6
+      '@types/node': 22.18.7
 
   '@types/ssh2-streams@0.1.13':
     dependencies:
-      '@types/node': 22.19.6
+      '@types/node': 22.18.7
 
   '@types/ssh2@0.5.52':
     dependencies:
-      '@types/node': 22.19.6
+      '@types/node': 22.18.7
       '@types/ssh2-streams': 0.1.13
 
   '@types/ssh2@1.15.5':
@@ -7423,7 +7475,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.0
-      '@types/node': 22.19.17
+      '@types/node': 22.18.7
       long: 5.3.2
 
   pump@3.0.3:
@@ -7812,7 +7864,7 @@ snapshots:
       '@azure/identity': 4.13.0
       '@azure/keyvault-keys': 4.10.0
       '@js-joda/core': 5.6.5
-      '@types/node': 22.19.6
+      '@types/node': 22.18.7
       bl: 6.1.6
       iconv-lite: 0.7.0
       js-md4: 0.3.2
