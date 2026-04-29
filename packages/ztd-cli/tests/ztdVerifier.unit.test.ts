@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -70,6 +70,18 @@ afterEach(() => {
 });
 
 test('verifyQuerySpecTraditionalCase physically prepares fixtures and returns traditional evidence', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-verifier-project-'));
+  tempDirs.push(rootDir);
+  writeFileSync(
+    path.join(rootDir, 'ztd.config.json'),
+    JSON.stringify({
+      defaultSchema: ' public ',
+      searchPath: [' app ', '', ' $user ', ' pg_temp ', ' pg_temp_3 ', ' public ']
+    }),
+    'utf8'
+  );
+  vi.spyOn(process, 'cwd').mockReturnValue(rootDir);
+
   process.env.ZTD_DB_URL = 'postgres://localhost:5432/ztd';
 
   poolConnectMock.mockResolvedValue({
@@ -101,7 +113,11 @@ test('verifyQuerySpecTraditionalCase physically prepares fixtures and returns tr
         }
       }
     },
-    (client, input) => client.query('select true as ok from public.users where user_id = :userId', input)
+    (client, input) =>
+      client.query(
+        "select 'public.users' as literal, true as ok from public.users -- public.comment_table\nwhere note = $$public.dollar_table$$ and user_id = :userId",
+        input
+      )
   );
 
   expect(evidence).toMatchObject({
@@ -112,8 +128,20 @@ test('verifyQuerySpecTraditionalCase physically prepares fixtures and returns tr
   });
   expect(poolConnectMock).toHaveBeenCalledTimes(1);
   expect(poolClientQueryMock).toHaveBeenCalledWith(expect.stringMatching(/^CREATE SCHEMA/));
+  expect(poolClientQueryMock).toHaveBeenCalledWith(
+    expect.stringMatching(/^SET search_path TO "ztd_traditional_[^"]+", "app", \$user, pg_temp, pg_temp_3, "public"$/)
+  );
   expect(poolClientQueryMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO'), [1, 'alice@example.com']);
-  expect(poolClientQueryMock).toHaveBeenCalledWith(expect.stringContaining('select true as ok from'), [1]);
+  expect(poolClientQueryMock).toHaveBeenCalledWith(expect.stringContaining("'public.users' as literal"), [1]);
+  const executedQuery = poolClientQueryMock.mock.calls
+    .map((call) => String(call[0]))
+    .find((sql) => sql.includes("'public.users' as literal"));
+  expect(executedQuery).toBeDefined();
+  expect(executedQuery).toContain("'public.users' as literal");
+  expect(executedQuery).toContain('-- public.comment_table');
+  expect(executedQuery).toContain('$$public.dollar_table$$');
+  expect(executedQuery).toMatch(/from "ztd_traditional_[^"]+"\.users/);
+  expect(executedQuery).not.toContain('from public.users');
   expect(poolClientQueryMock).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM'));
   expect(poolClientQueryMock).toHaveBeenCalledWith(expect.stringMatching(/^DROP SCHEMA IF EXISTS/));
   expect(poolClientReleaseMock).toHaveBeenCalledTimes(1);

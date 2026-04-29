@@ -52,6 +52,19 @@ RFBA adds a review-first focus: inside a feature, expose the artifacts that huma
 For query-heavy features, a query folder is the query unit.
 It keeps SQL, row/result mapping, execution contract, and query-local verification together for review.
 
+## Boundary Test Responsibilities
+
+Feature-boundary tests are mock-based by default.
+They mock child query boundaries and verify feature validation, mapping, and orchestration.
+
+Query-boundary tests own SQL behavior.
+Use ZTD or another SQL-specific lane to execute the SQL, mapping, and result contract.
+
+Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.
+
+`src/libraries/` is for driver-neutral code reusable enough to stand as an external package.
+Keep feature-specific validation and helpers inside the owning feature boundary.
+
 ## What RFBA Is Not
 
 RFBA is not a universal file naming rule.

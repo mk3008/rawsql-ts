@@ -613,6 +613,8 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
   expect(entrySpecFile).not.toContain('created_at: request.created_at,');
   expect(entrySpecFile).toContain('/** Maps the query result into the feature response contract. */');
   expect(entrySpecFile).toContain('function fromQueryResult');
+  expect(entrySpecFile).toContain('TODO: Review domain-specific response naming');
+  expect(entrySpecFile).toContain('id: result.id,');
   expect(entrySpecFile).toContain('/** Executes the feature boundary flow for this feature. */');
   expect(entrySpecFile).toContain('export async function executeUsersInsertEntrySpec');
   expect(entrySpecFile).toContain('executor: FeatureQueryExecutor,');
@@ -694,6 +696,10 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
   expect(readmeFile).toContain('## RFBA review responsibilities');
   expect(readmeFile).toContain('RFBA splits files by review responsibility');
   expect(readmeFile).toContain('`boundary.ts` is the default feature-boundary public surface');
+  expect(readmeFile).toContain('Feature-boundary tests mock child query boundaries and verify feature validation, mapping, and orchestration.');
+  expect(readmeFile).toContain('Query-boundary tests own SQL behavior through ZTD or another SQL-specific lane.');
+  expect(readmeFile).toContain('Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.');
+  expect(readmeFile).toContain('Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package');
   expect(readmeFile).toContain('uses `zod` schemas for request and response DTOs');
   expect(readmeFile).toContain('keeps its schema values and helper functions file-local');
   expect(readmeFile).toContain('depends on the shared executor contract directly');
@@ -713,6 +719,64 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
   expect(readmeFile).toContain('featureQueryExecutor.ts` is the shared runtime contract for DB execution injection');
   expect(readmeFile).toContain('Catalog runtime primitives from `@rawsql-ts/sql-contract`');
   expect(readmeFile).toContain('Keep this baseline as one workflow and one primary query by default');
+});
+
+test('runFeatureScaffoldCommand emits camelCase feature DTOs while keeping query params DB-shaped', async () => {
+  const workspace = createTempDir('feature-scaffold-camel-dto');
+  const ddlDir = path.join(workspace, 'db', 'ddl');
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'account_events.sql'),
+    [
+      'create table public.account_events (',
+      '  id serial8 primary key,',
+      '  account_id integer not null,',
+      '  display_name text,',
+      '  event_payload jsonb not null,',
+      '  created_at timestamptz not null default now()',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  await runFeatureScaffoldCommand({
+    table: 'account_events',
+    action: 'insert',
+    rootDir: workspace
+  });
+
+  const entrySpecFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'account-events-insert', 'boundary.ts'),
+    'utf8'
+  );
+  expect(entrySpecFile).toContain('accountId: z.number().finite()');
+  expect(entrySpecFile).toContain('displayName: z.string().nullable()');
+  expect(entrySpecFile).toContain('eventPayload: z.record(z.string(), z.unknown())');
+  expect(entrySpecFile).not.toContain('account_id: z.number().finite()');
+  expect(entrySpecFile).not.toContain('display_name: z.string().nullable()');
+  expect(entrySpecFile).toContain('account_id: request.accountId,');
+  expect(entrySpecFile).toContain('display_name: request.displayName,');
+  expect(entrySpecFile).toContain('event_payload: request.eventPayload,');
+  expect(entrySpecFile).toContain('id: result.id,');
+
+  const querySpecFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'account-events-insert', 'queries', 'insert-account-events', 'boundary.ts'),
+    'utf8'
+  );
+  expect(querySpecFile).toContain('account_id: z.number().finite()');
+  expect(querySpecFile).toContain("display_name: z.string().min(1, 'display_name must not be empty.').nullable()");
+  expect(querySpecFile).toContain('event_payload: z.record(z.string(), z.unknown())');
+  expect(querySpecFile).not.toContain('accountId: z.number().finite()');
+  expect(querySpecFile).not.toContain('displayName: z.string().nullable()');
+
+  const sqlFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'account-events-insert', 'queries', 'insert-account-events', 'insert-account-events.sql'),
+    'utf8'
+  );
+  expect(sqlFile).toContain(':account_id');
+  expect(sqlFile).toContain(':display_name');
+  expect(sqlFile).toContain(':event_payload');
+  expect(sqlFile).not.toContain(':accountId');
 });
 
 test('runFeatureScaffoldCommand uses stable shared imports when the workspace supports #features', async () => {
@@ -895,8 +959,10 @@ test('runFeatureScaffoldCommand writes the update baseline with pk predicate and
   expect(entrySpecFile).toContain('export type UsersUpdateRequest');
   expect(entrySpecFile).toContain('id: z.number().finite()');
   expect(entrySpecFile).toContain('email: z.string()');
-  expect(entrySpecFile).toContain('display_name: z.string().nullable()');
-  expect(entrySpecFile).toContain('created_at: z.string()');
+  expect(entrySpecFile).toContain('displayName: z.string().nullable()');
+  expect(entrySpecFile).toContain('createdAt: z.string()');
+  expect(entrySpecFile).toContain('display_name: request.displayName,');
+  expect(entrySpecFile).toContain('created_at: request.createdAt,');
   expect(entrySpecFile).toContain('const ResponseSchema = z.object({');
   expect(entrySpecFile).toContain('}).strict();');
 

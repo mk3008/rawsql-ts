@@ -738,8 +738,10 @@ function renderFeatureScaffoldFiles(params: {
   const queryPascalName = toPascalCase(params.queryName);
   const queryCamelName = toCamelCase(params.queryName);
   const actionPlan = buildActionPlan(params.action, params.table, params.primaryKeyColumn, params.insertDefaultPolicy);
-  const requestFields = actionPlan.requestColumns.map((column) => toRenderField(column));
-  const responseFields = actionPlan.resultColumns.map((column) => toRenderField(column));
+  const requestFields = actionPlan.requestColumns.map((column) => toRenderField(column, { boundary: 'feature' }));
+  const responseFields = actionPlan.resultColumns.map((column) => toRenderField(column, { boundary: 'feature' }));
+  const queryRequestFields = actionPlan.requestColumns.map((column) => toRenderField(column, { boundary: 'query' }));
+  const queryResponseFields = actionPlan.resultColumns.map((column) => toRenderField(column, { boundary: 'query' }));
   const sqlFile = renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn);
   const sharedSupportFiles = renderFeatureSharedSupportFiles();
   const entrySpecFile = renderEntrySpecFile({
@@ -760,8 +762,8 @@ function renderFeatureScaffoldFiles(params: {
     boundaryRelativeDir: normalizeCliPath(path.join('src', 'features', params.featureName)),
     queryPascalName,
     queryCamelName,
-    requestFields,
-    responseFields,
+    requestFields: queryRequestFields,
+    responseFields: queryResponseFields,
     sharedExecutorImportPath: sharedImports.executorImportPath,
     sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath,
     insertDefaultPolicy: params.insertDefaultPolicy
@@ -800,8 +802,9 @@ function renderFeatureScaffoldFiles(params: {
 
 type RenderField = {
   name: string;
+  sourceName: string;
   typeScriptType: string;
-  parserKind: 'string' | 'number' | 'boolean';
+  parserKind: 'string' | 'number' | 'boolean' | 'jsonObject';
   nullable: boolean;
   sourceType: string;
 };
@@ -890,8 +893,8 @@ function renderExistingBoundaryQueryScaffoldFiles(params: {
   const queryPascalName = toPascalCase(params.queryName);
   const queryCamelName = toCamelCase(params.queryName);
   const actionPlan = buildActionPlan(params.action, params.table, params.primaryKeyColumn, params.insertDefaultPolicy);
-  const requestFields = actionPlan.requestColumns.map((column) => toRenderField(column));
-  const responseFields = actionPlan.resultColumns.map((column) => toRenderField(column));
+  const requestFields = actionPlan.requestColumns.map((column) => toRenderField(column, { boundary: 'query' }));
+  const responseFields = actionPlan.resultColumns.map((column) => toRenderField(column, { boundary: 'query' }));
   const sharedSupportFiles = renderFeatureSharedSupportFiles();
 
   return {
@@ -1216,11 +1219,23 @@ function quoteSqlIdentifier(value: string): string {
   return `"${value.replace(/"/g, '""')}"`;
 }
 
-function toRenderField(column: ScaffoldColumnMetadata): RenderField {
+function toRenderField(column: ScaffoldColumnMetadata, options: { boundary: 'feature' | 'query' }): RenderField {
+  const fieldName = options.boundary === 'feature' ? toCamelCase(column.name) : column.name;
   const typeName = (column.typeName ?? '').trim().toLowerCase();
+  if (typeName === 'json' || typeName === 'jsonb') {
+    return {
+      name: fieldName,
+      sourceName: column.name,
+      typeScriptType: column.isNotNull ? 'Record<string, unknown>' : 'Record<string, unknown> | null',
+      parserKind: 'jsonObject',
+      nullable: !column.isNotNull,
+      sourceType: column.typeName ?? 'jsonb'
+    };
+  }
   if (isBigIntLikeType(typeName)) {
     return {
-      name: column.name,
+      name: fieldName,
+      sourceName: column.name,
       typeScriptType: column.isNotNull ? 'string' : 'string | null',
       parserKind: 'string',
       nullable: !column.isNotNull,
@@ -1229,7 +1244,8 @@ function toRenderField(column: ScaffoldColumnMetadata): RenderField {
   }
   if (isStringEncodedNumericType(typeName)) {
     return {
-      name: column.name,
+      name: fieldName,
+      sourceName: column.name,
       typeScriptType: column.isNotNull ? 'string' : 'string | null',
       parserKind: 'string',
       nullable: !column.isNotNull,
@@ -1238,7 +1254,8 @@ function toRenderField(column: ScaffoldColumnMetadata): RenderField {
   }
   if (isNumberType(typeName)) {
     return {
-      name: column.name,
+      name: fieldName,
+      sourceName: column.name,
       typeScriptType: column.isNotNull ? 'number' : 'number | null',
       parserKind: 'number',
       nullable: !column.isNotNull,
@@ -1247,7 +1264,8 @@ function toRenderField(column: ScaffoldColumnMetadata): RenderField {
   }
   if (typeName === 'boolean' || typeName === 'bool') {
     return {
-      name: column.name,
+      name: fieldName,
+      sourceName: column.name,
       typeScriptType: column.isNotNull ? 'boolean' : 'boolean | null',
       parserKind: 'boolean',
       nullable: !column.isNotNull,
@@ -1255,7 +1273,8 @@ function toRenderField(column: ScaffoldColumnMetadata): RenderField {
     };
   }
   return {
-    name: column.name,
+    name: fieldName,
+    sourceName: column.name,
     typeScriptType: column.isNotNull ? 'string' : 'string | null',
     parserKind: 'string',
     nullable: !column.isNotNull,
@@ -1403,7 +1422,8 @@ function renderEntrySpecFile(params: {
     '',
     '/** Maps the query result into the feature response contract. */',
     `function fromQueryResult(result: ${params.queryPascalName}QueryResult): ${params.pascalName}Response {`,
-    '  return ResponseSchema.parse(result);',
+    '  // TODO: Review domain-specific response naming before exposing this feature boundary publicly.',
+    ...renderParsedObjectFromSource('result', params.responseFields, 'ResponseSchema'),
     '}',
     '',
     '/** Executes the feature boundary flow for this feature. */',
@@ -1666,6 +1686,10 @@ function renderReadmeFile(params: {
     `- \`queries/${params.queryName}/boundary.ts\` keeps its \`zod\` schema values, row type, and helper functions private, completes params / row / result parsing internally, and depends on the shared executor contract directly.`,
     `- \`queries/${params.queryName}/boundary.ts\` and \`queries/${params.queryName}/${params.queryName}.sql\` stay co-located as one boundary/SQL pair.`,
     `- \`tests/${params.featureName}.boundary.test.ts\` is the thin Vitest entrypoint for the feature boundary lane.`,
+    '- Feature-boundary tests mock child query boundaries and verify feature validation, mapping, and orchestration.',
+    '- Query-boundary tests own SQL behavior through ZTD or another SQL-specific lane.',
+    '- Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.',
+    '- Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package; keep feature-specific validation and helpers inside the owning feature.',
     `- \`queries/${params.queryName}/tests/${params.queryName}.boundary.ztd.test.ts\` is the thin Vitest entrypoint for the ZTD query lane.`,
     generatedColumnsLine,
     queryColumnsLine,
@@ -1955,7 +1979,11 @@ function renderGetByIdEntrySpecFile(params: {
     '',
     '/** Maps the query result into the feature response contract. */',
     `function fromQueryResult(result: ${params.queryPascalName}QueryResult): ${params.pascalName}Response {`,
-    `  return ResponseSchema.parse(result);`,
+    '  if (result === null) {',
+    '    return null;',
+    '  }',
+    '  // TODO: Review domain-specific response naming before exposing this feature boundary publicly.',
+    ...renderParsedObjectFromSource('result', params.responseFields, 'ResponseSchema'),
     '}',
     '',
     '/** Executes the feature boundary flow for this feature. */',
@@ -2042,7 +2070,12 @@ function renderListEntrySpecFile(params: {
     '',
     '/** Maps the query result into the feature response contract. */',
     `function fromQueryResult(result: ${params.queryPascalName}QueryResult): ${params.pascalName}Response {`,
-    '  return ResponseSchema.parse(result);',
+    '  // TODO: Review domain-specific response naming before exposing this feature boundary publicly.',
+    '  return ResponseSchema.parse({',
+    '    items: result.items.map((item) => ({',
+    ...params.responseFields.map((field) => `      ${field.name}: item.${field.sourceName},`),
+    '    })),',
+    '  });',
     '}',
     '',
     '/** Executes the feature boundary flow for this feature. */',
@@ -2269,6 +2302,9 @@ function renderExampleValue(field: RenderField): string {
   if (field.nullable) {
     return 'null';
   }
+  if (field.parserKind === 'jsonObject') {
+    return "{ example: 'value' }";
+  }
   if (field.parserKind === 'number') {
     return '1';
   }
@@ -2300,6 +2336,8 @@ function renderZodField(
     base = 'z.number().finite()';
   } else if (field.parserKind === 'boolean') {
     base = 'z.boolean()';
+  } else if (field.parserKind === 'jsonObject') {
+    base = 'z.record(z.string(), z.unknown())';
   } else {
     base = 'z.string()';
     if (options.trimStrings) {
@@ -2321,8 +2359,19 @@ function renderTypedReturnObject(fields: RenderField[], typeName: string): strin
   }
   return [
     '  return {',
-    ...fields.map((field) => `    ${field.name}: request.${field.name},`),
+    ...fields.map((field) => `    ${field.sourceName}: request.${field.name},`),
     '  };'
+  ];
+}
+
+function renderParsedObjectFromSource(sourceName: string, fields: RenderField[], schemaName: string): string[] {
+  if (fields.length === 0) {
+    return [`  return ${schemaName}.parse({});`];
+  }
+  return [
+    `  return ${schemaName}.parse({`,
+    ...fields.map((field) => `    ${field.name}: ${sourceName}.${field.sourceName},`),
+    '  });'
   ];
 }
 

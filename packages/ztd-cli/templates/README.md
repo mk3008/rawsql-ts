@@ -35,6 +35,7 @@ The generated runtime manifest is the preferred input for `@rawsql-ts/testkit-po
 The starter keeps `ztdRootDir`, `ddlDir`, `defaultSchema`, and `searchPath` in `ztd.config.json`. The helper reads the project defaults from one place instead of repeating them in every DB-backed test.
 
 `src/features/<feature>/tests/` is where feature-root boundary tests live. Query-local ZTD assets live under `src/features/<feature>/queries/<query>/tests/{generated,cases}` with the thin entrypoint beside them. Starter-owned shared support lives at `tests/support/ztd/`, while `.ztd/` is the tool-managed workspace for generated metadata and support files. Keep `FeatureQueryExecutor` in `src/features/_shared/`, keep the driver-neutral `SqlClient` contract in `src/libraries/sql/sql-client.ts`, and put driver or sink bindings under `src/adapters/<tech>/`.
+Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package; keep feature-specific validation and helpers inside the owning feature.
 
 When an import crosses one of the canonical roots, use the root alias instead of a depth-sensitive relative path:
 
@@ -57,6 +58,9 @@ Every boundary folder exposes only `boundary.ts`, and sub-boundaries repeat the 
 Keep handwritten SQL, query boundaries, repository code, and tests inside `src/features/<feature-name>`.
 Treat the query boundary contract and its ZTD-backed test as one completion unit; do not stop at a property-only check.
 Keep feature-boundary tests mock-based in `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts`.
+Feature-boundary tests mock child query boundaries and verify feature validation, mapping, and orchestration.
+Query-boundary tests own SQL behavior through ZTD or another SQL-specific lane.
+Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.
 Keep shared feature seams in `src/features/_shared/*`, shared verification seams in `tests/support/*`, and tool-managed files in `.ztd/*`.
 Keep the driver-neutral `SqlClient` contract in `src/libraries/sql/sql-client.ts`.
 Put driver or sink bindings under `src/adapters/<tech>/` instead of under `db/`.

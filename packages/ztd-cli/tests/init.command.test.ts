@@ -91,6 +91,10 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('keep starter-owned shared support under `tests/support/ztd/`');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('keep tool-managed fixture metadata under `.ztd/generated/`');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('src/features`, `src/adapters`, and `src/libraries` as the app-code roots');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Feature-boundary tests mock child query boundaries and verify feature validation, mapping, and orchestration.');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Query-boundary tests own SQL behavior through ZTD or another SQL-specific lane.');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('this generated workspace may not contain `docs/`');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('`ztd.config.json` controls generated metadata and runtime defaults while the feature-local tests stay next to the feature they cover');
   expect(existsSync(path.join(workspace, 'src', 'features', 'README.md'))).toBe(true);
@@ -100,6 +104,8 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(readNormalizedFile(path.join(workspace, 'vitest.config.ts'))).toContain(
     "src/features/**/*.test.ts"
   );
+  expect(readNormalizedFile(path.join(workspace, '.prettierrc'))).toContain('"files": "**/*.sql"');
+  expect(readNormalizedFile(path.join(workspace, '.prettierrc'))).toContain('"files": "**/*.md"');
   expect(existsSync(path.join(workspace, 'src', 'domain'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'application'))).toBe(false);
   expect(existsSync(path.join(workspace, 'src', 'presentation'))).toBe(false);
@@ -134,7 +140,11 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
     type?: string;
     devDependencies: Record<string, string>;
     imports?: Record<string, { types: string; default: string }>;
+    'lint-staged'?: Record<string, string[]>;
+    'simple-git-hooks'?: Record<string, string>;
   };
+  expect(packageJson['lint-staged']?.['*.{ts,tsx,js,jsx,json,md,sql}']).toEqual(['prettier --write']);
+  expect(packageJson['simple-git-hooks']?.['pre-commit']).toBe('pnpm lint-staged');
   expect(packageJson.devDependencies).toHaveProperty('dotenv');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/sql-contract');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-core');
@@ -226,6 +236,15 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'boundary-ztd-types.ts'))).toContain(
     "from '#tests/support/ztd/case-types.js'"
   );
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'boundary-ztd-types.ts'))).toContain(
+    "import type { SmokeQueryParams, SmokeQueryResult } from '../boundary.js';"
+  );
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'boundary-ztd-types.ts'))).toContain(
+    'export type SmokeInput = SmokeQueryParams;'
+  );
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'boundary-ztd-types.ts'))).toContain(
+    'export type SmokeOutput = SmokeQueryResult;'
+  );
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'cases', 'basic.case.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'TEST_PLAN.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'analysis.json'))).toBe(true);
@@ -260,6 +279,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(existsSync(path.join(workspace, 'src', 'adapters', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'adapters', 'console', 'repositoryTelemetry.ts'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'README.md'))).toContain('Shared runtime contracts and reusable helpers live here.');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'README.md'))).toContain('Do not move feature-specific validation, mapping, or orchestration helpers here');
   expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'sql', 'README.md'))).toContain('Keep driver-neutral SQL contracts here.');
   expect(readNormalizedFile(path.join(workspace, 'src', 'adapters', 'README.md'))).toContain('Technology-specific bindings live here.');
   expect(readNormalizedFile(path.join(workspace, 'src', 'libraries', 'telemetry', 'repositoryTelemetry.ts'))).toContain('createNoopRepositoryTelemetry');
@@ -383,6 +403,26 @@ test('init dry-run plan for non-starter init excludes starter-only readmes', () 
     'compose.yaml',
     'src/features/smoke/README.md'
   ]));
+});
+
+test('init derives generated lint-staged hook command from the package manager lockfile', async () => {
+  const workspace = createTempDir('cli-init-npm-hook');
+  const prompter = new TestPrompter([]);
+  writeFileSync(path.join(workspace, 'package-lock.json'), '{}\n', 'utf8');
+
+  await runInitCommand(prompter, {
+    rootDir: workspace,
+    nonInteractive: true,
+    forceOverwrite: true,
+    workflow: 'empty',
+    validator: 'zod',
+    skipInstall: true
+  });
+
+  const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    'simple-git-hooks'?: Record<string, string>;
+  };
+  expect(packageJson['simple-git-hooks']?.['pre-commit']).toBe('npx lint-staged');
 });
 
 test('default scaffold omits AI control files', async () => {

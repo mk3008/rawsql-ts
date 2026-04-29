@@ -84,10 +84,33 @@ npx ztd rfba inspect --format json
 The command is read-only. It reports concrete starter root boundaries, feature-boundaries, query sub-boundaries, likely public surface files, SQL assets, generated artifacts, local verification files, and structural warnings.
 The JSON output is deterministic and omits timestamps so it can be consumed by agents and review checks.
 
+### Generate RFBA Review Data
+
+Use `rfba review-data` in merge PR checks when an agent or reviewer needs RFBA-aware review packet data instead of raw diff text:
+
+```bash
+npx ztd rfba review-data --base origin/main --head HEAD --out .ztd/review/rfba-review-data.json
+```
+
+The output is deterministic JSON and is suitable for a CI artifact. It classifies changed files, maps changes to RFBA boundaries, summarizes supported DDL and SQL changes, groups verification evidence, and emits warnings for review gaps that need human or AI attention.
+The command does not write the final PR review narrative and does not judge business correctness.
+
+Example AI prompt for PR summary generation:
+
+```text
+Read .ztd/review/rfba-review-data.json and write an RFBA Review Summary for the PR.
+Do not repeat raw git diff.
+Summarize the meaning of DDL, SQL, boundary, adapter, and verification changes.
+Separate confirmed facts from review questions.
+Use warnings as high-priority review notes.
+Do not claim business correctness when the JSON only provides structural evidence.
+```
+
 Important repo areas outside the concrete root-boundary list:
 
 - Keep shared feature seams under `src/features/_shared/*`.
 - Keep driver-neutral contracts under `src/libraries/*`; `src/libraries` itself is one concrete root-boundary.
+- Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package; keep feature-specific validation and helpers inside the owning feature.
 - Keep driver- or sink-specific bindings under `src/adapters/<tech>/*`; `src/adapters` itself is one concrete root-boundary.
 - Keep shared verification seams under `tests/support/*`.
 - Keep tool-managed assets under `.ztd/*`.
@@ -186,6 +209,9 @@ If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.genera
 `beforeDb` is a schema-qualified pure fixture skeleton.
 Use validation-only cases for boundary checks and DB-backed cases for the success path.
 Keep the feature-root `src/features/<feature-name>/tests/<feature-name>.boundary.test.ts` for mock-based boundary tests.
+Feature-boundary tests mock child query boundaries and verify feature validation, mapping, and orchestration.
+Query-boundary tests own SQL behavior through ZTD or another SQL-specific lane.
+Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.
 The ZTD verifier returns machine-checkable evidence (`mode`, `rewriteApplied`, `physicalSetupUsed`) per case.
 `afterDb` assertions are intentionally excluded from this ZTD lane; use a traditional DB-state lane when you need post-state assertions.
 
@@ -249,6 +275,7 @@ Use `ztd describe` for machine-readable discovery, and follow the linked guides 
 | `ztd query match-observed` | Rank likely source SQL assets from observed SELECT text. |
 | `ztd query sssql list` / `scaffold` / `remove` / `refresh` | Inspect, author, undo, and re-anchor SQL-first optional filter branches. See [ztd-cli SSSQL Reference](../../docs/guide/ztd-cli-sssql-reference.md). |
 | `ztd ddl pull` / `ztd ddl diff` | Inspect a target and prepare migration SQL. |
+| `ztd rfba inspect` / `review-data` | Inspect RFBA boundaries and generate deterministic merge PR review packet JSON. |
 | `ztd perf init` / `ztd perf run` | Run the tuning loop for index or pipeline investigation. |
 | `ztd describe` | Inspect commands in machine-readable form. |
 

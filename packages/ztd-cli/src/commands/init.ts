@@ -1943,6 +1943,7 @@ function ensurePackageJsonFormatting(
   scaffoldProfile: InitScaffoldProfile,
   starter: boolean
 ): FileSummary | null {
+  const packageManager = detectPackageManager(rootDir, defaultPackageManagerForScaffold(scaffoldProfile));
   const packagePath = path.join(rootDir, 'package.json');
   const packageExists = dependencies.fileExists(packagePath);
   const parsed = packageExists
@@ -2020,7 +2021,7 @@ function ensurePackageJsonFormatting(
   // Provide lint-staged wiring for the formatting pipeline when no configuration is present.
   if (!('lint-staged' in parsed)) {
     parsed['lint-staged'] = {
-      '*.{ts,tsx,js,jsx,json,md,sql}': ['pnpm format']
+      '*.{ts,tsx,js,jsx,json,md,sql}': ['prettier --write']
     };
     changed = true;
   }
@@ -2028,7 +2029,7 @@ function ensurePackageJsonFormatting(
   // Wire simple-git-hooks only if the user has not already customized it.
   if (!('simple-git-hooks' in parsed)) {
     parsed['simple-git-hooks'] = {
-      'pre-commit': 'pnpm lint-staged'
+      'pre-commit': resolveLintStagedCommand(packageManager)
     };
     changed = true;
   }
@@ -2101,6 +2102,16 @@ function ensurePackageJsonFormatting(
   // Persist the updated manifest so the new scripts and tools are available immediately.
   dependencies.writeFile(packagePath, `${JSON.stringify(parsed, null, 2)}\n`);
   return { relativePath: relative, outcome: packageExists ? 'overwritten' : 'created' };
+}
+
+function resolveLintStagedCommand(packageManager: PackageManager): string {
+  if (packageManager === 'pnpm') {
+    return 'pnpm lint-staged';
+  }
+  if (packageManager === 'yarn') {
+    return 'yarn lint-staged';
+  }
+  return 'npx lint-staged';
 }
 
 function inferPackageName(rootDir: string): string {

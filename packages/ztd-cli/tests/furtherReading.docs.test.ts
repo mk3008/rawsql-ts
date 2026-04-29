@@ -49,6 +49,10 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         '`root-boundary`: the app-level boundary layer.',
         '`feature-boundary`: a feature-owned boundary under `src/features/<feature>/`.',
         '`sub-boundary`: an optional child boundary inside a feature',
+        'Feature-boundary tests are mock-based by default.',
+        'Query-boundary tests own SQL behavior.',
+        'Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.',
+        '`src/libraries/` is for driver-neutral code reusable enough to stand as an external package.',
         'RFBA is not a universal file naming rule.',
         '`boundary.ts` is the default `ztd-cli` feature scaffold convention'
       ]
@@ -180,6 +184,10 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
         'After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature <feature-name>`.',
         'creates the thin Vitest entrypoint `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` only if it is missing.',
         'Persistent case files under `src/features/<feature-name>/queries/<query-name>/tests/cases/` are human/AI-owned and are not overwritten.',
+        'Feature-boundary tests mock child query boundaries and verify feature validation, mapping, and orchestration.',
+        'Query-boundary tests own SQL behavior through ZTD or another SQL-specific lane.',
+        'Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.',
+        'Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package',
         'Do not apply migrations automatically.'
       ]
     },

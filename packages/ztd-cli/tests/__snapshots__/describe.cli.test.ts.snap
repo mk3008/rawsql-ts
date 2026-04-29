@@ -487,6 +487,10 @@ exports[`describe command snapshots the top-level command catalog and every deta
           "name": "--boundary-dir <path>",
         },
         {
+          "description": "INSERT default-column policy. Use explicit-defaults to copy DDL defaults into SQL, or omit-db-defaults to let the database assign DB-default columns.",
+          "name": "--insert-default-policy <policy>",
+        },
+        {
           "description": "Validate inputs and emit the planned additive scaffold without writing files.",
           "name": "--dry-run",
         },
@@ -535,6 +539,10 @@ exports[`describe command snapshots the top-level command catalog and every deta
         {
           "description": "Override the derived resource-action feature name.",
           "name": "--feature-name <name>",
+        },
+        {
+          "description": "INSERT default-column policy. Use explicit-defaults to copy DDL defaults into SQL, or omit-db-defaults to let the database assign DB-default columns.",
+          "name": "--insert-default-policy <policy>",
         },
         {
           "description": "Validate inputs and emit the planned scaffold without writing files.",
