@@ -206,6 +206,8 @@ function parseOptionalDdlStatement(sql: string): ReturnType<typeof SqlParser.par
     return SqlParser.parse(sql);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    // SqlParser currently throws plain Error without stable codes/classes; keep
+    // this narrow message check until it exposes typed no-statement failures.
     if (message.includes('[SqlParser] No SQL statements found in input.')) {
       return undefined;
     }

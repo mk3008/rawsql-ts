@@ -25,6 +25,17 @@ Every PR must choose exactly one merge-readiness path in the PR template.
 The exception path is for tracked remediation only.
 It is not a substitute for a green baseline, and it should not appear as free-form prose somewhere else in the PR body.
 
+## Self Review
+
+Every human-authored PR must record the finishing self-review pass in the PR body.
+
+The required fields are:
+
+- `Self-review workflow`
+- `Self-review result`
+
+This makes the pre-release self-review step observable to reviewers and enforceable by CI instead of relying on memory.
+
 ## CLI Surface Migration
 
 When the PR changes a user-facing CLI surface, the PR body must either explain why no migration packet is needed or complete the packet.

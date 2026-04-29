@@ -17,6 +17,12 @@ Tracking issue:
 Scoped checks run: 
 Why full baseline is not required: 
 
+## Self Review
+
+<!-- Fill these fields after running the repo self-review workflow or available self-review skill. -->
+Self-review workflow:
+Self-review result:
+
 ## CLI Surface Migration
 
 - [ ] No migration packet required for this CLI change.

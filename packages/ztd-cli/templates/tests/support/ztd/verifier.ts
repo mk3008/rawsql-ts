@@ -282,9 +282,12 @@ async function createPhysicalQuerySpecExecutor(
     await applySqlFiles(client, defaults.ddlDirectories, defaults.defaultSchema, schemaName);
     await seedFixtureRows(client, flattenFixtureTableRows(beforeDb), defaults.defaultSchema, schemaName);
   } catch (error) {
-    await dropPhysicalSchema(client, schemaName);
-    client.release();
-    await pool.end();
+    try {
+      await dropPhysicalSchema(client, schemaName);
+    } finally {
+      client.release();
+      await pool.end();
+    }
     throw error;
   }
 

@@ -146,7 +146,7 @@ test('inspectPerfDdlInventory counts CREATE INDEX statements so perf reset can r
   expect(inventory.statements.map((statement) => statement.kind)).toEqual(['table', 'index']);
 });
 
-test('inspectPerfDdlInventory ignores comment-only DDL placeholders', () => {
+test('inspectPerfDdlInventory ignores comment-only DDL placeholders without parser failures', () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'perf-ddl-comments-'));
   const ddlDir = path.join(rootDir, 'db', 'ddl');
   mkdirSync(ddlDir, { recursive: true });

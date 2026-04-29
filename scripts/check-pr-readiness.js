@@ -207,6 +207,22 @@ function validatePrReadiness({ body, classification, pullRequestContext = null }
     );
   }
 
+  if (!/##\s+Self Review/iu.test(normalizedBody)) {
+    errors.push('Missing "## Self Review" section from the PR body.');
+  }
+  requireField(
+    errors,
+    normalizedBody,
+    'Self-review workflow',
+    'Self Review must name the self-review workflow or skill that was run.',
+  );
+  requireField(
+    errors,
+    normalizedBody,
+    'Self-review result',
+    'Self Review must state whether blockers remain.',
+  );
+
   if (classification.requiresCliMigrationPacket) {
     if (!/##\s+CLI Surface Migration/iu.test(normalizedBody)) {
       errors.push('Missing "## CLI Surface Migration" section for a CLI-facing change.');

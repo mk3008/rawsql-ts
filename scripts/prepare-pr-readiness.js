@@ -24,6 +24,8 @@ function parseArgs(argv) {
     trackingIssue: '',
     scopedChecks: [],
     baselineRationale: '',
+    selfReviewWorkflow: 'repo self-review workflow completed before PR authoring.',
+    selfReviewResult: 'no unresolved self-review blockers.',
     cliMode: null,
     cliNoMigrationRationale: '',
     upgradeNote: '',
@@ -85,6 +87,14 @@ function parseArgs(argv) {
         break;
       case '--baseline-rationale':
         options.baselineRationale = requireOperand(arg);
+        index += 1;
+        break;
+      case '--self-review-workflow':
+        options.selfReviewWorkflow = requireOperand(arg);
+        index += 1;
+        break;
+      case '--self-review-result':
+        options.selfReviewResult = requireOperand(arg);
         index += 1;
         break;
       case '--cli-mode':
@@ -202,6 +212,11 @@ function renderPrReadinessBody({ classification, options }) {
     `Tracking issue: ${options.baselineMode === 'exception' ? options.trackingIssue : 'not needed; no baseline exception requested.'}`,
     `Scoped checks run: ${options.baselineMode === 'exception' ? joinInline(options.scopedChecks, '') : 'not needed; no baseline exception requested.'}`,
     `Why full baseline is not required: ${options.baselineMode === 'exception' ? options.baselineRationale : 'full baseline exception path not used for this PR.'}`,
+    '',
+    '## Self Review',
+    '',
+    `Self-review workflow: ${options.selfReviewWorkflow}`,
+    `Self-review result: ${options.selfReviewResult}`,
     '',
     '## CLI Surface Migration',
     '',

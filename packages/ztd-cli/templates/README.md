@@ -64,7 +64,17 @@ Make sure the query-boundary result executes through the DB-backed ZTD path and 
 Do not put returned columns into the input fixture; assert them only after the DB-backed result returns.
 If the returned result is `null`, stop and fix the scaffold or DDL instead of weakening the success-path schema or seeding fake rows.
 Before writing the success-path assertion, inspect the current SQL and query boundary. If the scaffold does not actually return the expected result shape, report that mismatch instead of inventing fixture data or schema overrides.
-After the SQL and DTO edits settle, run `ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md` and `analysis.json`, create the thin `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.ztd.test.ts` Vitest entrypoint if it is missing, and keep `src/features/<feature-name>/queries/<query-name>/tests/cases/` as human/AI-owned persistent cases around the fixed app-level ZTD runner. Use `--test-kind traditional` when the same query-boundary case shape needs physical DDL setup, fixture seeding, or optional `afterDb` post-state checks. `generated/*` is CLI-owned and refreshable, while the thin entrypoint is kept. If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and any fixture-shape hints the case needs. `beforeDb` is a pure fixture skeleton with schema-qualified table keys. The helper returns machine-checkable evidence (`mode`, `rewriteApplied`, `physicalSetupUsed`) for each case. Enable SQL trace only when needed with `ZTD_SQL_TRACE=1` (optional `ZTD_SQL_TRACE_DIR`). ZTD evidence should show `mode=ztd` and `physicalSetupUsed=false`; traditional evidence should show `mode=traditional` and `physicalSetupUsed=true`. When the cases are ready, run the generated `.boundary.<kind>.test.ts` entrypoint with `npx vitest run`.
+After the SQL and DTO edits settle, refresh the query-local test scaffold:
+
+- Run `ztd feature tests scaffold --feature <feature-name>` to refresh `src/features/<feature-name>/queries/<query-name>/tests/generated/TEST_PLAN.md`, `analysis.json`, and `generated/*`.
+- Keep `src/features/<feature-name>/queries/<query-name>/tests/cases/` as human/AI-owned persistent cases around the fixed app-level ZTD runner.
+- Keep the thin `src/features/<feature-name>/queries/<query-name>/tests/<query-name>.boundary.<kind>.test.ts` Vitest entrypoint.
+- Use `--test-kind traditional` when the same query-boundary case shape needs physical DDL setup, fixture seeding, or optional `afterDb` post-state checks.
+- If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and fixture-shape hints.
+- Treat `beforeDb` as a pure fixture skeleton with schema-qualified table keys.
+- Check machine-readable evidence (`mode`, `rewriteApplied`, `physicalSetupUsed`): ZTD evidence should show `mode=ztd` and `physicalSetupUsed=false`; traditional evidence should show `mode=traditional` and `physicalSetupUsed=true`.
+- Enable SQL trace only when needed with `ZTD_SQL_TRACE=1` and optional `ZTD_SQL_TRACE_DIR`.
+- When the cases are ready, run the generated `.boundary.<kind>.test.ts` entrypoint with `npx vitest run`.
 
 ## Troubleshooting
 

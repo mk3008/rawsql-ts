@@ -408,6 +408,12 @@ function renderFeatureTestScaffoldFiles(params: {
     `    input: {} as ${queryTypePrefix}Input,`,
     ...outputTodoLines,
     `    output: {} as ${queryTypePrefix}Output,`,
+    ...(isZtdLane ? [] : [
+      '    // TODO: Add afterDb when this case must assert physical post-state table rows.',
+      '    // afterDb: async (db) => {',
+      '    //   await db.table(...).toContainRows(...);',
+      '    // },'
+    ]),
     '  }',
     '];',
     '',

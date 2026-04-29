@@ -436,6 +436,12 @@ test('runFeatureTestsScaffoldCommand writes traditional lane scaffolds without o
   expect(traditionalTypes).toContain("import type { QuerySpecTraditionalCase } from '../../../../../../tests/support/ztd/case-types.js';");
   expect(traditionalTypes).toContain('export type InsertUsersQueryBoundaryTraditionalCase = QuerySpecTraditionalCase<');
 
+  const traditionalCaseFile = readFileSync(
+    path.join(featureDir, 'queries', 'insert-users', 'tests', 'cases', 'basic.traditional.case.ts'),
+    'utf8'
+  );
+  expect(traditionalCaseFile).toContain('afterDb');
+
   const traditionalAnalysis = JSON.parse(
     readFileSync(path.join(featureDir, 'queries', 'insert-users', 'tests', 'generated', 'analysis.traditional.json'), 'utf8')
   ) as { testKind: string; dbScenarioHints: string[] };
