@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+*.log
+
+
+.ztd/generated/**
+
+.env
+.env.*
+!.env.example
