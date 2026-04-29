@@ -72,6 +72,7 @@ const COMMANDS: CommandDescriptor[] = [
       { name: '--table <table>', description: 'Target table name for the scaffold.' },
       { name: '--action <action>', description: 'Action template to scaffold. v1 supports insert, update, delete, get-by-id, and list.' },
       { name: '--feature-name <name>', description: 'Override the derived resource-action feature name.' },
+      { name: '--insert-default-policy <policy>', description: 'INSERT default-column policy. Use explicit-defaults to copy DDL defaults into SQL, or omit-db-defaults to let the database assign DB-default columns.' },
       { name: '--dry-run', description: 'Validate inputs and emit the planned scaffold without writing files.' },
       { name: '--force', description: 'Overwrite scaffold-owned feature files when they already exist.' }
     ]
@@ -102,6 +103,7 @@ const COMMANDS: CommandDescriptor[] = [
       { name: '--query-name <name>', description: 'Name of the child query boundary to create under queries/.' },
       { name: '--feature <name>', description: 'Resolve the target boundary as src/features/<feature-name>.' },
       { name: '--boundary-dir <path>', description: 'Resolve the target boundary from an explicit existing boundary folder. Use either --feature or --boundary-dir, or omit both when the current working directory is already the target boundary.' },
+      { name: '--insert-default-policy <policy>', description: 'INSERT default-column policy. Use explicit-defaults to copy DDL defaults into SQL, or omit-db-defaults to let the database assign DB-default columns.' },
       { name: '--dry-run', description: 'Validate inputs and emit the planned additive scaffold without writing files.' }
     ]
   },

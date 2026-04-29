@@ -7,6 +7,7 @@ import {
   normalizeChildQueryName,
   normalizeFeatureAction,
   normalizeFeatureName,
+  normalizeInsertDefaultPolicy,
   resolveFeatureScaffoldInput,
   resolvePrimaryKeyColumn,
   runExistingBoundaryQueryScaffoldCommand,
@@ -87,6 +88,13 @@ test('normalizeFeatureAction accepts the supported CRUD scaffold actions', () =>
   expect(normalizeFeatureAction('get-by-id')).toBe('get-by-id');
   expect(normalizeFeatureAction('list')).toBe('list');
   expect(() => normalizeFeatureAction('read')).toThrow(/supports only insert, update, delete, get-by-id, and list/i);
+});
+
+test('normalizeInsertDefaultPolicy accepts only documented INSERT default policies', () => {
+  expect(normalizeInsertDefaultPolicy(undefined)).toBe('explicit-defaults');
+  expect(normalizeInsertDefaultPolicy('explicit-defaults')).toBe('explicit-defaults');
+  expect(normalizeInsertDefaultPolicy('omit-db-defaults')).toBe('omit-db-defaults');
+  expect(() => normalizeInsertDefaultPolicy('implicit')).toThrow(/explicit-defaults and omit-db-defaults/i);
 });
 
 test('normalizeFeatureName enforces resource-action kebab-case', () => {

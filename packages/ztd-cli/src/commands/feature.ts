@@ -18,6 +18,9 @@ import { registerFeatureTestsScaffoldCommand } from './featureTests';
 
 const FEATURE_ACTIONS = ['insert', 'update', 'delete', 'get-by-id', 'list'] as const;
 type FeatureAction = (typeof FEATURE_ACTIONS)[number];
+const INSERT_DEFAULT_POLICIES = ['explicit-defaults', 'omit-db-defaults'] as const;
+type InsertDefaultPolicy = (typeof INSERT_DEFAULT_POLICIES)[number];
+const DEFAULT_INSERT_DEFAULT_POLICY: InsertDefaultPolicy = 'explicit-defaults';
 const DEFAULT_PAGE_SIZE = 50;
 const FEATURE_SHARED_EXECUTOR_IMPORT_PATH = '#features/_shared/featureQueryExecutor.js';
 const FEATURE_SHARED_LOAD_SQL_RESOURCE_IMPORT_PATH = '#features/_shared/loadSqlResource.js';
@@ -44,6 +47,7 @@ type FeatureCommandOptions = {
   table?: string;
   action?: string;
   featureName?: string;
+  insertDefaultPolicy?: string;
   dryRun?: boolean;
   force?: boolean;
   rootDir?: string;
@@ -55,6 +59,7 @@ type ExistingBoundaryQueryCommandOptions = {
   queryName?: string;
   feature?: string;
   boundaryDir?: string;
+  insertDefaultPolicy?: string;
   dryRun?: boolean;
   rootDir?: string;
   workingDir?: string;
@@ -124,6 +129,7 @@ interface FeatureScaffoldResult {
   table: string;
   primaryKeyColumn: string;
   source: FeatureScaffoldSourceName;
+  insertDefaultPolicy: InsertDefaultPolicy;
   dryRun: boolean;
   outputs: Array<{ path: string; written: boolean; kind: 'directory' | 'file' }>;
 }
@@ -136,6 +142,7 @@ interface ExistingBoundaryQueryScaffoldResult {
   table: string;
   primaryKeyColumn: string;
   source: FeatureScaffoldSourceName;
+  insertDefaultPolicy: InsertDefaultPolicy;
   dryRun: boolean;
   outputs: Array<{ path: string; written: boolean; kind: 'directory' | 'file' }>;
 }
@@ -153,6 +160,7 @@ export function registerFeatureCommand(program: Command): void {
     .requiredOption('--table <table>', 'Target table name')
     .requiredOption('--action <action>', 'Feature action template to scaffold (v1 supports insert, update, delete, get-by-id, and list)')
     .option('--feature-name <name>', 'Override the derived feature name')
+    .option('--insert-default-policy <policy>', 'INSERT default-column policy: explicit-defaults or omit-db-defaults', DEFAULT_INSERT_DEFAULT_POLICY)
     .option('--dry-run', 'Validate inputs and emit the planned scaffold without writing files', false)
     .option('--force', 'Overwrite scaffold-owned feature files when they already exist', false)
     .action(async (options: FeatureCommandOptions) => {
@@ -168,6 +176,7 @@ export function registerFeatureCommand(program: Command): void {
         `Table: ${result.table}`,
         `Primary key: ${result.primaryKeyColumn}`,
         `Source: ${result.source}`,
+        `Insert default policy: ${result.insertDefaultPolicy}`,
         '',
       'Created by CLI:',
       ...result.outputs.map((output) => `- ${output.path}`),
@@ -187,6 +196,7 @@ export function registerFeatureCommand(program: Command): void {
     .requiredOption('--query-name <name>', 'Name of the query boundary to add under queries/')
     .option('--feature <name>', 'Resolve the target boundary as src/features/<feature-name>')
     .option('--boundary-dir <path>', 'Explicit existing boundary folder path; defaults to the current working directory when omitted')
+    .option('--insert-default-policy <policy>', 'INSERT default-column policy: explicit-defaults or omit-db-defaults', DEFAULT_INSERT_DEFAULT_POLICY)
     .option('--dry-run', 'Validate inputs and emit the planned scaffold without writing files', false)
     .action(async (options: ExistingBoundaryQueryCommandOptions) => {
       const result = await runExistingBoundaryQueryScaffoldCommand(options);
@@ -203,6 +213,7 @@ export function registerFeatureCommand(program: Command): void {
         `Table: ${result.table}`,
         `Primary key: ${result.primaryKeyColumn}`,
         `Source: ${result.source}`,
+        `Insert default policy: ${result.insertDefaultPolicy}`,
         '',
         'Created by CLI:',
         ...result.outputs.map((output) => `- ${output.path}`),
@@ -218,6 +229,7 @@ export function registerFeatureCommand(program: Command): void {
 export async function runFeatureScaffoldCommand(options: FeatureCommandOptions): Promise<FeatureScaffoldResult> {
   const rootDir = options.rootDir ?? process.cwd();
   const action = normalizeFeatureAction(options.action);
+  const insertDefaultPolicy = normalizeInsertDefaultPolicy(options.insertDefaultPolicy);
   const config = loadZtdProjectConfig(rootDir);
   const featureName = normalizeFeatureName(
     options.featureName ?? deriveFeatureName(options.table ?? '', action)
@@ -240,6 +252,7 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
     action,
     table: input.table,
     primaryKeyColumn,
+    insertDefaultPolicy,
   });
   assertFeatureWriteSafety(paths, options.force === true);
   const sharedOutputs = buildSharedOutputs(rootDir, paths, !options.dryRun);
@@ -264,6 +277,7 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
       table: input.table.canonicalName,
       primaryKeyColumn,
       source: input.source,
+      insertDefaultPolicy,
       dryRun: true,
       outputs
     };
@@ -293,6 +307,7 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
     table: input.table.canonicalName,
     primaryKeyColumn,
     source: input.source,
+    insertDefaultPolicy,
     dryRun: false,
     outputs
   };
@@ -303,6 +318,7 @@ export async function runExistingBoundaryQueryScaffoldCommand(
 ): Promise<ExistingBoundaryQueryScaffoldResult> {
   const rootDir = options.rootDir ?? process.cwd();
   const action = normalizeFeatureAction(options.action);
+  const insertDefaultPolicy = normalizeInsertDefaultPolicy(options.insertDefaultPolicy);
   const queryName = normalizeChildQueryName(options.queryName);
   const config = loadZtdProjectConfig(rootDir);
   const generatedMetadataAssessment = assessGeneratedMetadataCapability(rootDir);
@@ -324,7 +340,8 @@ export async function runExistingBoundaryQueryScaffoldCommand(
     queryName,
     action,
     table: input.table,
-    primaryKeyColumn
+    primaryKeyColumn,
+    insertDefaultPolicy
   });
 
   const outputs: ExistingBoundaryQueryScaffoldResult['outputs'] = [
@@ -346,6 +363,7 @@ export async function runExistingBoundaryQueryScaffoldCommand(
       table: input.table.canonicalName,
       primaryKeyColumn,
       source: input.source,
+      insertDefaultPolicy,
       dryRun: true,
       outputs
     };
@@ -372,6 +390,7 @@ export async function runExistingBoundaryQueryScaffoldCommand(
     table: input.table.canonicalName,
     primaryKeyColumn,
     source: input.source,
+    insertDefaultPolicy,
     dryRun: false,
     outputs
   };
@@ -388,6 +407,14 @@ export function normalizeFeatureAction(action: string | undefined): FeatureActio
     return normalized as FeatureAction;
   }
   throw new Error(`Unsupported --action value: ${action}. v1 supports only insert, update, delete, get-by-id, and list.`);
+}
+
+export function normalizeInsertDefaultPolicy(policy: string | undefined): InsertDefaultPolicy {
+  const normalized = (policy ?? DEFAULT_INSERT_DEFAULT_POLICY).trim().toLowerCase();
+  if (INSERT_DEFAULT_POLICIES.includes(normalized as InsertDefaultPolicy)) {
+    return normalized as InsertDefaultPolicy;
+  }
+  throw new Error(`Unsupported --insert-default-policy value: ${policy}. Supported policies are explicit-defaults and omit-db-defaults.`);
 }
 
 export function normalizeFeatureName(value: string): string {
@@ -691,6 +718,7 @@ function renderFeatureScaffoldFiles(params: {
   action: FeatureAction;
   table: DdlTableMetadata;
   primaryKeyColumn: string;
+  insertDefaultPolicy: InsertDefaultPolicy;
 }): {
   entrySpecFile: string;
   entrySpecTestFile: string;
@@ -709,7 +737,7 @@ function renderFeatureScaffoldFiles(params: {
   const entryCamelName = toCamelCase(params.featureName);
   const queryPascalName = toPascalCase(params.queryName);
   const queryCamelName = toCamelCase(params.queryName);
-  const actionPlan = buildActionPlan(params.action, params.table, params.primaryKeyColumn);
+  const actionPlan = buildActionPlan(params.action, params.table, params.primaryKeyColumn, params.insertDefaultPolicy);
   const requestFields = actionPlan.requestColumns.map((column) => toRenderField(column));
   const responseFields = actionPlan.resultColumns.map((column) => toRenderField(column));
   const sqlFile = renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn);
@@ -723,7 +751,8 @@ function renderFeatureScaffoldFiles(params: {
     queryPascalName,
     queryCamelName,
     requestFields,
-    responseFields
+    responseFields,
+    insertDefaultPolicy: params.insertDefaultPolicy
   });
   const querySpecFile = renderQuerySpecFile({
     action: params.action,
@@ -734,7 +763,8 @@ function renderFeatureScaffoldFiles(params: {
     requestFields,
     responseFields,
     sharedExecutorImportPath: sharedImports.executorImportPath,
-    sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath
+    sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath,
+    insertDefaultPolicy: params.insertDefaultPolicy
   });
   const readmeFile = renderReadmeFile({
     action: params.action,
@@ -747,7 +777,9 @@ function renderFeatureScaffoldFiles(params: {
       .map((column) => column.name),
     queryColumns: actionPlan.queryColumns.map((column) => column.name),
     parameterColumns: actionPlan.requestColumns.map((column) => column.name),
-    defaultExpressionColumns: actionPlan.queryColumns.filter((column) => column.source === 'ddl-default').map((column) => column.name)
+    defaultExpressionColumns: actionPlan.queryColumns.filter((column) => column.source === 'ddl-default').map((column) => column.name),
+    omittedDefaultColumns: actionPlan.queryColumns.filter((column) => column.source === 'omitted-db-default').map((column) => column.name),
+    insertDefaultPolicy: params.insertDefaultPolicy
   });
 
   return {
@@ -777,7 +809,7 @@ type RenderField = {
 type QueryColumn = {
   name: string;
   expression: string;
-  source: 'param' | 'ddl-default' | 'selected';
+  source: 'param' | 'ddl-default' | 'omitted-db-default' | 'selected';
 };
 
 type ActionPlan = {
@@ -843,6 +875,7 @@ function renderExistingBoundaryQueryScaffoldFiles(params: {
   action: FeatureAction;
   table: DdlTableMetadata;
   primaryKeyColumn: string;
+  insertDefaultPolicy: InsertDefaultPolicy;
 }): {
   querySpecFile: string;
   querySqlFile: string;
@@ -856,7 +889,7 @@ function renderExistingBoundaryQueryScaffoldFiles(params: {
   );
   const queryPascalName = toPascalCase(params.queryName);
   const queryCamelName = toCamelCase(params.queryName);
-  const actionPlan = buildActionPlan(params.action, params.table, params.primaryKeyColumn);
+  const actionPlan = buildActionPlan(params.action, params.table, params.primaryKeyColumn, params.insertDefaultPolicy);
   const requestFields = actionPlan.requestColumns.map((column) => toRenderField(column));
   const responseFields = actionPlan.resultColumns.map((column) => toRenderField(column));
   const sharedSupportFiles = renderFeatureSharedSupportFiles();
@@ -871,7 +904,8 @@ function renderExistingBoundaryQueryScaffoldFiles(params: {
       requestFields,
       responseFields,
       sharedExecutorImportPath: sharedImports.executorImportPath,
-      sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath
+      sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath,
+      insertDefaultPolicy: params.insertDefaultPolicy
     }),
     querySqlFile: renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn),
     featureQueryExecutorFile: sharedSupportFiles.featureQueryExecutorFile,
@@ -977,17 +1011,19 @@ function renderFeatureSharedSupportFiles(): {
 function buildActionPlan(
   action: FeatureAction,
   table: DdlTableMetadata,
-  primaryKeyColumn: string
+  primaryKeyColumn: string,
+  insertDefaultPolicy: InsertDefaultPolicy
 ): ActionPlan {
   if (action === 'insert') {
-    const queryColumns = selectInsertSqlColumns(table, primaryKeyColumn);
+    const queryColumns = selectInsertSqlColumns(table, primaryKeyColumn, insertDefaultPolicy);
+    const writeColumns = queryColumns.filter((column) => column.source !== 'omitted-db-default');
     return {
       action,
       requestColumns: table.columns
         .filter((column) => !isGeneratedInsertColumn(column, primaryKeyColumn) && column.defaultValue == null),
       resultColumns: [requireColumn(table, primaryKeyColumn)],
       queryColumns,
-      writeColumns: queryColumns,
+      writeColumns,
       whereColumns: []
     };
   }
@@ -1055,13 +1091,21 @@ function buildActionPlan(
   };
 }
 
-function selectInsertSqlColumns(table: DdlTableMetadata, primaryKeyColumn: string): QueryColumn[] {
+function selectInsertSqlColumns(
+  table: DdlTableMetadata,
+  primaryKeyColumn: string,
+  insertDefaultPolicy: InsertDefaultPolicy
+): QueryColumn[] {
   return table.columns
     .filter((column) => !isGeneratedInsertColumn(column, primaryKeyColumn))
     .map((column) => ({
       name: column.name,
       expression: column.defaultValue ?? `:${column.name}`,
-      source: column.defaultValue == null ? 'param' : 'ddl-default'
+      source: column.defaultValue == null
+        ? 'param'
+        : insertDefaultPolicy === 'omit-db-defaults'
+          ? 'omitted-db-default'
+          : 'ddl-default'
     }));
 }
 
@@ -1098,8 +1142,10 @@ function renderActionSql(plan: ActionPlan, tableName: string, primaryKeyColumn: 
   const quotedTableName = quoteQualifiedIdentifier(tableName);
   const quotedPrimaryKeyColumn = quoteSqlIdentifier(primaryKeyColumn);
   if (plan.action === 'insert') {
+    const policyReviewComment = '-- TODO: Review INSERT default-column policy before using this scaffold in production.';
     if (plan.writeColumns.length === 0) {
       return [
+        policyReviewComment,
         `insert into ${quotedTableName}`,
         'default values',
         `returning ${quotedPrimaryKeyColumn};`,
@@ -1108,6 +1154,7 @@ function renderActionSql(plan: ActionPlan, tableName: string, primaryKeyColumn: 
     }
 
     return [
+      policyReviewComment,
       `insert into ${quotedTableName} (`,
       plan.writeColumns.map((column) => `  ${quoteSqlIdentifier(column.name)}`).join(',\n'),
       ') values (',
@@ -1261,6 +1308,7 @@ function renderEntrySpecFile(params: {
   queryCamelName: string;
   requestFields: RenderField[];
   responseFields: RenderField[];
+  insertDefaultPolicy: InsertDefaultPolicy;
 }): string {
   if (params.action === 'get-by-id') {
     return renderGetByIdEntrySpecFile(params);
@@ -1321,7 +1369,7 @@ function renderEntrySpecFile(params: {
     `  type ${params.queryPascalName}QueryResult`,
     `} from './queries/${params.queryName}/boundary.js';`,
     '',
-    ...renderEntrySpecBoundaryComments(params.action),
+    ...renderEntrySpecBoundaryComments(params.action, params.insertDefaultPolicy),
     '',
     rawRequestSchema,
     '',
@@ -1432,6 +1480,7 @@ function renderQuerySpecFile(params: {
   responseFields: RenderField[];
   sharedExecutorImportPath: string;
   sharedLoadSqlResourceImportPath: string;
+  insertDefaultPolicy: InsertDefaultPolicy;
 }): string {
   if (params.action === 'get-by-id') {
     return renderGetByIdQuerySpecFile(params);
@@ -1470,7 +1519,7 @@ function renderQuerySpecFile(params: {
     'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
     '',
-    ...renderQuerySpecBoundaryComments(params.action),
+    ...renderQuerySpecBoundaryComments(params.action, params.insertDefaultPolicy),
     paramsSchema,
     '',
     `export type ${params.queryPascalName}QueryParams = z.infer<typeof QueryParamsSchema>;`,
@@ -1530,6 +1579,8 @@ function renderReadmeFile(params: {
   queryColumns: string[];
   parameterColumns: string[];
   defaultExpressionColumns: string[];
+  omittedDefaultColumns: string[];
+  insertDefaultPolicy: InsertDefaultPolicy;
 }): string {
   const generatedColumnsLine = params.action === 'insert'
     ? params.generatedColumns.length > 0
@@ -1547,10 +1598,21 @@ function renderReadmeFile(params: {
   const defaultExpressionColumnsLine = params.action === 'insert' && params.defaultExpressionColumns.length > 0
     ? `- DDL-backed default expressions written directly into SQL: ${params.defaultExpressionColumns.map((name) => `\`${name}\``).join(', ')}.`
     : params.action === 'insert'
-      ? '- No general insert columns used DDL-backed default expressions in this scaffold.'
+      ? params.insertDefaultPolicy === 'omit-db-defaults' && params.omittedDefaultColumns.length > 0
+        ? `- DB-default columns omitted from INSERT so the database assigns them: ${params.omittedDefaultColumns.map((name) => `\`${name}\``).join(', ')}.`
+        : '- No general insert columns used DDL-backed default expressions in this scaffold.'
       : params.action === 'get-by-id' || params.action === 'list'
         ? '- Read baselines do not infer additional filter or default-expression policy beyond the explicit SQL and spec contract.'
         : '- Write baselines do not infer additional default-expression or policy behavior beyond the explicit SQL and spec contract.';
+  const insertDefaultPolicyLines = params.action === 'insert'
+    ? [
+      `- INSERT default-column policy: \`${params.insertDefaultPolicy}\`.`,
+      params.insertDefaultPolicy === 'explicit-defaults'
+        ? '- `explicit-defaults` copies DDL default expressions into SQL so reviewers can see the exact assigned value in the generated query.'
+        : '- `omit-db-defaults` leaves DB-default columns out of the INSERT column list so the database assigns them at execution time.',
+      '- TODO: Review this default-column policy before treating the scaffold as business-safe; choose `explicit-defaults` when the SQL must show the assignment, and `omit-db-defaults` when the database default is the intended runtime behavior.'
+    ]
+    : [];
 
   return [
     `# ${params.featureName}`,
@@ -1609,7 +1671,8 @@ function renderReadmeFile(params: {
     queryColumnsLine,
     parameterColumnsLine,
     defaultExpressionColumnsLine,
-    ...renderReadmeOperationNotes(params.action, params.primaryKeyColumn),
+    ...insertDefaultPolicyLines,
+    ...renderReadmeOperationNotes(params.action, params.primaryKeyColumn, params.insertDefaultPolicy),
     '',
     '## Follow-up query growth',
     '',
@@ -1667,7 +1730,10 @@ function renderReadmeEntryspecNotes(action: FeatureAction, parameterColumns: str
   ];
 }
 
-function renderEntrySpecBoundaryComments(action: FeatureAction): string[] {
+function renderEntrySpecBoundaryComments(
+  action: FeatureAction,
+  insertDefaultPolicy: InsertDefaultPolicy = DEFAULT_INSERT_DEFAULT_POLICY
+): string[] {
   if (action === 'get-by-id') {
     return [
       '// The get-by-id baseline accepts only the primary-key request input.',
@@ -1683,7 +1749,9 @@ function renderEntrySpecBoundaryComments(action: FeatureAction): string[] {
   if (action === 'insert') {
     return [
       '// Only non-default insert columns remain in the initial feature request.',
-      '// DDL-backed default expressions are written into the SQL resource explicitly.'
+      insertDefaultPolicy === 'explicit-defaults'
+        ? '// DDL-backed default expressions are written into the SQL resource explicitly.'
+        : '// DB-default insert columns are omitted from the SQL resource so the database assigns them.'
     ];
   }
   if (action === 'update') {
@@ -1698,7 +1766,10 @@ function renderEntrySpecBoundaryComments(action: FeatureAction): string[] {
   ];
 }
 
-function renderQuerySpecBoundaryComments(action: FeatureAction): string[] {
+function renderQuerySpecBoundaryComments(
+  action: FeatureAction,
+  insertDefaultPolicy: InsertDefaultPolicy = DEFAULT_INSERT_DEFAULT_POLICY
+): string[] {
   if (action === 'get-by-id') {
     return [
       '// Query params own only the primary-key predicate for the get-by-id baseline.',
@@ -1714,7 +1785,9 @@ function renderQuerySpecBoundaryComments(action: FeatureAction): string[] {
   if (action === 'insert') {
     return [
       '// Query params own only the DB-boundary values that still need caller-supplied input.',
-      '// DDL-backed defaults are reflected directly in the SQL resource.'
+      insertDefaultPolicy === 'explicit-defaults'
+        ? '// DDL-backed defaults are reflected directly in the SQL resource.'
+        : '// DB-default columns are omitted from the INSERT column list.'
     ];
   }
   if (action === 'update') {
@@ -1729,7 +1802,11 @@ function renderQuerySpecBoundaryComments(action: FeatureAction): string[] {
   ];
 }
 
-function renderReadmeOperationNotes(action: FeatureAction, primaryKeyColumn: string): string[] {
+function renderReadmeOperationNotes(
+  action: FeatureAction,
+  primaryKeyColumn: string,
+  insertDefaultPolicy: InsertDefaultPolicy
+): string[] {
   if (action === 'get-by-id') {
     return [
       `- The baseline get-by-id query uses \`${primaryKeyColumn}\` as the predicate and selects the scaffolded row shape explicitly.`,
@@ -1748,8 +1825,12 @@ function renderReadmeOperationNotes(action: FeatureAction, primaryKeyColumn: str
   }
   if (action === 'insert') {
     return [
-      '- SQL omits only generated / identity / sequence-backed primary keys. Every other insert column stays explicit in the scaffold SQL.',
-      '- When DDL declares a column default, the scaffold writes that default expression into SQL explicitly instead of relying on an implicit database default at runtime.',
+      insertDefaultPolicy === 'explicit-defaults'
+        ? '- SQL omits only generated / identity / sequence-backed primary keys. Every other insert column stays explicit in the scaffold SQL.'
+        : '- SQL omits generated / identity / sequence-backed primary keys and DB-default columns selected by the scaffold policy.',
+      insertDefaultPolicy === 'explicit-defaults'
+        ? '- When DDL declares a column default, the scaffold writes that default expression into SQL explicitly instead of relying on an implicit database default at runtime.'
+        : '- When DDL declares a column default, the scaffold omits that column so the database default applies at runtime.',
       `- The insert result returns the primary key only: \`${primaryKeyColumn}\`.`
     ];
   }
