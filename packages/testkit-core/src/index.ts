@@ -3,6 +3,17 @@ export * from './errors';
 export { FixtureStore } from './fixtures/FixtureStore';
 export { DdlFixtureLoader } from './fixtures/DdlFixtureLoader';
 export type { DdlFixtureLoaderOptions } from './fixtures/DdlFixtureLoader';
+export {
+  DdlViewCatalog,
+  DdlViewUnsupportedError,
+  collectDdlViewDefinitions,
+} from './fixtures/DdlViewCatalog';
+export type {
+  DdlViewCatalogOptions,
+  DdlViewDefinition,
+  DdlViewSource,
+  ViewCteDefinition,
+} from './fixtures/DdlViewCatalog';
 export { DefaultFixtureProvider } from './fixtures/FixtureProvider';
 export { SelectFixtureRewriter } from './rewriter/SelectFixtureRewriter';
 export type { SelectAnalysisResult } from './rewriter/SelectAnalyzer';

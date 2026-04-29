@@ -68,7 +68,8 @@ export class PostgresTestkitClient<RowType extends Row = Row> {
       this.fixtureStore,
       options.missingFixtureStrategy ?? 'error',
       options.formatterOptions,
-      this.tableNameResolver
+      this.tableNameResolver,
+      fixturesState.viewDefinitions
     );
     this.scopedRows = scopedRows;
     this.context = context ?? {

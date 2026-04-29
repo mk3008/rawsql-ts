@@ -10,6 +10,8 @@ import { FixtureStore } from '../fixtures/FixtureStore';
 import type { NormalizedFixture } from '../fixtures/FixtureStore';
 import { TableNameResolver } from '../fixtures/TableNameResolver';
 import { normalizeIdentifier } from '../fixtures/naming';
+import { DdlViewCatalog } from '../fixtures/DdlViewCatalog';
+import type { DdlViewDefinition, ViewCteDefinition } from '../fixtures/DdlViewCatalog';
 import { createLogger } from '../logger/NoopLogger';
 import type {
   AnalyzerFailureBehavior,
@@ -50,10 +52,12 @@ export class SelectFixtureRewriter {
   private readonly cteConflictBehavior: 'error' | 'override';
   private readonly analyzerFailureBehavior: AnalyzerFailureBehavior;
   private readonly tableNameResolver?: TableNameResolver;
+  private readonly viewDefinitions: DdlViewDefinition[];
 
   constructor(options: SelectRewriterOptions = {}) {
     this.tableNameResolver = options.tableNameResolver;
     this.fixtureStore = new FixtureStore(options.fixtures ?? [], options.schema, this.tableNameResolver);
+    this.viewDefinitions = options.views ?? [];
     this.logger = createLogger(options.logger);
     this.missingFixtureStrategy = options.missingFixtureStrategy ?? 'error';
     const passthrough = options.passthroughTables ?? [];
@@ -114,6 +118,10 @@ export class SelectFixtureRewriter {
   private rewriteSingleQuery(sql: string, context?: SelectRewriteContext): SelectRewriteResult {
     const fixtureMap = this.fixtureStore.withOverrides(context?.fixtures);
     const analyzerFailureBehavior = this.resolveAnalyzerFailureBehavior(context);
+    const viewCatalog = new DdlViewCatalog(
+      [...this.viewDefinitions, ...(context?.views ?? [])],
+      { tableNameResolver: this.tableNameResolver }
+    );
 
     let analysis: SelectAnalysisResult | null = null;
     let analyzerError: unknown = null;
@@ -171,6 +179,10 @@ export class SelectFixtureRewriter {
     const existingCteNames = new Set(analysis.cteNames);
     const targetTables = [...new Set(analysis.tableNames)];
     const parsedQuery = SelectQueryParser.parse(sql).toSimpleQuery();
+    const viewRoots = targetTables.filter((table) => !existingCteNames.has(normalizeIdentifier(table)));
+    const viewTargets = viewCatalog.expandReferencedViews(viewRoots, existingCteNames);
+    const viewReferencedTables = viewCatalog.collectReferencedTables(viewTargets);
+    const fixtureCandidateTables = [...new Set([...targetTables, ...viewReferencedTables])];
     const fixtureTargets: Array<{
       table: string;
       fixture: NormalizedFixture;
@@ -179,12 +191,17 @@ export class SelectFixtureRewriter {
     const exactConflictCtes: FixtureCteDefinition[] = [];
     const fixturesApplied: string[] = [];
 
-    for (const table of targetTables) {
+    for (const table of fixtureCandidateTables) {
       if (this.isPassthrough(table)) {
         continue;
       }
 
-      const fixture = fixtureMap.get(table);
+      if (viewCatalog.hasView(table)) {
+        continue;
+      }
+
+      const fixtureKey = this.resolveFixtureKey(table, fixtureMap);
+      const fixture = fixtureMap.get(fixtureKey);
       const isQueryDefinedCte = existingCteNames.has(table);
 
       if (!fixture) {
@@ -226,7 +243,9 @@ export class SelectFixtureRewriter {
     }
 
     if (fixtureTargets.length === 0) {
-      return { sql, fixturesApplied };
+      if (viewTargets.length === 0) {
+        return { sql, fixturesApplied };
+      }
     }
 
     const aliasedTargets = fixtureTargets.filter((target) => !target.exactConflict);
@@ -243,8 +262,12 @@ export class SelectFixtureRewriter {
         name: alias,
       });
     });
+    const viewAliasMap = viewCatalog.createAliasMap(viewTargets);
+    const rewriteAliasMap = new Map([...aliasMap, ...viewAliasMap]);
+    const viewCtes = viewCatalog.toCteDefinitions(viewTargets);
 
-    rewriteSelectFixtureReferences(parsedQuery, aliasMap, this.tableNameResolver);
+    rewriteSelectFixtureReferences(parsedQuery, rewriteAliasMap, this.tableNameResolver);
+    this.rewriteViewCteReferences(viewCtes, rewriteAliasMap);
     for (const target of fixtureTargets) {
       if (!target.exactConflict) {
         continue;
@@ -257,7 +280,13 @@ export class SelectFixtureRewriter {
     for (const cte of cteDefinitions) {
       parsedQuery.addCTE(cte.name, cte.query);
     }
-    this.promoteFixtureCtes(parsedQuery, cteDefinitions.map((cte) => cte.name));
+    for (const cte of viewCtes) {
+      parsedQuery.addCTE(cte.name, cte.query);
+    }
+    this.promoteFixtureCtes(parsedQuery, [
+      ...cteDefinitions.map((cte) => cte.name),
+      ...viewCtes.map((cte) => cte.name),
+    ]);
 
     const formatter = this.createFormatter(context);
     const { formattedSql } = formatter.format(parsedQuery);
@@ -428,6 +457,19 @@ export class SelectFixtureRewriter {
     query.withClause.tables = fixtureTables
       .filter((table): table is typeof query.withClause.tables[number] => Boolean(table))
       .concat(userTables);
+  }
+
+  private resolveFixtureKey(tableName: string, fixtureMap: Map<string, NormalizedFixture>): string {
+    if (!this.tableNameResolver) {
+      return normalizeIdentifier(tableName);
+    }
+    return this.tableNameResolver.resolve(tableName, (candidate) => fixtureMap.has(candidate));
+  }
+
+  private rewriteViewCteReferences(viewCtes: ViewCteDefinition[], aliasMap: Map<string, string>): void {
+    for (const cte of viewCtes) {
+      rewriteSelectFixtureReferences(cte.query, aliasMap, this.tableNameResolver);
+    }
   }
 
   private ensureTerminated(sql: string): string {
