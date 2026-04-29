@@ -262,6 +262,134 @@ test('formatQueryLintReport renders json for agents and compact text for humans'
   expect(textOutput).toContain('WARN  unused-cte: unused_stage is defined but never used');
 });
 
+test('buildQueryLintReport warns on multiline trailing commas when leading-comma is enabled', () => {
+  const workspace = createSqlWorkspace('query-lint-leading-comma-trailing');
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      select
+        id,
+        email
+      from public.users
+    `,
+    'utf8'
+  );
+
+  const report = buildQueryLintReport(workspace.sqlFile, {
+    rules: ['leading-comma']
+  });
+
+  expect(report.issues).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      type: 'leading-comma',
+      severity: 'warning',
+      line: expect.any(Number),
+      column: expect.any(Number)
+    })
+  ]));
+});
+
+test('buildQueryLintReport keeps multiline leading commas clean', () => {
+  const workspace = createSqlWorkspace('query-lint-leading-comma-clean');
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      select
+        id
+        , email
+      from public.users
+    `,
+    'utf8'
+  );
+
+  const report = buildQueryLintReport(workspace.sqlFile, {
+    rules: ['leading-comma']
+  });
+
+  expect(report.issues.filter((issue) => issue.type === 'leading-comma')).toEqual([]);
+});
+
+test('buildQueryLintReport keeps one-line comma lists clean', () => {
+  const workspace = createSqlWorkspace('query-lint-leading-comma-oneline');
+  writeFileSync(workspace.sqlFile, 'select id, email from public.users', 'utf8');
+
+  const report = buildQueryLintReport(workspace.sqlFile, {
+    rules: ['leading-comma']
+  });
+
+  expect(report.issues.filter((issue) => issue.type === 'leading-comma')).toEqual([]);
+});
+
+test('buildQueryLintReport ignores commas inside dollar-quoted SQL literals', () => {
+  const workspace = createSqlWorkspace('query-lint-leading-comma-dollar-quote');
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      select
+        $$first,
+      second$$ as body
+        , id
+      from public.users
+    `,
+    'utf8'
+  );
+
+  const report = buildQueryLintReport(workspace.sqlFile, {
+    rules: ['leading-comma']
+  });
+
+  expect(report.issues.filter((issue) => issue.type === 'leading-comma')).toEqual([]);
+});
+
+test('buildQueryLintReport suppresses leading-comma when explicitly disabled in SQL text', () => {
+  const workspace = createSqlWorkspace('query-lint-leading-comma-suppressed');
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      -- ztd-lint-disable leading-comma
+      select
+        id,
+        email
+      from public.users
+    `,
+    'utf8'
+  );
+
+  const report = buildQueryLintReport(workspace.sqlFile, {
+    rules: ['leading-comma']
+  });
+
+  expect(report.issues.filter((issue) => issue.type === 'leading-comma')).toEqual([]);
+});
+
+test('formatQueryLintReport exposes leading-comma line and column in json mode', () => {
+  const workspace = createSqlWorkspace('query-lint-leading-comma-json');
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      select
+        id,
+        email
+      from public.users
+    `,
+    'utf8'
+  );
+
+  const report = buildQueryLintReport(workspace.sqlFile, {
+    rules: ['leading-comma']
+  });
+  const payload = JSON.parse(formatQueryLintReport(report, 'json'));
+
+  expect(payload.issues).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      type: 'leading-comma',
+      severity: 'warning',
+      line: expect.any(Number),
+      column: expect.any(Number)
+    })
+  ]));
+});
+
 test('buildQueryLintReport keeps the forward join-direction dogfood query clean', () => {
   const workspace = createJoinDirectionWorkspace('query-lint-join-direction');
   writeJoinDirectionSchema(workspace.ddlDir);
@@ -423,6 +551,35 @@ test('query lint command emits join-direction diagnostics in json mode', async (
       child_table: 'public.orders'
     })
   ]));
+});
+
+test('query lint command enables leading-comma through --rules', async () => {
+  const workspace = createSqlWorkspace('query-lint-leading-comma-cli');
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      select
+        id,
+        email
+      from public.users
+    `,
+    'utf8'
+  );
+
+  const capture = { stdout: [] as string[], stderr: [] as string[] };
+  const program = createQueryLintProgram(capture);
+  const logSpy = vi.spyOn(console, 'log').mockImplementation((value?: unknown) => {
+    capture.stdout.push(String(value ?? ''));
+  });
+
+  try {
+    await program.parseAsync(['query', 'lint', workspace.sqlFile, '--rules', 'leading-comma'], { from: 'user' });
+  } finally {
+    logSpy.mockRestore();
+  }
+
+  expect(capture.stderr).toEqual([]);
+  expect(capture.stdout.join('')).toContain('WARN  leading-comma: comma should lead the continued line');
 });
 
 test('activeOrdersCatalog.sql stays clean because it already follows child-to-parent join direction', () => {

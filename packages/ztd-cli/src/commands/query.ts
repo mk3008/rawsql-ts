@@ -2,7 +2,7 @@ import { Command, Option } from 'commander';
 import { createTwoFilesPatch } from 'diff';
 import { applyQueryOutputControls, formatQueryUsageReport } from '../query/format';
 import { applyQueryPatch } from '../query/patch';
-import { buildQueryLintReport, formatQueryLintReport, type QueryLintFormat } from '../query/lint';
+import { buildQueryLintReport, formatQueryLintReport, type QueryLintFormat, type QueryLintRule } from '../query/lint';
 import {
   buildQueryPipelinePlan,
   formatQueryPipelinePlan,
@@ -271,7 +271,7 @@ Notes:
     .command('lint <sqlFile>')
     .description('Report structural maintainability and analysis-safety issues in a SQL query')
     .option('--format <format>', 'Output format (text|json)', 'text')
-    .option('--rules <list>', 'Comma-separated lint rules to enable (for example: join-direction)')
+    .option('--rules <list>', 'Comma-separated lint rules to enable (for example: join-direction,leading-comma)')
     .option('--out <path>', 'Write output to file')
     .addHelpText(
       'after',
@@ -279,8 +279,10 @@ Notes:
 Notes:
   - If your installed CLI does not list --rules in this help output, upgrade to a newer published ztd-cli release before trying join-direction examples from Further Reading.
   - Use --rules join-direction to enable the FK-aware JOIN direction readability check.
+  - Use --rules leading-comma to enforce leading commas in multiline SQL lists without rewriting comments.
   - Suppress a specific query with "-- ztd-lint-disable join-direction" when the reverse path is intentional.
-  - The rule is opt-in in v1 and currently focuses on top-level inner joins with explicit FK evidence.
+  - Suppress leading-comma style checks with "-- ztd-lint-disable leading-comma" when a generated query needs a local exception.
+  - These rules are opt-in in v1. join-direction focuses on top-level inner joins with explicit FK evidence.
 `
     )
     .action((sqlFile: string, options: QueryLintOptions) => {
@@ -515,13 +517,13 @@ function runQueryMatchObservedCommand(options: QueryMatchObservedOptions): void 
   }
 }
 
-function normalizeRuleList(value: unknown): Array<'join-direction'> | undefined {
+function normalizeRuleList(value: unknown): QueryLintRule[] | undefined {
   if (value === undefined || value === null || value === '') {
     return undefined;
   }
 
   const rawValues = Array.isArray(value) ? value : [value];
-  const rules = new Set<'join-direction'>();
+  const rules = new Set<QueryLintRule>();
   for (const rawValue of rawValues) {
     if (typeof rawValue !== 'string') {
       throw new Error(`Expected lint rules to be a string or string[] but received ${typeof rawValue}.`);
@@ -533,14 +535,18 @@ function normalizeRuleList(value: unknown): Array<'join-direction'> | undefined 
       if (!normalized) {
         continue;
       }
-      if (normalized !== 'join-direction') {
-        throw new Error(`Unsupported lint rule: ${item}. Supported rules: join-direction`);
+      if (!isSupportedQueryLintRule(normalized)) {
+        throw new Error(`Unsupported lint rule: ${item}. Supported rules: join-direction, leading-comma`);
       }
-      rules.add('join-direction');
+      rules.add(normalized);
     }
   }
 
   return rules.size > 0 ? [...rules] : undefined;
+}
+
+function isSupportedQueryLintRule(value: string): value is QueryLintRule {
+  return value === 'join-direction' || value === 'leading-comma';
 }
 
 function runQueryPatchApplyCommand(sqlFile: string, options: QueryPatchApplyOptions): void {
