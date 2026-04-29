@@ -249,6 +249,7 @@ test(
     expect(result.stdout).toContain('--table <table>');
     expect(result.stdout).toContain('--action <action>');
     expect(result.stdout).toContain('--feature-name <name>');
+    expect(result.stdout).toContain('--insert-default-policy <policy>');
     expect(result.stdout).toContain('--dry-run');
     expect(result.stdout).toContain('--force');
     expect(result.stdout).toMatch(/insert,\s+update,\s+delete,\s+get-by-id,\s+and\s+list/);
@@ -282,6 +283,7 @@ test(
     expect(result.stdout).toContain('--query-name <name>');
     expect(result.stdout).toContain('--feature <name>');
     expect(result.stdout).toContain('--boundary-dir <path>');
+    expect(result.stdout).toContain('--insert-default-policy <policy>');
     expect(result.stdout).toContain('Scaffold one additive query boundary');
     expect(result.stdout).toContain('rewriting the parent boundary');
   },
@@ -329,6 +331,7 @@ test(
         table: 'public.users',
         primaryKeyColumn: 'id',
         source: 'ddl',
+        insertDefaultPolicy: 'explicit-defaults',
         dryRun: true
       }
     });
@@ -402,6 +405,7 @@ test(
         table: 'public.sales_detail',
         primaryKeyColumn: 'id',
         source: 'ddl',
+        insertDefaultPolicy: 'explicit-defaults',
         dryRun: true
       }
     });
@@ -437,6 +441,53 @@ test(
     assertCliFailure(result, 'feature query scaffold missing table');
     expect(result.stderr || result.stdout).toContain('required option');
     expect(result.stderr || result.stdout).toContain('--table <table>');
+  },
+  60000,
+);
+
+test(
+  'feature query scaffold can omit DB-default columns from child INSERT SQL',
+  () => {
+    const workspace = createTempDir('feature-query-scaffold-omit-db-defaults');
+    const ddlDir = path.join(workspace, 'db', 'ddl');
+    const featureDir = path.join(workspace, 'src', 'features', 'events-write');
+    mkdirSync(ddlDir, { recursive: true });
+    mkdirSync(featureDir, { recursive: true });
+    writeFileSync(path.join(featureDir, 'boundary.ts'), '// existing parent boundary\n', 'utf8');
+    writeFileSync(
+      path.join(ddlDir, 'events.sql'),
+      [
+        'create table public.events (',
+        '  id serial8 primary key,',
+        '  title text not null,',
+        '  created_at timestamptz not null default current_timestamp',
+        ');'
+      ].join('\n'),
+      'utf8'
+    );
+
+    const result = runCli([
+      'feature',
+      'query',
+      'scaffold',
+      '--feature',
+      'events-write',
+      '--query-name',
+      'insert-events',
+      '--table',
+      'events',
+      '--action',
+      'insert',
+      '--insert-default-policy',
+      'omit-db-defaults'
+    ], {}, workspace);
+
+    assertCliSuccess(result, 'feature query scaffold omit db defaults');
+    const sql = readNormalizedFile(path.join(workspace, 'src', 'features', 'events-write', 'queries', 'insert-events', 'insert-events.sql'));
+    expect(sql).toContain('"title"');
+    expect(sql).not.toContain('"created_at"');
+    expect(sql).not.toContain('current_timestamp');
+    expect(sql).toContain('TODO: Review INSERT default-column policy');
   },
   60000,
 );
@@ -485,6 +536,7 @@ test(
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toBe(true);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'tests', 'insert-users.boundary.ztd.test.ts'))).toBe(false);
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'insert-users.sql'))).toContain('returning "id";');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'insert-users.sql'))).toContain('TODO: Review INSERT default-column policy');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toContain(
       'export async function executeUsersInsertEntrySpec'
     );
@@ -567,11 +619,107 @@ test(
       'When DDL declares a column default, the scaffold writes that default expression into SQL explicitly'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toContain(
+      'INSERT default-column policy: `explicit-defaults`'
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toContain(
+      'TODO: Review this default-column policy'
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toContain(
       'Cardinality and catalog execution should come from `@rawsql-ts/sql-contract`'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toContain(
       'Keep this baseline as one workflow and one primary query by default'
     );
+  },
+  60000,
+);
+
+test(
+  'feature scaffold preserves exact DDL defaults in explicit-defaults mode',
+  () => {
+    const workspace = createTempDir('feature-scaffold-explicit-defaults');
+    const ddlDir = path.join(workspace, 'db', 'ddl');
+    mkdirSync(ddlDir, { recursive: true });
+    writeFileSync(
+      path.join(ddlDir, 'events.sql'),
+      [
+        'create table public.events (',
+        '  id serial8 primary key,',
+        '  title text not null,',
+        '  created_at timestamptz not null default current_timestamp',
+        ');'
+      ].join('\n'),
+      'utf8'
+    );
+
+    const result = runCli([
+      'feature',
+      'scaffold',
+      '--table',
+      'events',
+      '--action',
+      'insert',
+      '--insert-default-policy',
+      'explicit-defaults'
+    ], {}, workspace);
+
+    assertCliSuccess(result, 'feature scaffold explicit defaults');
+    const sql = readNormalizedFile(path.join(workspace, 'src', 'features', 'events-insert', 'queries', 'insert-events', 'insert-events.sql'));
+    expect(sql).toContain('current_timestamp');
+    expect(sql).not.toContain('now()');
+    expect(sql).toContain('"created_at"');
+    expect(sql).toContain('TODO: Review INSERT default-column policy');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'events-insert', 'README.md'))).toContain(
+      'DDL-backed default expressions written directly into SQL: `created_at`.'
+    );
+  },
+  60000,
+);
+
+test(
+  'feature scaffold can omit DB-default columns from INSERT',
+  () => {
+    const workspace = createTempDir('feature-scaffold-omit-db-defaults');
+    const ddlDir = path.join(workspace, 'db', 'ddl');
+    mkdirSync(ddlDir, { recursive: true });
+    writeFileSync(
+      path.join(ddlDir, 'events.sql'),
+      [
+        'create table public.events (',
+        '  id serial8 primary key,',
+        '  title text not null,',
+        '  created_at timestamptz not null default current_timestamp',
+        ');'
+      ].join('\n'),
+      'utf8'
+    );
+
+    const result = runCli([
+      'feature',
+      'scaffold',
+      '--table',
+      'events',
+      '--action',
+      'insert',
+      '--insert-default-policy',
+      'omit-db-defaults'
+    ], {}, workspace);
+
+    assertCliSuccess(result, 'feature scaffold omit db defaults');
+    const sql = readNormalizedFile(path.join(workspace, 'src', 'features', 'events-insert', 'queries', 'insert-events', 'insert-events.sql'));
+    const entryBoundary = readNormalizedFile(path.join(workspace, 'src', 'features', 'events-insert', 'boundary.ts'));
+    const queryBoundary = readNormalizedFile(path.join(workspace, 'src', 'features', 'events-insert', 'queries', 'insert-events', 'boundary.ts'));
+    const readme = readNormalizedFile(path.join(workspace, 'src', 'features', 'events-insert', 'README.md'));
+
+    expect(sql).toContain('"title"');
+    expect(sql).not.toContain('"created_at"');
+    expect(sql).not.toContain('current_timestamp');
+    expect(sql).toContain('TODO: Review INSERT default-column policy');
+    expect(entryBoundary).not.toContain('created_at: request.created_at');
+    expect(queryBoundary).not.toContain('created_at: z.string().min(1');
+    expect(readme).toContain('INSERT default-column policy: `omit-db-defaults`');
+    expect(readme).toContain('DB-default columns omitted from INSERT so the database assigns them: `created_at`.');
+    expect(readme).toContain('TODO: Review this default-column policy');
   },
   60000,
 );
