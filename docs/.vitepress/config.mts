@@ -45,6 +45,13 @@ export default defineConfig({
             { text: 'Impact Checks', link: '/guide/query-uses-impact-checks' },
           ]
         },
+        {
+          text: 'Query Lint',
+          items: [
+            { text: 'JOIN Direction', link: '/guide/join-direction-lint-spec' },
+            { text: 'SQL Style', link: '/guide/sql-style-lint-spec' },
+          ]
+        },
         { text: 'Testkit Concept', link: '/guide/testkit-concept' },
         { text: 'ZTD Benchmarking', link: '/guide/ztd-benchmarking' },
         {

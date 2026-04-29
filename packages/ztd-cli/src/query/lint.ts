@@ -22,6 +22,7 @@ import {
   TableSource,
   SqlFormatter,
   SqlParser,
+  SqlTokenizer,
   MultiQuerySplitter,
   UpdateQuery,
   ValuesQuery,
@@ -44,7 +45,7 @@ import { buildRelationGraphFromCreateTableQueries, getOutgoingRelations } from '
 
 export type QueryLintFormat = 'text' | 'json';
 export type QueryLintSeverity = 'error' | 'warning' | 'info';
-export type QueryLintRule = 'join-direction';
+export type QueryLintRule = 'join-direction' | 'leading-comma';
 export type QueryLintIssueType =
   | 'unused-cte'
   | 'duplicate-join-block'
@@ -52,7 +53,8 @@ export type QueryLintIssueType =
   | 'dependency-cycle'
   | 'analysis-risk'
   | 'large-cte'
-  | 'join-direction';
+  | 'join-direction'
+  | 'leading-comma';
 
 export interface QueryLintIssue {
   type: QueryLintIssueType;
@@ -63,6 +65,8 @@ export interface QueryLintIssue {
   fragment?: string;
   occurrences?: string[];
   line_count?: number;
+  line?: number;
+  column?: number;
   risk_pattern?: string;
   join_type?: string;
   subject_table?: string;
@@ -192,9 +196,15 @@ export function buildQueryLintReport(sqlFile: string, options: QueryLintBuildOpt
     }
   }
 
+  if (enabledRules.has('leading-comma') && !hasLintSuppression(sql, 'leading-comma')) {
+    issues.push(...buildLeadingCommaIssues(sql));
+  }
+
   const sortedIssues = issues.sort((left, right) =>
     SEVERITY_ORDER[left.severity] - SEVERITY_ORDER[right.severity]
     || left.type.localeCompare(right.type)
+    || (left.line ?? 0) - (right.line ?? 0)
+    || (left.column ?? 0) - (right.column ?? 0)
     || left.message.localeCompare(right.message)
   );
 
@@ -548,7 +558,7 @@ function buildJoinDirectionIssues(
   relationGraph: RelationGraph,
   sql: string
 ): QueryLintIssue[] {
-  if (hasJoinDirectionSuppression(sql)) {
+  if (hasLintSuppression(sql, 'join-direction')) {
     return [];
   }
 
@@ -951,8 +961,41 @@ function isInspectableInnerJoin(joinType: string): boolean {
   return normalized === 'join' || normalized === 'inner join';
 }
 
-function hasJoinDirectionSuppression(sql: string): boolean {
-  return /ztd-lint-disable\s+join-direction/i.test(sql);
+function buildLeadingCommaIssues(sql: string): QueryLintIssue[] {
+  const issues: QueryLintIssue[] = [];
+
+  const lexemes = new SqlTokenizer(sql).tokenize();
+  for (let index = 0; index < lexemes.length; index++) {
+    const comma = lexemes[index];
+    if (comma.value !== ',') {
+      continue;
+    }
+
+    const next = lexemes[index + 1];
+    const commaPosition = comma.position;
+    const nextPosition = next?.position;
+    if (
+      commaPosition?.startLine !== undefined &&
+      commaPosition.startColumn !== undefined &&
+      nextPosition?.startLine !== undefined &&
+      nextPosition.startColumn !== undefined &&
+      nextPosition.startLine > commaPosition.startLine
+    ) {
+      issues.push({
+        type: 'leading-comma',
+        severity: 'warning',
+        line: commaPosition.startLine,
+        column: commaPosition.startColumn,
+        message: `comma should lead the continued line at ${nextPosition.startLine}:${nextPosition.startColumn} instead of trailing line ${commaPosition.startLine}`
+      });
+    }
+  }
+
+  return issues;
+}
+
+function hasLintSuppression(sql: string, rule: QueryLintRule): boolean {
+  return new RegExp(`ztd-lint-disable\\s+${rule}`, 'i').test(sql);
 }
 
 function normalizeSqlFragment(sql: string): string {
