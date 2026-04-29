@@ -272,6 +272,18 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'))).toContain(
     "from '#tests/support/ztd/harness.js'"
   );
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'TEST_PLAN.md'))).toContain(
+    'Constraint Coverage Boundary'
+  );
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'TEST_PLAN.md'))).toContain(
+    'required INSERT column presence for NOT NULL columns without defaults'
+  );
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'analysis.json'))).toContain(
+    '"constraintCoverageNotes"'
+  );
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'ztd', 'README.md'))).toContain(
+    'simple `UNIQUE` checks are feasible ZTD preflight candidates'
+  );
   expect(existsSync(path.join(workspace, 'src', 'libraries', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'libraries', 'sql', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'libraries', 'telemetry', 'types.ts'))).toBe(true);

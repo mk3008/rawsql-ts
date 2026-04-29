@@ -1,6 +1,13 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
+import {
+  CreateTableQuery,
+  MultiQuerySplitter,
+  SqlParser,
+  type ColumnConstraintDefinition,
+  type TableConstraintDefinition
+} from 'rawsql-ts';
 
 import { emitDiagnostic, isJsonOutput, writeCommandEnvelope } from '../utils/agentCli';
 import { ensureDirectory } from '../utils/fs';
@@ -25,7 +32,16 @@ interface FeatureTestsScaffoldResult {
   queryName: string;
   testKind: FeatureTestKind;
   dryRun: boolean;
+  unsupportedConstraintGuidance: UnsupportedConstraintGuidance[];
   outputs: Array<{ path: string; written: boolean; kind: 'directory' | 'file' }>;
+}
+
+interface UnsupportedConstraintGuidance {
+  table: string;
+  constraint: 'unique' | 'check' | 'not-null' | 'foreign-key' | 'exclusion';
+  sourcePath: string;
+  recommendation: string;
+  todo: string;
 }
 
 interface QueryLayout {
@@ -52,6 +68,8 @@ interface FeatureTestAnalysis {
   writesTables: string[];
   validationScenarioHints: string[];
   dbScenarioHints: string[];
+  constraintCoverageNotes: string[];
+  unsupportedConstraintGuidance: UnsupportedConstraintGuidance[];
   resultCardinality: 'one' | 'many';
 }
 
@@ -156,6 +174,7 @@ export async function runFeatureTestsScaffoldCommand(options: FeatureTestsComman
       queryName: queryLayout.queryName,
       testKind,
       dryRun: true,
+      unsupportedConstraintGuidance: planDetails.unsupportedConstraintGuidance,
       outputs
     };
   }
@@ -185,6 +204,7 @@ export async function runFeatureTestsScaffoldCommand(options: FeatureTestsComman
     queryName: queryLayout.queryName,
     testKind,
     dryRun: false,
+    unsupportedConstraintGuidance: planDetails.unsupportedConstraintGuidance,
     outputs
   };
 }
@@ -246,6 +266,12 @@ function renderFeatureTestScaffoldFiles(params: {
   const dbHintsLine = params.planDetails.dbScenarioHints.length > 0
     ? params.planDetails.dbScenarioHints.map((field) => `- ${field}`).join('\n')
     : '- TODO: inspect the scaffolded query boundary and SQL for DB-backed hints.';
+  const constraintCoverageLine = params.planDetails.constraintCoverageNotes.map((note) => `- ${note}`).join('\n');
+  const unsupportedConstraintLine = params.planDetails.unsupportedConstraintGuidance.length > 0
+    ? params.planDetails.unsupportedConstraintGuidance
+      .map((guidance) => `- TODO: ${guidance.todo}`)
+      .join('\n')
+    : '- No unsupported constraint follow-up was detected from the current DDL/table hints.';
   const caseReadinessLine = isZtdLane
     ? '- Generated ZTD cases are intentionally placeholders. Fill `beforeDb`, `input`, and `output`, then change the generated Vitest entrypoint from `test.skip` to `test`.'
     : '- Generated traditional cases are intentionally placeholders. Fill `beforeDb`, `input`, `output`, and optional `afterDb`, then run the active traditional Vitest entrypoint against a disposable database.';
@@ -290,6 +316,14 @@ function renderFeatureTestScaffoldFiles(params: {
     '',
     dbHintsLine,
     '',
+    '## Constraint Coverage Boundary',
+    '',
+    constraintCoverageLine,
+    '',
+    '## Unsupported Constraint Follow-up',
+    '',
+    unsupportedConstraintLine,
+    '',
     '## Case Readiness',
     '',
     caseReadinessLine,
@@ -327,6 +361,8 @@ function renderFeatureTestScaffoldFiles(params: {
       writesTables: params.planDetails.writesTables,
       validationScenarioHints: params.planDetails.validationScenarioHints,
       dbScenarioHints: params.planDetails.dbScenarioHints,
+      constraintCoverageNotes: params.planDetails.constraintCoverageNotes,
+      unsupportedConstraintGuidance: params.planDetails.unsupportedConstraintGuidance,
       resultCardinality: params.planDetails.resultCardinality
     },
     null,
@@ -360,6 +396,9 @@ function renderFeatureTestScaffoldFiles(params: {
     'TODO: Replace the placeholder output with the exact result expected from the query boundary.',
     params.planDetails.queryOutputFields
   );
+  const unsupportedConstraintTodoLines = isZtdLane
+    ? params.planDetails.unsupportedConstraintGuidance.map((guidance) => `    // TODO: ${guidance.todo}`)
+    : [];
   const vitestEntrypointFile = isZtdLane
     ? [
       `import { expect, test } from 'vitest';`,
@@ -407,6 +446,7 @@ function renderFeatureTestScaffoldFiles(params: {
     `    input: {} as ${queryTypePrefix}Input,`,
     ...outputTodoLines,
     `    output: {} as ${queryTypePrefix}Output,`,
+    ...unsupportedConstraintTodoLines,
     ...(isZtdLane ? [] : [
       '    // TODO: Add afterDb when this case must assert physical post-state table rows.',
       '    // afterDb: async (db) => {',
@@ -484,6 +524,12 @@ function buildTestPlanDetails(params: {
   const resultCardinality = querySpecSource.includes('items: z.array(') || params.queryLayout.queryName === 'list' ? 'many' : 'one';
   const resolvedInputFields = queryInputFields.length > 0 ? queryInputFields : requestFields;
   const resolvedOutputFields = queryOutputFields.length > 0 ? queryOutputFields : sqlReturningColumns;
+  const unsupportedConstraintGuidance = buildUnsupportedConstraintGuidance({
+    rootDir: params.rootDir,
+    testKind: params.testKind,
+    fixtureCandidateTables,
+    writesTables
+  });
 
   return {
     schemaVersion: 1,
@@ -493,6 +539,8 @@ function buildTestPlanDetails(params: {
     writesTables,
     validationScenarioHints: buildValidationScenarioHints(requestFields, params.queryLayout.queryName),
     dbScenarioHints: buildDbScenarioHints(params.testKind, writesTables, params.queryLayout.queryName, fixtureCandidateTables),
+    constraintCoverageNotes: buildConstraintCoverageNotes(params.testKind),
+    unsupportedConstraintGuidance,
     resultCardinality,
     queryInputFields: resolvedInputFields,
     queryOutputFields: resolvedOutputFields,
@@ -524,6 +572,249 @@ function buildValidationScenarioHints(requestFields: string[], queryName: string
   }
 
   return hints;
+}
+
+function buildConstraintCoverageNotes(testKind: FeatureTestKind): string[] {
+  if (testKind === 'ztd') {
+    return [
+      'ZTD currently verifies rewritten SQL input/output, fixture table/column shape, evidence fields, and required INSERT column presence for NOT NULL columns without defaults when table definitions are available.',
+      'Explicit NULL values for NOT NULL columns and simple UNIQUE checks are feasible ZTD preflight candidates, but they are not enforced by the current fixture/CTE rewrite lane.',
+      'Use a traditional physical DB lane for DB-enforced fail-fast behavior today, especially CHECK, foreign key, exclusion, deferrable, partial/expression UNIQUE, collation-sensitive, or full PostgreSQL constraint semantics.'
+    ];
+  }
+
+  return [
+    'Traditional execution is the lane for PostgreSQL-enforced constraint failures because it runs against physical DB setup.',
+    'Use this lane for constraint failure cases that are not covered by ZTD preflight, including `unique`, `check`, `not null`, foreign key, exclusion, and similar DB-enforced fail-fast cases.',
+    'Keep the ZTD lane focused on rewritten SQL input/output, fixture shape, and evidence fields.'
+  ];
+}
+
+function buildUnsupportedConstraintGuidance(params: {
+  rootDir: string;
+  testKind: FeatureTestKind;
+  fixtureCandidateTables: string[];
+  writesTables: string[];
+}): UnsupportedConstraintGuidance[] {
+  if (params.testKind !== 'ztd') {
+    return [];
+  }
+
+  const candidateTables = new Set(
+    dedupeStrings([...params.fixtureCandidateTables, ...params.writesTables])
+      .flatMap((table) => buildTableLookupKeys(table, readDefaultSchema(params.rootDir)))
+  );
+  if (candidateTables.size === 0) {
+    return [];
+  }
+
+  const ddlSources = collectDdlSqlSources(params.rootDir);
+  const guidance: UnsupportedConstraintGuidance[] = [];
+
+  const defaultSchema = readDefaultSchema(params.rootDir);
+  for (const source of ddlSources) {
+    for (const table of collectCreateTableConstraintInfo(source.sql, defaultSchema)) {
+      const tableKeys = buildTableLookupKeys(table.name, readDefaultSchema(params.rootDir));
+      if (!tableKeys.some((key) => candidateTables.has(key))) {
+        continue;
+      }
+
+      for (const constraint of table.constraints) {
+        guidance.push({
+          table: table.normalizedName,
+          constraint,
+          sourcePath: source.path,
+          recommendation: buildConstraintRecommendation(constraint),
+          todo: buildConstraintTodo(table.normalizedName, constraint)
+        });
+      }
+    }
+  }
+
+  const seen = new Set<string>();
+  return guidance.filter((entry) => {
+    const key = `${entry.table}:${entry.constraint}:${entry.sourcePath}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function buildConstraintRecommendation(constraint: UnsupportedConstraintGuidance['constraint']): string {
+  switch (constraint) {
+    case 'not-null':
+      return 'ZTD catches missing required INSERT columns, but explicit NULL or parameter-NULL failures need a traditional physical DB lane today.';
+    case 'unique':
+      return 'Simple UNIQUE preflight is feasible, but current ZTD fixture/CTE execution does not enforce UNIQUE violations.';
+    case 'check':
+      return 'CHECK expression semantics are PostgreSQL-enforced and should be covered by a traditional physical DB lane.';
+    case 'foreign-key':
+      return 'Foreign key existence and timing semantics are PostgreSQL-enforced and should be covered by a traditional physical DB lane.';
+    case 'exclusion':
+      return 'Exclusion constraints rely on PostgreSQL operator/index semantics and should be covered by a traditional physical DB lane.';
+  }
+}
+
+function buildConstraintTodo(table: string, constraint: UnsupportedConstraintGuidance['constraint']): string {
+  const label = constraint.toUpperCase().replace('-', ' ');
+  return `${table} has ${label} constraint coverage that is not fully enforced by the ZTD lane; add or run a traditional physical DB case for DB-enforced failure behavior.`;
+}
+
+function collectDdlSqlSources(rootDir: string): Array<{ path: string; sql: string }> {
+  const ddlDir = path.join(rootDir, readDdlDir(rootDir));
+  if (!existsSync(ddlDir)) {
+    return [];
+  }
+
+  const sources: Array<{ path: string; sql: string }> = [];
+  collectSqlSourcesRecursive(rootDir, ddlDir, sources);
+  return sources.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+function collectSqlSourcesRecursive(rootDir: string, directory: string, accumulator: Array<{ path: string; sql: string }>): void {
+  const entries = readdirSync(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const resolved = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      collectSqlSourcesRecursive(rootDir, resolved, accumulator);
+      continue;
+    }
+    if (!entry.isFile() || path.extname(entry.name).toLowerCase() !== '.sql') {
+      continue;
+    }
+    const sql = readFileSync(resolved, 'utf8');
+    if (!sql.trim()) {
+      continue;
+    }
+    accumulator.push({
+      path: toProjectRelativePath(rootDir, resolved),
+      sql
+    });
+  }
+}
+
+function collectCreateTableConstraintInfo(
+  sql: string,
+  defaultSchema: string
+): Array<{ name: string; normalizedName: string; constraints: UnsupportedConstraintGuidance['constraint'][] }> {
+  const tables: Array<{ name: string; normalizedName: string; constraints: UnsupportedConstraintGuidance['constraint'][] }> = [];
+  const batch = MultiQuerySplitter.split(sql);
+
+  for (const query of batch.queries) {
+    if (query.isEmpty) {
+      continue;
+    }
+    const parsed = tryParseCreateTable(query.sql);
+    if (!parsed) {
+      continue;
+    }
+    const schemaName = parsed.namespaces?.[parsed.namespaces.length - 1] ?? defaultSchema;
+    const tableName = parsed.tableName.name;
+    const normalizedName = `${schemaName}.${tableName}`.toLowerCase();
+    tables.push({
+      name: normalizedName,
+      normalizedName,
+      constraints: detectConstraintKinds(parsed, query.sql)
+    });
+  }
+
+  return tables;
+}
+
+function tryParseCreateTable(sql: string): CreateTableQuery | null {
+  try {
+    const parsed = SqlParser.parse(sql);
+    return parsed instanceof CreateTableQuery ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function detectConstraintKinds(query: CreateTableQuery, sql: string): UnsupportedConstraintGuidance['constraint'][] {
+  const constraints: UnsupportedConstraintGuidance['constraint'][] = [];
+  const columnConstraints = query.columns.flatMap((column) => column.constraints);
+  const tableConstraints = query.tableConstraints;
+
+  if (columnConstraints.some((constraint) => constraint.kind === 'not-null')) {
+    constraints.push('not-null');
+  }
+  if (
+    columnConstraints.some((constraint) => constraint.kind === 'unique') ||
+    tableConstraints.some((constraint) => constraint.kind === 'unique')
+  ) {
+    constraints.push('unique');
+  }
+  if (
+    columnConstraints.some((constraint) => isColumnCheckConstraint(constraint)) ||
+    tableConstraints.some((constraint) => isTableCheckConstraint(constraint))
+  ) {
+    constraints.push('check');
+  }
+  if (
+    columnConstraints.some((constraint) => constraint.kind === 'references') ||
+    tableConstraints.some((constraint) => constraint.kind === 'foreign-key')
+  ) {
+    constraints.push('foreign-key');
+  }
+  // rawsql-ts does not expose a structured CREATE TABLE exclusion constraint node yet (#802).
+  // This intentionally noisy fallback can false-positive on identifiers, comments, or string literals;
+  // acceptable here because it only emits advisory traditional-lane TODO guidance until parser support exists.
+  if (/\bexclude\b|\bexclusion\b/i.test(sql)) {
+    constraints.push('exclusion');
+  }
+  return constraints;
+}
+
+function isColumnCheckConstraint(constraint: ColumnConstraintDefinition): boolean {
+  return constraint.kind === 'check';
+}
+
+function isTableCheckConstraint(constraint: TableConstraintDefinition): boolean {
+  return constraint.kind === 'check';
+}
+
+function buildTableLookupKeys(tableName: string, defaultSchema: string): string[] {
+  const normalized = normalizeSqlIdentifierPath(tableName);
+  if (normalized.includes('.')) {
+    const [, table] = normalized.split('.');
+    return [normalized, table];
+  }
+  return [normalized, `${defaultSchema}.${normalized}`];
+}
+
+function normalizeSqlIdentifierPath(value: string): string {
+  return value
+    .split('.')
+    .map((part) => part.trim().replace(/^"|"$/g, '').toLowerCase())
+    .join('.');
+}
+
+function readDdlDir(rootDir: string): string {
+  const configPath = path.join(rootDir, 'ztd.config.json');
+  if (!existsSync(configPath)) {
+    return 'db/ddl';
+  }
+  try {
+    const raw = JSON.parse(readFileSync(configPath, 'utf8')) as { ddlDir?: unknown };
+    return typeof raw.ddlDir === 'string' && raw.ddlDir.length > 0 ? raw.ddlDir : 'db/ddl';
+  } catch {
+    return 'db/ddl';
+  }
+}
+
+function readDefaultSchema(rootDir: string): string {
+  const configPath = path.join(rootDir, 'ztd.config.json');
+  if (!existsSync(configPath)) {
+    return 'public';
+  }
+  try {
+    const raw = JSON.parse(readFileSync(configPath, 'utf8')) as { defaultSchema?: unknown };
+    return typeof raw.defaultSchema === 'string' && raw.defaultSchema.length > 0 ? raw.defaultSchema.toLowerCase() : 'public';
+  } catch {
+    return 'public';
+  }
 }
 
 function buildDbScenarioHints(

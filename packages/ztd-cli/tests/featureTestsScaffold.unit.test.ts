@@ -91,6 +91,7 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
   const queryDir = path.join(featureDir, 'queries', 'insert-users');
   mkdirSync(queryDir, { recursive: true });
+  mkdirSync(path.join(workspace, 'db', 'ddl'), { recursive: true });
   seedSharedZtdSupport(workspace);
 
   writeFileSync(
@@ -125,6 +126,19 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
     'insert into public.users (email) values (:email) returning user_id;',
     'utf8'
   );
+  writeFileSync(
+    path.join(workspace, 'db', 'ddl', 'public.sql'),
+    [
+      'create table public.users (',
+      '  user_id uuid primary key,',
+      '  email text not null unique,',
+      '  status text not null check (status in (\'active\', \'disabled\')),',
+      '  account_id uuid references public.accounts(account_id)',
+      ');',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
 
   const result = await runFeatureTestsScaffoldCommand({
     feature: 'users-insert',
@@ -135,7 +149,29 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
     featureName: 'users-insert',
     queryName: 'insert-users',
     testKind: 'ztd',
-    dryRun: false
+    dryRun: false,
+    unsupportedConstraintGuidance: expect.arrayContaining([
+      expect.objectContaining({
+        table: 'public.users',
+        constraint: 'unique',
+        sourcePath: 'db/ddl/public.sql'
+      }),
+      expect.objectContaining({
+        table: 'public.users',
+        constraint: 'not-null',
+        sourcePath: 'db/ddl/public.sql'
+      }),
+      expect.objectContaining({
+        table: 'public.users',
+        constraint: 'check',
+        sourcePath: 'db/ddl/public.sql'
+      }),
+      expect.objectContaining({
+        table: 'public.users',
+        constraint: 'foreign-key',
+        sourcePath: 'db/ddl/public.sql'
+      })
+    ])
   });
   expect(result.outputs.map((output) => output.path)).toEqual(
     expect.arrayContaining([
@@ -179,6 +215,8 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(basicCaseFile).toContain('TODO: Replace the placeholder output with the exact result expected from the query boundary.');
   expect(basicCaseFile).toContain('CLI hints: user_id.');
   expect(basicCaseFile).toContain('output: {} as InsertUsersOutput,');
+  expect(basicCaseFile).toContain('public.users has UNIQUE constraint coverage that is not fully enforced by the ZTD lane');
+  expect(basicCaseFile).toContain('public.users has CHECK constraint coverage that is not fully enforced by the ZTD lane');
 
   const queryTypesFile = readFileSync(
     path.join(featureDir, 'queries', 'insert-users', 'tests', 'boundary-ztd-types.ts'),
@@ -214,6 +252,12 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
   expect(testPlanFile).toContain('Write Tables');
   expect(testPlanFile).toContain('Validation Scenario Hints');
   expect(testPlanFile).toContain('DB Scenario Hints');
+  expect(testPlanFile).toContain('Constraint Coverage Boundary');
+  expect(testPlanFile).toContain('required INSERT column presence for NOT NULL columns without defaults');
+  expect(testPlanFile).toContain('simple UNIQUE checks are feasible ZTD preflight candidates');
+  expect(testPlanFile).toContain('Use a traditional physical DB lane for DB-enforced fail-fast behavior today');
+  expect(testPlanFile).toContain('Unsupported Constraint Follow-up');
+  expect(testPlanFile).toContain('TODO: public.users has UNIQUE constraint coverage that is not fully enforced by the ZTD lane');
   expect(testPlanFile).toContain('Case Readiness');
   expect(testPlanFile).toContain('Generated ZTD cases are intentionally placeholders.');
   expect(testPlanFile).toContain('change the generated Vitest entrypoint from `test.skip` to `test`');
@@ -233,6 +277,8 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
     writesTables: string[];
     validationScenarioHints: string[];
     dbScenarioHints: string[];
+    constraintCoverageNotes: string[];
+    unsupportedConstraintGuidance: Array<{ table: string; constraint: string; sourcePath: string; recommendation: string; todo: string }>;
     resultCardinality: string;
   };
 
@@ -249,6 +295,23 @@ test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the c
     dbScenarioHints: expect.arrayContaining([
       'Use the fixed app-level harness and query-local cases to keep the ZTD path thin.',
       'Keep db/input/output visible in the case file so the AI can fill the query contract without re-deriving the scaffold.'
+    ]),
+    constraintCoverageNotes: expect.arrayContaining([
+      'ZTD currently verifies rewritten SQL input/output, fixture table/column shape, evidence fields, and required INSERT column presence for NOT NULL columns without defaults when table definitions are available.',
+      'Explicit NULL values for NOT NULL columns and simple UNIQUE checks are feasible ZTD preflight candidates, but they are not enforced by the current fixture/CTE rewrite lane.',
+      'Use a traditional physical DB lane for DB-enforced fail-fast behavior today, especially CHECK, foreign key, exclusion, deferrable, partial/expression UNIQUE, collation-sensitive, or full PostgreSQL constraint semantics.'
+    ]),
+    unsupportedConstraintGuidance: expect.arrayContaining([
+      expect.objectContaining({
+        table: 'public.users',
+        constraint: 'unique',
+        recommendation: expect.stringContaining('current ZTD fixture/CTE execution does not enforce UNIQUE violations')
+      }),
+      expect.objectContaining({
+        table: 'public.users',
+        constraint: 'foreign-key',
+        todo: expect.stringContaining('traditional physical DB case')
+      })
     ]),
     resultCardinality: 'one'
   });
@@ -469,6 +532,9 @@ test('runFeatureTestsScaffoldCommand writes traditional lane scaffolds without o
   expect(traditionalAnalysis.testKind).toBe('traditional');
   expect(traditionalAnalysis.dbScenarioHints.join('\n')).toContain('shared mode-switching harness');
   expect(traditionalAnalysis.dbScenarioHints.join('\n')).not.toContain('fixed app-level harness');
+  expect((traditionalAnalysis as { constraintCoverageNotes: string[] }).constraintCoverageNotes.join('\n')).toContain(
+    'Traditional execution is the lane for PostgreSQL-enforced constraint failures'
+  );
 
   const traditionalPlan = readFileSync(
     path.join(featureDir, 'queries', 'insert-users', 'tests', 'generated', 'TEST_PLAN.traditional.md'),
@@ -478,6 +544,8 @@ test('runFeatureTestsScaffoldCommand writes traditional lane scaffolds without o
   expect(traditionalPlan).toContain('physically prepares DDL and fixture rows');
   expect(traditionalPlan).toContain('physicalSetupUsed=true');
   expect(traditionalPlan).toContain('Optional `afterDb` assertions');
+  expect(traditionalPlan).toContain('PostgreSQL-enforced constraint failures');
+  expect(traditionalPlan).toContain('constraint failure cases that are not covered by ZTD preflight');
 
   expect(
     existsSync(path.join(featureDir, 'queries', 'insert-users', 'tests', 'insert-users.boundary.ztd.test.ts'))
