@@ -21,7 +21,7 @@ Use this skill before creating or editing a rawsql-ts pull request.
    - `Merge Readiness`
    - `CLI Surface Migration` when CLI-facing files changed
    - `Scaffold Contract Proof` when scaffold-related files changed
-6. Fill required same-line fields exactly as labels appear in the template.
+6. Fill required same-line fields exactly as labels appear in the template, including `Self-review workflow:` and `Self-review result:`.
 7. After implementation verification, run the repo self-review workflow as the finishing review pass before PR authoring.
 8. Before `gh pr create` / `gh pr edit`, validate the prepared PR body by running the readiness script locally.
 9. Do not present the PR as ready while self-review has unresolved blockers or the readiness script fails.
@@ -45,6 +45,7 @@ Use the actual base and head SHAs from the PR or from `git merge-base` / `git re
 - Template sections preserved
 - Required gates selected
 - Required fields filled
+- Self-review workflow and result recorded in the PR body
 - Self-review blockers resolved or explicitly surfaced
 - Local readiness command
 - Readiness result

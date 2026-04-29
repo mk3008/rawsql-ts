@@ -55,6 +55,8 @@ const {
     trackingIssue?: string;
     scopedChecks?: string[];
     baselineRationale?: string;
+    selfReviewWorkflow?: string;
+    selfReviewResult?: string;
     cliMode?: 'no-packet' | 'packet' | null;
     cliNoMigrationRationale?: string;
     upgradeNote?: string;
@@ -97,6 +99,11 @@ function createBaseBody(): string {
     'Tracking issue:',
     'Scoped checks run:',
     'Why full baseline is not required:',
+    '',
+    '## Self Review',
+    '',
+    'Self-review workflow: self-review skill two-cycle pass completed.',
+    'Self-review result: no unresolved blockers.',
     '',
     '## CLI Surface Migration',
     '',
@@ -154,6 +161,11 @@ test('pr-readiness accepts a tracked baseline exception plus CLI migration packe
     'Scoped checks run: pnpm --filter @rawsql-ts/ztd-cli test:essential, pnpm verify:generated-project-mode',
     'Why full baseline is not required: the unrelated baseline failure is tracked separately and this PR only needs the scoped lanes above.',
     '',
+    '## Self Review',
+    '',
+    'Self-review workflow: self-review skill two-cycle pass completed.',
+    'Self-review result: no unresolved blockers.',
+    '',
     '## CLI Surface Migration',
     '',
     '- [ ] No migration packet required for this CLI change.',
@@ -198,6 +210,23 @@ test('pr-readiness rejects CLI changes without a migration packet or rationale',
   ]));
 });
 
+test('pr-readiness rejects PR bodies without self-review evidence', () => {
+  const body = createBaseBody()
+    .replace('## Self Review\n\nSelf-review workflow: self-review skill two-cycle pass completed.\nSelf-review result: no unresolved blockers.\n\n', '');
+
+  const validation = validatePrReadiness({
+    body,
+    classification: classifyPrReadiness(['packages/core/src/index.ts']),
+  });
+
+  expect(validation.ok).toBe(false);
+  expect(validation.errors).toEqual(expect.arrayContaining([
+    'Missing "## Self Review" section from the PR body.',
+    'Self Review must name the self-review workflow or skill that was run. is required: "Self-review workflow:" must be filled in.',
+    'Self Review must state whether blockers remain. is required: "Self-review result:" must be filled in.',
+  ]));
+});
+
 test('pr-readiness rejects scaffold changes without the three proof classes', () => {
   const body = [
     '## Summary',
@@ -216,6 +245,11 @@ test('pr-readiness rejects scaffold changes without the three proof classes', ()
     'Tracking issue:',
     'Scoped checks run:',
     'Why full baseline is not required:',
+    '',
+    '## Self Review',
+    '',
+    'Self-review workflow: self-review skill two-cycle pass completed.',
+    'Self-review result: no unresolved blockers.',
     '',
     '## CLI Surface Migration',
     '',

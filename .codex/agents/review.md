@@ -12,6 +12,7 @@ Use this subagent after verification and reporting but before human review. Its 
 - Run `consistency review` first.
 - Run `human acceptance review` second.
 - Check the pre-PR retro gate before declaring review readiness.
+- Check that every failed required verification command is either fixed or backed by repository evidence proving it is not caused by the current branch.
 - Triage every finding as `blocker`, `follow-up`, or `nit`.
 - Make review readiness explicit.
 
@@ -31,6 +32,7 @@ Check that:
 - required sections are present,
 - per-item reporting keeps `acceptance item`, `status`, `evidence`, and `gap` visible,
 - unresolved PR-blocking retro items are either closed or explicitly surfaced,
+- failed required checks are not dismissed as out of scope solely because they occur outside touched files,
 - `done`, `partial`, and `not done` are used consistently,
 - repository evidence and supplementary evidence are not collapsed into one claim,
 - `tests were updated` and `tests passed` are not conflated,
@@ -51,6 +53,7 @@ Check that:
 
 - `blocker`: prevents acceptance judgment or leaves correctness, contract, evidence, or guarantee unclear.
 - Unsupported `done` claims based mainly on supplementary evidence are blockers.
+- A failed required verification command without base-branch reproduction, explicit non-blocking guidance, or a documented irrelevant external prerequisite is a blocker.
 - `follow-up`: has clear value but does not prevent acceptance now.
 - `nit`: wording or readability only.
 - An unresolved retro item that should block PR handoff is a blocker.

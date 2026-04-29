@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SelectFixtureRewriter } from '../src/rewriter/SelectFixtureRewriter';
 import { SelectAnalyzer } from '../src/rewriter/SelectAnalyzer';
 import type { SchemaRegistry, TableSchemaDefinition } from '../src/types';

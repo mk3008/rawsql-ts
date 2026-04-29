@@ -13,6 +13,9 @@ fi
 echo "[pre-commit] Enforcing staged-file policy..."
 node scripts/precommit-enforcement.js
 
+# Do not let tests that create temporary Git repositories inherit the hook index.
+unset GIT_INDEX_FILE
+
 ZTD_ONLY=true
 for file in $STAGED_FILES
 do

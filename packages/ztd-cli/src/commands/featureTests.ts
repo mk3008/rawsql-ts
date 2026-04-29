@@ -105,7 +105,7 @@ export function registerFeatureTestsScaffoldCommand(featureCommand: Command): vo
         `- src/features/${result.featureName}/queries/${result.queryName}/tests/generated/${result.testKind === 'ztd' ? 'analysis.json' : 'analysis.traditional.json'}`,
         '',
         'AI-authored files:',
-        `- src/features/${result.featureName}/queries/${result.queryName}/tests/cases/ (${result.testKind === 'ztd' ? 'TODO-based cases; fill them before enabling the generated test' : 'TODO-based cases for the future traditional runner'})`
+        `- src/features/${result.featureName}/queries/${result.queryName}/tests/cases/ (TODO-based cases; fill them before enabling the generated test)`
       ];
       process.stdout.write(`${lines.join('\n')}\n`);
     });
@@ -121,9 +121,7 @@ export async function runFeatureTestsScaffoldCommand(options: FeatureTestsComman
   }
 
   const queryLayout = resolveQueryLayout(featureDir, featureName, options.query, testKind);
-  if (testKind === 'ztd') {
-    assertSharedZtdTestSupport(rootDir);
-  }
+  assertSharedZtdTestSupport(rootDir);
   assertGeneratedWriteSafety([queryLayout.planFile, queryLayout.analysisFile], options.force === true);
 
   const planDetails = buildTestPlanDetails({
@@ -179,7 +177,7 @@ export async function runFeatureTestsScaffoldCommand(options: FeatureTestsComman
     code: 'feature-tests-scaffold.ai-follow-up',
     message: testKind === 'ztd'
       ? `CLI refreshed generated analysis under src/features/${featureName}/queries/${queryLayout.queryName}/tests/generated/ for test-kind=${testKind}, refreshed boundary-${testKind}-types.ts, created the skipped Vitest entrypoint only if it was missing, and left TODO-based AI-authored cases under src/features/${featureName}/queries/${queryLayout.queryName}/tests/cases/ untouched. Fill the case values, then enable the generated test.`
-      : `CLI refreshed generated analysis under src/features/${featureName}/queries/${queryLayout.queryName}/tests/generated/ for test-kind=${testKind}, refreshed boundary-${testKind}-types.ts, created the skipped Vitest entrypoint only if it was missing, and left TODO-based AI-authored cases under src/features/${featureName}/queries/${queryLayout.queryName}/tests/cases/ untouched. Keep this lane skipped until the traditional runner is wired.`
+      : `CLI refreshed generated analysis under src/features/${featureName}/queries/${queryLayout.queryName}/tests/generated/ for test-kind=${testKind}, refreshed boundary-${testKind}-types.ts, created the active Vitest entrypoint only if it was missing, and left TODO-based AI-authored cases under src/features/${featureName}/queries/${queryLayout.queryName}/tests/cases/ untouched. Fill the case values, then run the traditional lane against a disposable database.`
   });
 
   return {
@@ -250,7 +248,7 @@ function renderFeatureTestScaffoldFiles(params: {
     : '- TODO: inspect the scaffolded query boundary and SQL for DB-backed hints.';
   const caseReadinessLine = isZtdLane
     ? '- Generated ZTD cases are intentionally placeholders. Fill `beforeDb`, `input`, and `output`, then change the generated Vitest entrypoint from `test.skip` to `test`.'
-    : '- Generated traditional cases are intentionally placeholders until the traditional runner is wired.';
+    : '- Generated traditional cases are intentionally placeholders. Fill `beforeDb`, `input`, `output`, and optional `afterDb`, then run the active traditional Vitest entrypoint against a disposable database.';
 
   const testPlanFile = [
     `# ${params.featureName} / ${params.queryName} boundary test plan`,
@@ -306,10 +304,10 @@ function renderFeatureTestScaffoldFiles(params: {
         '- Set `ZTD_SQL_TRACE=1` to emit per-case SQL trace JSON; optionally set `ZTD_SQL_TRACE_DIR` to override the output directory.'
       ]
       : [
-        '- Traditional lane should execute against physical DB state and keep evidence lane-tagged as `mode=traditional`.',
-        '- Post-state assertions can be modeled in this lane (for example migration/index/physical-state effects).',
-        '- Generated scaffold stays thin and must delegate mode behavior to library APIs instead of re-implementing lifecycle logic.',
-        '- Use this scaffold as a follow-up wiring point while preserving query-local case ownership.'
+        '- Traditional queryspec execution physically prepares DDL and fixture rows before running the query boundary.',
+        '- `mode=traditional`, `physicalSetupUsed=true`, and `rewriteApplied=false` are returned as machine-checkable evidence.',
+        '- Optional `afterDb` assertions can be modeled in this lane (for example migration/index/physical-state effects).',
+        '- Set `ZTD_SQL_TRACE=1` to emit per-case SQL trace JSON; optionally set `ZTD_SQL_TRACE_DIR` to override the output directory.'
       ]),
     '',
     '## Ownership',
@@ -384,14 +382,16 @@ function renderFeatureTestScaffoldFiles(params: {
     : [
       `import { expect, test } from 'vitest';`,
       '',
+      `import { runQuerySpecTraditionalCases } from '${harnessImportPath}';`,
       `import { ${executorName} } from '${querySpecImportPath}';`,
       `import cases from '${casesImportPath}';`,
       `import type { ${queryCaseTypeName} } from '${queryTypesImportPath}';`,
       '',
-      `test.skip('${params.featureName}/${params.queryName} boundary traditional lane scaffold placeholder', async () => {`,
+      `test('${params.featureName}/${params.queryName} boundary traditional cases run through physical DB setup', async () => {`,
       '  expect(cases.length).toBeGreaterThan(0);',
-      '  // TODO(issue-767 follow-up): wire this lane to the library traditional mode API.',
-      `  void ${executorName};`,
+      `  const evidence = await runQuerySpecTraditionalCases(cases, ${executorName});`,
+      "  expect(evidence.every((entry) => entry.mode === 'traditional')).toBe(true);",
+      '  expect(evidence.every((entry) => entry.physicalSetupUsed === true)).toBe(true);',
       '});',
       ''
     ].join('\n');
@@ -408,6 +408,12 @@ function renderFeatureTestScaffoldFiles(params: {
     `    input: {} as ${queryTypePrefix}Input,`,
     ...outputTodoLines,
     `    output: {} as ${queryTypePrefix}Output,`,
+    ...(isZtdLane ? [] : [
+      '    // TODO: Add afterDb when this case must assert physical post-state table rows.',
+      '    // afterDb: async (db) => {',
+      '    //   await db.table(...).toContainRows(...);',
+      '    // },'
+    ]),
     '  }',
     '];',
     '',
@@ -431,17 +437,17 @@ function renderFeatureTestScaffoldFiles(params: {
       ''
     ].join('\n')
     : [
+      `import type { QuerySpecTraditionalCase } from '${useStableTestSupportImports ? TESTS_SUPPORT_CASE_TYPES_IMPORT_PATH : '../../../../../../tests/support/ztd/case-types.js'}';`,
+      '',
       `export type ${queryTypePrefix}BeforeDb = ${beforeDbTypeLiteral};`,
       `export type ${queryTypePrefix}Input = ${queryInputTypeLiteral};`,
       `export type ${queryTypePrefix}Output = ${queryOutputTypeLiteral};`,
       '',
-      `export type ${queryCaseTypeName} = {`,
-      '  readonly name: string;',
-      `  readonly beforeDb: ${queryTypePrefix}BeforeDb;`,
-      `  readonly input: ${queryTypePrefix}Input;`,
-      `  readonly output: ${queryTypePrefix}Output;`,
-      '  readonly afterDb?: Record<string, unknown>;',
-      '};',
+      `export type ${queryCaseTypeName} = QuerySpecTraditionalCase<`,
+      `  ${queryTypePrefix}BeforeDb,`,
+      `  ${queryTypePrefix}Input,`,
+      `  ${queryTypePrefix}Output`,
+      '>;',
       ''
     ].join('\n');
 
@@ -500,7 +506,7 @@ function buildTestPlanDetails(params: {
     analysisPath: toProjectRelativePath(params.rootDir, params.queryLayout.analysisFile),
     fixedVerifierPath: params.testKind === 'ztd'
       ? 'tests/support/ztd/harness.ts'
-      : 'TODO: library traditional mode API adapter'
+      : 'tests/support/ztd/harness.ts#runQuerySpecTraditionalCases'
   };
 }
 
@@ -531,7 +537,7 @@ function buildDbScenarioHints(
       'Keep db/input/output visible in the case file so the AI can fill the query contract without re-deriving the scaffold.'
     ]
     : [
-      'Use this scaffold as a lane-specific starting point and wire execution through the library traditional mode API adapter.',
+      'Use the shared mode-switching harness and run the traditional lane against physical DB setup.',
       'Keep db/input/output/afterDb visible in the case file so physical-state verification intent stays explicit.'
     ];
 

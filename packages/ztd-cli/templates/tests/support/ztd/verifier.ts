@@ -1,10 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect } from 'vitest';
 import { Pool } from 'pg';
+import type { PoolClient } from 'pg';
 
 import type { PostgresTestkitClient } from '@rawsql-ts/testkit-postgres';
-import type { QuerySpecZtdCase } from './case-types.js';
+import type { QuerySpecTraditionalCase, QuerySpecZtdCase } from './case-types.js';
 
 type QuerySpecExecutorClient = {
   query<T = unknown>(sql: string, params: Record<string, unknown>): Promise<T[]>;
@@ -20,13 +21,19 @@ type FixtureRow = Record<string, unknown>;
 type FixtureTableRows = Array<{ tableName: string; rows: FixtureRow[] }>;
 
 export type QuerySpecExecutionMode = 'ztd';
+export type QuerySpecSupportedExecutionMode = 'ztd' | 'traditional';
 
 export interface QuerySpecExecutionEvidence {
-  mode: QuerySpecExecutionMode;
+  mode: QuerySpecSupportedExecutionMode;
   rewriteApplied: boolean;
   physicalSetupUsed: boolean;
   executedQueryCount: number;
   traceFilePath?: string;
+}
+
+interface PhysicalQuerySpecExecutorClient extends QuerySpecExecutorClient {
+  close(): Promise<void>;
+  assertAfterDb(afterDb: FixtureTree): Promise<void>;
 }
 
 interface QueryExecutionTrace {
@@ -141,6 +148,62 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
   return evidence;
 }
 
+export async function verifyQuerySpecTraditionalCase<BeforeDb extends FixtureTree, Input, Output>(
+  querySpecCase: QuerySpecTraditionalCase<BeforeDb, Input, Output>,
+  execute: QuerySpecExecutor<Input, Output>
+): Promise<QuerySpecExecutionEvidence> {
+  const connectionString = process.env.ZTD_DB_URL;
+  if (!connectionString) {
+    throw new Error('Set ZTD_DB_URL before running query-boundary traditional cases.');
+  }
+
+  const trace: QueryExecutionTrace[] = [];
+  const defaults = loadStarterDefaults(process.cwd());
+  const pool = new Pool({ connectionString });
+  let client: PhysicalQuerySpecExecutorClient | undefined;
+  let failure: unknown;
+
+  try {
+    client = await createPhysicalQuerySpecExecutor(pool, defaults, querySpecCase.beforeDb, trace);
+    const result = execute(client, querySpecCase.input);
+    await expect(result).resolves.toEqual(querySpecCase.output);
+    if (querySpecCase.afterDb) {
+      await client.assertAfterDb(querySpecCase.afterDb);
+    }
+    if (trace.length === 0) {
+      throw new Error(
+        `Traditional verifier did not execute any SQL for case "${querySpecCase.name}". Check the query boundary and fixture setup before accepting the case.`
+      );
+    }
+  } catch (error) {
+    failure = error;
+  } finally {
+    if (client) {
+      await client.close();
+    } else {
+      await pool.end();
+    }
+  }
+
+  const evidence: QuerySpecExecutionEvidence = {
+    mode: 'traditional',
+    rewriteApplied: false,
+    physicalSetupUsed: true,
+    executedQueryCount: trace.length
+  };
+
+  const traceFilePath = writeTraceFileIfEnabled(querySpecCase.name, trace, evidence, failure);
+  if (traceFilePath) {
+    evidence.traceFilePath = traceFilePath;
+  }
+
+  if (failure) {
+    throw failure;
+  }
+
+  return evidence;
+}
+
 function flattenFixtureTableRows(
   fixture: FixtureTree,
   pathSegments: string[] = []
@@ -201,6 +264,148 @@ function createQuerySpecExecutor(
       return result.rows as T[];
     }
   };
+}
+
+async function createPhysicalQuerySpecExecutor(
+  pool: Pool,
+  defaults: StarterProjectDefaults,
+  beforeDb: FixtureTree,
+  trace: QueryExecutionTrace[]
+): Promise<PhysicalQuerySpecExecutorClient> {
+  const client = await pool.connect();
+  const schemaName = createPhysicalSchemaName();
+  let closed = false;
+
+  try {
+    await client.query(`CREATE SCHEMA ${quoteIdentifier(schemaName)}`);
+    await client.query(`SET search_path TO ${quoteIdentifier(schemaName)}, public`);
+    await applySqlFiles(client, defaults.ddlDirectories, defaults.defaultSchema, schemaName);
+    await seedFixtureRows(client, flattenFixtureTableRows(beforeDb), defaults.defaultSchema, schemaName);
+  } catch (error) {
+    try {
+      await dropPhysicalSchema(client, schemaName);
+    } finally {
+      client.release();
+      await pool.end();
+    }
+    throw error;
+  }
+
+  return {
+    async query<T = unknown>(sql: string, params: Record<string, unknown>): Promise<T[]> {
+      const bound = bindNamedParams(sql, params);
+      const executedSql = rewriteSchemaQualifiedSql(bound.boundSql, defaults.defaultSchema, schemaName);
+      trace.push({
+        index: trace.length + 1,
+        originalSql: sql,
+        boundSql: bound.boundSql,
+        boundParams: bound.boundValues,
+        executedSql,
+        executedParams: bound.boundValues,
+        rewriteApplied: false
+      });
+      const result = await client.query(executedSql, bound.boundValues);
+      return result.rows as T[];
+    },
+    async assertAfterDb(afterDb: FixtureTree): Promise<void> {
+      const expectedTables = flattenFixtureTableRows(afterDb);
+      for (const tableFixture of expectedTables) {
+        const tableName = toPhysicalTableName(tableFixture.tableName, defaults.defaultSchema, schemaName);
+        const rows = await client.query(`SELECT * FROM ${tableName}`);
+        if (tableFixture.rows.length === 0) {
+          expect(rows.rows).toEqual([]);
+          continue;
+        }
+        expect(rows.rows).toEqual(
+          expect.arrayContaining(tableFixture.rows.map((row) => expect.objectContaining(row)))
+        );
+      }
+    },
+    async close(): Promise<void> {
+      if (closed) {
+        return;
+      }
+      closed = true;
+      try {
+        await dropPhysicalSchema(client, schemaName);
+      } finally {
+        client.release();
+        await pool.end();
+      }
+    }
+  };
+}
+
+async function applySqlFiles(
+  client: PoolClient,
+  ddlDirectories: string[],
+  defaultSchema: string,
+  schemaName: string
+): Promise<void> {
+  for (const ddlDirectory of ddlDirectories) {
+    for (const fileName of readdirSync(ddlDirectory).filter((entry) => entry.endsWith('.sql')).sort()) {
+      const sql = readFileSync(path.join(ddlDirectory, fileName), 'utf8').trim();
+      if (sql.length === 0) {
+        continue;
+      }
+      await client.query(rewriteSchemaQualifiedSql(sql, defaultSchema, schemaName));
+    }
+  }
+}
+
+async function seedFixtureRows(
+  client: PoolClient,
+  tableFixtures: FixtureTableRows,
+  defaultSchema: string,
+  schemaName: string
+): Promise<void> {
+  for (const tableFixture of tableFixtures) {
+    for (const row of tableFixture.rows) {
+      const columns = Object.keys(row);
+      if (columns.length === 0) {
+        continue;
+      }
+      const tableName = toPhysicalTableName(tableFixture.tableName, defaultSchema, schemaName);
+      const columnList = columns.map(quoteIdentifier).join(', ');
+      const placeholders = columns.map((_, index) => `$${index + 1}`).join(', ');
+      const values = columns.map((column) => row[column]);
+      await client.query(`INSERT INTO ${tableName} (${columnList}) VALUES (${placeholders})`, values);
+    }
+  }
+}
+
+async function dropPhysicalSchema(client: PoolClient, schemaName: string): Promise<void> {
+  await client.query(`DROP SCHEMA IF EXISTS ${quoteIdentifier(schemaName)} CASCADE`);
+}
+
+function createPhysicalSchemaName(): string {
+  const random = Math.random().toString(36).slice(2, 10);
+  return `ztd_traditional_${Date.now()}_${process.pid}_${random}`;
+}
+
+function toPhysicalTableName(tableName: string, defaultSchema: string, schemaName: string): string {
+  const segments = tableName.split('.').map((segment) => segment.trim()).filter(Boolean);
+  const tableSegment = segments.at(-1);
+  if (!tableSegment) {
+    throw new Error(`Invalid fixture table name: ${tableName}`);
+  }
+  return `${quoteIdentifier(schemaName)}.${quoteIdentifier(tableSegment)}`;
+}
+
+function rewriteSchemaQualifiedSql(sql: string, defaultSchema: string, schemaName: string): string {
+  const escapedDefaultSchema = escapeRegExp(defaultSchema);
+  return sql.replace(
+    new RegExp(`(?<![A-Za-z0-9_"])${escapedDefaultSchema}\\.([A-Za-z_][A-Za-z0-9_]*)`, 'g'),
+    `${quoteIdentifier(schemaName)}.$1`
+  );
+}
+
+function quoteIdentifier(value: string): string {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function loadStarterDefaults(rootDir: string): StarterProjectDefaults {

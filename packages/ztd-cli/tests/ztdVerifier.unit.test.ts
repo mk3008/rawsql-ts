@@ -6,11 +6,17 @@ import { afterEach, expect, test, vi } from 'vitest';
 const {
   closeMock,
   createPostgresTestkitClientMock,
+  poolClientQueryMock,
+  poolClientReleaseMock,
+  poolConnectMock,
   poolEndMock,
   poolQueryMock
 } = vi.hoisted(() => ({
   closeMock: vi.fn().mockResolvedValue(undefined),
   createPostgresTestkitClientMock: vi.fn(),
+  poolClientQueryMock: vi.fn().mockResolvedValue({ rows: [{ result: 1 }], rowCount: 1 }),
+  poolClientReleaseMock: vi.fn(),
+  poolConnectMock: vi.fn(),
   poolEndMock: vi.fn().mockResolvedValue(undefined),
   poolQueryMock: vi.fn().mockResolvedValue({ rows: [{ result: 1 }], rowCount: 1 })
 }));
@@ -18,6 +24,7 @@ const {
 vi.mock('pg', () => ({
   Pool: class MockPool {
     query = poolQueryMock;
+    connect = poolConnectMock;
     end = poolEndMock;
   }
 }));
@@ -39,6 +46,9 @@ afterEach(() => {
   }
   closeMock.mockClear();
   createPostgresTestkitClientMock.mockReset();
+  poolClientQueryMock.mockClear();
+  poolClientReleaseMock.mockClear();
+  poolConnectMock.mockReset();
   poolEndMock.mockClear();
   poolQueryMock.mockClear();
   if (previousEnv.ZTD_DB_URL === undefined) {
@@ -57,6 +67,57 @@ afterEach(() => {
     process.env.ZTD_SQL_TRACE_DIR = previousEnv.ZTD_SQL_TRACE_DIR;
   }
   vi.restoreAllMocks();
+});
+
+test('verifyQuerySpecTraditionalCase physically prepares fixtures and returns traditional evidence', async () => {
+  process.env.ZTD_DB_URL = 'postgres://localhost:5432/ztd';
+
+  poolConnectMock.mockResolvedValue({
+    query: poolClientQueryMock,
+    release: poolClientReleaseMock
+  });
+  poolClientQueryMock.mockImplementation((sql: string) => {
+    if (sql.includes('SELECT * FROM')) {
+      return Promise.resolve({ rows: [{ user_id: 1, email: 'alice@example.com' }], rowCount: 1 });
+    }
+    return Promise.resolve({ rows: [{ ok: true }], rowCount: 1 });
+  });
+
+  const { verifyQuerySpecTraditionalCase } = await import('../templates/tests/support/ztd/verifier');
+
+  const evidence = await verifyQuerySpecTraditionalCase(
+    {
+      name: 'traditional-read',
+      beforeDb: {
+        public: {
+          users: [{ user_id: 1, email: 'alice@example.com' }]
+        }
+      },
+      input: { userId: 1 },
+      output: [{ ok: true }],
+      afterDb: {
+        public: {
+          users: [{ user_id: 1, email: 'alice@example.com' }]
+        }
+      }
+    },
+    (client, input) => client.query('select true as ok from public.users where user_id = :userId', input)
+  );
+
+  expect(evidence).toMatchObject({
+    mode: 'traditional',
+    rewriteApplied: false,
+    physicalSetupUsed: true,
+    executedQueryCount: 1
+  });
+  expect(poolConnectMock).toHaveBeenCalledTimes(1);
+  expect(poolClientQueryMock).toHaveBeenCalledWith(expect.stringMatching(/^CREATE SCHEMA/));
+  expect(poolClientQueryMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO'), [1, 'alice@example.com']);
+  expect(poolClientQueryMock).toHaveBeenCalledWith(expect.stringContaining('select true as ok from'), [1]);
+  expect(poolClientQueryMock).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM'));
+  expect(poolClientQueryMock).toHaveBeenCalledWith(expect.stringMatching(/^DROP SCHEMA IF EXISTS/));
+  expect(poolClientReleaseMock).toHaveBeenCalledTimes(1);
+  expect(poolEndMock).toHaveBeenCalledTimes(1);
 });
 
 test('verifyQuerySpecZtdCase writes trace artifacts and closes the pool when the assertion fails', async () => {
