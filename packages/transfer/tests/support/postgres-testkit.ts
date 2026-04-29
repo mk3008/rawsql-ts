@@ -37,7 +37,10 @@ function normalizeSearchPath(searchPath: unknown): string[] {
     return [];
   }
 
-  return searchPath.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+  return searchPath
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 }
 
 function loadStarterProjectConfig(rootDir: string = process.cwd()): StarterProjectConfigFile {
@@ -60,10 +63,10 @@ export function loadStarterPostgresDefaults(rootDir: string = process.cwd()): St
   const projectConfig = loadStarterProjectConfig(rootDir);
   const resolvedProjectRootDir = path.resolve(rootDir);
   const resolvedZtdRootDir = path.resolve(rootDir, projectConfig.ztdRootDir ?? '.ztd');
+  const configuredDefaultSchema =
+    typeof projectConfig.defaultSchema === 'string' ? projectConfig.defaultSchema.trim() : '';
   const defaultSchema =
-    typeof projectConfig.defaultSchema === 'string' && projectConfig.defaultSchema.length > 0
-      ? projectConfig.defaultSchema
-      : 'public';
+    configuredDefaultSchema.length > 0 ? configuredDefaultSchema : 'public';
   const searchPath = normalizeSearchPath(projectConfig.searchPath);
   const resolvedDdlDir = path.resolve(
     resolvedProjectRootDir,

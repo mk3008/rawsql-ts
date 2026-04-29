@@ -41,7 +41,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,md,sql}": [
-      "pnpm format"
+      "prettier --write"
     ]
   },
   "simple-git-hooks": {
