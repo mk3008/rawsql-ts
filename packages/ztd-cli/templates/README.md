@@ -76,6 +76,9 @@ After the SQL and DTO edits settle, refresh the query-local test scaffold:
 - Use `--test-kind traditional` when the same query-boundary case shape needs physical DDL setup, fixture seeding, or optional `afterDb` post-state checks.
 - If `ztd-config` has already run, use `.ztd/generated/ztd-fixture-manifest.generated.ts` as the source for `tableDefinitions` and fixture-shape hints.
 - Treat `beforeDb` as a pure fixture skeleton with schema-qualified table keys.
+- Treat the ZTD lane as rewritten SQL input/output coverage. It validates fixture table/column shape, evidence fields, and required `INSERT` column presence for `NOT NULL` columns without defaults when table definitions are available.
+- Explicit `NULL` values for `NOT NULL` columns and simple `UNIQUE` checks are feasible ZTD preflight candidates, but they are not enforced by the current fixture/CTE rewrite lane.
+- Use `--test-kind traditional` for DB-enforced fail-fast behavior today, especially `CHECK`, foreign key, exclusion, deferrable, partial/expression `UNIQUE`, collation-sensitive, or full PostgreSQL constraint semantics.
 - Check machine-readable evidence (`mode`, `rewriteApplied`, `physicalSetupUsed`): ZTD evidence should show `mode=ztd` and `physicalSetupUsed=false`; traditional evidence should show `mode=traditional` and `physicalSetupUsed=true`.
 - Enable SQL trace only when needed with `ZTD_SQL_TRACE=1` and optional `ZTD_SQL_TRACE_DIR`.
 - When the cases are ready, run the generated `.boundary.<kind>.test.ts` entrypoint with `npx vitest run`.
@@ -87,6 +90,7 @@ After the SQL and DTO edits settle, refresh the query-local test scaffold:
 - If the workspace is meant to reflect a source change, verify it resolves `rawsql-ts` from the local source tree instead of a registry copy.
 - Check the returned evidence in the ZTD entrypoint (`mode=ztd`, `physicalSetupUsed=false`) before debugging fixtures.
 - Use the traditional entrypoint (`mode=traditional`, `physicalSetupUsed=true`) for DB-side effects and post-state assertions.
+- Use the traditional entrypoint for constraint failures that are not covered by ZTD preflight; `CHECK`, foreign key, exclusion, deferrable, partial/expression `UNIQUE`, collation-sensitive, and full PostgreSQL constraint semantics belong there.
 - If an AI-authored ZTD test fails, do not assume the prompt or case file is the only problem; `ztd-cli` or `rawsql-ts` can still be the source of the bug.
 - A `user_id: null` symptom usually points at fixture manifest, metadata, or rewrite path trouble rather than the DB engine itself.
 - When a local-source workspace should reflect a source change, verify the local `rawsql-ts` checkout is being resolved instead of a registry copy.

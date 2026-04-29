@@ -67,6 +67,13 @@ test('readmes promote the feature-first layout without tables/views taxonomy', (
   expect(scaffoldReadme).toContain('Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.');
   expect(featuresReadme).toContain('Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package');
   expect(readNormalizedFile('packages/ztd-cli/templates/src/libraries/README.md')).toContain('Do not move feature-specific validation, mapping, or orchestration helpers here');
+  expect(scaffoldReadme).toContain('simple `UNIQUE` checks are feasible ZTD preflight candidates');
+  expect(readNormalizedFile('packages/ztd-cli/templates/tests/support/ztd/README.md')).toContain(
+    'Use the traditional physical DB lane for DB-enforced fail-fast behavior today'
+  );
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/features/smoke/queries/smoke/tests/generated/TEST_PLAN.md')).toContain(
+    'Constraint Coverage Boundary'
+  );
   expect(readNormalizedFile('docs/guide/sql-first-end-to-end-tutorial.md')).toContain('Scenario CLI at a glance');
   expect(readNormalizedFile('docs/dogfooding/ztd-migration-lifecycle.md')).toContain('Preferred CLI by scenario');
   expect(packageReadme).toContain('## Further Reading');

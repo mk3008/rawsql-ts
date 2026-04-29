@@ -15,5 +15,26 @@
     "Keep db/input/output visible in the case file so the AI can fill the query contract without re-deriving the scaffold.",
     "Read from `public.users` by `user_id` so the smoke query proves connectivity and schema wiring."
   ],
+  "constraintCoverageNotes": [
+    "ZTD currently verifies rewritten SQL input/output, fixture table/column shape, evidence fields, and required INSERT column presence for NOT NULL columns without defaults when table definitions are available.",
+    "Explicit NULL values for NOT NULL columns and simple UNIQUE checks are feasible ZTD preflight candidates, but they are not enforced by the current fixture/CTE rewrite lane.",
+    "Use a traditional physical DB lane for DB-enforced fail-fast behavior today, especially CHECK, foreign key, exclusion, deferrable, partial/expression UNIQUE, collation-sensitive, or full PostgreSQL constraint semantics."
+  ],
+  "unsupportedConstraintGuidance": [
+    {
+      "table": "public.users",
+      "constraint": "not-null",
+      "sourcePath": "db/ddl/demo.sql",
+      "recommendation": "ZTD catches missing required INSERT columns, but explicit NULL or parameter-NULL failures need a traditional physical DB lane today.",
+      "todo": "public.users has NOT NULL constraint coverage that is not fully enforced by the ZTD lane; add or run a traditional physical DB case for DB-enforced failure behavior."
+    },
+    {
+      "table": "public.users",
+      "constraint": "unique",
+      "sourcePath": "db/ddl/demo.sql",
+      "recommendation": "Simple UNIQUE preflight is feasible, but current ZTD fixture/CTE execution does not enforce UNIQUE violations.",
+      "todo": "public.users has UNIQUE constraint coverage that is not fully enforced by the ZTD lane; add or run a traditional physical DB case for DB-enforced failure behavior."
+    }
+  ],
   "resultCardinality": "one"
 }
