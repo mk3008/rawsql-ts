@@ -35,9 +35,13 @@ export interface RfbaChangedFile {
   oldPath?: string;
   status: GitChangeStatus;
   kind: RfbaChangedFileKind;
+  oldKind?: RfbaChangedFileKind;
   boundary: string | null;
+  oldBoundary?: string | null;
   parentFeatureBoundary: string | null;
+  oldParentFeatureBoundary?: string | null;
   reviewWeight: RfbaReviewWeight;
+  oldReviewWeight?: RfbaReviewWeight;
   rawDiff?: string;
 }
 
@@ -283,7 +287,7 @@ export function buildRfbaReviewData(params: {
   const reviewHints = buildReviewHints(changedFiles, ddlChanges, sqlChanges, boundaryChanges);
 
   addVerificationWarnings(changedFiles, verificationChanges, warnings);
-  addGeneratedOnlyWarnings(changedFiles, generatedChanges, warnings);
+  addGeneratedOnlyWarnings(changedFiles, warnings);
   warnings.sort(compareWarnings);
 
   return {
@@ -356,14 +360,20 @@ export function parseGitNameStatus(output: string): GitNameStatusEntry[] {
 export function classifyRfbaChangedFile(entry: GitNameStatusEntry): RfbaChangedFile {
   const pathValue = normalizePath(entry.path);
   const kind = classifyKind(pathValue);
+  const oldPath = entry.oldPath ? normalizePath(entry.oldPath) : undefined;
+  const oldKind = oldPath ? classifyKind(oldPath) : undefined;
   return {
     path: pathValue,
-    oldPath: entry.oldPath ? normalizePath(entry.oldPath) : undefined,
+    oldPath,
     status: entry.status,
     kind,
+    oldKind,
     boundary: deriveBoundary(pathValue, kind),
+    oldBoundary: oldPath && oldKind ? deriveBoundary(oldPath, oldKind) : undefined,
     parentFeatureBoundary: deriveParentFeatureBoundary(pathValue),
+    oldParentFeatureBoundary: oldPath ? deriveParentFeatureBoundary(oldPath) : undefined,
     reviewWeight: reviewWeightForKind(kind),
+    oldReviewWeight: oldKind ? reviewWeightForKind(oldKind) : undefined,
   };
 }
 
@@ -378,26 +388,29 @@ export function buildChangedBoundarySummary(
       : null;
     return [boundary.path, parentPath] as const;
   }));
-  const grouped = new Map<string, RfbaChangedFile[]>();
+  const grouped = new Map<string, { path: string; parentFeatureBoundary: string | null; reviewWeight: RfbaReviewWeight }[]>();
 
   for (const file of changedFiles) {
-    if (!file.boundary) {
-      continue;
+    for (const boundaryRef of changedBoundaryRefs(file)) {
+      const list = grouped.get(boundaryRef.boundary) ?? [];
+      list.push({
+        path: boundaryRef.path,
+        parentFeatureBoundary: boundaryRef.parentFeatureBoundary,
+        reviewWeight: boundaryRef.reviewWeight,
+      });
+      grouped.set(boundaryRef.boundary, list);
     }
-    const list = grouped.get(file.boundary) ?? [];
-    list.push(file);
-    grouped.set(file.boundary, list);
   }
 
   return Array.from(grouped.entries())
-    .map(([boundaryPath, files]): RfbaChangedBoundary => {
+    .map(([boundaryPath, refs]): RfbaChangedBoundary => {
       const boundary = boundaryByPath.get(boundaryPath);
       return {
         boundary: boundaryPath,
         kind: boundary?.kind ?? 'unknown',
-        parentBoundary: parentByPath.get(boundaryPath) ?? files[0]?.parentFeatureBoundary ?? null,
-        changedFiles: sortUnique(files.map((file) => file.path)),
-        reviewWeight: maxReviewWeight(files.map((file) => file.reviewWeight)),
+        parentBoundary: parentByPath.get(boundaryPath) ?? refs.find((ref) => ref.parentFeatureBoundary)?.parentFeatureBoundary ?? null,
+        changedFiles: sortUnique(refs.map((ref) => ref.path)),
+        reviewWeight: maxReviewWeight(refs.map((ref) => ref.reviewWeight)),
       };
     })
     .sort((left, right) => left.boundary.localeCompare(right.boundary));
@@ -511,25 +524,30 @@ export function buildVerificationSummary(changedFiles: RfbaChangedFile[]): Verif
   };
 
   for (const file of changedFiles) {
-    const boundary = file.boundary ?? file.parentFeatureBoundary ?? 'global';
-    if (!isVerificationKind(file.kind)) {
-      continue;
-    }
-    const item = ensure(boundary);
-    if (file.kind === 'query-case') {
-      item.changedCases.push(file.path);
-    } else if (file.kind === 'generated-evidence') {
-      item.changedGeneratedEvidence.push(file.path);
-    } else if (file.kind === 'feature-verification') {
-      item.changedFeatureTests.push(file.path);
-    } else if (file.kind === 'test-support') {
-      item.changedTestSupport.push(file.path);
-    } else {
-      item.changedEntrypoints.push(file.path);
+    for (const ref of changedFileKindRefs(file)) {
+      const boundary = ref.boundary ?? ref.parentFeatureBoundary ?? 'global';
+      if (!isVerificationKind(ref.kind)) {
+        continue;
+      }
+      const item = ensure(boundary);
+      if (ref.kind === 'query-case') {
+        item.changedCases.push(ref.path);
+      } else if (ref.kind === 'generated-evidence') {
+        item.changedGeneratedEvidence.push(ref.path);
+      } else if (ref.kind === 'feature-verification') {
+        item.changedFeatureTests.push(ref.path);
+      } else if (ref.kind === 'test-support') {
+        item.changedTestSupport.push(ref.path);
+      } else {
+        item.changedEntrypoints.push(ref.path);
+      }
     }
   }
 
-  const sqlBoundaries = sortUnique(changedFiles.filter((file) => file.kind === 'query-sql' && file.boundary).map((file) => file.boundary as string));
+  const sqlBoundaries = sortUnique(changedFiles
+    .flatMap((file) => changedFileKindRefs(file))
+    .filter((ref) => ref.kind === 'query-sql' && ref.boundary)
+    .map((ref) => ref.boundary as string));
   for (const boundary of sqlBoundaries) {
     const item = ensure(boundary);
     if (item.changedCases.length === 0 && item.changedGeneratedEvidence.length === 0) {
@@ -726,8 +744,8 @@ function addVerificationWarnings(
   verificationChanges: VerificationSummaryItem[],
   warnings: RfbaReviewWarning[]
 ): void {
-  const changedDdl = changedFiles.some((file) => file.kind === 'ddl');
-  if (changedDdl && !changedFiles.some((file) => file.kind === 'query-case' || file.kind === 'generated-evidence' || file.kind === 'feature-verification' || file.kind === 'query-verification')) {
+  const changedDdl = changedFiles.some((file) => hasChangedFileKind(file, 'ddl'));
+  if (changedDdl && !changedFiles.some((file) => hasAnyChangedFileKind(file, ['query-case', 'generated-evidence', 'feature-verification', 'query-verification']))) {
     warnings.push({
       code: 'verification.possibly-missing',
       message: 'DDL changed but no obvious RFBA verification or generated evidence changed.',
@@ -746,46 +764,160 @@ function addVerificationWarnings(
 
 function addGeneratedOnlyWarnings(
   changedFiles: RfbaChangedFile[],
-  generatedChanges: RfbaChangedFile[],
   warnings: RfbaReviewWarning[]
 ): void {
-  if (generatedChanges.length === 0) {
+  const generatedPaths = sortUnique(changedFiles
+    .flatMap((file) => changedFileKindRefs(file))
+    .filter((ref) => ref.kind === 'generated-evidence')
+    .map((ref) => ref.path));
+  if (generatedPaths.length === 0) {
     return;
   }
   const sourceKinds: RfbaChangedFileKind[] = ['ddl', 'query-sql', 'feature-boundary', 'query-boundary', 'query-case'];
-  const hasSourceChange = changedFiles.some((file) => sourceKinds.includes(file.kind));
+  const hasSourceChange = changedFiles.some((file) => hasAnyChangedFileKind(file, sourceKinds));
   if (!hasSourceChange) {
     warnings.push({
       code: 'generated-without-source',
-      paths: generatedChanges.map((file) => file.path).sort(),
+      paths: generatedPaths,
       message: 'Generated evidence changed without an obvious DDL, SQL, boundary, or case change.',
     });
   }
 }
 
+function changedBoundaryRefs(file: RfbaChangedFile): {
+  boundary: string;
+  path: string;
+  parentFeatureBoundary: string | null;
+  reviewWeight: RfbaReviewWeight;
+}[] {
+  const refs: {
+    boundary: string;
+    path: string;
+    parentFeatureBoundary: string | null;
+    reviewWeight: RfbaReviewWeight;
+  }[] = [];
+  if (file.boundary) {
+    refs.push({
+      boundary: file.boundary,
+      path: file.path,
+      parentFeatureBoundary: file.parentFeatureBoundary,
+      reviewWeight: file.reviewWeight,
+    });
+  }
+  if (file.oldPath && file.oldBoundary) {
+    refs.push({
+      boundary: file.oldBoundary,
+      path: file.oldPath,
+      parentFeatureBoundary: file.oldParentFeatureBoundary ?? null,
+      reviewWeight: file.oldReviewWeight ?? file.reviewWeight,
+    });
+  }
+  return refs;
+}
+
+function changedFileKindRefs(file: RfbaChangedFile): {
+  path: string;
+  kind: RfbaChangedFileKind;
+  boundary: string | null;
+  parentFeatureBoundary: string | null;
+}[] {
+  const refs = [{
+    path: file.path,
+    kind: file.kind,
+    boundary: file.boundary,
+    parentFeatureBoundary: file.parentFeatureBoundary,
+  }];
+  if (file.oldPath && file.oldKind) {
+    refs.push({
+      path: file.oldPath,
+      kind: file.oldKind,
+      boundary: file.oldBoundary ?? null,
+      parentFeatureBoundary: file.oldParentFeatureBoundary ?? null,
+    });
+  }
+  return refs;
+}
+
+function hasChangedFileKind(file: RfbaChangedFile, kind: RfbaChangedFileKind): boolean {
+  return file.kind === kind || file.oldKind === kind;
+}
+
+function hasAnyChangedFileKind(file: RfbaChangedFile, kinds: RfbaChangedFileKind[]): boolean {
+  return kinds.some((kind) => hasChangedFileKind(file, kind));
+}
+
+function getFeaturePathInfo(parts: string[]): { startIndex: number; endIndex: number } | null {
+  const srcIndex = parts.indexOf('src');
+  if (srcIndex < 0 || parts[srcIndex + 1] !== 'features') {
+    return null;
+  }
+  const startIndex = srcIndex + 2;
+  const stopIndex = findFirstSegmentIndex(parts, startIndex, ['queries', 'tests', 'generated-evidence', 'boundary.ts']);
+  const endIndex = (stopIndex < 0 ? parts.length : stopIndex) - 1;
+  if (endIndex < startIndex) {
+    return null;
+  }
+  const featureSegments = parts.slice(startIndex, endIndex + 1).filter((segment) => !segment.startsWith('_'));
+  if (featureSegments.length === 0) {
+    return null;
+  }
+  return { startIndex, endIndex };
+}
+
+function getQueryPathInfo(parts: string[], featureStartIndex: number): { queriesIndex: number; queryNameIndex: number } | null {
+  const queriesIndex = parts.indexOf('queries', featureStartIndex);
+  const queryNameIndex = queriesIndex + 1;
+  if (queriesIndex < 0 || !parts[queryNameIndex]) {
+    return null;
+  }
+  return { queriesIndex, queryNameIndex };
+}
+
+function buildFeatureBoundaryPath(parts: string[], featureInfo: { startIndex: number; endIndex: number }): string {
+  const featureSegments = parts
+    .slice(featureInfo.startIndex, featureInfo.endIndex + 1)
+    .filter((segment) => !segment.startsWith('_'));
+  return [...parts.slice(0, featureInfo.startIndex), ...featureSegments].join('/');
+}
+
+function findFirstSegmentIndex(parts: string[], startIndex: number, segments: string[]): number {
+  const indices = segments
+    .map((segment) => parts.indexOf(segment, startIndex))
+    .filter((index) => index >= 0);
+  return indices.length > 0 ? Math.min(...indices) : -1;
+}
+
 function classifyKind(filePath: string): RfbaChangedFileKind {
+  const parts = filePath.split('/');
+  const featureInfo = getFeaturePathInfo(parts);
+  const queryInfo = featureInfo ? getQueryPathInfo(parts, featureInfo.startIndex) : null;
   if (/^db\/ddl\/.+\.sql$/i.test(filePath)) {
     return 'ddl';
   }
-  if (/^src\/features\/[^/]+\/boundary\.ts$/i.test(filePath)) {
+  if (queryInfo) {
+    const afterQuery = parts.slice(queryInfo.queryNameIndex + 1);
+    const testsIndex = afterQuery.indexOf('tests');
+    if (testsIndex >= 0) {
+      const testsKind = afterQuery[testsIndex + 1];
+      if (testsKind === 'cases') {
+        return 'query-case';
+      }
+      if (testsKind === 'generated') {
+        return 'generated-evidence';
+      }
+      return 'query-verification';
+    }
+    if (afterQuery.length === 1 && afterQuery[0] === 'boundary.ts') {
+      return 'query-boundary';
+    }
+    if (/\.sql$/i.test(parts[parts.length - 1] ?? '')) {
+      return 'query-sql';
+    }
+  }
+  if (featureInfo && parts[parts.length - 1] === 'boundary.ts') {
     return 'feature-boundary';
   }
-  if (/^src\/features\/[^/]+\/queries\/[^/]+\/boundary\.ts$/i.test(filePath)) {
-    return 'query-boundary';
-  }
-  if (/^src\/features\/[^/]+\/queries\/[^/]+\/.+\.sql$/i.test(filePath)) {
-    return 'query-sql';
-  }
-  if (/^src\/features\/[^/]+\/queries\/[^/]+\/tests\/cases\//i.test(filePath)) {
-    return 'query-case';
-  }
-  if (/^src\/features\/[^/]+\/queries\/[^/]+\/tests\/generated\//i.test(filePath)) {
-    return 'generated-evidence';
-  }
-  if (/^src\/features\/[^/]+\/queries\/[^/]+\/tests\//i.test(filePath)) {
-    return 'query-verification';
-  }
-  if (/^src\/features\/[^/]+\/tests\//i.test(filePath)) {
+  if (featureInfo && parts.indexOf('tests', featureInfo.startIndex) >= 0) {
     return 'feature-verification';
   }
   if (/^src\/adapters\//i.test(filePath)) {
@@ -805,11 +937,13 @@ function classifyKind(filePath: string): RfbaChangedFileKind {
 
 function deriveBoundary(filePath: string, kind: RfbaChangedFileKind): string | null {
   const parts = filePath.split('/');
+  const featureInfo = getFeaturePathInfo(parts);
+  const queryInfo = featureInfo ? getQueryPathInfo(parts, featureInfo.startIndex) : null;
   if (kind === 'feature-boundary' || kind === 'feature-verification') {
-    return parts.length >= 3 ? parts.slice(0, 3).join('/') : null;
+    return featureInfo ? buildFeatureBoundaryPath(parts, featureInfo) : null;
   }
   if (kind === 'query-boundary' || kind === 'query-sql' || kind === 'query-case' || kind === 'query-verification' || kind === 'generated-evidence') {
-    return parts.length >= 5 ? parts.slice(0, 5).join('/') : null;
+    return queryInfo ? parts.slice(0, queryInfo.queryNameIndex + 1).join('/') : null;
   }
   if (kind === 'adapter') {
     return parts.length >= 3 ? parts.slice(0, 3).join('/') : 'src/adapters';
@@ -822,10 +956,8 @@ function deriveBoundary(filePath: string, kind: RfbaChangedFileKind): string | n
 
 function deriveParentFeatureBoundary(filePath: string): string | null {
   const parts = filePath.split('/');
-  if (parts[0] === 'src' && parts[1] === 'features' && parts[2] && !parts[2].startsWith('_')) {
-    return parts.slice(0, 3).join('/');
-  }
-  return null;
+  const featureInfo = getFeaturePathInfo(parts);
+  return featureInfo ? buildFeatureBoundaryPath(parts, featureInfo) : null;
 }
 
 function reviewWeightForKind(kind: RfbaChangedFileKind): RfbaReviewWeight {

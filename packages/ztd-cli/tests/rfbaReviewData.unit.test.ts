@@ -77,6 +77,50 @@ test('classifyRfbaChangedFile maps RFBA review kinds and weights deterministical
   });
 });
 
+test('classifyRfbaChangedFile preserves old-side RFBA classification for renames', () => {
+  expect(classifyRfbaChangedFile({
+    status: 'renamed',
+    oldPath: 'src/features/accounts/queries/list-accounts/list-accounts.sql',
+    path: 'src/features/customers/queries/list-customers/list-customers.sql',
+  })).toMatchObject({
+    kind: 'query-sql',
+    oldKind: 'query-sql',
+    boundary: 'src/features/customers/queries/list-customers',
+    oldBoundary: 'src/features/accounts/queries/list-accounts',
+    parentFeatureBoundary: 'src/features/customers',
+    oldParentFeatureBoundary: 'src/features/accounts',
+    reviewWeight: 'high',
+    oldReviewWeight: 'high',
+  });
+});
+
+test('classifyRfbaChangedFile supports nested feature query and test layouts', () => {
+  expect(classifyRfbaChangedFile({
+    status: 'modified',
+    path: 'src/features/billing/accounts/queries/read-balance/read-balance.sql',
+  })).toMatchObject({
+    kind: 'query-sql',
+    boundary: 'src/features/billing/accounts/queries/read-balance',
+    parentFeatureBoundary: 'src/features/billing/accounts',
+  });
+  expect(classifyRfbaChangedFile({
+    status: 'modified',
+    path: 'src/features/billing/accounts/queries/read-balance/tests/cases/basic.case.ts',
+  })).toMatchObject({
+    kind: 'query-case',
+    boundary: 'src/features/billing/accounts/queries/read-balance',
+    parentFeatureBoundary: 'src/features/billing/accounts',
+  });
+  expect(classifyRfbaChangedFile({
+    status: 'modified',
+    path: 'src/features/billing/accounts/tests/read-balance.test.ts',
+  })).toMatchObject({
+    kind: 'feature-verification',
+    boundary: 'src/features/billing/accounts',
+    parentFeatureBoundary: 'src/features/billing/accounts',
+  });
+});
+
 test('buildChangedBoundarySummary reuses RFBA inspection boundaries', () => {
   const workspace = createTempDir('rfba-review-boundaries');
   writeWorkspaceFile(workspace, 'src/features/users-insert/boundary.ts', 'export {};\n');
@@ -98,6 +142,32 @@ test('buildChangedBoundarySummary reuses RFBA inspection boundaries', () => {
       ],
       reviewWeight: 'high',
     },
+  ]);
+});
+
+test('buildChangedBoundarySummary includes both old and new boundaries for renamed files', () => {
+  const workspace = createTempDir('rfba-review-rename-boundaries');
+  writeWorkspaceFile(workspace, 'src/features/accounts/boundary.ts', 'export {};\n');
+  writeWorkspaceFile(workspace, 'src/features/accounts/queries/list-accounts/boundary.ts', 'export {};\n');
+  writeWorkspaceFile(workspace, 'src/features/customers/boundary.ts', 'export {};\n');
+  writeWorkspaceFile(workspace, 'src/features/customers/queries/list-customers/boundary.ts', 'export {};\n');
+  const changedFiles = [
+    classifyRfbaChangedFile({
+      status: 'renamed',
+      oldPath: 'src/features/accounts/queries/list-accounts/list-accounts.sql',
+      path: 'src/features/customers/queries/list-customers/list-customers.sql',
+    }),
+  ];
+
+  expect(buildChangedBoundarySummary(changedFiles, inspectRfbaBoundaries(workspace))).toEqual([
+    expect.objectContaining({
+      boundary: 'src/features/accounts/queries/list-accounts',
+      changedFiles: ['src/features/accounts/queries/list-accounts/list-accounts.sql'],
+    }),
+    expect.objectContaining({
+      boundary: 'src/features/customers/queries/list-customers',
+      changedFiles: ['src/features/customers/queries/list-customers/list-customers.sql'],
+    }),
   ]);
 });
 
@@ -229,6 +299,25 @@ test('buildVerificationSummary groups query evidence and flags likely missing ev
   expect(buildVerificationSummary([
     classifyRfbaChangedFile({ status: 'modified', path: 'src/features/users-insert/queries/insert-users/insert-users.sql' }),
   ])[0].missingLikelyEvidence).toEqual(['SQL changed but no query-local cases or generated evidence changed.']);
+});
+
+test('buildVerificationSummary includes old query boundaries for renamed SQL files', () => {
+  expect(buildVerificationSummary([
+    classifyRfbaChangedFile({
+      status: 'renamed',
+      oldPath: 'src/features/accounts/queries/list-accounts/list-accounts.sql',
+      path: 'src/features/customers/queries/list-customers/list-customers.sql',
+    }),
+  ])).toEqual([
+    expect.objectContaining({
+      boundary: 'src/features/accounts/queries/list-accounts',
+      missingLikelyEvidence: ['SQL changed but no query-local cases or generated evidence changed.'],
+    }),
+    expect.objectContaining({
+      boundary: 'src/features/customers/queries/list-customers',
+      missingLikelyEvidence: ['SQL changed but no query-local cases or generated evidence changed.'],
+    }),
+  ]);
 });
 
 test('rfba review-data command emits stdout JSON and writes --out in a Git workspace', async () => {
