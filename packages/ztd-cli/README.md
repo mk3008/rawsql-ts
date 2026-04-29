@@ -84,6 +84,28 @@ npx ztd rfba inspect --format json
 The command is read-only. It reports concrete starter root boundaries, feature-boundaries, query sub-boundaries, likely public surface files, SQL assets, generated artifacts, local verification files, and structural warnings.
 The JSON output is deterministic and omits timestamps so it can be consumed by agents and review checks.
 
+### Generate RFBA Review Data
+
+Use `rfba review-data` in merge PR checks when an agent or reviewer needs RFBA-aware review packet data instead of raw diff text:
+
+```bash
+npx ztd rfba review-data --base origin/main --head HEAD --out .ztd/review/rfba-review-data.json
+```
+
+The output is deterministic JSON and is suitable for a CI artifact. It classifies changed files, maps changes to RFBA boundaries, summarizes supported DDL and SQL changes, groups verification evidence, and emits warnings for review gaps that need human or AI attention.
+The command does not write the final PR review narrative and does not judge business correctness.
+
+Example AI prompt for PR summary generation:
+
+```text
+Read .ztd/review/rfba-review-data.json and write an RFBA Review Summary for the PR.
+Do not repeat raw git diff.
+Summarize the meaning of DDL, SQL, boundary, adapter, and verification changes.
+Separate confirmed facts from review questions.
+Use warnings as high-priority review notes.
+Do not claim business correctness when the JSON only provides structural evidence.
+```
+
 Important repo areas outside the concrete root-boundary list:
 
 - Keep shared feature seams under `src/features/_shared/*`.
@@ -249,6 +271,7 @@ Use `ztd describe` for machine-readable discovery, and follow the linked guides 
 | `ztd query match-observed` | Rank likely source SQL assets from observed SELECT text. |
 | `ztd query sssql list` / `scaffold` / `remove` / `refresh` | Inspect, author, undo, and re-anchor SQL-first optional filter branches. See [ztd-cli SSSQL Reference](../../docs/guide/ztd-cli-sssql-reference.md). |
 | `ztd ddl pull` / `ztd ddl diff` | Inspect a target and prepare migration SQL. |
+| `ztd rfba inspect` / `review-data` | Inspect RFBA boundaries and generate deterministic merge PR review packet JSON. |
 | `ztd perf init` / `ztd perf run` | Run the tuning loop for index or pipeline investigation. |
 | `ztd describe` | Inspect commands in machine-readable form. |
 

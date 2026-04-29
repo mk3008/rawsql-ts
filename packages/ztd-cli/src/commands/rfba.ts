@@ -2,6 +2,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
 import { getAgentOutputFormat, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
+import { runRfbaReviewData } from './rfbaReviewData';
 
 export type RfbaBoundaryKind = 'root-boundary' | 'feature-boundary' | 'child-boundary-container' | 'sub-boundary';
 export type RfbaInspectFormat = 'text' | 'json';
@@ -49,6 +50,17 @@ export interface RfbaInspectionReport {
 
 interface RfbaInspectOptions {
   format?: string;
+  root?: string;
+  json?: string;
+}
+
+interface RfbaReviewDataOptions {
+  base?: string;
+  head?: string;
+  out?: string;
+  format?: string;
+  scope?: string;
+  includeRawDiff?: boolean;
   root?: string;
   json?: string;
 }
@@ -103,6 +115,35 @@ export function registerRfbaCommand(program: Command): void {
       }
 
       process.stdout.write(formatRfbaInspectionReport(report, format));
+    });
+
+  rfba
+    .command('review-data')
+    .description('Generate deterministic RFBA review packet data from a Git diff')
+    .option('--base <ref>', 'Compare base ref', 'origin/main')
+    .option('--head <ref>', 'Compare head ref', 'HEAD')
+    .option('--out <file>', 'Write JSON output to file')
+    .option('--format <format>', 'Output format (json)', 'json')
+    .option('--scope <path>', 'Limit review data collection to a path')
+    .option('--include-raw-diff', 'Include raw file diff snippets', false)
+    .option('--root <path>', 'Project root to inspect and compare', '.')
+    .option('--json <payload>', 'Pass command options as a JSON object')
+    .action((options: RfbaReviewDataOptions) => {
+      const merged = options.json ? { ...options, ...parseJsonPayload<Record<string, unknown>>(options.json, '--json') } : options;
+      const root = normalizeStringOption(merged.root) ?? '.';
+      const projectRoot = path.resolve(process.cwd(), root);
+      const report = runRfbaReviewData({
+        base: normalizeStringOption(merged.base),
+        head: normalizeStringOption(merged.head),
+        out: normalizeStringOption(merged.out),
+        format: normalizeStringOption(merged.format),
+        scope: normalizeStringOption(merged.scope),
+        includeRawDiff: Boolean(merged.includeRawDiff),
+        projectRoot,
+        inspectReport: inspectRfbaBoundaries(projectRoot),
+      });
+
+      process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
     });
 }
 
