@@ -1,7 +1,11 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { DeleteQuery, InsertQuery, SqlParser, UpdateQuery } from 'rawsql-ts';
+import { analyzeStatement, assertSupportedStatement } from './analysis';
 import { buildQueryStructureReport, type QueryStructureReport } from './structure';
 
 export type QueryPipelinePlanFormat = 'text' | 'json';
-export type QueryPipelineStepKind = 'materialize' | 'final-query';
+export type QueryPipelineStepKind = 'materialize' | 'materialize-returning' | 'final-query';
 
 export interface QueryPipelineMetadata {
   material?: string[];
@@ -43,10 +47,11 @@ export function buildQueryPipelinePlan(
   const orderedCtes = topologicallySortCtes(report);
   const plannedCtes = orderedCtes.filter((name) => material.includes(name));
   const cteMap = new Map(report.ctes.map((cte) => [cte.name, cte]));
+  const returningCteNames = collectReturningCteNames(sqlFile);
 
   const steps: QueryPipelineStep[] = plannedCtes.map((name, index) => ({
     step: index + 1,
-    kind: 'materialize',
+    kind: returningCteNames.has(name) ? 'materialize-returning' : 'materialize',
     target: name,
     depends_on: [...(cteMap.get(name)?.depends_on ?? [])]
   }));
@@ -101,10 +106,32 @@ function describeStep(step: QueryPipelineStep): string {
   switch (step.kind) {
     case 'materialize':
       return `materialize ${step.target}`;
+    case 'materialize-returning':
+      return `materialize returning ${step.target}`;
     case 'final-query':
     default:
       return 'run final query';
   }
+}
+
+function collectReturningCteNames(sqlFile: string): Set<string> {
+  const absolutePath = path.resolve(sqlFile);
+  const sql = readFileSync(absolutePath, 'utf8');
+  const statement = assertSupportedStatement(SqlParser.parse(sql), 'ztd query plan');
+  const analysis = analyzeStatement(statement);
+  const names = new Set<string>();
+
+  for (const cte of analysis.ctes) {
+    const query = cte.query;
+    if (
+      (query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery) &&
+      query.returningClause
+    ) {
+      names.add(cte.aliasExpression.table.name);
+    }
+  }
+
+  return names;
 }
 
 function validateKnownCtes(names: string[], cteNameSet: Set<string>, label: 'material'): void {

@@ -129,6 +129,41 @@ function writeMixedPipelineSql(sqlFile: string): void {
   );
 }
 
+function writeReturningCtePipelineSql(sqlFile: string): void {
+  writeFileSync(
+    sqlFile,
+    [
+      'with source_rows as (',
+      '  select id from pending_events',
+      '),',
+      'inserted_rows as (',
+      '  insert into audit_log (id)',
+      '  select id from source_rows',
+      '  returning id',
+      '),',
+      'fanout_rows as (',
+      '  select id from inserted_rows',
+      ')',
+      'select * from fanout_rows'
+    ].join('\n'),
+    'utf8'
+  );
+}
+
+function writeDmlCteWithoutReturningSql(sqlFile: string): void {
+  writeFileSync(
+    sqlFile,
+    [
+      'with inserted_rows as (',
+      '  insert into audit_log (id)',
+      '  select id from pending_events',
+      ')',
+      'select 1'
+    ].join('\n'),
+    'utf8'
+  );
+}
+
 function writeInvalidStaticScalarSql(sqlFile: string): void {
   writeFileSync(
     sqlFile,
@@ -302,6 +337,64 @@ test('executeQueryPipeline materializes root ctes without self-shadowing the tem
   expect(stageSql).not.toContain('with base_sales as (');
   expect(finalSql).toContain('from "base_sales"');
   expect(normalizeSql(query.mock.calls[2]?.[0] as string)).toBe('drop table if exists "base_sales"');
+  expect(release).toHaveBeenCalledTimes(1);
+});
+
+test('executeQueryPipeline materializes RETURNING CTE output before downstream fanout', async () => {
+  const workspace = createSqlWorkspace('query-pipeline-returning-cte');
+  writeReturningCtePipelineSql(workspace.sqlFile);
+
+  const query = vi.fn()
+    .mockResolvedValueOnce({ rows: [], rowCount: 2 })
+    .mockResolvedValueOnce({ rows: [{ id: 1 }, { id: 2 }], rowCount: 2 })
+    .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+  const release = vi.fn();
+  const openSession = vi.fn(async () => ({ query, release }));
+
+  const result = await executeQueryPipeline(
+    { openSession },
+    {
+      sqlFile: workspace.sqlFile,
+      metadata: {
+        material: ['inserted_rows']
+      }
+    }
+  );
+
+  expect(result.steps.map((step) => step.kind)).toEqual(['materialize-returning', 'final-query']);
+  const materializeSql = normalizeSql(query.mock.calls[0]?.[0] as string);
+  const finalSql = normalizeSql(query.mock.calls[1]?.[0] as string);
+
+  expect(materializeSql).toContain('create temp table "inserted_rows" as with');
+  expect(materializeSql).toContain('"inserted_rows" as (insert into "audit_log"("id") select "id" from "source_rows" returning "id")');
+  expect(materializeSql).toContain('select * from "inserted_rows"');
+  expect(finalSql).not.toContain('insert into "audit_log"');
+  expect(finalSql).toContain('from "inserted_rows"');
+  expect(normalizeSql(query.mock.calls[2]?.[0] as string)).toBe('drop table if exists "inserted_rows"');
+  expect(release).toHaveBeenCalledTimes(1);
+});
+
+test('executeQueryPipeline rejects DML CTE materialization without RETURNING', async () => {
+  const workspace = createSqlWorkspace('query-pipeline-dml-no-returning');
+  writeDmlCteWithoutReturningSql(workspace.sqlFile);
+
+  const query = vi.fn();
+  const release = vi.fn();
+  const openSession = vi.fn(async () => ({ query, release }));
+
+  await expect(() =>
+    executeQueryPipeline(
+      { openSession },
+      {
+        sqlFile: workspace.sqlFile,
+        metadata: {
+          material: ['inserted_rows']
+        }
+      }
+    )
+  ).rejects.toThrow('DML CTE materialization requires a RETURNING clause.');
+
+  expect(query).not.toHaveBeenCalled();
   expect(release).toHaveBeenCalledTimes(1);
 });
 

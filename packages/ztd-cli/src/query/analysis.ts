@@ -85,12 +85,48 @@ export function buildDependencyMap(
   const cteNameSet = new Set(cteNames);
   return new Map(
     ctes.map((cte) => {
-      const references = collector.collect(cte.query).map((source) => source.table.name);
+      const references = collectCteQueryReferenceNames(cte.query, collector);
       const dependencies = Array.from(
         new Set(references.filter((reference) => cteNameSet.has(reference) && reference !== cte.aliasExpression.table.name))
       );
       return [cte.aliasExpression.table.name, dependencies];
     })
+  );
+}
+
+function collectCteQueryReferenceNames(
+  query: ReturnType<CTECollector['collect']>[number]['query'],
+  collector: CTETableReferenceCollector
+): string[] {
+  if (query instanceof InsertQuery) {
+    return query.selectQuery ? collectNamesFromComponents(collector, [query.selectQuery]) : [];
+  }
+
+  if (query instanceof UpdateQuery) {
+    return collectNamesFromComponents(collector, [
+      query.updateClause.source,
+      query.fromClause,
+      query.whereClause
+    ]);
+  }
+
+  if (query instanceof DeleteQuery) {
+    return collectNamesFromComponents(collector, [
+      query.deleteClause.source,
+      query.usingClause,
+      query.whereClause
+    ]);
+  }
+
+  return collector.collect(query).map((source) => source.table.name);
+}
+
+function collectNamesFromComponents(
+  collector: CTETableReferenceCollector,
+  components: Array<Parameters<CTETableReferenceCollector['collect']>[0] | null | undefined>
+): string[] {
+  return uniquePreservingOrder(
+    components.flatMap((component) => component ? collector.collect(component).map((source) => source.table.name) : [])
   );
 }
 

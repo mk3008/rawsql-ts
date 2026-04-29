@@ -87,6 +87,74 @@ test('buildQueryPipelinePlan emits deterministic ordered steps from metadata', (
   ]);
 });
 
+test('buildQueryPipelinePlan marks RETURNING CTE materialization steps explicitly', () => {
+  const workspace = createSqlWorkspace('query-pipeline-returning-plan');
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with source_rows as (
+        select id
+        from pending_events
+      ),
+      inserted_rows as (
+        insert into audit_log (id)
+        select id
+        from source_rows
+        returning id
+      )
+      select *
+      from inserted_rows
+    `,
+    'utf8'
+  );
+
+  const plan = buildQueryPipelinePlan(workspace.sqlFile, {
+    material: ['inserted_rows']
+  });
+
+  expect(plan.steps).toEqual([
+    {
+      step: 1,
+      kind: 'materialize-returning',
+      target: 'inserted_rows',
+      depends_on: ['source_rows']
+    },
+    {
+      step: 2,
+      kind: 'final-query',
+      target: 'FINAL_QUERY',
+      depends_on: ['inserted_rows']
+    }
+  ]);
+
+  expect(formatQueryPipelinePlan(plan, 'text')).toContain('1. materialize returning inserted_rows');
+});
+
+test('buildQueryPipelinePlan keeps non-returning DML CTEs as normal materialize steps for execution fail-fast', () => {
+  const workspace = createSqlWorkspace('query-pipeline-dml-no-returning-plan');
+  writeFileSync(
+    workspace.sqlFile,
+    `
+      with inserted_rows as (
+        insert into audit_log (id)
+        select id
+        from pending_events
+      )
+      select 1
+    `,
+    'utf8'
+  );
+
+  const plan = buildQueryPipelinePlan(workspace.sqlFile, {
+    material: ['inserted_rows']
+  });
+
+  expect(plan.steps[0]).toMatchObject({
+    kind: 'materialize',
+    target: 'inserted_rows'
+  });
+});
+
 test('formatQueryPipelinePlan renders json for agents and text for humans', () => {
   const workspace = createSqlWorkspace('query-pipeline-format');
   writeFileSync(
