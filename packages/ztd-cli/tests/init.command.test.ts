@@ -137,8 +137,10 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
     devDependencies: Record<string, string>;
     imports?: Record<string, { types: string; default: string }>;
     'lint-staged'?: Record<string, string[]>;
+    'simple-git-hooks'?: Record<string, string>;
   };
   expect(packageJson['lint-staged']?.['*.{ts,tsx,js,jsx,json,md,sql}']).toEqual(['prettier --write']);
+  expect(packageJson['simple-git-hooks']?.['pre-commit']).toBe('pnpm lint-staged');
   expect(packageJson.devDependencies).toHaveProperty('dotenv');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/sql-contract');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-core');
@@ -396,6 +398,26 @@ test('init dry-run plan for non-starter init excludes starter-only readmes', () 
     'compose.yaml',
     'src/features/smoke/README.md'
   ]));
+});
+
+test('init derives generated lint-staged hook command from the package manager lockfile', async () => {
+  const workspace = createTempDir('cli-init-npm-hook');
+  const prompter = new TestPrompter([]);
+  writeFileSync(path.join(workspace, 'package-lock.json'), '{}\n', 'utf8');
+
+  await runInitCommand(prompter, {
+    rootDir: workspace,
+    nonInteractive: true,
+    forceOverwrite: true,
+    workflow: 'empty',
+    validator: 'zod',
+    skipInstall: true
+  });
+
+  const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    'simple-git-hooks'?: Record<string, string>;
+  };
+  expect(packageJson['simple-git-hooks']?.['pre-commit']).toBe('npx lint-staged');
 });
 
 test('default scaffold omits AI control files', async () => {

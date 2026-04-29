@@ -448,7 +448,15 @@ function quoteIdentifier(value: string): string {
 
 function buildPhysicalSearchPath(searchPath: string[], schemaName: string): string {
   const schemas = [schemaName, ...searchPath.filter((entry) => entry !== schemaName)];
-  return schemas.map(quoteIdentifier).join(', ');
+  return schemas.map(formatSearchPathEntry).join(', ');
+}
+
+function formatSearchPathEntry(entry: string): string {
+  const normalized = entry.toLowerCase();
+  if (entry === '$user' || /^pg_temp($|_)/.test(normalized)) {
+    return entry;
+  }
+  return quoteIdentifier(entry);
 }
 
 function readDefaultSchemaQualifier(

@@ -342,6 +342,7 @@ function renderFeatureTestScaffoldFiles(params: {
   const queryTypePrefix = toPascalCase(params.queryName);
   const queryCaseTypeName = isZtdLane ? `${queryTypePrefix}QueryBoundaryZtdCase` : `${queryTypePrefix}QueryBoundaryTraditionalCase`;
   const queryTypesImportPath = isZtdLane ? './boundary-ztd-types.js' : './boundary-traditional-types.js';
+  const queryBoundaryTypesImport = `import type { ${queryTypePrefix}QueryParams, ${queryTypePrefix}QueryResult } from '../boundary.js';`;
   const beforeDbTypeLiteral = buildQueryFixtureTypeLiteral(
     params.planDetails.fixtureCandidateTables,
     buildQueryFixtureRowTypeLiteral(params.planDetails.queryFixtureRowFields)
@@ -422,7 +423,7 @@ function renderFeatureTestScaffoldFiles(params: {
   const queryTypesFile = isZtdLane
     ? [
       `import type { QuerySpecZtdCase } from '${useStableTestSupportImports ? TESTS_SUPPORT_CASE_TYPES_IMPORT_PATH : '../../../../../../tests/support/ztd/case-types.js'}';`,
-      `import type { ${queryTypePrefix}QueryParams, ${queryTypePrefix}QueryResult } from '../boundary.js';`,
+      queryBoundaryTypesImport,
       '',
       `export type ${queryTypePrefix}BeforeDb = ${beforeDbTypeLiteral};`,
       `export type ${queryTypePrefix}Input = ${queryTypePrefix}QueryParams;`,
@@ -437,7 +438,7 @@ function renderFeatureTestScaffoldFiles(params: {
     ].join('\n')
     : [
       `import type { QuerySpecTraditionalCase } from '${useStableTestSupportImports ? TESTS_SUPPORT_CASE_TYPES_IMPORT_PATH : '../../../../../../tests/support/ztd/case-types.js'}';`,
-      `import type { ${queryTypePrefix}QueryParams, ${queryTypePrefix}QueryResult } from '../boundary.js';`,
+      queryBoundaryTypesImport,
       '',
       `export type ${queryTypePrefix}BeforeDb = ${beforeDbTypeLiteral};`,
       `export type ${queryTypePrefix}Input = ${queryTypePrefix}QueryParams;`,

@@ -76,7 +76,7 @@ test('verifyQuerySpecTraditionalCase physically prepares fixtures and returns tr
     path.join(rootDir, 'ztd.config.json'),
     JSON.stringify({
       defaultSchema: ' public ',
-      searchPath: [' app ', '', ' public ']
+      searchPath: [' app ', '', ' $user ', ' pg_temp ', ' pg_temp_3 ', ' public ']
     }),
     'utf8'
   );
@@ -128,12 +128,15 @@ test('verifyQuerySpecTraditionalCase physically prepares fixtures and returns tr
   });
   expect(poolConnectMock).toHaveBeenCalledTimes(1);
   expect(poolClientQueryMock).toHaveBeenCalledWith(expect.stringMatching(/^CREATE SCHEMA/));
-  expect(poolClientQueryMock).toHaveBeenCalledWith(expect.stringMatching(/^SET search_path TO "ztd_traditional_[^"]+", "app", "public"$/));
+  expect(poolClientQueryMock).toHaveBeenCalledWith(
+    expect.stringMatching(/^SET search_path TO "ztd_traditional_[^"]+", "app", \$user, pg_temp, pg_temp_3, "public"$/)
+  );
   expect(poolClientQueryMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO'), [1, 'alice@example.com']);
   expect(poolClientQueryMock).toHaveBeenCalledWith(expect.stringContaining("'public.users' as literal"), [1]);
   const executedQuery = poolClientQueryMock.mock.calls
     .map((call) => String(call[0]))
     .find((sql) => sql.includes("'public.users' as literal"));
+  expect(executedQuery).toBeDefined();
   expect(executedQuery).toContain("'public.users' as literal");
   expect(executedQuery).toContain('-- public.comment_table');
   expect(executedQuery).toContain('$$public.dollar_table$$');

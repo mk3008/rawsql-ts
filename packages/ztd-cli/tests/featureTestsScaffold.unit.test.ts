@@ -73,6 +73,19 @@ function seedStableTestAliases(workspace: string): void {
   );
 }
 
+function seedQueryBoundaryWithTypedContracts(queryDir: string): void {
+  writeFileSync(
+    path.join(queryDir, 'boundary.ts'),
+    [
+      'export type InsertUsersQueryParams = Record<string, never>;',
+      'export type InsertUsersQueryResult = Record<string, never>;',
+      'export async function executeInsertUsersBoundary() { return {}; }',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+}
+
 test('runFeatureTestsScaffoldCommand writes query-local ZTD scaffolds from the current feature files', async () => {
   const workspace = createTempDir('feature-tests-scaffold');
   const featureDir = path.join(workspace, 'src', 'features', 'users-insert');
@@ -311,11 +324,7 @@ test('runFeatureTestsScaffoldCommand uses stable shared test imports when the wo
   seedStableTestAliases(workspace);
 
   writeFileSync(path.join(featureDir, 'boundary.ts'), 'export const RequestSchema = null;\n', 'utf8');
-  writeFileSync(
-    path.join(queryDir, 'boundary.ts'),
-    'export type InsertUsersQueryParams = Record<string, never>;\nexport type InsertUsersQueryResult = Record<string, never>;\nexport async function executeInsertUsersBoundary() { return {}; }\n',
-    'utf8'
-  );
+  seedQueryBoundaryWithTypedContracts(queryDir);
   writeFileSync(path.join(queryDir, 'insert-users.sql'), 'select 1;', 'utf8');
 
   await runFeatureTestsScaffoldCommand({
@@ -360,11 +369,7 @@ test('runFeatureTestsScaffoldCommand fails fast when #tests alias support is par
   );
 
   writeFileSync(path.join(featureDir, 'boundary.ts'), 'export const RequestSchema = null;\n', 'utf8');
-  writeFileSync(
-    path.join(queryDir, 'boundary.ts'),
-    'export type InsertUsersQueryParams = Record<string, never>;\nexport type InsertUsersQueryResult = Record<string, never>;\nexport async function executeInsertUsersBoundary() { return {}; }\n',
-    'utf8'
-  );
+  seedQueryBoundaryWithTypedContracts(queryDir);
   writeFileSync(path.join(queryDir, 'insert-users.sql'), 'select 1;', 'utf8');
 
   await expect(
