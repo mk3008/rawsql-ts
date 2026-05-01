@@ -33,6 +33,8 @@ const FIXED_LAYOUT_DESCRIPTION = [
   '    <query-name>/',
   '      boundary.ts',
   '      <query-name>.sql',
+  '      generated/',
+  '        row-mapper.ts',
   '      tests/',
   '        <query-name>.boundary.ztd.test.ts',
   '        boundary-ztd-types.ts',
@@ -103,6 +105,8 @@ interface FeatureScaffoldPaths {
   entrySpecFile: string;
   querySpecFile: string;
   querySqlFile: string;
+  queryGeneratedDir: string;
+  queryGeneratedRowMapperFile: string;
   readmeFile: string;
   sharedDir: string;
   featureQueryExecutorFile: string;
@@ -115,6 +119,8 @@ interface ExistingBoundaryQueryScaffoldPaths {
   queryDir: string;
   querySpecFile: string;
   querySqlFile: string;
+  queryGeneratedDir: string;
+  queryGeneratedRowMapperFile: string;
   entrySpecFile: string;
   sharedDir: string;
   featureQueryExecutorFile: string;
@@ -262,10 +268,12 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
     { path: toProjectRelativePath(rootDir, paths.featureDir), written: !options.dryRun, kind: 'directory' },
     { path: toProjectRelativePath(rootDir, paths.testsDir), written: !options.dryRun, kind: 'directory' },
     { path: toProjectRelativePath(rootDir, paths.queryDir), written: !options.dryRun, kind: 'directory' },
+    { path: toProjectRelativePath(rootDir, paths.queryGeneratedDir), written: !options.dryRun, kind: 'directory' },
     { path: toProjectRelativePath(rootDir, paths.entryBoundaryTestFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.entrySpecFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.querySpecFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.querySqlFile), written: !options.dryRun, kind: 'file' },
+    { path: toProjectRelativePath(rootDir, paths.queryGeneratedRowMapperFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.readmeFile), written: !options.dryRun, kind: 'file' },
   ];
 
@@ -287,12 +295,14 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
   ensureDirectory(paths.featureDir);
   ensureDirectory(paths.testsDir);
   ensureDirectory(paths.queryDir);
+  ensureDirectory(paths.queryGeneratedDir);
   writeFileIfMissing(paths.featureQueryExecutorFile, contents.featureQueryExecutorFile);
   writeFileIfMissing(paths.loadSqlResourceFile, contents.loadSqlResourceFile);
   writeFileIfMissing(paths.entryBoundaryTestFile, contents.entrySpecTestFile);
   writeFeatureFile(paths.entrySpecFile, contents.entrySpecFile, options.force === true);
   writeFeatureFile(paths.querySpecFile, contents.querySpecFile, options.force === true);
   writeFeatureFile(paths.querySqlFile, contents.querySqlFile, options.force === true);
+  writeGeneratedFile(paths.queryGeneratedRowMapperFile, contents.queryGeneratedRowMapperFile);
   writeFeatureFile(paths.readmeFile, contents.readmeFile, options.force === true);
 
   emitDiagnostic({
@@ -350,8 +360,10 @@ export async function runExistingBoundaryQueryScaffoldCommand(
       ? [{ path: toProjectRelativePath(rootDir, paths.queriesDir), written: !options.dryRun, kind: 'directory' as const }]
       : []),
     { path: toProjectRelativePath(rootDir, paths.queryDir), written: !options.dryRun, kind: 'directory' },
+    { path: toProjectRelativePath(rootDir, paths.queryGeneratedDir), written: !options.dryRun, kind: 'directory' },
     { path: toProjectRelativePath(rootDir, paths.querySpecFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.querySqlFile), written: !options.dryRun, kind: 'file' },
+    { path: toProjectRelativePath(rootDir, paths.queryGeneratedRowMapperFile), written: !options.dryRun, kind: 'file' },
   ];
 
   if (options.dryRun) {
@@ -372,10 +384,12 @@ export async function runExistingBoundaryQueryScaffoldCommand(
   ensureDirectory(paths.sharedDir);
   ensureDirectory(paths.queriesDir);
   ensureDirectory(paths.queryDir);
+  ensureDirectory(paths.queryGeneratedDir);
   writeFileIfMissing(paths.featureQueryExecutorFile, contents.featureQueryExecutorFile);
   writeFileIfMissing(paths.loadSqlResourceFile, contents.loadSqlResourceFile);
   writeFileSync(paths.querySpecFile, contents.querySpecFile, 'utf8');
   writeFileSync(paths.querySqlFile, contents.querySqlFile, 'utf8');
+  writeGeneratedFile(paths.queryGeneratedRowMapperFile, contents.queryGeneratedRowMapperFile);
 
   emitDiagnostic({
     code: 'feature-query-scaffold.parent-follow-up',
@@ -682,6 +696,8 @@ function buildFeatureScaffoldPaths(rootDir: string, featureName: string, queryNa
     entrySpecFile: path.join(featureDir, 'boundary.ts'),
     querySpecFile: path.join(featureDir, 'queries', queryName, 'boundary.ts'),
     querySqlFile: path.join(featureDir, 'queries', queryName, `${queryName}.sql`),
+    queryGeneratedDir: path.join(featureDir, 'queries', queryName, 'generated'),
+    queryGeneratedRowMapperFile: path.join(featureDir, 'queries', queryName, 'generated', 'row-mapper.ts'),
     readmeFile: path.join(featureDir, 'README.md'),
     sharedDir,
     featureQueryExecutorFile: path.join(sharedDir, 'featureQueryExecutor.ts'),
@@ -703,6 +719,8 @@ function buildExistingBoundaryQueryScaffoldPaths(
     queryDir,
     querySpecFile: path.join(queryDir, 'boundary.ts'),
     querySqlFile: path.join(queryDir, `${queryName}.sql`),
+    queryGeneratedDir: path.join(queryDir, 'generated'),
+    queryGeneratedRowMapperFile: path.join(queryDir, 'generated', 'row-mapper.ts'),
     entrySpecFile: path.join(boundaryDir, 'boundary.ts'),
     sharedDir,
     featureQueryExecutorFile: path.join(sharedDir, 'featureQueryExecutor.ts'),
@@ -724,6 +742,7 @@ function renderFeatureScaffoldFiles(params: {
   entrySpecTestFile: string;
   querySpecFile: string;
   querySqlFile: string;
+  queryGeneratedRowMapperFile: string;
   readmeFile: string;
   featureQueryExecutorFile: string;
   loadSqlResourceFile: string;
@@ -768,6 +787,11 @@ function renderFeatureScaffoldFiles(params: {
     sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath,
     insertDefaultPolicy: params.insertDefaultPolicy
   });
+  const queryGeneratedRowMapperFile = renderGeneratedRowMapperFile({
+    action: params.action,
+    queryPascalName,
+    responseFields: queryResponseFields
+  });
   const readmeFile = renderReadmeFile({
     action: params.action,
     featureName: params.featureName,
@@ -794,6 +818,7 @@ function renderFeatureScaffoldFiles(params: {
     }),
     querySpecFile,
     querySqlFile: sqlFile,
+    queryGeneratedRowMapperFile,
     readmeFile,
     featureQueryExecutorFile: sharedSupportFiles.featureQueryExecutorFile,
     loadSqlResourceFile: sharedSupportFiles.loadSqlResourceFile
@@ -882,6 +907,7 @@ function renderExistingBoundaryQueryScaffoldFiles(params: {
 }): {
   querySpecFile: string;
   querySqlFile: string;
+  queryGeneratedRowMapperFile: string;
   featureQueryExecutorFile: string;
   loadSqlResourceFile: string;
 } {
@@ -909,6 +935,11 @@ function renderExistingBoundaryQueryScaffoldFiles(params: {
       sharedExecutorImportPath: sharedImports.executorImportPath,
       sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath,
       insertDefaultPolicy: params.insertDefaultPolicy
+    }),
+    queryGeneratedRowMapperFile: renderGeneratedRowMapperFile({
+      action: params.action,
+      queryPascalName,
+      responseFields
     }),
     querySqlFile: renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn),
     featureQueryExecutorFile: sharedSupportFiles.featureQueryExecutorFile,
@@ -1535,6 +1566,7 @@ function renderQuerySpecFile(params: {
     '',
     `import type { FeatureQueryExecutor } from '${params.sharedExecutorImportPath}';`,
     `import { loadSqlResource } from '${params.sharedLoadSqlResourceImportPath}';`,
+    `import { map${params.queryPascalName}RowToResult } from './generated/row-mapper.js';`,
     '',
     'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
@@ -1550,7 +1582,7 @@ function renderQuerySpecFile(params: {
     '',
     `export type ${params.queryPascalName}QueryResult = z.infer<typeof QueryResultSchema>;`,
     '',
-    `type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
+    `export type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
     '',
     '/** Parses raw query params at the query boundary. */',
     `function parseQueryParams(raw: unknown): ${params.queryPascalName}QueryParams {`,
@@ -1560,11 +1592,6 @@ function renderQuerySpecFile(params: {
     '/** Parses a raw DB row at the query boundary. */',
     `function parseRow(raw: unknown): ${params.queryPascalName}Row {`,
     '  return RowSchema.parse(raw);',
-    '}',
-    '',
-    '/** Maps a query row into the query result contract. */',
-    `function mapRowToResult(row: ${params.queryPascalName}Row): ${params.queryPascalName}QueryResult {`,
-    '  return QueryResultSchema.parse(row);',
     '}',
     '',
     '/** Loads the single row for the write baseline. */',
@@ -1583,7 +1610,7 @@ function renderQuerySpecFile(params: {
     `): Promise<${params.queryPascalName}QueryResult> {`,
     '  const params = parseQueryParams(rawParams);',
     `  const row = await loadSingleRow(executor, ${params.queryCamelName}SqlResource, params);`,
-    '  return mapRowToResult(row);',
+    `  return map${params.queryPascalName}RowToResult(row);`,
     '}',
     ''
   ].join('\n');
@@ -1653,6 +1680,7 @@ function renderReadmeFile(params: {
     `- \`tests/${params.featureName}.boundary.test.ts\``,
     `- \`queries/${params.queryName}/boundary.ts\``,
     `- \`queries/${params.queryName}/${params.queryName}.sql\``,
+    `- \`queries/${params.queryName}/generated/row-mapper.ts\``,
     `- \`queries/${params.queryName}/tests/\``,
     '- `README.md`',
     '',
@@ -1664,10 +1692,11 @@ function renderReadmeFile(params: {
     '',
     '## CLI-owned generated files',
     '',
+    `- \`queries/${params.queryName}/generated/row-mapper.ts\``,
     `- \`queries/${params.queryName}/tests/boundary-ztd-types.ts\``,
     `- \`queries/${params.queryName}/tests/generated/TEST_PLAN.md\``,
     `- \`queries/${params.queryName}/tests/generated/analysis.json\``,
-    `- generated/* is CLI-owned and refreshable.`,
+    `- generated/* is CLI-owned, machine-owned, and refreshable. If deleted, rerun scaffold/generate to recreate it.`,
     '',
     '## Human/AI-owned persistent files',
     '',
@@ -1681,9 +1710,9 @@ function renderReadmeFile(params: {
     '- `boundary.ts` is the default feature-boundary public surface for request parsing, normalization, rejection, query-parameter assembly, and response shaping.',
     ...renderReadmeEntryspecNotes(params.action, params.parameterColumns),
     '- `boundary.ts` keeps its schema values and helper functions file-local; it converts request data to query params explicitly and depends on the shared executor contract directly.',
-    `- \`queries/${params.queryName}/\` is the query unit: SQL, row/result mapping, execution contract, and query-local tests move together for review.`,
-    `- \`queries/${params.queryName}/boundary.ts\` is the default query-boundary public surface for query params, row shape, query result shape, row-to-result mapping, and SQL execution contract.`,
-    `- \`queries/${params.queryName}/boundary.ts\` keeps its \`zod\` schema values, row type, and helper functions private, completes params / row / result parsing internally, and depends on the shared executor contract directly.`,
+    `- \`queries/${params.queryName}/\` is the query unit: SQL, generated row/result mapping, execution contract, and query-local tests move together for review.`,
+    `- \`queries/${params.queryName}/boundary.ts\` is the default query-boundary public surface for query params, row shape, query result shape, and SQL execution contract.`,
+    `- \`queries/${params.queryName}/boundary.ts\` keeps public flow thin while generated row mapping stays under \`queries/${params.queryName}/generated/\`.`,
     `- \`queries/${params.queryName}/boundary.ts\` and \`queries/${params.queryName}/${params.queryName}.sql\` stay co-located as one boundary/SQL pair.`,
     `- \`tests/${params.featureName}.boundary.test.ts\` is the thin Vitest entrypoint for the feature boundary lane.`,
     '- Feature-boundary tests mock child query boundaries and verify feature validation, mapping, and orchestration.',
@@ -2123,6 +2152,7 @@ function renderGetByIdQuerySpecFile(params: {
     '',
     `import type { FeatureQueryExecutor } from '${params.sharedExecutorImportPath}';`,
     `import { loadSqlResource } from '${params.sharedLoadSqlResourceImportPath}';`,
+    `import { map${params.queryPascalName}RowToResult } from './generated/row-mapper.js';`,
     '',
     'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
@@ -2138,7 +2168,7 @@ function renderGetByIdQuerySpecFile(params: {
     '',
     `export type ${params.queryPascalName}QueryResult = z.infer<typeof QueryResultSchema>;`,
     '',
-    `type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
+    `export type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
     '',
     '/** Parses raw query params at the query boundary. */',
     `function parseQueryParams(raw: unknown): ${params.queryPascalName}QueryParams {`,
@@ -2148,14 +2178,6 @@ function renderGetByIdQuerySpecFile(params: {
     '/** Parses a raw DB row at the query boundary. */',
     `function parseRow(raw: unknown): ${params.queryPascalName}Row {`,
     `  return RowSchema.parse(raw);`,
-    '}',
-    '',
-    '/** Maps a query row into the query result contract. */',
-    `function mapRowToResult(row: ${params.queryPascalName}Row | undefined): ${params.queryPascalName}QueryResult {`,
-    '  if (row === undefined) {',
-    '    return null;',
-    '  }',
-    `  return QueryResultSchema.parse(row);`,
     '}',
     '',
     '/** Loads the optional row for the get-by-id baseline. */',
@@ -2177,7 +2199,7 @@ function renderGetByIdQuerySpecFile(params: {
     `): Promise<${params.queryPascalName}QueryResult> {`,
     '  const params = parseQueryParams(rawParams);',
     `  const row = await loadOptionalRow(executor, ${params.queryCamelName}SqlResource, params);`,
-    '  return mapRowToResult(row);',
+    `  return map${params.queryPascalName}RowToResult(row);`,
     '}',
     ''
   ].join('\n');
@@ -2215,6 +2237,7 @@ function renderListQuerySpecFile(params: {
     `import type { FeatureQueryExecutor } from '${params.sharedExecutorImportPath}';`,
     "import { createCatalogExecutor, type QuerySpec } from '@rawsql-ts/sql-contract';",
     `import { loadSqlResource } from '${params.sharedLoadSqlResourceImportPath}';`,
+    `import { map${params.queryPascalName}RowsToResult } from './generated/row-mapper.js';`,
     '',
     `const DEFAULT_PAGE_SIZE = ${DEFAULT_PAGE_SIZE};`,
     'const __dirname = dirname(fileURLToPath(import.meta.url));',
@@ -2233,7 +2256,7 @@ function renderListQuerySpecFile(params: {
     '',
     `export type ${params.queryPascalName}QueryResult = z.infer<typeof QueryResultSchema>;`,
     '',
-    `type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
+    `export type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
     `type ${params.queryPascalName}CatalogQueryParams = ${params.queryPascalName}QueryParams & {`,
     '  limit: number;',
     '};',
@@ -2273,11 +2296,6 @@ function renderListQuerySpecFile(params: {
     '  };',
     '}',
     '',
-    '/** Maps query rows into the query result contract. */',
-    `function mapRowsToResult(rows: ${params.queryPascalName}Row[]): ${params.queryPascalName}QueryResult {`,
-    '  return QueryResultSchema.parse({ items: rows });',
-    '}',
-    '',
     '/** Executes the query boundary flow for this query spec. */',
     `export async function execute${params.queryPascalName}QuerySpec(`,
     '  executor: FeatureQueryExecutor,',
@@ -2292,10 +2310,79 @@ function renderListQuerySpecFile(params: {
     '    allowNamedParamsWithoutBinder: true,',
     '  });',
     `  const rows = await catalog.list(${params.queryCamelName}CatalogSpec, toQueryParams(params));`,
-    '  return mapRowsToResult(rows);',
+    `  return map${params.queryPascalName}RowsToResult(rows);`,
     '}',
     ''
   ].join('\n');
+}
+
+function renderGeneratedRowMapperFile(params: {
+  action: FeatureAction;
+  queryPascalName: string;
+  responseFields: RenderField[];
+}): string {
+  const fallbackReason = params.responseFields.length === 0
+    ? 'No result fields were available when ztd-cli generated this mapper.'
+    : null;
+  const header = [
+    '// @generated by rawsql-ts ztd-cli. Do not edit.',
+    '// This file is machine-owned and can be deleted, then regenerated by the RFBA scaffold command.',
+    ''
+  ];
+  const importLine = `import type { ${params.queryPascalName}QueryResult, ${params.queryPascalName}Row } from '../boundary.js';`;
+  const fallbackLine = `export const rowMapperFallbackReason: string | null = ${fallbackReason === null ? 'null' : JSON.stringify(fallbackReason)};`;
+  if (params.action === 'list') {
+    return [
+      ...header,
+      importLine,
+      '',
+      fallbackLine,
+      '',
+      `function map${params.queryPascalName}Row(row: ${params.queryPascalName}Row): ${params.queryPascalName}QueryResult['items'][number] {`,
+      ...renderGeneratedMapperReturnObject('row', params.responseFields, `${params.queryPascalName}QueryResult['items'][number]`),
+      '}',
+      '',
+      `export function map${params.queryPascalName}RowsToResult(rows: ${params.queryPascalName}Row[]): ${params.queryPascalName}QueryResult {`,
+      `  return { items: rows.map(map${params.queryPascalName}Row) };`,
+      '}',
+      ''
+    ].join('\n');
+  }
+
+  const rowType = params.action === 'get-by-id'
+    ? `${params.queryPascalName}Row | undefined`
+    : `${params.queryPascalName}Row`;
+  const nullGuard = params.action === 'get-by-id'
+    ? [
+      '  if (row === undefined) {',
+      '    return null;',
+      '  }'
+    ]
+    : [];
+
+  return [
+    ...header,
+    importLine,
+    '',
+    fallbackLine,
+    '',
+    `export function map${params.queryPascalName}RowToResult(row: ${rowType}): ${params.queryPascalName}QueryResult {`,
+    ...nullGuard,
+    ...renderGeneratedMapperReturnObject('row', params.responseFields, `${params.queryPascalName}QueryResult`),
+    '}',
+    ''
+  ].join('\n');
+}
+
+function renderGeneratedMapperReturnObject(sourceName: string, fields: RenderField[], typeName: string): string[] {
+  if (fields.length === 0) {
+    return [`  return {} as ${typeName};`];
+  }
+  return [
+    '  return {',
+    ...fields.map((field) => `    ${JSON.stringify(field.name)}: ${sourceName}[${JSON.stringify(field.name)}],`),
+    '  };'
+  ];
 }
 
 function renderExampleValue(field: RenderField): string {
@@ -2448,6 +2535,10 @@ function writeFeatureFile(filePath: string, contents: string, force: boolean): v
   if (existsSync(filePath) && !force) {
     return;
   }
+  writeFileSync(filePath, contents, 'utf8');
+}
+
+function writeGeneratedFile(filePath: string, contents: string): void {
   writeFileSync(filePath, contents, 'utf8');
 }
 

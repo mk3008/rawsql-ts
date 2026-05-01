@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from 'vitest';
 import {
@@ -257,8 +257,10 @@ test('runExistingBoundaryQueryScaffoldCommand dry-run plans an additive query un
   expect(plannedPaths).toEqual(expect.arrayContaining([
     'src/features/sales-insert/queries',
     'src/features/sales-insert/queries/insert-sales-detail',
+    'src/features/sales-insert/queries/insert-sales-detail/generated',
     'src/features/sales-insert/queries/insert-sales-detail/boundary.ts',
-    'src/features/sales-insert/queries/insert-sales-detail/insert-sales-detail.sql'
+    'src/features/sales-insert/queries/insert-sales-detail/insert-sales-detail.sql',
+    'src/features/sales-insert/queries/insert-sales-detail/generated/row-mapper.ts'
   ]));
   expect(plannedPaths).not.toContain('src/features/sales-insert/boundary.ts');
 });
@@ -294,6 +296,7 @@ test('runExistingBoundaryQueryScaffoldCommand writes a child query boundary with
   expect(readFileSync(parentBoundary, 'utf8')).toBe('// existing parent boundary\n');
   expect(existsSync(path.join(featureDir, 'queries', 'insert-sales-detail', 'boundary.ts'))).toBe(true);
   expect(existsSync(path.join(featureDir, 'queries', 'insert-sales-detail', 'insert-sales-detail.sql'))).toBe(true);
+  expect(existsSync(path.join(featureDir, 'queries', 'insert-sales-detail', 'generated', 'row-mapper.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', '_shared', 'featureQueryExecutor.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'features', '_shared', 'loadSqlResource.ts'))).toBe(true);
   expect(existsSync(path.join(featureDir, 'README.md'))).toBe(false);
@@ -547,8 +550,10 @@ test('runFeatureScaffoldCommand dry-run creates the new insert layout without te
     'src/features/users-insert/tests/users-insert.boundary.test.ts',
     'src/features/users-insert/boundary.ts',
     'src/features/users-insert/queries/insert-users',
+    'src/features/users-insert/queries/insert-users/generated',
     'src/features/users-insert/queries/insert-users/boundary.ts',
     'src/features/users-insert/queries/insert-users/insert-users.sql',
+    'src/features/users-insert/queries/insert-users/generated/row-mapper.ts',
     'src/features/users-insert/README.md'
   ]));
   expect(result.outputs.some((output) => output.path.endsWith('.boundary.ztd.test.ts'))).toBe(false);
@@ -642,23 +647,24 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
   expect(querySpecFile).toContain("import { z } from 'zod';");
   expect(querySpecFile).toContain("import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';");
   expect(querySpecFile).toContain("const insertUsersSqlResource = loadSqlResource(__dirname, 'insert-users.sql');");
+  expect(querySpecFile).toContain("import { mapInsertUsersRowToResult } from './generated/row-mapper.js';");
   expect(querySpecFile).toContain('const QueryParamsSchema = z.object({');
   expect(querySpecFile).toContain("}).strict();");
   expect(querySpecFile).toContain("email: z.string().min(1, 'email must not be empty.')");
   expect(querySpecFile).not.toContain("id: z.string().min(1, 'id must not be empty.')");
   expect(querySpecFile).not.toContain('created_at: z.string().min(1');
   expect(querySpecFile).toContain('export type InsertUsersQueryParams = z.infer<typeof QueryParamsSchema>;');
-  expect(querySpecFile).toContain('type InsertUsersRow = z.infer<typeof RowSchema>;');
+  expect(querySpecFile).toContain('export type InsertUsersRow = z.infer<typeof RowSchema>;');
   expect(querySpecFile).toContain('export type InsertUsersQueryResult = z.infer<typeof QueryResultSchema>;');
   expect(querySpecFile).toContain('/** Parses raw query params at the query boundary. */');
   expect(querySpecFile).toContain('function parseQueryParams');
   expect(querySpecFile).toContain('/** Parses a raw DB row at the query boundary. */');
   expect(querySpecFile).toContain('function parseRow');
-  expect(querySpecFile).toContain('/** Maps a query row into the query result contract. */');
-  expect(querySpecFile).toContain('function mapRowToResult');
+  expect(querySpecFile).not.toContain('function mapRowToResult');
   expect(querySpecFile).toContain('/** Executes the query boundary flow for this query spec. */');
   expect(querySpecFile).toContain('export async function executeInsertUsersQuerySpec');
   expect(querySpecFile).toContain('loadSingleRow');
+  expect(querySpecFile).toContain('return mapInsertUsersRowToResult(row);');
   expect(querySpecFile).toContain('executor.query<Record<string, unknown>>(sql, params)');
   expect(querySpecFile).not.toContain('export interface InsertUsersQueryContract');
   expect(querySpecFile).not.toContain('export const insertUsersQueryContract');
@@ -666,6 +672,17 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
   expect(querySpecFile).not.toContain('export function parseInsertUsersRow');
   expect(querySpecFile).not.toContain('ScalarKind');
   expect(querySpecFile).not.toContain('parseBySpecs');
+
+  const generatedRowMapperFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'generated', 'row-mapper.ts'),
+    'utf8'
+  );
+  expect(generatedRowMapperFile).toContain('@generated by rawsql-ts ztd-cli');
+  expect(generatedRowMapperFile).toContain('machine-owned');
+  expect(generatedRowMapperFile).toContain("import type { InsertUsersQueryResult, InsertUsersRow } from '../boundary.js';");
+  expect(generatedRowMapperFile).toContain('export const rowMapperFallbackReason: string | null = null;');
+  expect(generatedRowMapperFile).toContain('export function mapInsertUsersRowToResult(row: InsertUsersRow): InsertUsersQueryResult');
+  expect(generatedRowMapperFile).toContain('"id": row["id"],');
 
   const sqlFile = readFileSync(
     path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'insert-users.sql'),
@@ -706,6 +723,7 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
   expect(readmeFile).toContain('queries/insert-users/boundary.ts');
   expect(readmeFile).toContain('queries/insert-users/` is the query unit');
   expect(readmeFile).toContain('## CLI-owned generated files');
+  expect(readmeFile).toContain('queries/insert-users/generated/row-mapper.ts');
   expect(readmeFile).toContain('queries/insert-users/tests/boundary-ztd-types.ts');
   expect(readmeFile).toContain('insert-users/tests/generated/TEST_PLAN.md');
   expect(readmeFile).toContain('insert-users/tests/generated/analysis.json');
@@ -1098,12 +1116,21 @@ test('runFeatureScaffoldCommand writes the get-by-id baseline with zero-or-one c
   expect(querySpecFile).toContain('}).strict();');
   expect(querySpecFile).toContain('const RowSchema = z.object({');
   expect(querySpecFile).toContain('const QueryResultSchema = RowSchema.nullable();');
+  expect(querySpecFile).toContain("import { mapGetByIdRowToResult } from './generated/row-mapper.js';");
   expect(querySpecFile).toContain('function parseQueryParams');
   expect(querySpecFile).toContain('function parseRow');
-  expect(querySpecFile).toContain('function mapRowToResult');
+  expect(querySpecFile).not.toContain('function mapRowToResult');
   expect(querySpecFile).toContain('loadOptionalRow');
   expect(querySpecFile).toContain('executor.query<Record<string, unknown>>(sql, params)');
-  expect(querySpecFile).toContain('return null;');
+  expect(querySpecFile).toContain('return mapGetByIdRowToResult(row);');
+
+  const generatedRowMapperFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'generated', 'row-mapper.ts'),
+    'utf8'
+  );
+  expect(generatedRowMapperFile).toContain('export function mapGetByIdRowToResult(row: GetByIdRow | undefined): GetByIdQueryResult');
+  expect(generatedRowMapperFile).toContain('return null;');
+  expect(generatedRowMapperFile).toContain('"display_name": row["display_name"],');
 
   const sqlFile = readFileSync(
     path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'get-by-id.sql'),
@@ -1178,7 +1205,17 @@ test('runFeatureScaffoldCommand writes the list baseline with catalog paging and
   expect(querySpecFile).toContain('function parseQueryParams');
   expect(querySpecFile).toContain('function parseRow');
   expect(querySpecFile).toContain('function toQueryParams');
-  expect(querySpecFile).toContain('function mapRowsToResult');
+  expect(querySpecFile).toContain("import { mapListRowsToResult } from './generated/row-mapper.js';");
+  expect(querySpecFile).not.toContain('function mapRowsToResult');
+  expect(querySpecFile).toContain('return mapListRowsToResult(rows);');
+
+  const generatedRowMapperFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'generated', 'row-mapper.ts'),
+    'utf8'
+  );
+  expect(generatedRowMapperFile).toContain('function mapListRow(row: ListRow): ListQueryResult');
+  expect(generatedRowMapperFile).toContain('export function mapListRowsToResult(rows: ListRow[]): ListQueryResult');
+  expect(generatedRowMapperFile).toContain('"is_active": row["is_active"],');
 
   const sqlFile = readFileSync(
     path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'list.sql'),
@@ -1294,6 +1331,13 @@ test('runFeatureScaffoldCommand overwrites scaffold-owned feature files with --f
   writeFileSync(path.join(featureDir, 'queries', 'insert-users', 'boundary.ts'), '// existing query boundary\n', 'utf8');
   writeFileSync(path.join(featureDir, 'queries', 'insert-users', 'insert-users.sql'), '-- existing sql\n', 'utf8');
   writeFileSync(path.join(featureDir, 'README.md'), '# existing readme\n', 'utf8');
+  mkdirSync(path.join(featureDir, 'queries', 'insert-users', 'generated'), { recursive: true });
+  writeFileSync(
+    path.join(featureDir, 'queries', 'insert-users', 'generated', 'row-mapper.ts'),
+    '// stale generated mapper\n',
+    'utf8'
+  );
+  rmSync(path.join(featureDir, 'queries', 'insert-users', 'generated', 'row-mapper.ts'));
 
   const result = await runFeatureScaffoldCommand({
     table: 'users',
@@ -1308,4 +1352,7 @@ test('runFeatureScaffoldCommand overwrites scaffold-owned feature files with --f
   );
   expect(readFileSync(path.join(featureDir, 'queries', 'insert-users', 'boundary.ts'), 'utf8')).not.toContain('// existing query boundary');
   expect(readFileSync(path.join(featureDir, 'queries', 'insert-users', 'insert-users.sql'), 'utf8')).not.toContain('-- existing sql');
+  expect(readFileSync(path.join(featureDir, 'queries', 'insert-users', 'generated', 'row-mapper.ts'), 'utf8')).toContain(
+    'export function mapInsertUsersRowToResult(row: InsertUsersRow): InsertUsersQueryResult'
+  );
 });
