@@ -9,4 +9,4 @@ select
   discontinued,
   supplier_id as "supplierId"
 from products
-where to_tsvector('english', name) @@ to_tsquery('english', $1)
+where to_tsvector('english', name) @@ websearch_to_tsquery('english', $1)

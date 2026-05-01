@@ -48,7 +48,7 @@ rawsql-ts implementation policy:
 - Nested response endpoints use server-side mapping from flat joined rows. The rawsql-ts SQL does not build nested JSON in PostgreSQL with `jsonb_build_object` or `jsonb_agg`.
 - `rawsql-ts minimal` is kept as a low-overhead SQL-first baseline.
 - `rawsql-ts RFBA sql-contract` is the recommended maintainable rawsql-ts shape for this benchmark: the benchmark follows the `packages/transfer` feature-first scaffold style with `adapters/pg`, `features/_shared`, and endpoint-owned `features/<feature>/boundary.ts` entrypoints.
-- The optimized RFBA target uses query-local generated row mappers for hot nested DTO mappings. The previous compiled column-map projector path remains as the runtime-compatible fallback and profile comparison point.
+- The optimized RFBA target uses query-local generated row mappers for hot nested DTO mappings. The previous compiled column-map projector path remains available as a compatible alternative and profile comparison point.
 - For one-to-many order details, the current benchmark still composes arrays in query-local generated code after flat row projection, because first-class generated `hasMany` aggregation is still a follow-up.
 - The validation target is available as an optional diagnostic only; it is excluded from the main comparison because Drizzle does not run equivalent validation.
 
@@ -80,7 +80,7 @@ Measured endpoints:
 | Node.js | v22.14.0 |
 | pnpm | 10.17.0 |
 | Docker | 27.3.1 |
-| k6 | Docker image `grafana/k6:latest`, `k6 v2.0.0-rc1+dirty` |
+| k6 | Measured with Docker image `grafana/k6:latest`, `k6 v2.0.0-rc1+dirty`; the helper now defaults to pinned `grafana/k6:0.54.0` with `K6_IMAGE` override |
 | PostgreSQL | 17.2, Docker `postgres` image |
 
 Seed observed locally:
@@ -130,7 +130,7 @@ pnpm start:rawsql:rfba
 Run k6 from Docker while a target server is listening on port 3000:
 
 ```sh
-docker run --rm -v "${PWD}:/scripts" -w /scripts/bench -e HOST=http://host.docker.internal:3000 grafana/k6:latest run --summary-trend-stats 'avg,min,med,p(90),p(95),p(99),max' --summary-export /scripts/results/<name>-summary.json bench.js
+K6_IMAGE=grafana/k6:0.54.0 pnpm bench:k6:docker -- --host http://host.docker.internal:3000 --name <name> --folder results
 ```
 
 Run the mapper hot-path profile:
@@ -218,6 +218,12 @@ The generated-mapper RFBA target keeps the same RFBA structure but moves hot DTO
 The generated-mapper HTTP result is only a small average throughput improvement over the previous compiled-projector optimized run: 5,121.76 req/sec versus 5,078.65 req/sec, about 0.8%. The median run improved more clearly, from 4,441.86 to 5,206.57 req/sec. This matches the profiler direction, but it also shows that once mapping overhead is reduced, full HTTP throughput is dominated by DB execution, response serialization, Docker networking, and local scheduler variance. The mapper profile proves the generated mapper is much faster in isolation; the HTTP benchmark shows the end-to-end gain is real but not proportional to the microbenchmark speedup.
 
 This is a useful result: it separates the performance story into two layers. The SQL-first execution path itself appears competitive in the minimal target. The maintainable RFBA + sql-contract shape can preserve that performance range when mapper automation is compiled or specialized instead of interpreted on every row.
+
+### Runtime Cost vs Development-Time Guarantees
+
+The generated-mapper path intentionally keeps runtime lean: execute prepared SQL, perform minimal DTO mapping, and return JSON. Correctness is not removed from the system; it is shifted to development time. SQL behavior is covered by real database ZTD tests, DTO shape is checked against actual query results, and generated mappers are protected by drift detection between the query boundary contract and `generated/row-mapper.ts`.
+
+This makes generated mappers the standard RFBA execution path rather than an opt-in performance mode. The architectural rule is: pay for correctness once during development, not on every request. That rule depends on CI/test enforcing both ZTD tests and generated mapper drift checks. Without those checks, the runtime path remains fast but the correctness guarantee is weaker.
 
 The one failed request in `rawsql-minimal-run-1` is small relative to 1.7M requests, but it should not be hidden. The two subsequent minimal runs had zero failed requests. The initial, compiled-projector optimized, and generated RFBA sql-contract targets all completed three full runs with zero failed requests.
 

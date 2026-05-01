@@ -7,6 +7,6 @@ export const executeSearchProductEntrySpec = async (
   queries: QueryCatalog,
   term: string,
 ) => {
-  const result = await executor.execute(queries.searchProduct, [`${term}:*`]);
+  const result = await executor.execute(queries.searchProduct, [term]);
   return rowsAsDto(result.rows);
 };

@@ -4,14 +4,12 @@
 import type { Row } from '../../../../local/sql-contract-mapper';
 import type { OrderDetailDto, OrderWithDetailsDto, ProductDto } from '../boundary';
 
-export const rowMapperFallbackReason: string | null = null;
-
 function mapOrderRow(row: Row): Omit<OrderWithDetailsDto, 'details'> {
   return {
     id: row.id as number,
     orderDate: row.orderDate as string,
     requiredDate: row.requiredDate as string,
-    shippedDate: row.shippedDate as string,
+    shippedDate: row.shippedDate as string | null,
     shipVia: row.shipVia as number,
     freight: row.freight as number,
     shipName: row.shipName as string,

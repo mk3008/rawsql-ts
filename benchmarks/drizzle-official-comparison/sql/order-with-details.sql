@@ -5,8 +5,8 @@ select
   o.ship_city as "shipCity",
   o.ship_country as "shipCountry",
   count(d.product_id)::int as "productsCount",
-  sum(d.quantity)::int as "quantitySum",
-  sum(d.quantity * d.unit_price)::real as "totalPrice"
+  coalesce(sum(d.quantity), 0)::int as "quantitySum",
+  coalesce(sum(d.quantity * d.unit_price), 0)::real as "totalPrice"
 from orders o
 left join order_details d on d.order_id = o.id
 where o.id = $1

@@ -184,6 +184,13 @@ describe('structured mapping', () => {
       expect('ignored_column' in country).toBe(false)
     })
 
+    it('rejects non-string column map values instead of silently dropping them', () => {
+      expect(() => compileColumnProjector<Country>({
+        id: 'country_id',
+        name: { column: 'country_name' } as unknown as string,
+      })).toThrow(/Property "name" received/)
+    })
+
     it('compiles array mappers and preserves structured mapper coercion defaults', () => {
       const mapCountries = compileColumnMapRowsMapper<Country>({
         id: 'country_id',

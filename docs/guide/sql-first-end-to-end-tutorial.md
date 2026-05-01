@@ -122,7 +122,7 @@ Outside feature-owned boundaries, keep shared feature seams under `src/features/
 Do not count `src/features/_shared/*`, `tests/support/*`, `.ztd/*`, or `db/` as extra root boundaries.
 Keep `db/` reserved for DDL, migration, and schema assets; do not place runtime clients or adapters there.
 
-The feature scaffold creates the boundary files, SQL file, feature-root boundary test, and the query-local `tests/generated/` plus `tests/cases/` directories.
+The feature scaffold creates the boundary files, SQL file, feature-root boundary test, and machine-owned `generated/row-mapper.ts`. After SQL and DTO edits settle, run `npx ztd feature tests scaffold --feature users-insert` to create the query-local ZTD test generated files and persistent `tests/cases/` directory.
 
 After you finish the SQL and DTO edits, run `npx ztd feature tests scaffold --feature users-insert`.
 That command refreshes `src/features/users-insert/queries/insert-users/tests/generated/TEST_PLAN.md` and `analysis.json`, refreshes `src/features/users-insert/queries/insert-users/tests/boundary-ztd-types.ts`, and creates the thin `src/features/users-insert/queries/insert-users/tests/insert-users.boundary.ztd.test.ts` Vitest entrypoint only if it is missing.

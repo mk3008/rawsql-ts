@@ -87,6 +87,8 @@ If local `k6` is not installed, run the k6 phase with Docker from `tmp/drizzle-b
 pnpm bench:k6:docker -- --host http://host.docker.internal:3000 --name rawsql-minimal-run-1 --folder results
 ```
 
+The Docker helper defaults to the pinned image `grafana/k6:0.54.0`. Set `K6_IMAGE` if you need to reproduce an earlier run with another image.
+
 For a quick wiring smoke test:
 
 ```sh

@@ -27,7 +27,7 @@ export type OrderWithDetailsDto = {
   id: number;
   orderDate: string;
   requiredDate: string;
-  shippedDate: string;
+  shippedDate: string | null;
   shipVia: number;
   freight: number;
   shipName: string;

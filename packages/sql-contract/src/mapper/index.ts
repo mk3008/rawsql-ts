@@ -477,9 +477,15 @@ export function compileColumnProjector<T>(
   columnMap: ColumnMap<T>,
   options?: CompiledColumnProjectorOptions
 ): (row: Row) => T {
-  const entries = Object.entries(columnMap).filter(
-    (entry): entry is [string, string] => typeof entry[1] === 'string'
-  )
+  const entries: Array<[string, string]> = []
+  for (const [property, column] of Object.entries(columnMap)) {
+    if (typeof column !== 'string') {
+      throw new Error(
+        `compileColumnProjector requires string column names. Property ${JSON.stringify(property)} received ${JSON.stringify(column)} (${typeof column}).`
+      )
+    }
+    entries.push([property, column])
+  }
   const shouldCoerce = options?.coerce ?? true
   const coerceFn = options?.coerceFn ?? coerceColumnValue
 

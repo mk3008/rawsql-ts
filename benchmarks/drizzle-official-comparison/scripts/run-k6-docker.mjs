@@ -24,6 +24,7 @@ const {
 
 fs.mkdirSync(folder, { recursive: true });
 
+const k6Image = process.env.K6_IMAGE ?? 'grafana/k6:0.54.0';
 const k6Args = ['run'];
 if (vus) {
   k6Args.push('--vus', vus);
@@ -50,7 +51,7 @@ execFileSync(
     '/scripts/bench',
     '-e',
     `HOST=${host}`,
-    'grafana/k6:latest',
+    k6Image,
     ...k6Args,
   ],
   { stdio: 'inherit' }

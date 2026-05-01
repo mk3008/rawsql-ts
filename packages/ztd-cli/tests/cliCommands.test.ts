@@ -236,6 +236,7 @@ test(
     expect(result.stdout).toContain('Getting started');
     expect(result.stdout).toContain('model-gen [options] <sql-file>');
     expect(result.stdout).toContain('feature');
+    expect(result.stdout).toContain('feature generated-mapper check --feature users-insert');
     expect(result.stdout).toContain('feature query scaffold --feature users-insert');
   },
   60000,
@@ -269,6 +270,31 @@ test(
     expect(result.stdout).toContain('--force');
     expect(result.stdout).toContain('Refresh query-boundary generated analysis');
     expect(result.stdout).toContain('keep persistent case files untouched');
+  },
+  60000,
+);
+
+test(
+  'feature generated-mapper check help exposes drift detection',
+  () => {
+    const result = runCli(['feature', 'generated-mapper', 'check', '--help']);
+    assertCliSuccess(result, 'feature generated-mapper check --help');
+    expect(result.stdout).toContain('--feature <name>');
+    expect(result.stdout).toContain('--query <name>');
+    expect(result.stdout).toContain('drift');
+  },
+  60000,
+);
+
+test(
+  'feature generated-mapper generate help exposes machine-owned refresh',
+  () => {
+    const result = runCli(['feature', 'generated-mapper', 'generate', '--help']);
+    assertCliSuccess(result, 'feature generated-mapper generate --help');
+    expect(result.stdout).toContain('--feature <name>');
+    expect(result.stdout).toContain('--query <name>');
+    expect(result.stdout).toContain('--dry-run');
+    expect(result.stdout).toContain('Regenerate machine-owned');
   },
   60000,
 );

@@ -4,8 +4,6 @@
 import type { Row } from '../../../../local/sql-contract-mapper';
 import type { Employee } from '../boundary';
 
-export const rowMapperFallbackReason: string | null = null;
-
 function mapEmployeeRow(row: Row): Employee {
   return {
     id: row.id as number,
