@@ -13,6 +13,7 @@ Official upstream benchmark:
 | target | server script | port | validation |
 |---|---|---:|---|
 | Drizzle | `src/drizzle-server-node.ts` | 3000 | Drizzle mapping only |
+| handwritten | `src/handwritten-server-node.ts` | 3000 | none; direct SQL execution and hand-written DTO mapping |
 | rawsql-ts minimal | `src/rawsql-server-node.ts` | 3000 | none beyond parameter coercion |
 | rawsql-ts RFBA sql-contract | `src/rawsql-rfba-server-node.ts` | 3000 | RFBA generated row mappers for hot nested DTOs, no validation |
 | rawsql-ts with validation | `src/rawsql-server-node-validation.ts` | 3000 | optional diagnostic only |
@@ -51,6 +52,14 @@ pnpm start:drizzle
 
 # terminal 2
 pnpm exec tsx bench/index.ts --host http://localhost:3000 --name drizzle-run-1 --folder results
+```
+
+```sh
+# terminal 1
+pnpm start:handwritten
+
+# terminal 2
+pnpm exec tsx bench/index.ts --host http://localhost:3000 --name handwritten-run-1 --folder results
 ```
 
 ```sh

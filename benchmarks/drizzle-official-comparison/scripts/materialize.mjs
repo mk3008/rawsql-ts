@@ -49,6 +49,7 @@ const packageJsonPath = path.join(targetDir, 'package.json');
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 packageJson.scripts = {
   ...packageJson.scripts,
+  'start:handwritten': 'tsx ./src/handwritten-server-node.ts',
   'start:rawsql': 'tsx ./src/rawsql-server-node.ts',
   'start:rawsql:rfba': 'tsx ./src/rawsql-rfba-server-node.ts',
   'start:rawsql:validation': 'tsx ./src/rawsql-server-node-validation.ts',

@@ -1,12 +1,14 @@
 # rawsql-ts vs Drizzle Speed Comparison Report
 
-Status: done for local benchmark evidence. Run date: 2026-05-01. rawsql-ts: 0.20.0 / commit fa5bb3dd.
+Status: done for local benchmark evidence. Main run date: 2026-05-01. Handwritten ceiling spot-check date: 2026-05-02. rawsql-ts: 0.20.0 / commit fa5bb3dd.
 
 ## Summary
 
 Under the local benchmark conditions recorded below, `rawsql-ts minimal` is in the same practical performance range as the Drizzle v1.0.0 benchmark target. It is not uniformly better: average throughput was slightly higher for rawsql-ts minimal, while p95/p99 tail latency was slightly worse. The fair headline for the minimal target is comparable, with no meaningful runtime disadvantage for this HTTP API workload.
 
 The first `rawsql-ts RFBA sql-contract` target was more representative of the recommended rawsql-ts application shape, but its generic runtime mapping path was slower than both Drizzle and rawsql-ts minimal. After moving hot RFBA DTO mapping behind machine-owned `generated/row-mapper.ts` files, the standard RFBA shape stayed thin at the public boundary and moved into the same practical performance range as Drizzle and rawsql-ts minimal. The generated-mapper RFBA HTTP run averaged 5,121.76 req/sec with zero failed requests across three runs. That is a clear improvement over the initial RFBA target and a small average throughput improvement over the previous compiled-projector-optimized run, although run-to-run variance remains large.
+
+A new fully handwritten target was added as a theoretical ceiling: it uses the same SQL files, Hono server shape, `pg` driver, and endpoint contract, but does not call rawsql-ts or Drizzle. Its request-time work is direct prepared SQL execution plus hand-written DTO mapping. In the 2026-05-02 spot check, the first handwritten run was slower because it was effectively cold (`4,596.64 req/sec`), but the warm run reached `6,253.03 req/sec` with zero failed requests. This supports using the handwritten target as an upper-bound reference, while also showing that this benchmark is sensitive to cache and local scheduler state.
 
 `rawsql-ts with validation` is not included in the main comparison because the inspected Drizzle benchmark target does not add an equivalent response-validation layer. Its run data is kept only as optional overhead evidence.
 
@@ -50,6 +52,7 @@ rawsql-ts implementation policy:
 - `rawsql-ts RFBA sql-contract` is the recommended maintainable rawsql-ts shape for this benchmark: the benchmark follows the `packages/transfer` feature-first scaffold style with `adapters/pg`, `features/_shared`, and endpoint-owned `features/<feature>/boundary.ts` entrypoints.
 - The optimized RFBA target uses query-local generated row mappers for hot nested DTO mappings. The previous compiled column-map projector path remains available as a compatible alternative and profile comparison point.
 - For one-to-many order details, the current benchmark still composes arrays in query-local generated code after flat row projection, because first-class generated `hasMany` aggregation is still a follow-up.
+- `handwritten` is the direct SQL ceiling target. It loads the same SQL files at startup, uses named prepared queries with `pg.Pool.query`, and performs direct hand-written object construction for nested DTO endpoints. It does not parse SQL and does not use rawsql-ts mapper/runtime APIs.
 - The validation target is available as an optional diagnostic only; it is excluded from the main comparison because Drizzle does not run equivalent validation.
 
 Measured endpoints:
@@ -123,6 +126,7 @@ Run target servers:
 
 ```sh
 pnpm start:drizzle
+pnpm start:handwritten
 pnpm start:rawsql
 pnpm start:rawsql:rfba
 ```
@@ -140,6 +144,8 @@ pnpm exec tsx profiles/mapper-profile.ts
 ```
 
 ## Results
+
+### Main Three-Run Comparison
 
 Average across three runs:
 
@@ -181,6 +187,30 @@ Individual runs:
 | rawsql-rfba-run-2 | rawsql-ts RFBA sql-contract | 3,709.78 | 302.36 | 714.79 | 760.55 | 0 |
 | rawsql-rfba-run-3 | rawsql-ts RFBA sql-contract | 4,406.93 | 123.95 | 695.52 | 741.86 | 0 |
 
+### Handwritten Ceiling Spot Check
+
+The fully handwritten target was added after the main three-run comparison. It was measured on 2026-05-02 with the pinned Docker helper image `grafana/k6:0.54.0`. These values are kept separate from the main table because the earlier main comparison used the previous helper default and because the spot check exposed strong run-to-run variance.
+
+| run | target | req/sec | p50 ms | p90 ms | p95 ms | p99 ms | failed requests |
+|---|---|---:|---:|---:|---:|---:|---:|
+| handwritten-run-1 | handwritten direct SQL, cold | 4,596.64 | 107.84 | 515.84 | 546.81 | 571.99 | 0 |
+| rawsql-current-run-1 | rawsql-ts minimal, same session | 5,140.80 | 3.70 | 512.55 | 534.10 | 551.22 | 0 |
+| handwritten-run-2-warm | handwritten direct SQL, warm | 6,253.03 | 3.72 | 383.59 | 410.91 | 424.53 | 0 |
+| rawsql-current-run-2-warm | rawsql-ts minimal, follow-up | 4,293.74 | 162.05 | 553.94 | 579.74 | 626.65 | 0 |
+
+The cold handwritten run was intentionally not used as the ceiling because it was slower than rawsql-ts minimal and triggered an implementation check. The check found no extra rawsql-ts/Drizzle work in the handwritten request path: no SQL parser, no generic mapper, no contract lookup, and no validation. The next warm handwritten run was the fastest observed HTTP result in this benchmark workspace.
+
+Using the warm handwritten run as a practical ceiling for this spot check:
+
+| target | comparison basis | req/sec | gap vs handwritten warm |
+|---|---|---:|---:|
+| handwritten direct SQL | warm spot check | 6,253.03 | baseline |
+| rawsql-ts minimal | same-session best spot check | 5,140.80 | 17.8% lower |
+| rawsql-ts RFBA generated | prior three-run average | 5,121.76 | 18.1% lower |
+| Drizzle | prior three-run average | 4,856.55 | 22.3% lower |
+
+These gap numbers should be read as directional, not as a final ranking, because they mix the new handwritten spot check with the earlier three-run comparison. The important signal is that the direct handwritten path can produce a higher ceiling, and rawsql-ts/Drizzle are both close enough that HTTP, DB, JSON, and local scheduling still dominate the end-to-end profile.
+
 Mapper hot-path profile:
 
 | profile | ops/sec | relative |
@@ -200,6 +230,10 @@ Artifacts in the materialized benchmark workspace:
 - `tmp/drizzle-benchmarks-rawsql/results/aggregate-main-with-rfba-summary.json`
 - `tmp/drizzle-benchmarks-rawsql/results/aggregate-rfba-generated-summary.json`
 - `tmp/drizzle-benchmarks-rawsql/results/aggregate-rfba-optimized-summary.json`
+- `tmp/drizzle-benchmarks-rawsql/results/handwritten-run-1-summary.json`
+- `tmp/drizzle-benchmarks-rawsql/results/handwritten-run-2-warm-summary.json`
+- `tmp/drizzle-benchmarks-rawsql/results/rawsql-current-run-1-summary.json`
+- `tmp/drizzle-benchmarks-rawsql/results/rawsql-current-run-2-warm-summary.json`
 - `tmp/drizzle-benchmarks-rawsql/results/mapper-profile-summary.json`
 - `tmp/drizzle-benchmarks-rawsql/seed.log`
 
@@ -218,6 +252,10 @@ The generated-mapper RFBA target keeps the same RFBA structure but moves hot DTO
 The generated-mapper HTTP result is only a small average throughput improvement over the previous compiled-projector-optimized run: 5,121.76 req/sec versus 5,078.65 req/sec, about 0.8%. The median run improved more clearly, from 4,441.86 to 5,206.57 req/sec. This matches the profiler direction, but it also shows that once mapping overhead is reduced, full HTTP throughput is dominated by DB execution, response serialization, Docker networking, and local scheduler variance. The mapper profile proves the generated mapper is much faster in isolation; the HTTP benchmark shows the end-to-end gain is real but not proportional to the microbenchmark speedup.
 
 This is a useful result: it separates the performance story into two layers. The SQL-first execution path itself appears competitive in the minimal target. The maintainable RFBA + sql-contract shape can preserve that performance range when mapper automation is compiled or specialized instead of interpreted on every row.
+
+The handwritten ceiling target gives a more explicit upper bound. It confirmed that the fastest shape is direct prepared SQL plus direct DTO construction, as expected. It also showed that the first run after seed/server churn can be misleading: the initial handwritten result was slower than rawsql-ts minimal, then the same implementation reached the fastest observed throughput once warmed. Because the handwritten code does not contain rawsql-ts parsing, mapper lookup, validation, or contract machinery on the request path, the most plausible explanation for the initial inversion is benchmark environment variance rather than a hidden implementation cost.
+
+The gap between the warm handwritten ceiling and rawsql-ts targets is the useful optimization budget. The budget is not entirely mapper overhead: all targets still pay Hono routing, node-postgres scheduling, PostgreSQL execution, result transfer, JSON serialization, Docker networking, and Windows host scheduling. The mapper profile shows that generated mappers have already made DTO construction cheap in isolation, so further large wins likely require endpoint-level profiling and separating DB/query latency from server mapping time.
 
 ### Runtime Cost vs Development-Time Guarantees
 
@@ -248,6 +286,8 @@ The generated RFBA target showed the same kind of variance:
 This looks like a workload and local-environment effect rather than a deterministic mapper difference. The official request list is heavily skewed toward a few endpoints: `/order-with-details-and-products`, `/product-with-supplier`, and `/order-with-details` are each 26.88% of the measured request list. The k6 scenario cycles through a shuffled request list while throughput differs by run, so each run may spend a different amount of time in different parts of the request cycle. At the same time, the benchmark runs at up to 3000 VUs on a Windows + Docker host, where scheduler and container networking effects can move the median sharply.
 
 The k6 summary has only aggregate latency for this run. A follow-up benchmark should tag requests by endpoint so p50/p95/p99 can be split by endpoint. That would show whether the low p50 runs are dominated by very fast single-row endpoints or whether a server/runtime scheduling effect is present.
+
+The handwritten spot check reinforces that recommendation. In the same local session, rawsql-ts minimal moved from `5,140.80 req/sec` to `4,293.74 req/sec`, while handwritten moved from `4,596.64 req/sec` to `6,253.03 req/sec`. That spread is too large to treat a single run as a definitive target ranking. The next benchmark harness improvement should tag endpoints and record a warmup run that is excluded from the reported sample.
 
 ### Single Failed Request
 
@@ -302,6 +342,8 @@ The generated RFBA + sql-contract target is maintainable and realistic, and it r
 The remaining conclusion is conditional but positive: RFBA/sql-contract is a good application structure, and preserving minimal-target performance is practical when hot DTO mapping uses generated sql-contract mappers as the scaffold-standard internal path.
 
 There is value in preparing an upstream benchmark PR after tightening the benchmark harness and documenting the migration compatibility patch. The PR should be framed neutrally: rawsql-ts demonstrates a SQL-first baseline alongside Drizzle, not an attack on Drizzle.
+
+The fully handwritten target should be kept in the benchmark as a ceiling/reference target. It makes the remaining optimization budget visible: rawsql-ts and Drizzle can be compared not only to each other, but also to the fastest maintainable direct-SQL shape under the same HTTP and database conditions.
 
 ## Optional Validation Overhead
 
