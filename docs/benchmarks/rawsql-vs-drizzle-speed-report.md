@@ -1,12 +1,12 @@
 # rawsql-ts vs Drizzle Speed Comparison Report
 
-Status: done for local benchmark evidence.
+Status: done for local benchmark evidence. Run date: 2026-05-01. rawsql-ts: 0.20.0 / commit fa5bb3dd.
 
 ## Summary
 
 Under the local benchmark conditions recorded below, `rawsql-ts minimal` is in the same practical performance range as the Drizzle v1.0.0 benchmark target. It is not uniformly better: average throughput was slightly higher for rawsql-ts minimal, while p95/p99 tail latency was slightly worse. The fair headline for the minimal target is comparable, with no meaningful runtime disadvantage for this HTTP API workload.
 
-The first `rawsql-ts RFBA sql-contract` target was more representative of the recommended rawsql-ts application shape, but its generic runtime mapping path was slower than both Drizzle and rawsql-ts minimal. After moving hot RFBA DTO mapping behind machine-owned `generated/row-mapper.ts` files, the standard RFBA shape stayed thin at the public boundary and moved into the same practical performance range as Drizzle and rawsql-ts minimal. The generated-mapper RFBA HTTP run averaged 5,121.76 req/sec with zero failed requests across three runs. That is a clear improvement over the initial RFBA target and a small average throughput improvement over the previous compiled-projector optimized run, although run-to-run variance remains large.
+The first `rawsql-ts RFBA sql-contract` target was more representative of the recommended rawsql-ts application shape, but its generic runtime mapping path was slower than both Drizzle and rawsql-ts minimal. After moving hot RFBA DTO mapping behind machine-owned `generated/row-mapper.ts` files, the standard RFBA shape stayed thin at the public boundary and moved into the same practical performance range as Drizzle and rawsql-ts minimal. The generated-mapper RFBA HTTP run averaged 5,121.76 req/sec with zero failed requests across three runs. That is a clear improvement over the initial RFBA target and a small average throughput improvement over the previous compiled-projector-optimized run, although run-to-run variance remains large.
 
 `rawsql-ts with validation` is not included in the main comparison because the inspected Drizzle benchmark target does not add an equivalent response-validation layer. Its run data is kept only as optional overhead evidence.
 
@@ -215,7 +215,7 @@ The initial RFBA + sql-contract target gave a different signal. It improved main
 
 The generated-mapper RFBA target keeps the same RFBA structure but moves hot DTO mapping into query-local generated mapper files. This removes the hot-path generic `Object.entries`/`Map`/case-insensitive lookup/relation traversal work from the measured nested endpoints while keeping the boundary code thin. Average throughput improved from 4,001.54 req/sec in the initial RFBA target to 5,121.76 req/sec, a 28.0% lift. Compared with Drizzle average throughput, the RFBA target moved from 17.6% behind to 5.5% ahead in this local run set. The median comparison is also positive: generated RFBA was 13.2% ahead of Drizzle by median run throughput, versus 15.5% behind before optimization.
 
-The generated-mapper HTTP result is only a small average throughput improvement over the previous compiled-projector optimized run: 5,121.76 req/sec versus 5,078.65 req/sec, about 0.8%. The median run improved more clearly, from 4,441.86 to 5,206.57 req/sec. This matches the profiler direction, but it also shows that once mapping overhead is reduced, full HTTP throughput is dominated by DB execution, response serialization, Docker networking, and local scheduler variance. The mapper profile proves the generated mapper is much faster in isolation; the HTTP benchmark shows the end-to-end gain is real but not proportional to the microbenchmark speedup.
+The generated-mapper HTTP result is only a small average throughput improvement over the previous compiled-projector-optimized run: 5,121.76 req/sec versus 5,078.65 req/sec, about 0.8%. The median run improved more clearly, from 4,441.86 to 5,206.57 req/sec. This matches the profiler direction, but it also shows that once mapping overhead is reduced, full HTTP throughput is dominated by DB execution, response serialization, Docker networking, and local scheduler variance. The mapper profile proves the generated mapper is much faster in isolation; the HTTP benchmark shows the end-to-end gain is real but not proportional to the microbenchmark speedup.
 
 This is a useful result: it separates the performance story into two layers. The SQL-first execution path itself appears competitive in the minimal target. The maintainable RFBA + sql-contract shape can preserve that performance range when mapper automation is compiled or specialized instead of interpreted on every row.
 
@@ -225,7 +225,7 @@ The generated-mapper path intentionally keeps runtime lean: execute prepared SQL
 
 This makes generated mappers the standard RFBA execution path rather than an opt-in performance mode. The architectural rule is: pay for correctness once during development, not on every request. That rule depends on CI/test enforcing both ZTD tests and generated mapper drift checks. Without those checks, the runtime path remains fast but the correctness guarantee is weaker.
 
-The one failed request in `rawsql-minimal-run-1` is small relative to 1.7M requests, but it should not be hidden. The two subsequent minimal runs had zero failed requests. The initial, compiled-projector optimized, and generated RFBA sql-contract targets all completed three full runs with zero failed requests.
+The one failed request in `rawsql-minimal-run-1` is small relative to 1.7M requests, but it should not be hidden. The two subsequent minimal runs had zero failed requests. The initial, compiled-projector-optimized, and generated RFBA sql-contract targets all completed three full runs with zero failed requests.
 
 ### Variance Notes
 
@@ -258,7 +258,7 @@ GET /employee-with-recipient?id=108
 error="dial tcp 192.168.65.254:3000: connect: connection refused"
 ```
 
-That error is not endpoint-specific application behavior. It is a connection-level refusal, not a SQL error, mapping error, timeout, or non-2xx response. The same target completed the next two full runs with zero failed requests, and the RFBA sql-contract targets completed nine full runs with zero failed requests across initial, compiled-projector optimized, and generated variants. The most likely classification is transient local server/container networking or worker availability during the run. For stronger evidence, future runs should add worker-exit timestamps and k6 endpoint tags.
+That error is not endpoint-specific application behavior. It is a connection-level refusal, not a SQL error, mapping error, timeout, or non-2xx response. The same target completed the next two full runs with zero failed requests, and the RFBA sql-contract targets completed nine full runs with zero failed requests across initial, compiled-projector-optimized, and generated variants. The most likely classification is transient local server/container networking or worker availability during the run. For stronger evidence, future runs should add worker-exit timestamps and k6 endpoint tags.
 
 ### Why rawsql-ts Was Comparable, Not Clearly Faster
 

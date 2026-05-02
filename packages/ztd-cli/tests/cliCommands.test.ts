@@ -287,6 +287,30 @@ test(
 );
 
 test(
+  'describe command reports feature generated-mapper check metadata in global json mode',
+  () => {
+    const result = runCli(['--output', 'json', 'describe', 'command', 'feature generated-mapper check']);
+
+    assertCliSuccess(result, 'describe feature generated-mapper check');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      command: 'describe command',
+      ok: true,
+      data: {
+        command: {
+          name: 'feature generated-mapper check',
+          writesFiles: false,
+          supportsDryRun: false
+        }
+      }
+    });
+    const flags = parsed.data.command.flags.map((flag: { name: string }) => flag.name);
+    expect(flags).toEqual(expect.arrayContaining(['--feature <name>', '--query <name>']));
+  },
+  60000,
+);
+
+test(
   'feature generated-mapper generate help exposes machine-owned refresh',
   () => {
     const result = runCli(['feature', 'generated-mapper', 'generate', '--help']);
@@ -295,6 +319,31 @@ test(
     expect(result.stdout).toContain('--query <name>');
     expect(result.stdout).toContain('--dry-run');
     expect(result.stdout).toContain('Regenerate machine-owned');
+  },
+  60000,
+);
+
+test(
+  'describe command reports feature generated-mapper generate metadata in global json mode',
+  () => {
+    const result = runCli(['--output', 'json', 'describe', 'command', 'feature generated-mapper generate']);
+
+    assertCliSuccess(result, 'describe feature generated-mapper generate');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      command: 'describe command',
+      ok: true,
+      data: {
+        command: {
+          name: 'feature generated-mapper generate',
+          writesFiles: true,
+          supportsDryRun: true,
+          summary: 'Regenerate machine-owned RFBA query row mappers from query boundary contracts.'
+        }
+      }
+    });
+    const flags = parsed.data.command.flags.map((flag: { name: string }) => flag.name);
+    expect(flags).toEqual(expect.arrayContaining(['--feature <name>', '--query <name>', '--dry-run']));
   },
   60000,
 );

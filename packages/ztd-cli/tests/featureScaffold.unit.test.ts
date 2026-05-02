@@ -1446,7 +1446,7 @@ test('generated mapper check fails when query SQL changes without regenerating t
       query: 'insert-users',
       rootDir: workspace
     })
-  ).rejects.toThrow(/Generated row mapper drift detected/);
+  ).rejects.toThrow(/ztd feature generated-mapper generate --feature users-insert --query insert-users/);
 });
 
 test('generated mapper check fails when the query boundary contract changes without regenerating the mapper', async () => {
@@ -1485,7 +1485,7 @@ test('generated mapper check fails when the query boundary contract changes with
       query: 'insert-users',
       rootDir: workspace
     })
-  ).rejects.toThrow(/Generated row mapper drift detected/);
+  ).rejects.toThrow(/ztd feature generated-mapper generate --feature users-insert --query insert-users/);
 });
 
 test('generated mapper generate force-syncs machine-owned files from the boundary contract', async () => {

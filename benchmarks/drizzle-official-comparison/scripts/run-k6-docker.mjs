@@ -24,13 +24,27 @@ const {
 
 fs.mkdirSync(folder, { recursive: true });
 
+function readPositiveInteger(name, value) {
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0 || String(parsed) !== value.trim()) {
+    console.error(`${name} must be a positive integer.`);
+    process.exit(1);
+  }
+  return String(parsed);
+}
+
 const k6Image = process.env.K6_IMAGE ?? 'grafana/k6:0.54.0';
 const k6Args = ['run'];
-if (vus) {
-  k6Args.push('--vus', vus);
+const validatedVus = readPositiveInteger('--vus', vus);
+const validatedIterations = readPositiveInteger('--iterations', iterations);
+if (validatedVus) {
+  k6Args.push('--vus', validatedVus);
 }
-if (iterations) {
-  k6Args.push('--iterations', iterations);
+if (validatedIterations) {
+  k6Args.push('--iterations', validatedIterations);
 }
 k6Args.push(
   '--summary-trend-stats',

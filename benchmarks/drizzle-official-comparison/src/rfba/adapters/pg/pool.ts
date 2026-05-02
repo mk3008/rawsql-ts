@@ -12,8 +12,15 @@ function readPoolSize(name: string, fallback: number): number {
   return parsed;
 }
 
+const poolMin = readPoolSize('RAWSQL_PG_POOL_MIN', 0);
+const poolMax = readPoolSize('RAWSQL_PG_POOL_MAX', 10);
+
+if (poolMin > poolMax) {
+  throw new Error(`RAWSQL_PG_POOL_MIN (${poolMin}) must be less than or equal to RAWSQL_PG_POOL_MAX (${poolMax}).`);
+}
+
 export const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
-  min: readPoolSize('RAWSQL_PG_POOL_MIN', 0),
-  max: readPoolSize('RAWSQL_PG_POOL_MAX', 10),
+  min: poolMin,
+  max: poolMax,
 });

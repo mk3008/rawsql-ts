@@ -811,8 +811,7 @@ function resolveRequestedTable(
 ): DdlTableMetadata | undefined {
   const normalized = rawTableName.trim().toLowerCase();
   if (normalized.includes('.')) {
-    const canonical = normalized || `${defaultSchema}.${normalized}`;
-    const canonicalMatch = tables.find((table) => table.canonicalName.toLowerCase() === canonical);
+    const canonicalMatch = tables.find((table) => table.canonicalName.toLowerCase() === normalized);
     if (canonicalMatch) {
       return canonicalMatch;
     }
@@ -1185,39 +1184,30 @@ function renderExistingBoundaryQueryScaffoldFiles(params: {
   const requestFields = actionPlan.requestColumns.map((column) => toRenderField(column, { boundary: 'query' }));
   const responseFields = actionPlan.resultColumns.map((column) => toRenderField(column, { boundary: 'query' }));
   const sharedSupportFiles = renderFeatureSharedSupportFiles();
+  const querySpecFile = renderQuerySpecFile({
+    action: params.action,
+    queryName: params.queryName,
+    boundaryRelativeDir: params.boundaryRelativeDir,
+    queryPascalName,
+    queryCamelName,
+    requestFields,
+    responseFields,
+    sharedExecutorImportPath: sharedImports.executorImportPath,
+    sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath,
+    insertDefaultPolicy: params.insertDefaultPolicy
+  });
+  const querySqlFile = renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn);
 
   return {
-    querySpecFile: renderQuerySpecFile({
-      action: params.action,
-      queryName: params.queryName,
-      boundaryRelativeDir: params.boundaryRelativeDir,
-      queryPascalName,
-      queryCamelName,
-      requestFields,
-      responseFields,
-      sharedExecutorImportPath: sharedImports.executorImportPath,
-      sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath,
-      insertDefaultPolicy: params.insertDefaultPolicy
-    }),
+    querySpecFile,
     queryGeneratedRowMapperFile: renderGeneratedRowMapperFile({
       action: params.action,
       queryPascalName,
       responseFields,
-      boundarySource: renderQuerySpecFile({
-        action: params.action,
-        queryName: params.queryName,
-        boundaryRelativeDir: params.boundaryRelativeDir,
-        queryPascalName,
-        queryCamelName,
-        requestFields,
-        responseFields,
-        sharedExecutorImportPath: sharedImports.executorImportPath,
-        sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath,
-        insertDefaultPolicy: params.insertDefaultPolicy
-      }),
-      sqlSource: renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn)
+      boundarySource: querySpecFile,
+      sqlSource: querySqlFile
     }),
-    querySqlFile: renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn),
+    querySqlFile,
     featureQueryExecutorFile: sharedSupportFiles.featureQueryExecutorFile,
     loadSqlResourceFile: sharedSupportFiles.loadSqlResourceFile
   };
