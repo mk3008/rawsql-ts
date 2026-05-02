@@ -104,6 +104,7 @@ Getting started:
   $ ztd init --yes             Create a new ZTD project (non-interactive, demo + Zod defaults)
   $ ztd init --yes --force     Allow non-interactive overwrite of scaffold-owned files
   $ ztd feature scaffold --table users --action insert --dry-run
+  $ ztd feature generated-mapper check --feature users-insert
   $ ztd feature query scaffold --feature users-insert --query-name insert-user-audit --table user_audit --action insert --dry-run
   $ ztd feature tests scaffold --feature users-insert
   $ ztd ztd-config             Generate TestRowMap types from DDL

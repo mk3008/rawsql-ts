@@ -57,6 +57,7 @@ const COMMANDS: CommandDescriptor[] = [
         'src/features/<feature-name>/queries/<query-name>/',
         'src/features/<feature-name>/queries/<query-name>/boundary.ts',
         'src/features/<feature-name>/queries/<query-name>/<query-name>.sql',
+        'src/features/<feature-name>/queries/<query-name>/generated/row-mapper.ts',
         'src/features/<feature-name>/tests/',
         'src/features/<feature-name>/tests/<feature-name>.boundary.test.ts',
         'src/features/<feature-name>/README.md',
@@ -78,6 +79,45 @@ const COMMANDS: CommandDescriptor[] = [
     ]
   },
   {
+    name: 'feature generated-mapper generate',
+    summary: 'Regenerate machine-owned RFBA query row mappers from query boundary contracts.',
+    writesFiles: true,
+    supportsDryRun: true,
+    supportsJsonPayload: false,
+    output: {
+      stdout: 'Human sync summary in text mode, JSON envelope in global json mode.',
+      files: ['src/features/<feature-name>/queries/<query-name>/generated/row-mapper.ts']
+    },
+    exitCodes: {
+      '0': 'Generated mapper files were synchronized or dry-run plan emitted.',
+      '1': 'Feature/query contract resolution or filesystem error.'
+    },
+    flags: [
+      { name: '--feature <name>', description: 'Feature name under src/features/<feature-name>.' },
+      { name: '--query <name>', description: 'Limit regeneration to one query under queries/<query-name>.' },
+      { name: '--dry-run', description: 'Check planned generated mapper updates without writing files.' }
+    ]
+  },
+  {
+    name: 'feature generated-mapper check',
+    summary: 'Fail when machine-owned RFBA row mappers drift from query boundary contracts.',
+    writesFiles: false,
+    supportsDryRun: false,
+    supportsJsonPayload: false,
+    output: {
+      stdout: 'Human success summary in text mode, JSON envelope in global json mode.',
+      files: []
+    },
+    exitCodes: {
+      '0': 'Generated mapper files match their query boundary contracts.',
+      '1': 'Generated mapper drift or feature/query contract resolution error.'
+    },
+    flags: [
+      { name: '--feature <name>', description: 'Feature name under src/features/<feature-name>.' },
+      { name: '--query <name>', description: 'Limit drift detection to one query under queries/<query-name>.' }
+    ]
+  },
+  {
     name: 'feature query scaffold',
     summary: 'Add one additive child query boundary under an existing boundary without rewriting the parent boundary.',
     writesFiles: true,
@@ -89,6 +129,7 @@ const COMMANDS: CommandDescriptor[] = [
         '<target-boundary>/queries/<query-name>/',
         '<target-boundary>/queries/<query-name>/boundary.ts',
         '<target-boundary>/queries/<query-name>/<query-name>.sql',
+        '<target-boundary>/queries/<query-name>/generated/row-mapper.ts',
         'src/features/_shared/featureQueryExecutor.ts on first scaffold run',
         'src/features/_shared/loadSqlResource.ts on first scaffold run'
       ]

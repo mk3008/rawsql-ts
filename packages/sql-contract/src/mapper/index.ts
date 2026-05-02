@@ -50,6 +50,13 @@ export interface RowMappingOptions<
 
 export type { RowMappingOptions as EntityOptions }
 
+export type ColumnMap<T> = Partial<Record<Extract<keyof T, string>, string>>
+
+export interface CompiledColumnProjectorOptions {
+  coerce?: boolean
+  coerceFn?: (value: unknown) => unknown
+}
+
 /**
  * Describes how a child mapping references a parent mapping.
  */
@@ -457,6 +464,56 @@ export function columnMapFromPrefix<K extends string>(
     columnMap[property] = `${prefix}${toSnakeCase(String(property))}`
   }
   return columnMap
+}
+
+/**
+ * Compiles an explicit DTO column map into a per-row projector.
+ *
+ * This is intended for hot paths where the DTO shape is known at startup. It
+ * keeps the sql-contract column contract explicit while avoiding per-row
+ * descriptor walking and dynamic key construction.
+ */
+export function compileColumnProjector<T>(
+  columnMap: ColumnMap<T>,
+  options?: CompiledColumnProjectorOptions
+): (row: Row) => T {
+  const entries: Array<[string, string]> = []
+  for (const [property, column] of Object.entries(columnMap)) {
+    if (typeof column !== 'string') {
+      throw new Error(
+        `compileColumnProjector requires string column names. Property ${JSON.stringify(property)} received ${JSON.stringify(column)} (${typeof column}).`
+      )
+    }
+    entries.push([property, column])
+  }
+  const shouldCoerce = options?.coerce ?? true
+  const coerceFn = options?.coerceFn ?? coerceColumnValue
+
+  return (row: Row): T => {
+    const dto: Record<string, unknown> = {}
+    for (const [property, column] of entries) {
+      const value = row[column]
+      dto[property] = shouldCoerce ? coerceFn(value) : value
+    }
+    return dto as T
+  }
+}
+
+/**
+ * Compiles an explicit DTO column map into an array mapper.
+ */
+export function compileColumnMapRowsMapper<T>(
+  columnMap: ColumnMap<T>,
+  options?: CompiledColumnProjectorOptions
+): (rows: Row[]) => T[] {
+  const project = compileColumnProjector<T>(columnMap, options)
+  return (rows: Row[]): T[] => {
+    const mapped = new Array<T>(rows.length)
+    for (let index = 0; index < rows.length; index += 1) {
+      mapped[index] = project(rows[index])
+    }
+    return mapped
+  }
 }
 
 /**

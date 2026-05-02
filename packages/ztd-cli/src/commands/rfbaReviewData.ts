@@ -599,6 +599,7 @@ function runGitMaybe(cwd: string, args: string[]): { status: number | null; stdo
   const result = spawnSync('git', args, {
     cwd,
     encoding: 'utf8',
+    env: createIsolatedGitEnv(),
   });
   return {
     status: result.status,
@@ -606,6 +607,15 @@ function runGitMaybe(cwd: string, args: string[]): { status: number | null; stdo
     stderr: result.stderr ?? '',
     error: result.error,
   };
+}
+
+function createIsolatedGitEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  delete env.GIT_DIR;
+  delete env.GIT_WORK_TREE;
+  delete env.GIT_INDEX_FILE;
+  delete env.GIT_PREFIX;
+  return env;
 }
 
 function buildDdlChanges(

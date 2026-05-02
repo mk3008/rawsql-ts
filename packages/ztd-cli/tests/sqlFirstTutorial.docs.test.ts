@@ -79,7 +79,9 @@ test('the tutorial preserves the shortest DDL to first test path', () => {
   expect(tutorial).toContain('Use `root-boundary`, `feature-boundary`, and `sub-boundary` as the ztd-cli structural vocabulary for RFBA.');
   expect(tutorial).toContain('Treat RFBA as review-responsibility structure, not as a universal file naming rule.');
   expect(tutorial).toContain('Keep shared feature seams under `src/features/_shared/*`, shared verification seams under `tests/support/*`, driver-neutral contracts under `src/libraries/*`, and driver or sink bindings under `src/adapters/<tech>/*`.');
-  expect(tutorial).toContain('The feature scaffold creates the boundary files, SQL file, feature-root boundary test, and the query-local `tests/generated/` plus `tests/cases/` directories.');
+  expect(tutorial).toContain('The feature scaffold creates the boundary files, SQL file, feature-root boundary test, and machine-owned `generated/row-mapper.ts`.');
+  expect(tutorial).toContain('npx ztd feature generated-mapper check --feature users-insert');
+  expect(tutorial).toContain('npx ztd feature generated-mapper generate --feature users-insert --query insert-users');
   expect(tutorial).toContain('That command refreshes `src/features/users-insert/queries/insert-users/tests/generated/TEST_PLAN.md` and `analysis.json`, refreshes `src/features/users-insert/queries/insert-users/tests/boundary-ztd-types.ts`, and creates the thin `src/features/users-insert/queries/insert-users/tests/insert-users.boundary.ztd.test.ts` Vitest entrypoint only if it is missing.');
   expect(tutorial).toContain('Persistent case files under `src/features/users-insert/queries/insert-users/tests/cases/` stay human/AI-owned and are not overwritten.');
   expect(tutorial).toContain('The validation cases may stay at the feature boundary, but the success case must execute through the fixed app-level ZTD runner and verify the returned result.');

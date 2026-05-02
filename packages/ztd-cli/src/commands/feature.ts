@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { Command } from 'commander';
 import {
@@ -33,6 +34,8 @@ const FIXED_LAYOUT_DESCRIPTION = [
   '    <query-name>/',
   '      boundary.ts',
   '      <query-name>.sql',
+  '      generated/',
+  '        row-mapper.ts',
   '      tests/',
   '        <query-name>.boundary.ztd.test.ts',
   '        boundary-ztd-types.ts',
@@ -63,6 +66,13 @@ type ExistingBoundaryQueryCommandOptions = {
   dryRun?: boolean;
   rootDir?: string;
   workingDir?: string;
+};
+
+type GeneratedMapperCommandOptions = {
+  feature?: string;
+  query?: string;
+  rootDir?: string;
+  dryRun?: boolean;
 };
 
 type FeatureScaffoldSourceName = 'generated-metadata' | 'ddl';
@@ -103,6 +113,8 @@ interface FeatureScaffoldPaths {
   entrySpecFile: string;
   querySpecFile: string;
   querySqlFile: string;
+  queryGeneratedDir: string;
+  queryGeneratedRowMapperFile: string;
   readmeFile: string;
   sharedDir: string;
   featureQueryExecutorFile: string;
@@ -115,6 +127,8 @@ interface ExistingBoundaryQueryScaffoldPaths {
   queryDir: string;
   querySpecFile: string;
   querySqlFile: string;
+  queryGeneratedDir: string;
+  queryGeneratedRowMapperFile: string;
   entrySpecFile: string;
   sharedDir: string;
   featureQueryExecutorFile: string;
@@ -147,12 +161,43 @@ interface ExistingBoundaryQueryScaffoldResult {
   outputs: Array<{ path: string; written: boolean; kind: 'directory' | 'file' }>;
 }
 
+interface GeneratedMapperSyncResult {
+  featureName: string;
+  queryNames: string[];
+  dryRun: boolean;
+  outputs: Array<{ path: string; written: boolean; changed: boolean; kind: 'file' }>;
+}
+
+interface GeneratedMapperCheckResult {
+  featureName: string;
+  queryNames: string[];
+  ok: boolean;
+  checked: Array<{ path: string; changed: boolean; kind: 'file' }>;
+}
+
+type GeneratedMapperMode = 'single' | 'optional' | 'list';
+
+interface GeneratedMapperSpec {
+  featureName: string;
+  queryName: string;
+  queryPascalName: string;
+  mode: GeneratedMapperMode;
+  fieldNames: string[];
+  boundaryHash: string;
+  sqlHash: string;
+  boundaryFile: string;
+  generatedFile: string;
+}
+
 export function registerFeatureCommand(program: Command): void {
   const feature = program.command('feature').description('Scaffold feature-local files from schema metadata');
   registerFeatureTestsScaffoldCommand(feature);
   const featureQuery = feature
     .command('query')
     .description('Add a child query boundary under an existing boundary folder');
+  const generatedMapper = feature
+    .command('generated-mapper')
+    .description('Synchronize machine-owned RFBA generated row mappers');
 
   feature
     .command('scaffold')
@@ -224,6 +269,42 @@ export function registerFeatureCommand(program: Command): void {
       ];
       process.stdout.write(`${lines.join('\n')}\n`);
     });
+
+  generatedMapper
+    .command('generate')
+    .description('Regenerate machine-owned query row mappers from query boundary contracts')
+    .requiredOption('--feature <name>', 'Feature name under src/features/<feature-name>')
+    .option('--query <name>', 'Limit regeneration to one query under queries/<query-name>')
+    .option('--dry-run', 'Check the planned generated mapper updates without writing files', false)
+    .action(async (options: GeneratedMapperCommandOptions) => {
+      const result = await runFeatureGeneratedMapperGenerateCommand(options);
+      if (isJsonOutput()) {
+        writeCommandEnvelope('feature generated-mapper generate', result);
+        return;
+      }
+
+      const lines = [
+        `Generated mapper ${result.dryRun ? 'plan' : 'sync'}: ${result.featureName}`,
+        '',
+        ...result.outputs.map((output) => `- ${output.path}${output.changed ? ' (changed)' : ' (unchanged)'}`)
+      ];
+      process.stdout.write(`${lines.join('\n')}\n`);
+    });
+
+  generatedMapper
+    .command('check')
+    .description('Fail when machine-owned query row mappers drift from query boundary contracts')
+    .requiredOption('--feature <name>', 'Feature name under src/features/<feature-name>')
+    .option('--query <name>', 'Limit drift detection to one query under queries/<query-name>')
+    .action(async (options: GeneratedMapperCommandOptions) => {
+      const result = await runFeatureGeneratedMapperCheckCommand(options);
+      if (isJsonOutput()) {
+        writeCommandEnvelope('feature generated-mapper check', result);
+        return;
+      }
+
+      process.stdout.write(`Generated mapper check passed: ${result.featureName}\n`);
+    });
 }
 
 export async function runFeatureScaffoldCommand(options: FeatureCommandOptions): Promise<FeatureScaffoldResult> {
@@ -262,10 +343,12 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
     { path: toProjectRelativePath(rootDir, paths.featureDir), written: !options.dryRun, kind: 'directory' },
     { path: toProjectRelativePath(rootDir, paths.testsDir), written: !options.dryRun, kind: 'directory' },
     { path: toProjectRelativePath(rootDir, paths.queryDir), written: !options.dryRun, kind: 'directory' },
+    { path: toProjectRelativePath(rootDir, paths.queryGeneratedDir), written: !options.dryRun, kind: 'directory' },
     { path: toProjectRelativePath(rootDir, paths.entryBoundaryTestFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.entrySpecFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.querySpecFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.querySqlFile), written: !options.dryRun, kind: 'file' },
+    { path: toProjectRelativePath(rootDir, paths.queryGeneratedRowMapperFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.readmeFile), written: !options.dryRun, kind: 'file' },
   ];
 
@@ -287,12 +370,14 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
   ensureDirectory(paths.featureDir);
   ensureDirectory(paths.testsDir);
   ensureDirectory(paths.queryDir);
+  ensureDirectory(paths.queryGeneratedDir);
   writeFileIfMissing(paths.featureQueryExecutorFile, contents.featureQueryExecutorFile);
   writeFileIfMissing(paths.loadSqlResourceFile, contents.loadSqlResourceFile);
   writeFileIfMissing(paths.entryBoundaryTestFile, contents.entrySpecTestFile);
   writeFeatureFile(paths.entrySpecFile, contents.entrySpecFile, options.force === true);
   writeFeatureFile(paths.querySpecFile, contents.querySpecFile, options.force === true);
   writeFeatureFile(paths.querySqlFile, contents.querySqlFile, options.force === true);
+  writeGeneratedFile(paths.queryGeneratedRowMapperFile, contents.queryGeneratedRowMapperFile);
   writeFeatureFile(paths.readmeFile, contents.readmeFile, options.force === true);
 
   emitDiagnostic({
@@ -350,8 +435,10 @@ export async function runExistingBoundaryQueryScaffoldCommand(
       ? [{ path: toProjectRelativePath(rootDir, paths.queriesDir), written: !options.dryRun, kind: 'directory' as const }]
       : []),
     { path: toProjectRelativePath(rootDir, paths.queryDir), written: !options.dryRun, kind: 'directory' },
+    { path: toProjectRelativePath(rootDir, paths.queryGeneratedDir), written: !options.dryRun, kind: 'directory' },
     { path: toProjectRelativePath(rootDir, paths.querySpecFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.querySqlFile), written: !options.dryRun, kind: 'file' },
+    { path: toProjectRelativePath(rootDir, paths.queryGeneratedRowMapperFile), written: !options.dryRun, kind: 'file' },
   ];
 
   if (options.dryRun) {
@@ -372,10 +459,12 @@ export async function runExistingBoundaryQueryScaffoldCommand(
   ensureDirectory(paths.sharedDir);
   ensureDirectory(paths.queriesDir);
   ensureDirectory(paths.queryDir);
+  ensureDirectory(paths.queryGeneratedDir);
   writeFileIfMissing(paths.featureQueryExecutorFile, contents.featureQueryExecutorFile);
   writeFileIfMissing(paths.loadSqlResourceFile, contents.loadSqlResourceFile);
   writeFileSync(paths.querySpecFile, contents.querySpecFile, 'utf8');
   writeFileSync(paths.querySqlFile, contents.querySqlFile, 'utf8');
+  writeGeneratedFile(paths.queryGeneratedRowMapperFile, contents.queryGeneratedRowMapperFile);
 
   emitDiagnostic({
     code: 'feature-query-scaffold.parent-follow-up',
@@ -393,6 +482,83 @@ export async function runExistingBoundaryQueryScaffoldCommand(
     insertDefaultPolicy,
     dryRun: false,
     outputs
+  };
+}
+
+export async function runFeatureGeneratedMapperGenerateCommand(
+  options: GeneratedMapperCommandOptions
+): Promise<GeneratedMapperSyncResult> {
+  const rootDir = options.rootDir ?? process.cwd();
+  const featureName = normalizeFeatureName(options.feature ?? '');
+  const specs = collectGeneratedMapperSpecs(rootDir, featureName, options.query);
+  const outputs: GeneratedMapperSyncResult['outputs'] = [];
+
+  for (const spec of specs) {
+    const expected = renderGeneratedRowMapperFileFromSpec(spec);
+    const previous = existsSync(spec.generatedFile) ? readFileSync(spec.generatedFile, 'utf8') : '';
+    const changed = previous !== expected;
+    outputs.push({
+      path: toProjectRelativePath(rootDir, spec.generatedFile),
+      written: !options.dryRun,
+      changed,
+      kind: 'file'
+    });
+    if (!options.dryRun) {
+      ensureDirectory(path.dirname(spec.generatedFile));
+      writeGeneratedFile(spec.generatedFile, expected);
+    }
+  }
+
+  return {
+    featureName,
+    queryNames: specs.map((spec) => spec.queryName),
+    dryRun: options.dryRun === true,
+    outputs
+  };
+}
+
+export async function runFeatureGeneratedMapperCheckCommand(
+  options: GeneratedMapperCommandOptions
+): Promise<GeneratedMapperCheckResult> {
+  const rootDir = options.rootDir ?? process.cwd();
+  const featureName = normalizeFeatureName(options.feature ?? '');
+  const specs = collectGeneratedMapperSpecs(rootDir, featureName, options.query);
+  const checked: GeneratedMapperCheckResult['checked'] = [];
+  const driftedSpecs: GeneratedMapperSpec[] = [];
+
+  for (const spec of specs) {
+    const expected = renderGeneratedRowMapperFileFromSpec(spec);
+    const previous = existsSync(spec.generatedFile) ? readFileSync(spec.generatedFile, 'utf8') : '';
+    const changed = previous !== expected;
+    checked.push({
+      path: toProjectRelativePath(rootDir, spec.generatedFile),
+      changed,
+      kind: 'file'
+    });
+    if (changed) {
+      driftedSpecs.push(spec);
+    }
+  }
+
+  if (driftedSpecs.length > 0) {
+    const driftList = driftedSpecs
+      .map((spec) => `- ${toProjectRelativePath(rootDir, spec.generatedFile)}`)
+      .join('\n');
+    const querySuffix = driftedSpecs.length === 1 ? ` --query ${driftedSpecs[0].queryName}` : '';
+    throw new Error(
+      [
+        `Generated row mapper drift detected for feature ${featureName}.`,
+        driftList,
+        `Run \`ztd feature generated-mapper generate --feature ${featureName}${querySuffix}\` to refresh machine-owned generated files.`
+      ].join('\n')
+    );
+  }
+
+  return {
+    featureName,
+    queryNames: specs.map((spec) => spec.queryName),
+    ok: true,
+    checked
   };
 }
 
@@ -645,8 +811,7 @@ function resolveRequestedTable(
 ): DdlTableMetadata | undefined {
   const normalized = rawTableName.trim().toLowerCase();
   if (normalized.includes('.')) {
-    const canonical = normalized || `${defaultSchema}.${normalized}`;
-    const canonicalMatch = tables.find((table) => table.canonicalName.toLowerCase() === canonical);
+    const canonicalMatch = tables.find((table) => table.canonicalName.toLowerCase() === normalized);
     if (canonicalMatch) {
       return canonicalMatch;
     }
@@ -682,6 +847,8 @@ function buildFeatureScaffoldPaths(rootDir: string, featureName: string, queryNa
     entrySpecFile: path.join(featureDir, 'boundary.ts'),
     querySpecFile: path.join(featureDir, 'queries', queryName, 'boundary.ts'),
     querySqlFile: path.join(featureDir, 'queries', queryName, `${queryName}.sql`),
+    queryGeneratedDir: path.join(featureDir, 'queries', queryName, 'generated'),
+    queryGeneratedRowMapperFile: path.join(featureDir, 'queries', queryName, 'generated', 'row-mapper.ts'),
     readmeFile: path.join(featureDir, 'README.md'),
     sharedDir,
     featureQueryExecutorFile: path.join(sharedDir, 'featureQueryExecutor.ts'),
@@ -703,6 +870,8 @@ function buildExistingBoundaryQueryScaffoldPaths(
     queryDir,
     querySpecFile: path.join(queryDir, 'boundary.ts'),
     querySqlFile: path.join(queryDir, `${queryName}.sql`),
+    queryGeneratedDir: path.join(queryDir, 'generated'),
+    queryGeneratedRowMapperFile: path.join(queryDir, 'generated', 'row-mapper.ts'),
     entrySpecFile: path.join(boundaryDir, 'boundary.ts'),
     sharedDir,
     featureQueryExecutorFile: path.join(sharedDir, 'featureQueryExecutor.ts'),
@@ -724,6 +893,7 @@ function renderFeatureScaffoldFiles(params: {
   entrySpecTestFile: string;
   querySpecFile: string;
   querySqlFile: string;
+  queryGeneratedRowMapperFile: string;
   readmeFile: string;
   featureQueryExecutorFile: string;
   loadSqlResourceFile: string;
@@ -768,6 +938,13 @@ function renderFeatureScaffoldFiles(params: {
     sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath,
     insertDefaultPolicy: params.insertDefaultPolicy
   });
+  const queryGeneratedRowMapperFile = renderGeneratedRowMapperFile({
+    action: params.action,
+    queryPascalName,
+    responseFields: queryResponseFields,
+    boundarySource: querySpecFile,
+    sqlSource: sqlFile
+  });
   const readmeFile = renderReadmeFile({
     action: params.action,
     featureName: params.featureName,
@@ -794,6 +971,7 @@ function renderFeatureScaffoldFiles(params: {
     }),
     querySpecFile,
     querySqlFile: sqlFile,
+    queryGeneratedRowMapperFile,
     readmeFile,
     featureQueryExecutorFile: sharedSupportFiles.featureQueryExecutorFile,
     loadSqlResourceFile: sharedSupportFiles.loadSqlResourceFile
@@ -870,6 +1048,115 @@ function resolveExistingBoundaryFolder(
   };
 }
 
+function collectGeneratedMapperSpecs(rootDir: string, featureName: string, queryName?: string): GeneratedMapperSpec[] {
+  const featureDir = path.join(rootDir, 'src', 'features', featureName);
+  const queriesDir = path.join(featureDir, 'queries');
+  if (!existsSync(queriesDir) || !statSync(queriesDir).isDirectory()) {
+    throw new Error(`Feature queries directory not found: ${toProjectRelativePath(rootDir, queriesDir)}.`);
+  }
+
+  const queryNames = queryName === undefined
+    ? readdirSync(queriesDir)
+      .filter((entry) => {
+        const candidate = path.join(queriesDir, entry);
+        return statSync(candidate).isDirectory() && existsSync(path.join(candidate, 'boundary.ts'));
+      })
+      .sort()
+    : [normalizeChildQueryName(queryName)];
+
+  if (queryNames.length === 0) {
+    throw new Error(`No query boundary files were found under ${toProjectRelativePath(rootDir, queriesDir)}.`);
+  }
+
+  return queryNames.map((query) => readGeneratedMapperSpec(rootDir, featureName, query));
+}
+
+function readGeneratedMapperSpec(rootDir: string, featureName: string, queryName: string): GeneratedMapperSpec {
+  const queryDir = path.join(rootDir, 'src', 'features', featureName, 'queries', queryName);
+  const boundaryFile = path.join(queryDir, 'boundary.ts');
+  const querySqlFile = path.join(queryDir, `${queryName}.sql`);
+  const generatedFile = path.join(queryDir, 'generated', 'row-mapper.ts');
+  if (!existsSync(boundaryFile) || !statSync(boundaryFile).isFile()) {
+    throw new Error(`Query boundary not found: ${toProjectRelativePath(rootDir, boundaryFile)}.`);
+  }
+  if (!existsSync(querySqlFile) || !statSync(querySqlFile).isFile()) {
+    throw new Error(`Query SQL not found: ${toProjectRelativePath(rootDir, querySqlFile)}.`);
+  }
+
+  const boundarySource = readFileSync(boundaryFile, 'utf8');
+  const sqlSource = readFileSync(querySqlFile, 'utf8');
+  const queryPascalName = extractQueryPascalName(boundarySource, rootDir, boundaryFile);
+  const fieldNames = extractRowSchemaFieldNames(boundarySource, rootDir, boundaryFile);
+  if (fieldNames.length === 0) {
+    throw new Error(
+      `Cannot generate row mapper for ${toProjectRelativePath(rootDir, boundaryFile)}: RowSchema has no fields.`
+    );
+  }
+
+  return {
+    featureName,
+    queryName,
+    queryPascalName,
+    mode: detectGeneratedMapperMode(boundarySource),
+    fieldNames,
+    boundaryHash: hashGeneratedMapperSource(boundarySource),
+    sqlHash: hashGeneratedMapperSource(sqlSource),
+    boundaryFile,
+    generatedFile
+  };
+}
+
+function hashGeneratedMapperSource(source: string): string {
+  return createHash('sha256').update(source.replace(/\r\n/g, '\n')).digest('hex');
+}
+
+function extractQueryPascalName(source: string, rootDir: string, boundaryFile: string): string {
+  const match = /export type ([A-Za-z][A-Za-z0-9]*)Row = z\.infer<typeof RowSchema>;/.exec(source);
+  if (!match) {
+    throw new Error(
+      `Cannot generate row mapper for ${toProjectRelativePath(rootDir, boundaryFile)}: exported Row type was not found.`
+    );
+  }
+  return match[1];
+}
+
+function extractRowSchemaFieldNames(source: string, rootDir: string, boundaryFile: string): string[] {
+  const startToken = 'const RowSchema = z.object({';
+  const start = source.indexOf(startToken);
+  if (start === -1) {
+    throw new Error(
+      `Cannot generate row mapper for ${toProjectRelativePath(rootDir, boundaryFile)}: RowSchema was not found.`
+    );
+  }
+  const bodyStart = start + startToken.length;
+  const end = source.indexOf('\n})', bodyStart);
+  if (end === -1) {
+    throw new Error(
+      `Cannot generate row mapper for ${toProjectRelativePath(rootDir, boundaryFile)}: RowSchema end was not found.`
+    );
+  }
+
+  const fields: string[] = [];
+  for (const line of source.slice(bodyStart, end).split(/\r?\n/)) {
+    const match = /^\s*(?:(['"])(.*?)\1|([A-Za-z_$][A-Za-z0-9_$]*))\s*:/.exec(line);
+    if (!match) {
+      continue;
+    }
+    fields.push(match[2] ?? match[3]);
+  }
+  return fields;
+}
+
+function detectGeneratedMapperMode(source: string): GeneratedMapperMode {
+  if (source.includes('RowsToResult')) {
+    return 'list';
+  }
+  if (source.includes('const QueryResultSchema = RowSchema.nullable();')) {
+    return 'optional';
+  }
+  return 'single';
+}
+
 function renderExistingBoundaryQueryScaffoldFiles(params: {
   rootDir: string;
   boundaryDir: string;
@@ -882,6 +1169,7 @@ function renderExistingBoundaryQueryScaffoldFiles(params: {
 }): {
   querySpecFile: string;
   querySqlFile: string;
+  queryGeneratedRowMapperFile: string;
   featureQueryExecutorFile: string;
   loadSqlResourceFile: string;
 } {
@@ -896,21 +1184,30 @@ function renderExistingBoundaryQueryScaffoldFiles(params: {
   const requestFields = actionPlan.requestColumns.map((column) => toRenderField(column, { boundary: 'query' }));
   const responseFields = actionPlan.resultColumns.map((column) => toRenderField(column, { boundary: 'query' }));
   const sharedSupportFiles = renderFeatureSharedSupportFiles();
+  const querySpecFile = renderQuerySpecFile({
+    action: params.action,
+    queryName: params.queryName,
+    boundaryRelativeDir: params.boundaryRelativeDir,
+    queryPascalName,
+    queryCamelName,
+    requestFields,
+    responseFields,
+    sharedExecutorImportPath: sharedImports.executorImportPath,
+    sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath,
+    insertDefaultPolicy: params.insertDefaultPolicy
+  });
+  const querySqlFile = renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn);
 
   return {
-    querySpecFile: renderQuerySpecFile({
+    querySpecFile,
+    queryGeneratedRowMapperFile: renderGeneratedRowMapperFile({
       action: params.action,
-      queryName: params.queryName,
-      boundaryRelativeDir: params.boundaryRelativeDir,
       queryPascalName,
-      queryCamelName,
-      requestFields,
       responseFields,
-      sharedExecutorImportPath: sharedImports.executorImportPath,
-      sharedLoadSqlResourceImportPath: sharedImports.loadSqlResourceImportPath,
-      insertDefaultPolicy: params.insertDefaultPolicy
+      boundarySource: querySpecFile,
+      sqlSource: querySqlFile
     }),
-    querySqlFile: renderActionSql(actionPlan, params.table.canonicalName, params.primaryKeyColumn),
+    querySqlFile,
     featureQueryExecutorFile: sharedSupportFiles.featureQueryExecutorFile,
     loadSqlResourceFile: sharedSupportFiles.loadSqlResourceFile
   };
@@ -1535,6 +1832,7 @@ function renderQuerySpecFile(params: {
     '',
     `import type { FeatureQueryExecutor } from '${params.sharedExecutorImportPath}';`,
     `import { loadSqlResource } from '${params.sharedLoadSqlResourceImportPath}';`,
+    `import { map${params.queryPascalName}RowToResult } from './generated/row-mapper.js';`,
     '',
     'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
@@ -1550,7 +1848,7 @@ function renderQuerySpecFile(params: {
     '',
     `export type ${params.queryPascalName}QueryResult = z.infer<typeof QueryResultSchema>;`,
     '',
-    `type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
+    `export type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
     '',
     '/** Parses raw query params at the query boundary. */',
     `function parseQueryParams(raw: unknown): ${params.queryPascalName}QueryParams {`,
@@ -1560,11 +1858,6 @@ function renderQuerySpecFile(params: {
     '/** Parses a raw DB row at the query boundary. */',
     `function parseRow(raw: unknown): ${params.queryPascalName}Row {`,
     '  return RowSchema.parse(raw);',
-    '}',
-    '',
-    '/** Maps a query row into the query result contract. */',
-    `function mapRowToResult(row: ${params.queryPascalName}Row): ${params.queryPascalName}QueryResult {`,
-    '  return QueryResultSchema.parse(row);',
     '}',
     '',
     '/** Loads the single row for the write baseline. */',
@@ -1583,7 +1876,7 @@ function renderQuerySpecFile(params: {
     `): Promise<${params.queryPascalName}QueryResult> {`,
     '  const params = parseQueryParams(rawParams);',
     `  const row = await loadSingleRow(executor, ${params.queryCamelName}SqlResource, params);`,
-    '  return mapRowToResult(row);',
+    `  return map${params.queryPascalName}RowToResult(row);`,
     '}',
     ''
   ].join('\n');
@@ -1653,7 +1946,7 @@ function renderReadmeFile(params: {
     `- \`tests/${params.featureName}.boundary.test.ts\``,
     `- \`queries/${params.queryName}/boundary.ts\``,
     `- \`queries/${params.queryName}/${params.queryName}.sql\``,
-    `- \`queries/${params.queryName}/tests/\``,
+    `- \`queries/${params.queryName}/generated/row-mapper.ts\``,
     '- `README.md`',
     '',
     '## Shared helper files created by the CLI when missing',
@@ -1664,10 +1957,16 @@ function renderReadmeFile(params: {
     '',
     '## CLI-owned generated files',
     '',
+    `- \`queries/${params.queryName}/generated/row-mapper.ts\``,
+    `- \`generated/*\` is CLI-owned, machine-owned, and refreshable. If deleted or drifted, run \`ztd feature generated-mapper generate --feature ${params.featureName} --query ${params.queryName}\` to recreate it.`,
+    `- CI/test should run \`ztd feature generated-mapper check --feature ${params.featureName}\` so contract drift fails with a regeneration command instead of depending on voluntary cleanup.`,
+    '',
+    '## Created by `feature tests scaffold` after SQL and DTO edits',
+    '',
     `- \`queries/${params.queryName}/tests/boundary-ztd-types.ts\``,
     `- \`queries/${params.queryName}/tests/generated/TEST_PLAN.md\``,
     `- \`queries/${params.queryName}/tests/generated/analysis.json\``,
-    `- generated/* is CLI-owned and refreshable.`,
+    `- \`queries/${params.queryName}/tests/${params.queryName}.boundary.ztd.test.ts\``,
     '',
     '## Human/AI-owned persistent files',
     '',
@@ -1681,9 +1980,9 @@ function renderReadmeFile(params: {
     '- `boundary.ts` is the default feature-boundary public surface for request parsing, normalization, rejection, query-parameter assembly, and response shaping.',
     ...renderReadmeEntryspecNotes(params.action, params.parameterColumns),
     '- `boundary.ts` keeps its schema values and helper functions file-local; it converts request data to query params explicitly and depends on the shared executor contract directly.',
-    `- \`queries/${params.queryName}/\` is the query unit: SQL, row/result mapping, execution contract, and query-local tests move together for review.`,
-    `- \`queries/${params.queryName}/boundary.ts\` is the default query-boundary public surface for query params, row shape, query result shape, row-to-result mapping, and SQL execution contract.`,
-    `- \`queries/${params.queryName}/boundary.ts\` keeps its \`zod\` schema values, row type, and helper functions private, completes params / row / result parsing internally, and depends on the shared executor contract directly.`,
+    `- \`queries/${params.queryName}/\` is the query unit: SQL, generated row/result mapping, execution contract, and query-local tests move together for review.`,
+    `- \`queries/${params.queryName}/boundary.ts\` is the default query-boundary public surface for query params, row shape, query result shape, and SQL execution contract.`,
+    `- \`queries/${params.queryName}/boundary.ts\` keeps public flow thin while generated row mapping stays under \`queries/${params.queryName}/generated/\`.`,
     `- \`queries/${params.queryName}/boundary.ts\` and \`queries/${params.queryName}/${params.queryName}.sql\` stay co-located as one boundary/SQL pair.`,
     `- \`tests/${params.featureName}.boundary.test.ts\` is the thin Vitest entrypoint for the feature boundary lane.`,
     '- Feature-boundary tests mock child query boundaries and verify feature validation, mapping, and orchestration.',
@@ -2123,6 +2422,7 @@ function renderGetByIdQuerySpecFile(params: {
     '',
     `import type { FeatureQueryExecutor } from '${params.sharedExecutorImportPath}';`,
     `import { loadSqlResource } from '${params.sharedLoadSqlResourceImportPath}';`,
+    `import { map${params.queryPascalName}RowToResult } from './generated/row-mapper.js';`,
     '',
     'const __dirname = dirname(fileURLToPath(import.meta.url));',
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
@@ -2138,7 +2438,7 @@ function renderGetByIdQuerySpecFile(params: {
     '',
     `export type ${params.queryPascalName}QueryResult = z.infer<typeof QueryResultSchema>;`,
     '',
-    `type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
+    `export type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
     '',
     '/** Parses raw query params at the query boundary. */',
     `function parseQueryParams(raw: unknown): ${params.queryPascalName}QueryParams {`,
@@ -2148,14 +2448,6 @@ function renderGetByIdQuerySpecFile(params: {
     '/** Parses a raw DB row at the query boundary. */',
     `function parseRow(raw: unknown): ${params.queryPascalName}Row {`,
     `  return RowSchema.parse(raw);`,
-    '}',
-    '',
-    '/** Maps a query row into the query result contract. */',
-    `function mapRowToResult(row: ${params.queryPascalName}Row | undefined): ${params.queryPascalName}QueryResult {`,
-    '  if (row === undefined) {',
-    '    return null;',
-    '  }',
-    `  return QueryResultSchema.parse(row);`,
     '}',
     '',
     '/** Loads the optional row for the get-by-id baseline. */',
@@ -2177,7 +2469,7 @@ function renderGetByIdQuerySpecFile(params: {
     `): Promise<${params.queryPascalName}QueryResult> {`,
     '  const params = parseQueryParams(rawParams);',
     `  const row = await loadOptionalRow(executor, ${params.queryCamelName}SqlResource, params);`,
-    '  return mapRowToResult(row);',
+    `  return map${params.queryPascalName}RowToResult(row);`,
     '}',
     ''
   ].join('\n');
@@ -2215,6 +2507,7 @@ function renderListQuerySpecFile(params: {
     `import type { FeatureQueryExecutor } from '${params.sharedExecutorImportPath}';`,
     "import { createCatalogExecutor, type QuerySpec } from '@rawsql-ts/sql-contract';",
     `import { loadSqlResource } from '${params.sharedLoadSqlResourceImportPath}';`,
+    `import { map${params.queryPascalName}RowsToResult } from './generated/row-mapper.js';`,
     '',
     `const DEFAULT_PAGE_SIZE = ${DEFAULT_PAGE_SIZE};`,
     'const __dirname = dirname(fileURLToPath(import.meta.url));',
@@ -2233,7 +2526,7 @@ function renderListQuerySpecFile(params: {
     '',
     `export type ${params.queryPascalName}QueryResult = z.infer<typeof QueryResultSchema>;`,
     '',
-    `type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
+    `export type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
     `type ${params.queryPascalName}CatalogQueryParams = ${params.queryPascalName}QueryParams & {`,
     '  limit: number;',
     '};',
@@ -2273,11 +2566,6 @@ function renderListQuerySpecFile(params: {
     '  };',
     '}',
     '',
-    '/** Maps query rows into the query result contract. */',
-    `function mapRowsToResult(rows: ${params.queryPascalName}Row[]): ${params.queryPascalName}QueryResult {`,
-    '  return QueryResultSchema.parse({ items: rows });',
-    '}',
-    '',
     '/** Executes the query boundary flow for this query spec. */',
     `export async function execute${params.queryPascalName}QuerySpec(`,
     '  executor: FeatureQueryExecutor,',
@@ -2292,10 +2580,97 @@ function renderListQuerySpecFile(params: {
     '    allowNamedParamsWithoutBinder: true,',
     '  });',
     `  const rows = await catalog.list(${params.queryCamelName}CatalogSpec, toQueryParams(params));`,
-    '  return mapRowsToResult(rows);',
+    `  return map${params.queryPascalName}RowsToResult(rows);`,
     '}',
     ''
   ].join('\n');
+}
+
+function renderGeneratedRowMapperFile(params: {
+  action: FeatureAction;
+  queryPascalName: string;
+  responseFields: RenderField[];
+  boundarySource: string;
+  sqlSource: string;
+}): string {
+  if (params.responseFields.length === 0) {
+    throw new Error(`Cannot generate row mapper for ${params.queryPascalName}: no result fields were available.`);
+  }
+  return renderGeneratedRowMapperFileFromSpec({
+    queryPascalName: params.queryPascalName,
+    mode: params.action === 'list' ? 'list' : params.action === 'get-by-id' ? 'optional' : 'single',
+    fieldNames: params.responseFields.map((field) => field.name),
+    boundaryHash: hashGeneratedMapperSource(params.boundarySource),
+    sqlHash: hashGeneratedMapperSource(params.sqlSource)
+  });
+}
+
+function renderGeneratedRowMapperFileFromSpec(params: {
+  queryPascalName: string;
+  mode: GeneratedMapperMode;
+  fieldNames: string[];
+  boundaryHash: string;
+  sqlHash: string;
+}): string {
+  if (params.fieldNames.length === 0) {
+    throw new Error(`Cannot generate row mapper for ${params.queryPascalName}: no result fields were available.`);
+  }
+  const header = [
+    '// @generated by rawsql-ts ztd-cli. Do not edit.',
+    '// This file is machine-owned and regenerated by `ztd feature generated-mapper generate`.',
+    `// source-boundary-sha256: ${params.boundaryHash}`,
+    `// source-sql-sha256: ${params.sqlHash}`,
+    ''
+  ];
+  const importLine = `import type { ${params.queryPascalName}QueryResult, ${params.queryPascalName}Row } from '../boundary.js';`;
+  if (params.mode === 'list') {
+    return [
+      ...header,
+      importLine,
+      '',
+      `function map${params.queryPascalName}Row(row: ${params.queryPascalName}Row): ${params.queryPascalName}QueryResult['items'][number] {`,
+      ...renderGeneratedMapperReturnObject('row', params.fieldNames, `${params.queryPascalName}QueryResult['items'][number]`),
+      '}',
+      '',
+      `export function map${params.queryPascalName}RowsToResult(rows: ${params.queryPascalName}Row[]): ${params.queryPascalName}QueryResult {`,
+      `  return { items: rows.map(map${params.queryPascalName}Row) };`,
+      '}',
+      ''
+    ].join('\n');
+  }
+
+  const rowType = params.mode === 'optional'
+    ? `${params.queryPascalName}Row | undefined`
+    : `${params.queryPascalName}Row`;
+  const nullGuard = params.mode === 'optional'
+    ? [
+      '  if (row === undefined) {',
+      '    return null;',
+      '  }'
+    ]
+    : [];
+
+  return [
+    ...header,
+    importLine,
+    '',
+    `export function map${params.queryPascalName}RowToResult(row: ${rowType}): ${params.queryPascalName}QueryResult {`,
+    ...nullGuard,
+    ...renderGeneratedMapperReturnObject('row', params.fieldNames, `${params.queryPascalName}QueryResult`),
+    '}',
+    ''
+  ].join('\n');
+}
+
+function renderGeneratedMapperReturnObject(sourceName: string, fieldNames: string[], typeName: string): string[] {
+  if (fieldNames.length === 0) {
+    return [`  return {} as ${typeName};`];
+  }
+  return [
+    '  return {',
+    ...fieldNames.map((fieldName) => `    ${JSON.stringify(fieldName)}: ${sourceName}[${JSON.stringify(fieldName)}],`),
+    '  };'
+  ];
 }
 
 function renderExampleValue(field: RenderField): string {
@@ -2448,6 +2823,10 @@ function writeFeatureFile(filePath: string, contents: string, force: boolean): v
   if (existsSync(filePath) && !force) {
     return;
   }
+  writeFileSync(filePath, contents, 'utf8');
+}
+
+function writeGeneratedFile(filePath: string, contents: string): void {
   writeFileSync(filePath, contents, 'utf8');
 }
 

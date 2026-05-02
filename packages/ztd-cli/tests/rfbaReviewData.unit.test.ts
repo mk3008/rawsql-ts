@@ -31,10 +31,16 @@ function writeWorkspaceFile(root: string, relativePath: string, contents = ''): 
 }
 
 function runGit(cwd: string, args: string[]): void {
+  const env = { ...process.env };
+  delete env.GIT_DIR;
+  delete env.GIT_WORK_TREE;
+  delete env.GIT_INDEX_FILE;
+  delete env.GIT_PREFIX;
+
   const result = spawnSync('git', args, {
     cwd,
     encoding: 'utf8',
-    shell: process.platform === 'win32',
+    env,
   });
   expect(result.status, result.stderr || result.stdout).toBe(0);
 }

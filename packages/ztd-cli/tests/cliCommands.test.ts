@@ -236,6 +236,7 @@ test(
     expect(result.stdout).toContain('Getting started');
     expect(result.stdout).toContain('model-gen [options] <sql-file>');
     expect(result.stdout).toContain('feature');
+    expect(result.stdout).toContain('feature generated-mapper check --feature users-insert');
     expect(result.stdout).toContain('feature query scaffold --feature users-insert');
   },
   60000,
@@ -269,6 +270,80 @@ test(
     expect(result.stdout).toContain('--force');
     expect(result.stdout).toContain('Refresh query-boundary generated analysis');
     expect(result.stdout).toContain('keep persistent case files untouched');
+  },
+  60000,
+);
+
+test(
+  'feature generated-mapper check help exposes drift detection',
+  () => {
+    const result = runCli(['feature', 'generated-mapper', 'check', '--help']);
+    assertCliSuccess(result, 'feature generated-mapper check --help');
+    expect(result.stdout).toContain('--feature <name>');
+    expect(result.stdout).toContain('--query <name>');
+    expect(result.stdout).toContain('drift');
+  },
+  60000,
+);
+
+test(
+  'describe command reports feature generated-mapper check metadata in global json mode',
+  () => {
+    const result = runCli(['--output', 'json', 'describe', 'command', 'feature generated-mapper check']);
+
+    assertCliSuccess(result, 'describe feature generated-mapper check');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      command: 'describe command',
+      ok: true,
+      data: {
+        command: {
+          name: 'feature generated-mapper check',
+          writesFiles: false,
+          supportsDryRun: false
+        }
+      }
+    });
+    const flags = parsed.data.command.flags.map((flag: { name: string }) => flag.name);
+    expect(flags).toEqual(expect.arrayContaining(['--feature <name>', '--query <name>']));
+  },
+  60000,
+);
+
+test(
+  'feature generated-mapper generate help exposes machine-owned refresh',
+  () => {
+    const result = runCli(['feature', 'generated-mapper', 'generate', '--help']);
+    assertCliSuccess(result, 'feature generated-mapper generate --help');
+    expect(result.stdout).toContain('--feature <name>');
+    expect(result.stdout).toContain('--query <name>');
+    expect(result.stdout).toContain('--dry-run');
+    expect(result.stdout).toContain('Regenerate machine-owned');
+  },
+  60000,
+);
+
+test(
+  'describe command reports feature generated-mapper generate metadata in global json mode',
+  () => {
+    const result = runCli(['--output', 'json', 'describe', 'command', 'feature generated-mapper generate']);
+
+    assertCliSuccess(result, 'describe feature generated-mapper generate');
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      command: 'describe command',
+      ok: true,
+      data: {
+        command: {
+          name: 'feature generated-mapper generate',
+          writesFiles: true,
+          supportsDryRun: true,
+          summary: 'Regenerate machine-owned RFBA query row mappers from query boundary contracts.'
+        }
+      }
+    });
+    const flags = parsed.data.command.flags.map((flag: { name: string }) => flag.name);
+    expect(flags).toEqual(expect.arrayContaining(['--feature <name>', '--query <name>', '--dry-run']));
   },
   60000,
 );

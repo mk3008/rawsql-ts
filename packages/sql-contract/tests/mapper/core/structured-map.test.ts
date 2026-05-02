@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   columnMapFromPrefix,
+  compileColumnMapRowsMapper,
+  compileColumnProjector,
   createMapper,
   entity,
   mapRows,
@@ -157,6 +159,56 @@ describe('structured mapping', () => {
 
     expect(country.id).toBe(88)
     expect(country.name).toBe('Japan')
+  })
+
+  describe('compiled column-map projectors', () => {
+    it('maps explicit DTO columns without per-row descriptor setup', () => {
+      const projectCountry = compileColumnProjector<Country>(
+        {
+          id: 'country_id',
+          name: 'country_name',
+        },
+        { coerce: false }
+      )
+
+      const country = projectCountry({
+        country_id: 81,
+        country_name: 'Canada',
+        ignored_column: 'not copied',
+      })
+
+      expect(country).toEqual({
+        id: 81,
+        name: 'Canada',
+      })
+      expect('ignored_column' in country).toBe(false)
+    })
+
+    it('rejects non-string column map values instead of silently dropping them', () => {
+      expect(() => compileColumnProjector<Country>({
+        id: 'country_id',
+        name: { column: 'country_name' } as unknown as string,
+      })).toThrow(/Property "name" received/)
+    })
+
+    it('compiles array mappers and preserves structured mapper coercion defaults', () => {
+      const mapCountries = compileColumnMapRowsMapper<Country>({
+        id: 'country_id',
+        name: 'country_name',
+      })
+
+      const [country] = mapCountries([
+        {
+          country_id: '82',
+          country_name: 'Brazil',
+        },
+      ])
+
+      expect(country).toEqual({
+        id: 82,
+        name: 'Brazil',
+      })
+    })
   })
 
   describe('belongsTo configuration', () => {
