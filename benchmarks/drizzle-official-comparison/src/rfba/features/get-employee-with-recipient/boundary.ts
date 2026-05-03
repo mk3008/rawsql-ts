@@ -1,4 +1,4 @@
-import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor';
+import { executeRows, type FeatureQueryExecutor } from '../_shared/featureQueryExecutor';
 import type { QueryCatalog } from '../_shared/queryCatalog';
 import { mapEmployeeWithRecipientRowsToResult } from './generated/row-mapper';
 
@@ -26,6 +26,6 @@ export const executeGetEmployeeWithRecipientEntrySpec = async (
   queries: QueryCatalog,
   id: string,
 ): Promise<Employee[]> => {
-  const result = await executor.execute(queries.employeeWithRecipient, [id]);
-  return mapEmployeeWithRecipientRowsToResult(result.rows);
+  const rows = await executeRows(executor, queries.employeeWithRecipient, [id]);
+  return mapEmployeeWithRecipientRowsToResult(rows);
 };

@@ -4,7 +4,7 @@ import 'dotenv/config';
 import { Hono } from 'hono';
 import os from 'os';
 import cpuUsage from './cpu-usage';
-import { executePrepared } from './rfba/adapters/pg/prepared-query-executor';
+import { executePrepared, executePreparedRows } from './rfba/adapters/pg/prepared-query-executor';
 import { pool } from './rfba/adapters/pg/pool';
 import type { FeatureQueryExecutor } from './rfba/features/_shared/featureQueryExecutor';
 import { loadQueryCatalog } from './rfba/features/_shared/queryCatalog';
@@ -30,6 +30,7 @@ const asText = (value: string | undefined): string => String(value ?? '');
 const startServer = async (): Promise<void> => {
   const queries = await loadQueryCatalog();
   const executor: FeatureQueryExecutor = {
+    executeRows: executePreparedRows,
     execute: executePrepared,
   };
 
