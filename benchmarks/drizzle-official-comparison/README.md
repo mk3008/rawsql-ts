@@ -45,6 +45,22 @@ pnpm start:generate
 ## Run
 
 Use the same benchmark runner for each main target. Run at least three passes per target for a report-quality comparison.
+Run one warmup pass first and exclude it from aggregate results. For the main comparison, use the pinned Docker k6 image and rotate target order so no target always benefits from the same cache/scheduler position.
+
+```sh
+pnpm bench:k6:docker:rotated -- --targets handwritten,drizzle,rawsql,rfba --runs 3 --folder results-rotated
+```
+
+The rotated helper runs targets in this order:
+
+| pass | measured | target order |
+|---|---|---|
+| warmup | no | handwritten, drizzle, rawsql, rfba |
+| run-1 | yes | drizzle, rawsql, rfba, handwritten |
+| run-2 | yes | rawsql, rfba, handwritten, drizzle |
+| run-3 | yes | rfba, handwritten, drizzle, rawsql |
+
+Each run uses `grafana/k6:0.54.0` unless `K6_IMAGE` is explicitly set. The overlay k6 script emits endpoint tags and endpoint-specific duration trends such as `endpoint_product_with_supplier_duration`, so the summary JSON includes per-endpoint `med`, `p(95)`, and `p(99)` values.
 
 ```sh
 # terminal 1

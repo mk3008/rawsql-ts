@@ -58,6 +58,14 @@ jobs:
         pnpm --filter @rawsql-ts/shared-binder run test:consumer-validation
         pnpm --filter @rawsql-ts/ztd-cli run test:consumer-validation
 
+    - name: Check generated mapper drift
+      if: matrix.node-version == '20.x'
+      run: pnpm verify:generated-mapper-drift
+
+    - name: Test generated mapper scaffold and drift commands
+      if: matrix.node-version == '20.x'
+      run: pnpm --filter @rawsql-ts/ztd-cli test -- featureScaffold.unit.test.ts cliCommands.test.ts
+
   customer-consumer-guard:
     runs-on: ${{ matrix.os }}
 

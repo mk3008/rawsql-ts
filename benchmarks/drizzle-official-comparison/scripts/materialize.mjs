@@ -32,7 +32,12 @@ for (const relativePath of ['src/rfba', 'src/local', 'profiles', 'sql']) {
 fs.cpSync(path.join(benchmarkRoot, 'src'), path.join(targetDir, 'src'), { recursive: true });
 fs.cpSync(path.join(benchmarkRoot, 'sql'), path.join(targetDir, 'sql'), { recursive: true });
 fs.cpSync(path.join(benchmarkRoot, 'profiles'), path.join(targetDir, 'profiles'), { recursive: true });
+fs.cpSync(path.join(benchmarkRoot, 'bench', 'bench.js'), path.join(targetDir, 'bench', 'bench.js'));
 fs.cpSync(path.join(benchmarkRoot, 'scripts', 'run-k6-docker.mjs'), path.join(targetDir, 'scripts', 'run-k6-docker.mjs'));
+fs.cpSync(
+  path.join(benchmarkRoot, 'scripts', 'run-rotated-k6-suite.mjs'),
+  path.join(targetDir, 'scripts', 'run-rotated-k6-suite.mjs')
+);
 
 const initialMigrationPath = path.join(targetDir, 'drizzle', '20230813113328_flat_master_mold', 'migration.sql');
 const initialMigration = fs.readFileSync(initialMigrationPath, 'utf8');
@@ -55,6 +60,7 @@ packageJson.scripts = {
   'start:rawsql:validation': 'tsx ./src/rawsql-server-node-validation.ts',
   'bench:k6:docker': 'node ./scripts/run-k6-docker.mjs',
   'bench:k6:docker:smoke': 'node ./scripts/run-k6-docker.mjs --name smoke --vus 1 --iterations 5',
+  'bench:k6:docker:rotated': 'node ./scripts/run-rotated-k6-suite.mjs',
 };
 fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
 
