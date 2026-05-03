@@ -5,8 +5,7 @@ insert into "public"."transfer_destination_definition" (
   , "destination_columns"
   , "destination_key_definition"
   , "sequence_expression_definition"
-  , "update_transfer_policy"
-  , "delete_transfer_policy"
+  , "transfer_model"
   , "sign_inversion_columns"
   , "red_transfer_source_columns"
   , "diff_compare_excluded_columns"
@@ -19,8 +18,7 @@ select
   , :destination_columns::jsonb
   , :destination_key_definition::jsonb
   , :sequence_expression_definition::jsonb
-  , :update_transfer_policy
-  , :delete_transfer_policy
+  , :transfer_model
   , :sign_inversion_columns::jsonb
   , :red_transfer_source_columns::jsonb
   , :diff_compare_excluded_columns::jsonb
@@ -33,8 +31,7 @@ returning
   , "destination_columns"
   , "destination_key_definition"
   , "sequence_expression_definition"
-  , "update_transfer_policy"
-  , "delete_transfer_policy"
+  , "transfer_model"
   , "sign_inversion_columns"
   , "red_transfer_source_columns"
   , "diff_compare_excluded_columns"

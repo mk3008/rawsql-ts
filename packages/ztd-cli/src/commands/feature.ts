@@ -111,6 +111,9 @@ interface FeatureScaffoldPaths {
   testsDir: string;
   entryBoundaryTestFile: string;
   entrySpecFile: string;
+  inputFile: string;
+  workflowFile: string;
+  outputFile: string;
   querySpecFile: string;
   querySqlFile: string;
   queryGeneratedDir: string;
@@ -363,6 +366,9 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
     { path: toProjectRelativePath(rootDir, paths.queryGeneratedDir), written: !options.dryRun, kind: 'directory' },
     { path: toProjectRelativePath(rootDir, paths.entryBoundaryTestFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.entrySpecFile), written: !options.dryRun, kind: 'file' },
+    { path: toProjectRelativePath(rootDir, paths.inputFile), written: !options.dryRun, kind: 'file' },
+    { path: toProjectRelativePath(rootDir, paths.workflowFile), written: !options.dryRun, kind: 'file' },
+    { path: toProjectRelativePath(rootDir, paths.outputFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.querySpecFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.querySqlFile), written: !options.dryRun, kind: 'file' },
     { path: toProjectRelativePath(rootDir, paths.queryGeneratedRowMapperFile), written: !options.dryRun, kind: 'file' },
@@ -392,6 +398,9 @@ export async function runFeatureScaffoldCommand(options: FeatureCommandOptions):
   writeFileIfMissing(paths.loadSqlResourceFile, contents.loadSqlResourceFile);
   writeFileIfMissing(paths.entryBoundaryTestFile, contents.entrySpecTestFile);
   writeFeatureFile(paths.entrySpecFile, contents.entrySpecFile, options.force === true);
+  writeFeatureFile(paths.inputFile, contents.inputFile, options.force === true);
+  writeFeatureFile(paths.workflowFile, contents.workflowFile, options.force === true);
+  writeFeatureFile(paths.outputFile, contents.outputFile, options.force === true);
   writeFeatureFile(paths.querySpecFile, contents.querySpecFile, options.force === true);
   writeFeatureFile(paths.querySqlFile, contents.querySqlFile, options.force === true);
   writeGeneratedFile(paths.queryGeneratedRowMapperFile, contents.queryGeneratedRowMapperFile);
@@ -862,6 +871,9 @@ function buildFeatureScaffoldPaths(rootDir: string, featureName: string, queryNa
     testsDir: path.join(featureDir, 'tests'),
     entryBoundaryTestFile: path.join(featureDir, 'tests', `${featureName}.boundary.test.ts`),
     entrySpecFile: path.join(featureDir, 'boundary.ts'),
+    inputFile: path.join(featureDir, 'input.ts'),
+    workflowFile: path.join(featureDir, 'workflow.ts'),
+    outputFile: path.join(featureDir, 'output.ts'),
     querySpecFile: path.join(featureDir, 'queries', queryName, 'boundary.ts'),
     querySqlFile: path.join(featureDir, 'queries', queryName, `${queryName}.sql`),
     queryGeneratedDir: path.join(featureDir, 'queries', queryName, 'generated'),
@@ -907,6 +919,9 @@ function renderFeatureScaffoldFiles(params: {
   insertDefaultPolicy: InsertDefaultPolicy;
 }): {
   entrySpecFile: string;
+  inputFile: string;
+  workflowFile: string;
+  outputFile: string;
   entrySpecTestFile: string;
   querySpecFile: string;
   querySqlFile: string;
@@ -942,6 +957,26 @@ function renderFeatureScaffoldFiles(params: {
     requestFields,
     responseFields,
     insertDefaultPolicy: params.insertDefaultPolicy
+  });
+  const inputFile = renderFeatureInputFile({
+    pascalName,
+    requestFields
+  });
+  const workflowFile = renderFeatureWorkflowFile({
+    action: params.action,
+    featureName: params.featureName,
+    pascalName,
+    queryName: params.queryName,
+    queryPascalName,
+    requestFields,
+    insertDefaultPolicy: params.insertDefaultPolicy
+  });
+  const outputFile = renderFeatureOutputFile({
+    action: params.action,
+    pascalName,
+    queryName: params.queryName,
+    queryPascalName,
+    responseFields
   });
   const querySpecFile = renderQuerySpecFile({
     action: params.action,
@@ -980,6 +1015,9 @@ function renderFeatureScaffoldFiles(params: {
 
   return {
     entrySpecFile,
+    inputFile,
+    workflowFile,
+    outputFile,
     entrySpecTestFile: renderEntrySpecTestFile({
       featureName: params.featureName,
       queryName: params.queryName,
@@ -1789,20 +1827,14 @@ function renderEntrySpecFile(params: {
   responseFields: RenderField[];
   insertDefaultPolicy: InsertDefaultPolicy;
 }): string {
-  if (params.action === 'get-by-id') {
-    return renderGetByIdEntrySpecFile(params);
-  }
-  if (params.action === 'list') {
-    return renderListEntrySpecFile(params);
-  }
+  return renderFeatureBoundaryFile(params);
+}
 
+function renderFeatureInputFile(params: {
+  pascalName: string;
+  requestFields: RenderField[];
+}): string {
   const rawRequestSchema = renderZodObjectSchema('RequestSchema', params.requestFields, {
-    trimStrings: false,
-    rejectEmptyStrings: false,
-    exported: false,
-    strict: true
-  });
-  const responseSchema = renderZodObjectSchema('ResponseSchema', [params.responseFields[0]], {
     trimStrings: false,
     rejectEmptyStrings: false,
     exported: false,
@@ -1840,26 +1872,13 @@ function renderEntrySpecFile(params: {
 
   return [
     "import { z } from 'zod';",
-    "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor.js';",
-    '',
-    `import {`,
-      `  execute${params.queryPascalName}QuerySpec,`,
-    `  type ${params.queryPascalName}QueryParams,`,
-    `  type ${params.queryPascalName}QueryResult`,
-    `} from './queries/${params.queryName}/boundary.js';`,
-    '',
-    ...renderEntrySpecBoundaryComments(params.action, params.insertDefaultPolicy),
     '',
     rawRequestSchema,
     '',
     `export type ${params.pascalName}Request = z.infer<typeof RequestSchema>;`,
     '',
-    responseSchema,
-    '',
-    `export type ${params.pascalName}Response = z.infer<typeof ResponseSchema>;`,
-    '',
     '/** Parses the raw feature request at the feature boundary. */',
-    `function parseRequest(raw: unknown): ${params.pascalName}Request {`,
+    `function parseRawRequest(raw: unknown): ${params.pascalName}Request {`,
     '  return RequestSchema.parse(raw);',
     '}',
     '',
@@ -1875,29 +1894,196 @@ function renderEntrySpecFile(params: {
       : ['  // Add feature-level reject rules here when follow-up requirements appear.']),
     '}',
     '',
-    '/** Maps the feature request into query params for the query spec. */',
-    `function toQueryParams(request: ${params.pascalName}Request): ${params.queryPascalName}QueryParams {`,
-    ...renderTypedReturnObject(params.requestFields, `${params.queryPascalName}QueryParams`),
-    '}',
-    '',
-    '/** Maps the query result into the feature response contract. */',
-    `function fromQueryResult(result: ${params.queryPascalName}QueryResult): ${params.pascalName}Response {`,
-    '  // TODO: Review domain-specific response naming before exposing this feature boundary publicly.',
-    ...renderParsedObjectFromSource('result', params.responseFields, 'ResponseSchema'),
-    '}',
-    '',
-    '/** Executes the feature boundary flow for this feature. */',
-    `export async function execute${params.pascalName}EntrySpec(`,
-    '  executor: FeatureQueryExecutor,',
-    '  rawRequest: unknown',
-    `): Promise<${params.pascalName}Response> {`,
-    '  const request = normalizeRequest(parseRequest(rawRequest));',
+    `export function parseRequest(raw: unknown): ${params.pascalName}Request {`,
+    '  const request = normalizeRequest(parseRawRequest(raw));',
     '  rejectRequest(request);',
-    `  const result = await execute${params.queryPascalName}QuerySpec(executor, toQueryParams(request));`,
-    '  return fromQueryResult(result);',
+    '  return request;',
     '}',
     ''
   ].join('\n');
+}
+
+function renderFeatureBoundaryFile(params: {
+  featureName: string;
+}): string {
+  return [
+    "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor.js';",
+    "import * as input from './input.js';",
+    "import * as output from './output.js';",
+    "import * as workflow from './workflow.js';",
+    '',
+    "export type { " + toPascalCase(params.featureName) + "Request } from './input.js';",
+    "export type { " + toPascalCase(params.featureName) + "Response } from './output.js';",
+    '',
+    '/**',
+    ` * Executes the ${params.featureName} feature boundary.`,
+    ' *',
+    ' * Review order:',
+    ' * 1. parse input',
+    ' * 2. execute workflow',
+    ' * 3. build output',
+    ' */',
+    'export async function execute(',
+    '  executor: FeatureQueryExecutor,',
+    '  rawRequest: unknown',
+    `): Promise<output.${toPascalCase(params.featureName)}Response> {`,
+    '  const request = input.parseRequest(rawRequest);',
+    '  const created = await workflow.execute(executor, request);',
+    '  return output.buildResult(created);',
+    '}',
+    ''
+  ].join('\n');
+}
+
+function renderFeatureWorkflowFile(params: {
+  action: FeatureAction;
+  featureName: string;
+  pascalName: string;
+  queryName: string;
+  queryPascalName: string;
+  requestFields: RenderField[];
+  insertDefaultPolicy: InsertDefaultPolicy;
+}): string {
+  const queryParamsRequestName = params.requestFields.length === 0 ? '_request' : 'request';
+  return [
+    "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor.js';",
+    `import type { ${params.pascalName}Request } from './input.js';`,
+    `import {`,
+    `  execute${params.queryPascalName}QuerySpec,`,
+    `  type ${params.queryPascalName}QueryParams,`,
+    `  type ${params.queryPascalName}QueryResult`,
+    `} from './queries/${params.queryName}/boundary.js';`,
+    '',
+    `export type ${params.pascalName}WorkflowResult = ${params.queryPascalName}QueryResult;`,
+    '',
+    `export type ${params.pascalName}Queries = {`,
+    `  execute${params.queryPascalName}: (`,
+    '    executor: FeatureQueryExecutor,',
+    `    params: ${params.queryPascalName}QueryParams`,
+    `  ) => Promise<${params.queryPascalName}QueryResult>;`,
+    '};',
+    '',
+    `const defaultQueries: ${params.pascalName}Queries = {`,
+    `  execute${params.queryPascalName}: execute${params.queryPascalName}QuerySpec`,
+    '};',
+    '',
+    ...renderWorkflowDesignComments(params.action, params.insertDefaultPolicy),
+    `export async function execute(`,
+    '  executor: FeatureQueryExecutor,',
+    `  request: ${params.pascalName}Request,`,
+    `  queries: ${params.pascalName}Queries = defaultQueries`,
+    `): Promise<${params.pascalName}WorkflowResult> {`,
+    `  return queries.execute${params.queryPascalName}(executor, toQueryParams(request));`,
+    '}',
+    '',
+    '/** Maps the feature request into query params for the query spec. */',
+    `function toQueryParams(${queryParamsRequestName}: ${params.pascalName}Request): ${params.queryPascalName}QueryParams {`,
+    ...renderTypedReturnObject(params.requestFields, `${params.queryPascalName}QueryParams`),
+    '}',
+    ''
+  ].join('\n');
+}
+
+function renderWorkflowDesignComments(action: FeatureAction, insertDefaultPolicy: InsertDefaultPolicy): string[] {
+  const lines = [
+    '/**',
+    ' * Runs the feature workflow after input parsing.',
+    ' *',
+    ' * Query functions are injected for workflow tests so tests do not infer query identity',
+    ' * from SQL text that may be transformed by rewrite or pipeline processing.'
+  ];
+  if (action === 'insert') {
+    lines.push(
+      insertDefaultPolicy === 'explicit-defaults'
+        ? ' * DDL-backed defaults are intentionally visible in the SQL resource for review.'
+        : ' * DB-default columns are intentionally omitted so the database assigns them.'
+    );
+  }
+  lines.push(' */');
+  return lines;
+}
+
+function renderFeatureOutputFile(params: {
+  action: FeatureAction;
+  pascalName: string;
+  queryName: string;
+  queryPascalName: string;
+  responseFields: RenderField[];
+}): string {
+  return [
+    `import type { ${params.queryPascalName}QueryResult } from './queries/${params.queryName}/boundary.js';`,
+    '',
+    ...renderFeatureResponseType(params.pascalName, params.action, params.responseFields),
+    '',
+    'export function buildResult(result: ' + params.queryPascalName + 'QueryResult): ' + params.pascalName + 'Response {',
+    ...renderFeatureOutputBuildLines(params.action, params.responseFields),
+    '}',
+    ''
+  ].join('\n');
+}
+
+function renderFeatureResponseType(pascalName: string, action: FeatureAction, fields: RenderField[]): string[] {
+  const objectLines = renderTypeObjectLines(fields, '  ');
+  if (action === 'get-by-id') {
+    return [
+      `export type ${pascalName}Response = {`,
+      ...objectLines,
+      '} | null;'
+    ];
+  }
+  if (action === 'list') {
+    return [
+      `export type ${pascalName}Response = {`,
+      '  items: Array<{',
+      ...renderTypeObjectLines(fields, '    '),
+      '  }>;',
+      '};'
+    ];
+  }
+  return [
+    `export type ${pascalName}Response = {`,
+    ...objectLines,
+    '};'
+  ];
+}
+
+function renderTypeObjectLines(fields: RenderField[], indent: string): string[] {
+  if (fields.length === 0) {
+    return [];
+  }
+  return fields.map((field) => `${indent}${field.name}: ${field.typeScriptType};`);
+}
+
+function renderFeatureOutputBuildLines(action: FeatureAction, fields: RenderField[]): string[] {
+  if (action === 'get-by-id') {
+    return [
+      '  if (result === null) {',
+      '    return null;',
+      '  }',
+      ...renderResultObjectLines('result', fields, '  ')
+    ];
+  }
+  if (action === 'list') {
+    return [
+      '  return {',
+      '    items: result.items.map((item) => ({',
+      ...fields.map((field) => `      ${field.name}: item.${field.sourceName},`),
+      '    }))',
+      '  };'
+    ];
+  }
+  return renderResultObjectLines('result', fields, '  ');
+}
+
+function renderResultObjectLines(sourceName: string, fields: RenderField[], indent: string): string[] {
+  if (fields.length === 0) {
+    return [`${indent}return {};`];
+  }
+  return [
+    `${indent}return {`,
+    ...fields.map((field) => `${indent}  ${field.name}: ${sourceName}.${field.sourceName},`),
+    `${indent}};`
+  ];
 }
 
 function renderEntrySpecTestFile(params: {
@@ -1926,7 +2112,7 @@ function renderEntrySpecTestFile(params: {
   return [
     "import { expect, test } from 'vitest';",
     '',
-    `import { execute${params.pascalName}EntrySpec } from '${entrypointImportPath}';`,
+    `import { execute } from '${entrypointImportPath}';`,
     `import type { FeatureQueryExecutor } from '${sharedExecutorImportPath}';`,
     '',
     'function createGuardedExecutor(): FeatureQueryExecutor {',
@@ -1938,7 +2124,7 @@ function renderEntrySpecTestFile(params: {
     '}',
     '',
     `test('rejects invalid feature input at the feature boundary for ${params.featureName}/${params.queryName}', async () => {`,
-    `  await expect(execute${params.pascalName}EntrySpec(createGuardedExecutor(), {})).rejects.toThrow();`,
+    `  await expect(execute(createGuardedExecutor(), {})).rejects.toThrow();`,
     '});',
     '',
     `test.todo('cover normalization and response mapping for ${params.pascalName} boundary');`,
@@ -2106,6 +2292,9 @@ function renderReadmeFile(params: {
     '## CLI-created files',
     '',
     '- `boundary.ts`',
+    '- `input.ts`',
+    '- `workflow.ts`',
+    '- `output.ts`',
     `- \`tests/${params.featureName}.boundary.test.ts\``,
     `- \`queries/${params.queryName}/boundary.ts\``,
     `- \`queries/${params.queryName}/${params.queryName}.sql\``,
@@ -2140,15 +2329,18 @@ function renderReadmeFile(params: {
     '## RFBA review responsibilities',
     '',
     '- RFBA splits files by review responsibility; this scaffold keeps review-heavy SQL visible and keeps DTO/mapping/test support close to the SQL it serves.',
-    '- `boundary.ts` is the default feature-boundary public surface for request parsing, normalization, rejection, query-parameter assembly, and response shaping.',
+    '- `boundary.ts` is the default feature-boundary public surface and should read as `input -> workflow -> output`.',
+    '- `input.ts` owns raw request parsing, normalization, and feature-level input rejection.',
+    '- `workflow.ts` owns the feature use-case flow and query orchestration. It accepts query ports so workflow tests do not identify queries by SQL text.',
+    '- `output.ts` owns lightweight public response assembly from generated query result types.',
     ...renderReadmeEntryspecNotes(params.action, params.parameterColumns),
-    '- `boundary.ts` keeps its schema values and helper functions file-local; it converts request data to query params explicitly and depends on the shared executor contract directly.',
+    '- Feature-local `boundary.ts` exports `execute`; package roots can alias it as a feature-specific public API name.',
     `- \`queries/${params.queryName}/\` is the query unit: SQL, generated row/result mapping, execution contract, and query-local tests move together for review.`,
     `- \`queries/${params.queryName}/boundary.ts\` is the default query-boundary public surface for query params, row shape, query result shape, and SQL execution contract.`,
     `- \`queries/${params.queryName}/boundary.ts\` keeps public flow thin while generated row mapping stays under \`queries/${params.queryName}/generated/\`.`,
     `- \`queries/${params.queryName}/boundary.ts\` and \`queries/${params.queryName}/${params.queryName}.sql\` stay co-located as one boundary/SQL pair.`,
     `- \`tests/${params.featureName}.boundary.test.ts\` is the thin Vitest entrypoint for the feature boundary lane.`,
-    '- Feature-boundary tests mock child query boundaries and verify feature validation, mapping, and orchestration.',
+    '- Feature-boundary and workflow tests should mock query ports rather than classify child queries by SQL text; SQL may be transformed by rewrite or pipeline processing before execution.',
     '- Query-boundary tests own SQL behavior through ZTD or another SQL-specific lane.',
     '- Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.',
     '- Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package; keep feature-specific validation and helpers inside the owning feature.',
@@ -2185,34 +2377,34 @@ function renderReadmeFile(params: {
 function renderReadmeEntryspecNotes(action: FeatureAction, parameterColumns: string[]): string[] {
   if (action === 'get-by-id') {
     return [
-      '- `boundary.ts` uses `zod` schemas for request and response DTOs and keeps the get-by-id baseline focused on key-only request parsing.',
-      '- `boundary.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
+      '- `input.ts` uses `zod` schemas for request DTOs and keeps the get-by-id baseline focused on key-only request parsing.',
+      '- `input.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
       '- The get-by-id baseline keeps not-found handling explicit and non-throwing so follow-up work can decide whether to keep nullable output or move to an exactly-one contract.'
     ];
   }
   if (action === 'list') {
     return [
-      '- `boundary.ts` uses `zod` schemas for request and response DTOs, keeps the baseline request minimal, and returns a `{ items: [...] }` response contract.',
-      '- `boundary.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
-      '- `boundary.ts` does not expose explicit paging inputs in the baseline scaffold; follow-up work can add them once the use case is known.'
+      '- `input.ts` uses `zod` schemas for request DTOs, keeps the baseline request minimal, and `output.ts` returns a `{ items: [...] }` response contract.',
+      '- `input.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
+      '- `input.ts` does not expose explicit paging inputs in the baseline scaffold; follow-up work can add them once the use case is known.'
     ];
   }
   const hasStringLikeInput = parameterColumns.length > 0;
   if (action === 'delete') {
     return [
-      '- `boundary.ts` uses `zod` schemas for request and response DTOs and keeps the delete baseline focused on key-only request parsing.',
+      '- `input.ts` uses `zod` schemas for request DTOs and keeps the delete baseline focused on key-only request parsing.',
       '- The delete baseline does not assume string normalization; add transport-specific parsing or policy checks later only when the feature actually needs them.'
     ];
   }
 
   if (hasStringLikeInput) {
     return [
-      '- `boundary.ts` uses `zod` schemas for request and response DTOs, and the scaffold includes `trim()` plus empty-string rejection examples for current string inputs.'
+      '- `input.ts` uses `zod` schemas for request DTOs, and the scaffold includes `trim()` plus empty-string rejection examples for current string inputs.'
     ];
   }
 
   return [
-    '- `boundary.ts` uses `zod` schemas for request and response DTOs and leaves string normalization examples for follow-up when string fields appear.'
+    '- `input.ts` uses `zod` schemas for request DTOs and leaves string normalization examples for follow-up when string fields appear.'
   ];
 }
 
@@ -3078,6 +3270,9 @@ function assertFeatureWriteSafety(paths: FeatureScaffoldPaths, force: boolean): 
 
   const existingPaths = [
     paths.entrySpecFile,
+    paths.inputFile,
+    paths.workflowFile,
+    paths.outputFile,
     paths.querySpecFile,
     paths.querySqlFile,
     paths.readmeFile

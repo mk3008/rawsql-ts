@@ -35,8 +35,7 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       sequence_expression_definition: {
         journal_id: "nextval('journal_seq')"
       },
-      update_transfer_policy: 'immutable',
-      delete_transfer_policy: 'immutable',
+      transfer_model: 'immutable',
       sign_inversion_columns: {
         columns: ['amount']
       },
@@ -69,8 +68,7 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       sequence_expression_definition: {
         journal_id: "nextval('journal_seq')"
       },
-      update_transfer_policy: 'immutable',
-      delete_transfer_policy: 'immutable',
+      transfer_model: 'immutable',
       sign_inversion_columns: {
         columns: ['amount']
       },
@@ -108,8 +106,7 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       sequence_expression_definition: {
         account_balance_id: "nextval('account_balance_seq')"
       },
-      update_transfer_policy: 'immutable',
-      delete_transfer_policy: 'immutable',
+      transfer_model: 'immutable',
       sign_inversion_columns: {
         columns: ['amount']
       },
@@ -142,8 +139,7 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       sequence_expression_definition: {
         account_balance_id: "nextval('account_balance_seq')"
       },
-      update_transfer_policy: 'immutable',
-      delete_transfer_policy: 'immutable',
+      transfer_model: 'immutable',
       sign_inversion_columns: {
         columns: ['amount']
       },

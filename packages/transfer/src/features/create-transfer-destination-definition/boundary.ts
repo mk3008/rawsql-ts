@@ -7,8 +7,7 @@ import {
   type InsertTransferDestinationDefinitionQueryResult
 } from './queries/insert-transfer-destination-definition/boundary.js';
 
-const UPDATE_TRANSFER_POLICIES = ['overwrite', 'immutable'] as const;
-const DELETE_TRANSFER_POLICIES = ['physical_delete', 'immutable', 'ignore'] as const;
+const TRANSFER_MODELS = ['immutable', 'mutable'] as const;
 
 const DestinationColumnSchema = z.object({
   name: z.string().trim().min(1),
@@ -35,8 +34,7 @@ const RequestSchema = z.object({
   destinationColumns: DestinationColumnsSchema,
   destinationKeyDefinition: DestinationKeyDefinitionSchema,
   sequenceExpressionDefinition: z.record(z.string(), z.string().trim().min(1)).optional(),
-  updateTransferPolicy: z.enum(UPDATE_TRANSFER_POLICIES),
-  deleteTransferPolicy: z.enum(DELETE_TRANSFER_POLICIES),
+  transferModel: z.enum(TRANSFER_MODELS),
   signInversionColumns: ColumnListSchema.optional(),
   redTransferSourceColumns: ColumnListSchema.optional(),
   diffCompareExcludedColumns: ColumnListSchema.optional(),
@@ -53,8 +51,7 @@ const ResponseSchema = z.object({
   destinationColumns: DestinationColumnsSchema,
   destinationKeyDefinition: DestinationKeyDefinitionSchema,
   sequenceExpressionDefinition: z.record(z.string(), z.string()).nullable(),
-  updateTransferPolicy: z.enum(UPDATE_TRANSFER_POLICIES),
-  deleteTransferPolicy: z.enum(DELETE_TRANSFER_POLICIES),
+  transferModel: z.enum(TRANSFER_MODELS),
   signInversionColumns: ColumnListSchema.nullable(),
   redTransferSourceColumns: ColumnListSchema.nullable(),
   diffCompareExcludedColumns: ColumnListSchema.nullable(),
@@ -156,8 +153,7 @@ function toQueryParams(request: CreateTransferDestinationDefinitionInput): Inser
     destination_columns: request.destinationColumns,
     destination_key_definition: request.destinationKeyDefinition,
     sequence_expression_definition: request.sequenceExpressionDefinition ?? null,
-    update_transfer_policy: request.updateTransferPolicy,
-    delete_transfer_policy: request.deleteTransferPolicy,
+    transfer_model: request.transferModel,
     sign_inversion_columns: request.signInversionColumns ?? null,
     red_transfer_source_columns: request.redTransferSourceColumns ?? null,
     diff_compare_excluded_columns: request.diffCompareExcludedColumns ?? null,
@@ -176,8 +172,7 @@ function fromQueryResult(
     destinationColumns: result.destination_columns,
     destinationKeyDefinition: result.destination_key_definition,
     sequenceExpressionDefinition: result.sequence_expression_definition,
-    updateTransferPolicy: result.update_transfer_policy,
-    deleteTransferPolicy: result.delete_transfer_policy,
+    transferModel: result.transfer_model,
     signInversionColumns: result.sign_inversion_columns,
     redTransferSourceColumns: result.red_transfer_source_columns,
     diffCompareExcludedColumns: result.diff_compare_excluded_columns,

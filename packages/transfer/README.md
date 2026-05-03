@@ -2,7 +2,7 @@
 
 `@rawsql-ts/transfer` contains transfer-definition features for rawsql-ts workflows.
 
-The first feature is `create-transfer-destination-definition`. It registers one `transfer_destination_definition` row for a PostgreSQL destination table definition.
+The initial features register transfer destination definitions and transfer settings for PostgreSQL transfer workflows.
 
 ## Transfer Destination Definition
 
@@ -12,32 +12,31 @@ The `transfer_destination_definition` table stores:
 - destination column metadata
 - destination key metadata
 - optional sequence-expression metadata
-- update and delete transfer policies
+- transfer model
 - optional red-transfer and diff-comparison column metadata
 
 DDL lives in `db/ddl/transfer_destination_definition.sql`.
 
-## Policy Values
+## Transfer Model
 
-### update_transfer_policy
-
-| Value | Meaning |
-| --- | --- |
-| `overwrite` | Overwrite an existing transferred destination row on update. |
-| `immutable` | Add a red-transfer row for the old black row, then add a new black row on update. |
-
-### delete_transfer_policy
+### transfer_model
 
 | Value | Meaning |
 | --- | --- |
-| `physical_delete` | Physically delete the destination row on delete. |
-| `immutable` | Add a red-transfer row from the original black row on delete. |
-| `ignore` | Do nothing when a delete request is received. |
+| `immutable` | Add a red-transfer row for the old black row, then add a new black row on update. Add a red-transfer row on delete. |
+| `mutable` | Directly update an existing transferred row on update. Physically delete the row on delete. |
+
+## Transfer Setting
+
+The `transfer_setting` table stores the source SQL text, a deterministic source SQL hash, and analysis placeholders.
+Source SQL parsing is intentionally out of scope for the create feature; new rows save `source_sql_analysis_status` as `not_analyzed`.
 
 ## Feature Boundary
 
-`src/features/create-transfer-destination-definition/` owns the create use case.
+`src/features/create-transfer-destination-definition/` owns the create destination definition use case.
+`src/features/create-transfer-setting/` owns the create transfer setting use case.
 
-The feature accepts `CreateTransferDestinationDefinitionInput` from `boundary.ts`, validates the request, maps it to the query boundary, and returns the inserted row using camelCase names.
+The destination feature accepts `CreateTransferDestinationDefinitionInput` with `transferModel`.
+The setting feature accepts `CreateTransferSettingInput`, resolves destination definitions by name, and creates the setting plus one or more destination links transactionally.
 
 Feature-specific validation stays inside this feature. Do not move this validation into `src/libraries/` unless it becomes independent enough to extract as a reusable external package.
