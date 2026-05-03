@@ -1,309 +1,214 @@
-# rawsql-ts vs Drizzle Speed Comparison Report
+# rawsql-ts vs Drizzle Pure ORM Performance Report
 
-Status: done for local benchmark evidence. Main rotated run date: 2026-05-02. Repair run date: 2026-05-03. rawsql-ts: 0.20.0 / branch `codex/rawsql-drizzle-benchmark`.
+Status: done for local Pure ORM evidence and scaffold drift-check design. Latest report date: 2026-05-03. Branch: `codex/rawsql-drizzle-benchmark`.
 
-## Summary
+HTTP benchmark results are intentionally excluded from this report. The current goal is to keep the recommended `rawsql-ts RFBA + AOT generated mapper` path fast and maintainable, so the decision loop uses Pure ORM, mapper microbenchmarks, scaffold drift checks, and startup-cost measurements.
 
-Under the local benchmark conditions recorded below, the recommended rawsql-ts shape, `rawsql-ts RFBA + AOT generated mapper`, is in the same practical performance range as the Drizzle v1.0.0-rc.1 benchmark target. That is the main rawsql-ts comparison target for future reports because it matches the scaffolded application structure rawsql-ts intends to promote.
+The accepted final Pure ORM result is stored under `benchmarks/drizzle-official-comparison/results-pure-orm-20260503-accepted-aot-direct-assignment`. This folder is a clarity alias for the accepted direct-assignment run, not a new measurement. The accepted final result is based on the run where generated direct-assignment aggregation was already included in the measured RFBA AOT mapper path.
 
-| target | req/sec avg | req/sec median | p50 median | p95 median | p99 median | error rate |
+## 1. Generated Mapper Drift Check Design
+
+`generated/**` is machine-owned. The benchmark and RFBA scaffold direction only works if generated row mappers are treated as reproducible artifacts, not as files that humans or AI agents remember to refresh manually.
+
+Current drift-check design:
+
+| requirement | implementation |
+|---|---|
+| Detect SQL / contract / generated mapper mismatch | `ztd feature generated-mapper check` re-renders the expected mapper from the current scaffold source and compares it with `features/<feature>/queries/<query>/generated/row-mapper.ts`. |
+| Fail through standard check/test/CI path | `.github/workflows/ci.yml` runs `pnpm verify:generated-mapper-drift` on the Node 20 lane. |
+| Show regeneration command on failure | The ztd-cli check reports `ztd feature generated-mapper generate --feature <feature>` with an optional `--query <query>` scope. |
+| Recover without editing `generated/` | `ztd feature generated-mapper generate` refreshes the machine-owned file from source artifacts. |
+| Pair refresh command with passive detection | `generate` is the refresh command; `check` and `pnpm verify:generated-mapper-drift` are the passive detection path. |
+
+The generated file also includes source hashes:
+
+- `source-boundary-sha256`
+- `source-sql-sha256`
+
+These hashes make drift visible in the generated artifact and help reviewers see which source changed. The authoritative check is still re-rendering and comparing the generated file.
+
+The repository-level drift script scans for scaffold-shaped `generated/row-mapper.ts` files, finds the owning package with a `ztd` script, and runs the package-local generated-mapper check. It fails if a scaffold generated mapper exists but the owning project cannot be found, because silently skipping checkable generated code would make CI drift detection unreliable.
+
+This repository now includes `packages/ztd-cli/fixtures/generated-mapper-drift`, a real package fixture with a scaffold-shaped generated mapper. `pnpm verify:generated-mapper-drift` should therefore detect at least one target and should not skip in the normal workspace.
+
+Skip is allowed only when the checked root contains no scaffold generated mapper artifacts at all. If checkable generated mappers exist but the script cannot locate the owning package, the check fails.
+
+## 2. Refresh Command + Passive Detection Flow
+
+The intended user flow is:
+
+1. User edits hand-owned files: `query.sql`, `queryspec.ts`, contract files, or a thin `boundary.ts`.
+2. Standard checks run `pnpm verify:generated-mapper-drift`.
+3. If generated output is stale, the check fails and prints the regeneration command.
+4. User runs the printed `ztd feature generated-mapper generate ...` command.
+5. `generated/**` is recreated deterministically and can be reviewed as a machine-owned diff.
+
+This keeps generated mapper usage passive and natural. Users do not opt into a special fast mode, and they do not hand-write mapper code. Ordinary scaffold usage is the fast path.
+
+CI coverage:
+
+| path | purpose |
+|---|---|
+| `pnpm verify:generated-mapper-drift` | Passive repository-level drift detection. |
+| `pnpm --filter @rawsql-ts/ztd-cli test -- featureScaffold.unit.test.ts cliCommands.test.ts` | Verifies scaffold output shape, generated mapper commands, and command behavior. |
+| `pnpm --filter @rawsql-ts/ztd-cli build` | Verifies ztd-cli TypeScript build after generator changes. |
+
+## 3. hasMany Generation Scope
+
+The direct-assignment aggregation improvement is accepted, but full `hasMany` / one-to-many generation should be treated as the next feature stage. It should start with a safe, metadata-backed subset rather than a broad inference engine.
+
+Recommended first supported scope:
+
+| area | first scope |
+|---|---|
+| root shape | One root object with a stable parent key. |
+| relation shape | One collection relation from flat joined rows. |
+| metadata source | Explicit sql-contract / queryspec metadata, not alias guessing alone. |
+| parent identity | Parent key column or columns must be declared. |
+| child presence | Child key/nullability guard must be declared so outer joins can skip absent children. |
+| result order | Preserve SQL row order and child order unless metadata says otherwise. |
+| mapping style | Generated direct assignment, no object spread in the hot row loop. |
+| boundary impact | Keep `boundary.ts` thin; aggregation details stay in query-local generated/internal code. |
+
+Out of initial scope:
+
+- arbitrary deep object graphs
+- many-to-many graph materialization
+- polymorphic relations
+- implicit relation discovery from column prefixes alone
+- PostgreSQL JSON aggregation as the standard RFBA mapper path
+- user-authored custom mapper code inside `generated/**`
+
+The feature should preserve the current design goal: scaffolded RFBA code should be fast by default, but the public surface should stay readable.
+
+## 4. Startup Parse Cost Benchmark
+
+Pure ORM steady-state benchmarks do not include SQL parsing in the hot path. Startup cost is measured separately to decide whether no-parse/static SQL options are worth designing for queries without dynamic search conditions.
+
+Command used in the materialized benchmark:
+
+```sh
+pnpm bench:startup-cost -- --runs=20 --folder=results-startup-cost-20260503
+```
+
+Artifact:
+
+- `benchmarks/drizzle-official-comparison/results-startup-cost-20260503/startup-cost-summary.json`
+
+Measured phases:
+
+| phase | runs | mean | p50 | p95 | min | max |
 |---|---:|---:|---:|---:|---:|---:|
-| Drizzle | 5,899.90 | 6,593.96 | 21.19 ms | 456.18 ms | 481.82 ms | 0.000000% |
-| rawsql-ts RFBA + AOT generated mapper | 5,993.98 | 6,529.39 | 80.94 ms | 292.68 ms | 313.24 ms | 0.000018% |
-| handwritten direct SQL reference | 5,246.11 | 4,759.78 | 116.70 ms | 536.74 ms | 575.12 ms | 0.000000% |
+| SQL file load | 20 | 0.5299ms | 0.4854ms | 0.7122ms | 0.4640ms | 0.7446ms |
+| rawsql parser import | 20 | 0.5927ms | 0.4354ms | 0.6634ms | 0.4043ms | 3.1543ms |
+| SQL parse | 20 | 1.9829ms | 0.9597ms | 3.6801ms | 0.7747ms | 15.8635ms |
+| catalog preparation | 20 | 3.1275ms | 2.5951ms | 6.2019ms | 2.0066ms | 6.3999ms |
+| generated mapper import | 20 | 1.9104ms | 1.2311ms | 3.7804ms | 0.9332ms | 4.6435ms |
 
-`rawsql-ts minimal` remains useful as an internal reference target, but it is no longer the primary public comparison. In this run set it averaged `6,035.89 req/sec`, while RFBA + AOT averaged `5,993.98 req/sec`; the roughly 0.7% gap is smaller than the observed run variance. That means rawsql-ts does not need to foreground the minimal target to make the performance case: the recommended RFBA scaffold path is already fast enough to compare directly with Drizzle.
+Interpretation:
 
-The handwritten target is useful as a direct SQL reference and theoretical ceiling candidate, but it is not yet validated as a stable ceiling. It was not consistently fastest, and endpoint medians show handwritten p50 was higher across all endpoints in this run set. That may be shared HTTP/DB/Docker/Windows scheduling noise, but it may also be a handwritten-target implementation difference. This report therefore treats handwritten as a ceiling candidate, not as a proven ceiling.
+- Startup parser and catalog work is visible, but it is outside the steady-state request/query hot path.
+- `catalog-preparation` currently includes the RFBA `loadQueryCatalog` path: parser load, SQL file load, parse, and descriptor creation.
+- Dynamic search support may justify the parser at startup, but static/no-dynamic queries now have a separate measurement target for evaluating a future no-parse or precompiled descriptor option.
+- Generated mapper import/load is also separate from mapper execution and should not be mixed into steady-state Pure ORM conclusions.
 
-This report does not claim Drizzle is slow. It positions rawsql-ts as a SQL-first baseline implementation for comparison: keeping SQL as SQL does not necessarily impose meaningful runtime overhead.
+## 5. RFBA Scaffold Usage Impact
 
-## Method
+The performance work keeps RFBA usage natural:
+
+- Users edit `query.sql`, `queryspec.ts`, contract files, and `boundary.ts`.
+- `generated/**` remains machine-owned and reproducible.
+- Generated direct-assignment mappers are the standard scaffolded internal implementation, not an advanced performance switch.
+- Existing runtime mapper APIs and fallback paths remain compatible.
+- `boundary.ts` remains the public surface and should not absorb SQL execution, cardinality, validation, or mapper details.
+
+The accepted mapper optimization was intentionally placed in generation output and benchmark internals, not in a user-facing fast API. This supports the product message: ordinary RFBA scaffold usage should be fast enough without making users choose between maintainability and performance.
+
+## 6. Accepted Pure ORM Result
 
 Benchmark source:
 
 - Official repository: <https://github.com/drizzle-team/drizzle-benchmarks>
 - Inspected upstream commit: `2ae27415a69f00b4f0f734ebb0a98e7799008819`
-- Official docs page: <https://orm.drizzle.team/benchmarks>
+- Local benchmark overlay: `benchmarks/drizzle-official-comparison`
 
-Benchmark characteristics:
+Accepted artifact:
 
-- Project type: E-commerce HTTP API
-- Database: PostgreSQL
-- HTTP server: Hono on Node for all compared targets
-- DB driver: `pg` / node-postgres for all compared Node targets
-- Pool: `pg.Pool({ min: 10, max: 10 })`
-- Measurement tool: official k6 scenario, run with pinned Docker image `grafana/k6:0.54.0`
-- Request source: official checked-in `data/requests.json`
-- Effective measured requests: the official k6 script filters out `/search-*` endpoints
-- Concurrency schedule: official staged profile, ramping to 3000 VUs over a 5m40s scenario
-- Runs: one warmup pass excluded from aggregation, then three measured runs per target
-- Rotation: target order changes each measured pass
+- `benchmarks/drizzle-official-comparison/results-pure-orm-20260503-accepted-aot-direct-assignment/pure-orm-summary.json`
 
-The inspected upstream commit has a migration/schema mismatch: `src/schema.ts` and `src/seed.ts` use `products.quantity_per_unit`, while the initial migration creates `products.qt_per_unit`. `benchmarks/drizzle-official-comparison/scripts/materialize.mjs` patches the materialized migration to `quantity_per_unit` so the official seed can run. This patch affects the shared DB schema for all targets equally and does not change seed cardinality, endpoint behavior, HTTP server, or DB driver.
+Original measured folder:
 
-rawsql-ts implementation policy:
+- `benchmarks/drizzle-official-comparison/results-pure-orm-20260503-breakdown-baseline/pure-orm-summary.json`
 
-- SQL files are loaded at startup.
-- SQL parsing and query object preparation happen at startup, not per request.
-- A shared `pg.Pool` is created at startup.
-- Requests perform parameter coercion, prepared query execution, minimal server-side mapping, and JSON response return.
-- Nested response endpoints use server-side mapping from flat joined rows. The rawsql-ts SQL does not build nested JSON in PostgreSQL with `jsonb_build_object` or `jsonb_agg`.
-- `rawsql-ts RFBA + AOT generated mapper` is the primary rawsql-ts comparison target. It follows the scaffold-style feature-first shape and moves hot DTO mapping into machine-owned `generated/row-mapper.ts` files.
-- `rawsql-ts minimal` is kept as a low-overhead SQL-first reference for implementation debugging and regression triage.
-- `handwritten` is a direct SQL reference target and theoretical ceiling candidate. It loads the same SQL files at startup, uses named prepared queries with `pg.Pool.query`, and performs direct hand-written object construction for nested DTO endpoints. It does not parse SQL and does not use rawsql-ts mapper/runtime APIs, but it is not yet validated as a stable ceiling.
-- The validation target is excluded from the main comparison because Drizzle does not run equivalent validation.
+The original folder name included `baseline`, but the run already included generated direct-assignment aggregation in the measured RFBA AOT path. The accepted folder was added so readers do not mistake the final accepted evidence for a pre-optimization baseline.
 
-Measured endpoints:
+Command:
 
-| endpoint | included by k6 |
-|---|---|
-| `/customers` | yes |
-| `/customer-by-id` | yes |
-| `/search-customer` | no |
-| `/employees` | yes |
-| `/employee-with-recipient` | yes |
-| `/suppliers` | yes |
-| `/supplier-by-id` | yes |
-| `/products` | yes |
-| `/product-with-supplier` | yes |
-| `/search-product` | no |
-| `/orders-with-details` | yes |
-| `/order-with-details` | yes |
-| `/order-with-details-and-products` | yes |
+```sh
+pnpm bench:pure-orm -- --runs=3 --iterations=2000 --warmup=100 --folder=results-pure-orm-20260503-breakdown-baseline
+```
 
-## Environment
+Environment:
 
 | item | value |
 |---|---|
-| OS | Microsoft Windows 11 Home 10.0.26200, 64-bit |
+| OS | Microsoft Windows 11 Home, OS version `10.0.26200`, build `26200`, WindowsVersion `2009`, x64-based PC |
 | CPU | AMD Ryzen 7 7800X3D 8-Core Processor, 8 cores / 16 logical processors |
-| memory | 32,595,880 KiB visible to Windows |
-| Node.js | v22.14.0 |
-| pnpm | 10.17.0 |
-| Docker | 27.3.1 |
-| k6 | Docker image `grafana/k6:0.54.0` |
-| PostgreSQL | 17.2, Docker `postgres` image |
+| CPU cache | L2 `8192 KB`, L3 `98304 KB` |
+| memory | 32 GiB class; observed total physical memory `33,378,181,120` to `34,359,738,368` bytes |
+| Node.js | `v22.14.0` |
+| pnpm | `10.17.0` |
+| PostgreSQL | `PostgreSQL 18.3 (Debian 18.3-1.pgdg13+1)` |
+| PostgreSQL settings | `max_connections=300`, `shared_buffers=128MB`, `work_mem=4MB` |
 
-Seed observed locally:
+Main result:
 
-| table | rows |
-|---|---:|
-| employees | 200 |
-| customers | 10,000 |
-| orders | 50,000 |
-| products | 5,000 |
-| suppliers | 1,000 |
-| order_details | 307,333 |
+| phase | target | ops/sec avg | p50 avg | p95 avg | p99 avg |
+|---|---|---:|---:|---:|---:|
+| DB query only | handwritten direct SQL | 1,534.29 | 0.6395ms | 0.7548ms | 0.9477ms |
+| DB query only | Drizzle generated SQL reference | 1,582.39 | 0.6130ms | 0.7452ms | 0.9461ms |
+| DB query only | rawsql-ts RFBA SQL | 1,565.46 | 0.6212ms | 0.7612ms | 0.9544ms |
+| DB query + mapper | handwritten direct SQL | 1,570.23 | 0.6084ms | 0.7663ms | 0.9759ms |
+| DB query + mapper | Drizzle JIT mapper | 1,547.65 | 0.6270ms | 0.7655ms | 0.9514ms |
+| DB query + mapper | rawsql-ts RFBA + AOT mapper | 1,572.09 | 0.6085ms | 0.7282ms | 0.8971ms |
 
-Request list observed from official `data/requests.json`:
+Mapper and aggregation diagnostics:
 
-| item | count |
-|---|---:|
-| total requests | 426,999 |
-| requests included by official k6 filter | 371,999 |
+| phase | target | ops/sec avg | p50 avg |
+|---|---|---:|---:|
+| mapper-only | handwritten | 4,481,308.12 | 0.0002ms |
+| mapper-only | Drizzle JIT mapper path | 673,322.16 | 0.0013ms |
+| mapper-only | rawsql-ts RFBA AOT mapper | 4,254,124.74 | 0.0001ms |
+| aggregation-handwritten | handwritten | 5,035,996.86 | 0.0001ms |
+| aggregation-rfba-current | old helper/spread generated shape | 550,694.42 | 0.0013ms |
+| aggregation-rfba-optimized | direct-assignment generated shape | 4,389,558.53 | 0.0002ms |
 
-## Commands
+Interpretation:
 
-Materialize the benchmark overlay:
+- rawsql-ts RFBA + AOT is in the same local Pure ORM range as handwritten and Drizzle for the measured cases.
+- The accepted direct-assignment aggregation change materially reduces generated aggregation overhead without changing public RFBA usage.
+- The later `.then(...)` boundary/executor experiment was rejected because it did not improve `DB query + mapper` and made call-chain diagnostics noisier.
 
-```sh
-node benchmarks/drizzle-official-comparison/scripts/materialize.mjs
-cd tmp/drizzle-benchmarks-rawsql
-pnpm install --ignore-workspace --ignore-scripts
-```
+## 7. Remaining Work
 
-Prepare the DB:
+Recommended next work:
 
-```sh
-DATABASE_URL="postgres://postgres:postgres@localhost:5435/postgres"
-pnpm start:docker
-pnpm start:seed
-pnpm start:generate
-```
+| priority | item | purpose |
+|---:|---|---|
+| 1 | Add DB-backed fixtures for generated `hasMany` output | Fixture-row behavior is covered; DB-backed ZTD cases can prove the same shape through a query boundary. |
+| 2 | Expand startup-cost benchmark cases | Compare static/no-dynamic queries against dynamic-condition-capable catalog loading. |
+| 3 | Investigate query-local call-chain cost | Reduce generated/internal indirection only if Pure ORM shows a measurable benefit and `boundary.ts` remains thin. |
+| 4 | Keep HTTP benchmark as secondary evidence | Use it only after Pure ORM work to confirm app-level regression risk, not to decide ORM optimization direction. |
 
-Run the pinned, warmup-aware, rotated k6 suite. The future main comparison should use Drizzle, rawsql-ts RFBA + AOT generated mapper, and handwritten direct SQL reference:
+## Artifacts
 
-```sh
-pnpm bench:k6:docker:rotated -- --targets handwritten,drizzle,rfba --runs 3 --folder results-rotated
-```
-
-The 2026-05-02 measurement also included `rawsql-ts minimal` as an internal reference target:
-
-```sh
-pnpm bench:k6:docker:rotated -- --targets handwritten,drizzle,rawsql,rfba --runs 3 --folder results-rotated-20260502
-```
-
-The helper used this order:
-
-| pass | measured | target order |
-|---|---|---|
-| warmup | no | handwritten, drizzle, rawsql, rfba |
-| run-1 | yes | drizzle, rawsql, rfba, handwritten |
-| run-2 | yes | rawsql, rfba, handwritten, drizzle |
-| run-3 | yes | rfba, handwritten, drizzle, rawsql |
-
-`rawsql-run-3` in the first suite was interrupted during collection and produced an invalid k6 rate (`68.95 req/sec` with 1.86M requests). It was excluded. A repair pass was run with the same pinned k6 image and its own excluded warmup:
-
-```sh
-pnpm bench:k6:docker:rotated -- --targets rawsql --runs 1 --folder results-rotated-20260503-rawsql-repair
-```
-
-The measured repair run is used as `rawsql-run-3` in the tables below.
-
-## Results
-
-### Warmup Runs
-
-Warmup runs were required and excluded from aggregation.
-
-| target | req/sec | p50 ms | p95 ms | p99 ms | failed requests |
-|---|---:|---:|---:|---:|---:|
-| handwritten warmup | 6,488.50 | 4.51 | 447.74 | 469.24 | 0 |
-| Drizzle warmup | 4,850.87 | 59.59 | 590.32 | 618.17 | 0 |
-| rawsql-ts minimal reference warmup | 5,533.80 | 3.39 | 561.78 | 582.33 | 0 |
-| rawsql-ts RFBA + AOT warmup | 4,901.58 | 60.23 | 581.28 | 604.59 | 0 |
-| rawsql-ts repair warmup | 4,872.67 | 57.67 | 610.61 | 637.22 | 0 |
-
-### Three-Run Comparison
-
-Average and median across the three measured runs:
-
-| target | req/sec avg | req/sec median | p50 avg | p50 median | p95 avg | p95 median | p99 avg | p99 median | error rate |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Drizzle | 5,899.90 | 6,593.96 | 91.81 | 21.19 | 449.21 | 456.18 | 485.74 | 481.82 | 0.000000% |
-| rawsql-ts RFBA + AOT generated mapper | 5,993.98 | 6,529.39 | 84.67 | 80.94 | 378.16 | 292.68 | 406.58 | 313.24 | 0.000018% |
-| handwritten direct SQL reference | 5,246.11 | 4,759.78 | 92.95 | 116.70 | 520.64 | 536.74 | 550.20 | 575.12 | 0.000000% |
-| rawsql-ts minimal reference | 6,035.89 | 6,555.29 | 63.60 | 45.63 | 474.71 | 413.29 | 500.82 | 432.00 | 0.000000% |
-
-Individual measured runs:
-
-| run | target | req/sec | p50 ms | p95 ms | p99 ms | failed requests | source |
-|---|---|---:|---:|---:|---:|---:|---|
-| 1 | Drizzle | 6,593.96 | 3.60 | 456.18 | 481.82 | 0 | `results-rotated-20260502` |
-| 1 | handwritten direct SQL reference | 4,759.78 | 116.70 | 568.19 | 604.24 | 0 | `results-rotated-20260502` |
-| 1 | rawsql-ts minimal reference | 6,555.29 | 45.63 | 413.29 | 428.57 | 0 | `results-rotated-20260502` |
-| 1 | rawsql-ts RFBA + AOT generated mapper | 6,529.39 | 72.31 | 292.68 | 313.24 | 1 | `results-rotated-20260502` |
-| 2 | Drizzle | 4,058.18 | 250.63 | 597.37 | 662.53 | 0 | `results-rotated-20260502` |
-| 2 | handwritten direct SQL reference | 4,716.97 | 158.54 | 536.74 | 575.12 | 0 | `results-rotated-20260502` |
-| 2 | rawsql-ts minimal reference | 4,652.80 | 119.96 | 606.39 | 641.89 | 0 | `results-rotated-20260502` |
-| 2 | rawsql-ts RFBA + AOT generated mapper | 4,781.11 | 100.75 | 588.19 | 623.45 | 0 | `results-rotated-20260502` |
-| 3 | Drizzle | 7,047.57 | 21.19 | 294.09 | 312.88 | 0 | `results-rotated-20260502` |
-| 3 | handwritten direct SQL reference | 6,261.57 | 3.61 | 456.99 | 471.23 | 0 | `results-rotated-20260502` |
-| 3 | rawsql-ts minimal reference | 6,899.59 | 25.20 | 404.45 | 432.00 | 0 | `results-rotated-20260503-rawsql-repair` |
-| 3 | rawsql-ts RFBA + AOT generated mapper | 6,671.44 | 80.94 | 253.62 | 283.05 | 0 | `results-rotated-20260502` |
-
-### Endpoint Medians
-
-The k6 script tags each request with `endpoint` and emits endpoint-specific duration Trends. This table reports the median run's endpoint p50/p95/p99 per target.
-
-| endpoint | target | p50 median ms | p95 median ms | p99 median ms |
-|---|---|---:|---:|---:|
-| `/customers` | handwritten | 122.14 | 539.00 | 578.13 |
-| `/customers` | Drizzle | 22.74 | 457.19 | 483.22 |
-| `/customers` | rawsql-ts minimal reference | 47.44 | 414.75 | 434.93 |
-| `/customers` | rawsql-ts RFBA generated | 83.78 | 295.65 | 315.00 |
-| `/customer-by-id` | handwritten | 117.80 | 535.99 | 575.31 |
-| `/customer-by-id` | Drizzle | 20.82 | 456.28 | 481.97 |
-| `/customer-by-id` | rawsql-ts minimal reference | 45.45 | 412.97 | 431.11 |
-| `/customer-by-id` | rawsql-ts RFBA generated | 80.63 | 292.06 | 312.34 |
-| `/employees` | handwritten | 114.63 | 533.08 | 570.35 |
-| `/employees` | Drizzle | 21.34 | 455.45 | 479.81 |
-| `/employees` | rawsql-ts minimal reference | 46.15 | 413.07 | 431.97 |
-| `/employees` | rawsql-ts RFBA generated | 82.26 | 294.08 | 313.13 |
-| `/employee-with-recipient` | handwritten | 120.39 | 536.26 | 575.93 |
-| `/employee-with-recipient` | Drizzle | 20.44 | 456.54 | 481.44 |
-| `/employee-with-recipient` | rawsql-ts minimal reference | 45.53 | 413.49 | 431.28 |
-| `/employee-with-recipient` | rawsql-ts RFBA generated | 80.84 | 292.57 | 313.62 |
-| `/suppliers` | handwritten | 117.93 | 539.09 | 572.82 |
-| `/suppliers` | Drizzle | 16.49 | 458.23 | 481.68 |
-| `/suppliers` | rawsql-ts minimal reference | 46.02 | 413.01 | 430.75 |
-| `/suppliers` | rawsql-ts RFBA generated | 81.10 | 292.58 | 311.89 |
-| `/supplier-by-id` | handwritten | 115.78 | 536.27 | 574.80 |
-| `/supplier-by-id` | Drizzle | 20.19 | 456.00 | 481.48 |
-| `/supplier-by-id` | rawsql-ts minimal reference | 45.43 | 413.16 | 431.45 |
-| `/supplier-by-id` | rawsql-ts RFBA generated | 80.71 | 292.51 | 313.41 |
-| `/products` | handwritten | 120.19 | 538.25 | 575.27 |
-| `/products` | Drizzle | 23.60 | 456.80 | 482.70 |
-| `/products` | rawsql-ts minimal reference | 46.17 | 413.69 | 432.85 |
-| `/products` | rawsql-ts RFBA generated | 82.11 | 292.95 | 313.05 |
-| `/product-with-supplier` | handwritten | 116.13 | 536.55 | 574.75 |
-| `/product-with-supplier` | Drizzle | 21.19 | 456.02 | 481.73 |
-| `/product-with-supplier` | rawsql-ts minimal reference | 45.47 | 413.28 | 431.99 |
-| `/product-with-supplier` | rawsql-ts RFBA generated | 80.84 | 292.51 | 313.06 |
-| `/orders-with-details` | handwritten | 120.64 | 538.95 | 576.56 |
-| `/orders-with-details` | Drizzle | 24.08 | 458.26 | 484.97 |
-| `/orders-with-details` | rawsql-ts minimal reference | 48.04 | 415.86 | 436.74 |
-| `/orders-with-details` | rawsql-ts RFBA generated | 83.46 | 295.89 | 317.16 |
-| `/order-with-details` | handwritten | 116.84 | 536.77 | 575.41 |
-| `/order-with-details` | Drizzle | 20.75 | 456.17 | 481.82 |
-| `/order-with-details` | rawsql-ts minimal reference | 45.53 | 413.14 | 431.80 |
-| `/order-with-details` | rawsql-ts RFBA generated | 80.81 | 292.56 | 312.69 |
-| `/order-with-details-and-products` | handwritten | 116.49 | 536.90 | 575.15 |
-| `/order-with-details-and-products` | Drizzle | 21.62 | 456.08 | 481.68 |
-| `/order-with-details-and-products` | rawsql-ts minimal reference | 45.71 | 413.25 | 432.08 |
-| `/order-with-details-and-products` | rawsql-ts RFBA generated | 80.93 | 292.75 | 313.58 |
-
-### Mapper Profile
-
-The mapper hot-path profile still explains why generated mappers are useful even when HTTP throughput is dominated by broader system costs.
-
-| profile | ops/sec | relative |
-|---|---:|---:|
-| product-with-supplier generic mapRows | 251,637.71 | 1.00x |
-| product-with-supplier compiled projector | 2,813,727.84 | 11.18x |
-| product-with-supplier generated mapper | 54,016,680.35 | 214.66x |
-| order-with-details-and-products generic mapRows | 37,468.59 | 1.00x |
-| order-with-details-and-products compiled projector | 706,079.26 | 18.84x |
-| order-with-details-and-products generated mapper | 8,886,361.21 | 237.17x |
-
-Artifacts in the materialized benchmark workspace:
-
-- `tmp/drizzle-benchmarks-rawsql/results-rotated-20260502/*-summary.json`
-- `tmp/drizzle-benchmarks-rawsql/results-rotated-20260503-rawsql-repair/*-summary.json`
-- `tmp/drizzle-benchmarks-rawsql/seed.log`
-
-## Analysis
-
-The main comparison should be read as Drizzle versus rawsql-ts RFBA + AOT generated mapper, with handwritten as a direct SQL reference. These targets are close enough that single-run conclusions are unsafe. Drizzle, rawsql-ts minimal, and RFBA + AOT all crossed 6.5k req/sec in at least one measured run. The lowest measured full-run throughput was `drizzle-run-2` at 4,058.18 req/sec, followed by `rawsql-run-2` and `rfba-run-2` in the same run pass. This points to local scheduling, DB/container state, request-list position effects, or target implementation differences; it is not enough evidence for a stable target ranking.
-
-The direct handwritten target is a theoretical ceiling candidate because it removes rawsql-ts parsing, rawsql-ts mapper/runtime APIs, Drizzle query objects, and generic contract machinery from the request path. It was not consistently fastest here. That should not be explained away only as benchmark noise. The endpoint medians show handwritten p50 was higher across every endpoint in this run set, so a handwritten-target implementation difference remains plausible.
-
-Before treating handwritten as a validated ceiling, the benchmark should confirm:
-
-- RFBA + AOT and handwritten execute the same SQL text for every endpoint.
-- Prepared query names and parameter binding are equivalent.
-- `pg.Pool` settings are identical.
-- Hono route shape and middleware are identical.
-- Response shapes are byte-for-byte or structurally equivalent.
-- DTO mapping avoids extra conversions or avoidable object allocation.
-- Endpoint-specific p50/p95/p99 gaps reproduce across rotated runs.
-
-rawsql-ts minimal does not build SQL or parse SQL per request. SQL files are loaded and parsed at startup. Request-time work is prepared query execution plus minimal mapping. It remains useful for implementation debugging because it isolates the SQL-first execution path, but the 0.7% average gap between minimal and RFBA + AOT is well inside this run set's variance. That makes RFBA + AOT the better external representative for rawsql-ts.
-
-RFBA + AOT generated mapper is the main maintainability result. It keeps the scaffold-style boundary shape and machine-owned generated mappers while staying in the same throughput range as Drizzle and the minimal reference target. Compared with the earlier RFBA runtime-mapper target, generated mappers remove hot-path generic key/object construction, repeated mapper lookup, and relation traversal. The mapper profile shows that this optimization is real in isolation; the HTTP benchmark shows that end-to-end gains are bounded by shared system costs and should be confirmed endpoint by endpoint.
-
-The single RFBA failed request was:
-
-```text
-GET /order-with-details?id=41031
-error="dial tcp 192.168.65.254:3000: connect: connection refused"
-```
-
-That is a connection-level refusal, not an endpoint-specific SQL, mapping, validation, or non-2xx application error. `rfba-run-2`, `rfba-run-3`, and the rawsql repair run completed with zero failed requests. The best classification is transient local server/container networking or worker availability during the run. It is still included in the reported error rate.
-
-`rawsql-run-3` from the original rotated suite was excluded because the user interrupted the collection after the run had produced a delayed summary with an invalid rate. The count was plausible, but the k6 rate was not: `68.95 req/sec` with 1.86M requests. Keeping it would make the aggregate misleading. The replacement run used the same pinned k6 image and excluded its own warmup; the only difference is that it was a repair pass rather than the fourth slot in the original rotation.
-
-## Conclusion
-
-Under these local conditions, rawsql-ts RFBA + AOT generated mapper can reasonably be described as comparable to Drizzle and not meaningfully slower for the measured HTTP API workload. The result is conditional on this environment, seed, endpoint mix, and pinned k6 runner.
-
-The RFBA + sql-contract generated mapper shape is a viable standard scaffold path: it keeps the public `boundary.ts` thin, keeps generated files machine-owned, avoids request-time validation, and remains in the same practical performance range as Drizzle. The minimal target can stay in the benchmark as an internal reference, but it does not need to be the public rawsql-ts representative.
-
-The handwritten target should stay in the benchmark as a direct SQL reference and theoretical ceiling candidate, but the current evidence does not validate it as a stable ceiling. The next useful work is to verify implementation parity between handwritten and RFBA + AOT, keep the generated mapper drift check in CI, preserve the fallback runtime mapper APIs for compatibility, and add deeper profiling only for endpoints where endpoint-tagged latency shows a stable gap.
-
-There is value in preparing an upstream benchmark PR after documenting the materialized migration compatibility patch and the pinned k6 workflow. The framing should stay neutral: rawsql-ts demonstrates a SQL-first baseline alongside Drizzle, not an attack on Drizzle.
-
-## Optional Validation Overhead
-
-The validation target exists, but it is excluded from the main comparison because the Drizzle target does not add equivalent response validation. If validation is compared later, both sides should add equivalent validation and be reported separately from the non-validation RFBA + AOT baseline.
+- `benchmarks/drizzle-official-comparison/scripts/pure-orm-benchmark.ts`
+- `benchmarks/drizzle-official-comparison/scripts/startup-cost-benchmark.ts`
+- `benchmarks/drizzle-official-comparison/results-pure-orm-20260503-accepted-aot-direct-assignment/pure-orm-summary.json`
+- `benchmarks/drizzle-official-comparison/results-pure-orm-20260503-breakdown-baseline/pure-orm-summary.json`
+- `benchmarks/drizzle-official-comparison/results-pure-orm-20260503-chain-after/pure-orm-summary.json`
+- `benchmarks/drizzle-official-comparison/results-startup-cost-20260503/startup-cost-summary.json`
+- `scripts/check-generated-mapper-drift.mjs`
+- `packages/ztd-cli/fixtures/generated-mapper-drift`
+- `packages/ztd-cli/src/commands/feature.ts`
+- `packages/ztd-cli/tests/featureScaffold.unit.test.ts`

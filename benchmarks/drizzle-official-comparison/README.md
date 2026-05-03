@@ -15,8 +15,6 @@ Official upstream benchmark:
 | Drizzle | `src/drizzle-server-node.ts` | 3000 | Drizzle mapping only |
 | rawsql-ts RFBA + AOT generated mapper | `src/rawsql-rfba-server-node.ts` | 3000 | RFBA generated row mappers for hot nested DTOs, no validation |
 | handwritten direct SQL reference | `src/handwritten-server-node.ts` | 3000 | none; direct SQL execution and hand-written DTO mapping |
-| rawsql-ts minimal reference | `src/rawsql-server-node.ts` | 3000 | internal/debug reference, none beyond parameter coercion |
-| rawsql-ts with validation | `src/rawsql-server-node-validation.ts` | 3000 | optional diagnostic only |
 
 ## Comparison Model
 
@@ -29,8 +27,6 @@ The primary purpose of this benchmark is to estimate the best observed direct SQ
 | handwritten direct SQL reference | SQL files are written ahead of time and loaded as text | hand-written DTO mapping | SQL file read, pool creation | parameter coercion, prepared SQL execution, direct DTO mapping | ceiling candidate; lowest intended app-layer overhead |
 | Drizzle | query objects are built and prepared at startup | Drizzle JIT row mapper (`useJitMappers:true`) | query builder construction, prepare, pool creation | parameter coercion, prepared query execution, JIT mapper | ORM overhead should be near raw driver according to Drizzle's benchmark goal |
 | rawsql-ts RFBA + AOT generated mapper | SQL files are written ahead of time; current benchmark parses SQL at startup for rawsql-ts compatibility and dynamic-condition support | AOT generated row mapper under `features/<feature>/generated/` | SQL file read, SQL parse, query catalog creation, pool creation | parameter coercion, rows-only prepared SQL execution through RFBA executor, AOT mapper | should be close to handwritten; any steady-state gap is actionable |
-| rawsql-ts minimal reference | SQL files are written ahead of time; current benchmark parses SQL at startup | minimal runtime mapping / direct rows depending on endpoint | SQL file read, SQL parse, query catalog creation, pool creation | parameter coercion, prepared SQL execution, minimal mapping | internal reference for isolating RFBA overhead |
-| rawsql-ts with validation | same as rawsql-ts minimal | runtime mapping plus validation | SQL file read, SQL parse, query catalog creation, validation setup, pool creation | SQL execution, mapping, validation | diagnostic only unless Drizzle also validates |
 
 This framing makes the handwritten target useful even before it is a validated stable ceiling. If handwritten is not the fastest in a controlled run, the benchmark should first inspect implementation parity and runtime state before treating the result as a rawsql-ts or Drizzle finding.
 
@@ -60,8 +56,27 @@ pnpm start:generate
 
 ## Run
 
-Use the same benchmark runner for each main target. Run at least three passes per target for a report-quality comparison.
-Run one warmup pass first and exclude it from aggregate results. For the main comparison, use the pinned Docker k6 image and rotate target order so no target always benefits from the same cache/scheduler position.
+Use the Pure ORM runner for rawsql-ts performance work. HTTP benchmark tooling remains in the overlay for future app-level regression checks, but it is intentionally out of the current optimization loop.
+
+Pure ORM benchmark:
+
+```sh
+pnpm bench:pure-orm -- --targets=handwritten,drizzle,rfba --runs=3 --iterations=2000 --warmup=100 --folder=results-pure-orm
+```
+
+Startup cost benchmark:
+
+```sh
+pnpm bench:startup-cost -- --runs=20 --folder=results-startup-cost
+```
+
+The pure ORM runner does not start Hono, does not use k6, and does not cross Docker networking for HTTP traffic. It measures:
+
+- `db-query-only`: direct `pg` execution for handwritten/rawsql SQL and captured Drizzle-generated SQL for Drizzle.
+- `db-query-mapper`: each target's natural query path, including Drizzle JIT mapper, RFBA AOT mapper, and handwritten mapper.
+- `mapper-only`: fixture rows with no DB round trip.
+- `mapper-json`: fixture rows plus `JSON.stringify`.
+- `executor-only-*`, `params-*`, `call-chain-*`, and `aggregation-*`: breakdown phases for rawsql-ts overhead investigation.
 
 The primary outward-facing comparison should use:
 
@@ -69,66 +84,7 @@ The primary outward-facing comparison should use:
 - rawsql-ts RFBA + AOT generated mapper
 - handwritten direct SQL reference
 
-`rawsql-ts minimal` remains available as an internal/debug reference target, but it is not the recommended rawsql-ts representative because the scaffolded RFBA + AOT path is the design shape rawsql-ts wants users to adopt.
-
-```sh
-pnpm bench:k6:docker:rotated -- --targets handwritten,drizzle,rfba --runs 3 --folder results-rotated
-```
-
-With those targets, the rotated helper runs targets in this order:
-
-| pass | measured | target order |
-|---|---|---|
-| warmup | no | handwritten, drizzle, rfba |
-| run-1 | yes | handwritten, drizzle, rfba |
-| run-2 | yes | drizzle, rfba, handwritten |
-| run-3 | yes | rfba, handwritten, drizzle |
-
-Each target process starts with `RAWSQL_PG_POOL_MIN=10` and `RAWSQL_PG_POOL_MAX=10`; the materialized Docker PostgreSQL helper starts PostgreSQL with `max_connections=300` so 16 Node workers can each use a 10-connection pool without hitting the default 100 connection limit. Each run uses `grafana/k6:0.54.0` unless `K6_IMAGE` is explicitly set. Before each k6 run, the helper warms the measured endpoint set multiple times to exercise routes, pools, prepared statements, and hot mappers consistently. The overlay k6 script emits endpoint tags and endpoint-specific duration trends such as `endpoint_product_with_supplier_duration`, so the summary JSON includes per-endpoint `med`, `p(95)`, and `p(99)` values.
-
-Include `rawsql` in `--targets` only when you want the minimal SQL-first reference alongside the main comparison:
-
-```sh
-pnpm bench:k6:docker:rotated -- --targets handwritten,drizzle,rawsql,rfba --runs 3 --folder results-rotated-with-minimal
-```
-
-```sh
-# terminal 1
-pnpm start:drizzle
-
-# terminal 2
-pnpm exec tsx bench/index.ts --host http://localhost:3000 --name drizzle-run-1 --folder results
-```
-
-```sh
-# terminal 1
-pnpm start:handwritten
-
-# terminal 2
-pnpm exec tsx bench/index.ts --host http://localhost:3000 --name handwritten-run-1 --folder results
-```
-
-```sh
-# terminal 1
-pnpm start:rawsql
-
-# terminal 2
-pnpm exec tsx bench/index.ts --host http://localhost:3000 --name rawsql-minimal-run-1 --folder results
-```
-
-```sh
-# terminal 1
-pnpm start:rawsql:rfba
-
-# terminal 2
-pnpm exec tsx bench/index.ts --host http://localhost:3000 --name rawsql-rfba-run-1 --folder results
-```
-
-Merge final outputs:
-
-```sh
-pnpm exec tsx bench/prepare.ts --folder results
-```
+The ongoing benchmark intentionally excludes `rawsql-ts minimal` and validation targets. The recommended rawsql-ts representative is the scaffolded RFBA + AOT path; validation should only be compared in a separate run where Drizzle performs equivalent validation.
 
 Profile hot mapper paths:
 
@@ -136,90 +92,137 @@ Profile hot mapper paths:
 pnpm exec tsx profiles/mapper-profile.ts
 ```
 
-If local `k6` is not installed, run the k6 phase with Docker from `tmp/drizzle-benchmarks-rawsql` while the target server is listening on port 3000:
+The HTTP/k6 helpers are still materialized for compatibility with the official benchmark, but do not run them before Pure ORM has identified a rawsql-ts optimization target.
+
+Generated mapper drift check:
 
 ```sh
-pnpm bench:k6:docker -- --host http://host.docker.internal:3000 --name rawsql-minimal-run-1 --folder results
+pnpm verify:generated-mapper-drift
 ```
 
-The Docker helper defaults to the pinned image `grafana/k6:0.54.0`. Set `K6_IMAGE` if you need to reproduce an earlier run with another image.
-
-For a quick wiring smoke test:
-
-```sh
-pnpm bench:k6:docker:smoke
-```
-
-The official `bench/index.ts` also records CPU usage and converts CSV to parquet, so prefer it when local k6 and DuckDB are available.
+Generated row mappers are machine-owned. If a scaffolded generated mapper drifts from its SQL, contract, or boundary source, the check should fail and print the `ztd feature generated-mapper generate ...` command needed to refresh the artifact.
+The repository includes `packages/ztd-cli/fixtures/generated-mapper-drift` so the standard drift check has a non-skip target in CI.
 
 ## Latest report: 2026-05-03
 
 ### Summary
 
-Under the 2026-05-03 local benchmark run, `rawsql-ts RFBA + AOT generated mapper` remained in the same broad HTTP/DB benchmark range as Drizzle, but it was slower than Drizzle in the aggregate result. The direct SQL handwritten reference was fastest in this run and is useful as a ceiling candidate, but it is still reported as a direct SQL reference rather than a validated stable ceiling.
+The primary comparison is now the Pure ORM benchmark. HTTP results are intentionally out of scope for this report because they mix Hono routing, JSON serialization, k6, Docker networking, Windows scheduling, PostgreSQL state, and process scheduling. They should not delay rawsql-ts improvement planning.
 
-The core question is not whether rawsql-ts can beat every Drizzle run. The core question is how far `rawsql-ts RFBA + AOT generated mapper` sits from the direct SQL reference. A small gap means the recommended RFBA shape is already close enough to the practical ceiling; a large stable gap means rawsql-ts has meaningful optimization headroom.
+In the pure ORM benchmark after the breakdown and AOT inline mapper pass, `rawsql-ts RFBA + AOT generated mapper` is in the same DB execution range as Drizzle and handwritten direct SQL. Its `db-query-mapper` average is in the same range as both targets for the measured cases.
 
-The result does not show mapper-only overhead as the main explanation. Slow runs had nearly uniform endpoint p50 shifts across simple endpoints and nested mapper endpoints, which points to run-level scheduling, connection, or shared resource state being a large part of the observed variance.
+The mapper-only result does not show RFBA AOT mapper as the bottleneck. RFBA AOT mapper is in the same top mapper range as handwritten and far above the DB query rate. JSON serialization is larger than the mapper itself for these response shapes.
+
+The handwritten target should still be treated as a direct SQL reference / ceiling candidate, not a validated ceiling. In pure mapper-only it is fastest, but in DB query-only the winner varies by SQL text and case, so the ceiling claim needs endpoint-level SQL parity and stable repeated evidence.
 
 ### Method
 
 - Benchmark source: official Drizzle benchmark at `2ae27415a69f00b4f0f734ebb0a98e7799008819`, materialized through `scripts/materialize.mjs`.
-- Runtime: Node server targets with Hono and node-postgres.
-- Database: PostgreSQL Docker container on port 5435, configured with `max_connections=300`.
-- k6 image: `grafana/k6:0.54.0`.
-- Command: `pnpm bench:k6:docker:rotated -- '--targets=handwritten,drizzle,rfba' '--runs=3' '--folder=results-rotated-20260503-official'`.
-- Warmup: one full warmup pass excluded from results, plus per-target endpoint warmup before each k6 run.
-- Target order: warmup and run-1 use `handwritten, drizzle, rfba`; run-2 uses `drizzle, rfba, handwritten`; run-3 uses `rfba, handwritten, drizzle`.
-- Measurement logs: `benchmarks/drizzle-official-comparison/results-rotated-20260503-official/*.json`.
+- Runtime: Node `v22.14.0`, pnpm `10.17.0`.
+- OS: Microsoft Windows 11 Home, OS version `10.0.26200`, build `26200`, WindowsVersion `2009`, x64-based PC.
+- Hardware: AMD Ryzen 7 7800X3D 8-Core Processor, 8 cores / 16 logical processors, max clock `4201 MHz`, L2 cache `8192 KB`, L3 cache `98304 KB`.
+- Memory: 32 GiB installed class. `Get-ComputerInfo` reported `33,378,181,120` bytes total physical memory; system memory observation reported `34,359,738,368` bytes.
+- Docker: Docker `27.3.1`, build `ce12230`.
+- PostgreSQL: `PostgreSQL 18.3 (Debian 18.3-1.pgdg13+1) on x86_64-pc-linux-gnu, gcc 14.2.0-19, 64-bit`.
+- PostgreSQL settings observed for benchmark: `max_connections=300`, `shared_buffers=128MB`, `work_mem=4MB`.
+- Seed size: `customers=10000`, `products=5000`, `orders=50000`, `order_details=307308`.
 
-### Results
+### 1. Pure ORM Benchmark
 
-`req/sec` is the average across the three measured runs. Latency columns are the median of each run's k6 percentile for `http_req_duration{expected_response:true}`. Error rate is total failed requests across the three measured runs.
+Command:
 
-| target | req/sec avg | req/sec median | p50 | p90 | p95 | p99 | error rate |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| handwritten direct SQL reference | 6,561.89 | 6,509.92 | 16.27ms | 366.04ms | 376.27ms | 390.04ms | 0.000000% |
-| Drizzle | 5,267.19 | 5,622.77 | 66.48ms | 543.23ms | 564.15ms | 580.01ms | 0.000000% |
-| rawsql-ts RFBA + AOT generated mapper | 4,641.21 | 4,209.58 | 213.31ms | 589.61ms | 628.11ms | 657.61ms | 0.000000% |
+```sh
+pnpm bench:pure-orm -- --runs=3 --iterations=2000 --warmup=100 --folder=results-pure-orm-20260503-breakdown-baseline
+```
 
-Distance from the direct SQL reference:
+Measurement log:
 
-| target | avg req/sec gap vs handwritten | median req/sec gap vs handwritten | interpretation |
-|---|---:|---:|---|
-| Drizzle | 19.73% lower | 13.63% lower | Drizzle is below the direct SQL reference in this run, but still in the same broad HTTP/DB benchmark range. |
-| rawsql-ts RFBA + AOT generated mapper | 29.27% lower | 35.34% lower | This is larger than expected for a SQL-first AOT path and should be treated as optimization headroom unless diagnostics prove run-state variance dominates. |
+- `benchmarks/drizzle-official-comparison/results-pure-orm-20260503-accepted-aot-direct-assignment/pure-orm-summary.json`
 
-Per-run summary:
+The accepted folder is a clarity alias for the measured direct-assignment run. The original measured folder was named `results-pure-orm-20260503-breakdown-baseline`, but that run already included generated direct-assignment aggregation in the RFBA AOT mapper path.
 
-| target | run | req/sec | p50 | p95 | p99 |
-|---|---:|---:|---:|---:|---:|
-| handwritten direct SQL reference | 1 | 6,488.82 | 3.24ms | 446.39ms | 461.70ms |
-| handwritten direct SQL reference | 2 | 6,509.92 | 16.27ms | 376.27ms | 390.04ms |
-| handwritten direct SQL reference | 3 | 6,686.94 | 51.58ms | 343.95ms | 362.25ms |
-| Drizzle | 1 | 5,723.70 | 66.48ms | 447.44ms | 463.75ms |
-| Drizzle | 2 | 5,622.77 | 3.51ms | 564.15ms | 580.01ms |
-| Drizzle | 3 | 4,455.09 | 165.51ms | 621.03ms | 654.41ms |
-| rawsql-ts RFBA + AOT generated mapper | 1 | 4,209.58 | 213.31ms | 632.87ms | 657.61ms |
-| rawsql-ts RFBA + AOT generated mapper | 2 | 4,014.61 | 260.83ms | 628.11ms | 658.56ms |
-| rawsql-ts RFBA + AOT generated mapper | 3 | 5,699.45 | 3.46ms | 541.19ms | 556.45ms |
+Each target uses `pg.Pool({ min: 10, max: 10 })`. Target order is rotated:
 
-### Analysis
+| run | target order |
+|---:|---|
+| 1 | handwritten, drizzle, rfba |
+| 2 | drizzle, rfba, handwritten |
+| 3 | rfba, handwritten, drizzle |
 
-- The handwritten target is not intrinsically slow. A stopped earlier run had handwritten last and slow, but a handwritten-only diagnostic run reached `5,992.55 req/sec` with `p50 3.72ms`, and the official rerun with handwritten first reached `6,488.82 req/sec` in run-1.
-- RFBA was slower than Drizzle in this official run, but its run-3 result was close to Drizzle's best range. RFBA run-1/run-2 had uniformly high p50 across both simple endpoints and nested mapper endpoints, so the gap cannot be explained by generated mapper cost alone.
-- Startup SQL parsing is unlikely to explain steady-state latency because the RFBA catalog parses SQL before the server accepts benchmark traffic. It remains relevant to startup cost and dynamic-condition support, and a no-parse/static-SQL option may still be useful for applications that do not need dynamic SQL rewriting.
-- The current RFBA hot path still has more query-local structure than handwritten: a feature boundary call, an executor interface call, query catalog lookup, value array allocation, and generated mapper dispatch. Each piece is small, but together they are the most plausible rawsql-ts-specific overhead candidates. The rows-only RFBA executor avoids allocating a `{ rows, rowCount }` result wrapper on read endpoints while keeping the existing result-object executor as fallback.
-- Drizzle performs query construction and `prepare()` before requests, then executes prepared query objects with JIT row mappers. This means the main Drizzle hot path is also close to precompiled SQL execution; rawsql-ts should not assume it has a large SQL-building advantage in this benchmark.
-- The direct SQL reference and rawsql-ts response sizes are effectively identical (`~1,347 bytes/request`), while Drizzle responses are slightly larger (`~1,357 bytes/request`). Response size does not explain RFBA's slower runs.
-- The current benchmark is highly sensitive to target order and local scheduling state. The report should avoid claiming a stable ceiling until the direct SQL reference is repeatedly fastest across target orders and endpoint latency remains stable.
-- The next useful diagnostics are to capture per-worker connection counts, event-loop delay, process CPU/memory, and endpoint-level traces for the RFBA executor/boundary path, especially when a target's p50 shifts uniformly across all endpoints.
+The table below averages the three measured query cases: `products`, `productWithSupplier`, and `orderWithDetailsAndProducts`.
+
+| phase | target | ops/sec avg | p50 avg | p95 avg | p99 avg |
+|---|---|---:|---:|---:|---:|
+| DB query only | handwritten direct SQL | 1,534.29 | 0.6395ms | 0.7548ms | 0.9477ms |
+| DB query only | Drizzle generated SQL reference | 1,582.39 | 0.6130ms | 0.7452ms | 0.9461ms |
+| DB query only | rawsql-ts RFBA SQL | 1,565.46 | 0.6212ms | 0.7612ms | 0.9544ms |
+| DB query + mapper | handwritten direct SQL | 1,570.23 | 0.6084ms | 0.7663ms | 0.9759ms |
+| DB query + mapper | Drizzle JIT mapper | 1,547.65 | 0.6270ms | 0.7655ms | 0.9514ms |
+| DB query + mapper | rawsql-ts RFBA + AOT mapper | 1,572.09 | 0.6085ms | 0.7282ms | 0.8971ms |
+
+Interpretation:
+
+- DB execution dominates these measurements. All three targets are in the same narrow range.
+- RFBA + AOT is in the same `db-query-mapper` range as handwritten and Drizzle in this run.
+- Drizzle's `db-query-only` row uses captured Drizzle-generated SQL executed through `pg`, so it isolates DB execution from Drizzle's mapper as much as this benchmark can without changing Drizzle internals.
+
+### 2. Mapper Microbenchmark
+
+The mapper microbenchmark uses fixture rows and does not touch the DB. `mapper-json` adds `JSON.stringify` to estimate response serialization cost before HTTP.
+
+| phase | target | ops/sec avg | p50 avg | p95 avg | p99 avg |
+|---|---|---:|---:|---:|---:|
+| mapper only | handwritten mapper | 3,559,499.49 | 0.0002ms | 0.0003ms | 0.0005ms |
+| mapper only | Drizzle JIT mapper path | 652,281.30 | 0.0014ms | 0.0022ms | 0.0033ms |
+| mapper only | rawsql-ts RFBA AOT mapper | 4,054,218.57 | 0.0002ms | 0.0003ms | 0.0006ms |
+| mapper + JSON stringify | handwritten mapper | 332,655.02 | 0.0036ms | 0.0051ms | 0.0057ms |
+| mapper + JSON stringify | Drizzle JIT mapper path | 193,977.88 | 0.0049ms | 0.0082ms | 0.0132ms |
+| mapper + JSON stringify | rawsql-ts RFBA AOT mapper | 331,674.32 | 0.0039ms | 0.0057ms | 0.0075ms |
+
+Interpretation:
+
+- RFBA AOT mapper is in the same top mapper range as handwritten and much faster than the DB query rate. It is not the current bottleneck.
+- JSON serialization costs more than the RFBA AOT mapper for these cases, so application-level response cost can hide mapper differences quickly.
+- Drizzle's mapper-only path is measured through a fake `pg` client that returns captured Drizzle raw rows. This keeps Drizzle's normal prepared-query mapper path, but it also includes Drizzle execute-path machinery around the mapper.
+
+### 3. rawsql-ts Performance Interpretation
+
+`rawsql-ts RFBA + AOT generated mapper` is the recommended rawsql-ts benchmark representative. The pure ORM `db-query-mapper` result is the primary optimization signal, and `mapper-only` is the primary signal for generated mapper work.
+
+The current result suggests the generated mapper itself is not the main bottleneck: RFBA AOT mapper is close to handwritten and much faster than the DB query rate. The remaining RFBA gap should be investigated in the query path before changing public usage.
+
+Implemented / measured in this pass:
+
+- The Pure ORM RFBA runner no longer clones parameter arrays before `pg.Pool.query`, matching the benchmark executor more closely to the RFBA server executor.
+- Generated mappers for the hot nested DTOs now use direct assignment instead of helper calls plus object spread. This preserves the RFBA scaffold usage model while reducing mapper-only allocation/function-call overhead.
+- Breakdown phases show parameter construction is not a useful next target, minimized executor invocation is noisy, and generated aggregation shape is the meaningful accepted improvement.
+- ztd-cli list generated mappers now emit preallocated-loop direct assignment, so ordinary RFBA scaffold output follows the same direction without asking users to choose a special performance mode.
+
+Next rawsql-ts optimization candidates:
+
+- executor indirection
+- query-local call structure
+- parameter coercion
+- object allocation
+- generated mapper output shape
+- one-to-many aggregation
+- SQL parsing and catalog loading startup cost
+
+Do not choose optimizations from HTTP-only rankings. HTTP can confirm that the application stack has no large regression, but Pure ORM and mapper microbenchmarks should drive rawsql-ts performance work.
+
+### 4. Follow-up Optimization Targets
+
+- **DB execution cost:** Pure DB query throughput is close across handwritten, Drizzle-generated SQL, and RFBA SQL. There is no evidence here that rawsql-ts has a meaningful DB execution disadvantage.
+- **Mapper cost:** RFBA AOT mapper is much closer to handwritten than to a slow dynamic mapper. The remaining RFBA `db-query-mapper` gap is more likely query-local call structure, value allocation, or executor indirection than raw mapper construction.
+- **JSON serialization cost:** JSON stringify is larger than mapper-only for these fixture shapes. In HTTP results, JSON and routing can easily dominate sub-millisecond mapper differences.
+- **HTTP routing / k6 / Docker networking cost:** out of scope for the current performance-improvement loop. These costs are useful for app-level regression checks, but not for identifying rawsql-ts ORM or mapper overhead.
+- **Handwritten target:** Pure mapper-only validates handwritten as the fastest mapper in this local run. Pure DB query-only does not validate handwritten as a universal ceiling because SQL text and planner behavior still vary. It should remain a direct SQL reference / ceiling candidate until endpoint-level SQL parity proves a stable ceiling.
 
 ### Conclusion
 
-For this run, `rawsql-ts RFBA + AOT generated mapper` is not as fast as Drizzle in aggregate and is farther from the direct SQL reference than expected. Because rawsql-ts is SQL-first and uses AOT mapper generation, this should be treated as actionable optimization headroom unless follow-up diagnostics show the gap is mostly run-level/server-state variance.
+`rawsql-ts RFBA + AOT generated mapper` is in the same pure ORM performance range as Drizzle and handwritten direct SQL under this measurement. The recommended RFBA scaffold shape does not appear to impose a meaningful steady-state mapper penalty.
 
-The handwritten target should remain a direct SQL reference / ceiling candidate. It is valuable for showing the best observed local range, but it is not yet a validated stable ceiling. The next improvement work should focus on making the RFBA hot path look more like the handwritten path while preserving the scaffolded user experience.
+The next optimization work should focus on the small remaining RFBA `db-query-mapper` gap while preserving the standard RFBA user experience: keep generated mappers as the natural scaffolded internal path, avoid making users choose a special fast mode, and investigate query-local executor indirection and value allocation before changing public APIs.
 
 ## Notes
 
@@ -233,4 +236,4 @@ The handwritten target should remain a direct SQL reference / ceiling candidate.
 - The RFBA target follows the scaffolded feature-first shape used by `packages/transfer`: `adapters/pg`, `features/_shared`, and endpoint-owned `features/<feature>/boundary.ts` entrypoints. It keeps validation out of the hot path and moves hot nested DTO construction into machine-owned `features/<feature>/generated/row-mapper.ts` files.
 - Treat the handwritten target as a direct SQL reference and theoretical ceiling candidate, not as a validated ceiling. Before using it as a ceiling, confirm SQL text, prepared query names, parameter binding, `pg.Pool` settings, Hono route shape, response shape, DTO mapping allocation, and endpoint-level latency parity against RFBA + AOT.
 - `profiles/mapper-profile.ts` compares the generic `mapRows` path, compiled projector path, and generated mapper path for the hottest nested DTO shapes.
-- The validation target intentionally measures response validation separately from the minimal SQL-first path. Do not include it in the main Drizzle comparison unless the Drizzle target also adds equivalent validation.
+- Validation is out of scope for the ongoing main comparison unless Drizzle also adds equivalent validation in the same benchmark layer.

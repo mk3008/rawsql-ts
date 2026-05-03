@@ -23,10 +23,31 @@ export interface QuerySpecPerformanceMetadata {
   expectedOutputRows?: number
 }
 
+export interface QuerySpecHasManySideMetadata {
+  key: string[]
+  columns: Record<string, string>
+}
+
+export interface QuerySpecHasManyCollectionMetadata extends QuerySpecHasManySideMetadata {
+  property: string
+  presence: string[]
+}
+
+export interface QuerySpecHasManyRelationMetadata {
+  kind: 'hasMany'
+  root: QuerySpecHasManySideMetadata
+  collection: QuerySpecHasManyCollectionMetadata
+}
+
+export interface QuerySpecRelationsMetadata {
+  hasMany?: QuerySpecHasManyRelationMetadata[]
+}
+
 export interface QuerySpecMetadata {
   material?: string[]
   scalarMaterial?: string[]
   perf?: QuerySpecPerformanceMetadata
+  relations?: QuerySpecRelationsMetadata
 }
 
 /**
@@ -183,6 +204,102 @@ function cloneQuerySpecPerfMetadata(
   }
 }
 
+function cloneMetadataStringList(
+  specId: string,
+  path: string,
+  values?: string[]
+): string[] | undefined {
+  if (!values) {
+    return undefined
+  }
+  if (values.length === 0) {
+    throw new ContractViolationError(
+      `Spec "${specId}" declares empty metadata.${path}.`,
+      specId
+    )
+  }
+  return values.map((value) => {
+    if (typeof value !== 'string' || value.length === 0) {
+      throw new ContractViolationError(
+        `Spec "${specId}" declares invalid metadata.${path}; expected non-empty strings.`,
+        specId
+      )
+    }
+    return value
+  })
+}
+
+function cloneMetadataColumnMap(
+  specId: string,
+  path: string,
+  columns?: Record<string, string>
+): Record<string, string> | undefined {
+  if (!columns) {
+    return undefined
+  }
+  const cloned: Record<string, string> = {}
+  for (const [property, column] of Object.entries(columns)) {
+    if (property.length === 0 || typeof column !== 'string' || column.length === 0) {
+      throw new ContractViolationError(
+        `Spec "${specId}" declares invalid metadata.${path}; expected non-empty property and column strings.`,
+        specId
+      )
+    }
+    cloned[property] = column
+  }
+  if (Object.keys(cloned).length === 0) {
+    throw new ContractViolationError(
+      `Spec "${specId}" declares empty metadata.${path}.`,
+      specId
+    )
+  }
+  return cloned
+}
+
+function cloneHasManyMetadata(
+  specId: string,
+  relation: QuerySpecHasManyRelationMetadata,
+  index: number
+): QuerySpecHasManyRelationMetadata {
+  if (relation.kind !== 'hasMany') {
+    throw new ContractViolationError(
+      `Spec "${specId}" declares unsupported metadata.relations.hasMany[${index}].kind "${String(relation.kind)}".`,
+      specId
+    )
+  }
+  if (!relation.collection?.property) {
+    throw new ContractViolationError(
+      `Spec "${specId}" declares missing metadata.relations.hasMany[${index}].collection.property.`,
+      specId
+    )
+  }
+  return {
+    kind: 'hasMany',
+    root: {
+      key: cloneMetadataStringList(specId, `relations.hasMany[${index}].root.key`, relation.root?.key) ?? [],
+      columns: cloneMetadataColumnMap(specId, `relations.hasMany[${index}].root.columns`, relation.root?.columns) ?? {},
+    },
+    collection: {
+      property: relation.collection.property,
+      key: cloneMetadataStringList(specId, `relations.hasMany[${index}].collection.key`, relation.collection?.key) ?? [],
+      presence: cloneMetadataStringList(specId, `relations.hasMany[${index}].collection.presence`, relation.collection?.presence) ?? [],
+      columns: cloneMetadataColumnMap(specId, `relations.hasMany[${index}].collection.columns`, relation.collection?.columns) ?? {},
+    },
+  }
+}
+
+function cloneRelationsMetadata(
+  specId: string,
+  relations?: QuerySpecRelationsMetadata
+): QuerySpecRelationsMetadata | undefined {
+  if (!relations) {
+    return undefined
+  }
+  return {
+    hasMany: relations.hasMany?.map((relation, index) => cloneHasManyMetadata(specId, relation, index)),
+  }
+}
+
 function cloneQuerySpecMetadata(
   specId: string,
   metadata?: QuerySpecMetadata
@@ -199,6 +316,7 @@ function cloneQuerySpecMetadata(
       metadata.scalarMaterial
     ),
     perf: cloneQuerySpecPerfMetadata(specId, metadata.perf),
+    relations: cloneRelationsMetadata(specId, metadata.relations),
   }
 }
 

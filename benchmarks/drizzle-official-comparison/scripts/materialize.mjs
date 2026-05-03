@@ -38,6 +38,14 @@ fs.cpSync(
   path.join(benchmarkRoot, 'scripts', 'run-rotated-k6-suite.mjs'),
   path.join(targetDir, 'scripts', 'run-rotated-k6-suite.mjs')
 );
+fs.cpSync(
+  path.join(benchmarkRoot, 'scripts', 'pure-orm-benchmark.ts'),
+  path.join(targetDir, 'scripts', 'pure-orm-benchmark.ts')
+);
+fs.cpSync(
+  path.join(benchmarkRoot, 'scripts', 'startup-cost-benchmark.ts'),
+  path.join(targetDir, 'scripts', 'startup-cost-benchmark.ts')
+);
 
 const initialMigrationPath = path.join(targetDir, 'drizzle', '20230813113328_flat_master_mold', 'migration.sql');
 const initialMigration = fs.readFileSync(initialMigrationPath, 'utf8');
@@ -68,6 +76,8 @@ packageJson.scripts = {
   'bench:k6:docker': 'node ./scripts/run-k6-docker.mjs',
   'bench:k6:docker:smoke': 'node ./scripts/run-k6-docker.mjs --name smoke --vus 1 --iterations 5',
   'bench:k6:docker:rotated': 'node ./scripts/run-rotated-k6-suite.mjs',
+  'bench:pure-orm': 'tsx ./scripts/pure-orm-benchmark.ts',
+  'bench:startup-cost': 'tsx ./scripts/startup-cost-benchmark.ts',
 };
 fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
 

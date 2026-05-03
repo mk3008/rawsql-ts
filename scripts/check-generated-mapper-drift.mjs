@@ -4,8 +4,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, '..');
+const repoRoot = path.resolve(process.env.GENERATED_MAPPER_DRIFT_ROOT ?? path.resolve(__dirname, '..'));
 const ignoredSegments = new Set(['node_modules', '.git', 'dist', 'tmp']);
+const packageManagerExecutable = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 
 function walk(dir, matches = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -55,7 +56,7 @@ function findProjectRoot(startDir) {
 const featureRoots = [...new Set(walk(repoRoot).map(featureRootForGeneratedMapper).filter(Boolean))].sort();
 
 if (featureRoots.length === 0) {
-  console.log('[generated-mapper-drift] no scaffold generated row mappers found; skipping');
+  console.log('[generated-mapper-drift] no scaffold generated row mappers found; skipping because this root has no RFBA scaffold generated mapper artifacts');
   process.exit(0);
 }
 
@@ -63,12 +64,24 @@ for (const featureRoot of featureRoots) {
   const featureName = path.basename(featureRoot);
   const cwd = findProjectRoot(featureRoot);
   if (!cwd) {
-    console.log(`[generated-mapper-drift] skipping ${path.relative(repoRoot, featureRoot)}; no package.json ztd script found`);
+    console.error(
+      [
+        `[generated-mapper-drift] cannot check ${path.relative(repoRoot, featureRoot)}; no parent package.json with a ztd script was found.`,
+        'Generated row mappers are machine-owned and must be passively checked in CI/test.',
+        `Add a package-level ztd script or run \`ztd feature generated-mapper check --feature ${featureName}\` from the owning project.`,
+      ].join('\n')
+    );
+    process.exitCode = 1;
     continue;
   }
   console.log(`[generated-mapper-drift] checking ${path.relative(repoRoot, featureRoot)}`);
-  execFileSync('pnpm', ['ztd', 'feature', 'generated-mapper', 'check', '--feature', featureName], {
+  execFileSync(packageManagerExecutable, ['ztd', 'feature', 'generated-mapper', 'check', '--feature', featureName], {
     cwd,
     stdio: 'inherit',
+    shell: process.platform === 'win32',
   });
+}
+
+if (process.exitCode) {
+  process.exit();
 }
