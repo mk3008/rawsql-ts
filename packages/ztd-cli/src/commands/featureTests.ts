@@ -1046,7 +1046,19 @@ function resolveQueryLayout(
   }
 
   if (queryDirectories.length > 1) {
-    throw new Error(`Multiple query directories were discovered under ${featureDir}. Re-run with --query <name>.`);
+    const queryList = queryDirectories.map((queryName) => `- ${queryName}`).join('\n');
+    const commandList = queryDirectories
+      .map((queryName) => `  ztd feature tests scaffold --feature ${featureName} --query ${queryName} --test-kind ${testKind}`)
+      .join('\n');
+    throw new Error([
+      `Multiple query directories were discovered under ${featureDir}.`,
+      '',
+      'Choose the query to refresh with --query <name>:',
+      queryList,
+      '',
+      'Suggested commands:',
+      commandList
+    ].join('\n'));
   }
 
   return buildQueryLayout(featureDir, featureName, queryDirectories[0], testKind);

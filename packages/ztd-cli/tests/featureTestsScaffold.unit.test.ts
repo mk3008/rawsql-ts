@@ -577,3 +577,26 @@ test('runFeatureTestsScaffoldCommand rejects unsupported test-kind values', asyn
     })
   ).rejects.toThrow(/supports only ztd, traditional/i);
 });
+
+test('runFeatureTestsScaffoldCommand explains how to refresh multi-query features', async () => {
+  const workspace = createTempDir('feature-tests-multi-query-guidance');
+  const featureDir = path.join(workspace, 'src', 'features', 'users-sync');
+  const insertQueryDir = path.join(featureDir, 'queries', 'insert-users');
+  const resolveQueryDir = path.join(featureDir, 'queries', 'resolve-users');
+  mkdirSync(insertQueryDir, { recursive: true });
+  mkdirSync(resolveQueryDir, { recursive: true });
+  seedSharedZtdSupport(workspace);
+
+  writeFileSync(path.join(featureDir, 'boundary.ts'), 'export const RequestSchema = null;\n', 'utf8');
+  seedQueryBoundaryWithTypedContracts(insertQueryDir);
+  writeFileSync(path.join(insertQueryDir, 'insert-users.sql'), 'insert into public.users (email) values (:email) returning user_id;', 'utf8');
+  writeFileSync(path.join(resolveQueryDir, 'boundary.ts'), 'export async function executeResolveUsersBoundary() { return {}; }\n', 'utf8');
+  writeFileSync(path.join(resolveQueryDir, 'resolve-users.sql'), 'select user_id from public.users;', 'utf8');
+
+  await expect(
+    runFeatureTestsScaffoldCommand({
+      feature: 'users-sync',
+      rootDir: workspace
+    })
+  ).rejects.toThrow(/Choose the query to refresh with --query <name>:[\s\S]*insert-users[\s\S]*resolve-users[\s\S]*Suggested commands:[\s\S]*--query insert-users[\s\S]*--query resolve-users/);
+});

@@ -551,6 +551,9 @@ test('runFeatureScaffoldCommand dry-run creates the new insert layout without te
     'src/features/users-insert/tests',
     'src/features/users-insert/tests/users-insert.boundary.test.ts',
     'src/features/users-insert/boundary.ts',
+    'src/features/users-insert/input.ts',
+    'src/features/users-insert/workflow.ts',
+    'src/features/users-insert/output.ts',
     'src/features/users-insert/queries/insert-users',
     'src/features/users-insert/queries/insert-users/generated',
     'src/features/users-insert/queries/insert-users/boundary.ts',
@@ -590,41 +593,66 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
     path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'),
     'utf8'
   );
-  expect(entrySpecFile).toContain("import { z } from 'zod';");
   expect(entrySpecFile).toContain("import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor.js';");
-  expect(entrySpecFile).toContain('const RequestSchema = z.object({');
-  expect(entrySpecFile).toContain('}).strict();');
-  expect(entrySpecFile).toContain('export type UsersInsertRequest = z.infer<typeof RequestSchema>;');
-  expect(entrySpecFile).toContain('const ResponseSchema = z.object({');
-  expect(entrySpecFile).toContain('export type UsersInsertResponse = z.infer<typeof ResponseSchema>;');
-  expect(entrySpecFile).not.toContain('export type UsersInsertEntryExecutor');
+  expect(entrySpecFile).toContain("import * as input from './input.js';");
+  expect(entrySpecFile).toContain("import * as workflow from './workflow.js';");
+  expect(entrySpecFile).toContain("import * as output from './output.js';");
+  expect(entrySpecFile).toContain('Review order:');
+  expect(entrySpecFile).toContain('export async function execute(');
+  expect(entrySpecFile).toContain('const request = input.parseRequest(rawRequest);');
+  expect(entrySpecFile).toContain('const created = await workflow.execute(executor, request);');
+  expect(entrySpecFile).toContain('return output.buildResult(created);');
   expect(entrySpecFile).not.toContain('QueryParamsSchema');
-  expect(entrySpecFile).not.toContain('InsertUsersQueryExecutor');
-  expect(entrySpecFile).toContain('/** Parses the raw feature request at the feature boundary. */');
-  expect(entrySpecFile).toContain('function parseRequest');
-  expect(entrySpecFile).toContain('/** Normalizes the parsed feature request for downstream feature logic. */');
-  expect(entrySpecFile).toContain('function normalizeRequest');
-  expect(entrySpecFile).toContain('email: request.email.trim()');
-  expect(entrySpecFile).toContain("throw new Error('UsersInsertRequest.email must not be empty after trim().');");
+  expect(entrySpecFile).not.toContain('RequestSchema');
+
+  const inputFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-insert', 'input.ts'),
+    'utf8'
+  );
+  expect(inputFile).toContain("import { z } from 'zod';");
+  expect(inputFile).toContain('const RequestSchema = z.object({');
+  expect(inputFile).toContain('}).strict();');
+  expect(inputFile).toContain('export type UsersInsertRequest = z.infer<typeof RequestSchema>;');
+  expect(inputFile).toContain('/** Parses the raw feature request at the feature boundary. */');
+  expect(inputFile).toContain('function parseRawRequest');
+  expect(inputFile).toContain('/** Normalizes the parsed feature request for downstream feature logic. */');
+  expect(inputFile).toContain('function normalizeRequest');
+  expect(inputFile).toContain('email: request.email.trim()');
+  expect(inputFile).toContain("throw new Error('UsersInsertRequest.email must not be empty after trim().');");
+  expect(inputFile).toContain('export function parseRequest');
+  expect(inputFile).not.toContain('QueryParamsSchema');
+  expect(inputFile).not.toContain('ResponseSchema');
+  expect(inputFile).not.toContain('id: z.string()');
+
+  const workflowFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-insert', 'workflow.ts'),
+    'utf8'
+  );
+  expect(workflowFile).toContain('export type UsersInsertQueries = {');
+  expect(workflowFile).toContain('executeInsertUsers: executeInsertUsersQuerySpec');
+  expect(workflowFile).toContain('Query functions are injected for workflow tests');
+  expect(workflowFile).toContain('SQL text that may be transformed by rewrite or pipeline processing');
+  expect(workflowFile).toContain('/** Maps the feature request into query params for the query spec. */');
+  expect(workflowFile).toContain('function toQueryParams');
+  expect(workflowFile).toContain('return {');
+  expect(workflowFile).toContain('email: request.email,');
+  expect(workflowFile).not.toContain('id: request.id,');
+  expect(workflowFile).not.toContain('created_at: request.created_at,');
+
+  const outputFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-insert', 'output.ts'),
+    'utf8'
+  );
+  expect(outputFile).toContain("import type { InsertUsersQueryResult } from './queries/insert-users/boundary.js';");
+  expect(outputFile).toContain('export type UsersInsertResponse = {');
+  expect(outputFile).toContain('export function buildResult');
+  expect(outputFile).toContain('id: result.id,');
+  expect(outputFile).not.toContain("import { z } from 'zod';");
+  expect(outputFile).not.toContain('ResponseSchema');
   expect(entrySpecFile).not.toContain('UsersInsertRequest.id');
   expect(entrySpecFile).not.toContain('id: z.string()');
   expect(entrySpecFile).not.toContain('created_at: request.created_at.trim()');
   expect(entrySpecFile).not.toContain('UsersInsertRequest.created_at');
-  expect(entrySpecFile).toContain('/** Rejects feature requests that violate feature-level rules. */');
-  expect(entrySpecFile).toContain('function rejectRequest');
-  expect(entrySpecFile).toContain('/** Maps the feature request into query params for the query spec. */');
-  expect(entrySpecFile).toContain('function toQueryParams');
-  expect(entrySpecFile).toContain('return {');
-  expect(entrySpecFile).toContain('email: request.email,');
-  expect(entrySpecFile).not.toContain('id: request.id,');
-  expect(entrySpecFile).not.toContain('created_at: request.created_at,');
-  expect(entrySpecFile).toContain('/** Maps the query result into the feature response contract. */');
-  expect(entrySpecFile).toContain('function fromQueryResult');
-  expect(entrySpecFile).toContain('TODO: Review domain-specific response naming');
-  expect(entrySpecFile).toContain('id: result.id,');
-  expect(entrySpecFile).toContain('/** Executes the feature boundary flow for this feature. */');
-  expect(entrySpecFile).toContain('export async function executeUsersInsertEntrySpec');
-  expect(entrySpecFile).toContain('executor: FeatureQueryExecutor,');
   expect(entrySpecFile).not.toContain('ScalarKind');
   expect(entrySpecFile).not.toContain('parseBySpecs');
   expect(entrySpecFile).not.toContain('expectObject');
@@ -635,11 +663,11 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
     'utf8'
   );
   expect(entrySpecTestFile).toContain("import { expect, test } from 'vitest';");
-  expect(entrySpecTestFile).toContain("import { executeUsersInsertEntrySpec } from '../boundary.js';");
+  expect(entrySpecTestFile).toContain("import { execute } from '../boundary.js';");
   expect(entrySpecTestFile).toContain("import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor.js';");
   expect(entrySpecTestFile).toContain('function createGuardedExecutor(): FeatureQueryExecutor');
   expect(entrySpecTestFile).toContain("test('rejects invalid feature input at the feature boundary for users-insert/insert-users', async () => {");
-  expect(entrySpecTestFile).toContain('await expect(executeUsersInsertEntrySpec(createGuardedExecutor(), {})).rejects.toThrow();');
+  expect(entrySpecTestFile).toContain('await expect(execute(createGuardedExecutor(), {})).rejects.toThrow();');
   expect(entrySpecTestFile).toContain("test.todo('cover normalization and response mapping for UsersInsert boundary');");
 
   const querySpecFile = readFileSync(
@@ -723,14 +751,15 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
   );
   expect(readmeFile).toContain('## RFBA review responsibilities');
   expect(readmeFile).toContain('RFBA splits files by review responsibility');
-  expect(readmeFile).toContain('`boundary.ts` is the default feature-boundary public surface');
-  expect(readmeFile).toContain('Feature-boundary tests mock child query boundaries and verify feature validation, mapping, and orchestration.');
+  expect(readmeFile).toContain('`boundary.ts` is the default feature-boundary public surface and should read as `input -> workflow -> output`.');
+  expect(readmeFile).toContain('`input.ts` owns raw request parsing, normalization, and feature-level input rejection.');
+  expect(readmeFile).toContain('`workflow.ts` owns the feature use-case flow and query orchestration.');
+  expect(readmeFile).toContain('Feature-boundary and workflow tests should mock query ports rather than classify child queries by SQL text');
   expect(readmeFile).toContain('Query-boundary tests own SQL behavior through ZTD or another SQL-specific lane.');
   expect(readmeFile).toContain('Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.');
   expect(readmeFile).toContain('Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package');
-  expect(readmeFile).toContain('uses `zod` schemas for request and response DTOs');
-  expect(readmeFile).toContain('keeps its schema values and helper functions file-local');
-  expect(readmeFile).toContain('depends on the shared executor contract directly');
+  expect(readmeFile).toContain('uses `zod` schemas for request DTOs');
+  expect(readmeFile).toContain('Feature-local `boundary.ts` exports `execute`');
   expect(readmeFile).toContain('queries/insert-users/boundary.ts');
   expect(readmeFile).toContain('queries/insert-users/` is the query unit');
   expect(readmeFile).toContain('## CLI-owned generated files');
@@ -777,19 +806,29 @@ test('runFeatureScaffoldCommand emits camelCase feature DTOs while keeping query
     rootDir: workspace
   });
 
-  const entrySpecFile = readFileSync(
-    path.join(workspace, 'src', 'features', 'account-events-insert', 'boundary.ts'),
+  const inputFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'account-events-insert', 'input.ts'),
     'utf8'
   );
-  expect(entrySpecFile).toContain('accountId: z.number().finite()');
-  expect(entrySpecFile).toContain('displayName: z.string().nullable()');
-  expect(entrySpecFile).toContain('eventPayload: z.record(z.string(), z.unknown())');
-  expect(entrySpecFile).not.toContain('account_id: z.number().finite()');
-  expect(entrySpecFile).not.toContain('display_name: z.string().nullable()');
-  expect(entrySpecFile).toContain('account_id: request.accountId,');
-  expect(entrySpecFile).toContain('display_name: request.displayName,');
-  expect(entrySpecFile).toContain('event_payload: request.eventPayload,');
-  expect(entrySpecFile).toContain('id: result.id,');
+  expect(inputFile).toContain('accountId: z.number().finite()');
+  expect(inputFile).toContain('displayName: z.string().nullable()');
+  expect(inputFile).toContain('eventPayload: z.record(z.string(), z.unknown())');
+  expect(inputFile).not.toContain('account_id: z.number().finite()');
+  expect(inputFile).not.toContain('display_name: z.string().nullable()');
+
+  const workflowFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'account-events-insert', 'workflow.ts'),
+    'utf8'
+  );
+  expect(workflowFile).toContain('account_id: request.accountId,');
+  expect(workflowFile).toContain('display_name: request.displayName,');
+  expect(workflowFile).toContain('event_payload: request.eventPayload,');
+
+  const outputFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'account-events-insert', 'output.ts'),
+    'utf8'
+  );
+  expect(outputFile).toContain('id: result.id,');
 
   const querySpecFile = readFileSync(
     path.join(workspace, 'src', 'features', 'account-events-insert', 'queries', 'insert-account-events', 'boundary.ts'),
@@ -914,12 +953,17 @@ test('runFeatureScaffoldCommand uses default values when every insert column is 
   expect(sqlFile).toContain('insert into "public"."users"');
   expect(sqlFile).toContain('default values');
 
-  const entrySpecFile = readFileSync(
-    path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'),
+  const inputFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-insert', 'input.ts'),
     'utf8'
   );
-  expect(entrySpecFile).toContain('const RequestSchema = z.object({\n}).strict();');
-  expect(entrySpecFile).toContain('return {} as InsertUsersQueryParams;');
+  expect(inputFile).toContain('const RequestSchema = z.object({\n}).strict();');
+
+  const workflowFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-insert', 'workflow.ts'),
+    'utf8'
+  );
+  expect(workflowFile).toContain('return {} as InsertUsersQueryParams;');
 
   const querySpecFile = readFileSync(
     path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'),
@@ -984,19 +1028,28 @@ test('runFeatureScaffoldCommand writes the update baseline with pk predicate and
   });
 
   expect(result.featureName).toBe('users-update');
-  const entrySpecFile = readFileSync(
-    path.join(workspace, 'src', 'features', 'users-update', 'boundary.ts'),
+  const inputFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-update', 'input.ts'),
     'utf8'
   );
-  expect(entrySpecFile).toContain('export type UsersUpdateRequest');
-  expect(entrySpecFile).toContain('id: z.number().finite()');
-  expect(entrySpecFile).toContain('email: z.string()');
-  expect(entrySpecFile).toContain('displayName: z.string().nullable()');
-  expect(entrySpecFile).toContain('createdAt: z.string()');
-  expect(entrySpecFile).toContain('display_name: request.displayName,');
-  expect(entrySpecFile).toContain('created_at: request.createdAt,');
-  expect(entrySpecFile).toContain('const ResponseSchema = z.object({');
-  expect(entrySpecFile).toContain('}).strict();');
+  expect(inputFile).toContain('export type UsersUpdateRequest');
+  expect(inputFile).toContain('id: z.number().finite()');
+  expect(inputFile).toContain('email: z.string()');
+  expect(inputFile).toContain('displayName: z.string().nullable()');
+  expect(inputFile).toContain('createdAt: z.string()');
+
+  const workflowFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-update', 'workflow.ts'),
+    'utf8'
+  );
+  expect(workflowFile).toContain('display_name: request.displayName,');
+  expect(workflowFile).toContain('created_at: request.createdAt,');
+
+  const outputFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-update', 'output.ts'),
+    'utf8'
+  );
+  expect(outputFile).toContain('export type UsersUpdateResponse = {');
 
   const querySpecFile = readFileSync(
     path.join(workspace, 'src', 'features', 'users-update', 'queries', 'update-users', 'boundary.ts'),
@@ -1054,13 +1107,13 @@ test('runFeatureScaffoldCommand writes the delete baseline with key-only predica
   });
 
   expect(result.featureName).toBe('users-delete');
-  const entrySpecFile = readFileSync(
-    path.join(workspace, 'src', 'features', 'users-delete', 'boundary.ts'),
+  const inputFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-delete', 'input.ts'),
     'utf8'
   );
-  expect(entrySpecFile).toContain('export type UsersDeleteRequest');
-  expect(entrySpecFile).toContain('id: z.number().finite()');
-  expect(entrySpecFile).not.toContain('email:');
+  expect(inputFile).toContain('export type UsersDeleteRequest');
+  expect(inputFile).toContain('id: z.number().finite()');
+  expect(inputFile).not.toContain('email:');
 
   const sqlFile = readFileSync(
     path.join(workspace, 'src', 'features', 'users-delete', 'queries', 'delete-users', 'delete-users.sql'),
@@ -1104,23 +1157,32 @@ test('runFeatureScaffoldCommand writes the get-by-id baseline with zero-or-one c
   });
 
   expect(result.featureName).toBe('users-get-by-id');
-  const entrySpecFile = readFileSync(
-    path.join(workspace, 'src', 'features', 'users-get-by-id', 'boundary.ts'),
+  const inputFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-get-by-id', 'input.ts'),
     'utf8'
   );
-  expect(entrySpecFile).toContain('const RequestSchema = z.object({');
-  expect(entrySpecFile).toContain('}).strict();');
-  expect(entrySpecFile).toContain('const ResponseRowSchema = z.object({');
-  expect(entrySpecFile).toContain('}).strict();');
-  expect(entrySpecFile).toContain('const ResponseSchema = ResponseRowSchema.nullable();');
-  expect(entrySpecFile).toContain('function toQueryParams');
-  expect(entrySpecFile).toContain('Maps the feature request into query params for the query spec.');
-  expect(entrySpecFile).toContain('function parseRequest');
-  expect(entrySpecFile).toContain('function normalizeRequest');
-  expect(entrySpecFile).toContain('function rejectRequest');
-  expect(entrySpecFile).toContain('function fromQueryResult');
-  expect(entrySpecFile).toContain('id: z.string()');
-  expect(entrySpecFile).not.toContain('QueryParamsSchema');
+  expect(inputFile).toContain('const RequestSchema = z.object({');
+  expect(inputFile).toContain('}).strict();');
+  expect(inputFile).toContain('function parseRequest');
+  expect(inputFile).toContain('function normalizeRequest');
+  expect(inputFile).toContain('function rejectRequest');
+  expect(inputFile).toContain('id: z.string()');
+  expect(inputFile).not.toContain('QueryParamsSchema');
+
+  const workflowFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-get-by-id', 'workflow.ts'),
+    'utf8'
+  );
+  expect(workflowFile).toContain('function toQueryParams');
+  expect(workflowFile).toContain('Maps the feature request into query params for the query spec.');
+
+  const outputFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-get-by-id', 'output.ts'),
+    'utf8'
+  );
+  expect(outputFile).toContain('export type UsersGetByIdResponse = {');
+  expect(outputFile).toContain('} | null;');
+  expect(outputFile).toContain('if (result === null)');
 
   const querySpecFile = readFileSync(
     path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'),
@@ -1187,22 +1249,31 @@ test('runFeatureScaffoldCommand writes the list baseline with catalog paging and
   });
 
   expect(result.featureName).toBe('users-list');
-  const entrySpecFile = readFileSync(
-    path.join(workspace, 'src', 'features', 'users-list', 'boundary.ts'),
+  const inputFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-list', 'input.ts'),
     'utf8'
   );
-  expect(entrySpecFile).toContain('const RequestSchema = z.object({\n}).strict();');
-  expect(entrySpecFile).toContain('const ResponseSchema = z.object({');
-  expect(entrySpecFile).toContain('items: z.array(ResponseItemSchema)');
-  expect(entrySpecFile).toContain('}).strict();');
-  expect(entrySpecFile).toContain('Maps the feature request into query params for the query spec.');
-  expect(entrySpecFile).toContain('function parseRequest');
-  expect(entrySpecFile).toContain('function normalizeRequest');
-  expect(entrySpecFile).toContain('function rejectRequest');
-  expect(entrySpecFile).toContain('function toQueryParams');
-  expect(entrySpecFile).toContain('function fromQueryResult');
-  expect(entrySpecFile).toContain('id: z.string()');
-  expect(entrySpecFile).toContain('return {} as ListQueryParams;');
+  expect(inputFile).toContain('const RequestSchema = z.object({\n}).strict();');
+  expect(inputFile).toContain('function parseRequest');
+  expect(inputFile).toContain('function normalizeRequest');
+  expect(inputFile).toContain('function rejectRequest');
+
+  const workflowFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-list', 'workflow.ts'),
+    'utf8'
+  );
+  expect(workflowFile).toContain('Maps the feature request into query params for the query spec.');
+  expect(workflowFile).toContain('function toQueryParams');
+  expect(workflowFile).toContain('return {} as ListQueryParams;');
+
+  const outputFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'users-list', 'output.ts'),
+    'utf8'
+  );
+  expect(outputFile).toContain('export type UsersListResponse = {');
+  expect(outputFile).toContain('items: Array<{');
+  expect(outputFile).toContain('id: string;');
+  expect(outputFile).toContain('items: result.items.map((item) => ({');
 
   const querySpecFile = readFileSync(
     path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'),
@@ -1275,14 +1346,14 @@ test('runFeatureScaffoldCommand keeps numeric and decimal read contracts string-
   });
 
   expect(result.featureName).toBe('products-list');
-  const entrySpecFile = readFileSync(
-    path.join(workspace, 'src', 'features', 'products-list', 'boundary.ts'),
+  const outputFile = readFileSync(
+    path.join(workspace, 'src', 'features', 'products-list', 'output.ts'),
     'utf8'
   );
-  expect(entrySpecFile).toContain('price: z.string()');
-  expect(entrySpecFile).toContain('score: z.string().nullable()');
-  expect(entrySpecFile).not.toContain('price: z.number().finite()');
-  expect(entrySpecFile).not.toContain('score: z.number().finite()');
+  expect(outputFile).toContain('price: string;');
+  expect(outputFile).toContain('score: string | null;');
+  expect(outputFile).not.toContain('price: number;');
+  expect(outputFile).not.toContain('score: number | null;');
 
   const querySpecFile = readFileSync(
     path.join(workspace, 'src', 'features', 'products-list', 'queries', 'list', 'boundary.ts'),
@@ -1361,8 +1432,11 @@ test('runFeatureScaffoldCommand overwrites scaffold-owned feature files with --f
 
   expect(result.dryRun).toBe(false);
   expect(readFileSync(path.join(featureDir, 'boundary.ts'), 'utf8')).toContain(
-    'export async function executeUsersInsertEntrySpec'
+    'export async function execute('
   );
+  expect(readFileSync(path.join(featureDir, 'input.ts'), 'utf8')).toContain('export function parseRequest');
+  expect(readFileSync(path.join(featureDir, 'workflow.ts'), 'utf8')).toContain('export async function execute(');
+  expect(readFileSync(path.join(featureDir, 'output.ts'), 'utf8')).toContain('export function buildResult');
   expect(readFileSync(path.join(featureDir, 'queries', 'insert-users', 'boundary.ts'), 'utf8')).not.toContain('// existing query boundary');
   expect(readFileSync(path.join(featureDir, 'queries', 'insert-users', 'insert-users.sql'), 'utf8')).not.toContain('-- existing sql');
   expect(readFileSync(path.join(featureDir, 'queries', 'insert-users', 'generated', 'row-mapper.ts'), 'utf8')).toContain(

@@ -14,8 +14,7 @@ The public feature boundary accepts `CreateTransferDestinationDefinitionInput` w
 - `destinationColumns`
 - `destinationKeyDefinition`
 - `sequenceExpressionDefinition`
-- `updateTransferPolicy`
-- `deleteTransferPolicy`
+- `transferModel`
 - `signInversionColumns`
 - `redTransferSourceColumns`
 - `diffCompareExcludedColumns`
@@ -31,7 +30,7 @@ The feature boundary validates the minimum create rules before calling the query
 - unique `destinationColumns.columns[].name`
 - at least one `destinationKeyDefinition.keys` entry
 - referenced key, sequence, sign inversion, red-transfer source, and diff-excluded columns exist in `destinationColumns.columns`
-- allowed `updateTransferPolicy` and `deleteTransferPolicy` values
+- allowed `transferModel` values
 
 Duplicate `transfer_destination_definition_name` values are not preflighted in the feature SQL. The database unique constraint owns that fail-fast behavior.
 
