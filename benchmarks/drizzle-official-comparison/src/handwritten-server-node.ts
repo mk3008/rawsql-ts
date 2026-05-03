@@ -247,7 +247,7 @@ const startServer = async (): Promise<void> => {
   });
 
   app.get('/search-product', async (c) => {
-    const result = await allRows(queries.searchProduct, [asText(c.req.query('term'))]);
+    const result = await allRows(queries.searchProduct, [searchTerm(c.req.query('term'))]);
     return c.json(result);
   });
 

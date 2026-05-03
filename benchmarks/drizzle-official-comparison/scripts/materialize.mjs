@@ -50,6 +50,13 @@ fs.writeFileSync(
   generateSource.replace('const db = drizzle(client, { logger: false });', 'const db = drizzle({ client, logger: false });')
 );
 
+const dockerPath = path.join(targetDir, 'src', 'docker.ts');
+const dockerSource = fs.readFileSync(dockerPath, 'utf8');
+fs.writeFileSync(
+  dockerPath,
+  dockerSource.replace(/(    Env: \[\r?\n      "POSTGRES_PASSWORD=postgres",\r?\n      "POSTGRES_USER=postgres",\r?\n      "POSTGRES_DB=postgres",\r?\n    \],)/, '$1\n    Cmd: ["postgres", "-c", "max_connections=300"],')
+);
+
 const packageJsonPath = path.join(targetDir, 'package.json');
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 packageJson.scripts = {

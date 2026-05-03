@@ -16,6 +16,9 @@ const {
     folder = 'results',
     host = 'http://host.docker.internal:3000',
     readinessUrl = 'http://127.0.0.1:3000/customers?limit=1&offset=0',
+    warmupBaseUrl = 'http://127.0.0.1:3000',
+    warmupIterations = '3',
+    warmupConcurrency = '20',
   },
 } = parseArgs({
   options: {
@@ -24,6 +27,9 @@ const {
     folder: { type: 'string' },
     host: { type: 'string' },
     readinessUrl: { type: 'string' },
+    warmupBaseUrl: { type: 'string' },
+    warmupIterations: { type: 'string' },
+    warmupConcurrency: { type: 'string' },
   },
   strict: true,
 });
@@ -31,6 +37,26 @@ const {
 const runCount = Number.parseInt(runs, 10);
 if (!Number.isInteger(runCount) || runCount <= 0 || String(runCount) !== runs.trim()) {
   console.error('--runs must be a positive integer.');
+  process.exit(1);
+}
+
+const endpointWarmupIterations = Number.parseInt(warmupIterations, 10);
+if (
+  !Number.isInteger(endpointWarmupIterations) ||
+  endpointWarmupIterations <= 0 ||
+  String(endpointWarmupIterations) !== warmupIterations.trim()
+) {
+  console.error('--warmupIterations must be a positive integer.');
+  process.exit(1);
+}
+
+const endpointWarmupConcurrency = Number.parseInt(warmupConcurrency, 10);
+if (
+  !Number.isInteger(endpointWarmupConcurrency) ||
+  endpointWarmupConcurrency <= 0 ||
+  String(endpointWarmupConcurrency) !== warmupConcurrency.trim()
+) {
+  console.error('--warmupConcurrency must be a positive integer.');
   process.exit(1);
 }
 
@@ -47,6 +73,20 @@ for (const target of targetNames) {
 }
 
 fs.mkdirSync(folder, { recursive: true });
+
+const warmupPaths = [
+  '/customers?limit=50&offset=0',
+  '/customer-by-id?id=1',
+  '/employees?limit=50&offset=0',
+  '/employee-with-recipient?id=1',
+  '/suppliers?limit=50&offset=0',
+  '/supplier-by-id?id=1',
+  '/products?limit=50&offset=0',
+  '/product-with-supplier?id=1',
+  '/orders-with-details?limit=50&offset=0',
+  '/order-with-details?id=1',
+  '/order-with-details-and-products?id=1',
+];
 
 function rotate(items, offset) {
   return items.map((_, index) => items[(index + offset) % items.length]);
@@ -81,12 +121,36 @@ async function waitForServer() {
   throw new Error(`Server did not become ready at ${readinessUrl}: ${lastError?.message ?? 'unknown error'}`);
 }
 
+async function warmupEndpoint(path) {
+  const url = new URL(path, warmupBaseUrl);
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`warmup returned HTTP ${response.status} for ${url.href}`);
+  }
+  await response.arrayBuffer();
+}
+
+async function warmupServer(target, runName) {
+  console.log(
+    `[suite] warming ${target} for ${runName}: endpoints=${warmupPaths.length} iterations=${endpointWarmupIterations} concurrency=${endpointWarmupConcurrency}`,
+  );
+  for (let iteration = 0; iteration < endpointWarmupIterations; iteration += 1) {
+    for (const path of warmupPaths) {
+      await Promise.all(Array.from({ length: endpointWarmupConcurrency }, () => warmupEndpoint(path)));
+    }
+  }
+}
+
 function startServer(target) {
   const child = spawn('pnpm', [targetDefinitions[target].script], {
     stdio: 'inherit',
     shell: process.platform === 'win32',
     detached: process.platform !== 'win32',
-    env: process.env,
+    env: {
+      ...process.env,
+      RAWSQL_PG_POOL_MIN: '10',
+      RAWSQL_PG_POOL_MAX: '10',
+    },
   });
   return child;
 }
@@ -111,6 +175,7 @@ async function runTarget(target, runName) {
   const server = startServer(target);
   try {
     await waitForServer();
+    await warmupServer(target, runName);
     runK6(runName);
   } finally {
     stopServer(server);
@@ -126,7 +191,7 @@ async function main() {
 
   for (let passIndex = 0; passIndex < passes.length; passIndex += 1) {
     const pass = passes[passIndex];
-    const order = rotate(targetNames, passIndex);
+    const order = pass.measured ? rotate(targetNames, passIndex - 1) : targetNames;
     console.log(`[suite] pass=${pass.label} measured=${pass.measured} order=${order.join(',')}`);
     for (const target of order) {
       const runName = pass.measured ? `${target}-${pass.label}` : `${target}-warmup`;

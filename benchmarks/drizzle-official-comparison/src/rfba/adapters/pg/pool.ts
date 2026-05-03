@@ -12,7 +12,7 @@ function readPoolSize(name: string, fallback: number): number {
   return parsed;
 }
 
-const poolMin = readPoolSize('RAWSQL_PG_POOL_MIN', 0);
+const poolMin = readPoolSize('RAWSQL_PG_POOL_MIN', 10);
 const poolMax = readPoolSize('RAWSQL_PG_POOL_MAX', 10);
 
 if (poolMin > poolMax) {
