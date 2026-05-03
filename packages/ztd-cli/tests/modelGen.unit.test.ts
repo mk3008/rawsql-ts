@@ -232,6 +232,12 @@ test('buildProbeSql trims trailing semicolons before wrapping the probe query', 
   expect(probeSql.toLowerCase()).toContain('value');
 });
 
+test('buildProbeSql preserves PostgreSQL positional placeholders after binding', () => {
+  const probeSql = buildProbeSql('select * from public.products where id = $1');
+  expect(probeSql).toContain('where id = $1');
+  expect(probeSql).not.toContain(':1');
+});
+
 test('buildProbeSql converts insert-returning statements into probeable select SQL', () => {
   const probeSql = buildProbeSql(`
     insert into public.users (email, display_name)

@@ -94,6 +94,10 @@ export function buildProbeSql(boundSql: string): string {
     throw new Error('The SQL probe source is empty.');
   }
 
+  if (containsPgPositionalPlaceholder(normalizedSql)) {
+    return `SELECT * FROM (${normalizedSql}) AS _ztd_type_probe LIMIT 0`;
+  }
+
   try {
     const ast = SqlParser.parse(normalizedSql);
     const simulatedSelect = SimulatedSelectConverter.convert(ast, {
@@ -113,6 +117,10 @@ export function buildProbeSql(boundSql: string): string {
   }
 
   return `SELECT * FROM (${normalizedSql}) AS _ztd_type_probe LIMIT 0`;
+}
+
+function containsPgPositionalPlaceholder(sql: string): boolean {
+  return /\$\d+/u.test(sql);
 }
 
 function normalizeProbeSource(boundSql: string): string {

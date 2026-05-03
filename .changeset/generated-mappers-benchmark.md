@@ -13,4 +13,6 @@ The repository drift check now includes a real scaffold fixture so `pnpm verify:
 
 sql-contract now exposes explicit `metadata.relations.hasMany` types, and ztd-cli can generate a narrowly scoped one-root/one-collection RFBA row mapper from JSON-compatible query metadata. The generated aggregation preserves SQL row order, respects nullable child presence guards, and uses direct assignment without object spread in the hot loop.
 
+`ztd model-gen` now preserves PostgreSQL `$n` placeholders when building live metadata probe SQL after named or positional parameter binding.
+
 sql-contract now exposes `compileColumnProjector` and `compileColumnMapRowsMapper` so applications can keep explicit column contracts while preparing fast row projection functions at startup. `compileColumnProjector` now rejects non-string column map values instead of silently dropping them.
