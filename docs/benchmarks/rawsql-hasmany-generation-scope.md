@@ -51,6 +51,8 @@ Rules:
 - Every key and presence column must exist in the SQL row contract.
 - `columns` maps DTO property names to SQL row column names explicitly.
 - Composite keys are allowed only if column order is explicit and stable.
+- Generated mapper metadata is parsed with `JSON.parse` from the `*GeneratedMapperMetadata` object literal. The object literal itself must be JSON-compatible: quoted object keys and string values, no comments, no trailing commas, no spreads, no computed values, and no TypeScript identifiers inside the parsed object. Type annotations or `satisfies` clauses may sit outside the object literal.
+- Generated root keys use typed, length-prefixed segments, so delimiter characters inside individual key values do not collide with composite keys.
 - The generated mapper must preserve SQL row order. It should not sort.
 - In this first scope, `collection.key` is validated metadata for safety and future deduplication work; the generated mapper does not deduplicate children and therefore preserves SQL row multiplicity.
 
@@ -119,7 +121,7 @@ Implemented in this pass:
 
 - `QuerySpecMetadata.relations.hasMany` types exist in `@rawsql-ts/sql-contract`.
 - ztd-cli generated mapper sync can detect one explicit `hasMany` relation from JSON-compatible query metadata.
-- The first generator entrypoint reads a JSON-compatible `*GeneratedMapperMetadata` constant that can be assigned to queryspec `metadata`; arbitrary inline `metadata` object parsing is intentionally out of scope.
+- The first generator entrypoint reads a JSON-compatible `*GeneratedMapperMetadata` constant that can be assigned to queryspec `metadata`; arbitrary inline `metadata` object parsing is intentionally out of scope. Parse failures explain that the metadata object literal must stay JSON-compatible and show the regeneration/check failure before CI can pass.
 - The generated mapper uses root indexing, SQL row-order preservation, direct assignment, and no object spread in the hot loop.
 - Missing or unsafe metadata fails generation with a visible reason instead of guessing relations from aliases.
 - The generated mapper is exercised with fixture rows to verify root grouping, child ordering, and nullable child presence guards.

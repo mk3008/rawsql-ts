@@ -1716,12 +1716,15 @@ test('generated mapper generate supports explicit one-to-many metadata with dire
   const generated = readFileSync(generatedMapperFile, 'utf8');
   expect(generated).toContain('const rootIndex = new Map<string, ListQueryResult[\'items\'][number]>();');
   expect(generated).toContain('const rootKey = serializeGeneratedKey([row["order_id"]]);');
+  expect(generated).toContain('const text = String(value);');
+  expect(generated).toContain('return `${typeof value}:${text.length}:${text}`;');
   expect(generated).toContain('details: [],');
   expect(generated).toContain('root.details.push({');
   expect(generated).toContain('if (row["detail_id"] !== null && row["detail_id"] !== undefined)');
   expect(generated).toContain('id: row["order_id"],');
   expect(generated).toContain('productName: row["product_name"],');
   expect(generated).not.toContain('...row');
+  expect(generated).not.toContain(".join('|')");
 
   const module = await import(`${pathToFileURL(generatedMapperFile).href}?behavior=${Date.now()}`);
   const result = module.mapListRowsToResult([
@@ -1761,6 +1764,48 @@ test('generated mapper generate supports explicit one-to-many metadata with dire
       },
     ],
   });
+});
+
+test('generated mapper generate explains that hasMany metadata must be JSON-compatible', async () => {
+  const workspace = createTempDir('feature-generated-mapper-hasmany-non-json');
+  const queryDir = path.join(workspace, 'src', 'features', 'orders-list', 'queries', 'list');
+  mkdirSync(path.join(queryDir, 'generated'), { recursive: true });
+  writeFileSync(
+    path.join(queryDir, 'boundary.ts'),
+    [
+      "import { z } from 'zod';",
+      "import type { QuerySpecMetadata } from '@rawsql-ts/sql-contract';",
+      '',
+      'const RowSchema = z.object({',
+      '  order_id: z.string(),',
+      '  detail_id: z.string().nullable(),',
+      '}).strict();',
+      '',
+      'const QueryResultSchema = z.object({',
+      '  items: z.array(z.object({ id: z.string(), details: z.array(z.object({ id: z.string() })) })),',
+      '}).strict();',
+      '',
+      'export type ListQueryResult = z.infer<typeof QueryResultSchema>;',
+      'export type ListRow = z.infer<typeof RowSchema>;',
+      '',
+      'export const ListGeneratedMapperMetadata = {',
+      '  relations: {',
+      '    hasMany: []',
+      '  }',
+      '} as const satisfies QuerySpecMetadata;',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(path.join(queryDir, 'list.sql'), 'select order_id, detail_id from order_rows;\n', 'utf8');
+
+  await expect(
+    runFeatureGeneratedMapperGenerateCommand({
+      feature: 'orders-list',
+      query: 'list',
+      rootDir: workspace
+    })
+  ).rejects.toThrow(/metadata object literal must be JSON-compatible.*Quote object keys and string values/s);
 });
 
 test('generated mapper generate fails when one-to-many metadata references a missing row column', async () => {

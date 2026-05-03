@@ -70,6 +70,8 @@ Recommended first supported scope:
 | mapping style | Generated direct assignment, no object spread in the hot row loop. |
 | boundary impact | Keep `boundary.ts` thin; aggregation details stay in query-local generated/internal code. |
 
+The current generator reads `*GeneratedMapperMetadata` by extracting the object literal and passing it to `JSON.parse`. That means the parsed object literal must be JSON-compatible: quoted keys and string values, no comments, no trailing commas, no spreads, no computed values, and no TypeScript identifiers inside the object. Type annotations or `satisfies` clauses outside the object are fine. Generated composite root keys use typed, length-prefixed segments rather than delimiter-only joins, so delimiter characters inside key values do not collide.
+
 Out of initial scope:
 
 - arbitrary deep object graphs

@@ -11,7 +11,7 @@ List query generated mappers now emit preallocated-loop direct assignment instea
 
 The repository drift check now includes a real scaffold fixture so `pnpm verify:generated-mapper-drift` exercises a non-skip target in CI. If a generated mapper is stale, the check fails and reports the `ztd feature generated-mapper generate ...` command needed to refresh the machine-owned artifact.
 
-sql-contract now exposes explicit `metadata.relations.hasMany` types, and ztd-cli can generate a narrowly scoped one-root/one-collection RFBA row mapper from JSON-compatible query metadata. The generated aggregation preserves SQL row order, respects nullable child presence guards, and uses direct assignment without object spread in the hot loop.
+sql-contract now exposes explicit `metadata.relations.hasMany` types, and ztd-cli can generate a narrowly scoped one-root/one-collection RFBA row mapper from JSON-compatible query metadata. The generated aggregation preserves SQL row order, respects nullable child presence guards, uses direct assignment without object spread in the hot loop, and serializes composite root keys with typed length-prefixed segments so delimiter characters inside key values do not collide. ztd-cli also reports a clear JSON-compatible metadata requirement when `*GeneratedMapperMetadata` cannot be parsed.
 
 `ztd model-gen` now preserves PostgreSQL `$n` placeholders when building live metadata probe SQL after named or positional parameter binding.
 

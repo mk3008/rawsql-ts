@@ -1246,7 +1246,9 @@ function extractGeneratedMapperMetadata(
   }
   const objectStart = source.indexOf('{', namedMetadata.index);
   if (objectStart === -1) {
-    return undefined;
+    throw new Error(
+      `Cannot parse generated mapper metadata for ${toProjectRelativePath(rootDir, boundaryFile)}: expected a JSON-compatible object literal after the *GeneratedMapperMetadata assignment.`
+    );
   }
   const objectEnd = findMatchingBrace(source, objectStart);
   if (objectEnd === -1) {
@@ -1259,7 +1261,7 @@ function extractGeneratedMapperMetadata(
     return JSON.parse(objectText) as { relations?: { hasMany?: unknown[] } };
   } catch (cause) {
     throw new Error(
-      `Cannot parse generated mapper metadata for ${toProjectRelativePath(rootDir, boundaryFile)}: metadata must be JSON-compatible with quoted keys. ${cause instanceof Error ? cause.message : String(cause)}`
+      `Cannot parse generated mapper metadata for ${toProjectRelativePath(rootDir, boundaryFile)}: metadata object literal must be JSON-compatible. Quote object keys and string values; do not use TypeScript identifiers, comments, spreads, computed values, or trailing commas inside the object literal. ${cause instanceof Error ? cause.message : String(cause)}`
     );
   }
 }
@@ -3044,7 +3046,12 @@ function renderGeneratedHasManyRowMapperFile(params: {
     params.importLine,
     '',
     'function serializeGeneratedKey(values: readonly unknown[]): string {',
-    "  return values.map((value) => `${typeof value}:${String(value)}`).join('|');",
+    '  return values',
+    '    .map((value) => {',
+    '      const text = String(value);',
+    '      return `${typeof value}:${text.length}:${text}`;',
+    '    })',
+    "    .join('');",
     '}',
     '',
     `export function map${params.queryPascalName}RowsToResult(rows: ${params.queryPascalName}Row[]): ${params.queryPascalName}QueryResult {`,

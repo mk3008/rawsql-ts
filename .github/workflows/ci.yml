@@ -58,6 +58,10 @@ jobs:
         pnpm --filter @rawsql-ts/shared-binder run test:consumer-validation
         pnpm --filter @rawsql-ts/ztd-cli run test:consumer-validation
 
+    - name: Build ztd-cli for generated mapper drift
+      if: matrix.node-version == '20.x'
+      run: pnpm --filter @rawsql-ts/ztd-cli run build
+
     - name: Check generated mapper drift
       if: matrix.node-version == '20.x'
       run: pnpm verify:generated-mapper-drift
