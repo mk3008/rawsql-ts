@@ -13,9 +13,9 @@ Official upstream benchmark:
 | target | server script | port | validation |
 |---|---|---:|---|
 | Drizzle | `src/drizzle-server-node.ts` | 3000 | Drizzle mapping only |
-| handwritten | `src/handwritten-server-node.ts` | 3000 | none; direct SQL execution and hand-written DTO mapping |
-| rawsql-ts minimal | `src/rawsql-server-node.ts` | 3000 | none beyond parameter coercion |
-| rawsql-ts RFBA sql-contract | `src/rawsql-rfba-server-node.ts` | 3000 | RFBA generated row mappers for hot nested DTOs, no validation |
+| rawsql-ts RFBA + AOT generated mapper | `src/rawsql-rfba-server-node.ts` | 3000 | RFBA generated row mappers for hot nested DTOs, no validation |
+| handwritten direct SQL reference | `src/handwritten-server-node.ts` | 3000 | none; direct SQL execution and hand-written DTO mapping |
+| rawsql-ts minimal reference | `src/rawsql-server-node.ts` | 3000 | internal/debug reference, none beyond parameter coercion |
 | rawsql-ts with validation | `src/rawsql-server-node-validation.ts` | 3000 | optional diagnostic only |
 
 ## Prepare
@@ -47,20 +47,34 @@ pnpm start:generate
 Use the same benchmark runner for each main target. Run at least three passes per target for a report-quality comparison.
 Run one warmup pass first and exclude it from aggregate results. For the main comparison, use the pinned Docker k6 image and rotate target order so no target always benefits from the same cache/scheduler position.
 
+The primary outward-facing comparison should use:
+
+- Drizzle
+- rawsql-ts RFBA + AOT generated mapper
+- handwritten direct SQL reference
+
+`rawsql-ts minimal` remains available as an internal/debug reference target, but it is not the recommended rawsql-ts representative because the scaffolded RFBA + AOT path is the design shape rawsql-ts wants users to adopt.
+
 ```sh
-pnpm bench:k6:docker:rotated -- --targets handwritten,drizzle,rawsql,rfba --runs 3 --folder results-rotated
+pnpm bench:k6:docker:rotated -- --targets handwritten,drizzle,rfba --runs 3 --folder results-rotated
 ```
 
-The rotated helper runs targets in this order:
+With those targets, the rotated helper runs targets in this order:
 
 | pass | measured | target order |
 |---|---|---|
-| warmup | no | handwritten, drizzle, rawsql, rfba |
-| run-1 | yes | drizzle, rawsql, rfba, handwritten |
-| run-2 | yes | rawsql, rfba, handwritten, drizzle |
-| run-3 | yes | rfba, handwritten, drizzle, rawsql |
+| warmup | no | handwritten, drizzle, rfba |
+| run-1 | yes | drizzle, rfba, handwritten |
+| run-2 | yes | rfba, handwritten, drizzle |
+| run-3 | yes | handwritten, drizzle, rfba |
 
 Each run uses `grafana/k6:0.54.0` unless `K6_IMAGE` is explicitly set. The overlay k6 script emits endpoint tags and endpoint-specific duration trends such as `endpoint_product_with_supplier_duration`, so the summary JSON includes per-endpoint `med`, `p(95)`, and `p(99)` values.
+
+Include `rawsql` in `--targets` only when you want the minimal SQL-first reference alongside the main comparison:
+
+```sh
+pnpm bench:k6:docker:rotated -- --targets handwritten,drizzle,rawsql,rfba --runs 3 --folder results-rotated-with-minimal
+```
 
 ```sh
 # terminal 1
@@ -131,5 +145,6 @@ The official `bench/index.ts` also records CPU usage and converts CSV to parquet
 - The rawsql-ts server uses node-postgres prepared query names matching each endpoint.
 - The rawsql-ts nested endpoints return flat SQL rows and build nested response objects in the server runtime. They do not use PostgreSQL `jsonb_build_object` or `jsonb_agg`.
 - The RFBA target follows the scaffolded feature-first shape used by `packages/transfer`: `adapters/pg`, `features/_shared`, and endpoint-owned `features/<feature>/boundary.ts` entrypoints. It keeps validation out of the hot path and moves hot nested DTO construction into machine-owned `features/<feature>/generated/row-mapper.ts` files.
+- Treat the handwritten target as a direct SQL reference and theoretical ceiling candidate, not as a validated ceiling. Before using it as a ceiling, confirm SQL text, prepared query names, parameter binding, `pg.Pool` settings, Hono route shape, response shape, DTO mapping allocation, and endpoint-level latency parity against RFBA + AOT.
 - `profiles/mapper-profile.ts` compares the generic `mapRows` path, compiled projector path, and generated mapper path for the hottest nested DTO shapes.
 - The validation target intentionally measures response validation separately from the minimal SQL-first path. Do not include it in the main Drizzle comparison unless the Drizzle target also adds equivalent validation.

@@ -4,16 +4,17 @@ Status: done for local benchmark evidence. Main rotated run date: 2026-05-02. Re
 
 ## Summary
 
-Under the local benchmark conditions recorded below, `rawsql-ts minimal` and `rawsql-ts RFBA generated` are in the same practical performance range as the Drizzle v1.0.0-rc.1 benchmark target. In this rotated run set, average throughput was:
+Under the local benchmark conditions recorded below, the recommended rawsql-ts shape, `rawsql-ts RFBA + AOT generated mapper`, is in the same practical performance range as the Drizzle v1.0.0-rc.1 benchmark target. That is the main rawsql-ts comparison target for future reports because it matches the scaffolded application structure rawsql-ts intends to promote.
 
 | target | req/sec avg | req/sec median | p50 median | p95 median | p99 median | error rate |
 |---|---:|---:|---:|---:|---:|---:|
 | Drizzle | 5,899.90 | 6,593.96 | 21.19 ms | 456.18 ms | 481.82 ms | 0.000000% |
-| handwritten | 5,246.11 | 4,759.78 | 116.70 ms | 536.74 ms | 575.12 ms | 0.000000% |
-| rawsql-ts minimal | 6,035.89 | 6,555.29 | 45.63 ms | 413.29 ms | 432.00 ms | 0.000000% |
-| rawsql-ts RFBA generated | 5,993.98 | 6,529.39 | 80.94 ms | 292.68 ms | 313.24 ms | 0.000018% |
+| rawsql-ts RFBA + AOT generated mapper | 5,993.98 | 6,529.39 | 80.94 ms | 292.68 ms | 313.24 ms | 0.000018% |
+| handwritten direct SQL reference | 5,246.11 | 4,759.78 | 116.70 ms | 536.74 ms | 575.12 ms | 0.000000% |
 
-The fair conclusion is comparable, with strong local variance. rawsql-ts was not meaningfully slower than Drizzle in this HTTP API workload, and the RFBA generated mapper path kept the maintainable scaffold shape within the same performance range. The handwritten direct-SQL ceiling was not consistently fastest in this local run set, which reinforces that HTTP, PostgreSQL, JSON serialization, Docker networking, and Windows host scheduling dominate enough to blur small mapper/runtime differences.
+`rawsql-ts minimal` remains useful as an internal reference target, but it is no longer the primary public comparison. In this run set it averaged `6,035.89 req/sec`, while RFBA + AOT averaged `5,993.98 req/sec`; the roughly 0.7% gap is smaller than the observed run variance. That means rawsql-ts does not need to foreground the minimal target to make the performance case: the recommended RFBA scaffold path is already fast enough to compare directly with Drizzle.
+
+The handwritten target is useful as a direct SQL reference and theoretical ceiling candidate, but it is not yet validated as a stable ceiling. It was not consistently fastest, and endpoint medians show handwritten p50 was higher across all endpoints in this run set. That may be shared HTTP/DB/Docker/Windows scheduling noise, but it may also be a handwritten-target implementation difference. This report therefore treats handwritten as a ceiling candidate, not as a proven ceiling.
 
 This report does not claim Drizzle is slow. It positions rawsql-ts as a SQL-first baseline implementation for comparison: keeping SQL as SQL does not necessarily impose meaningful runtime overhead.
 
@@ -48,9 +49,9 @@ rawsql-ts implementation policy:
 - A shared `pg.Pool` is created at startup.
 - Requests perform parameter coercion, prepared query execution, minimal server-side mapping, and JSON response return.
 - Nested response endpoints use server-side mapping from flat joined rows. The rawsql-ts SQL does not build nested JSON in PostgreSQL with `jsonb_build_object` or `jsonb_agg`.
-- `rawsql-ts minimal` is kept as a low-overhead SQL-first baseline.
-- `rawsql-ts RFBA generated` follows the scaffold-style feature-first shape and moves hot DTO mapping into machine-owned `generated/row-mapper.ts` files.
-- `handwritten` is the direct SQL ceiling target. It loads the same SQL files at startup, uses named prepared queries with `pg.Pool.query`, and performs direct hand-written object construction for nested DTO endpoints. It does not parse SQL and does not use rawsql-ts mapper/runtime APIs.
+- `rawsql-ts RFBA + AOT generated mapper` is the primary rawsql-ts comparison target. It follows the scaffold-style feature-first shape and moves hot DTO mapping into machine-owned `generated/row-mapper.ts` files.
+- `rawsql-ts minimal` is kept as a low-overhead SQL-first reference for implementation debugging and regression triage.
+- `handwritten` is a direct SQL reference target and theoretical ceiling candidate. It loads the same SQL files at startup, uses named prepared queries with `pg.Pool.query`, and performs direct hand-written object construction for nested DTO endpoints. It does not parse SQL and does not use rawsql-ts mapper/runtime APIs, but it is not yet validated as a stable ceiling.
 - The validation target is excluded from the main comparison because Drizzle does not run equivalent validation.
 
 Measured endpoints:
@@ -121,7 +122,13 @@ pnpm start:seed
 pnpm start:generate
 ```
 
-Run the pinned, warmup-aware, rotated k6 suite:
+Run the pinned, warmup-aware, rotated k6 suite. The future main comparison should use Drizzle, rawsql-ts RFBA + AOT generated mapper, and handwritten direct SQL reference:
+
+```sh
+pnpm bench:k6:docker:rotated -- --targets handwritten,drizzle,rfba --runs 3 --folder results-rotated
+```
+
+The 2026-05-02 measurement also included `rawsql-ts minimal` as an internal reference target:
 
 ```sh
 pnpm bench:k6:docker:rotated -- --targets handwritten,drizzle,rawsql,rfba --runs 3 --folder results-rotated-20260502
@@ -154,8 +161,8 @@ Warmup runs were required and excluded from aggregation.
 |---|---:|---:|---:|---:|---:|
 | handwritten warmup | 6,488.50 | 4.51 | 447.74 | 469.24 | 0 |
 | Drizzle warmup | 4,850.87 | 59.59 | 590.32 | 618.17 | 0 |
-| rawsql-ts minimal warmup | 5,533.80 | 3.39 | 561.78 | 582.33 | 0 |
-| rawsql-ts RFBA generated warmup | 4,901.58 | 60.23 | 581.28 | 604.59 | 0 |
+| rawsql-ts minimal reference warmup | 5,533.80 | 3.39 | 561.78 | 582.33 | 0 |
+| rawsql-ts RFBA + AOT warmup | 4,901.58 | 60.23 | 581.28 | 604.59 | 0 |
 | rawsql-ts repair warmup | 4,872.67 | 57.67 | 610.61 | 637.22 | 0 |
 
 ### Three-Run Comparison
@@ -165,26 +172,26 @@ Average and median across the three measured runs:
 | target | req/sec avg | req/sec median | p50 avg | p50 median | p95 avg | p95 median | p99 avg | p99 median | error rate |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | Drizzle | 5,899.90 | 6,593.96 | 91.81 | 21.19 | 449.21 | 456.18 | 485.74 | 481.82 | 0.000000% |
-| handwritten | 5,246.11 | 4,759.78 | 92.95 | 116.70 | 520.64 | 536.74 | 550.20 | 575.12 | 0.000000% |
-| rawsql-ts minimal | 6,035.89 | 6,555.29 | 63.60 | 45.63 | 474.71 | 413.29 | 500.82 | 432.00 | 0.000000% |
-| rawsql-ts RFBA generated | 5,993.98 | 6,529.39 | 84.67 | 80.94 | 378.16 | 292.68 | 406.58 | 313.24 | 0.000018% |
+| rawsql-ts RFBA + AOT generated mapper | 5,993.98 | 6,529.39 | 84.67 | 80.94 | 378.16 | 292.68 | 406.58 | 313.24 | 0.000018% |
+| handwritten direct SQL reference | 5,246.11 | 4,759.78 | 92.95 | 116.70 | 520.64 | 536.74 | 550.20 | 575.12 | 0.000000% |
+| rawsql-ts minimal reference | 6,035.89 | 6,555.29 | 63.60 | 45.63 | 474.71 | 413.29 | 500.82 | 432.00 | 0.000000% |
 
 Individual measured runs:
 
 | run | target | req/sec | p50 ms | p95 ms | p99 ms | failed requests | source |
 |---|---|---:|---:|---:|---:|---:|---|
 | 1 | Drizzle | 6,593.96 | 3.60 | 456.18 | 481.82 | 0 | `results-rotated-20260502` |
-| 1 | handwritten | 4,759.78 | 116.70 | 568.19 | 604.24 | 0 | `results-rotated-20260502` |
-| 1 | rawsql-ts minimal | 6,555.29 | 45.63 | 413.29 | 428.57 | 0 | `results-rotated-20260502` |
-| 1 | rawsql-ts RFBA generated | 6,529.39 | 72.31 | 292.68 | 313.24 | 1 | `results-rotated-20260502` |
+| 1 | handwritten direct SQL reference | 4,759.78 | 116.70 | 568.19 | 604.24 | 0 | `results-rotated-20260502` |
+| 1 | rawsql-ts minimal reference | 6,555.29 | 45.63 | 413.29 | 428.57 | 0 | `results-rotated-20260502` |
+| 1 | rawsql-ts RFBA + AOT generated mapper | 6,529.39 | 72.31 | 292.68 | 313.24 | 1 | `results-rotated-20260502` |
 | 2 | Drizzle | 4,058.18 | 250.63 | 597.37 | 662.53 | 0 | `results-rotated-20260502` |
-| 2 | handwritten | 4,716.97 | 158.54 | 536.74 | 575.12 | 0 | `results-rotated-20260502` |
-| 2 | rawsql-ts minimal | 4,652.80 | 119.96 | 606.39 | 641.89 | 0 | `results-rotated-20260502` |
-| 2 | rawsql-ts RFBA generated | 4,781.11 | 100.75 | 588.19 | 623.45 | 0 | `results-rotated-20260502` |
+| 2 | handwritten direct SQL reference | 4,716.97 | 158.54 | 536.74 | 575.12 | 0 | `results-rotated-20260502` |
+| 2 | rawsql-ts minimal reference | 4,652.80 | 119.96 | 606.39 | 641.89 | 0 | `results-rotated-20260502` |
+| 2 | rawsql-ts RFBA + AOT generated mapper | 4,781.11 | 100.75 | 588.19 | 623.45 | 0 | `results-rotated-20260502` |
 | 3 | Drizzle | 7,047.57 | 21.19 | 294.09 | 312.88 | 0 | `results-rotated-20260502` |
-| 3 | handwritten | 6,261.57 | 3.61 | 456.99 | 471.23 | 0 | `results-rotated-20260502` |
-| 3 | rawsql-ts minimal | 6,899.59 | 25.20 | 404.45 | 432.00 | 0 | `results-rotated-20260503-rawsql-repair` |
-| 3 | rawsql-ts RFBA generated | 6,671.44 | 80.94 | 253.62 | 283.05 | 0 | `results-rotated-20260502` |
+| 3 | handwritten direct SQL reference | 6,261.57 | 3.61 | 456.99 | 471.23 | 0 | `results-rotated-20260502` |
+| 3 | rawsql-ts minimal reference | 6,899.59 | 25.20 | 404.45 | 432.00 | 0 | `results-rotated-20260503-rawsql-repair` |
+| 3 | rawsql-ts RFBA + AOT generated mapper | 6,671.44 | 80.94 | 253.62 | 283.05 | 0 | `results-rotated-20260502` |
 
 ### Endpoint Medians
 
@@ -194,47 +201,47 @@ The k6 script tags each request with `endpoint` and emits endpoint-specific dura
 |---|---|---:|---:|---:|
 | `/customers` | handwritten | 122.14 | 539.00 | 578.13 |
 | `/customers` | Drizzle | 22.74 | 457.19 | 483.22 |
-| `/customers` | rawsql-ts minimal | 47.44 | 414.75 | 434.93 |
+| `/customers` | rawsql-ts minimal reference | 47.44 | 414.75 | 434.93 |
 | `/customers` | rawsql-ts RFBA generated | 83.78 | 295.65 | 315.00 |
 | `/customer-by-id` | handwritten | 117.80 | 535.99 | 575.31 |
 | `/customer-by-id` | Drizzle | 20.82 | 456.28 | 481.97 |
-| `/customer-by-id` | rawsql-ts minimal | 45.45 | 412.97 | 431.11 |
+| `/customer-by-id` | rawsql-ts minimal reference | 45.45 | 412.97 | 431.11 |
 | `/customer-by-id` | rawsql-ts RFBA generated | 80.63 | 292.06 | 312.34 |
 | `/employees` | handwritten | 114.63 | 533.08 | 570.35 |
 | `/employees` | Drizzle | 21.34 | 455.45 | 479.81 |
-| `/employees` | rawsql-ts minimal | 46.15 | 413.07 | 431.97 |
+| `/employees` | rawsql-ts minimal reference | 46.15 | 413.07 | 431.97 |
 | `/employees` | rawsql-ts RFBA generated | 82.26 | 294.08 | 313.13 |
 | `/employee-with-recipient` | handwritten | 120.39 | 536.26 | 575.93 |
 | `/employee-with-recipient` | Drizzle | 20.44 | 456.54 | 481.44 |
-| `/employee-with-recipient` | rawsql-ts minimal | 45.53 | 413.49 | 431.28 |
+| `/employee-with-recipient` | rawsql-ts minimal reference | 45.53 | 413.49 | 431.28 |
 | `/employee-with-recipient` | rawsql-ts RFBA generated | 80.84 | 292.57 | 313.62 |
 | `/suppliers` | handwritten | 117.93 | 539.09 | 572.82 |
 | `/suppliers` | Drizzle | 16.49 | 458.23 | 481.68 |
-| `/suppliers` | rawsql-ts minimal | 46.02 | 413.01 | 430.75 |
+| `/suppliers` | rawsql-ts minimal reference | 46.02 | 413.01 | 430.75 |
 | `/suppliers` | rawsql-ts RFBA generated | 81.10 | 292.58 | 311.89 |
 | `/supplier-by-id` | handwritten | 115.78 | 536.27 | 574.80 |
 | `/supplier-by-id` | Drizzle | 20.19 | 456.00 | 481.48 |
-| `/supplier-by-id` | rawsql-ts minimal | 45.43 | 413.16 | 431.45 |
+| `/supplier-by-id` | rawsql-ts minimal reference | 45.43 | 413.16 | 431.45 |
 | `/supplier-by-id` | rawsql-ts RFBA generated | 80.71 | 292.51 | 313.41 |
 | `/products` | handwritten | 120.19 | 538.25 | 575.27 |
 | `/products` | Drizzle | 23.60 | 456.80 | 482.70 |
-| `/products` | rawsql-ts minimal | 46.17 | 413.69 | 432.85 |
+| `/products` | rawsql-ts minimal reference | 46.17 | 413.69 | 432.85 |
 | `/products` | rawsql-ts RFBA generated | 82.11 | 292.95 | 313.05 |
 | `/product-with-supplier` | handwritten | 116.13 | 536.55 | 574.75 |
 | `/product-with-supplier` | Drizzle | 21.19 | 456.02 | 481.73 |
-| `/product-with-supplier` | rawsql-ts minimal | 45.47 | 413.28 | 431.99 |
+| `/product-with-supplier` | rawsql-ts minimal reference | 45.47 | 413.28 | 431.99 |
 | `/product-with-supplier` | rawsql-ts RFBA generated | 80.84 | 292.51 | 313.06 |
 | `/orders-with-details` | handwritten | 120.64 | 538.95 | 576.56 |
 | `/orders-with-details` | Drizzle | 24.08 | 458.26 | 484.97 |
-| `/orders-with-details` | rawsql-ts minimal | 48.04 | 415.86 | 436.74 |
+| `/orders-with-details` | rawsql-ts minimal reference | 48.04 | 415.86 | 436.74 |
 | `/orders-with-details` | rawsql-ts RFBA generated | 83.46 | 295.89 | 317.16 |
 | `/order-with-details` | handwritten | 116.84 | 536.77 | 575.41 |
 | `/order-with-details` | Drizzle | 20.75 | 456.17 | 481.82 |
-| `/order-with-details` | rawsql-ts minimal | 45.53 | 413.14 | 431.80 |
+| `/order-with-details` | rawsql-ts minimal reference | 45.53 | 413.14 | 431.80 |
 | `/order-with-details` | rawsql-ts RFBA generated | 80.81 | 292.56 | 312.69 |
 | `/order-with-details-and-products` | handwritten | 116.49 | 536.90 | 575.15 |
 | `/order-with-details-and-products` | Drizzle | 21.62 | 456.08 | 481.68 |
-| `/order-with-details-and-products` | rawsql-ts minimal | 45.71 | 413.25 | 432.08 |
+| `/order-with-details-and-products` | rawsql-ts minimal reference | 45.71 | 413.25 | 432.08 |
 | `/order-with-details-and-products` | rawsql-ts RFBA generated | 80.93 | 292.75 | 313.58 |
 
 ### Mapper Profile
@@ -258,13 +265,23 @@ Artifacts in the materialized benchmark workspace:
 
 ## Analysis
 
-The four targets are close enough that single-run conclusions are unsafe. Drizzle, rawsql-ts minimal, and RFBA generated all crossed 6.5k req/sec in at least one measured run. The lowest measured full-run throughput was `drizzle-run-2` at 4,058.18 req/sec, followed by `rawsql-run-2` and `rfba-run-2` in the same run pass. This points to local scheduling, DB/container state, and request-list position effects, not a stable target ranking.
+The main comparison should be read as Drizzle versus rawsql-ts RFBA + AOT generated mapper, with handwritten as a direct SQL reference. These targets are close enough that single-run conclusions are unsafe. Drizzle, rawsql-ts minimal, and RFBA + AOT all crossed 6.5k req/sec in at least one measured run. The lowest measured full-run throughput was `drizzle-run-2` at 4,058.18 req/sec, followed by `rawsql-run-2` and `rfba-run-2` in the same run pass. This points to local scheduling, DB/container state, request-list position effects, or target implementation differences; it is not enough evidence for a stable target ranking.
 
-The direct handwritten target is the theoretical ceiling because it removes rawsql-ts parsing, rawsql-ts mapper/runtime APIs, Drizzle query objects, and generic contract machinery from the request path. It was not consistently fastest here. That does not mean handwritten has more abstraction overhead; it means this HTTP benchmark is dominated by shared costs: Hono routing, node-postgres pool scheduling, PostgreSQL execution, result transfer, JSON serialization, Docker networking, and Windows host scheduling under 3000 VUs.
+The direct handwritten target is a theoretical ceiling candidate because it removes rawsql-ts parsing, rawsql-ts mapper/runtime APIs, Drizzle query objects, and generic contract machinery from the request path. It was not consistently fastest here. That should not be explained away only as benchmark noise. The endpoint medians show handwritten p50 was higher across every endpoint in this run set, so a handwritten-target implementation difference remains plausible.
 
-rawsql-ts minimal does not build SQL or parse SQL per request. SQL files are loaded and parsed at startup. Request-time work is prepared query execution plus minimal mapping. The fact that rawsql-ts minimal was comparable to Drizzle, rather than dramatically faster, is consistent with Drizzle's benchmark target also being a steady-state prepared execution path where SQL construction is not the dominant cost.
+Before treating handwritten as a validated ceiling, the benchmark should confirm:
 
-RFBA generated is the main maintainability result. It keeps the scaffold-style boundary shape and machine-owned generated mappers while staying in the same throughput range as Drizzle and rawsql-ts minimal. Compared with the earlier RFBA runtime-mapper target, generated mappers remove hot-path generic key/object construction, repeated mapper lookup, and relation traversal. The mapper profile shows that this optimization is real in isolation; the HTTP benchmark shows that end-to-end gains are bounded by shared system costs.
+- RFBA + AOT and handwritten execute the same SQL text for every endpoint.
+- Prepared query names and parameter binding are equivalent.
+- `pg.Pool` settings are identical.
+- Hono route shape and middleware are identical.
+- Response shapes are byte-for-byte or structurally equivalent.
+- DTO mapping avoids extra conversions or avoidable object allocation.
+- Endpoint-specific p50/p95/p99 gaps reproduce across rotated runs.
+
+rawsql-ts minimal does not build SQL or parse SQL per request. SQL files are loaded and parsed at startup. Request-time work is prepared query execution plus minimal mapping. It remains useful for implementation debugging because it isolates the SQL-first execution path, but the 0.7% average gap between minimal and RFBA + AOT is well inside this run set's variance. That makes RFBA + AOT the better external representative for rawsql-ts.
+
+RFBA + AOT generated mapper is the main maintainability result. It keeps the scaffold-style boundary shape and machine-owned generated mappers while staying in the same throughput range as Drizzle and the minimal reference target. Compared with the earlier RFBA runtime-mapper target, generated mappers remove hot-path generic key/object construction, repeated mapper lookup, and relation traversal. The mapper profile shows that this optimization is real in isolation; the HTTP benchmark shows that end-to-end gains are bounded by shared system costs and should be confirmed endpoint by endpoint.
 
 The single RFBA failed request was:
 
@@ -279,14 +296,14 @@ That is a connection-level refusal, not an endpoint-specific SQL, mapping, valid
 
 ## Conclusion
 
-Under these local conditions, rawsql-ts can reasonably be described as comparable to Drizzle and not meaningfully slower for the measured HTTP API workload. The result is conditional on this environment, seed, endpoint mix, and pinned k6 runner.
+Under these local conditions, rawsql-ts RFBA + AOT generated mapper can reasonably be described as comparable to Drizzle and not meaningfully slower for the measured HTTP API workload. The result is conditional on this environment, seed, endpoint mix, and pinned k6 runner.
 
-The RFBA + sql-contract generated mapper shape is a viable standard scaffold path: it keeps the public `boundary.ts` thin, keeps generated files machine-owned, avoids request-time validation, and remains in the same practical performance range as Drizzle and rawsql-ts minimal.
+The RFBA + sql-contract generated mapper shape is a viable standard scaffold path: it keeps the public `boundary.ts` thin, keeps generated files machine-owned, avoids request-time validation, and remains in the same practical performance range as Drizzle. The minimal target can stay in the benchmark as an internal reference, but it does not need to be the public rawsql-ts representative.
 
-The fully handwritten target should stay in the benchmark as a ceiling/reference target, but the current evidence says there is little value in chasing tiny mapper-level wins without endpoint-level profiling. The next useful work is to keep the generated mapper drift check in CI, preserve the fallback runtime mapper APIs for compatibility, and add deeper profiling only for endpoints where endpoint-tagged latency shows a stable gap.
+The handwritten target should stay in the benchmark as a direct SQL reference and theoretical ceiling candidate, but the current evidence does not validate it as a stable ceiling. The next useful work is to verify implementation parity between handwritten and RFBA + AOT, keep the generated mapper drift check in CI, preserve the fallback runtime mapper APIs for compatibility, and add deeper profiling only for endpoints where endpoint-tagged latency shows a stable gap.
 
 There is value in preparing an upstream benchmark PR after documenting the materialized migration compatibility patch and the pinned k6 workflow. The framing should stay neutral: rawsql-ts demonstrates a SQL-first baseline alongside Drizzle, not an attack on Drizzle.
 
 ## Optional Validation Overhead
 
-The validation target exists, but it is excluded from the main comparison because the Drizzle target does not add equivalent response validation. If validation is compared later, both sides should add equivalent validation and be reported separately from the minimal baseline.
+The validation target exists, but it is excluded from the main comparison because the Drizzle target does not add equivalent response validation. If validation is compared later, both sides should add equivalent validation and be reported separately from the non-validation RFBA + AOT baseline.
