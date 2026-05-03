@@ -1,0 +1,58 @@
+import { z } from 'zod';
+
+const JsonObjectSchema = z.record(z.string(), z.unknown());
+
+const SourceKeyDefinitionSchema = z.object({
+  keys: z.array(
+    z.object({
+      name: z.string().trim().min(1),
+      sourceColumn: z.string().trim().min(1),
+      type: z.string().trim().min(1)
+    }).strict()
+  ).min(1)
+}).strict();
+
+const DestinationInputSchema = z.object({
+  destinationDefinitionName: z.string().trim().min(1),
+  executionOrder: z.number().int().positive(),
+  sourceKeyDefinition: SourceKeyDefinitionSchema,
+  mappingDefinition: JsonObjectSchema,
+  isEnabled: z.boolean().optional(),
+  note: z.string().trim().min(1).optional()
+}).strict();
+
+const CreateTransferSettingInputSchema = z.object({
+  name: z.string().trim().min(1),
+  description: z.string().trim().min(1).optional(),
+  sourceSqlBody: z.string().trim().min(1),
+  isEnabled: z.boolean().optional(),
+  note: z.string().trim().min(1).optional(),
+  destinations: z.array(DestinationInputSchema).min(1)
+}).strict();
+
+export type CreateTransferSettingInput = z.infer<typeof CreateTransferSettingInputSchema>;
+export type CreateTransferSettingDestinationInput = CreateTransferSettingInput['destinations'][number];
+
+export function parseRequest(raw: unknown): CreateTransferSettingInput {
+  const request = CreateTransferSettingInputSchema.parse(raw);
+  assertCreateTransferSettingInput(request);
+  return request;
+}
+
+function assertCreateTransferSettingInput(request: CreateTransferSettingInput): void {
+  rejectDuplicateValues(
+    'destinations[].executionOrder',
+    request.destinations.map((destination) => destination.executionOrder)
+  );
+  rejectDuplicateValues(
+    'destinations[].destinationDefinitionName',
+    request.destinations.map((destination) => destination.destinationDefinitionName)
+  );
+}
+
+function rejectDuplicateValues(fieldName: string, values: readonly (string | number)[]): void {
+  const valueSet = new Set(values);
+  if (valueSet.size !== values.length) {
+    throw new Error(`${fieldName} must be unique within a transfer setting.`);
+  }
+}

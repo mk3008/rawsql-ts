@@ -22,8 +22,7 @@ const validInput: CreateTransferDestinationDefinitionInput = {
   sequenceExpressionDefinition: {
     journal_id: "nextval('journal_seq')"
   },
-  updateTransferPolicy: 'immutable',
-  deleteTransferPolicy: 'immutable',
+  transferModel: 'immutable',
   signInversionColumns: {
     columns: ['amount']
   },
@@ -50,8 +49,7 @@ test('maps camelCase feature input to snake_case query params and response field
           destination_columns: validInput.destinationColumns,
           destination_key_definition: validInput.destinationKeyDefinition,
           sequence_expression_definition: validInput.sequenceExpressionDefinition,
-          update_transfer_policy: 'immutable',
-          delete_transfer_policy: 'immutable',
+          transfer_model: 'immutable',
           sign_inversion_columns: validInput.signInversionColumns,
           red_transfer_source_columns: validInput.redTransferSourceColumns,
           diff_compare_excluded_columns: validInput.diffCompareExcludedColumns,
@@ -73,8 +71,7 @@ test('maps camelCase feature input to snake_case query params and response field
       destination_columns: validInput.destinationColumns,
       destination_key_definition: validInput.destinationKeyDefinition,
       sequence_expression_definition: validInput.sequenceExpressionDefinition,
-      update_transfer_policy: 'immutable',
-      delete_transfer_policy: 'immutable',
+      transfer_model: 'immutable',
       sign_inversion_columns: validInput.signInversionColumns,
       red_transfer_source_columns: validInput.redTransferSourceColumns,
       diff_compare_excluded_columns: validInput.diffCompareExcludedColumns,
@@ -89,8 +86,7 @@ test('maps camelCase feature input to snake_case query params and response field
     destinationColumns: validInput.destinationColumns,
     destinationKeyDefinition: validInput.destinationKeyDefinition,
     sequenceExpressionDefinition: validInput.sequenceExpressionDefinition,
-    updateTransferPolicy: 'immutable',
-    deleteTransferPolicy: 'immutable',
+    transferModel: 'immutable',
     signInversionColumns: validInput.signInversionColumns,
     redTransferSourceColumns: validInput.redTransferSourceColumns,
     diffCompareExcludedColumns: validInput.diffCompareExcludedColumns,
@@ -121,8 +117,7 @@ test.each([
   ['unknown sign inversion column', { signInversionColumns: { columns: ['missing_amount'] } }],
   ['unknown red transfer source column', { redTransferSourceColumns: { columns: ['missing_amount'] } }],
   ['unknown diff compare excluded column', { diffCompareExcludedColumns: { columns: ['missing_id'] } }],
-  ['invalid update transfer policy', { updateTransferPolicy: 'merge' }],
-  ['invalid delete transfer policy', { deleteTransferPolicy: 'archive' }]
+  ['invalid transfer model', { transferModel: 'merge' }]
 ])('rejects invalid input: %s', async (_name, patch) => {
   const executor = createGuardedExecutor();
   await expect(

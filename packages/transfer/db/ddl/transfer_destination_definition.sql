@@ -9,8 +9,7 @@ create table transfer_destination_definition (
   , destination_key_definition jsonb not null
   , sequence_expression_definition jsonb null
 
-  , update_transfer_policy text not null
-  , delete_transfer_policy text not null
+  , transfer_model text not null
 
   , sign_inversion_columns jsonb null
   , red_transfer_source_columns jsonb null
@@ -26,11 +25,8 @@ create table transfer_destination_definition (
   , constraint chk_transfer_destination_table_name_not_blank
     check (btrim(destination_table_name) <> '')
 
-  , constraint chk_transfer_destination_update_policy
-    check (update_transfer_policy in ('overwrite', 'immutable'))
-
-  , constraint chk_transfer_destination_delete_policy
-    check (delete_transfer_policy in ('physical_delete', 'immutable', 'ignore'))
+  , constraint chk_transfer_destination_transfer_model
+    check (transfer_model in ('immutable', 'mutable'))
 
   , constraint chk_transfer_destination_columns_object
     check (jsonb_typeof(destination_columns) = 'object')
@@ -64,7 +60,7 @@ create table transfer_destination_definition (
 );
 
 comment on table transfer_destination_definition is
-  '転送先定義。転送先テーブル、列、主キー、採番式、変更方針、削除方針、赤伝生成に必要な列情報を管理する。';
+  '転送先定義。転送先テーブル、列、主キー、採番式、転送モデル、赤伝生成に必要な列情報を管理する。';
 
 comment on column transfer_destination_definition.transfer_destination_definition_id is
   '転送先定義ID。サロゲートキー。';
@@ -87,11 +83,8 @@ comment on column transfer_destination_definition.destination_key_definition is
 comment on column transfer_destination_definition.sequence_expression_definition is
   '採番式定義。採番列と採番式をJSONBで保持する。例: {"journal_id": "nextval(''journal_seq'')" }。';
 
-comment on column transfer_destination_definition.update_transfer_policy is
-  '変更転送方針。更新時の扱いを表す。許可値は overwrite, immutable。overwrite は既存の転送先行を上書きする方針。immutable は旧黒を赤伝化して新黒を追加する方針。';
-
-comment on column transfer_destination_definition.delete_transfer_policy is
-  '削除転送方針。削除時の扱いを表す。許可値は physical_delete, immutable, ignore。physical_delete は転送先行を物理削除する方針。immutable は元黒から赤伝を追加する方針。ignore は削除依頼時に何もしない方針。';
+comment on column transfer_destination_definition.transfer_model is
+  '転送モデル。許可値は immutable, mutable。immutable は更新時に元黒の赤伝転送後に新黒を追加し、削除時に元黒の赤伝転送を行う。mutable は更新時に直接UPDATEし、削除時に物理DELETEする。';
 
 comment on column transfer_destination_definition.sign_inversion_columns is
   '符号反転列定義。赤伝生成時に符号を反転する列をJSONBで保持する。例: {"columns": ["amount"]}。';
