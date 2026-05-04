@@ -94,15 +94,31 @@ export function buildProbeSql(boundSql: string): string {
     throw new Error('The SQL probe source is empty.');
   }
 
+  const hasPgPositionalPlaceholder = containsPgPositionalPlaceholder(normalizedSql);
+  if (hasPgPositionalPlaceholder && /^\s*(select|with)\b/iu.test(normalizedSql)) {
+    return `SELECT * FROM (${normalizedSql}) AS _ztd_type_probe LIMIT 0`;
+  }
+
+  const returningProbeSql = buildReturningProbeSelect(normalizedSql);
+  if (returningProbeSql) {
+    return `SELECT * FROM (${returningProbeSql}) AS _ztd_type_probe LIMIT 0`;
+  }
+
   try {
-    const ast = SqlParser.parse(normalizedSql);
+    const parserSql = hasPgPositionalPlaceholder
+      ? normalizedSql.replace(/\$(\d+)\b/gu, ':$1')
+      : normalizedSql;
+    const ast = SqlParser.parse(parserSql);
     const simulatedSelect = SimulatedSelectConverter.convert(ast, {
       missingFixtureStrategy: 'passthrough'
     });
     if (simulatedSelect) {
       const formatter = new SqlFormatter({ keywordCase: 'none' });
       const { formattedSql } = formatter.format(simulatedSelect);
-      const simulatedSql = formattedSql.trim().replace(/(?:;\s*)+$/u, '');
+      let simulatedSql = formattedSql.trim().replace(/(?:;\s*)+$/u, '');
+      if (hasPgPositionalPlaceholder) {
+        simulatedSql = simulatedSql.replace(/(^|[^:]):(\d+)\b/gu, '$1$$$2');
+      }
       if (simulatedSql) {
         return `SELECT * FROM (${simulatedSql}) AS _ztd_type_probe LIMIT 0`;
       }
@@ -113,6 +129,25 @@ export function buildProbeSql(boundSql: string): string {
   }
 
   return `SELECT * FROM (${normalizedSql}) AS _ztd_type_probe LIMIT 0`;
+}
+
+function buildReturningProbeSelect(sql: string): string | undefined {
+  const match = sql.match(
+    /^\s*(?:insert\s+into|update|delete\s+from)\s+((?:"[^"]+"|[A-Za-z_][\w$]*)(?:\s*\.\s*(?:"[^"]+"|[A-Za-z_][\w$]*))?)[\s\S]*?\breturning\b([\s\S]+)$/iu
+  );
+  if (!match || !match[1] || !match[2]) {
+    return undefined;
+  }
+  const table = match[1].replace(/\s*\.\s*/gu, '.');
+  const returning = match[2].trim().replace(/(?:;\s*)+$/u, '');
+  if (!returning) {
+    return undefined;
+  }
+  return `SELECT ${returning} FROM ${table} LIMIT 0`;
+}
+
+function containsPgPositionalPlaceholder(sql: string): boolean {
+  return /\$\d+/u.test(sql);
 }
 
 function normalizeProbeSource(boundSql: string): string {

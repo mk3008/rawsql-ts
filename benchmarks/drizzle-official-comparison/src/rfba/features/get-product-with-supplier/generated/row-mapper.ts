@@ -2,44 +2,35 @@
 // This file is machine-owned and keeps hot row mapping out of the public boundary.
 
 import type { Row } from '../../../../local/sql-contract-mapper';
-import type { ProductDto, SupplierDto } from '../boundary';
-
-function mapSupplierRow(row: Row): SupplierDto {
-  return {
-    id: row.supplier_id as number,
-    companyName: row.supplier_companyName as string,
-    contactName: row.supplier_contactName as string,
-    contactTitle: row.supplier_contactTitle as string,
-    address: row.supplier_address as string,
-    city: row.supplier_city as string,
-    region: row.supplier_region as string | null,
-    postalCode: row.supplier_postalCode as string,
-    country: row.supplier_country as string,
-    phone: row.supplier_phone as string,
-  };
-}
-
-function mapProductRow(row: Row): ProductDto {
-  return {
-    id: row.id as number,
-    name: row.name as string,
-    quantityPerUnit: row.quantityPerUnit as string,
-    unitPrice: row.unitPrice as number,
-    unitsInStock: row.unitsInStock as number,
-    unitsOnOrder: row.unitsOnOrder as number,
-    reorderLevel: row.reorderLevel as number,
-    discontinued: row.discontinued as number,
-    supplierId: row.supplierId as number,
-  };
-}
+import type { ProductDto } from '../boundary';
 
 export function mapProductWithSupplierRowsToResult(rows: Row[]): ProductDto[] {
   const mapped = new Array<ProductDto>(rows.length);
   for (let index = 0; index < rows.length; index += 1) {
     const row = rows[index];
-    const product = mapProductRow(row);
-    product.supplier = mapSupplierRow(row);
-    mapped[index] = product;
+    mapped[index] = {
+      id: row.id as number,
+      name: row.name as string,
+      quantityPerUnit: row.quantityPerUnit as string,
+      unitPrice: row.unitPrice as number,
+      unitsInStock: row.unitsInStock as number,
+      unitsOnOrder: row.unitsOnOrder as number,
+      reorderLevel: row.reorderLevel as number,
+      discontinued: row.discontinued as number,
+      supplierId: row.supplierId as number,
+      supplier: {
+        id: row.supplier_id as number,
+        companyName: row.supplier_companyName as string,
+        contactName: row.supplier_contactName as string,
+        contactTitle: row.supplier_contactTitle as string,
+        address: row.supplier_address as string,
+        city: row.supplier_city as string,
+        region: row.supplier_region as string | null,
+        postalCode: row.supplier_postalCode as string,
+        country: row.supplier_country as string,
+        phone: row.supplier_phone as string,
+      },
+    };
   }
   return mapped;
 }

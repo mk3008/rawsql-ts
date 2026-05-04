@@ -232,6 +232,28 @@ test('buildProbeSql trims trailing semicolons before wrapping the probe query', 
   expect(probeSql.toLowerCase()).toContain('value');
 });
 
+test('buildProbeSql preserves PostgreSQL positional placeholders after binding', () => {
+  const probeSql = buildProbeSql('select * from public.products where id = $1');
+  expect(probeSql).toContain('where id = $1');
+  expect(probeSql).not.toContain(':1');
+});
+
+test('buildProbeSql converts positional insert-returning statements into probeable select SQL', () => {
+  const probeSql = buildProbeSql(`
+    insert into public.users (email, display_name)
+    values ($1, $2)
+    returning user_id
+  `);
+
+  expect(probeSql).toContain('SELECT * FROM (');
+  expect(probeSql.toLowerCase()).toContain('select');
+  expect(probeSql.toLowerCase()).toContain('from public.users');
+  expect(probeSql.toLowerCase()).toContain('user_id');
+  expect(probeSql.toLowerCase()).not.toContain('insert into');
+  expect(probeSql).not.toContain(':1');
+  expect(probeSql).not.toContain(':2');
+});
+
 test('buildProbeSql converts insert-returning statements into probeable select SQL', () => {
   const probeSql = buildProbeSql(`
     insert into public.users (email, display_name)
@@ -241,7 +263,9 @@ test('buildProbeSql converts insert-returning statements into probeable select S
 
   expect(probeSql).toContain('SELECT * FROM (');
   expect(probeSql.toLowerCase()).toContain('select');
+  expect(probeSql.toLowerCase()).toContain('from public.users');
   expect(probeSql.toLowerCase()).toContain('user_id');
+  expect(probeSql.toLowerCase()).not.toContain('insert into');
   expect(probeSql.toLowerCase()).not.toContain('expected');
 });
 

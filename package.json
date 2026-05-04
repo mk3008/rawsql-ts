@@ -39,6 +39,7 @@
     "verify:publish-readiness": "node scripts/publish-plan.mjs",
     "verify:publish-contract": "node scripts/verify-publish-contract.mjs",
     "verify:runtime-prereqs": "node scripts/verify-runtime-prereqs.mjs",
+    "verify:generated-mapper-drift": "node scripts/check-generated-mapper-drift.mjs",
     "docs:dev": "vitepress dev docs",
     "docs:build": "pnpm docs:api && vitepress build docs",
     "docs:preview": "vitepress preview docs",

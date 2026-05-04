@@ -1,4 +1,4 @@
-import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor';
+import { executeRows, type FeatureQueryExecutor } from '../_shared/featureQueryExecutor';
 import type { QueryCatalog } from '../_shared/queryCatalog';
 import { mapOrderWithDetailsAndProductsRowsToResult } from './generated/row-mapper';
 
@@ -45,6 +45,6 @@ export const executeGetOrderWithDetailsAndProductsEntrySpec = async (
   queries: QueryCatalog,
   id: string,
 ): Promise<OrderWithDetailsDto[]> => {
-  const result = await executor.execute(queries.orderWithDetailsAndProducts, [id]);
-  return mapOrderWithDetailsAndProductsRowsToResult(result.rows);
+  const rows = await executeRows(executor, queries.orderWithDetailsAndProducts, [id]);
+  return mapOrderWithDetailsAndProductsRowsToResult(rows);
 };

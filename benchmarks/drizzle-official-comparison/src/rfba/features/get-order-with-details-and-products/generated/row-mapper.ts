@@ -2,49 +2,7 @@
 // This file is machine-owned and keeps hot row mapping out of the public boundary.
 
 import type { Row } from '../../../../local/sql-contract-mapper';
-import type { OrderDetailDto, OrderWithDetailsDto, ProductDto } from '../boundary';
-
-function mapOrderRow(row: Row): Omit<OrderWithDetailsDto, 'details'> {
-  return {
-    id: row.id as number,
-    orderDate: row.orderDate as string,
-    requiredDate: row.requiredDate as string,
-    shippedDate: row.shippedDate as string | null,
-    shipVia: row.shipVia as number,
-    freight: row.freight as number,
-    shipName: row.shipName as string,
-    shipCity: row.shipCity as string,
-    shipRegion: row.shipRegion as string | null,
-    shipPostalCode: row.shipPostalCode as string | null,
-    shipCountry: row.shipCountry as string,
-    customerId: row.customerId as number,
-    employeeId: row.employeeId as number,
-  };
-}
-
-function mapProductRow(row: Row): ProductDto {
-  return {
-    id: row.product_id as number,
-    name: row.product_name as string,
-    quantityPerUnit: row.product_quantityPerUnit as string,
-    unitPrice: row.product_unitPrice as number,
-    unitsInStock: row.product_unitsInStock as number,
-    unitsOnOrder: row.product_unitsOnOrder as number,
-    reorderLevel: row.product_reorderLevel as number,
-    discontinued: row.product_discontinued as number,
-    supplierId: row.product_supplierId as number,
-  };
-}
-
-function mapDetailRow(row: Row): Omit<OrderDetailDto, 'product'> {
-  return {
-    unitPrice: row.detail_unitPrice as number,
-    quantity: row.detail_quantity as number,
-    discount: row.detail_discount as number,
-    orderId: row.detail_orderId as number,
-    productId: row.detail_productId as number,
-  };
-}
+import type { OrderDetailDto, OrderWithDetailsDto } from '../boundary';
 
 export function mapOrderWithDetailsAndProductsRowsToResult(rows: Row[]): OrderWithDetailsDto[] {
   const first = rows[0];
@@ -58,10 +16,41 @@ export function mapOrderWithDetailsAndProductsRowsToResult(rows: Row[]): OrderWi
       continue;
     }
     details.push({
-      ...mapDetailRow(row),
-      product: mapProductRow(row),
+      unitPrice: row.detail_unitPrice as number,
+      quantity: row.detail_quantity as number,
+      discount: row.detail_discount as number,
+      orderId: row.detail_orderId as number,
+      productId: row.detail_productId as number,
+      product: {
+        id: row.product_id as number,
+        name: row.product_name as string,
+        quantityPerUnit: row.product_quantityPerUnit as string,
+        unitPrice: row.product_unitPrice as number,
+        unitsInStock: row.product_unitsInStock as number,
+        unitsOnOrder: row.product_unitsOnOrder as number,
+        reorderLevel: row.product_reorderLevel as number,
+        discontinued: row.product_discontinued as number,
+        supplierId: row.product_supplierId as number,
+      },
     });
   }
 
-  return [{ ...mapOrderRow(first), details }];
+  return [
+    {
+      id: first.id as number,
+      orderDate: first.orderDate as string,
+      requiredDate: first.requiredDate as string,
+      shippedDate: first.shippedDate as string | null,
+      shipVia: first.shipVia as number,
+      freight: first.freight as number,
+      shipName: first.shipName as string,
+      shipCity: first.shipCity as string,
+      shipRegion: first.shipRegion as string | null,
+      shipPostalCode: first.shipPostalCode as string | null,
+      shipCountry: first.shipCountry as string,
+      customerId: first.customerId as number,
+      employeeId: first.employeeId as number,
+      details,
+    },
+  ];
 }

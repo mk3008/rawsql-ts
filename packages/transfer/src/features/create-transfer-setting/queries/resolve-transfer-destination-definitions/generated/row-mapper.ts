@@ -5,13 +5,14 @@
 
 import type { ResolveTransferDestinationDefinitionsQueryResult, ResolveTransferDestinationDefinitionsRow } from '../boundary.js';
 
-function mapResolveTransferDestinationDefinitionsRow(row: ResolveTransferDestinationDefinitionsRow): ResolveTransferDestinationDefinitionsQueryResult['items'][number] {
-  return {
-    "transfer_destination_definition_id": row["transfer_destination_definition_id"],
-    "transfer_destination_definition_name": row["transfer_destination_definition_name"],
-  };
-}
-
 export function mapResolveTransferDestinationDefinitionsRowsToResult(rows: ResolveTransferDestinationDefinitionsRow[]): ResolveTransferDestinationDefinitionsQueryResult {
-  return { items: rows.map(mapResolveTransferDestinationDefinitionsRow) };
+  const items = new Array<ResolveTransferDestinationDefinitionsQueryResult['items'][number]>(rows.length);
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+    items[index] = {
+      "transfer_destination_definition_id": row["transfer_destination_definition_id"],
+      "transfer_destination_definition_name": row["transfer_destination_definition_name"],
+    };
+  }
+  return { items };
 }

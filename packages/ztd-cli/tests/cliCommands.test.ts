@@ -10,6 +10,7 @@ const packageManagerExecutable = process.platform === 'win32' ? 'pnpm.cmd' : 'pn
 const cliRoot = path.resolve(__dirname, '..');
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const cliEntry = path.join(cliRoot, 'dist', 'index.js');
+const generatedMapperDriftScript = path.join(repoRoot, 'scripts', 'check-generated-mapper-drift.mjs');
 let cliBuildPrepared = false;
 const tmpRoot = path.join(repoRoot, 'tmp');
 
@@ -109,6 +110,65 @@ function createSqlWorkspace(prefix: string, sqlRelativePath: string = path.join(
   const sqlRoot = path.join(rootDir, 'src', 'sql');
   mkdirSync(path.dirname(sqlFile), { recursive: true });
   return { rootDir, sqlRoot, sqlFile };
+}
+
+function createGeneratedMapperDriftWorkspace(prefix: string): { rootDir: string; packageDir: string } {
+  const rootDir = createTempDir(prefix);
+  const packageDir = path.join(rootDir, 'fixture');
+  const queryDir = path.join(packageDir, 'src', 'features', 'users-list', 'queries', 'list');
+  const relativeCliEntry = path.relative(packageDir, cliEntry).replace(/\\/g, '/');
+  mkdirSync(path.join(queryDir, 'generated'), { recursive: true });
+  writeFileSync(
+    path.join(packageDir, 'package.json'),
+    `${JSON.stringify({
+      name: 'generated-mapper-drift-fixture',
+      private: true,
+      type: 'module',
+      scripts: {
+        ztd: `node ${relativeCliEntry}`
+      }
+    }, null, 2)}\n`,
+    'utf8'
+  );
+  writeFileSync(
+    path.join(queryDir, 'boundary.ts'),
+    [
+      "import { z } from 'zod';",
+      "import { mapListRowsToResult } from './generated/row-mapper.js';",
+      '',
+      'const RowSchema = z.object({',
+      '  id: z.string(),',
+      '  email: z.string(),',
+      '}).strict();',
+      '',
+      'const QueryResultSchema = z.object({',
+      '  items: z.array(RowSchema),',
+      '}).strict();',
+      '',
+      'export type ListQueryResult = z.infer<typeof QueryResultSchema>;',
+      'export type ListRow = z.infer<typeof RowSchema>;',
+      '',
+      'export async function executeListQuerySpec(rows: ListRow[]): Promise<ListQueryResult> {',
+      '  return mapListRowsToResult(rows);',
+      '}',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(queryDir, 'list.sql'),
+    [
+      'select',
+      '  id,',
+      '  email',
+      'from users',
+      'order by id asc;',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(path.join(queryDir, 'generated', 'row-mapper.ts'), '// stale generated mapper\n', 'utf8');
+  return { rootDir, packageDir };
 }
 
 async function resetPublicSchema(client: Client) {
@@ -344,6 +404,64 @@ test(
     });
     const flags = parsed.data.command.flags.map((flag: { name: string }) => flag.name);
     expect(flags).toEqual(expect.arrayContaining(['--feature <name>', '--query <name>', '--dry-run']));
+  },
+  60000,
+);
+
+test(
+  'repository generated mapper drift check fails on stale mapper and passes after regeneration',
+  () => {
+    ensureBuiltCli();
+    const { rootDir, packageDir } = createGeneratedMapperDriftWorkspace('generated-mapper-drift-script');
+    const failed = spawnSync(nodeExecutable, [generatedMapperDriftScript], {
+      cwd: repoRoot,
+      env: buildCliEnv({
+        GENERATED_MAPPER_DRIFT_ROOT: rootDir
+      }),
+      encoding: 'utf8'
+    });
+
+    assertCliFailure(failed, 'generated mapper drift script stale fixture');
+    expect(failed.stdout.replace(/\\/g, '/')).toContain('[generated-mapper-drift] checking fixture/src/features/users-list');
+    expect(failed.stderr).toContain('ztd feature generated-mapper generate --feature users-list --query list');
+
+    const regenerate = runCli(['feature', 'generated-mapper', 'generate', '--feature', 'users-list'], {}, packageDir);
+    assertCliSuccess(regenerate, 'feature generated-mapper generate fixture');
+
+    const passed = spawnSync(nodeExecutable, [generatedMapperDriftScript], {
+      cwd: repoRoot,
+      env: buildCliEnv({
+        GENERATED_MAPPER_DRIFT_ROOT: rootDir
+      }),
+      encoding: 'utf8'
+    });
+
+    assertCliSuccess(passed, 'generated mapper drift script regenerated fixture');
+    expect(passed.stdout.replace(/\\/g, '/')).toContain('[generated-mapper-drift] checking fixture/src/features/users-list');
+    expect(passed.stdout).toContain('Generated mapper check passed: users-list');
+  },
+  60000,
+);
+
+test(
+  'repository generated mapper drift check fails when a generated mapper has no owning ztd project',
+  () => {
+    const rootDir = createTempDir('generated-mapper-drift-no-owner');
+    const generatedDir = path.join(rootDir, 'src', 'features', 'users-list', 'queries', 'list', 'generated');
+    mkdirSync(generatedDir, { recursive: true });
+    writeFileSync(path.join(generatedDir, 'row-mapper.ts'), '// generated mapper without owner\n', 'utf8');
+
+    const result = spawnSync(nodeExecutable, [generatedMapperDriftScript], {
+      cwd: repoRoot,
+      env: buildCliEnv({
+        GENERATED_MAPPER_DRIFT_ROOT: rootDir
+      }),
+      encoding: 'utf8'
+    });
+
+    assertCliFailure(result, 'generated mapper drift script missing owning project');
+    expect(result.stderr).toContain('no parent package.json with a ztd script was found');
+    expect(result.stderr).toContain('Generated row mappers are machine-owned and must be passively checked');
   },
   60000,
 );
@@ -613,24 +731,24 @@ test(
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'insert-users.sql'))).toContain('returning "id";');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'insert-users.sql'))).toContain('TODO: Review INSERT default-column policy');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toContain(
-      'export async function executeUsersInsertEntrySpec'
-    );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toContain(
-      "import { z } from 'zod';"
+      'export async function execute('
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toContain(
       "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor.js';"
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'input.ts'))).toContain(
+      "import { z } from 'zod';"
+    );
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'input.ts'))).toContain(
       'const RequestSchema = z.object({'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'input.ts'))).toContain(
       "const RequestSchema = z.object({\n  email: z.string(),\n}).strict();"
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'input.ts'))).toContain(
       'function parseRequest'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'workflow.ts'))).toContain(
       'function toQueryParams'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).not.toContain(
@@ -642,7 +760,7 @@ test(
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).not.toContain(
       'export type UsersInsertEntryExecutor'
     );
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'boundary.ts'))).not.toContain(
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'workflow.ts'))).not.toContain(
       'created_at: request.created_at'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).toContain(
@@ -930,12 +1048,15 @@ test(
 
     assertCliSuccess(result, 'feature scaffold get-by-id write');
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-get-by-id', 'boundary.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-get-by-id', 'input.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-get-by-id', 'workflow.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-get-by-id', 'output.ts'))).toBe(true);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).toBe(true);
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'boundary.ts'))).toContain('}).strict();');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'boundary.ts'))).toContain('const ResponseRowSchema = z.object({');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'boundary.ts'))).toContain('id: z.string()');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'boundary.ts'))).toContain('function parseRequest');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'boundary.ts'))).toContain('function toQueryParams');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'boundary.ts'))).toContain('export async function execute(');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'input.ts'))).toContain('}).strict();');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'input.ts'))).toContain('function parseRequest');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'workflow.ts'))).toContain('function toQueryParams');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'output.ts'))).toContain('id: result.id');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).toContain('loadOptionalRow');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).not.toContain('queryZeroOrOneRow');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).toContain('}).strict();');
@@ -972,12 +1093,15 @@ test(
 
     assertCliSuccess(result, 'feature scaffold list write');
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-list', 'boundary.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-list', 'input.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-list', 'workflow.ts'))).toBe(true);
+    expect(existsSync(path.join(workspace, 'src', 'features', 'users-list', 'output.ts'))).toBe(true);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'))).toBe(true);
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'boundary.ts'))).toContain('const RequestSchema = z.object({\n}).strict();');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'boundary.ts'))).toContain('const ResponseItemSchema = z.object({');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'boundary.ts'))).toContain('id: z.string()');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'boundary.ts'))).toContain('function parseRequest');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'boundary.ts'))).toContain('function toQueryParams');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'boundary.ts'))).toContain('export async function execute(');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'input.ts'))).toContain('const RequestSchema = z.object({\n}).strict();');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'input.ts'))).toContain('function parseRequest');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'workflow.ts'))).toContain('function toQueryParams');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'output.ts'))).toContain('items: result.items.map');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'))).toContain('createCatalogExecutor');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'))).toContain('const QueryParamsSchema = z.object({\n}).strict();');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'))).toContain('const RowSchema = z.object({');

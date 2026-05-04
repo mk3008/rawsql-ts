@@ -1,4 +1,4 @@
-import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor';
+import { executeRows, type FeatureQueryExecutor } from '../_shared/featureQueryExecutor';
 import type { QueryCatalog } from '../_shared/queryCatalog';
 import { mapProductWithSupplierRowsToResult } from './generated/row-mapper';
 
@@ -33,6 +33,6 @@ export const executeGetProductWithSupplierEntrySpec = async (
   queries: QueryCatalog,
   id: string,
 ): Promise<ProductDto[]> => {
-  const result = await executor.execute(queries.productWithSupplier, [id]);
-  return mapProductWithSupplierRowsToResult(result.rows);
+  const rows = await executeRows(executor, queries.productWithSupplier, [id]);
+  return mapProductWithSupplierRowsToResult(rows);
 };

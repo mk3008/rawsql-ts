@@ -178,7 +178,23 @@ interface GeneratedMapperCheckResult {
   checked: Array<{ path: string; changed: boolean; kind: 'file' }>;
 }
 
-type GeneratedMapperMode = 'single' | 'optional' | 'list';
+type GeneratedMapperMode = 'single' | 'optional' | 'list' | 'hasMany';
+
+interface GeneratedHasManySideMetadata {
+  key: string[];
+  columns: Record<string, string>;
+}
+
+interface GeneratedHasManyCollectionMetadata extends GeneratedHasManySideMetadata {
+  property: string;
+  presence: string[];
+}
+
+interface GeneratedHasManyRelationMetadata {
+  kind: 'hasMany';
+  root: GeneratedHasManySideMetadata;
+  collection: GeneratedHasManyCollectionMetadata;
+}
 
 interface GeneratedMapperSpec {
   featureName: string;
@@ -186,6 +202,7 @@ interface GeneratedMapperSpec {
   queryPascalName: string;
   mode: GeneratedMapperMode;
   fieldNames: string[];
+  hasMany?: GeneratedHasManyRelationMetadata;
   boundaryHash: string;
   sqlHash: string;
   boundaryFile: string;
@@ -1125,6 +1142,7 @@ function readGeneratedMapperSpec(rootDir: string, featureName: string, queryName
   const sqlSource = readFileSync(querySqlFile, 'utf8');
   const queryPascalName = extractQueryPascalName(boundarySource, rootDir, boundaryFile);
   const fieldNames = extractRowSchemaFieldNames(boundarySource, rootDir, boundaryFile);
+  const hasMany = extractGeneratedHasManyMetadata(boundarySource, fieldNames, rootDir, boundaryFile);
   if (fieldNames.length === 0) {
     throw new Error(
       `Cannot generate row mapper for ${toProjectRelativePath(rootDir, boundaryFile)}: RowSchema has no fields.`
@@ -1135,8 +1153,9 @@ function readGeneratedMapperSpec(rootDir: string, featureName: string, queryName
     featureName,
     queryName,
     queryPascalName,
-    mode: detectGeneratedMapperMode(boundarySource),
+    mode: hasMany ? 'hasMany' : detectGeneratedMapperMode(boundarySource),
     fieldNames,
+    hasMany,
     boundaryHash: hashGeneratedMapperSource(boundarySource),
     sqlHash: hashGeneratedMapperSource(sqlSource),
     boundaryFile,
@@ -1193,6 +1212,152 @@ function detectGeneratedMapperMode(source: string): GeneratedMapperMode {
     return 'optional';
   }
   return 'single';
+}
+
+function extractGeneratedHasManyMetadata(
+  source: string,
+  fieldNames: string[],
+  rootDir: string,
+  boundaryFile: string
+): GeneratedHasManyRelationMetadata | undefined {
+  const metadata = extractGeneratedMapperMetadata(source, rootDir, boundaryFile);
+  const hasMany = metadata?.relations?.hasMany;
+  if (hasMany === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(hasMany) || hasMany.length !== 1) {
+    throw new Error(
+      `Cannot generate hasMany row mapper for ${toProjectRelativePath(rootDir, boundaryFile)}: expected exactly one metadata.relations.hasMany entry.`
+    );
+  }
+  const relation = hasMany[0] as GeneratedHasManyRelationMetadata;
+  validateGeneratedHasManyMetadata(relation, new Set(fieldNames), rootDir, boundaryFile);
+  return relation;
+}
+
+function extractGeneratedMapperMetadata(
+  source: string,
+  rootDir: string,
+  boundaryFile: string
+): { relations?: { hasMany?: unknown[] } } | undefined {
+  const namedMetadata = /(?:export\s+)?const\s+[A-Za-z0-9_$]*GeneratedMapperMetadata\s*=/.exec(source);
+  if (!namedMetadata) {
+    return undefined;
+  }
+  const objectStart = source.indexOf('{', namedMetadata.index);
+  if (objectStart === -1) {
+    throw new Error(
+      `Cannot parse generated mapper metadata for ${toProjectRelativePath(rootDir, boundaryFile)}: expected a JSON-compatible object literal after the *GeneratedMapperMetadata assignment.`
+    );
+  }
+  const objectEnd = findMatchingBrace(source, objectStart);
+  if (objectEnd === -1) {
+    throw new Error(
+      `Cannot parse generated mapper metadata for ${toProjectRelativePath(rootDir, boundaryFile)}: metadata object was not closed.`
+    );
+  }
+  const objectText = source.slice(objectStart, objectEnd + 1);
+  try {
+    return JSON.parse(objectText) as { relations?: { hasMany?: unknown[] } };
+  } catch (cause) {
+    throw new Error(
+      `Cannot parse generated mapper metadata for ${toProjectRelativePath(rootDir, boundaryFile)}: metadata object literal must be JSON-compatible. Quote object keys and string values; do not use TypeScript identifiers, comments, spreads, computed values, or trailing commas inside the object literal. ${cause instanceof Error ? cause.message : String(cause)}`
+    );
+  }
+}
+
+function findMatchingBrace(source: string, startIndex: number): number {
+  let depth = 0;
+  let quote: '"' | "'" | '`' | undefined;
+  let escaped = false;
+  for (let index = startIndex; index < source.length; index += 1) {
+    const char = source[index];
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === '\\') {
+        escaped = true;
+        continue;
+      }
+      if (char === quote) {
+        quote = undefined;
+      }
+      continue;
+    }
+    if (char === '"' || char === "'" || char === '`') {
+      quote = char;
+      continue;
+    }
+    if (char === '{') {
+      depth += 1;
+      continue;
+    }
+    if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+  return -1;
+}
+
+function validateGeneratedHasManyMetadata(
+  relation: GeneratedHasManyRelationMetadata,
+  fieldNames: Set<string>,
+  rootDir: string,
+  boundaryFile: string
+): void {
+  const context = toProjectRelativePath(rootDir, boundaryFile);
+  if (relation?.kind !== 'hasMany') {
+    throw new Error(`Cannot generate hasMany row mapper for ${context}: relation kind must be "hasMany".`);
+  }
+  assertNonEmptyStringArray(relation.root?.key, 'root.key', context);
+  assertNonEmptyStringArray(relation.collection?.key, 'collection.key', context);
+  assertNonEmptyStringArray(relation.collection?.presence, 'collection.presence', context);
+  assertIdentifier(relation.collection?.property, 'collection.property', context);
+  assertColumnMap(relation.root?.columns, 'root.columns', fieldNames, context);
+  assertColumnMap(relation.collection?.columns, 'collection.columns', fieldNames, context);
+  for (const column of [
+    ...relation.root.key,
+    ...relation.collection.key,
+    ...relation.collection.presence,
+  ]) {
+    if (!fieldNames.has(column)) {
+      throw new Error(`Cannot generate hasMany row mapper for ${context}: metadata column "${column}" is not declared in RowSchema.`);
+    }
+  }
+}
+
+function assertNonEmptyStringArray(value: unknown, label: string, context: string): asserts value is string[] {
+  if (!Array.isArray(value) || value.length === 0 || value.some((entry) => typeof entry !== 'string' || entry.length === 0)) {
+    throw new Error(`Cannot generate hasMany row mapper for ${context}: metadata.${label} must be a non-empty string array.`);
+  }
+}
+
+function assertIdentifier(value: unknown, label: string, context: string): asserts value is string {
+  if (typeof value !== 'string' || !/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(value)) {
+    throw new Error(`Cannot generate hasMany row mapper for ${context}: metadata.${label} must be an identifier string.`);
+  }
+}
+
+function assertColumnMap(
+  value: unknown,
+  label: string,
+  fieldNames: Set<string>,
+  context: string
+): asserts value is Record<string, string> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length === 0) {
+    throw new Error(`Cannot generate hasMany row mapper for ${context}: metadata.${label} must be a non-empty object.`);
+  }
+  for (const [property, column] of Object.entries(value)) {
+    assertIdentifier(property, `${label} property`, context);
+    if (typeof column !== 'string' || !fieldNames.has(column)) {
+      throw new Error(`Cannot generate hasMany row mapper for ${context}: metadata.${label}.${property} column "${String(column)}" is not declared in RowSchema.`);
+    }
+  }
 }
 
 function renderExistingBoundaryQueryScaffoldFiles(params: {
@@ -2792,6 +2957,7 @@ function renderGeneratedRowMapperFile(params: {
     queryPascalName: params.queryPascalName,
     mode: params.action === 'list' ? 'list' : params.action === 'get-by-id' ? 'optional' : 'single',
     fieldNames: params.responseFields.map((field) => field.name),
+    hasMany: undefined,
     boundaryHash: hashGeneratedMapperSource(params.boundarySource),
     sqlHash: hashGeneratedMapperSource(params.sqlSource)
   });
@@ -2801,6 +2967,7 @@ function renderGeneratedRowMapperFileFromSpec(params: {
   queryPascalName: string;
   mode: GeneratedMapperMode;
   fieldNames: string[];
+  hasMany?: GeneratedHasManyRelationMetadata;
   boundaryHash: string;
   sqlHash: string;
 }): string {
@@ -2815,17 +2982,30 @@ function renderGeneratedRowMapperFileFromSpec(params: {
     ''
   ];
   const importLine = `import type { ${params.queryPascalName}QueryResult, ${params.queryPascalName}Row } from '../boundary.js';`;
+  if (params.mode === 'hasMany') {
+    if (!params.hasMany) {
+      throw new Error(`Cannot generate hasMany row mapper for ${params.queryPascalName}: hasMany metadata was not provided.`);
+    }
+    return renderGeneratedHasManyRowMapperFile({
+      header,
+      importLine,
+      queryPascalName: params.queryPascalName,
+      relation: params.hasMany
+    });
+  }
+
   if (params.mode === 'list') {
     return [
       ...header,
       importLine,
       '',
-      `function map${params.queryPascalName}Row(row: ${params.queryPascalName}Row): ${params.queryPascalName}QueryResult['items'][number] {`,
-      ...renderGeneratedMapperReturnObject('row', params.fieldNames, `${params.queryPascalName}QueryResult['items'][number]`),
-      '}',
-      '',
       `export function map${params.queryPascalName}RowsToResult(rows: ${params.queryPascalName}Row[]): ${params.queryPascalName}QueryResult {`,
-      `  return { items: rows.map(map${params.queryPascalName}Row) };`,
+      `  const items = new Array<${params.queryPascalName}QueryResult['items'][number]>(rows.length);`,
+      '  for (let index = 0; index < rows.length; index += 1) {',
+      '    const row = rows[index];',
+      ...renderGeneratedMapperAssignment('items[index]', 'row', params.fieldNames),
+      '  }',
+      '  return { items };',
       '}',
       ''
     ].join('\n');
@@ -2854,6 +3034,63 @@ function renderGeneratedRowMapperFileFromSpec(params: {
   ].join('\n');
 }
 
+function renderGeneratedHasManyRowMapperFile(params: {
+  header: string[];
+  importLine: string;
+  queryPascalName: string;
+  relation: GeneratedHasManyRelationMetadata;
+}): string {
+  const collectionProperty = params.relation.collection.property;
+  return [
+    ...params.header,
+    params.importLine,
+    '',
+    'function serializeGeneratedKey(values: readonly unknown[]): string {',
+    '  return values',
+    '    .map((value) => {',
+    '      const text = String(value);',
+    '      return `${typeof value}:${text.length}:${text}`;',
+    '    })',
+    "    .join('');",
+    '}',
+    '',
+    `export function map${params.queryPascalName}RowsToResult(rows: ${params.queryPascalName}Row[]): ${params.queryPascalName}QueryResult {`,
+    `  const items: ${params.queryPascalName}QueryResult['items'] = [];`,
+    `  const rootIndex = new Map<string, ${params.queryPascalName}QueryResult['items'][number]>();`,
+    '  for (let index = 0; index < rows.length; index += 1) {',
+    '    const row = rows[index];',
+    `    const rootKey = serializeGeneratedKey([${params.relation.root.key.map((column) => `row[${JSON.stringify(column)}]`).join(', ')}]);`,
+    '    let root = rootIndex.get(rootKey);',
+    '    if (root === undefined) {',
+    '      root = {',
+    ...renderGeneratedHasManyObjectProperties('        ', 'row', params.relation.root.columns),
+    `        ${collectionProperty}: [],`,
+    '      };',
+    '      rootIndex.set(rootKey, root);',
+    '      items.push(root);',
+    '    }',
+    `    if (${params.relation.collection.presence.map((column) => `row[${JSON.stringify(column)}] !== null && row[${JSON.stringify(column)}] !== undefined`).join(' && ')}) {`,
+    `      root.${collectionProperty}.push({`,
+    ...renderGeneratedHasManyObjectProperties('        ', 'row', params.relation.collection.columns),
+    '      });',
+    '    }',
+    '  }',
+    '  return { items };',
+    '}',
+    ''
+  ].join('\n');
+}
+
+function renderGeneratedHasManyObjectProperties(
+  indent: string,
+  sourceName: string,
+  columns: Record<string, string>
+): string[] {
+  return Object.entries(columns)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([property, column]) => `${indent}${property}: ${sourceName}[${JSON.stringify(column)}],`);
+}
+
 function renderGeneratedMapperReturnObject(sourceName: string, fieldNames: string[], typeName: string): string[] {
   if (fieldNames.length === 0) {
     return [`  return {} as ${typeName};`];
@@ -2862,6 +3099,17 @@ function renderGeneratedMapperReturnObject(sourceName: string, fieldNames: strin
     '  return {',
     ...fieldNames.map((fieldName) => `    ${JSON.stringify(fieldName)}: ${sourceName}[${JSON.stringify(fieldName)}],`),
     '  };'
+  ];
+}
+
+function renderGeneratedMapperAssignment(targetName: string, sourceName: string, fieldNames: string[]): string[] {
+  if (fieldNames.length === 0) {
+    return [`    ${targetName} = {};`];
+  }
+  return [
+    `    ${targetName} = {`,
+    ...fieldNames.map((fieldName) => `      ${JSON.stringify(fieldName)}: ${sourceName}[${JSON.stringify(fieldName)}],`),
+    '    };'
   ];
 }
 

@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { expect, test } from 'vitest';
 import {
   assessGeneratedMetadataCapability,
@@ -1298,8 +1299,10 @@ test('runFeatureScaffoldCommand writes the list baseline with catalog paging and
     path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'generated', 'row-mapper.ts'),
     'utf8'
   );
-  expect(generatedRowMapperFile).toContain('function mapListRow(row: ListRow): ListQueryResult');
   expect(generatedRowMapperFile).toContain('export function mapListRowsToResult(rows: ListRow[]): ListQueryResult');
+  expect(generatedRowMapperFile).toContain("const items = new Array<ListQueryResult['items'][number]>(rows.length);");
+  expect(generatedRowMapperFile).toContain('for (let index = 0; index < rows.length; index += 1)');
+  expect(generatedRowMapperFile).not.toContain('rows.map(');
   expect(generatedRowMapperFile).toContain('"is_active": row["is_active"],');
 
   const sqlFile = readFileSync(
@@ -1616,4 +1619,244 @@ test('generated mapper generate force-syncs machine-owned files from the boundar
       rootDir: workspace
     })
   ).resolves.toMatchObject({ ok: true });
+});
+
+test('generated mapper generate supports explicit one-to-many metadata with direct assignment', async () => {
+  const workspace = createTempDir('feature-generated-mapper-hasmany');
+  const queryDir = path.join(workspace, 'src', 'features', 'orders-list', 'queries', 'list');
+  const generatedMapperFile = path.join(queryDir, 'generated', 'row-mapper.ts');
+  mkdirSync(path.join(queryDir, 'generated'), { recursive: true });
+  writeFileSync(
+    path.join(queryDir, 'boundary.ts'),
+    [
+      "import { z } from 'zod';",
+      "import type { QuerySpecMetadata } from '@rawsql-ts/sql-contract';",
+      "import { mapListRowsToResult } from './generated/row-mapper.js';",
+      '',
+      'const RowSchema = z.object({',
+      '  order_id: z.string(),',
+      '  order_date: z.string(),',
+      '  detail_id: z.string().nullable(),',
+      '  product_name: z.string().nullable(),',
+      '}).strict();',
+      '',
+      'const DetailSchema = z.object({',
+      '  id: z.string(),',
+      '  productName: z.string().nullable(),',
+      '}).strict();',
+      '',
+      'const OrderSchema = z.object({',
+      '  id: z.string(),',
+      '  orderDate: z.string(),',
+      '  details: z.array(DetailSchema),',
+      '}).strict();',
+      '',
+      'const QueryResultSchema = z.object({',
+      '  items: z.array(OrderSchema),',
+      '}).strict();',
+      '',
+      'export type ListQueryResult = z.infer<typeof QueryResultSchema>;',
+      'export type ListRow = z.infer<typeof RowSchema>;',
+      '',
+      'export const ListGeneratedMapperMetadata = {',
+      '  "relations": {',
+      '    "hasMany": [',
+      '      {',
+      '        "kind": "hasMany",',
+      '        "root": {',
+      '          "key": ["order_id"],',
+      '          "columns": {',
+      '            "id": "order_id",',
+      '            "orderDate": "order_date"',
+      '          }',
+      '        },',
+      '        "collection": {',
+      '          "property": "details",',
+      '          "key": ["detail_id"],',
+      '          "presence": ["detail_id"],',
+      '          "columns": {',
+      '            "id": "detail_id",',
+      '            "productName": "product_name"',
+      '          }',
+      '        }',
+      '      }',
+      '    ]',
+      '  }',
+      '} as const satisfies QuerySpecMetadata;',
+      '',
+      'export async function executeListQuerySpec(rows: ListRow[]): Promise<ListQueryResult> {',
+      '  return mapListRowsToResult(rows);',
+      '}',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(queryDir, 'list.sql'),
+    [
+      'select',
+      '  order_id,',
+      '  order_date,',
+      '  detail_id,',
+      '  product_name',
+      'from order_rows',
+      'order by order_id asc, detail_id asc;',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(generatedMapperFile, '// stale mapper\n', 'utf8');
+
+  await runFeatureGeneratedMapperGenerateCommand({
+    feature: 'orders-list',
+    query: 'list',
+    rootDir: workspace
+  });
+
+  const generated = readFileSync(generatedMapperFile, 'utf8');
+  expect(generated).toContain('const rootIndex = new Map<string, ListQueryResult[\'items\'][number]>();');
+  expect(generated).toContain('const rootKey = serializeGeneratedKey([row["order_id"]]);');
+  expect(generated).toContain('const text = String(value);');
+  expect(generated).toContain('return `${typeof value}:${text.length}:${text}`;');
+  expect(generated).toContain('details: [],');
+  expect(generated).toContain('root.details.push({');
+  expect(generated).toContain('if (row["detail_id"] !== null && row["detail_id"] !== undefined)');
+  expect(generated).toContain('id: row["order_id"],');
+  expect(generated).toContain('productName: row["product_name"],');
+  expect(generated).not.toContain('...row');
+  expect(generated).not.toContain(".join('|')");
+
+  const module = await import(`${pathToFileURL(generatedMapperFile).href}?behavior=${Date.now()}`);
+  const result = module.mapListRowsToResult([
+    {
+      order_id: 'order-1',
+      order_date: '2026-05-03',
+      detail_id: 'detail-1',
+      product_name: 'Keyboard',
+    },
+    {
+      order_id: 'order-1',
+      order_date: '2026-05-03',
+      detail_id: 'detail-2',
+      product_name: 'Mouse',
+    },
+    {
+      order_id: 'order-2',
+      order_date: '2026-05-04',
+      detail_id: null,
+      product_name: null,
+    },
+  ]);
+  expect(result).toEqual({
+    items: [
+      {
+        id: 'order-1',
+        orderDate: '2026-05-03',
+        details: [
+          { id: 'detail-1', productName: 'Keyboard' },
+          { id: 'detail-2', productName: 'Mouse' },
+        ],
+      },
+      {
+        id: 'order-2',
+        orderDate: '2026-05-04',
+        details: [],
+      },
+    ],
+  });
+});
+
+test('generated mapper generate explains that hasMany metadata must be JSON-compatible', async () => {
+  const workspace = createTempDir('feature-generated-mapper-hasmany-non-json');
+  const queryDir = path.join(workspace, 'src', 'features', 'orders-list', 'queries', 'list');
+  mkdirSync(path.join(queryDir, 'generated'), { recursive: true });
+  writeFileSync(
+    path.join(queryDir, 'boundary.ts'),
+    [
+      "import { z } from 'zod';",
+      "import type { QuerySpecMetadata } from '@rawsql-ts/sql-contract';",
+      '',
+      'const RowSchema = z.object({',
+      '  order_id: z.string(),',
+      '  detail_id: z.string().nullable(),',
+      '}).strict();',
+      '',
+      'const QueryResultSchema = z.object({',
+      '  items: z.array(z.object({ id: z.string(), details: z.array(z.object({ id: z.string() })) })),',
+      '}).strict();',
+      '',
+      'export type ListQueryResult = z.infer<typeof QueryResultSchema>;',
+      'export type ListRow = z.infer<typeof RowSchema>;',
+      '',
+      'export const ListGeneratedMapperMetadata = {',
+      '  relations: {',
+      '    hasMany: []',
+      '  }',
+      '} as const satisfies QuerySpecMetadata;',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(path.join(queryDir, 'list.sql'), 'select order_id, detail_id from order_rows;\n', 'utf8');
+
+  await expect(
+    runFeatureGeneratedMapperGenerateCommand({
+      feature: 'orders-list',
+      query: 'list',
+      rootDir: workspace
+    })
+  ).rejects.toThrow(/metadata object literal must be JSON-compatible.*Quote object keys and string values/s);
+});
+
+test('generated mapper generate fails when one-to-many metadata references a missing row column', async () => {
+  const workspace = createTempDir('feature-generated-mapper-hasmany-invalid');
+  const queryDir = path.join(workspace, 'src', 'features', 'orders-list', 'queries', 'list');
+  mkdirSync(path.join(queryDir, 'generated'), { recursive: true });
+  writeFileSync(
+    path.join(queryDir, 'boundary.ts'),
+    [
+      "import { z } from 'zod';",
+      "import type { QuerySpecMetadata } from '@rawsql-ts/sql-contract';",
+      '',
+      'const RowSchema = z.object({',
+      '  order_id: z.string(),',
+      '  detail_id: z.string().nullable(),',
+      '}).strict();',
+      '',
+      'const QueryResultSchema = z.object({',
+      '  items: z.array(z.object({ id: z.string(), details: z.array(z.object({ id: z.string() })) })),',
+      '}).strict();',
+      '',
+      'export type ListQueryResult = z.infer<typeof QueryResultSchema>;',
+      'export type ListRow = z.infer<typeof RowSchema>;',
+      '',
+      'export const ListGeneratedMapperMetadata = {',
+      '  "relations": {',
+      '    "hasMany": [',
+      '      {',
+      '        "kind": "hasMany",',
+      '        "root": { "key": ["order_id"], "columns": { "id": "order_id" } },',
+      '        "collection": {',
+      '          "property": "details",',
+      '          "key": ["missing_detail_id"],',
+      '          "presence": ["detail_id"],',
+      '          "columns": { "id": "detail_id" }',
+      '        }',
+      '      }',
+      '    ]',
+      '  }',
+      '} as const satisfies QuerySpecMetadata;',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(path.join(queryDir, 'list.sql'), 'select order_id, detail_id from order_rows;\n', 'utf8');
+
+  await expect(
+    runFeatureGeneratedMapperGenerateCommand({
+      feature: 'orders-list',
+      query: 'list',
+      rootDir: workspace
+    })
+  ).rejects.toThrow(/metadata column "missing_detail_id" is not declared in RowSchema/);
 });

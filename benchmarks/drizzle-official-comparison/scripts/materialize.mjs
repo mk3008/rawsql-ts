@@ -32,7 +32,20 @@ for (const relativePath of ['src/rfba', 'src/local', 'profiles', 'sql']) {
 fs.cpSync(path.join(benchmarkRoot, 'src'), path.join(targetDir, 'src'), { recursive: true });
 fs.cpSync(path.join(benchmarkRoot, 'sql'), path.join(targetDir, 'sql'), { recursive: true });
 fs.cpSync(path.join(benchmarkRoot, 'profiles'), path.join(targetDir, 'profiles'), { recursive: true });
+fs.cpSync(path.join(benchmarkRoot, 'bench', 'bench.js'), path.join(targetDir, 'bench', 'bench.js'));
 fs.cpSync(path.join(benchmarkRoot, 'scripts', 'run-k6-docker.mjs'), path.join(targetDir, 'scripts', 'run-k6-docker.mjs'));
+fs.cpSync(
+  path.join(benchmarkRoot, 'scripts', 'run-rotated-k6-suite.mjs'),
+  path.join(targetDir, 'scripts', 'run-rotated-k6-suite.mjs')
+);
+fs.cpSync(
+  path.join(benchmarkRoot, 'scripts', 'pure-orm-benchmark.ts'),
+  path.join(targetDir, 'scripts', 'pure-orm-benchmark.ts')
+);
+fs.cpSync(
+  path.join(benchmarkRoot, 'scripts', 'startup-cost-benchmark.ts'),
+  path.join(targetDir, 'scripts', 'startup-cost-benchmark.ts')
+);
 
 const initialMigrationPath = path.join(targetDir, 'drizzle', '20230813113328_flat_master_mold', 'migration.sql');
 const initialMigration = fs.readFileSync(initialMigrationPath, 'utf8');
@@ -45,15 +58,26 @@ fs.writeFileSync(
   generateSource.replace('const db = drizzle(client, { logger: false });', 'const db = drizzle({ client, logger: false });')
 );
 
+const dockerPath = path.join(targetDir, 'src', 'docker.ts');
+const dockerSource = fs.readFileSync(dockerPath, 'utf8');
+fs.writeFileSync(
+  dockerPath,
+  dockerSource.replace(/(    Env: \[\r?\n      "POSTGRES_PASSWORD=postgres",\r?\n      "POSTGRES_USER=postgres",\r?\n      "POSTGRES_DB=postgres",\r?\n    \],)/, '$1\n    Cmd: ["postgres", "-c", "max_connections=300"],')
+);
+
 const packageJsonPath = path.join(targetDir, 'package.json');
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 packageJson.scripts = {
   ...packageJson.scripts,
+  'start:handwritten': 'tsx ./src/handwritten-server-node.ts',
   'start:rawsql': 'tsx ./src/rawsql-server-node.ts',
   'start:rawsql:rfba': 'tsx ./src/rawsql-rfba-server-node.ts',
   'start:rawsql:validation': 'tsx ./src/rawsql-server-node-validation.ts',
   'bench:k6:docker': 'node ./scripts/run-k6-docker.mjs',
   'bench:k6:docker:smoke': 'node ./scripts/run-k6-docker.mjs --name smoke --vus 1 --iterations 5',
+  'bench:k6:docker:rotated': 'node ./scripts/run-rotated-k6-suite.mjs',
+  'bench:pure-orm': 'tsx ./scripts/pure-orm-benchmark.ts',
+  'bench:startup-cost': 'tsx ./scripts/startup-cost-benchmark.ts',
 };
 fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
 

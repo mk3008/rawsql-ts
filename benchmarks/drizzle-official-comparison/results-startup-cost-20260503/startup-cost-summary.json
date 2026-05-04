@@ -1,0 +1,564 @@
+{
+  "generatedAt": "2026-05-03T07:59:59.132Z",
+  "command": "C:\\Program Files\\nodejs\\node.exe C:\\Users\\mssgm\\CodexApp\\worktrees\\rawsql-drizzle-benchmark\\tmp\\drizzle-benchmarks-rawsql\\scripts\\startup-cost-benchmark.ts --runs=20 --folder=results-startup-cost-20260503",
+  "config": {
+    "runs": 20,
+    "sqlFileCount": 13,
+    "generatedMapperModuleCount": 3
+  },
+  "notes": [
+    "This benchmark measures startup work only and does not execute DB queries.",
+    "sql-parse isolates parser work after SQL files and parser module are already loaded.",
+    "catalog-preparation measures the current RFBA loadQueryCatalog path, including parser load, SQL file load, parse, and descriptor creation.",
+    "generated-mapper-import measures loading generated mapper modules separately from steady-state mapping."
+  ],
+  "summary": [
+    {
+      "phase": "sql-file-load",
+      "runs": 20,
+      "meanMs": 0.529914999999994,
+      "p50Ms": 0.4854000000000269,
+      "p95Ms": 0.7122000000000526,
+      "minMs": 0.4640000000000555,
+      "maxMs": 0.7445999999999913
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "runs": 20,
+      "meanMs": 0.5927499999999867,
+      "p50Ms": 0.4353999999999587,
+      "p95Ms": 0.6634000000000242,
+      "minMs": 0.40430000000003474,
+      "maxMs": 3.154299999999978
+    },
+    {
+      "phase": "sql-parse",
+      "runs": 20,
+      "meanMs": 1.9829200000000042,
+      "p50Ms": 0.959699999999998,
+      "p95Ms": 3.6800999999999817,
+      "minMs": 0.7747000000000526,
+      "maxMs": 15.863500000000045
+    },
+    {
+      "phase": "catalog-preparation",
+      "runs": 20,
+      "meanMs": 3.1275450000000036,
+      "p50Ms": 2.595100000000002,
+      "p95Ms": 6.201900000000023,
+      "minMs": 2.0066000000000486,
+      "maxMs": 6.399900000000002
+    },
+    {
+      "phase": "generated-mapper-import",
+      "runs": 20,
+      "meanMs": 1.9103500000000053,
+      "p50Ms": 1.2310999999999694,
+      "p95Ms": 3.780399999999986,
+      "minMs": 0.9332000000000562,
+      "maxMs": 4.643500000000017
+    }
+  ],
+  "results": [
+    {
+      "phase": "sql-file-load",
+      "run": 1,
+      "durationMs": 0.6685999999999694
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 1,
+      "durationMs": 3.154299999999978
+    },
+    {
+      "phase": "sql-parse",
+      "run": 1,
+      "durationMs": 15.863500000000045
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 1,
+      "durationMs": 6.399900000000002
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 1,
+      "durationMs": 4.643500000000017
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 2,
+      "durationMs": 0.665300000000002
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 2,
+      "durationMs": 0.6175000000000068
+    },
+    {
+      "phase": "sql-parse",
+      "run": 2,
+      "durationMs": 3.6800999999999817
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 2,
+      "durationMs": 6.201900000000023
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 2,
+      "durationMs": 2.5866999999999507
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 3,
+      "durationMs": 0.5625
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 3,
+      "durationMs": 0.5123000000000388
+    },
+    {
+      "phase": "sql-parse",
+      "run": 3,
+      "durationMs": 2.0113000000000056
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 3,
+      "durationMs": 5.526700000000005
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 3,
+      "durationMs": 1.3734000000000037
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 4,
+      "durationMs": 0.5088000000000079
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 4,
+      "durationMs": 0.4497000000000071
+    },
+    {
+      "phase": "sql-parse",
+      "run": 4,
+      "durationMs": 1.6707999999999856
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 4,
+      "durationMs": 3.662300000000016
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 4,
+      "durationMs": 3.693899999999985
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 5,
+      "durationMs": 0.49080000000003565
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 5,
+      "durationMs": 0.44830000000001746
+    },
+    {
+      "phase": "sql-parse",
+      "run": 5,
+      "durationMs": 2.720200000000034
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 5,
+      "durationMs": 3.070699999999988
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 5,
+      "durationMs": 1.0183999999999855
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 6,
+      "durationMs": 0.47509999999999764
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 6,
+      "durationMs": 0.43319999999999936
+    },
+    {
+      "phase": "sql-parse",
+      "run": 6,
+      "durationMs": 1.0872000000000526
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 6,
+      "durationMs": 3.5153000000000247
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 6,
+      "durationMs": 2.845899999999972
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 7,
+      "durationMs": 0.7445999999999913
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 7,
+      "durationMs": 0.6634000000000242
+    },
+    {
+      "phase": "sql-parse",
+      "run": 7,
+      "durationMs": 1.0135999999999967
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 7,
+      "durationMs": 2.3940000000000055
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 7,
+      "durationMs": 0.9839000000000055
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 8,
+      "durationMs": 0.49150000000003047
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 8,
+      "durationMs": 0.4422999999999888
+    },
+    {
+      "phase": "sql-parse",
+      "run": 8,
+      "durationMs": 1.0328000000000088
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 8,
+      "durationMs": 2.3069999999999595
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 8,
+      "durationMs": 3.4296000000000504
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 9,
+      "durationMs": 0.7122000000000526
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 9,
+      "durationMs": 0.47539999999992233
+    },
+    {
+      "phase": "sql-parse",
+      "run": 9,
+      "durationMs": 1.192299999999932
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 9,
+      "durationMs": 2.6614999999999327
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 9,
+      "durationMs": 1.2310999999999694
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 10,
+      "durationMs": 0.46870000000001255
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 10,
+      "durationMs": 0.4474999999999909
+    },
+    {
+      "phase": "sql-parse",
+      "run": 10,
+      "durationMs": 0.9109000000000833
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 10,
+      "durationMs": 2.247600000000034
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 10,
+      "durationMs": 1.0111000000000558
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 11,
+      "durationMs": 0.471300000000042
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 11,
+      "durationMs": 0.41049999999995634
+    },
+    {
+      "phase": "sql-parse",
+      "run": 11,
+      "durationMs": 1.1353000000000293
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 11,
+      "durationMs": 2.6890999999999394
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 11,
+      "durationMs": 1.7823999999999387
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 12,
+      "durationMs": 0.4757999999999356
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 12,
+      "durationMs": 0.4112999999999829
+    },
+    {
+      "phase": "sql-parse",
+      "run": 12,
+      "durationMs": 0.959699999999998
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 12,
+      "durationMs": 2.6679000000000315
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 12,
+      "durationMs": 3.780399999999986
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 13,
+      "durationMs": 0.47529999999994743
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 13,
+      "durationMs": 0.4353999999999587
+    },
+    {
+      "phase": "sql-parse",
+      "run": 13,
+      "durationMs": 0.9049999999999727
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 13,
+      "durationMs": 3.8759000000000015
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 13,
+      "durationMs": 2.630100000000084
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 14,
+      "durationMs": 0.4854000000000269
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 14,
+      "durationMs": 0.415300000000002
+    },
+    {
+      "phase": "sql-parse",
+      "run": 14,
+      "durationMs": 0.7876999999999725
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 14,
+      "durationMs": 2.035600000000045
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 14,
+      "durationMs": 1.0200999999999567
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 15,
+      "durationMs": 0.4756999999999607
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 15,
+      "durationMs": 0.41409999999996217
+    },
+    {
+      "phase": "sql-parse",
+      "run": 15,
+      "durationMs": 0.7771000000000186
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 15,
+      "durationMs": 2.2363000000000284
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 15,
+      "durationMs": 1.321399999999926
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 16,
+      "durationMs": 0.5196999999999434
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 16,
+      "durationMs": 0.42019999999990887
+    },
+    {
+      "phase": "sql-parse",
+      "run": 16,
+      "durationMs": 0.7834000000000287
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 16,
+      "durationMs": 2.042100000000005
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 16,
+      "durationMs": 1.0147000000000617
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 17,
+      "durationMs": 0.5031999999999925
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 17,
+      "durationMs": 0.4055999999999358
+    },
+    {
+      "phase": "sql-parse",
+      "run": 17,
+      "durationMs": 0.7826000000000022
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 17,
+      "durationMs": 2.4027999999999565
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 17,
+      "durationMs": 0.9332000000000562
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 18,
+      "durationMs": 0.4701999999999771
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 18,
+      "durationMs": 0.4777000000000271
+    },
+    {
+      "phase": "sql-parse",
+      "run": 18,
+      "durationMs": 0.781099999999924
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 18,
+      "durationMs": 2.595100000000002
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 18,
+      "durationMs": 0.948500000000081
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 19,
+      "durationMs": 0.4695999999999003
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 19,
+      "durationMs": 0.41669999999999163
+    },
+    {
+      "phase": "sql-parse",
+      "run": 19,
+      "durationMs": 0.7747000000000526
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 19,
+      "durationMs": 2.0066000000000486
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 19,
+      "durationMs": 0.9705999999999904
+    },
+    {
+      "phase": "sql-file-load",
+      "run": 20,
+      "durationMs": 0.4640000000000555
+    },
+    {
+      "phase": "rawsql-parser-import",
+      "run": 20,
+      "durationMs": 0.40430000000003474
+    },
+    {
+      "phase": "sql-parse",
+      "run": 20,
+      "durationMs": 0.7890999999999622
+    },
+    {
+      "phase": "catalog-preparation",
+      "run": 20,
+      "durationMs": 2.0126000000000204
+    },
+    {
+      "phase": "generated-mapper-import",
+      "run": 20,
+      "durationMs": 0.9881000000000313
+    }
+  ]
+}
