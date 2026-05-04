@@ -14,7 +14,7 @@ Current drift-check design:
 
 | requirement | implementation |
 |---|---|
-| Detect SQL / contract / generated mapper mismatch | `ztd feature generated-mapper check` re-renders the expected mapper from the current scaffold source and compares it with `features/<feature>/queries/<query>/generated/row-mapper.ts`. |
+| Detect SQL / contract / generated mapper mismatch | `ztd feature generated-mapper check` re-renders the expected mapper from the current scaffold source and compares it with `src/features/<feature>/queries/<query>/generated/row-mapper.ts`. |
 | Fail through standard check/test/CI path | `.github/workflows/ci.yml` runs `pnpm verify:generated-mapper-drift` on the Node 20 lane. |
 | Show regeneration command on failure | The ztd-cli check reports `ztd feature generated-mapper generate --feature <feature>` with an optional `--query <query>` scope. |
 | Recover without editing `generated/` | `ztd feature generated-mapper generate` refreshes the machine-owned file from source artifacts. |

@@ -116,6 +116,7 @@ function createGeneratedMapperDriftWorkspace(prefix: string): { rootDir: string;
   const rootDir = createTempDir(prefix);
   const packageDir = path.join(rootDir, 'fixture');
   const queryDir = path.join(packageDir, 'src', 'features', 'users-list', 'queries', 'list');
+  const relativeCliEntry = path.relative(packageDir, cliEntry).replace(/\\/g, '/');
   mkdirSync(path.join(queryDir, 'generated'), { recursive: true });
   writeFileSync(
     path.join(packageDir, 'package.json'),
@@ -124,7 +125,7 @@ function createGeneratedMapperDriftWorkspace(prefix: string): { rootDir: string;
       private: true,
       type: 'module',
       scripts: {
-        ztd: `node ${cliEntry.replace(/\\/g, '/')}`
+        ztd: `node ${relativeCliEntry}`
       }
     }, null, 2)}\n`,
     'utf8'

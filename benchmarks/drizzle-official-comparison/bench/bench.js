@@ -71,7 +71,11 @@ export default function () {
     timeout: '30s',
   });
 
-  endpointTrends[endpoint]?.add(response.timings.duration);
+  const trend = endpointTrends[endpoint];
+  if (!trend) {
+    throw new Error(`Missing Trend metric for endpoint: ${endpoint}`);
+  }
+  trend.add(response.timings.duration);
 
   sleep(0.075 * (scenario.iterationInTest % 6));
 }

@@ -65,6 +65,11 @@ const targetNames = targets
   .map((target) => target.trim())
   .filter(Boolean);
 
+if (targetNames.length === 0) {
+  console.error('--targets must include at least one target.');
+  process.exit(1);
+}
+
 for (const target of targetNames) {
   if (!targetDefinitions[target]) {
     console.error(`Unknown target "${target}". Known targets: ${Object.keys(targetDefinitions).join(', ')}`);
@@ -107,14 +112,21 @@ async function waitForServer() {
   const started = Date.now();
   let lastError = null;
   while (Date.now() - started < 120_000) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3_000);
     try {
-      const response = await fetch(readinessUrl);
+      const response = await fetch(readinessUrl, { signal: controller.signal });
       if (response.ok) {
         return;
       }
       lastError = new Error(`readiness returned HTTP ${response.status}`);
     } catch (error) {
-      lastError = error;
+      lastError =
+        error instanceof Error && error.name === 'AbortError'
+          ? new Error(`readiness request timed out after 3000ms`)
+          : error;
+    } finally {
+      clearTimeout(timeout);
     }
     await new Promise((resolve) => setTimeout(resolve, 1_000));
   }

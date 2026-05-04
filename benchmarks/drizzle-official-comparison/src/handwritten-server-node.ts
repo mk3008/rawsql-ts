@@ -208,6 +208,9 @@ const startServer = async (): Promise<void> => {
 
   app.get('/customer-by-id', async (c) => {
     const result = await firstRow(queries.customerById, [asText(c.req.query('id'))]);
+    if (result === undefined) {
+      return c.json({ error: 'not found' }, 404);
+    }
     return c.json(result);
   });
 
@@ -233,6 +236,9 @@ const startServer = async (): Promise<void> => {
 
   app.get('/supplier-by-id', async (c) => {
     const result = await firstRow(queries.supplierById, [asText(c.req.query('id'))]);
+    if (result === undefined) {
+      return c.json({ error: 'not found' }, 404);
+    }
     return c.json(result);
   });
 
