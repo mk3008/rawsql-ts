@@ -95,7 +95,7 @@ packages/<package-name>/docs/concepts/
     SPEC.md
 ```
 
-`docs/concepts/README.md` is the package-local entrypoint.
+`packages/<package-name>/docs/concepts/README.md` is the package-local entrypoint.
 It lists available Concept Specs and can describe package-specific reading order.
 
 Individual concepts own their durable specification in their own directory:
