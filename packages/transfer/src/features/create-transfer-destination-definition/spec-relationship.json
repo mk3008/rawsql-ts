@@ -1,0 +1,9 @@
+{
+  "dependencies": [
+    {
+      "path": "../../../docs/concepts/destination/SPEC.md",
+      "kind": "concept",
+      "reason": "This feature creates reusable Destination Definitions and depends on Destination semantics."
+    }
+  ]
+}

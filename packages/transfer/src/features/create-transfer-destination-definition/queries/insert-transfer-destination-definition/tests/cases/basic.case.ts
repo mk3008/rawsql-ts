@@ -42,9 +42,6 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       red_transfer_source_columns: {
         columns: ['journal_date', 'debit_account_code', 'credit_account_code', 'amount', 'remarks']
       },
-      diff_compare_excluded_columns: {
-        columns: ['journal_id']
-      },
       note: null
     },
     output: {
@@ -74,9 +71,6 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       },
       red_transfer_source_columns: {
         columns: ['journal_date', 'debit_account_code', 'credit_account_code', 'amount', 'remarks']
-      },
-      diff_compare_excluded_columns: {
-        columns: ['journal_id']
       },
       created_at: expect.any(Date),
       updated_at: expect.any(Date),
@@ -113,9 +107,6 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       red_transfer_source_columns: {
         columns: ['balance_date', 'account_code', 'customer_id', 'amount', 'balance_side']
       },
-      diff_compare_excluded_columns: {
-        columns: ['account_balance_id']
-      },
       note: null
     },
     output: {
@@ -145,9 +136,6 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       },
       red_transfer_source_columns: {
         columns: ['balance_date', 'account_code', 'customer_id', 'amount', 'balance_side']
-      },
-      diff_compare_excluded_columns: {
-        columns: ['account_balance_id']
       },
       created_at: expect.any(Date),
       updated_at: expect.any(Date),

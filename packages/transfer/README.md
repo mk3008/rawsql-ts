@@ -13,7 +13,7 @@ The `transfer_destination_definition` table stores:
 - destination key metadata
 - optional sequence-expression metadata
 - transfer model
-- optional red-transfer and diff-comparison column metadata
+- optional red-transfer column metadata
 
 DDL lives in `db/ddl/transfer_destination_definition.sql`.
 
@@ -21,10 +21,10 @@ DDL lives in `db/ddl/transfer_destination_definition.sql`.
 
 ### transfer_model
 
-| Value | Meaning |
-| --- | --- |
+| Value       | Meaning                                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------------------------------- |
 | `immutable` | Add a red-transfer row for the old black row, then add a new black row on update. Add a red-transfer row on delete. |
-| `mutable` | Directly update an existing transferred row on update. Physically delete the row on delete. |
+| `mutable`   | Directly update an existing transferred row on update. Physically delete the row on delete.                         |
 
 ## Transfer Setting
 
@@ -38,5 +38,6 @@ Source SQL parsing is intentionally out of scope for the create feature; new row
 
 The destination feature accepts `CreateTransferDestinationDefinitionInput` with `transferModel`.
 The setting feature accepts `CreateTransferSettingInput`, resolves destination definitions by name, and creates the setting plus one or more destination links transactionally.
+Destination-link input owns transfer-setting-specific mapping and diff-comparison metadata.
 
 Feature-specific validation stays inside this feature. Do not move this validation into `src/libraries/` unless it becomes independent enough to extract as a reusable external package.

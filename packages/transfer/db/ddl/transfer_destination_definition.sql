@@ -13,7 +13,6 @@ create table transfer_destination_definition (
 
   , sign_inversion_columns jsonb null
   , red_transfer_source_columns jsonb null
-  , diff_compare_excluded_columns jsonb null
 
   , created_at timestamptz not null default current_timestamp
   , updated_at timestamptz not null default current_timestamp
@@ -51,12 +50,6 @@ create table transfer_destination_definition (
       red_transfer_source_columns is null
       or jsonb_typeof(red_transfer_source_columns) = 'object'
     )
-
-  , constraint chk_transfer_diff_compare_excluded_columns_object
-    check (
-      diff_compare_excluded_columns is null
-      or jsonb_typeof(diff_compare_excluded_columns) = 'object'
-    )
 );
 
 comment on table transfer_destination_definition is
@@ -91,9 +84,6 @@ comment on column transfer_destination_definition.sign_inversion_columns is
 
 comment on column transfer_destination_definition.red_transfer_source_columns is
   '赤伝生成対象列定義。元黒行から赤伝へコピーする対象列をJSONBで保持する。採番列は通常含めない。例: {"columns":["journal_date","amount","remarks"]}。';
-
-comment on column transfer_destination_definition.diff_compare_excluded_columns is
-  '差分比較除外列定義。更新判定時に比較対象から除外する転送先列をJSONBで保持する。例: {"columns":["journal_id","created_at"]}。';
 
 comment on column transfer_destination_definition.created_at is
   '作成日時。レコード作成時刻。';

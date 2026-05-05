@@ -29,9 +29,6 @@ const validInput: CreateTransferDestinationDefinitionInput = {
   redTransferSourceColumns: {
     columns: ['amount']
   },
-  diffCompareExcludedColumns: {
-    columns: ['journal_id']
-  },
   note: 'reviewed'
 };
 
@@ -52,7 +49,6 @@ test('maps camelCase feature input to snake_case query params and response field
           transfer_model: 'immutable',
           sign_inversion_columns: validInput.signInversionColumns,
           red_transfer_source_columns: validInput.redTransferSourceColumns,
-          diff_compare_excluded_columns: validInput.diffCompareExcludedColumns,
           created_at: new Date('2026-04-29T00:00:00.000Z'),
           updated_at: new Date('2026-04-29T00:00:00.000Z'),
           note: 'reviewed'
@@ -74,7 +70,6 @@ test('maps camelCase feature input to snake_case query params and response field
       transfer_model: 'immutable',
       sign_inversion_columns: validInput.signInversionColumns,
       red_transfer_source_columns: validInput.redTransferSourceColumns,
-      diff_compare_excluded_columns: validInput.diffCompareExcludedColumns,
       note: 'reviewed'
     }
   ]);
@@ -89,7 +84,6 @@ test('maps camelCase feature input to snake_case query params and response field
     transferModel: 'immutable',
     signInversionColumns: validInput.signInversionColumns,
     redTransferSourceColumns: validInput.redTransferSourceColumns,
-    diffCompareExcludedColumns: validInput.diffCompareExcludedColumns,
     createdAt: new Date('2026-04-29T00:00:00.000Z'),
     updatedAt: new Date('2026-04-29T00:00:00.000Z'),
     note: 'reviewed'
@@ -116,7 +110,6 @@ test.each([
   ['unknown sequence expression column', { sequenceExpressionDefinition: { missing_id: "nextval('x')" } }],
   ['unknown sign inversion column', { signInversionColumns: { columns: ['missing_amount'] } }],
   ['unknown red transfer source column', { redTransferSourceColumns: { columns: ['missing_amount'] } }],
-  ['unknown diff compare excluded column', { diffCompareExcludedColumns: { columns: ['missing_id'] } }],
   ['invalid transfer model', { transferModel: 'merge' }]
 ])('rejects invalid input: %s', async (_name, patch) => {
   const executor = createGuardedExecutor();

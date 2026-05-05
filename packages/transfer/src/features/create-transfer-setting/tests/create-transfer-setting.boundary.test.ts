@@ -26,6 +26,9 @@ const validInput: CreateTransferSettingInput = {
           remarks: 'remarks'
         }
       },
+      diffCompareExcludedColumns: {
+        columns: ['journal_id', 'created_at']
+      },
       note: 'journal mapping'
     }
   ],
@@ -53,6 +56,7 @@ test('creates a transfer setting and destination links in one transaction', asyn
     transferSettingId: '100',
     transferDestinationDefinitionId: '10',
     executionOrder: 1,
+    diffCompareExcludedColumns: validInput.destinations[0]?.diffCompareExcludedColumns,
     generatedInsertTransferSqlBody: '',
     generatedUpdateTransferSqlBody: '',
     generatedRedTransferSqlBody: '',
@@ -77,6 +81,7 @@ test('creates a transfer setting and destination links in one transaction', asyn
     transfer_setting_id: '100',
     transfer_destination_definition_id: '10',
     execution_order: 1,
+    diff_compare_excluded_columns: validInput.destinations[0]?.diffCompareExcludedColumns,
     is_enabled: true
   });
 });
@@ -195,6 +200,7 @@ function createMockTransactionalExecutor(
             execution_order: params.execution_order,
             source_key_definition: params.source_key_definition,
             mapping_definition: params.mapping_definition,
+            diff_compare_excluded_columns: params.diff_compare_excluded_columns,
             generated_insert_transfer_sql_body: '',
             generated_update_transfer_sql_body: '',
             generated_red_transfer_sql_body: '',

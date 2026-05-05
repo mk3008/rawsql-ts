@@ -13,6 +13,7 @@ export function mapInsertTransferSettingDestinationDefinitionRowToResult(row: In
     "execution_order": row["execution_order"],
     "source_key_definition": row["source_key_definition"],
     "mapping_definition": row["mapping_definition"],
+    "diff_compare_excluded_columns": row["diff_compare_excluded_columns"],
     "generated_insert_transfer_sql_body": row["generated_insert_transfer_sql_body"],
     "generated_update_transfer_sql_body": row["generated_update_transfer_sql_body"],
     "generated_red_transfer_sql_body": row["generated_red_transfer_sql_body"],

@@ -44,7 +44,7 @@ const resolveTransferDestinationDefinitionsCatalogSpec: QuerySpec<
   ResolveTransferDestinationDefinitionsRow
 > = {
   id: 'src/features/create-transfer-setting/queries/resolve-transfer-destination-definitions/spec',
-  sqlFile: 'src/features/create-transfer-setting/queries/resolve-transfer-destination-definitions/resolve-transfer-destination-definitions.sql',
+  sqlFile: 'resolve-transfer-destination-definitions.sql',
   params: {
     shape: 'named',
     example: {

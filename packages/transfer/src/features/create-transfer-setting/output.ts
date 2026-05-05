@@ -23,6 +23,7 @@ export type CreateTransferSettingResult = {
     executionOrder: number;
     sourceKeyDefinition: Record<string, unknown>;
     mappingDefinition: Record<string, unknown>;
+    diffCompareExcludedColumns: Record<string, unknown> | null;
     generatedInsertTransferSqlBody: string;
     generatedUpdateTransferSqlBody: string;
     generatedRedTransferSqlBody: string;
@@ -60,6 +61,7 @@ export function buildResult(created: CreateTransferSettingWorkflowResult): Creat
       executionOrder: destination.execution_order,
       sourceKeyDefinition: destination.source_key_definition,
       mappingDefinition: destination.mapping_definition,
+      diffCompareExcludedColumns: destination.diff_compare_excluded_columns,
       generatedInsertTransferSqlBody: destination.generated_insert_transfer_sql_body,
       generatedUpdateTransferSqlBody: destination.generated_update_transfer_sql_body,
       generatedRedTransferSqlBody: destination.generated_red_transfer_sql_body,

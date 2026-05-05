@@ -8,7 +8,6 @@ insert into "public"."transfer_destination_definition" (
   , "transfer_model"
   , "sign_inversion_columns"
   , "red_transfer_source_columns"
-  , "diff_compare_excluded_columns"
   , "note"
 )
 select
@@ -21,7 +20,6 @@ select
   , :transfer_model
   , :sign_inversion_columns::jsonb
   , :red_transfer_source_columns::jsonb
-  , :diff_compare_excluded_columns::jsonb
   , :note
 returning
   "transfer_destination_definition_id"
@@ -34,7 +32,6 @@ returning
   , "transfer_model"
   , "sign_inversion_columns"
   , "red_transfer_source_columns"
-  , "diff_compare_excluded_columns"
   , "created_at"
   , "updated_at"
   , "note";

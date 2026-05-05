@@ -1,0 +1,9 @@
+{
+  "dependencies": [
+    {
+      "path": "../../../docs/concepts/destination/SPEC.md",
+      "kind": "concept",
+      "reason": "This feature links Transfer Settings to reusable Destination Definitions by name."
+    }
+  ]
+}

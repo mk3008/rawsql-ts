@@ -2,6 +2,10 @@ import { z } from 'zod';
 
 const JsonObjectSchema = z.record(z.string(), z.unknown());
 
+const ColumnListSchema = z.object({
+  columns: z.array(z.string().trim().min(1))
+}).strict();
+
 const SourceKeyDefinitionSchema = z.object({
   keys: z.array(
     z.object({
@@ -17,6 +21,7 @@ const DestinationInputSchema = z.object({
   executionOrder: z.number().int().positive(),
   sourceKeyDefinition: SourceKeyDefinitionSchema,
   mappingDefinition: JsonObjectSchema,
+  diffCompareExcludedColumns: ColumnListSchema.optional(),
   isEnabled: z.boolean().optional(),
   note: z.string().trim().min(1).optional()
 }).strict();

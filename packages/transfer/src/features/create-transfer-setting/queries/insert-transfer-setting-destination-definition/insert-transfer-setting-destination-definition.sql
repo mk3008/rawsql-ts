@@ -4,6 +4,7 @@ insert into "public"."transfer_setting_destination_definition" (
   , "execution_order"
   , "source_key_definition"
   , "mapping_definition"
+  , "diff_compare_excluded_columns"
   , "generated_insert_transfer_sql_body"
   , "generated_update_transfer_sql_body"
   , "generated_red_transfer_sql_body"
@@ -18,6 +19,7 @@ insert into "public"."transfer_setting_destination_definition" (
   , :execution_order
   , :source_key_definition
   , :mapping_definition
+  , :diff_compare_excluded_columns::jsonb
   , ''
   , ''
   , ''
@@ -33,6 +35,7 @@ insert into "public"."transfer_setting_destination_definition" (
   , "execution_order"
   , "source_key_definition"
   , "mapping_definition"
+  , "diff_compare_excluded_columns"
   , "generated_insert_transfer_sql_body"
   , "generated_update_transfer_sql_body"
   , "generated_red_transfer_sql_body"

@@ -23,7 +23,6 @@ const QueryParamsSchema = z.object({
   transfer_model: z.enum(['immutable', 'mutable']),
   sign_inversion_columns: JsonObjectSchema.nullable(),
   red_transfer_source_columns: JsonObjectSchema.nullable(),
-  diff_compare_excluded_columns: JsonObjectSchema.nullable(),
   note: z.string().min(1).nullable()
 }).strict();
 
@@ -40,7 +39,6 @@ const RowSchema = z.object({
   transfer_model: z.enum(['immutable', 'mutable']),
   sign_inversion_columns: JsonObjectSchema.nullable(),
   red_transfer_source_columns: JsonObjectSchema.nullable(),
-  diff_compare_excluded_columns: JsonObjectSchema.nullable(),
   created_at: z.coerce.date(),
   updated_at: z.coerce.date(),
   note: z.string().nullable()

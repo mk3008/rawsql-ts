@@ -6,4 +6,5 @@ Concept Specs define stable meanings, responsibility boundaries, and invariants 
 
 Available Concept Specs:
 
+- [Destination](./destination/SPEC.md)
 - [Dirty Key](./dirty-key/SPEC.md)

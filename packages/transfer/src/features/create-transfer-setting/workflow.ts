@@ -134,6 +134,7 @@ async function insertTransferSettingDestinations(
         execution_order: destination.executionOrder,
         source_key_definition: destination.sourceKeyDefinition,
         mapping_definition: destination.mappingDefinition,
+        diff_compare_excluded_columns: destination.diffCompareExcludedColumns ?? null,
         is_enabled: destination.isEnabled ?? true,
         note: destination.note ?? null
       })

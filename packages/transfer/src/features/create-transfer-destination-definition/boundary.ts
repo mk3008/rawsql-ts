@@ -37,7 +37,6 @@ const RequestSchema = z.object({
   transferModel: z.enum(TRANSFER_MODELS),
   signInversionColumns: ColumnListSchema.optional(),
   redTransferSourceColumns: ColumnListSchema.optional(),
-  diffCompareExcludedColumns: ColumnListSchema.optional(),
   note: z.string().trim().min(1).optional()
 }).strict();
 
@@ -54,7 +53,6 @@ const ResponseSchema = z.object({
   transferModel: z.enum(TRANSFER_MODELS),
   signInversionColumns: ColumnListSchema.nullable(),
   redTransferSourceColumns: ColumnListSchema.nullable(),
-  diffCompareExcludedColumns: ColumnListSchema.nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
   note: z.string().nullable()
@@ -86,10 +84,7 @@ function normalizeRequest(request: CreateTransferDestinationDefinitionInput): Cr
       : { columns: request.signInversionColumns.columns },
     redTransferSourceColumns: request.redTransferSourceColumns === undefined
       ? undefined
-      : { columns: request.redTransferSourceColumns.columns },
-    diffCompareExcludedColumns: request.diffCompareExcludedColumns === undefined
-      ? undefined
-      : { columns: request.diffCompareExcludedColumns.columns }
+      : { columns: request.redTransferSourceColumns.columns }
   };
 }
 
@@ -127,11 +122,6 @@ function rejectRequest(request: CreateTransferDestinationDefinitionInput): void 
     request.redTransferSourceColumns?.columns ?? [],
     destinationColumnNameSet
   );
-  rejectUnknownColumnReferences(
-    'diffCompareExcludedColumns.columns',
-    request.diffCompareExcludedColumns?.columns ?? [],
-    destinationColumnNameSet
-  );
 }
 
 function rejectUnknownColumnReferences(
@@ -156,7 +146,6 @@ function toQueryParams(request: CreateTransferDestinationDefinitionInput): Inser
     transfer_model: request.transferModel,
     sign_inversion_columns: request.signInversionColumns ?? null,
     red_transfer_source_columns: request.redTransferSourceColumns ?? null,
-    diff_compare_excluded_columns: request.diffCompareExcludedColumns ?? null,
     note: request.note ?? null
   };
 }
@@ -175,7 +164,6 @@ function fromQueryResult(
     transferModel: result.transfer_model,
     signInversionColumns: result.sign_inversion_columns,
     redTransferSourceColumns: result.red_transfer_source_columns,
-    diffCompareExcludedColumns: result.diff_compare_excluded_columns,
     createdAt: result.created_at,
     updatedAt: result.updated_at,
     note: result.note
