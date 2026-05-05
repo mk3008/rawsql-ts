@@ -42,7 +42,10 @@ test('Further Reading docs stay aligned with the current standalone and CLI beha
       phrases: [
         'RFBA means **Review-First Backend Architecture**.',
         'The goal is to make AI-produced work reviewable by humans.',
-        'RFBA does this by splitting files by review responsibility.',
+        'RFBA splits backend code by review-worthy concerns, not by technical layers.',
+        'SQL is an important example, not the definition of RFBA.',
+        '## File Splitting Rule',
+        'Expose the artifacts humans should review directly; keep mechanical wiring and generated code close to the boundary they serve.',
         'RFBA is intentionally scoped to backend work, especially database applications.',
         'RFBA treats DDL as the source of truth for data structure',
         'raw SQL is a natural review boundary',
