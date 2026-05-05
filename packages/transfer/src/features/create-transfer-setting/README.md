@@ -34,12 +34,12 @@ Each destination item contains:
 - non-blank `sourceSqlBody`
 - object-shaped `sourceKeyDefinition`
 - at least one destination
-- positive integer `executionOrder`
-- unique `executionOrder` within the input
-- unique `destinationDefinitionName` within the input
-- object-shaped `sourceKeyDefinition`
-- object-shaped `mappingDefinition`
-- object-shaped `diffCompareExcludedColumns` when provided
+- positive integer `destinations[].executionOrder`
+- unique `destinations[].executionOrder` within the input
+- unique `destinations[].destinationDefinitionName` within the input
+- object-shaped `destinations[].sourceKeyDefinition`
+- object-shaped `destinations[].mappingDefinition`
+- object-shaped `destinations[].diffCompareExcludedColumns` when provided
 
 Destination definitions are resolved by `transfer_destination_definition_name` before inserting the setting row.
 Unknown destination definitions fail the operation before any setting row is inserted.

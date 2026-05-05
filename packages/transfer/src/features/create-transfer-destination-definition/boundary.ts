@@ -44,7 +44,7 @@ const RequestSchema = z
       .trim()
       .min(1)
       .refine(
-        (value) => value.includes('.'),
+        (value) => isFullyQualifiedTableName(value),
         'destinationTableName must be a fully qualified table name, such as public.journal.',
       ),
     destinationColumns: DestinationColumnsSchema,
@@ -78,6 +78,12 @@ const ResponseSchema = z
   .strict();
 
 export type CreateTransferDestinationDefinitionResult = z.infer<typeof ResponseSchema>;
+
+function isFullyQualifiedTableName(value: string): boolean {
+  const trimmedValue = value.trim();
+  const parts = trimmedValue.split('.');
+  return parts.length === 2 && parts.every((part) => part.length > 0);
+}
 
 function parseRequest(raw: unknown): CreateTransferDestinationDefinitionInput {
   return RequestSchema.parse(raw);

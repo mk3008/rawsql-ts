@@ -25,7 +25,16 @@ create table transfer_destination_definition (
     check (btrim(destination_table_name) <> '')
 
   , constraint chk_transfer_destination_table_name_qualified
-    check (position('.' in btrim(destination_table_name)) > 0)
+    check (
+      position('.' in btrim(destination_table_name)) > 1
+      and split_part(btrim(destination_table_name), '.', 1) <> ''
+      and split_part(btrim(destination_table_name), '.', 2) <> ''
+      and btrim(destination_table_name) =
+        split_part(btrim(destination_table_name), '.', 1)
+        || '.'
+        || split_part(btrim(destination_table_name), '.', 2)
+      and right(btrim(destination_table_name), 1) <> '.'
+    )
 
   , constraint chk_transfer_destination_transfer_model
     check (transfer_model in ('immutable', 'mutable'))

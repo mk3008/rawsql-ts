@@ -94,6 +94,9 @@ test.each([
   ['empty name', { name: '   ' }],
   ['empty destination table name', { destinationTableName: '   ' }],
   ['unqualified destination table name', { destinationTableName: 'journal' }],
+  ['missing destination schema name', { destinationTableName: '.journal' }],
+  ['missing destination table name', { destinationTableName: 'public.' }],
+  ['too many destination table name parts', { destinationTableName: 'public.journal.extra' }],
   ['empty destination columns', { destinationColumns: { columns: [] } }],
   [
     'duplicate destination column names',
