@@ -18,7 +18,7 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
     input: {
       transfer_destination_definition_name: 'journal',
       description: '仕訳転送先',
-      destination_table_name: 'journal',
+      destination_table_name: 'public.journal',
       destination_columns: {
         columns: [
           { name: 'journal_id', type: 'bigint', role: 'key' },
@@ -48,7 +48,7 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       transfer_destination_definition_id: expect.any(String),
       transfer_destination_definition_name: 'journal',
       description: '仕訳転送先',
-      destination_table_name: 'journal',
+      destination_table_name: 'public.journal',
       destination_columns: {
         columns: [
           { name: 'journal_id', type: 'bigint', role: 'key' },
@@ -83,7 +83,7 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
     input: {
       transfer_destination_definition_name: 'account_balance',
       description: '科目残高転送先',
-      destination_table_name: 'account_balance',
+      destination_table_name: 'public.account_balance',
       destination_columns: {
         columns: [
           { name: 'account_balance_id', type: 'bigint', role: 'key' },
@@ -113,7 +113,7 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       transfer_destination_definition_id: expect.any(String),
       transfer_destination_definition_name: 'account_balance',
       description: '科目残高転送先',
-      destination_table_name: 'account_balance',
+      destination_table_name: 'public.account_balance',
       destination_columns: {
         columns: [
           { name: 'account_balance_id', type: 'bigint', role: 'key' },

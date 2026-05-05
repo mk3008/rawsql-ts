@@ -3,6 +3,7 @@ insert into "public"."transfer_setting" (
   , "description"
   , "source_sql_body"
   , "source_sql_hash"
+  , "source_key_definition"
   , "source_sql_analysis_result"
   , "search_condition_analysis_result"
   , "source_sql_analysis_status"
@@ -14,6 +15,7 @@ insert into "public"."transfer_setting" (
   , :description
   , :source_sql_body
   , :source_sql_hash
+  , :source_key_definition::jsonb
   , :source_sql_analysis_result
   , :search_condition_analysis_result
   , :source_sql_analysis_status
@@ -26,6 +28,7 @@ insert into "public"."transfer_setting" (
   , "description"
   , "source_sql_body"
   , "source_sql_hash"
+  , "source_key_definition"
   , "source_sql_analysis_result"
   , "search_condition_analysis_result"
   , "source_sql_analysis_status"

@@ -24,14 +24,14 @@ The public feature boundary accepts `CreateTransferDestinationDefinitionInput` w
 The feature boundary validates the minimum create rules before calling the query boundary:
 
 - non-blank `name`
-- non-blank `destinationTableName`
+- non-blank, fully qualified, unique `destinationTableName`
 - at least one `destinationColumns.columns` entry
 - unique `destinationColumns.columns[].name`
 - at least one `destinationKeyDefinition.keys` entry
 - referenced key, sequence, sign inversion, and red-transfer source columns exist in `destinationColumns.columns`
 - allowed `transferModel` values
 
-Duplicate `transfer_destination_definition_name` values are not preflighted in the feature SQL. The database unique constraint owns that fail-fast behavior.
+Duplicate `transfer_destination_definition_name` and `destination_table_name` values are not preflighted in the feature SQL. The database unique constraints own that fail-fast behavior.
 
 Transfer-setting-specific diff comparison exclusions are intentionally not part of Destination Definition input.
 Those exclusions belong to the Transfer Setting Destination Link.

@@ -11,6 +11,7 @@ The public feature boundary accepts `CreateTransferSettingInput` with camelCase 
 - `name`
 - `description`
 - `sourceSqlBody`
+- `sourceKeyDefinition`
 - `isEnabled`
 - `note`
 - `destinations`
@@ -31,6 +32,7 @@ Each destination item contains:
 
 - non-blank `name`
 - non-blank `sourceSqlBody`
+- object-shaped `sourceKeyDefinition`
 - at least one destination
 - positive integer `executionOrder`
 - unique `executionOrder` within the input

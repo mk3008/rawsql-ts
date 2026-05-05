@@ -8,3 +8,4 @@ Available Concept Specs:
 
 - [Destination](./destination/SPEC.md)
 - [Dirty Key](./dirty-key/SPEC.md)
+- [Transfer Setting](./transfer-setting/SPEC.md)
