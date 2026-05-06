@@ -11,6 +11,7 @@ create table transfer_setting_destination_definition (
 
   , source_key_definition jsonb not null
   , mapping_definition jsonb not null
+  , diff_compare_excluded_columns jsonb null
 
   , generated_insert_transfer_sql_body text not null default ''
   , generated_update_transfer_sql_body text not null default ''
@@ -34,6 +35,12 @@ create table transfer_setting_destination_definition (
   , constraint chk_transfer_setting_destination_mapping_definition_object
     check (jsonb_typeof(mapping_definition) = 'object')
 
+  , constraint chk_transfer_setting_destination_diff_compare_excluded_columns_object
+    check (
+      diff_compare_excluded_columns is null
+      or jsonb_typeof(diff_compare_excluded_columns) = 'object'
+    )
+
   , constraint chk_transfer_setting_destination_generated_sql_status
     check (generated_sql_status in ('not_generated', 'success', 'failed'))
 
@@ -51,7 +58,7 @@ create index idx_transfer_setting_destination_definition_destination
   on transfer_setting_destination_definition (transfer_destination_definition_id);
 
 comment on table transfer_setting_destination_definition is
-  '転送設定と転送先定義の紐づけ。転送設定の基礎SQLを、どの転送先定義へ、どの順序とマッピングで転送するかを管理する。';
+  '転送設定と転送先定義の紐づけ。転送設定の基礎SQLを、どの転送先定義へ、どの順序、マッピング、差分比較除外設定で転送するかを管理する。';
 
 comment on column transfer_setting_destination_definition.transfer_setting_destination_definition_id is
   '転送設定転送先定義ID。サロゲートキー。';
@@ -70,6 +77,9 @@ comment on column transfer_setting_destination_definition.source_key_definition 
 
 comment on column transfer_setting_destination_definition.mapping_definition is
   'マッピング定義。基礎選択SQLの結果列を転送先列へどう対応させるかをJSONBで保持する。';
+
+comment on column transfer_setting_destination_definition.diff_compare_excluded_columns is
+  '差分比較除外列定義。同一転送設定内の転送先定義リンクにおいて、更新判定時に比較対象から除外する転送先列をJSONBで保持する。例: {"columns":["journal_id","created_at"]}。';
 
 comment on column transfer_setting_destination_definition.generated_insert_transfer_sql_body is
   '生成追加転送SQL本文。新規またはシンクロ転送で黒を追加するSQLを保持する。このIssueではSQL生成未実装のため空文字を保存する。';

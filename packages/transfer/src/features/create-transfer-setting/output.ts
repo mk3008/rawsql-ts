@@ -7,6 +7,7 @@ export type CreateTransferSettingResult = {
     description: string | null;
     sourceSqlBody: string;
     sourceSqlHash: string;
+    sourceKeyDefinition: Record<string, unknown>;
     sourceSqlAnalysisResult: Record<string, unknown> | null;
     searchConditionAnalysisResult: Record<string, unknown> | null;
     sourceSqlAnalysisStatus: 'not_analyzed' | 'success' | 'failed';
@@ -23,6 +24,7 @@ export type CreateTransferSettingResult = {
     executionOrder: number;
     sourceKeyDefinition: Record<string, unknown>;
     mappingDefinition: Record<string, unknown>;
+    diffCompareExcludedColumns: Record<string, unknown> | null;
     generatedInsertTransferSqlBody: string;
     generatedUpdateTransferSqlBody: string;
     generatedRedTransferSqlBody: string;
@@ -36,7 +38,9 @@ export type CreateTransferSettingResult = {
   }>;
 };
 
-export function buildResult(created: CreateTransferSettingWorkflowResult): CreateTransferSettingResult {
+export function buildResult(
+  created: CreateTransferSettingWorkflowResult,
+): CreateTransferSettingResult {
   return {
     transferSetting: {
       transferSettingId: created.transferSetting.transfer_setting_id,
@@ -44,6 +48,7 @@ export function buildResult(created: CreateTransferSettingWorkflowResult): Creat
       description: created.transferSetting.description,
       sourceSqlBody: created.transferSetting.source_sql_body,
       sourceSqlHash: created.transferSetting.source_sql_hash,
+      sourceKeyDefinition: created.transferSetting.source_key_definition,
       sourceSqlAnalysisResult: created.transferSetting.source_sql_analysis_result,
       searchConditionAnalysisResult: created.transferSetting.search_condition_analysis_result,
       sourceSqlAnalysisStatus: created.transferSetting.source_sql_analysis_status,
@@ -51,15 +56,17 @@ export function buildResult(created: CreateTransferSettingWorkflowResult): Creat
       isEnabled: created.transferSetting.is_enabled,
       createdAt: created.transferSetting.created_at,
       updatedAt: created.transferSetting.updated_at,
-      note: created.transferSetting.note
+      note: created.transferSetting.note,
     },
     destinations: created.destinations.map((destination) => ({
-      transferSettingDestinationDefinitionId: destination.transfer_setting_destination_definition_id,
+      transferSettingDestinationDefinitionId:
+        destination.transfer_setting_destination_definition_id,
       transferSettingId: destination.transfer_setting_id,
       transferDestinationDefinitionId: destination.transfer_destination_definition_id,
       executionOrder: destination.execution_order,
       sourceKeyDefinition: destination.source_key_definition,
       mappingDefinition: destination.mapping_definition,
+      diffCompareExcludedColumns: destination.diff_compare_excluded_columns,
       generatedInsertTransferSqlBody: destination.generated_insert_transfer_sql_body,
       generatedUpdateTransferSqlBody: destination.generated_update_transfer_sql_body,
       generatedRedTransferSqlBody: destination.generated_red_transfer_sql_body,
@@ -69,7 +76,7 @@ export function buildResult(created: CreateTransferSettingWorkflowResult): Creat
       isEnabled: destination.is_enabled,
       createdAt: destination.created_at,
       updatedAt: destination.updated_at,
-      note: destination.note
-    }))
+      note: destination.note,
+    })),
   };
 }

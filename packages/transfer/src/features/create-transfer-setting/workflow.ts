@@ -4,11 +4,11 @@ import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor.js';
 import type { CreateTransferSettingDestinationInput, CreateTransferSettingInput } from './input.js';
 import {
   executeInsertTransferSettingQuerySpec,
-  type InsertTransferSettingQueryResult
+  type InsertTransferSettingQueryResult,
 } from './queries/insert-transfer-setting/boundary.js';
 import {
   executeInsertTransferSettingDestinationDefinitionQuerySpec,
-  type InsertTransferSettingDestinationDefinitionQueryResult
+  type InsertTransferSettingDestinationDefinitionQueryResult,
 } from './queries/insert-transfer-setting-destination-definition/boundary.js';
 import { executeResolveTransferDestinationDefinitionsQuerySpec } from './queries/resolve-transfer-destination-definitions/boundary.js';
 
@@ -29,7 +29,7 @@ type TransactionalFeatureQueryExecutor = FeatureQueryExecutor & {
  */
 export async function execute(
   executor: FeatureQueryExecutor,
-  request: CreateTransferSettingInput
+  request: CreateTransferSettingInput,
 ): Promise<CreateTransferSettingWorkflowResult> {
   // Creating a transfer setting writes the parent setting and one or more destination links.
   // Require a transaction so a partial setting cannot be persisted.
@@ -40,7 +40,7 @@ export async function execute(
     // Resolve names inside the transaction before inserting the link rows.
     const destinationDefinitionIdByName = await resolveTransferDestinationDefinitionIds(
       transactionExecutor,
-      request.destinations
+      request.destinations,
     );
 
     const transferSetting = await insertTransferSetting(transactionExecutor, request);
@@ -48,14 +48,16 @@ export async function execute(
       transactionExecutor,
       transferSetting.transfer_setting_id,
       request.destinations,
-      destinationDefinitionIdByName
+      destinationDefinitionIdByName,
     );
 
     return { transferSetting, destinations };
   });
 }
 
-function assertTransactionalExecutor(executor: FeatureQueryExecutor): TransactionalFeatureQueryExecutor {
+function assertTransactionalExecutor(
+  executor: FeatureQueryExecutor,
+): TransactionalFeatureQueryExecutor {
   if (typeof executor.transaction !== 'function') {
     throw new Error('create-transfer-setting requires a transactional executor.');
   }
@@ -68,17 +70,19 @@ function assertTransactionalExecutor(executor: FeatureQueryExecutor): Transactio
  */
 async function resolveTransferDestinationDefinitionIds(
   executor: FeatureQueryExecutor,
-  destinations: readonly CreateTransferSettingDestinationInput[]
+  destinations: readonly CreateTransferSettingDestinationInput[],
 ): Promise<Map<string, string>> {
-  const destinationDefinitionNames = destinations.map((destination) => destination.destinationDefinitionName);
+  const destinationDefinitionNames = destinations.map(
+    (destination) => destination.destinationDefinitionName,
+  );
   const result = await executeResolveTransferDestinationDefinitionsQuerySpec(executor, {
-    destination_definition_names: destinationDefinitionNames
+    destination_definition_names: destinationDefinitionNames,
   });
   const idByName = new Map(
     result.items.map((item) => [
       item.transfer_destination_definition_name,
-      item.transfer_destination_definition_id
-    ])
+      item.transfer_destination_definition_id,
+    ]),
   );
   const missingNames = destinationDefinitionNames.filter((name) => !idByName.has(name));
   if (missingNames.length > 0) {
@@ -93,19 +97,20 @@ async function resolveTransferDestinationDefinitionIds(
  */
 async function insertTransferSetting(
   executor: FeatureQueryExecutor,
-  request: CreateTransferSettingInput
+  request: CreateTransferSettingInput,
 ): Promise<InsertTransferSettingQueryResult> {
   return executeInsertTransferSettingQuerySpec(executor, {
     transfer_setting_name: request.name,
     description: request.description ?? null,
     source_sql_body: request.sourceSqlBody,
     source_sql_hash: hashSourceSql(request.sourceSqlBody),
+    source_key_definition: request.sourceKeyDefinition,
     source_sql_analysis_result: null,
     search_condition_analysis_result: null,
     source_sql_analysis_status: 'not_analyzed',
     source_sql_analysis_error: null,
     is_enabled: request.isEnabled ?? true,
-    note: request.note ?? null
+    note: request.note ?? null,
   });
 }
 
@@ -117,14 +122,18 @@ async function insertTransferSettingDestinations(
   executor: FeatureQueryExecutor,
   transferSettingId: string,
   destinations: readonly CreateTransferSettingDestinationInput[],
-  destinationDefinitionIdByName: ReadonlyMap<string, string>
+  destinationDefinitionIdByName: ReadonlyMap<string, string>,
 ): Promise<InsertTransferSettingDestinationDefinitionQueryResult[]> {
   const insertedDestinations: InsertTransferSettingDestinationDefinitionQueryResult[] = [];
 
   for (const destination of destinations) {
-    const transferDestinationDefinitionId = destinationDefinitionIdByName.get(destination.destinationDefinitionName);
+    const transferDestinationDefinitionId = destinationDefinitionIdByName.get(
+      destination.destinationDefinitionName,
+    );
     if (!transferDestinationDefinitionId) {
-      throw new Error(`Unknown transfer destination definition: ${destination.destinationDefinitionName}.`);
+      throw new Error(
+        `Unknown transfer destination definition: ${destination.destinationDefinitionName}.`,
+      );
     }
 
     insertedDestinations.push(
@@ -134,9 +143,10 @@ async function insertTransferSettingDestinations(
         execution_order: destination.executionOrder,
         source_key_definition: destination.sourceKeyDefinition,
         mapping_definition: destination.mappingDefinition,
+        diff_compare_excluded_columns: destination.diffCompareExcludedColumns ?? null,
         is_enabled: destination.isEnabled ?? true,
-        note: destination.note ?? null
-      })
+        note: destination.note ?? null,
+      }),
     );
   }
 

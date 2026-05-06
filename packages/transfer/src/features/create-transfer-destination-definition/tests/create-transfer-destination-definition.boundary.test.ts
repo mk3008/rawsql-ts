@@ -2,37 +2,34 @@ import { expect, test } from 'vitest';
 
 import {
   executeCreateTransferDestinationDefinitionEntrySpec,
-  type CreateTransferDestinationDefinitionInput
+  type CreateTransferDestinationDefinitionInput,
 } from '../boundary.js';
 import type { FeatureQueryExecutor } from '../../_shared/featureQueryExecutor.js';
 
 const validInput: CreateTransferDestinationDefinitionInput = {
   name: 'journal',
   description: '仕訳転送先',
-  destinationTableName: 'journal',
+  destinationTableName: 'public.journal',
   destinationColumns: {
     columns: [
       { name: 'journal_id', type: 'bigint', role: 'key' },
-      { name: 'amount', type: 'numeric', role: 'amount' }
-    ]
+      { name: 'amount', type: 'numeric', role: 'amount' },
+    ],
   },
   destinationKeyDefinition: {
-    keys: ['journal_id']
+    keys: ['journal_id'],
   },
   sequenceExpressionDefinition: {
-    journal_id: "nextval('journal_seq')"
+    journal_id: "nextval('journal_seq')",
   },
   transferModel: 'immutable',
   signInversionColumns: {
-    columns: ['amount']
+    columns: ['amount'],
   },
   redTransferSourceColumns: {
-    columns: ['amount']
+    columns: ['amount'],
   },
-  diffCompareExcludedColumns: {
-    columns: ['journal_id']
-  },
-  note: 'reviewed'
+  note: 'reviewed',
 };
 
 test('maps camelCase feature input to snake_case query params and response fields', async () => {
@@ -45,20 +42,19 @@ test('maps camelCase feature input to snake_case query params and response field
           transfer_destination_definition_id: '1',
           transfer_destination_definition_name: 'journal',
           description: '仕訳転送先',
-          destination_table_name: 'journal',
+          destination_table_name: 'public.journal',
           destination_columns: validInput.destinationColumns,
           destination_key_definition: validInput.destinationKeyDefinition,
           sequence_expression_definition: validInput.sequenceExpressionDefinition,
           transfer_model: 'immutable',
           sign_inversion_columns: validInput.signInversionColumns,
           red_transfer_source_columns: validInput.redTransferSourceColumns,
-          diff_compare_excluded_columns: validInput.diffCompareExcludedColumns,
           created_at: new Date('2026-04-29T00:00:00.000Z'),
           updated_at: new Date('2026-04-29T00:00:00.000Z'),
-          note: 'reviewed'
-        }
+          note: 'reviewed',
+        },
       ] as T[];
-    }
+    },
   };
 
   const result = await executeCreateTransferDestinationDefinitionEntrySpec(executor, validInput);
@@ -67,38 +63,40 @@ test('maps camelCase feature input to snake_case query params and response field
     {
       transfer_destination_definition_name: 'journal',
       description: '仕訳転送先',
-      destination_table_name: 'journal',
+      destination_table_name: 'public.journal',
       destination_columns: validInput.destinationColumns,
       destination_key_definition: validInput.destinationKeyDefinition,
       sequence_expression_definition: validInput.sequenceExpressionDefinition,
       transfer_model: 'immutable',
       sign_inversion_columns: validInput.signInversionColumns,
       red_transfer_source_columns: validInput.redTransferSourceColumns,
-      diff_compare_excluded_columns: validInput.diffCompareExcludedColumns,
-      note: 'reviewed'
-    }
+      note: 'reviewed',
+    },
   ]);
   expect(result).toEqual({
     transferDestinationDefinitionId: '1',
     name: 'journal',
     description: '仕訳転送先',
-    destinationTableName: 'journal',
+    destinationTableName: 'public.journal',
     destinationColumns: validInput.destinationColumns,
     destinationKeyDefinition: validInput.destinationKeyDefinition,
     sequenceExpressionDefinition: validInput.sequenceExpressionDefinition,
     transferModel: 'immutable',
     signInversionColumns: validInput.signInversionColumns,
     redTransferSourceColumns: validInput.redTransferSourceColumns,
-    diffCompareExcludedColumns: validInput.diffCompareExcludedColumns,
     createdAt: new Date('2026-04-29T00:00:00.000Z'),
     updatedAt: new Date('2026-04-29T00:00:00.000Z'),
-    note: 'reviewed'
+    note: 'reviewed',
   });
 });
 
 test.each([
   ['empty name', { name: '   ' }],
   ['empty destination table name', { destinationTableName: '   ' }],
+  ['unqualified destination table name', { destinationTableName: 'journal' }],
+  ['missing destination schema name', { destinationTableName: '.journal' }],
+  ['missing destination table name', { destinationTableName: 'public.' }],
+  ['too many destination table name parts', { destinationTableName: 'public.journal.extra' }],
   ['empty destination columns', { destinationColumns: { columns: [] } }],
   [
     'duplicate destination column names',
@@ -106,25 +104,30 @@ test.each([
       destinationColumns: {
         columns: [
           { name: 'journal_id', type: 'bigint' },
-          { name: 'journal_id', type: 'bigint' }
-        ]
-      }
-    }
+          { name: 'journal_id', type: 'bigint' },
+        ],
+      },
+    },
   ],
   ['empty destination key definition', { destinationKeyDefinition: { keys: [] } }],
   ['unknown destination key column', { destinationKeyDefinition: { keys: ['missing_id'] } }],
-  ['unknown sequence expression column', { sequenceExpressionDefinition: { missing_id: "nextval('x')" } }],
+  [
+    'unknown sequence expression column',
+    { sequenceExpressionDefinition: { missing_id: "nextval('x')" } },
+  ],
   ['unknown sign inversion column', { signInversionColumns: { columns: ['missing_amount'] } }],
-  ['unknown red transfer source column', { redTransferSourceColumns: { columns: ['missing_amount'] } }],
-  ['unknown diff compare excluded column', { diffCompareExcludedColumns: { columns: ['missing_id'] } }],
-  ['invalid transfer model', { transferModel: 'merge' }]
+  [
+    'unknown red transfer source column',
+    { redTransferSourceColumns: { columns: ['missing_amount'] } },
+  ],
+  ['invalid transfer model', { transferModel: 'merge' }],
 ])('rejects invalid input: %s', async (_name, patch) => {
   const executor = createGuardedExecutor();
   await expect(
     executeCreateTransferDestinationDefinitionEntrySpec(executor, {
       ...validInput,
-      ...patch
-    })
+      ...patch,
+    }),
   ).rejects.toThrow();
 });
 
@@ -132,6 +135,6 @@ function createGuardedExecutor(): FeatureQueryExecutor {
   return {
     async query() {
       throw new Error('Validation failures must not reach the query boundary.');
-    }
+    },
   };
 }

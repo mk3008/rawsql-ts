@@ -22,6 +22,10 @@ const mappingDefinition = {
   }
 };
 
+const diffCompareExcludedColumns = {
+  columns: ['journal_id', 'created_at']
+};
+
 const cases: readonly InsertTransferSettingDestinationDefinitionQueryBoundaryZtdCase[] = [
   {
     name: 'creates transfer setting destination definition with generated SQL placeholders',
@@ -32,6 +36,7 @@ const cases: readonly InsertTransferSettingDestinationDefinitionQueryBoundaryZtd
       execution_order: 1,
       source_key_definition: sourceKeyDefinition,
       mapping_definition: mappingDefinition,
+      diff_compare_excluded_columns: diffCompareExcludedColumns,
       is_enabled: true,
       note: null
     },
@@ -42,6 +47,7 @@ const cases: readonly InsertTransferSettingDestinationDefinitionQueryBoundaryZtd
       execution_order: 1,
       source_key_definition: sourceKeyDefinition,
       mapping_definition: mappingDefinition,
+      diff_compare_excluded_columns: diffCompareExcludedColumns,
       generated_insert_transfer_sql_body: '',
       generated_update_transfer_sql_body: '',
       generated_red_transfer_sql_body: '',

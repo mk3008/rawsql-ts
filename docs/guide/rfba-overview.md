@@ -10,7 +10,8 @@ RFBA means **Review-First Backend Architecture**.
 It is a backend architecture for AI-assisted development where the main goal is not to make AI fully autonomous.
 The goal is to make AI-produced work reviewable by humans.
 
-RFBA does this by splitting files by review responsibility.
+RFBA splits backend code by review-worthy concerns, not by technical layers.
+It separates files around review responsibility: business meaning, risk, policy, public surface, and verification responsibility.
 Human reviewers should be able to find the artifacts that carry business meaning, understand what they depend on, and verify the local evidence around them.
 
 ## What RFBA Optimizes For
@@ -31,8 +32,23 @@ RFBA is intentionally scoped to backend work, especially database applications.
 In database applications, DDL is already a strong artifact.
 RFBA treats DDL as the source of truth for data structure, not as a duplicate of product requirements.
 On top of that DDL, raw SQL is a natural review boundary because it shows which tables, joins, filters, updates, and result columns carry the use-case meaning.
+SQL is an important example, not the definition of RFBA.
+In rawsql-ts and many database applications, SQL is one of the strongest review targets because small SQL changes can change business behavior, data safety, and performance.
 
 DTOs, mapping, validation, and routing still matter, but they are usually easier to scaffold, derive, test, or repair with AI/tooling once the DDL and SQL shape are visible.
+
+RFBA also applies to non-SQL backend concerns when they carry review responsibility.
+Examples include authentication, authorization, pricing rules, state transitions, transfer rules, and external integration contracts.
+
+## File Splitting Rule
+
+Split out processing that humans should review directly because it carries business meaning, risk, policy, or verification responsibility.
+
+Do not split files only to mirror technical layers.
+Mechanical wiring, generated code, and framework boilerplate do not need to be forced into separate files when keeping them near the boundary they serve is easier to review.
+
+Expose the artifacts humans should review directly; keep mechanical wiring and generated code close to the boundary they serve.
+The file splitting criterion is review value, not whether code belongs to a traditional technical layer such as controller, service, repository, mapper, or utility.
 
 ## Relationship To VSA
 

@@ -18,7 +18,7 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
     input: {
       transfer_destination_definition_name: 'journal',
       description: '仕訳転送先',
-      destination_table_name: 'journal',
+      destination_table_name: 'public.journal',
       destination_columns: {
         columns: [
           { name: 'journal_id', type: 'bigint', role: 'key' },
@@ -41,9 +41,6 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       },
       red_transfer_source_columns: {
         columns: ['journal_date', 'debit_account_code', 'credit_account_code', 'amount', 'remarks']
-      },
-      diff_compare_excluded_columns: {
-        columns: ['journal_id']
       },
       note: null
     },
@@ -51,7 +48,7 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       transfer_destination_definition_id: expect.any(String),
       transfer_destination_definition_name: 'journal',
       description: '仕訳転送先',
-      destination_table_name: 'journal',
+      destination_table_name: 'public.journal',
       destination_columns: {
         columns: [
           { name: 'journal_id', type: 'bigint', role: 'key' },
@@ -74,9 +71,6 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       },
       red_transfer_source_columns: {
         columns: ['journal_date', 'debit_account_code', 'credit_account_code', 'amount', 'remarks']
-      },
-      diff_compare_excluded_columns: {
-        columns: ['journal_id']
       },
       created_at: expect.any(Date),
       updated_at: expect.any(Date),
@@ -89,7 +83,7 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
     input: {
       transfer_destination_definition_name: 'account_balance',
       description: '科目残高転送先',
-      destination_table_name: 'account_balance',
+      destination_table_name: 'public.account_balance',
       destination_columns: {
         columns: [
           { name: 'account_balance_id', type: 'bigint', role: 'key' },
@@ -112,9 +106,6 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       },
       red_transfer_source_columns: {
         columns: ['balance_date', 'account_code', 'customer_id', 'amount', 'balance_side']
-      },
-      diff_compare_excluded_columns: {
-        columns: ['account_balance_id']
       },
       note: null
     },
@@ -122,7 +113,7 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       transfer_destination_definition_id: expect.any(String),
       transfer_destination_definition_name: 'account_balance',
       description: '科目残高転送先',
-      destination_table_name: 'account_balance',
+      destination_table_name: 'public.account_balance',
       destination_columns: {
         columns: [
           { name: 'account_balance_id', type: 'bigint', role: 'key' },
@@ -145,9 +136,6 @@ const cases: readonly InsertTransferDestinationDefinitionQueryBoundaryZtdCase[] 
       },
       red_transfer_source_columns: {
         columns: ['balance_date', 'account_code', 'customer_id', 'amount', 'balance_side']
-      },
-      diff_compare_excluded_columns: {
-        columns: ['account_balance_id']
       },
       created_at: expect.any(Date),
       updated_at: expect.any(Date),

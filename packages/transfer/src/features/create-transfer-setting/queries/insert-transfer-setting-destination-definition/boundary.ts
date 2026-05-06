@@ -19,6 +19,7 @@ const QueryParamsSchema = z.object({
   execution_order: z.number().int().positive(),
   source_key_definition: JsonObjectSchema,
   mapping_definition: JsonObjectSchema,
+  diff_compare_excluded_columns: JsonObjectSchema.nullable(),
   is_enabled: z.boolean(),
   note: z.string().min(1).nullable()
 }).strict();
@@ -32,6 +33,7 @@ const RowSchema = z.object({
   execution_order: z.number().int(),
   source_key_definition: JsonObjectSchema,
   mapping_definition: JsonObjectSchema,
+  diff_compare_excluded_columns: JsonObjectSchema.nullable(),
   generated_insert_transfer_sql_body: z.string(),
   generated_update_transfer_sql_body: z.string(),
   generated_red_transfer_sql_body: z.string(),

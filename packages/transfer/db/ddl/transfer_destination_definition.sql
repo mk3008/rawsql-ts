@@ -4,7 +4,7 @@ create table transfer_destination_definition (
   , transfer_destination_definition_name text not null unique
   , description text null
 
-  , destination_table_name text not null
+  , destination_table_name text not null unique
   , destination_columns jsonb not null
   , destination_key_definition jsonb not null
   , sequence_expression_definition jsonb null
@@ -13,7 +13,6 @@ create table transfer_destination_definition (
 
   , sign_inversion_columns jsonb null
   , red_transfer_source_columns jsonb null
-  , diff_compare_excluded_columns jsonb null
 
   , created_at timestamptz not null default current_timestamp
   , updated_at timestamptz not null default current_timestamp
@@ -24,6 +23,18 @@ create table transfer_destination_definition (
 
   , constraint chk_transfer_destination_table_name_not_blank
     check (btrim(destination_table_name) <> '')
+
+  , constraint chk_transfer_destination_table_name_qualified
+    check (
+      position('.' in btrim(destination_table_name)) > 1
+      and split_part(btrim(destination_table_name), '.', 1) <> ''
+      and split_part(btrim(destination_table_name), '.', 2) <> ''
+      and btrim(destination_table_name) =
+        split_part(btrim(destination_table_name), '.', 1)
+        || '.'
+        || split_part(btrim(destination_table_name), '.', 2)
+      and right(btrim(destination_table_name), 1) <> '.'
+    )
 
   , constraint chk_transfer_destination_transfer_model
     check (transfer_model in ('immutable', 'mutable'))
@@ -51,16 +62,10 @@ create table transfer_destination_definition (
       red_transfer_source_columns is null
       or jsonb_typeof(red_transfer_source_columns) = 'object'
     )
-
-  , constraint chk_transfer_diff_compare_excluded_columns_object
-    check (
-      diff_compare_excluded_columns is null
-      or jsonb_typeof(diff_compare_excluded_columns) = 'object'
-    )
 );
 
 comment on table transfer_destination_definition is
-  '転送先定義。転送先テーブル、列、主キー、採番式、転送モデル、赤伝生成に必要な列情報を管理する。';
+  '転送先定義。完全修飾された転送先テーブル名、列、主キー、採番式、転送モデル、赤伝生成に必要な列情報を管理する。';
 
 comment on column transfer_destination_definition.transfer_destination_definition_id is
   '転送先定義ID。サロゲートキー。';
@@ -72,7 +77,7 @@ comment on column transfer_destination_definition.description is
   '説明。転送先定義の目的や業務上の意味を記録する。';
 
 comment on column transfer_destination_definition.destination_table_name is
-  '転送先テーブル名。実際に転送先として書き込むテーブル名。例: journal, account_balance。';
+  '転送先テーブル名。実際に転送先として書き込むテーブルをスキーマ名などを含む完全修飾名で保持し、一意にする。例: public.journal, public.account_balance。';
 
 comment on column transfer_destination_definition.destination_columns is
   '転送先列定義。転送先テーブルへ書き込む列の一覧、型、役割などをJSONBで保持する。例: {"columns":[{"name":"amount","type":"numeric","role":"amount"}]}。';
@@ -91,9 +96,6 @@ comment on column transfer_destination_definition.sign_inversion_columns is
 
 comment on column transfer_destination_definition.red_transfer_source_columns is
   '赤伝生成対象列定義。元黒行から赤伝へコピーする対象列をJSONBで保持する。採番列は通常含めない。例: {"columns":["journal_date","amount","remarks"]}。';
-
-comment on column transfer_destination_definition.diff_compare_excluded_columns is
-  '差分比較除外列定義。更新判定時に比較対象から除外する転送先列をJSONBで保持する。例: {"columns":["journal_id","created_at"]}。';
 
 comment on column transfer_destination_definition.created_at is
   '作成日時。レコード作成時刻。';

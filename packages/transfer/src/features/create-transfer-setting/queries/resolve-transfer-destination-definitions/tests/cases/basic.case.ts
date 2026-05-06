@@ -17,7 +17,6 @@ const beforeDb = {
         transfer_model: 'immutable',
         sign_inversion_columns: null,
         red_transfer_source_columns: null,
-        diff_compare_excluded_columns: null,
         created_at: new Date('2026-05-02T00:00:00.000Z'),
         updated_at: new Date('2026-05-02T00:00:00.000Z'),
         note: null
@@ -33,7 +32,6 @@ const beforeDb = {
         transfer_model: 'mutable',
         sign_inversion_columns: null,
         red_transfer_source_columns: null,
-        diff_compare_excluded_columns: null,
         created_at: new Date('2026-05-02T00:00:00.000Z'),
         updated_at: new Date('2026-05-02T00:00:00.000Z'),
         note: null

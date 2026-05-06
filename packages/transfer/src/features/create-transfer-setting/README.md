@@ -11,6 +11,7 @@ The public feature boundary accepts `CreateTransferSettingInput` with camelCase 
 - `name`
 - `description`
 - `sourceSqlBody`
+- `sourceKeyDefinition`
 - `isEnabled`
 - `note`
 - `destinations`
@@ -21,6 +22,7 @@ Each destination item contains:
 - `executionOrder`
 - `sourceKeyDefinition`
 - `mappingDefinition`
+- `diffCompareExcludedColumns`
 - `isEnabled`
 - `note`
 
@@ -30,12 +32,14 @@ Each destination item contains:
 
 - non-blank `name`
 - non-blank `sourceSqlBody`
-- at least one destination
-- positive integer `executionOrder`
-- unique `executionOrder` within the input
-- unique `destinationDefinitionName` within the input
 - object-shaped `sourceKeyDefinition`
-- object-shaped `mappingDefinition`
+- at least one destination
+- positive integer `destinations[].executionOrder`
+- unique `destinations[].executionOrder` within the input
+- unique `destinations[].destinationDefinitionName` within the input
+- object-shaped `destinations[].sourceKeyDefinition`
+- object-shaped `destinations[].mappingDefinition`
+- object-shaped `destinations[].diffCompareExcludedColumns` when provided
 
 Destination definitions are resolved by `transfer_destination_definition_name` before inserting the setting row.
 Unknown destination definitions fail the operation before any setting row is inserted.

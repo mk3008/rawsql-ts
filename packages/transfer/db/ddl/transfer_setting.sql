@@ -6,6 +6,7 @@ create table transfer_setting (
 
   , source_sql_body text not null
   , source_sql_hash text not null
+  , source_key_definition jsonb not null
 
   , source_sql_analysis_result jsonb null
   , search_condition_analysis_result jsonb null
@@ -26,18 +27,21 @@ create table transfer_setting (
   , constraint chk_transfer_setting_source_sql_hash_not_blank
     check (btrim(source_sql_hash) <> '')
 
+  , constraint chk_transfer_setting_source_key_definition_object
+    check (jsonb_typeof(source_key_definition) = 'object')
+
   , constraint chk_transfer_setting_source_sql_analysis_status
     check (source_sql_analysis_status in ('not_analyzed', 'success', 'failed'))
 );
 
 comment on table transfer_setting is
-  '転送設定。基礎となる選択SQLと、その解析結果を管理する。';
+  '転送設定。名前で一意に特定できる転送元データソース定義。基礎となる選択SQL、転送元キー定義、解析結果を管理する。転送指示、転送処理、転送結果ではない。';
 
 comment on column transfer_setting.transfer_setting_id is
   '転送設定ID。サロゲートキー。';
 
 comment on column transfer_setting.transfer_setting_name is
-  '転送設定名。アプリケーションから名前で参照するため一意にする。例: sales_transfer, receivable_transfer。';
+  '転送設定名。アプリケーションや後続処理から名前で参照するため一意にする。例: sales_transfer, receivable_transfer。';
 
 comment on column transfer_setting.description is
   '説明。転送設定の目的や業務上の意味を記録する。';
@@ -47,6 +51,9 @@ comment on column transfer_setting.source_sql_body is
 
 comment on column transfer_setting.source_sql_hash is
   '基礎選択SQL本文から算出したハッシュ。SQL本文の変更検知に使用する。';
+
+comment on column transfer_setting.source_key_definition is
+  '転送元キー定義。転送元データソースの行、または転送元として再評価すべき単位を識別するキーをJSONBで保持する。単一キー、複合キーに対応する。後続の転送処理、リネージュ、キー変換表、二重転送防止の判断材料として参照する。';
 
 comment on column transfer_setting.source_sql_analysis_result is
   '基礎選択SQLの解析結果。戻り列、推定型などをJSONBで保持する。このIssueでは解析しないためnullを保存する。';

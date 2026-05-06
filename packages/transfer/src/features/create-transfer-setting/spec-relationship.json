@@ -1,0 +1,14 @@
+{
+  "dependencies": [
+    {
+      "path": "../../../docs/concepts/transfer-setting/SPEC.md",
+      "kind": "concept",
+      "reason": "This feature creates Transfer Settings and Destination Links from a source data definition."
+    },
+    {
+      "path": "../../../docs/concepts/destination/SPEC.md",
+      "kind": "concept",
+      "reason": "This feature links Transfer Settings to reusable Destination Definitions by name."
+    }
+  ]
+}

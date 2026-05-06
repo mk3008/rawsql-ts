@@ -17,7 +17,6 @@ export type ResolveTransferDestinationDefinitionsBeforeDb = {
       transfer_model?: unknown;
       sign_inversion_columns?: unknown;
       red_transfer_source_columns?: unknown;
-      diff_compare_excluded_columns?: unknown;
       created_at?: unknown;
       updated_at?: unknown;
       note?: unknown;
