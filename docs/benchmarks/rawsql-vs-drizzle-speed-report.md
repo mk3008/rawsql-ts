@@ -4,6 +4,10 @@ Status: done for local Pure ORM evidence and scaffold drift-check design. Latest
 
 HTTP benchmark results are intentionally excluded from this report. The current goal is to keep the recommended `rawsql-ts RFBA + AOT generated mapper` path fast and maintainable, so the decision loop uses Pure ORM, mapper microbenchmarks, scaffold drift checks, and startup-cost measurements.
 
+In this report, "Pure ORM" means the benchmark excludes HTTP routing, framework overhead, serialization/network transport, and app-level request handling.
+
+The main benchmark still includes real PostgreSQL query execution because the intended question is whether the natural `DB query + mapper` path remains fast enough in practical ORM usage.
+
 The accepted final Pure ORM result is stored under `benchmarks/drizzle-official-comparison/results-pure-orm-20260503-accepted-aot-direct-assignment`. This folder is a clarity alias for the accepted direct-assignment run, not a new measurement. The accepted final result is based on the run where generated direct-assignment aggregation was already included in the measured RFBA AOT mapper path.
 
 ## 1. Generated Mapper Drift Check Design
@@ -163,6 +167,18 @@ Environment:
 | PostgreSQL | `PostgreSQL 18.3 (Debian 18.3-1.pgdg13+1)` |
 | PostgreSQL settings | `max_connections=300`, `shared_buffers=128MB`, `work_mem=4MB` |
 
+Comparison strategy:
+
+| concern | handwritten | Drizzle | rawsql-ts RFBA + AOT |
+|---|---|---|---|
+| SQL authoring | Human-written SQL files. | Relational query API generates SQL. | Human-owned `query.sql` remains the review target. |
+| DB execution path | Direct `pg` prepared query execution. | Drizzle prepared relational query execution. | RFBA query boundary over `pg` prepared query execution. |
+| Result shaping | Handwritten row-to-result mapper code. | Drizzle relational mapper path. | Generated direct-assignment row mapper. |
+| Nested result strategy | JavaScript mapper/aggregation over rows. | ORM-owned relational shaping; generated SQL may move part of shaping into the database depending on the relational query path. | Ordinary row/column SQL plus generated JavaScript mapper/aggregation. |
+| Hot path validation | No extra runtime validation in the measured mapper path. | This report does not establish Drizzle's validation strategy; no extra per-row validation layer is added by the benchmark. | No runtime validation in the hot mapper path; correctness is shifted left to queryspec, drift checks, and ZTD-backed DB tests. |
+| Review focus | SQL and mapper are both human-owned. | Review focuses on application query code and generated SQL when inspected. | SQL, queryspec, RFBA boundary, generated mapper drift, and DB-backed query tests. |
+| Maintainability trade-off | Fast and explicit, but mapper code is manually maintained. | Higher-level query authoring, with ORM-owned SQL and mapping internals. | Human-reviewable SQL with machine-owned, reproducible mapper code. |
+
 Main result:
 
 | phase | target | ops/sec avg | p50 avg | p95 avg | p99 avg |
@@ -176,20 +192,58 @@ Main result:
 
 Mapper and aggregation diagnostics:
 
-| phase | target | ops/sec avg | p50 avg |
-|---|---|---:|---:|
-| mapper-only | handwritten | 4,481,308.12 | 0.0002ms |
-| mapper-only | Drizzle JIT mapper path | 673,322.16 | 0.0013ms |
-| mapper-only | rawsql-ts RFBA AOT mapper | 4,254,124.74 | 0.0001ms |
-| aggregation-handwritten | handwritten | 5,035,996.86 | 0.0001ms |
-| aggregation-rfba-current | old helper/spread generated shape | 550,694.42 | 0.0013ms |
-| aggregation-rfba-optimized | direct-assignment generated shape | 4,389,558.53 | 0.0002ms |
+These rows are diagnostics for rawsql-ts mapper and aggregation work, not an ORM ranking table.
+
+The Drizzle `mapper-only` path is not reported here as a comparable number. In this benchmark it exercises the prepared Drizzle query path against fixture rows through the capture client, while handwritten and RFBA mapper-only rows call mapper functions directly over row arrays. That is useful as an implementation diagnostic, but the scope is not equivalent enough to claim "Drizzle mapper is slower" from this table.
+
+| phase | target | ops/sec avg | p50 avg | note |
+|---|---|---:|---:|---|
+| mapper-only | handwritten | 4,481,308.12 | 0.0002ms | direct mapper function |
+| mapper-only | rawsql-ts RFBA AOT mapper | 4,254,124.74 | 0.0001ms | direct generated mapper function |
+| aggregation-handwritten | handwritten | 5,035,996.86 | 0.0001ms | rawsql-ts diagnostic |
+| aggregation-rfba-current | old helper/spread generated shape | 550,694.42 | 0.0013ms | rawsql-ts diagnostic |
+| aggregation-rfba-optimized | direct-assignment generated shape | 4,389,558.53 | 0.0002ms | rawsql-ts diagnostic |
+| mapper-only | Drizzle JIT mapper path | not comparable | not comparable | fixture-query diagnostic scope differs from direct mapper function calls |
 
 Interpretation:
 
 - rawsql-ts RFBA + AOT is in the same local Pure ORM range as handwritten and Drizzle for the measured cases.
 - The accepted direct-assignment aggregation change materially reduces generated aggregation overhead without changing public RFBA usage.
 - The later `.then(...)` boundary/executor experiment was rejected because it did not improve `DB query + mapper` and made call-chain diagnostics noisier.
+
+### Mapping and validation strategy notes
+
+This report is not a Drizzle evaluation benchmark.
+Its purpose is to check whether the recommended rawsql-ts RFBA + AOT generated mapper path can stay close to handwritten and Drizzle in the natural `DB query + mapper` path.
+
+rawsql-ts intentionally does not use PostgreSQL JSON aggregation as the standard RFBA mapper path.
+
+The goal is to keep SQL reviewable as ordinary row/column SQL so query behavior, joins, filtering, and cardinality remain visible during review and debugging.
+
+Response-shape construction is intentionally kept outside the SQL layer unless a feature explicitly requires DB-side JSON shaping.
+
+ORM relational query paths may choose different result-shaping strategies, including DB-side shaping.
+Those are valid engineering trade-offs, but they change maintainability, reviewability, and debugging characteristics.
+
+rawsql-ts also intentionally avoids runtime validation in the hot mapper path.
+
+Correctness is shifted left through:
+
+- queryspec contracts
+- generated mapper drift checks
+- ZTD-backed SQL unit tests against a real database
+
+The intended trust boundary is different from arbitrary web input validation.
+Database rows are already constrained by schema, SQL contracts, and DB-backed verification before the mapper executes.
+
+This report does not establish Drizzle's validation strategy.
+The benchmark path does not add an extra per-row Zod-style validation layer around Drizzle results.
+That is not inherently unsafe; an application can rely on schema definitions plus integration or E2E coverage.
+The trade-off is coverage cost: E2E tests can prove the important application paths, but they are usually broader and more expensive than focused DB-backed query tests, so edge-case mapping drift can be easier to miss without additional targeted coverage.
+
+With that strategy, rawsql-ts RFBA + AOT generated mapper remains in the same local Pure ORM performance range as handwritten mapping.
+
+The benchmark evidence suggests that maintainable row/column SQL plus generated direct-assignment mappers can stay competitive without requiring PostgreSQL JSON aggregation or runtime validation in the hot mapping path.
 
 ## 7. Remaining Work
 

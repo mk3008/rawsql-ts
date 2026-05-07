@@ -1,0 +1,508 @@
+{
+  "schemaVersion": 1,
+  "concepts": [
+    {
+      "id": "dirty-key",
+      "path": "dirty-key/SPEC.md",
+      "status": "defined",
+      "summary": "変更が起きた可能性のある発生元行を識別する変更検知履歴"
+    },
+    {
+      "id": "dirty-key-processing",
+      "path": "dirty-key-processing/SPEC.md",
+      "status": "defined",
+      "summary": "Dirty Key がどの Transfer Run と転送先設定で処理され、どの結果になったかを記録する概念"
+    },
+    {
+      "id": "destination",
+      "path": "destination/SPEC.md",
+      "status": "defined",
+      "summary": "転送先テーブルへ書き込むために必要な転送先側の仕様"
+    },
+    {
+      "id": "transfer-setting",
+      "path": "transfer-setting/SPEC.md",
+      "status": "defined",
+      "summary": "転送元データソースを定義し、Destination への接続を管理する設定"
+    },
+    {
+      "id": "destination-link",
+      "path": "destination-link/SPEC.md",
+      "status": "defined",
+      "summary": "Transfer Setting のデータソースを特定 Destination へ接続する宛先別設定"
+    },
+    {
+      "id": "transfer-run",
+      "path": "transfer-run/SPEC.md",
+      "status": "defined",
+      "summary": "Transfer Execution が生成する実行引数記録兼プロセスヘッダー"
+    },
+    {
+      "id": "transfer-execution",
+      "path": "transfer-execution/SPEC.md",
+      "status": "defined",
+      "summary": "Transfer Run をプロセスヘッダーとして生成し、Work Item に整理された情報をもとに転送表現を選ぶメインルーチン"
+    },
+    {
+      "id": "work-item",
+      "path": "work-item/SPEC.md",
+      "status": "defined",
+      "summary": "Dirty Key を Transfer Setting の文脈で固定化し、転送判断を付与した作業対象"
+    },
+    {
+      "id": "lineage",
+      "path": "lineage/SPEC.md",
+      "status": "defined",
+      "summary": "転送先行の転送元を特定し、元ネタを追跡する概念"
+    },
+    {
+      "id": "active-black",
+      "path": "active-black/SPEC.md",
+      "status": "defined",
+      "summary": "転送済みの黒伝のうち、まだ取り消されていない現在有効な黒伝"
+    },
+    {
+      "id": "physical-delete-transfer",
+      "path": "physical-delete-transfer/SPEC.md",
+      "status": "defined",
+      "summary": "mutable transfer model で既存の転送先行を物理削除する削除表現"
+    },
+    {
+      "id": "black-transfer",
+      "path": "black-transfer/SPEC.md",
+      "status": "defined",
+      "summary": "転送元の現在値を転送先へコピーし、黒伝を作る通常転送"
+    },
+    {
+      "id": "red-transfer",
+      "path": "red-transfer/SPEC.md",
+      "status": "defined",
+      "summary": "immutable transfer model で黒伝を反転した赤伝を追加する取消または訂正表現"
+    },
+    {
+      "id": "key-map",
+      "path": null,
+      "status": "alias",
+      "summary": "lineage の説明用語。キー変換で lineage 管理を説明するための別名。"
+    },
+    {
+      "id": "duplicate-control",
+      "path": null,
+      "status": "candidate",
+      "summary": "重複制御。Dirty Key では管理しない概念として登場する。"
+    },
+    {
+      "id": "black-insert-transfer",
+      "path": null,
+      "status": "variant",
+      "summary": "Black Transfer のうち、新しい黒伝を追加する転送表現。"
+    },
+    {
+      "id": "black-update-transfer",
+      "path": null,
+      "status": "variant",
+      "summary": "Black Transfer のうち、mutable transfer model で既存の黒伝を直接 UPDATE する転送表現。"
+    }
+  ],
+  "relationships": [
+    {
+      "from": "transfer-run",
+      "to": "transfer-setting",
+      "kind": "targets",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Run targets exactly one Transfer Setting."
+    },
+    {
+      "from": "transfer-run",
+      "to": "transfer-setting",
+      "kind": "must-not-redefine",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Run must not redefine Transfer Setting content."
+    },
+    {
+      "from": "transfer-run",
+      "to": "dirty-key",
+      "kind": "must-not-redefine",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Run must not redefine Dirty Key semantics."
+    },
+    {
+      "from": "transfer-setting",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Setting connects to Destination through Destination Link."
+    },
+    {
+      "from": "transfer-setting",
+      "to": "destination-link",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Setting manages destination-side connections as Destination Links."
+    },
+    {
+      "from": "transfer-setting",
+      "to": "destination",
+      "kind": "must-not-redefine",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Setting must not redefine Destination semantics."
+    },
+    {
+      "from": "transfer-setting",
+      "to": "dirty-key",
+      "kind": "must-not-redefine",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Setting must not redefine Dirty Key semantics."
+    },
+    {
+      "from": "destination-link",
+      "to": "transfer-setting",
+      "kind": "depends-on",
+      "certainty": "from-defined-spec",
+      "reason": "Destination Link belongs to exactly one Transfer Setting."
+    },
+    {
+      "from": "destination-link",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Destination Link connects the Transfer Setting data source to one Destination."
+    },
+    {
+      "from": "destination-link",
+      "to": "destination",
+      "kind": "must-not-redefine",
+      "certainty": "from-defined-spec",
+      "reason": "Destination Link mapping must not redefine Destination physical semantics."
+    },
+    {
+      "from": "destination",
+      "to": "transfer-setting",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "Destination is an independent destination-side specification, not a child of Transfer Setting."
+    },
+    {
+      "from": "destination",
+      "to": "transfer-setting",
+      "kind": "must-not-redefine",
+      "certainty": "from-defined-spec",
+      "reason": "Destination must not change destination-side semantics for Transfer Setting-specific needs."
+    },
+    {
+      "from": "dirty-key",
+      "to": "transfer-run",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "Dirty Key is not a transfer instruction, transfer state, or transfer result."
+    },
+    {
+      "from": "lineage",
+      "to": "transfer-run",
+      "kind": "records",
+      "certainty": "from-defined-spec",
+      "reason": "Lineage records which Transfer Run produced the destination row."
+    },
+    {
+      "from": "lineage",
+      "to": "transfer-setting",
+      "kind": "records",
+      "certainty": "from-defined-spec",
+      "reason": "Lineage records which Transfer Setting the destination row was produced under."
+    },
+    {
+      "from": "lineage",
+      "to": "destination",
+      "kind": "records",
+      "certainty": "from-defined-spec",
+      "reason": "Lineage records which Destination the destination row belongs to."
+    },
+    {
+      "from": "key-map",
+      "to": "lineage",
+      "kind": "alias-of",
+      "certainty": "from-defined-spec",
+      "reason": "Key Map is a lineage explanation term, not a separate Concept Spec candidate."
+    },
+    {
+      "from": "active-black",
+      "to": "lineage",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Active Black may be used with Lineage when identifying the currently active black row in the immutable transfer model."
+    },
+    {
+      "from": "active-black",
+      "to": "lineage",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "Lineage records destination-row origin, while Active Black identifies the currently active black row."
+    },
+    {
+      "from": "active-black",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Active Black refers to a black row that exists on the destination side."
+    },
+    {
+      "from": "black-transfer",
+      "to": "active-black",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Black Transfer uses Active Black to avoid duplicate transfer and creates an Active Black when the resulting black row is current."
+    },
+    {
+      "from": "black-transfer",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Black Transfer creates a black row on the destination side."
+    },
+    {
+      "from": "black-transfer",
+      "to": "lineage",
+      "kind": "records",
+      "certainty": "from-defined-spec",
+      "reason": "In the immutable transfer model, successful Black Transfer records the correspondence between the source data row and the black destination row as Lineage."
+    },
+    {
+      "from": "black-transfer",
+      "to": "red-transfer",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "Black Transfer copies current source values to create a black row, while Red Transfer creates a reversing red row."
+    },
+    {
+      "from": "red-transfer",
+      "to": "active-black",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Red Transfer needs the Active Black that should be reversed."
+    },
+    {
+      "from": "red-transfer",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Red Transfer relies on Destination transfer model and red-transfer column information."
+    },
+    {
+      "from": "red-transfer",
+      "to": "lineage",
+      "kind": "records",
+      "certainty": "from-defined-spec",
+      "reason": "Successful Red Transfer records the correspondence between the reversed existing destination row and the generated red destination row as Lineage."
+    },
+    {
+      "from": "red-transfer",
+      "to": "active-black",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "Red Transfer adds the reversing red row, while Active Black identifies the currently active black row to reverse."
+    },
+    {
+      "from": "transfer-execution",
+      "to": "transfer-run",
+      "kind": "produces",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution creates Transfer Run as an execution argument record and process header."
+    },
+    {
+      "from": "transfer-execution",
+      "to": "transfer-setting",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution follows the Transfer Setting targeted by the Transfer Run."
+    },
+    {
+      "from": "transfer-execution",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution uses Destination transfer model and destination-side rules."
+    },
+    {
+      "from": "transfer-execution",
+      "to": "dirty-key",
+      "kind": "consumes",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution consumes Dirty Key Management records as transfer candidates."
+    },
+    {
+      "from": "transfer-execution",
+      "to": "dirty-key-processing",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution uses Dirty Key Processing to exclude processed Dirty Keys before creating Work Items and records Dirty Key Processing after processing."
+    },
+    {
+      "from": "transfer-execution",
+      "to": "work-item",
+      "kind": "produces",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution fixes Dirty Key records as Work Items."
+    },
+    {
+      "from": "transfer-execution",
+      "to": "work-item",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution uses Work Item decisions to choose black transfer, red transfer, physical delete, or no operation."
+    },
+    {
+      "from": "transfer-execution",
+      "to": "active-black",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution uses Active Black to decide whether to black transfer, red transfer, update, delete, or do nothing."
+    },
+    {
+      "from": "transfer-execution",
+      "to": "black-transfer",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution performs Black Transfer when current source values should be copied to the destination."
+    },
+    {
+      "from": "transfer-execution",
+      "to": "red-transfer",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution performs Red Transfer in the immutable transfer model when an active black row must be reversed."
+    },
+    {
+      "from": "work-item",
+      "to": "dirty-key",
+      "kind": "depends-on",
+      "certainty": "from-defined-spec",
+      "reason": "Work Item is created by fixing Dirty Key records as transfer work."
+    },
+    {
+      "from": "work-item",
+      "to": "dirty-key-processing",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Work Item creation excludes Dirty Keys that already have Dirty Key Processing records in the same setting and destination-link context."
+    },
+    {
+      "from": "work-item",
+      "to": "transfer-setting",
+      "kind": "depends-on",
+      "certainty": "from-defined-spec",
+      "reason": "Work Item decisions are made in a Transfer Setting context."
+    },
+    {
+      "from": "work-item",
+      "to": "active-black",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Work Item decisions use the presence or absence of Active Black."
+    },
+    {
+      "from": "work-item",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Work Item decisions use Destination transfer model."
+    },
+    {
+      "from": "work-item",
+      "to": "dirty-key",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "Dirty Key is change-detection history, while Work Item is fixed transfer work with a transfer decision."
+    },
+    {
+      "from": "work-item",
+      "to": "lineage",
+      "kind": "depends-on",
+      "certainty": "human-provided-candidate",
+      "reason": "Work Item may be affected by lineage for duplicate, retransmission, or deletion-equivalent decisions."
+    },
+    {
+      "from": "dirty-key-processing",
+      "to": "dirty-key",
+      "kind": "depends-on",
+      "certainty": "from-defined-spec",
+      "reason": "Dirty Key Processing records processed Dirty Key IDs."
+    },
+    {
+      "from": "dirty-key-processing",
+      "to": "transfer-run",
+      "kind": "records",
+      "certainty": "from-defined-spec",
+      "reason": "Dirty Key Processing records which Transfer Run processed the Dirty Key and what processing result was produced."
+    },
+    {
+      "from": "dirty-key-processing",
+      "to": "transfer-setting",
+      "kind": "depends-on",
+      "certainty": "from-defined-spec",
+      "reason": "Dirty Key Processing is scoped by Transfer Setting."
+    },
+    {
+      "from": "dirty-key-processing",
+      "to": "destination-link",
+      "kind": "depends-on",
+      "certainty": "from-defined-spec",
+      "reason": "Dirty Key Processing records destination setting ID because one Transfer Run can cover multiple Destination Links."
+    },
+    {
+      "from": "dirty-key-processing",
+      "to": "dirty-key",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "Dirty Key is immutable change-detection history, while Dirty Key Processing is a processed-state record."
+    },
+    {
+      "from": "black-insert-transfer",
+      "to": "black-transfer",
+      "kind": "variant-of",
+      "certainty": "from-defined-spec",
+      "reason": "Black Insert Transfer is the Black Transfer variant that inserts a new black row."
+    },
+    {
+      "from": "black-update-transfer",
+      "to": "black-transfer",
+      "kind": "variant-of",
+      "certainty": "from-defined-spec",
+      "reason": "Black Update Transfer is the mutable Black Transfer variant that directly updates an existing black row."
+    },
+    {
+      "from": "physical-delete-transfer",
+      "to": "active-black",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Physical Delete Transfer requires the Active Black that should be physically deleted."
+    },
+    {
+      "from": "physical-delete-transfer",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Physical Delete Transfer physically deletes an existing destination row."
+    },
+    {
+      "from": "physical-delete-transfer",
+      "to": "red-transfer",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "Mutable delete is Physical Delete Transfer, while immutable delete is Red Transfer."
+    },
+    {
+      "from": "transfer-execution",
+      "to": "physical-delete-transfer",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution uses Physical Delete Transfer in mutable transfer model delete cases."
+    }
+  ],
+  "relationshipKindNotes": [
+    {
+      "kind": "alias-of",
+      "status": "new-candidate-kind",
+      "reason": "Needed to keep downgraded explanation terms machine-readable without treating them as independent Concept Specs."
+    }
+  ]
+}

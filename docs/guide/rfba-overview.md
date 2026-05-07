@@ -14,6 +14,9 @@ RFBA splits backend code by review-worthy concerns, not by technical layers.
 It separates files around review responsibility: business meaning, risk, policy, public surface, and verification responsibility.
 Human reviewers should be able to find the artifacts that carry business meaning, understand what they depend on, and verify the local evidence around them.
 
+RFBA defines where humans should review.
+Concept Specs define what those reviews must protect.
+
 ## What RFBA Optimizes For
 
 RFBA is built around four review questions:
@@ -39,6 +42,18 @@ DTOs, mapping, validation, and routing still matter, but they are usually easier
 
 RFBA also applies to non-SQL backend concerns when they carry review responsibility.
 Examples include authentication, authorization, pricing rules, state transitions, transfer rules, and external integration contracts.
+
+## Relationship To Concept Specs
+
+RFBA is an architecture for exposing review surfaces.
+Concept Specs are durable review criteria for cross-feature concepts.
+
+An RFBA feature should use Concept Specs as upstream context, but it should not redefine the Concept Spec's domain meaning inside the feature.
+The issue describes the current change request.
+The Concept Spec describes the long-lived guardrails that the change must preserve.
+The RFBA boundary then exposes the implementation artifacts that reviewers should inspect against those guardrails.
+
+In short: Concept Specs explain what must be protected; RFBA makes the relevant implementation surfaces easy to review.
 
 ## File Splitting Rule
 
@@ -92,3 +107,6 @@ Outside feature-scoped scaffold conventions, projects may choose different filen
 RFBA is also not a claim that humans only review SQL.
 DDL, orchestration, public API contracts, and important verification cases still need human judgment.
 The point is to make the review-heavy artifacts visible and local, while letting AI and tools handle more of the surrounding wiring and consistency work.
+
+RFBA is also not a place to restate individual domain concepts.
+If a concept spans multiple features, keep its meaning in a Concept Spec and let RFBA feature files point to it rather than copying the concept into every boundary.

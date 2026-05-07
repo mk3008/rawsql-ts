@@ -15,30 +15,25 @@ Transfer Setting は、転送元データソースを定義し、そのデータ
 - 転送元データソースは、物理テーブルに基づいてもよいし、クエリに基づいてもよい。
 - 転送元データソースは、転送元の行または再評価単位を特定するキー定義を持つ。キーは単一キーでも複合キーでもよい。
 - Transfer Setting は、Destination Link を通じて Destination へ接続される。
-- Transfer Setting Destination Link とは、Transfer Setting のデータソースを特定の Destination へ接続するための宛先別設定である。
-- Transfer Setting は、転送ルールであり、転送実行リクエストそのものではない。
+- Destination Link とは、Transfer Setting のデータソースを特定の Destination へ接続するための宛先別設定である。
+- Transfer Setting は、転送ルールであり、転送実行そのものではない。
 
 ## Non-responsibilities
 
-- Transfer Setting は Dirty Key を管理しない。
-- Transfer Setting は Dirty Key の登録方法を定義しない。
-- Transfer Setting は Transfer Request の作成、スケジューリング、実行タイミングを管理しない。
+- Transfer Setting は変更検知履歴を管理しない。
+- Transfer Setting は変更検知履歴の登録方法を定義しない。
+- Transfer Setting は Transfer Run の作成、スケジューリング、実行タイミングを管理しない。
 - Transfer Setting は転送実行状態を管理しない。
 - Transfer Setting は転送履歴を管理しない。
-- Transfer Setting は active black を管理しない。
+- Transfer Setting は赤伝時に参照すべき現在有効な黒を管理しない。
 - Transfer Setting は転送先テーブルの保存モデルを定義しない。
-- Transfer Setting は Destination の意味を再定義しない。
 
 ## Responsibilities
 
 - Transfer Setting は、転送元データソースを抽出する基礎 SQL を持つ。
 - Transfer Setting は、転送元データソースの行または再評価単位を特定するキー定義を持つ。
 - Transfer Setting は、基礎 SQL をどの Destination へ接続するかを Destination Link として管理する。
-- Destination Link は、宛先ごとの実行順を持ってよい。
-- Destination Link は、宛先ごとの転送元キー定義を持ってよい。
-- Destination Link は、宛先ごとの source-to-destination mapping を持ってよい。
-- Destination Link は、宛先ごとの生成済み転送 SQL を保持してよい。
-- Destination Link は、宛先ごとの差分比較除外列を持ってよい。
+- Destination Link は、宛先ごとの実行順、キー定義、mapping、生成済み転送 SQL、差分比較除外列を持ってよい。
 
 ## Invariants
 
@@ -48,10 +43,8 @@ Transfer Setting は、転送元データソースを定義し、そのデータ
 - Transfer Setting の基礎 SQL は、転送先の採番式を持たない。
 - Transfer Setting の基礎 SQL は、転送先への INSERT / UPDATE / DELETE そのものではない。
 - 任意検索条件は、基礎 SQL の [SSSQL](../../../../../docs/guide/sssql-overview.md) として表現する。転送 SQL 生成側が WHERE 条件を暗黙に追加しない。
-- Transfer Setting と Destination の接続は、Transfer Setting Destination Link として管理する。
-- 生成済み転送 SQL は、Transfer Setting 単体ではなく、Transfer Setting Destination Link 単位で管理する。
-- Transfer Setting は、Dirty Key の意味を再定義しない。
-- Transfer Setting は、Destination の意味を再定義しない。
+- Transfer Setting と Destination の接続は、Destination Link として管理する。
+- 生成済み転送 SQL は、Transfer Setting 単体ではなく、Destination Link 単位で管理する。
 
 ## Why
 
@@ -67,46 +60,16 @@ Transfer Setting は、転送先ではなく転送元データソースを定義
 
 ### Destination Link Connects a Data Source to a Destination
 
-Transfer Setting Destination Link は、Transfer Setting のデータソースを特定の Destination へ接続するための宛先別設定である。
+Destination Link は、Transfer Setting のデータソースを特定の Destination へ接続するための宛先別設定である。
 
-このリンクは、以下を表す。
+このリンクは単なる中間テーブルではない。ただし、Transfer Run、Transfer Execution、実行状態、実行履歴そのものでもない。
 
-- どの Destination へ接続するか
-- どの順序で扱うか
-- 転送元キーをどう特定するか
-- 転送元 SQL の結果を Destination 列へどう mapping するか
-- 宛先ごとの差分比較除外列をどう扱うか
-- 生成済み転送 SQL をどこに保持するか
-
-このリンクは単なる中間テーブルではない。ただし、Transfer Request、Transfer Execution、実行状態、実行履歴そのものでもない。
-
-### Generated SQL Belongs to the Link
-
-生成済み転送 SQL は、Transfer Setting 単体にも、Destination 単体にも属さない。
-
-生成済み転送 SQL は、以下の組み合わせで決まる。
-
-- Transfer Setting の基礎 SQL
-- Destination の列、キー、採番式、transfer model
-- Transfer Setting Destination Link が持つキー定義、mapping 定義、宛先別設定
-
-そのため、生成済み転送 SQL は Transfer Setting Destination Link 単位で管理する。
+Destination Link の詳細は、独立した Concept Spec で扱う。
 
 ## Usage Notes
 
 - Transfer Setting を読むときは、大きなデータソース定義と、そこから各 Destination へつなぐ小さな Destination Link 群として見る。
 - Destination の列、キー、採番式、transfer model は Destination 側の仕様として扱う。
 - Destination Link は、Transfer Setting と Destination の接続に必要な宛先別の mapping やキー定義を扱う。
-- Transfer Setting は実行タイミングを管理しない。いつ実行するか、どのリクエストとして実行するかは別概念で扱う。
+- Transfer Setting は実行タイミングを管理しない。いつ実行するか、どの Transfer Run として実行するかは別概念で扱う。
 - Transfer Setting の基礎 SQL に任意検索条件が必要な場合は、SSSQL として明示する。
-
-## Related Terms
-
-この文書では、以下の関連概念を定義しない。
-
-- Destination
-- Dirty Key
-- Transfer Request
-- Transfer Execution
-- lineage
-- active black

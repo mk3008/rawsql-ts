@@ -12,6 +12,10 @@ It defines stable meaning, responsibility boundaries, non-responsibilities, and 
 Concept Specs are not implementation plans.
 They are not SQL, DDL, queryspecs, transaction workflows, or test cases.
 
+Concept Specs differ from ordinary implementation-driven specifications.
+They do not primarily freeze how software should move step by step.
+They freeze what must keep its meaning, what must not be broken, and which responsibility boundaries later changes must preserve.
+
 ## What Concept Specs Optimize For
 
 Concept Specs are built around four review questions:
@@ -22,6 +26,19 @@ Concept Specs are built around four review questions:
 - Which invariants must later features not violate?
 
 The structure should let reviewers and agents find the stable domain assumptions before reading feature-local implementation details.
+
+Concept Specs optimize for long-lived `what` and `why`, not short-lived `how`:
+
+| Concept Spec Owns | Why It Belongs Here |
+|---|---|
+| term definitions | reduce interpretation drift between humans and agents |
+| domain rules | preserve meaning across implementation changes |
+| invariants | name what refactors and AI edits must not violate |
+| responsibility boundaries | keep later features from redefining the same concept |
+| important non-responsibilities | prevent plausible but harmful expansions of the concept |
+
+Concept Specs may record priority or exception handling when that priority is part of the durable concept.
+They should not become a complete decision log or a copy of implementation details.
 
 ## When To Create One
 
@@ -59,13 +76,34 @@ A Concept Spec should usually include:
 - `Responsibilities`: what the concept owns
 - `Non-responsibilities`: what the concept does not own
 - `Invariants`: rules that later implementations must preserve
-- `Related Terms`: related concepts that this spec does not define
 
 Use short additional sections when they explain an important design decision.
 For example, a `Why` section can preserve why a responsibility boundary was narrowed.
 
+Do not keep per-spec `Related Terms` lists when the package has a concept map or machine-readable relationship file.
+Concept relationships should be normalized at the concept root, for example in `concept-map.md` and `concept-relationship.json`, so relationship maintenance does not drift across individual specs.
+
 Avoid copying generic Concept Spec management rules into every individual spec.
 Package-level guidance and repository documentation should carry the common rules.
+
+## Negative Boundary Rule
+
+Use negative statements carefully.
+
+A negative boundary is useful when it prevents a common or high-impact misunderstanding, but a sentence that only says "this concept does not do X" often leaves readers asking where X belongs.
+
+When writing a negative statement, prefer also naming the owning context or concept.
+
+For example:
+
+```md
+- Dirty Key does not decide whether a row should be transferred.
+- Whether a row should be transferred is decided in the Work Item context.
+```
+
+Do not add a long relationship list only to satisfy this rule.
+If the owner is obvious from `concept-map.md`, a short pointer is enough.
+If the owner is not known yet, state that the ownership is unresolved instead of silently ending with a negation.
 
 ## What Not To Put In Concept Specs
 
@@ -84,6 +122,23 @@ Concept Specs should not define:
 
 If a business rule itself contains a calculation rule, write it as a business rule, not as an implementation algorithm.
 
+Concept Specs are not implementation specifications.
+Do not put Zod schemas, API paths, function names, class structures, SQL predicates, or concrete processing steps in a Concept Spec unless the exact shape is itself the durable domain rule.
+
+Use the right artifact for the job:
+
+| Artifact | Primary Role |
+|---|---|
+| Concept Spec | durable meaning, responsibility boundaries, non-responsibilities, and invariants |
+| Issue | the change request for the current work |
+| feature-local spec | feature-specific behavior that has not become a cross-feature concept |
+| DDL comment | table, column, and constraint meaning |
+| queryspec | SQL input/output contract |
+| code comment | local reason that is easiest to understand near the code |
+| test / ZTD | executable verification |
+| RFBA boundary | reviewable implementation surface |
+| ztd-cli | scaffold, report, and structural check support |
+
 ## Placement
 
 Package-local Concept Specs live under package documentation, not under TypeScript source folders:
@@ -91,6 +146,8 @@ Package-local Concept Specs live under package documentation, not under TypeScri
 ```text
 packages/<package-name>/docs/concepts/
   README.md
+  concept-map.md
+  concept-relationship.json
   <concept-name>/
     SPEC.md
 ```
@@ -104,6 +161,19 @@ Individual concepts own their durable specification in their own directory:
 packages/transfer/docs/concepts/dirty-key/SPEC.md
 ```
 
+Keep Concept Spec directories flat by default.
+Do not use nested folders to express dependency, execution order, ownership, or transfer-model grouping.
+
+Concept relationships are graph-shaped, not tree-shaped.
+A concept may participate in multiple views, such as execution, transfer model, change detection, audit, lineage, or SQL generation.
+
+Represent dependencies, relationships, lifecycle order, and conceptual views in:
+
+- `concept-map.md`
+- `concept-relationship.json`
+
+Filesystem nesting should be used only when a concept is truly a sub-concept that cannot be understood without its direct parent and does not naturally belong to multiple parents.
+
 Feature-local specs, when needed, stay close to the feature:
 
 ```text
@@ -116,31 +186,43 @@ Feature-local `SPEC.md` files describe feature-specific behavior.
 They are not Concept Specs unless they are promoted to `docs/concepts/` by explicit human decision.
 Feature-local specs may depend on Concept Specs, but they must not redefine Concept Specs.
 
-## Tree Rules
+## Concept Map Rules
 
-Do not start with a deep Concept Spec tree.
+Do not build a Concept Spec dependency tree on the filesystem.
 
-Start with one directory per concept:
+Start with one direct directory per concept:
 
 ```text
 docs/concepts/
+  concept-map.md
+  concept-relationship.json
   dirty-key/
     SPEC.md
   lineage/
     SPEC.md
 ```
 
-Create child Concept Specs only when all of these are true:
+Use the concept map as the package-level structure.
+It may provide multiple views over the same flat set of concepts, for example:
 
-- the parent spec is becoming too large
-- one section is repeatedly referenced by multiple issues or features
-- the section can stand as a child concept that depends on the parent
+- execution view
+- transfer model view
+- change detection view
+- audit or debugging view
+- SQL generation view
+
+A concept may appear in more than one view.
+That is expected and is one reason filesystem nesting should not be used for ordinary relationship management.
+
+Create child Concept Specs only in the rare case where all of these are true:
+
+- the child concept cannot be understood without the direct parent
+- the child concept does not naturally belong to multiple parents
 - the child spec does not redefine the parent
+- the flat concept plus map structure is no longer sufficient
 
-Child Concept Specs implicitly depend on their nearest parent Concept Spec.
-Do not manually list the parent as a dependency in `spec-relationship.json`; the directory structure is the parent link.
-
-If a concept has multiple parents, keep it as an independent Concept Spec under `docs/concepts/` and record extra dependencies only when needed.
+Concept Spec movement, nesting, splitting, or merging requires explicit human instruction naming the target path.
+AI agents and CLI tools must not reorganize Concept Spec layout to infer or express relationships.
 
 ## spec-relationship.json
 
@@ -216,6 +298,13 @@ Early CLI support should stay structural and mechanical:
 CLI tools must not reinterpret the spec body, move specs, split specs, merge specs, or reorganize the Concept Spec tree automatically.
 Those actions require human review.
 
+`ztd-cli` is not the primary author of Concept Specs.
+It should support the relationship between Concept Specs, RFBA boundaries, query artifacts, tests, and generated files without inventing concept content.
+
+Useful CLI support should focus on scaffold, discovery, reports, and structural checks.
+For example, a CLI may show related Concept Specs before implementation or check broken `spec-relationship.json` links.
+It should not generate authoritative concept prose or decide concept ownership on behalf of humans.
+
 Future checks may compare constants across Concept Specs, DDL constraints, TypeScript unions, and queryspec expectations.
 Those checks should come later because they need explicit mapping between artifacts.
 
@@ -259,6 +348,9 @@ New root or seed specs may exist before features depend on them.
 RFBA makes SQL and feature boundaries reviewable after the right context exists.
 
 Concept Specs provide that context before RFBA feature implementation starts.
+
+RFBA defines where humans should review.
+Concept Specs define what those reviews must protect.
 
 They are complementary:
 
