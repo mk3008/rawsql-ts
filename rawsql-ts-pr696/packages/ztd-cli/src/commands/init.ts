@@ -389,6 +389,8 @@ const SQL_README_TEMPLATE = 'src/sql/README.md';
 const JOBS_README_TEMPLATE = 'src/jobs/README.md';
 const ZTD_README_TEMPLATE = 'ztd/README.md';
 const ZTD_DDL_DEMO_TEMPLATE = 'db/ddl/demo.sql';
+const STARTER_DB_READY_NOTE =
+  'Wait until Postgres is ready before the DB-backed smoke path; if the container just started, rerun the QuerySpec smoke test once.';
 
 const EMPTY_SCHEMA_COMMENT = (schemaName: string): string =>
   [
@@ -434,12 +436,13 @@ const STARTER_README_APPENDIX = (postgresImage: string): string =>
     '2. Run the DB-free smoke tests first with `npx vitest run src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts`.',
     '3. Copy `.env.example` to `.env` and update `ZTD_DB_PORT` if 5432 is already in use.',
     '4. Start Postgres with `docker compose up -d` when you are ready for the DB-backed smoke path.',
-    `5. The bundled compose file uses \`${postgresImage}\`, and the generated Vitest setup derives \`ZTD_TEST_DATABASE_URL\` from \`ZTD_DB_PORT\`.`,
-    '6. Run `npx ztd ztd-config` to regenerate the runtime fixture manifest, DDL-derived test rows, and layout metadata.',
-    '7. Read `.ztd/support/postgres-testkit.ts` and `src/features/smoke/tests/smoke.queryspec.test.ts` to see the DB-backed starter smoke path through `createStarterPostgresTestkitClient` and the underlying `@rawsql-ts/testkit-postgres` API.',
-    '8. Run `npx vitest run` to exercise the DB-free and DB-backed smoke tests with the values from `.env`.',
-    '9. Run `npx ztd feature scaffold --table users --action insert` to create the first fixed feature shell before asking AI to add tests.',
-    '10. Add `src/features/users-insert/tests/users-insert.queryspec.test.ts` and `src/features/users-insert/tests/users-insert.feature.test.ts` as the AI follow-up, then delete `src/features/smoke/` when you no longer need the sample.',
+    `5. ${STARTER_DB_READY_NOTE}`,
+    `6. The bundled compose file uses \`${postgresImage}\`, and the generated Vitest setup derives \`ZTD_TEST_DATABASE_URL\` from \`ZTD_DB_PORT\`.`,
+    '7. Run `npx ztd ztd-config` to regenerate the runtime fixture manifest, DDL-derived test rows, and layout metadata.',
+    '8. Read `.ztd/support/postgres-testkit.ts` and `src/features/smoke/tests/smoke.queryspec.test.ts` to see the DB-backed starter smoke path through `createStarterPostgresTestkitClient` and the underlying `@rawsql-ts/testkit-postgres` API.',
+    '9. Run `npx vitest run` to exercise the DB-free and DB-backed smoke tests with the values from `.env`.',
+    '10. Run `npx ztd feature scaffold --table users --action insert` to create the first fixed feature shell before asking AI to add tests.',
+    '11. Add `src/features/users-insert/tests/users-insert.queryspec.test.ts` and `src/features/users-insert/tests/users-insert.feature.test.ts` as the AI follow-up, then delete `src/features/smoke/` when you no longer need the sample.',
     ''
   ].join('\n');
 
@@ -2301,6 +2304,7 @@ function buildNextSteps(
       `Run tests (${runScriptCommand('test')} or npx vitest run src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts) to confirm the DB-free smoke path is green`,
       'Read src/features/smoke/tests/smoke.queryspec.test.ts to see the DB-backed QuerySpec path that also checks connectivity',
       'Run docker compose up -d to start the bundled Postgres container before the DB-backed smoke path',
+      STARTER_DB_READY_NOTE,
       `The bundled compose file uses ${postgresImage}; copy .env.example to .env and keep ZTD_DB_PORT aligned before running src/features/smoke/tests/smoke.queryspec.test.ts`,
       'Expect src/features/smoke/tests/smoke.queryspec.test.ts to fail until .env is present or the DB is running; that failure is part of the starter guidance',
       ...generationSteps,
@@ -2550,60 +2554,58 @@ export interface InitDryRunPlan {
   files: string[];
 }
 
-export function buildInitDryRunPlan(rootDir: string, options: {
-  appShape: InitAppShape;
-  starter?: boolean;
-  postgresImage?: string;
-  withAiGuidance?: boolean;
-  withDogfooding?: boolean;
-  withAppInterface?: boolean;
-  workflow: InitWorkflow;
-  validator: ValidatorBackend;
-  localSourceRoot?: string;
-}): InitDryRunPlan {
-  const schemaName = normalizeSchemaName(DEFAULT_ZTD_CONFIG.defaultSchema);
-  const schemaFileName = `${sanitizeSchemaFileName(schemaName)}.sql`;
-  const scaffoldLayout = resolveInitScaffoldLayout(rootDir, options.appShape);
-  const starter = options.starter === true;
-  const postgresImage = options.postgresImage?.trim() || DEFAULT_POSTGRES_IMAGE;
+function pushRelativePlanFile(files: string[], rootDir: string, filePath: string): void {
+  files.push(normalizeCliPath(path.relative(rootDir, filePath)));
+}
+
+function buildInitPlanFiles(
+  rootDir: string,
+  scaffoldLayout: InitScaffoldLayout,
+  schemaFileName: string,
+  options: {
+    starter: boolean;
+    withAiGuidance?: boolean;
+    withDogfooding?: boolean;
+    withAppInterface?: boolean;
+  }
+): string[] {
   const files = [
     'ztd.config.json',
     path.join(DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
-    path.join('src', 'features', 'README.md'),
     path.join(resolveSupportDir(DEFAULT_ZTD_CONFIG), 'global-setup.ts'),
-    path.join(resolveSupportDir(DEFAULT_ZTD_CONFIG), 'setup-env.ts'),
     path.join(resolveGeneratedDir(DEFAULT_ZTD_CONFIG), 'ztd-row-map.generated.ts'),
     path.join(resolveGeneratedDir(DEFAULT_ZTD_CONFIG), 'ztd-layout.generated.ts'),
     path.join(resolveGeneratedDir(DEFAULT_ZTD_CONFIG), 'ztd-fixture-manifest.generated.ts'),
-    'README.md',
-    '.env.example',
     '.gitignore',
     'src/sql/README.md',
     'vitest.config.ts',
-    'tsconfig.json'
+    'tsconfig.json',
   ];
 
-  if (starter) {
-    files.push(
-      STARTER_COMPOSE_FILE,
-      path.join('src', 'features', 'smoke', 'README.md'),
-      path.join('src', 'features', 'smoke', 'application', 'README.md'),
-      path.join('src', 'features', 'smoke', 'domain', 'README.md'),
-      path.join('src', 'features', 'smoke', 'persistence', 'README.md'),
-      path.join('src', 'features', 'smoke', 'tests', 'README.md'),
-      path.join('src', 'features', 'smoke', 'domain', 'smoke-policy.ts'),
-      path.join('src', 'features', 'smoke', 'application', 'smoke-workflow.ts'),
-      path.join('src', 'features', 'smoke', 'persistence', 'smoke.sql'),
-      path.join('src', 'features', 'smoke', 'persistence', 'smoke.spec.ts'),
-      path.join('src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'),
-      path.join('src', 'features', 'smoke', 'tests', 'smoke.test.ts'),
-      path.join('src', 'features', 'smoke', 'tests', 'smoke.queryspec.test.ts'),
-      path.join('src', 'infrastructure', 'README.md'),
-      path.join('src', 'infrastructure', 'telemetry', 'types.ts'),
-      path.join('src', 'infrastructure', 'telemetry', 'repositoryTelemetry.ts'),
-      path.join('src', 'infrastructure', 'telemetry', 'consoleRepositoryTelemetry.ts'),
-      path.join(resolveSupportDir(DEFAULT_ZTD_CONFIG), 'postgres-testkit.ts')
-    );
+  pushRelativePlanFile(files, rootDir, scaffoldLayout.featureReadmePath);
+  pushRelativePlanFile(files, rootDir, scaffoldLayout.setupEnvPath);
+  pushRelativePlanFile(files, rootDir, scaffoldLayout.envExamplePath);
+  files.push('README.md');
+
+  if (options.starter) {
+    pushRelativePlanFile(files, rootDir, path.join(rootDir, STARTER_COMPOSE_FILE));
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeReadmePath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeApplicationReadmePath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeDomainReadmePath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokePersistenceReadmePath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeTestsReadmePath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeDomainPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeApplicationPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeSqlPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeSpecPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeValidationTestPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeTestPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeQuerySpecTestPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.infrastructureReadmePath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.telemetryTypesPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.telemetryRepositoryPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.telemetryConsoleRepositoryPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.starterPostgresTestkitPath);
   }
 
   if (options.withAiGuidance) {
@@ -2620,12 +2622,38 @@ export function buildInitDryRunPlan(rootDir: string, options: {
     files.push('PROMPT_DOGFOOD.md');
   }
 
-  files.push(normalizeCliPath(path.relative(rootDir, scaffoldLayout.sqlClientPath)));
-  files.push(normalizeCliPath(path.relative(rootDir, scaffoldLayout.sqlClientAdaptersPath)));
+  pushRelativePlanFile(files, rootDir, scaffoldLayout.sqlClientPath);
+  pushRelativePlanFile(files, rootDir, scaffoldLayout.sqlClientAdaptersPath);
 
   if (options.withAppInterface) {
-    files.splice(0, files.length, 'AGENTS.md');
+    return ['AGENTS.md'];
   }
+
+  return files;
+}
+
+export function buildInitDryRunPlan(rootDir: string, options: {
+  appShape: InitAppShape;
+  starter?: boolean;
+  postgresImage?: string;
+  withAiGuidance?: boolean;
+  withDogfooding?: boolean;
+  withAppInterface?: boolean;
+  workflow: InitWorkflow;
+  validator: ValidatorBackend;
+  localSourceRoot?: string;
+}): InitDryRunPlan {
+  const schemaName = normalizeSchemaName(DEFAULT_ZTD_CONFIG.defaultSchema);
+  const schemaFileName = `${sanitizeSchemaFileName(schemaName)}.sql`;
+  const scaffoldLayout = resolveInitScaffoldLayout(rootDir, options.appShape);
+  const starter = options.starter === true;
+  const postgresImage = options.postgresImage?.trim() || DEFAULT_POSTGRES_IMAGE;
+  const files = buildInitPlanFiles(rootDir, scaffoldLayout, schemaFileName, {
+    starter,
+    withAiGuidance: options.withAiGuidance,
+    withDogfooding: options.withDogfooding,
+    withAppInterface: options.withAppInterface
+  });
   if (options.localSourceRoot) {
     resolveInitScaffoldProfile(rootDir, options.localSourceRoot);
   }
