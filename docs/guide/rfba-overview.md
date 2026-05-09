@@ -47,13 +47,23 @@ Examples include authentication, authorization, pricing rules, state transitions
 
 RFBA is an architecture for exposing review surfaces.
 Concept Specs are durable review criteria for cross-feature concepts.
+Process Maps are optional long-lived process views for complex logic that needs concept-to-process validation before implementation.
 
 An RFBA feature should use Concept Specs as upstream context, but it should not redefine the Concept Spec's domain meaning inside the feature.
 The issue describes the current change request.
 The Concept Spec describes the long-lived guardrails that the change must preserve.
+When a use case is complex enough to need it, the Process Map shows how those concepts flow through the process without committing to physical design.
 The RFBA boundary then exposes the implementation artifacts that reviewers should inspect against those guardrails.
 
-In short: Concept Specs explain what must be protected; RFBA makes the relevant implementation surfaces easy to review.
+In short: Concept Specs explain what must be protected; Process Maps check whether complex logic can be expressed without violating those concepts; RFBA makes the relevant implementation surfaces easy to review.
+
+Agent workflow skills may help after this context exists.
+They can guide planning, TDD, verification, review, branch work, or subagent execution, but they are implementation discipline rather than domain authority.
+RFBA should use those skills to keep work reviewable without letting them replace Concept Specs, Process Maps, or human review responsibility.
+
+Process Maps should stay above physical design.
+They may describe process order, inputs, outputs, decisions, and concept usage.
+They should not define DDL details, SQL shape, validation schemas, API paths, function names, class structure, file layout, or transaction implementation unless those details are explicitly requested as a separate implementation design.
 
 ## File Splitting Rule
 

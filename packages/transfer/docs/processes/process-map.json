@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "processMaps": [
+    {
+      "id": "transfer-execution",
+      "path": "transfer-execution-process.md",
+      "summary": "Transfer Execution main routine and process details."
+    },
+    {
+      "id": "lineage-trace",
+      "path": "lineage-trace-process.md",
+      "summary": "Lineage trace process for audit, debugging, and origin lookup."
+    }
+  ],
+  "views": [
+    {
+      "id": "transfer-execution-main",
+      "name": "Transfer Execution Main",
+      "processMap": "transfer-execution",
+      "concepts": [
+        "transfer-execution"
+      ],
+      "purpose": "Main routine state machine: create execution context, prepare Work Items that carry decision materials, skip transfer for duplicate-ignore or no-op cases, branch by transfer model when transfer is needed, run ordered transfer processes, record results, and finish."
+    },
+    {
+      "id": "create-transfer-run",
+      "name": "Create Transfer Run detail",
+      "processMap": "transfer-execution",
+      "concepts": [
+        "transfer-run",
+        "transfer-setting"
+      ],
+      "purpose": "Detailed view of how the Create Transfer Run process creates the execution context."
+    },
+    {
+      "id": "work-item-preparation",
+      "name": "Prepare Work Item detail",
+      "processMap": "transfer-execution",
+      "concepts": [
+        "dirty-key",
+        "work-item",
+        "dirty-key-processing",
+        "transfer-setting",
+        "destination-link",
+        "destination",
+        "active-black"
+      ],
+      "purpose": "Detailed view of how the Prepare Work Item process fixes Dirty Keys as Work Items, excludes already processed Dirty Keys, and attaches the decision materials needed to choose the transfer-model route and route-side effects."
+    },
+    {
+      "id": "red-transfer-insert",
+      "name": "Red Transfer - insert detail",
+      "processMap": "transfer-execution",
+      "concepts": [
+        "red-transfer",
+        "lineage"
+      ],
+      "purpose": "Detailed view of how the Red Transfer - insert process writes a reversing red destination row and records lineage when the Work Item materials satisfy Red Transfer."
+    },
+    {
+      "id": "black-transfer-insert",
+      "name": "Black Transfer - insert detail",
+      "processMap": "transfer-execution",
+      "concepts": [
+        "black-transfer",
+        "lineage"
+      ],
+      "purpose": "Detailed view of how the Black Transfer - insert process writes a black destination row and records lineage when the Work Item materials satisfy Black Insert Transfer."
+    },
+    {
+      "id": "physical-delete-transfer-execute",
+      "name": "Physical Delete Transfer - execute detail",
+      "processMap": "transfer-execution",
+      "concepts": [
+        "physical-delete-transfer"
+      ],
+      "purpose": "Detailed view of how the Physical Delete Transfer - execute process physically deletes a destination row when the Work Item materials satisfy Physical Delete Transfer."
+    },
+    {
+      "id": "black-transfer-upsert",
+      "name": "Black Transfer - upsert detail",
+      "processMap": "transfer-execution",
+      "concepts": [
+        "black-transfer"
+      ],
+      "purpose": "Detailed view of how the Black Transfer - upsert process inserts or updates a destination row when the Work Item materials satisfy mutable Black Transfer."
+    },
+    {
+      "id": "record-processing-result",
+      "name": "Record Processing Result detail",
+      "processMap": "transfer-execution",
+      "concepts": [
+        "dirty-key-processing",
+        "transfer-run",
+        "work-item"
+      ],
+      "purpose": "Detailed view of how the Record Processing Result process records processing results in Dirty Key Processing for duplicate-transfer prevention."
+    },
+    {
+      "id": "lineage-audit",
+      "name": "Trace Origin From Destination Row flow",
+      "processMap": "lineage-trace",
+      "concepts": [
+        "lineage"
+      ],
+      "purpose": "Flow view for tracing the origin of a destination row through a Lineage match and an origin trace query result."
+    },
+    {
+      "id": "resolve-lineage-match",
+      "name": "Resolve Lineage Match detail",
+      "processMap": "lineage-trace",
+      "concepts": [
+        "lineage"
+      ],
+      "purpose": "Detailed view of how the Resolve Lineage Match process starts from a destination row with Lineage and produces a Matched Lineage Row."
+    },
+    {
+      "id": "build-origin-context",
+      "name": "Build Origin Context detail",
+      "processMap": "lineage-trace",
+      "concepts": [
+        "lineage",
+        "transfer-run",
+        "transfer-setting",
+        "destination-link"
+      ],
+      "purpose": "Detailed view of how the Build Origin Context process uses a Matched Lineage Row to gather source key, execution context, transfer setting, and destination-link context into an Origin Trace View query result."
+    },
+    {
+      "id": "lineage-history",
+      "name": "Trace Destination Row History flow",
+      "processMap": "lineage-trace",
+      "concepts": [
+        "lineage"
+      ],
+      "purpose": "Flow view for tracing the history of a destination row through a history context and a destination row history query result."
+    },
+    {
+      "id": "resolve-history-context",
+      "name": "Resolve Lineage History detail",
+      "processMap": "lineage-trace",
+      "concepts": [
+        "lineage"
+      ],
+      "purpose": "Detailed view of how the Resolve Lineage History process starts from a destination row with Lineage and produces a Lineage History Key List for related lineage and destination rows in the same source-key and destination-link context."
+    },
+    {
+      "id": "build-destination-row-history-view",
+      "name": "Build Destination Row History View detail",
+      "processMap": "lineage-trace",
+      "concepts": [
+        "lineage"
+      ],
+      "purpose": "Detailed view of how the Build Destination Row History View process uses a Lineage History Key List and destination table rows to build a read-only destination row history query result."
+    }
+  ]
+}

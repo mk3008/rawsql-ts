@@ -139,6 +139,54 @@ Use the right artifact for the job:
 | RFBA boundary | reviewable implementation surface |
 | ztd-cli | scaffold, report, and structural check support |
 
+## Concept-Driven Development Flow
+
+Concept Spec work follows an intentionally staged development style.
+
+1. Create and review Concept Specs.
+2. Create and review Process Maps only when the logic is complex enough to need them.
+3. Feed Process Map findings back into Concept Specs when the process exposes a missing concept, ambiguous term, or responsibility gap.
+4. Implement with RFBA after the concept and process review surfaces are stable enough.
+
+Concept Specs are not expected to become perfect from desk review alone.
+They should be correct enough to protect durable meaning, responsibility boundaries, and invariants.
+When a Process Map cannot express the use case without inventing undefined terms, contradicting a Concept Spec, or hiding a responsibility gap, update the Concept Spec or Concept Map before continuing.
+
+Process Maps are optional.
+Create them for complex flows that combine multiple concepts, branching decisions, duplicate prevention, auditability, history, or state transitions.
+Do not create Process Maps for every CRUD feature or simple query.
+
+This flow is deliberately not physical design.
+Concept Specs and Process Maps should avoid DDL details, SQL shape, Zod schemas, API paths, function names, class structure, file layout, and transaction implementation unless the user explicitly asks for a separate implementation design.
+Their value is long document lifetime: they should remain useful across implementation rewrites, schema refactors, and RFBA feature reshaping.
+
+## Relationship To Agent Workflow Skills
+
+Concept Specs are the durable harness.
+Agent workflow skills are execution aids.
+
+Do not treat a generic planning, TDD, subagent, review, or branch-finishing workflow as a replacement for Concept Specs.
+Those skills may help the implementation phase, but they do not own the domain meaning, responsibility boundaries, non-responsibilities, or invariants.
+
+The intended layering is:
+
+| Layer | Role |
+|---|---|
+| Concept Spec | define what must keep its meaning |
+| Concept Map | normalize concept names, glossary terms, and static relationships |
+| Process Map | check whether complex use cases can be expressed from approved concepts |
+| RFBA | expose the implementation surfaces humans should review |
+| ztd-cli / ZTD / tests | provide scaffold, generated artifacts, drift checks, and executable verification |
+| agent workflow skills | guide planning, TDD, verification, review, branch work, and subagent execution |
+
+Agent workflow skills are useful after the concept and process context is known.
+For example, they may enforce verification before completion, help split implementation tasks, or structure review checkpoints.
+
+They should not generate authoritative concept prose, promote draft concepts, reorganize Concept Spec layout, or decide concept ownership.
+If a workflow skill discovers an unclear concept boundary, it should report the ambiguity and route the work back to Concept Spec or Process Map review.
+
+In short: Concept Specs say what must be protected; workflow skills help agents do the work without skipping the guardrails.
+
 ## Placement
 
 Package-local Concept Specs live under package documentation, not under TypeScript source folders:
@@ -150,6 +198,10 @@ packages/<package-name>/docs/concepts/
   concept-relationship.json
   <concept-name>/
     SPEC.md
+
+packages/<package-name>/docs/processes/
+  process-map.json
+  <process-name>-process.md
 ```
 
 `packages/<package-name>/docs/concepts/README.md` is the package-local entrypoint.
@@ -161,16 +213,42 @@ Individual concepts own their durable specification in their own directory:
 packages/transfer/docs/concepts/dirty-key/SPEC.md
 ```
 
+Concept folders are stable anchors.
+When a concept is still under discussion, keep the same concept directory and use `DRAFT.md` instead of `SPEC.md`:
+
+```text
+packages/transfer/docs/concepts/<concept-id>/
+  DRAFT.md
+```
+
+`DRAFT.md` is a visible TODO and review target, but it is not an authoritative Concept Spec.
+Agents may review it, point out contradictions, and propose wording, but they must not treat draft content as a stable premise for implementation unless the current issue explicitly asks for that draft to be used.
+
+When the concept is approved, promote it in place:
+
+1. Replace `DRAFT.md` with `SPEC.md`.
+2. Remove the old `DRAFT.md`.
+3. Update `concept-map.md` from `Draft Concepts` to `Defined Concepts`.
+4. Update `concept-relationship.json` from `draftPath` / `status: "draft"` to `path` / `status: "defined"`.
+5. Recheck process maps and feature references that depended on the draft wording.
+
+Do not use a separate `_drafts/` folder for ordinary concept drafts.
+The concept directory keeps links stable, makes unfinished work visible, and keeps promotion cheap.
+
 Keep Concept Spec directories flat by default.
 Do not use nested folders to express dependency, execution order, ownership, or transfer-model grouping.
 
 Concept relationships are graph-shaped, not tree-shaped.
 A concept may participate in multiple views, such as execution, transfer model, change detection, audit, lineage, or SQL generation.
 
-Represent dependencies, relationships, lifecycle order, and conceptual views in:
+Represent concept dependencies, static relationships, and glossary lookup in:
 
 - `concept-map.md`
 - `concept-relationship.json`
+
+Represent process order, use-case flow, and input/output process details in process maps under:
+
+- `docs/processes/`
 
 Filesystem nesting should be used only when a concept is truly a sub-concept that cannot be understood without its direct parent and does not naturally belong to multiple parents.
 
@@ -202,14 +280,26 @@ docs/concepts/
     SPEC.md
 ```
 
-Use the concept map as the package-level structure.
-It may provide multiple views over the same flat set of concepts, for example:
+Use the concept map as the package-level structure for static concept relationships.
+It may provide static views over the same flat set of concepts, such as master correlation or glossary-oriented lookup.
 
-- execution view
-- transfer model view
-- change detection view
-- audit or debugging view
-- SQL generation view
+Separate defined and draft concepts in the human-facing map:
+
+- `Defined Concepts` have an approved `SPEC.md`.
+- `Draft Concepts` have a `DRAFT.md` and are not yet authoritative.
+
+Draft concepts may appear in maps as open work, but their status must be visible.
+Do not let a draft concept appear as a defined production premise without an explicit human decision.
+
+Do not put use-case execution order, process input/output flow, or state-machine details in the Concept Map.
+Those belong in process maps.
+
+Process maps may provide multiple process views over the same flat set of concepts, for example:
+
+- transfer execution process
+- lineage trace process
+- SQL generation process
+- audit or debugging process
 
 A concept may appear in more than one view.
 That is expected and is one reason filesystem nesting should not be used for ordinary relationship management.
@@ -223,6 +313,28 @@ Create child Concept Specs only in the rare case where all of these are true:
 
 Concept Spec movement, nesting, splitting, or merging requires explicit human instruction naming the target path.
 AI agents and CLI tools must not reorganize Concept Spec layout to infer or express relationships.
+
+## Term Reference Style
+
+Use the concept map as the lookup table for Concept IDs, display names, glossary terms, and spec paths.
+
+Concept IDs and file paths use kebab-case for machines and files.
+Concept Spec prose should use the human-facing display name from the concept map.
+
+When a Concept Spec references another Concept or a glossary term, write the term as inline code.
+For example, write `Transfer Setting`, `Destination Link`, or `source key`.
+
+Do not add per-term links in Concept Spec prose by default.
+Links are harder to maintain and can create noisy documents.
+Readers and agents should use `concept-map.md` to resolve a display name or glossary term to the owning Concept Spec.
+
+The concept map should therefore expose both:
+
+- a machine-facing `Concept ID`
+- a human-facing `Display Name`
+
+Glossary terms that are not standalone Concept Specs should live in a dedicated `Glossary Terms` section of the concept map.
+They should not be added to `concept-relationship.json` unless a future CLI check needs machine-readable glossary metadata.
 
 ## spec-relationship.json
 
@@ -267,6 +379,36 @@ feature -> Concept Spec
 Concept Specs should not maintain a list of every feature that uses them.
 That list drifts easily when new features are added.
 
+## concept-relationship.json
+
+Package-level `concept-relationship.json` records concept discovery metadata for Concept Maps and future CLI checks.
+
+For defined concepts, use `status: "defined"` and point to `SPEC.md`:
+
+```json
+{
+  "id": "dirty-key",
+  "status": "defined",
+  "path": "dirty-key/SPEC.md",
+  "summary": "変更が起きた可能性のある発生元行を識別する変更検知履歴"
+}
+```
+
+For draft concepts, use `status: "draft"` and point to `DRAFT.md`:
+
+```json
+{
+  "id": "example-concept",
+  "status": "draft",
+  "draftPath": "example-concept/DRAFT.md",
+  "summary": "Draft concept under human review."
+}
+```
+
+Do not put both `path` and `draftPath` on the same concept entry.
+`path` means the concept is defined.
+`draftPath` means the concept is unfinished.
+
 ## AGENTS.md Relationship
 
 `AGENTS.md` should be an entrypoint, not a duplicate specification.
@@ -294,6 +436,7 @@ Early CLI support should stay structural and mechanical:
 - check `dependencies[].path` link existence
 - reject manual parent dependencies
 - show related specs for a feature
+- detect invalid `DRAFT.md` / `SPEC.md` lifecycle states
 
 CLI tools must not reinterpret the spec body, move specs, split specs, merge specs, or reorganize the Concept Spec tree automatically.
 Those actions require human review.
@@ -332,6 +475,12 @@ Errors:
 - `spec-relationship.json` is invalid JSON
 - `dependencies[].path` does not exist
 - a child spec manually lists its parent Concept Spec as a dependency
+- one concept directory contains both `SPEC.md` and `DRAFT.md`
+- `concept-relationship.json` marks a concept as `defined` but its `path` is missing or does not exist
+- `concept-relationship.json` marks a concept as `defined` while that concept directory still has `DRAFT.md`
+- `concept-relationship.json` marks a concept as `draft` but its `draftPath` is missing or does not exist
+- `concept-relationship.json` marks a concept as `draft` while `SPEC.md` exists in that concept directory
+- a concept directory with `SPEC.md` or `DRAFT.md` is missing from `concept-relationship.json`
 
 Warnings:
 
@@ -339,6 +488,9 @@ Warnings:
 - a spec is becoming too long
 - a spec has many additional dependencies
 - constants look duplicated across specs
+- a draft concept is used as a production dependency or process premise without explicit human approval
+- a draft concept remains unresolved for a long time
+- a draft concept appears under `Defined Concepts` in `concept-map.md`
 
 Unreferenced Concept Specs should usually be warnings, not errors.
 New root or seed specs may exist before features depend on them.

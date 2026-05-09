@@ -36,23 +36,7 @@
       "observations closed since the previous report"
     ]
   },
-  "unresolvedObservations": [
-    {
-      "id": "concept-status-promotion-sync",
-      "domains": [
-        "Concept Spec",
-        "ztd-cli"
-      ],
-      "summary": "Promoting a concept from planned to defined requires manual synchronization across concept-map.md and concept-relationship.json.",
-      "signals": [
-        "active-black moved from planned-specialized to defined.",
-        "The human-readable map, machine-readable JSON, diagram labels, review request wording, and relationship certainty all needed coordinated edits."
-      ],
-      "risk": "Concept status, path, and relationship certainty can drift when a planned concept gets its own SPEC.md.",
-      "possibleFollowUp": "A future concept check command could compare defined SPEC directories, concept-map.md, and concept-relationship.json and warn about stale statuses or missing paths.",
-      "status": "unresolved"
-    }
-  ],
+  "unresolvedObservations": [],
   "closedObservations": [
     {
       "id": "concept-map-needed",
@@ -190,6 +174,52 @@
         "Concept Map and concept-relationship.json can act as the normalized source for relationships and undefined terms."
       ],
       "resolution": "Removed Related Terms sections from transfer Concept Specs and updated concept-spec-review skill to prefer concept-map normalized relationships.",
+      "status": "closed"
+    },
+    {
+      "id": "process-map-separates-use-case-flow",
+      "domains": [
+        "Concept Spec",
+        "RFBA"
+      ],
+      "summary": "Concept Map became too process-oriented once Transfer Execution and Lineage Trace diagrams were added.",
+      "signals": [
+        "Transfer Execution Main and process details proved that concepts could be logically lowered into process flow.",
+        "Keeping those diagrams in concept-map.md made Concept Map carry use-case process responsibility instead of static concept relationship responsibility.",
+        "The human clarified that master correlation belongs in Concept Map, while transfer execution and lineage trace belong in process/use-case documents."
+      ],
+      "resolution": "Split process diagrams into packages/transfer/docs/processes, added process-map.json, and updated Concept Spec/RFBA guidance plus concept-spec-review skill to distinguish Concept Specs, Concept Maps, Process Maps, and RFBA.",
+      "status": "closed"
+    },
+    {
+      "id": "process-map-flow-detail-review-shape",
+      "domains": [
+        "Concept Spec",
+        "RFBA"
+      ],
+      "summary": "Process Map review needs explicit flow/detail structure and conceptual I/O rules.",
+      "signals": [
+        "Transfer Execution became readable only after separating main routine flow from per-process details.",
+        "Lineage Trace diagrams became understandable only after representing read-only outputs as derived views or key lists.",
+        "One-input/one-output details were too weak when they did not reveal what concept relationship was being derived.",
+        "Process Maps should prove conceptual derivability, not prescribe exact SQL, CTE, memory, performance, or transaction implementation."
+      ],
+      "resolution": "Updated concept-spec-review skill with Process Map rules for flowchart TD process flows, flowchart LR process details, conceptual input/output, derived views, and implementation-leakage checks.",
+      "status": "closed"
+    },
+    {
+      "id": "concept-status-promotion-sync",
+      "domains": [
+        "Concept Spec",
+        "ztd-cli"
+      ],
+      "summary": "Promoting a concept from draft to defined needs cheap, detectable synchronization across the concept folder, concept-map.md, and concept-relationship.json.",
+      "signals": [
+        "active-black moved from planned-specialized to defined.",
+        "The human-readable map, machine-readable JSON, diagram labels, review request wording, and relationship certainty all needed coordinated edits.",
+        "A separate draft area would make TODO visibility, link stability, and promotion state harder to inspect mechanically."
+      ],
+      "resolution": "Adopted stable concept folders with DRAFT.md for drafts and SPEC.md for defined concepts, documented promotion rules, and updated concept-spec-review skill to detect draft/defined lifecycle drift. Future CLI support remains a follow-up candidate.",
       "status": "closed"
     }
   ],

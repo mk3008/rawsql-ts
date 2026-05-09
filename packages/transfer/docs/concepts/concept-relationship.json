@@ -11,7 +11,7 @@
       "id": "dirty-key-processing",
       "path": "dirty-key-processing/SPEC.md",
       "status": "defined",
-      "summary": "Dirty Key がどの Transfer Run と転送先設定で処理され、どの結果になったかを記録する概念"
+      "summary": "Dirty Key がどの Transfer Run と Destination Link で処理され、どの結果になったかを記録する概念"
     },
     {
       "id": "destination",
@@ -47,13 +47,13 @@
       "id": "work-item",
       "path": "work-item/SPEC.md",
       "status": "defined",
-      "summary": "Dirty Key を Transfer Setting の文脈で固定化し、転送判断を付与した作業対象"
+      "summary": "Dirty Key を Transfer Setting の文脈で固定化し、transfer model route と副作用有無の判断材料を付与した作業対象"
     },
     {
       "id": "lineage",
       "path": "lineage/SPEC.md",
       "status": "defined",
-      "summary": "転送先行の転送元を特定し、元ネタを追跡する概念"
+      "summary": "Destination Link の文脈で転送先行の転送元を特定し、元ネタを追跡する概念"
     },
     {
       "id": "active-black",
@@ -102,6 +102,18 @@
       "path": null,
       "status": "variant",
       "summary": "Black Transfer のうち、mutable transfer model で既存の黒伝を直接 UPDATE する転送表現。"
+    }
+  ],
+  "views": [
+    {
+      "id": "setting-master",
+      "name": "Master Correlation",
+      "concepts": [
+        "transfer-setting",
+        "destination-link",
+        "destination"
+      ],
+      "purpose": "Static concept-map view of how Transfer Setting, Destination Link, and Destination define the master-side transfer configuration."
     }
   ],
   "relationships": [
@@ -194,7 +206,7 @@
       "to": "transfer-run",
       "kind": "is-distinct-from",
       "certainty": "from-defined-spec",
-      "reason": "Dirty Key is not a transfer instruction, transfer state, or transfer result."
+      "reason": "Dirty Key is not a transfer instruction, transfer state, or processing result."
     },
     {
       "from": "lineage",
@@ -212,10 +224,10 @@
     },
     {
       "from": "lineage",
-      "to": "destination",
+      "to": "destination-link",
       "kind": "records",
       "certainty": "from-defined-spec",
-      "reason": "Lineage records which Destination the destination row belongs to."
+      "reason": "Lineage records which Destination Link context produced the destination row."
     },
     {
       "from": "key-map",
@@ -240,10 +252,17 @@
     },
     {
       "from": "active-black",
-      "to": "destination",
+      "to": "destination-link",
       "kind": "uses",
       "certainty": "from-defined-spec",
-      "reason": "Active Black refers to a black row that exists on the destination side."
+      "reason": "Active Black distinguishes the current black row in a Destination Link context."
+    },
+    {
+      "from": "active-black",
+      "to": "transfer-run",
+      "kind": "records",
+      "certainty": "from-defined-spec",
+      "reason": "Active Black may record which Transfer Run made the black row current."
     },
     {
       "from": "black-transfer",
@@ -348,7 +367,7 @@
       "to": "work-item",
       "kind": "uses",
       "certainty": "from-defined-spec",
-      "reason": "Transfer Execution uses Work Item decisions to choose black transfer, red transfer, physical delete, or no operation."
+      "reason": "Transfer Execution uses Work Item decision materials to choose the transfer-model route and decide which route operations have destination-side effects."
     },
     {
       "from": "transfer-execution",
@@ -446,7 +465,7 @@
       "to": "destination-link",
       "kind": "depends-on",
       "certainty": "from-defined-spec",
-      "reason": "Dirty Key Processing records destination setting ID because one Transfer Run can cover multiple Destination Links."
+      "reason": "Dirty Key Processing records Destination Link ID because one Transfer Run can cover multiple Destination Links."
     },
     {
       "from": "dirty-key-processing",
