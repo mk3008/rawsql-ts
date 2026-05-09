@@ -8,6 +8,7 @@
 
 ## Global Guardrails
 - Keep generated artifacts, fixtures, and derived docs aligned with their source assets.
+- Keep scaffold code, scaffold-facing docs, and published-package smoke checks aligned when they describe the same workflow.
 - Do not weaken completion criteria or skip required verification.
 - Keep documentation and comments in English.
 - All assistant-user conversation in this repository must be in Japanese.
@@ -16,6 +17,7 @@
 ## Routing
 - Use `.codex/agents/planning.md`, `.codex/agents/verification.md`, `.codex/agents/review.md`, and `.codex/agents/reporting.md` for developer workflow support.
 - Use `.agents/skills/acceptance-planning/SKILL.md`, `.agents/skills/self-review/SKILL.md`, and `.agents/skills/attainment-reporting/SKILL.md` for repeatable planning, review, and reporting workflows.
+- `AGENTS.md` MUST stay policy-oriented; starter walkthroughs, AI onboarding prompts, dogfooding playbooks, and investigation scripts belong in dedicated docs or skills.
 
 ## Responsibility Split
 - Planning guidance makes `Source issue`, `Why it matters`, `Acceptance items`, and `Verification methods` explicit.
@@ -40,6 +42,8 @@
   3. fail fast with a clear error
 - Silent degradation SHOULD NOT be used when it would hide a configuration problem, weaken guarantees, or make quality harder to judge.
 - If a fallback is still the best option, the trigger condition and guarantee limits MUST be explicit in code, tests, and reporting.
+- Local-source dogfooding and scaffold developer-mode flows MUST fail fast when dependencies or CLI entrypoints are missing, and the next recovery step MUST be explicit.
+- Scaffold-owned or user-authored files MUST NOT be overwritten without an explicit force path, and failed initialization MUST NOT leave partial overwrites behind.
 - Scope expansion is ALLOWED when it is strongly aligned and still verifiable, but it MUST be an explicit decision rather than an automatic habit.
 - When a likely follow-up is not needed for the current acceptance items, prefer leaving it out of scope and naming it as follow-up work.
 
