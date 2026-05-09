@@ -398,6 +398,8 @@ const SQL_README_TEMPLATE = 'src/libraries/sql/README.md';
 const JOBS_README_TEMPLATE = 'src/jobs/README.md';
 const ZTD_README_TEMPLATE = 'ztd/README.md';
 const ZTD_DDL_DEMO_TEMPLATE = 'db/ddl/demo.sql';
+const STARTER_DB_READY_NOTE =
+  'Wait until Postgres is ready before the DB-backed smoke path; if the container just started, rerun the QuerySpec smoke test once.';
 
 const EMPTY_SCHEMA_COMMENT = (schemaName: string): string =>
   [
@@ -443,12 +445,13 @@ const STARTER_README_APPENDIX = (postgresImage: string, ztdCommand: string): str
     '2. Run the DB-free smoke tests first with `npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts`.',
     '3. Copy `.env.example` to `.env` and update `ZTD_DB_PORT` if 5432 is already in use.',
     '4. Start Postgres with `docker compose up -d` when you are ready for the DB-backed smoke path.',
-    `5. The bundled compose file uses \`${postgresImage}\`, and the generated Vitest setup derives \`ZTD_DB_URL\` from \`ZTD_DB_PORT\`.`,
-    `6. Run \`${ztdCommand} ztd-config\` to regenerate the runtime fixture manifest, DDL-derived test rows, and layout metadata.`,
-    '7. Read `tests/support/ztd/harness.ts` and `src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts` to see the DB-backed starter smoke path through the shared query-boundary harness and starter DB wiring.',
-    '8. Run `npx vitest run` to exercise the DB-free and DB-backed smoke tests with the values from `.env`.',
-  `9. Run \`${ztdCommand} feature scaffold --table users --action insert\` to create the first fixed feature shell.`,
-  `10. After you finish SQL and DTO edits, run \`${ztdCommand} feature tests scaffold --feature users-insert\` to create TODO-based test scaffolds, then let AI complete them.`,
+    `5. ${STARTER_DB_READY_NOTE}`,
+    `6. The bundled compose file uses \`${postgresImage}\`, and the generated Vitest setup derives \`ZTD_DB_URL\` from \`ZTD_DB_PORT\`.`,
+    `7. Run \`${ztdCommand} ztd-config\` to regenerate the runtime fixture manifest, DDL-derived test rows, and layout metadata.`,
+    '8. Read `tests/support/ztd/harness.ts` and `src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts` to see the DB-backed starter smoke path through the shared query-boundary harness and starter DB wiring.',
+    '9. Run `npx vitest run` to exercise the DB-free and DB-backed smoke tests with the values from `.env`.',
+    `10. Run \`${ztdCommand} feature scaffold --table users --action insert\` to create the first fixed feature shell.`,
+    `11. After you finish SQL and DTO edits, run \`${ztdCommand} feature tests scaffold --feature users-insert\` to create TODO-based test scaffolds, then let AI complete them.`,
     ''
   ].join('\n');
 
@@ -2367,13 +2370,14 @@ function buildNextSteps(
     const starterNextSteps = [
       'Inspect src/features/smoke/ and treat it as a starter-only sample feature that can be deleted later',
       `Run tests (${runScriptCommand('test')} or npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts) to confirm the DB-free smoke path is green`,
-    'Read src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts to see the DB-backed query-boundary path that also checks connectivity',
+      'Read src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts to see the DB-backed query-boundary path that also checks connectivity',
       'Run docker compose up -d to start the bundled Postgres container before the DB-backed smoke path',
+      STARTER_DB_READY_NOTE,
       `The bundled compose file uses ${postgresImage}; copy .env.example to .env and keep ZTD_DB_PORT aligned before running src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts`,
       'Expect src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts to fail until .env is present or the DB is running; that failure is part of the starter guidance',
       ...generationSteps,
-  `Start your first real CRUD slice with \`${ztdCommand} feature scaffold --table users --action insert\` after the smoke sample makes sense`,
-  `Then run \`${ztdCommand} feature tests scaffold --feature users-insert\` after you finish SQL and DTO edits, and let AI complete the TODO-based tests.`,
+      `Start your first real CRUD slice with \`${ztdCommand} feature scaffold --table users --action insert\` after the smoke sample makes sense`,
+      `Then run \`${ztdCommand} feature tests scaffold --feature users-insert\` after you finish SQL and DTO edits, and let AI complete the TODO-based tests.`,
       'Delete src/features/smoke/ once you no longer need the starter sample'
     ];
     const starterFallbackSteps = [
@@ -2619,10 +2623,102 @@ export interface InitDryRunPlan {
   files: string[];
 }
 
+function pushRelativePlanFile(files: string[], rootDir: string, filePath: string): void {
+  files.push(normalizeCliPath(path.relative(rootDir, filePath)));
+}
+
+function buildInitPlanFiles(
+  rootDir: string,
+  scaffoldLayout: InitScaffoldLayout,
+  schemaFileName: string,
+  options: {
+    starter: boolean;
+    withAiGuidance?: boolean;
+    withDogfooding?: boolean;
+    withAppInterface?: boolean;
+  }
+): string[] {
+  const files = [
+    'ztd.config.json',
+    path.join(DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
+    path.join(resolveSupportDir(DEFAULT_ZTD_CONFIG), 'global-setup.ts'),
+    path.join(resolveGeneratedDir(DEFAULT_ZTD_CONFIG), 'ztd-row-map.generated.ts'),
+    path.join(resolveGeneratedDir(DEFAULT_ZTD_CONFIG), 'ztd-layout.generated.ts'),
+    path.join(resolveGeneratedDir(DEFAULT_ZTD_CONFIG), 'ztd-fixture-manifest.generated.ts'),
+    '.gitignore',
+    'src/libraries/sql/sql-client.ts',
+    'src/adapters/pg/sql-client.ts',
+    'vitest.config.ts',
+    'tsconfig.json',
+  ];
+
+  pushRelativePlanFile(files, rootDir, scaffoldLayout.featureReadmePath);
+  pushRelativePlanFile(files, rootDir, scaffoldLayout.setupEnvPath);
+  pushRelativePlanFile(files, rootDir, scaffoldLayout.envExamplePath);
+  files.push('README.md');
+  files.push(path.join('src', 'libraries', 'sql', 'README.md'));
+  files.push(path.join('src', 'adapters', 'README.md'));
+
+  if (options.starter) {
+    pushRelativePlanFile(files, rootDir, path.join(rootDir, STARTER_COMPOSE_FILE));
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.featureQueryExecutorPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.loadSqlResourcePath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeReadmePath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeTestsReadmePath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeSpecPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeEntrySpecTestPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeSpecPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeValidationTestPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeTestPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeQuerySpecTestPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeQuerySpecPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeQuerySqlPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeQueryTestsQuerySpecZtdTypesPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeQueryTestsBasicCasePath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeQueryTestsGeneratedAnalysisPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeQueryTestsGeneratedTestPlanPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.testsSupportZtdReadmePath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.testsSupportZtdCaseTypesPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.testsSupportZtdVerifierPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.testsSupportZtdHarnessPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.infrastructureReadmePath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.telemetryTypesPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.telemetryRepositoryPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.telemetryConsoleRepositoryPath);
+    pushRelativePlanFile(files, rootDir, scaffoldLayout.starterPostgresTestkitPath);
+  }
+
+  if (options.withAiGuidance) {
+    files.push('.ztd/agents/manifest.json');
+    files.push('.ztd/agents/root.md');
+    files.push('.ztd/agents/src.md');
+    files.push('.ztd/agents/src-features.md');
+    files.push('.ztd/agents/tests.md');
+    files.push('.ztd/agents/db.md');
+    files.push('CONTEXT.md');
+  }
+
+  if (options.withDogfooding) {
+    files.push('PROMPT_DOGFOOD.md');
+  }
+
+  pushRelativePlanFile(files, rootDir, scaffoldLayout.sqlClientPath);
+  pushRelativePlanFile(files, rootDir, scaffoldLayout.sqlClientAdaptersPath);
+
+  if (options.withAppInterface) {
+    return ['AGENTS.md'];
+  }
+
+  return files;
+}
+
 export function buildInitDryRunPlan(rootDir: string, options: {
   appShape: InitAppShape;
   starter?: boolean;
   postgresImage?: string;
+  withAiGuidance?: boolean;
+  withDogfooding?: boolean;
+  withAppInterface?: boolean;
   workflow: InitWorkflow;
   validator: ValidatorBackend;
   localSourceRoot?: string;
@@ -2632,56 +2728,12 @@ export function buildInitDryRunPlan(rootDir: string, options: {
   const scaffoldLayout = resolveInitScaffoldLayout(rootDir, options.appShape);
   const starter = options.starter === true;
   const postgresImage = options.postgresImage?.trim() || DEFAULT_POSTGRES_IMAGE;
-  const files = [
-    'ztd.config.json',
-    path.join(DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
-    path.join('src', 'features', 'README.md'),
-    path.join(resolveSupportDir(DEFAULT_ZTD_CONFIG), 'global-setup.ts'),
-    path.join(resolveSupportDir(DEFAULT_ZTD_CONFIG), 'setup-env.ts'),
-    path.join(resolveGeneratedDir(DEFAULT_ZTD_CONFIG), 'ztd-row-map.generated.ts'),
-    path.join(resolveGeneratedDir(DEFAULT_ZTD_CONFIG), 'ztd-layout.generated.ts'),
-    path.join(resolveGeneratedDir(DEFAULT_ZTD_CONFIG), 'ztd-fixture-manifest.generated.ts'),
-    'README.md',
-    '.env.example',
-    '.gitignore',
-    'src/libraries/sql/sql-client.ts',
-    'src/adapters/pg/sql-client.ts',
-    'vitest.config.ts',
-    'tsconfig.json'
-  ];
-
-  if (starter) {
-    files.push(
-      path.join('src', 'libraries', 'README.md'),
-      path.join('src', 'libraries', 'sql', 'README.md'),
-      path.join('src', 'adapters', 'README.md'),
-      STARTER_COMPOSE_FILE,
-      path.join('src', 'features', '_shared', 'featureQueryExecutor.ts'),
-      path.join('src', 'features', '_shared', 'loadSqlResource.ts'),
-      path.join('src', 'features', 'smoke', 'README.md'),
-      path.join('src', 'features', 'smoke', 'tests', 'README.md'),
-      path.join('src', 'features', 'smoke', 'boundary.ts'),
-      path.join('src', 'features', 'smoke', 'tests', 'smoke.boundary.test.ts'),
-      path.join('src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'),
-      path.join('src', 'features', 'smoke', 'tests', 'smoke.test.ts'),
-      path.join('src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'),
-      path.join('src', 'features', 'smoke', 'queries', 'smoke', 'boundary.ts'),
-      path.join('src', 'features', 'smoke', 'queries', 'smoke', 'smoke.sql'),
-      path.join('src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'boundary-ztd-types.ts'),
-      path.join('src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'cases', 'basic.case.ts'),
-      path.join('src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'analysis.json'),
-      path.join('src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'generated', 'TEST_PLAN.md'),
-      path.join('tests', 'support', 'ztd', 'README.md'),
-      path.join('tests', 'support', 'ztd', 'case-types.ts'),
-      path.join('tests', 'support', 'ztd', 'verifier.ts'),
-      path.join('tests', 'support', 'ztd', 'harness.ts'),
-      path.join('src', 'libraries', 'telemetry', 'types.ts'),
-      path.join('src', 'libraries', 'telemetry', 'repositoryTelemetry.ts'),
-      path.join('src', 'adapters', 'console', 'repositoryTelemetry.ts'),
-      path.join(resolveSupportDir(DEFAULT_ZTD_CONFIG), 'postgres-testkit.ts')
-    );
-  }
-
+  const files = buildInitPlanFiles(rootDir, scaffoldLayout, schemaFileName, {
+    starter,
+    withAiGuidance: options.withAiGuidance,
+    withDogfooding: options.withDogfooding,
+    withAppInterface: options.withAppInterface
+  });
   if (options.localSourceRoot) {
     resolveInitScaffoldProfile(rootDir, options.localSourceRoot, starter);
   }
