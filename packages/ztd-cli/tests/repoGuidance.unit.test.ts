@@ -104,6 +104,10 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reviewAgent).toContain('Unsupported `done` claims based mainly on supplementary evidence are blockers.');
   expect(reviewAgent).toContain('If a blocker remains, the result is not ready for human review.');
   expect(rootAgents).toContain('Keep assistant-user conversation in Japanese in this repository.');
+  expect(rootAgents).toContain('Keep scaffold code, scaffold-facing docs, and published-package smoke checks aligned when they describe the same workflow.');
+  expect(rootAgents).toContain('Do not turn `AGENTS.md` into the storage location for starter walkthroughs, AI onboarding prompts, dogfooding playbooks, or investigation scripts; keep those in dedicated docs or skills.');
+  expect(rootAgents).toContain('For local-source dogfooding or scaffold developer-mode flows, fail fast when dependencies or CLI entrypoints are missing and make the next recovery step explicit.');
+  expect(rootAgents).toContain('Do not overwrite scaffold-owned or user-authored files without an explicit force path; failed initialization must not leave partial overwrites behind.');
   expect(rootAgents).toContain('Final user-facing progress and completion reports should use explicit sections rather than long narrative-only blocks when multiple concerns are being reported.');
   expect(rootAgents).toContain('Final PR text and final implementation reports must pass self-review before human review.');
   expect(rootAgents).not.toContain('Review findings MUST be triaged as `blocker`, `follow-up`, or `nit`.');
@@ -111,6 +115,10 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(rootAgents).not.toContain('PR reports MUST treat `Repository evidence` as the primary basis for acceptance judgment.');
   expect(rootAgents).toContain('Supplementary evidence alone must not justify a strong `done` claim.');
   expect(mirrorAgents).toContain('All assistant-user conversation in this repository must be in Japanese.');
+  expect(mirrorAgents).toContain('Keep scaffold code, scaffold-facing docs, and published-package smoke checks aligned when they describe the same workflow.');
+  expect(mirrorAgents).toContain('`AGENTS.md` MUST stay policy-oriented; starter walkthroughs, AI onboarding prompts, dogfooding playbooks, and investigation scripts belong in dedicated docs or skills.');
+  expect(mirrorAgents).toContain('Local-source dogfooding and scaffold developer-mode flows MUST fail fast when dependencies or CLI entrypoints are missing, and the next recovery step MUST be explicit.');
+  expect(mirrorAgents).toContain('Scaffold-owned or user-authored files MUST NOT be overwritten without an explicit force path, and failed initialization MUST NOT leave partial overwrites behind.');
   expect(mirrorAgents).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');
   expect(mirrorAgents).toContain('Final PR text and final implementation reports MUST pass two-cycle self-review before human review.');
   expect(mirrorAgents).toContain('Review findings MUST be triaged as `blocker`, `follow-up`, or `nit`.');
