@@ -7,7 +7,6 @@ import readline from 'node:readline/promises';
 import { ensureDirectory } from '../utils/fs';
 import {
   DEFAULT_ZTD_CONFIG,
-  resolveGeneratedDir,
   resolveSupportDir,
   writeZtdProjectConfig
 } from '../utils/ztdProjectConfig';
@@ -2642,12 +2641,6 @@ function buildInitPlanFiles(
     'ztd.config.json',
     path.join(DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
     path.join(resolveSupportDir(DEFAULT_ZTD_CONFIG), 'global-setup.ts'),
-    path.join(resolveGeneratedDir(DEFAULT_ZTD_CONFIG), 'ztd-row-map.generated.ts'),
-    path.join(resolveGeneratedDir(DEFAULT_ZTD_CONFIG), 'ztd-layout.generated.ts'),
-    path.join(resolveGeneratedDir(DEFAULT_ZTD_CONFIG), 'ztd-fixture-manifest.generated.ts'),
-    '.gitignore',
-    'src/libraries/sql/sql-client.ts',
-    'src/adapters/pg/sql-client.ts',
     'vitest.config.ts',
     'tsconfig.json',
   ];
@@ -2656,10 +2649,10 @@ function buildInitPlanFiles(
   pushRelativePlanFile(files, rootDir, scaffoldLayout.setupEnvPath);
   pushRelativePlanFile(files, rootDir, scaffoldLayout.envExamplePath);
   files.push('README.md');
-  files.push(path.join('src', 'libraries', 'sql', 'README.md'));
-  files.push(path.join('src', 'adapters', 'README.md'));
 
   if (options.starter) {
+    files.push(path.join('src', 'libraries', 'sql', 'README.md'));
+    files.push(path.join('src', 'adapters', 'README.md'));
     pushRelativePlanFile(files, rootDir, path.join(rootDir, STARTER_COMPOSE_FILE));
     pushRelativePlanFile(files, rootDir, scaffoldLayout.featureQueryExecutorPath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.loadSqlResourcePath);
@@ -2667,7 +2660,6 @@ function buildInitPlanFiles(
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeTestsReadmePath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeSpecPath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeEntrySpecTestPath);
-    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeSpecPath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeValidationTestPath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeTestPath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeQuerySpecTestPath);
@@ -2706,7 +2698,7 @@ function buildInitPlanFiles(
   pushRelativePlanFile(files, rootDir, scaffoldLayout.sqlClientAdaptersPath);
 
   if (options.withAppInterface) {
-    return ['AGENTS.md'];
+    files.push('AGENTS.md');
   }
 
   return files;

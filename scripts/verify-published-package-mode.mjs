@@ -288,7 +288,13 @@ function readJsonFile(filePath) {
 
 function runInitDryRunPlan(directory, packageManager, args) {
   const result = runIn(directory, packageManager, ["exec", "--", "ztd", "init", "--dry-run", "--yes", ...args]);
-  return JSON.parse(result.stdout);
+  const stdout = String(result.stdout ?? "");
+  const start = stdout.indexOf("{");
+  const end = stdout.lastIndexOf("}");
+  if (start < 0 || end < start) {
+    throw new Error(`[runInitDryRunPlan] Could not locate JSON plan in stdout:\n${stdout}`);
+  }
+  return JSON.parse(stdout.slice(start, end + 1));
 }
 
 function assertScaffoldPlanMetadata(plan, expected, label) {
@@ -499,11 +505,9 @@ function verifyNpmPrimaryPath(packages) {
   assertScaffoldPlanFilesExist(appDir, dryRunPlan, "phase-a scaffold-files");
 
   const scaffoldPackageJson = readJsonFile(path.join(appDir, "package.json"));
-  assertPackageScript(scaffoldPackageJson, "test", "vitest run --passWithNoTests", "phase-a package-scripts");
-  assertPackageScript(scaffoldPackageJson, "typecheck", "tsc --noEmit", "phase-a package-scripts");
-  if (scaffoldPackageJson.scripts?.ztd !== undefined) {
-    throw new Error("[phase-a package-scripts] Default npm scaffold unexpectedly emitted a local-source ztd wrapper.");
-  }
+  assertPackageScript(scaffoldPackageJson, "test", "node ./scripts/local-source-guard.mjs test --passWithNoTests", "phase-a package-scripts");
+  assertPackageScript(scaffoldPackageJson, "typecheck", "node ./scripts/local-source-guard.mjs typecheck", "phase-a package-scripts");
+  assertPackageScript(scaffoldPackageJson, "ztd", "node ./scripts/local-source-guard.mjs ztd", "phase-a package-scripts");
 
   assertFileMissing(appDir, "compose.yaml", "phase-a default-scaffold-shape");
   assertFileMissing(appDir, "PROMPT_DOGFOOD.md", "phase-a default-scaffold-shape");
