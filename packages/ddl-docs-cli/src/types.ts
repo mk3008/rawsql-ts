@@ -22,10 +22,24 @@ export interface GenerateDocsOptions {
   labelSeparator?: string;
   locale?: string;
   dictionaryPath?: string;
+  tableDocsPath?: string;
   configPath?: string;
   defaultSchema?: string;
   searchPath?: string[];
   filterPgDump?: boolean;
+}
+
+export interface TableDocsColumnMetadata {
+  sample?: unknown;
+}
+
+export interface TableDocsTableMetadata {
+  columns?: Record<string, TableDocsColumnMetadata>;
+}
+
+export interface TableDocsMetadata {
+  schemaVersion: 1;
+  tables?: Record<string, TableDocsTableMetadata>;
 }
 
 export interface PruneDocsOptions {

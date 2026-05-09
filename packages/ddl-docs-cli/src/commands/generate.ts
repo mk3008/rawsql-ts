@@ -9,6 +9,7 @@ import { renderReferencesPage } from '../render/referencesPage';
 import { renderTableMarkdown, tableDocPath } from '../render/tableMarkdown';
 import type { TableSuggestionSql } from '../render/tableMarkdown';
 import { writeManifest } from '../state/manifest';
+import { loadTableDocsMetadata } from '../tableDocsMetadata';
 import type { DdlInput, GenerateDocsOptions, SuggestionItem } from '../types';
 import { dedupeDdlInputsByInstanceAndPath } from '../utils/ddlInputDedupe';
 import { collectSqlFiles, ensureDirectory, expandGlobPatterns } from '../utils/fs';
@@ -60,6 +61,7 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
   }
 
   const dictionary = loadDictionary(options.dictionaryPath);
+  const tableDocsMetadata = loadTableDocsMetadata(options.tableDocsPath);
   const locale = resolveLocale(options.locale, dictionary);
   const analysis = analyzeColumns(snapshot.tables, { locale, dictionary });
   const referenceSuggestions = buildReferenceSuggestions(snapshot.tables);
@@ -79,7 +81,13 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
       columnCommentSql: [],
       foreignKeySql: [],
     };
-    writeTextFileNormalized(outputPath, renderTableMarkdown(table, tableSuggestions, { labelSeparator: options.labelSeparator }));
+    writeTextFileNormalized(
+      outputPath,
+      renderTableMarkdown(table, tableSuggestions, {
+        labelSeparator: options.labelSeparator,
+        getColumnSample: (column) => tableDocsMetadata.getColumnSample(table.schema, table.table, column.name),
+      })
+    );
     generatedFiles.push(outputPath);
     tableOutputs.push(outputPath);
     nameMap[`${table.schema}.${table.table}`] = `${table.schemaSlug}/${table.tableSlug}.md`;
@@ -150,6 +158,7 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
       ddlDirectories: normalizedDirectories,
       ddlFiles: uniqueFiles,
       ddlGlobs: normalizedGlobs,
+      tableDocsPath: options.tableDocsPath,
     },
     nameMap,
     tableOutputs,

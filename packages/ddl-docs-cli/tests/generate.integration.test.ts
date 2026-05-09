@@ -205,6 +205,63 @@ test('column order option supports definition and name sorting', () => {
   expect(nameDoc.indexOf('`m_col`')).toBeLessThan(nameDoc.indexOf('`z_col`'));
 });
 
+test('generate renders column samples from table docs metadata before comments', () => {
+  const work = createTempDir('ddl-docs-table-docs');
+  const ddlDir = path.join(work, 'ddl');
+  const outDir = path.join(work, 'docs');
+  const tableDocsPath = path.join(work, 'table-docs.json');
+  mkdirSync(ddlDir, { recursive: true });
+
+  writeFileSync(
+    path.join(ddlDir, 'main.sql'),
+    `
+      CREATE TABLE public.active_rows (
+        id bigint PRIMARY KEY,
+        source_key_json jsonb NOT NULL
+      );
+      COMMENT ON COLUMN public.active_rows.source_key_json IS 'source key';
+    `,
+    'utf8'
+  );
+  writeFileSync(
+    tableDocsPath,
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        tables: {
+          'public.active_rows': {
+            columns: {
+              source_key_json: {
+                sample: { sales_id: 123 },
+              },
+            },
+          },
+        },
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+
+  runGenerateDocs({
+    ddlDirectories: [ddlDir],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    outDir,
+    includeIndexes: true,
+    strict: false,
+    dialect: 'postgres',
+    columnOrder: 'definition',
+    tableDocsPath,
+  });
+
+  const tableDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'public', 'active-rows.md'), 'utf8'));
+  expect(tableDoc).toContain('| Key | Column | Type | Nullable | Default | Seq | Sample | Comment | Usages |');
+  expect(tableDoc).toContain('|  | `source_key_json` | `jsonb` | NO | - |  | `{"sales_id":123}` | source key |');
+});
+
 test('filter-pg-dump fails when no schema DDL remains after filtering', () => {
   const work = createTempDir('ddl-docs-filter-empty');
   const ddlDir = path.join(work, 'ddl');

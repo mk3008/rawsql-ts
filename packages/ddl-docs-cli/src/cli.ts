@@ -70,6 +70,7 @@ function parseGenerateOptions(args: string[]): GenerateDocsOptions | null {
     labelSeparator: undefined,
     locale: undefined,
     dictionaryPath: undefined,
+    tableDocsPath: undefined,
     configPath: undefined,
     defaultSchema: undefined,
     searchPath: undefined,
@@ -121,6 +122,10 @@ function parseGenerateOptions(args: string[]): GenerateDocsOptions | null {
     }
     if (arg === '--dictionary') {
       options.dictionaryPath = readRequiredValue(args, ++index, '--dictionary');
+      continue;
+    }
+    if (arg === '--table-docs') {
+      options.tableDocsPath = readRequiredValue(args, ++index, '--table-docs');
       continue;
     }
     if (arg === '--locale') {
@@ -265,6 +270,7 @@ function printHelp(target: 'all' | 'generate' | 'prune'): void {
   --out-dir <directory>   Output root directory (default: ztd/docs/tables)
   --config <path>         Optional ztd.config.json path
   --dictionary <path>     Optional column dictionary json
+  --table-docs <path>     Optional table documentation metadata json
   --locale <code>         Dictionary locale (fallback: LANG -> en -> first)
   --default-schema <name> Override default schema for unqualified tables
   --search-path <list>    Comma-separated schema search path

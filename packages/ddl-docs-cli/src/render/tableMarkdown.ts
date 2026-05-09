@@ -24,6 +24,10 @@ export interface RenderTableOptions {
    * Optional delimiter (regex syntax) used to split a column comment into label and description.
    */
   labelSeparator?: string;
+  /**
+   * Optional sample provider for columns. Samples are rendered before comments.
+   */
+  getColumnSample?: (column: TableDocModel['columns'][number]) => string;
 }
 
 /**
@@ -52,15 +56,15 @@ export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSug
   lines.push('## Columns');
   lines.push('');
   if (labelSeparator) {
-    lines.push('| Key | Label | Column | Type | Nullable | Default | Seq | Comment | Usages |');
-    lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+    lines.push('| Key | Label | Column | Type | Nullable | Default | Seq | Sample | Comment | Usages |');
+    lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
   } else {
-    lines.push('| Key | Column | Type | Nullable | Default | Seq | Comment | Usages |');
-    lines.push('| --- | --- | --- | --- | --- | --- | --- | --- |');
+    lines.push('| Key | Column | Type | Nullable | Default | Seq | Sample | Comment | Usages |');
+    lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- |');
   }
 
   for (const column of table.columns) {
-    lines.push(renderColumnRow(column, labelSeparator));
+    lines.push(renderColumnRow(column, labelSeparator, renderOptions?.getColumnSample?.(column) ?? ''));
   }
 
   lines.push('');
@@ -220,22 +224,23 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function renderColumnRow(column: TableDocModel['columns'][number], labelSeparator: string | undefined): string {
+function renderColumnRow(column: TableDocModel['columns'][number], labelSeparator: string | undefined, sample: string): string {
   const keyCell = column.isPrimaryKey ? 'PK' : '';
   const nameCell = formatCodeCell(column.name);
   const typeCell = formatCodeCell(column.typeName);
   const nullableCell = column.nullable ? 'YES' : 'NO';
   const defaultCell = formatCodeCell(column.defaultValue);
   const seqCell = isSequenceColumn(column) ? 'YES' : '';
+  const sampleCell = formatCodeCell(sample);
   const usagesCell = `[usages](./columns/${column.conceptSlug}.md)`;
   if (labelSeparator) {
     const { label, description } = splitComment(column.comment, labelSeparator);
     const labelCell = formatTableCell(label);
     const commentCell = formatTableCell(description);
-    return `| ${keyCell} | ${labelCell} | ${nameCell} | ${typeCell} | ${nullableCell} | ${defaultCell} | ${seqCell} | ${commentCell} | ${usagesCell} |`;
+    return `| ${keyCell} | ${labelCell} | ${nameCell} | ${typeCell} | ${nullableCell} | ${defaultCell} | ${seqCell} | ${sampleCell} | ${commentCell} | ${usagesCell} |`;
   }
   const commentCell = formatTableCell(column.comment);
-  return `| ${keyCell} | ${nameCell} | ${typeCell} | ${nullableCell} | ${defaultCell} | ${seqCell} | ${commentCell} | ${usagesCell} |`;
+  return `| ${keyCell} | ${nameCell} | ${typeCell} | ${nullableCell} | ${defaultCell} | ${seqCell} | ${sampleCell} | ${commentCell} | ${usagesCell} |`;
 }
 
 function renderUnifiedReferenceTable(references: ReferenceDocModel[], table: TableDocModel): string[] {

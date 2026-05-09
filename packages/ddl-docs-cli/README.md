@@ -44,9 +44,32 @@ Options:
 - `--config <path>` optional `ztd.config.json` path
 - `--default-schema <name>` schema override for unqualified table names
 - `--search-path <csv>` schema search path override
+- `--table-docs <path>` optional table documentation metadata JSON for review-only fields such as column samples
 - `--no-index` skip index page generation
 - `--strict` fail when warnings exist
 - `--column-order <mode>` `definition` (default) or `name`
+
+### Table Docs Metadata
+
+Use `--table-docs <path>` when review-only documentation should be rendered without writing it into database comments.
+For example, column samples can be provided from JSON and rendered in the generated table report before the `Comment` column.
+
+```json
+{
+  "schemaVersion": 1,
+  "tables": {
+    "public.transfer_active_black": {
+      "columns": {
+        "source_key_json": {
+          "sample": {
+            "sales_id": 123
+          }
+        }
+      }
+    }
+  }
+}
+```
 
 Prune generated files:
 

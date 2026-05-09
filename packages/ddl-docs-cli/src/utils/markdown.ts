@@ -25,6 +25,6 @@ export function formatCodeCell(value: string | null | undefined): string {
   if (value === null || value === undefined || value.trim().length === 0) {
     return '-';
   }
-  const escaped = value.replace(/`/g, '\\`');
+  const escaped = escapeMarkdownText(value.replace(/`/g, '\\`'));
   return `\`${escaped}\``;
 }
