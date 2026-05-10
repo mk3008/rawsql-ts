@@ -51,6 +51,7 @@ test('generate writes table pages, index pages, and warnings metadata', () => {
   const rootIndex = path.join(outDir, 'index.md');
   const globalColumnsIndex = path.join(outDir, 'columns', 'index.md');
   const vitePressConfig = path.join(outDir, '.vitepress', 'config.mts');
+  const vitePressThemeIndex = path.join(outDir, '.vitepress', 'theme', 'index.ts');
   const vitePressTheme = path.join(outDir, '.vitepress', 'theme', 'style.css');
   const manifest = path.join(outDir, '_meta', 'manifest.json');
   const warnings = path.join(outDir, '_meta', 'warnings.json');
@@ -60,6 +61,7 @@ test('generate writes table pages, index pages, and warnings metadata', () => {
   expect(existsSync(rootIndex)).toBe(true);
   expect(existsSync(globalColumnsIndex)).toBe(true);
   expect(existsSync(vitePressConfig)).toBe(true);
+  expect(existsSync(vitePressThemeIndex)).toBe(true);
   expect(existsSync(vitePressTheme)).toBe(true);
   expect(existsSync(manifest)).toBe(true);
   expect(existsSync(warnings)).toBe(true);
@@ -81,6 +83,11 @@ test('generate writes table pages, index pages, and warnings metadata', () => {
   expect(themeCss).toContain('.VPDoc .container');
   expect(themeCss).toContain('font-size: 12px;');
   expect(themeCss).toContain('.VPDoc .aside');
+  expect(themeCss).toContain('.ddl-docs-mermaid');
+
+  const themeIndexText = normalizeLineEndings(readFileSync(vitePressThemeIndex, 'utf8'));
+  expect(themeIndexText).toContain('MERMAID_CDN_URL');
+  expect(themeIndexText).toContain('renderMermaidBlocks');
 
   const manifestJson = JSON.parse(readFileSync(manifest, 'utf8')) as {
     outputs: { assets?: string[] };
@@ -315,7 +322,18 @@ test('generate renders related concept and process pages from relationship metad
     'utf8'
   );
   writeFileSync(path.join(conceptsDir, 'active-row/SPEC.md'), '# Active Row Concept\n\nDefined concept.', 'utf8');
-  writeFileSync(path.join(processesDir, 'active-row-process.md'), '# Active Row Process\n\nDefined process.', 'utf8');
+  writeFileSync(path.join(processesDir, 'active-row-process.md'), [
+    '# Active Row Process',
+    '',
+    'Defined process.',
+    '',
+    '```mermaid',
+    'flowchart TD',
+    '  A["start"] -->|"quoted label"| B{{"done"}}',
+    '  B -. "review note" .-> C[/"external table"/]',
+    '```',
+    '',
+  ].join('\n'), 'utf8');
   writeFileSync(
     tableDocsPath,
     JSON.stringify(
@@ -403,6 +421,13 @@ test('generate renders related concept and process pages from relationship metad
   const processDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'processes', 'docs-processes-active-row-process.md'), 'utf8'));
   expect(processDoc).toContain('# active-row-process');
   expect(processDoc).toContain('Defined process.');
+  expect(processDoc).toContain('<pre v-pre class="ddl-docs-mermaid">');
+  expect(processDoc).toContain('flowchart TD');
+  expect(processDoc).toContain('--&gt;|quoted label|');
+  expect(processDoc).toContain('B{{done}}');
+  expect(processDoc).toContain('-. review note .-&gt;');
+  expect(processDoc).toContain('C[/external table/]');
+  expect(processDoc).not.toContain('```mermaid');
 });
 
 test('filter-pg-dump fails when no schema DDL remains after filtering', () => {

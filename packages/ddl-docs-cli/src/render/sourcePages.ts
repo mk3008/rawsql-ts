@@ -42,7 +42,7 @@ export function renderConceptPages(outDir: string, conceptRegistry: ConceptRegis
     lines.push('');
     lines.push('## Source Document');
     lines.push('');
-    lines.push(source.trimEnd());
+    lines.push(renderSourceDocument(source));
     lines.push('');
     pages.push({
       path: conceptPagePath(outDir, concept.id),
@@ -79,7 +79,7 @@ export function renderProcessPages(outDir: string, relationshipMetadata: DdlRela
     lines.push('');
     lines.push('## Source Document');
     lines.push('');
-    lines.push(source.trimEnd());
+    lines.push(renderSourceDocument(source));
     lines.push('');
     pages.push({
       path: processPagePath(outDir, processPath),
@@ -87,6 +87,32 @@ export function renderProcessPages(outDir: string, relationshipMetadata: DdlRela
     });
   }
   return pages;
+}
+
+function renderSourceDocument(source: string): string {
+  return source.trimEnd().replace(
+    /```mermaid[^\n]*\r?\n([\s\S]*?)\r?\n```/g,
+    (_match, diagram: string) => [
+      '<pre v-pre class="ddl-docs-mermaid">',
+      escapeHtml(normalizeMermaidDiagram(diagram)),
+      '</pre>',
+    ].join('\n')
+  );
+}
+
+function normalizeMermaidDiagram(diagram: string): string {
+  return diagram.trim()
+    .replace(/\{\{"([^"]+)"\}\}/g, '{{$1}}')
+    .replace(/\[\/"([^"]+)"\/\]/g, '[/$1/]')
+    .replace(/-->\|"([^"]+)"\|/g, '-->|$1|')
+    .replace(/-\.\s+"([^"]+)"\s+\.->/g, '-. $1 .->');
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 export function renderConceptIndex(outDir: string, conceptRegistry: ConceptRegistry | undefined): RenderedSourcePage | undefined {
