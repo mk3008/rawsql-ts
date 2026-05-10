@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from 'vitest';
-import { checkDocs, runCheckDocs } from '../src/commands/check';
+import { checkDocs } from '../src/commands/check';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const tmpRoot = path.join(repoRoot, 'tmp');
@@ -73,7 +73,7 @@ test('check passes when relationship, order, table-docs, and concept registry re
     views: [{ id: 'account-view', concepts: ['account'] }],
   }, null, 2));
 
-  const result = runCheckDocs({
+  const result = checkDocs({
     ddlDirectories: [{ path: ddlDir, instance: '' }],
     ddlFiles: [],
     ddlGlobs: [],
