@@ -85,6 +85,7 @@ test('check passes when relationship, order, table-docs, and concept registry re
   });
 
   expect(result.errors).toHaveLength(0);
+  expect(result.warnings).toHaveLength(0);
 });
 
 test('check fails when table-docs references a missing DDL column', () => {
@@ -183,4 +184,49 @@ test('check fails when order metadata does not cover discovered DDL files', () =
   });
 
   expect(result.errors.map((issue) => issue.code)).toContain('ORDER_UNTRACKED_DDL_FILE');
+});
+
+test('check fails when order metadata references blank paths or directories', () => {
+  const work = createTempDir('ddl-docs-check-order-file-shape');
+  const ddlDir = path.join(work, 'ddl');
+  const orderPath = path.join(ddlDir, 'order.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  mkdirSync(path.join(ddlDir, 'nested'), { recursive: true });
+  writeText(orderPath, JSON.stringify({ schemaVersion: 1, order: ['accounts.sql', '', 'nested'] }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    orderPath,
+  });
+
+  expect(result.errors.filter((issue) => issue.code === 'ORDER_MISSING_DDL_FILE')).toHaveLength(2);
+});
+
+test('check reports schema error for malformed concept relationship entries', () => {
+  const work = createTempDir('ddl-docs-check-concept-shape');
+  const ddlDir = path.join(work, 'ddl');
+  const conceptsDir = path.join(work, 'docs', 'concepts');
+  const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(conceptRelationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    concepts: [null],
+    relationships: [{ from: 'account' }],
+    views: [{ id: 'view', concepts: [1] }],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    conceptRelationshipPath,
+  });
+
+  expect(result.errors.map((issue) => issue.code)).toContain('CONCEPT_RELATIONSHIP_SCHEMA_ERROR');
 });

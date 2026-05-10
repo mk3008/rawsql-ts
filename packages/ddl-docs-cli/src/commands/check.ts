@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { resolveSchemaSettings } from '../config';
 import { snapshotTableDocs } from '../parser/snapshotTableDocs';
@@ -314,6 +314,14 @@ function checkOrderMetadata(orderPath: string, sources: SqlSource[], issues: Che
   const baseDir = path.dirname(resolvedPath);
   const seen = new Set<string>();
   for (const entry of value.order) {
+    if (entry.trim() === '') {
+      issues.push({
+        severity: 'error',
+        code: 'ORDER_MISSING_DDL_FILE',
+        message: 'order.json references a blank DDL file path.',
+      });
+      continue;
+    }
     const normalized = normalizeRelativePath(entry);
     if (seen.has(normalized)) {
       issues.push({
@@ -324,7 +332,7 @@ function checkOrderMetadata(orderPath: string, sources: SqlSource[], issues: Che
     }
     seen.add(normalized);
     const resolvedEntry = path.resolve(baseDir, entry);
-    if (!existsSync(resolvedEntry)) {
+    if (!isExistingFile(resolvedEntry)) {
       issues.push({
         severity: 'error',
         code: 'ORDER_MISSING_DDL_FILE',
@@ -363,7 +371,7 @@ function checkRelationshipMetadata(
   for (const entry of value.relationships) {
     const entryPath = normalizeRelativePath(entry.path);
     const resolvedEntryPath = path.resolve(baseDir, entry.path);
-    if (!existsSync(resolvedEntryPath)) {
+    if (entry.path.trim() === '' || !isExistingFile(resolvedEntryPath)) {
       issues.push({
         severity: 'error',
         code: 'RELATIONSHIP_MISSING_PATH',
@@ -406,7 +414,7 @@ function checkRelationshipTarget(
   target: RelationshipTarget,
   issues: CheckIssue[]
 ): void {
-  if (!existsSync(path.resolve(baseDir, target.path))) {
+  if (target.path.trim() === '' || !isExistingFile(path.resolve(baseDir, target.path))) {
     issues.push({
       severity: 'error',
       code: 'RELATIONSHIP_MISSING_TARGET',
@@ -439,7 +447,11 @@ function checkConceptRelationshipMetadata(
       });
     }
     conceptIds.add(concept.id);
-    if (concept.path !== undefined && concept.path !== null && !existsSync(path.resolve(baseDir, concept.path))) {
+    if (
+      concept.path !== undefined
+      && concept.path !== null
+      && (concept.path.trim() === '' || !isExistingFile(path.resolve(baseDir, concept.path)))
+    ) {
       issues.push({
         severity: 'error',
         code: 'CONCEPT_MISSING_SPEC_PATH',
@@ -621,20 +633,56 @@ function isConceptRelationshipMetadata(value: unknown): value is ConceptRelation
   if (!isRecord(value) || value.schemaVersion !== 1) {
     return false;
   }
-  if (value.concepts !== undefined && !Array.isArray(value.concepts)) {
+  if (value.concepts !== undefined && !isConceptEntryArray(value.concepts)) {
     return false;
   }
-  if (value.relationships !== undefined && !Array.isArray(value.relationships)) {
+  if (value.relationships !== undefined && !isConceptRelationEntryArray(value.relationships)) {
     return false;
   }
-  if (value.views !== undefined && !Array.isArray(value.views)) {
+  if (value.views !== undefined && !isConceptViewEntryArray(value.views)) {
     return false;
   }
   return true;
 }
 
 function isConceptEntry(value: unknown): value is ConceptEntry {
-  return isRecord(value) && typeof value.id === 'string';
+  return isRecord(value)
+    && typeof value.id === 'string'
+    && (value.path === undefined || typeof value.path === 'string' || value.path === null)
+    && (value.status === undefined || typeof value.status === 'string');
+}
+
+function isConceptEntryArray(value: unknown): value is ConceptEntry[] {
+  return Array.isArray(value) && value.every(isConceptEntry);
+}
+
+function isConceptRelationEntry(value: unknown): value is ConceptRelationEntry {
+  return isRecord(value)
+    && typeof value.from === 'string'
+    && typeof value.to === 'string';
+}
+
+function isConceptRelationEntryArray(value: unknown): value is ConceptRelationEntry[] {
+  return Array.isArray(value) && value.every(isConceptRelationEntry);
+}
+
+function isConceptViewEntry(value: unknown): value is ConceptViewEntry {
+  return isRecord(value)
+    && typeof value.id === 'string'
+    && (value.concepts === undefined
+      || (Array.isArray(value.concepts) && value.concepts.every((entry) => typeof entry === 'string')));
+}
+
+function isConceptViewEntryArray(value: unknown): value is ConceptViewEntry[] {
+  return Array.isArray(value) && value.every(isConceptViewEntry);
+}
+
+function isExistingFile(filePath: string): boolean {
+  try {
+    return existsSync(filePath) && statSync(filePath).isFile();
+  } catch {
+    return false;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
