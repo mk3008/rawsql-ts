@@ -392,7 +392,7 @@ test('generate renders related concept and process pages from relationship metad
   const tableDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'public', 'active-rows.md'), 'utf8'));
   expect(tableDoc).toContain('## Related Concepts / Processes');
   expect(tableDoc).toContain('[active-row](../concepts/active-row.md)');
-  expect(tableDoc).toContain('[active-row-process](../processes/active-row-process.md)');
+  expect(tableDoc).toContain('[active-row-process](../processes/docs-processes-active-row-process.md)');
   expect(tableDoc).toContain('decision: Use source_key_json as identity.');
   expect(tableDoc).toContain('alternativesRejected: Do not use hash as identity.');
 
@@ -400,7 +400,7 @@ test('generate renders related concept and process pages from relationship metad
   expect(conceptDoc).toContain('# active-row');
   expect(conceptDoc).toContain('Defined concept.');
 
-  const processDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'processes', 'active-row-process.md'), 'utf8'));
+  const processDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'processes', 'docs-processes-active-row-process.md'), 'utf8'));
   expect(processDoc).toContain('# active-row-process');
   expect(processDoc).toContain('Defined process.');
 });

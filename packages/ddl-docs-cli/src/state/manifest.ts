@@ -75,8 +75,12 @@ export function pruneManagedFiles(outDir: string, dryRun: boolean, pruneOrphans:
 
   const managed = [...manifest.outputs.tables, ...manifest.outputs.columns, ...(manifest.outputs.assets ?? [])];
   const removed: string[] = [];
+  const baseDir = path.resolve(outDir);
   for (const relativeFile of managed) {
     const resolvedFile = path.resolve(outDir, relativeFile);
+    if (!isPathInside(resolvedFile, baseDir)) {
+      continue;
+    }
     if (!existsSync(resolvedFile)) {
       continue;
     }
@@ -123,6 +127,11 @@ export function pruneManagedFiles(outDir: string, dryRun: boolean, pruneOrphans:
   }
 
   return { removed: Array.from(new Set(removed)).sort(), dryRun };
+}
+
+function isPathInside(filePath: string, baseDir: string): boolean {
+  const relative = path.relative(baseDir, filePath);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
 function hashOptions(options: Record<string, unknown>): string {

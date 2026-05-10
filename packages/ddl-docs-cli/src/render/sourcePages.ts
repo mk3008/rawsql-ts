@@ -4,7 +4,7 @@ import type {
   ConceptRegistry,
   DdlRelationshipMetadata,
 } from '../relationshipMetadata';
-import { conceptPagePath, processPagePath } from '../relationshipMetadata';
+import { conceptPagePath, processPagePath, processPageSlug } from '../relationshipMetadata';
 import { formatCodeCell, formatTableCell } from '../utils/markdown';
 import { slugifyIdentifier } from '../utils/slug';
 
@@ -93,7 +93,9 @@ export function renderConceptIndex(outDir: string, conceptRegistry: ConceptRegis
   if (!conceptRegistry) {
     return undefined;
   }
-  const concepts = conceptRegistry.concepts.filter((concept) => concept.path);
+  const concepts = conceptRegistry.concepts.filter((concept) =>
+    concept.path && existsSync(path.resolve(conceptRegistry.baseDir, concept.path))
+  );
   const lines: string[] = [];
   lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
   lines.push('');
@@ -118,7 +120,9 @@ export function renderProcessIndex(outDir: string, relationshipMetadata: DdlRela
   }
   const processPaths = Array.from(new Set(
     relationshipMetadata.relationships.flatMap((relationship) => relationship.processes.map((process) => process.path))
-  )).sort();
+  ))
+    .filter((processPath) => existsSync(path.resolve(relationshipMetadata.baseDir, processPath)))
+    .sort();
   const lines: string[] = [];
   lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
   lines.push('');
@@ -128,7 +132,7 @@ export function renderProcessIndex(outDir: string, relationshipMetadata: DdlRela
   lines.push('| --- | --- |');
   for (const processPath of processPaths) {
     const label = path.basename(processPath, path.extname(processPath));
-    const link = `./${slugifyIdentifier(label)}.md`;
+    const link = `./${processPageSlug(processPath)}.md`;
     lines.push(`| [${label}](${link}) | ${formatCodeCell(processPath)} |`);
   }
   lines.push('');

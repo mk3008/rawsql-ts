@@ -97,8 +97,16 @@ export function checkDocs(options: CheckDocsOptions): CheckDocsResult {
   }
 
   const tableIndex = buildTableIndex(snapshot.tables);
-  const conceptIds = options.conceptRelationshipPath ? readConceptIds(options.conceptRelationshipPath, issues) : new Set<string>();
-  const processIds = options.relationshipPath ? readProcessIds(options.relationshipPath, issues) : new Set<string>();
+  const relationshipMetadata = options.relationshipPath
+    ? readRelationshipMetadata(options.relationshipPath, issues)
+    : undefined;
+  const conceptRelationshipMetadata = options.conceptRelationshipPath
+    ? readConceptRelationshipMetadata(options.conceptRelationshipPath, issues)
+    : undefined;
+  const conceptIds = conceptRelationshipMetadata
+    ? new Set((conceptRelationshipMetadata.concepts ?? []).filter(isConceptEntry).map((entry) => entry.id))
+    : undefined;
+  const processIds = relationshipMetadata ? readProcessIds(relationshipMetadata) : undefined;
 
   if (options.tableDocsPath) {
     checkTableDocsMetadata(options.tableDocsPath, tableIndex, { conceptIds, processIds }, issues);
@@ -106,11 +114,11 @@ export function checkDocs(options: CheckDocsOptions): CheckDocsResult {
   if (options.orderPath) {
     checkOrderMetadata(options.orderPath, sources, issues);
   }
-  if (options.relationshipPath) {
-    checkRelationshipMetadata(options.relationshipPath, sources, issues);
+  if (options.relationshipPath && relationshipMetadata) {
+    checkRelationshipMetadata(options.relationshipPath, relationshipMetadata, sources, issues);
   }
-  if (options.conceptRelationshipPath) {
-    checkConceptRelationshipMetadata(options.conceptRelationshipPath, issues);
+  if (options.conceptRelationshipPath && conceptRelationshipMetadata) {
+    checkConceptRelationshipMetadata(options.conceptRelationshipPath, conceptRelationshipMetadata, issues);
   }
 
   return {
@@ -148,7 +156,7 @@ function collectCheckSqlSources(options: CheckDocsOptions, issues: CheckIssue[])
 function checkTableDocsMetadata(
   metadataPath: string,
   tableIndex: Map<string, TableDocModel>,
-  registry: { conceptIds: Set<string>; processIds: Set<string> },
+  registry: { conceptIds?: Set<string>; processIds?: Set<string> },
   issues: CheckIssue[]
 ): void {
   let metadata: TableDocsMetadata;
@@ -256,7 +264,7 @@ function checkTableDocsMetadata(
 function checkDesignIntentRefs(
   scope: string,
   value: unknown,
-  registry: { conceptIds: Set<string>; processIds: Set<string> },
+  registry: { conceptIds?: Set<string>; processIds?: Set<string> },
   issues: CheckIssue[]
 ): void {
   if (!isRecord(value)) {
@@ -265,7 +273,7 @@ function checkDesignIntentRefs(
   const conceptRefs = value.conceptRefs;
   if (Array.isArray(conceptRefs)) {
     for (const ref of conceptRefs) {
-      if (typeof ref === 'string' && registry.conceptIds.size > 0 && !registry.conceptIds.has(ref)) {
+      if (typeof ref === 'string' && registry.conceptIds && !registry.conceptIds.has(ref)) {
         issues.push({
           severity: 'error',
           code: 'TABLE_DOCS_UNKNOWN_CONCEPT_REF',
@@ -277,7 +285,7 @@ function checkDesignIntentRefs(
   const processRefs = value.processRefs;
   if (Array.isArray(processRefs)) {
     for (const ref of processRefs) {
-      if (typeof ref === 'string' && registry.processIds.size > 0 && !registry.processIds.has(ref)) {
+      if (typeof ref === 'string' && registry.processIds && !registry.processIds.has(ref)) {
         issues.push({
           severity: 'error',
           code: 'TABLE_DOCS_UNKNOWN_PROCESS_REF',
@@ -339,21 +347,13 @@ function checkOrderMetadata(orderPath: string, sources: SqlSource[], issues: Che
   }
 }
 
-function checkRelationshipMetadata(relationshipPath: string, sources: SqlSource[], issues: CheckIssue[]): void {
+function checkRelationshipMetadata(
+  relationshipPath: string,
+  value: RelationshipMetadata,
+  sources: SqlSource[],
+  issues: CheckIssue[]
+): void {
   const resolvedPath = path.resolve(process.cwd(), relationshipPath);
-  const value = readJsonFile(resolvedPath, 'relationship.json', issues);
-  if (!value) {
-    return;
-  }
-  if (!isRelationshipMetadata(value)) {
-    issues.push({
-      severity: 'error',
-      code: 'RELATIONSHIP_SCHEMA_ERROR',
-      message: `relationship.json must be an object with schemaVersion: 1 and relationships[]: ${resolvedPath}`,
-    });
-    return;
-  }
-
   const baseDir = path.dirname(resolvedPath);
   const ddlPaths = new Set(
     sources.map((source) => normalizeRelativePath(path.relative(baseDir, path.resolve(process.cwd(), source.path))))
@@ -422,21 +422,12 @@ function checkRelationshipTarget(
   }
 }
 
-function checkConceptRelationshipMetadata(conceptRelationshipPath: string, issues: CheckIssue[]): void {
+function checkConceptRelationshipMetadata(
+  conceptRelationshipPath: string,
+  value: ConceptRelationshipMetadata,
+  issues: CheckIssue[]
+): void {
   const resolvedPath = path.resolve(process.cwd(), conceptRelationshipPath);
-  const value = readJsonFile(resolvedPath, 'concept-relationship.json', issues);
-  if (!value) {
-    return;
-  }
-  if (!isConceptRelationshipMetadata(value)) {
-    issues.push({
-      severity: 'error',
-      code: 'CONCEPT_RELATIONSHIP_SCHEMA_ERROR',
-      message: `concept-relationship.json must be an object with schemaVersion: 1: ${resolvedPath}`,
-    });
-    return;
-  }
-
   const baseDir = path.dirname(resolvedPath);
   const conceptIds = new Set<string>();
   for (const concept of value.concepts ?? []) {
@@ -487,21 +478,44 @@ function checkConceptRelationshipMetadata(conceptRelationshipPath: string, issue
   }
 }
 
-function readConceptIds(conceptRelationshipPath: string, issues: CheckIssue[]): Set<string> {
-  const resolvedPath = path.resolve(process.cwd(), conceptRelationshipPath);
-  const value = readJsonFile(resolvedPath, 'concept-relationship.json', issues);
-  if (!isConceptRelationshipMetadata(value)) {
-    return new Set();
-  }
-  return new Set((value.concepts ?? []).filter(isConceptEntry).map((entry) => entry.id));
-}
-
-function readProcessIds(relationshipPath: string, issues: CheckIssue[]): Set<string> {
+function readRelationshipMetadata(relationshipPath: string, issues: CheckIssue[]): RelationshipMetadata | undefined {
   const resolvedPath = path.resolve(process.cwd(), relationshipPath);
   const value = readJsonFile(resolvedPath, 'relationship.json', issues);
-  if (!isRelationshipMetadata(value)) {
-    return new Set();
+  if (!value) {
+    return undefined;
   }
+  if (!isRelationshipMetadata(value)) {
+    issues.push({
+      severity: 'error',
+      code: 'RELATIONSHIP_SCHEMA_ERROR',
+      message: `relationship.json must be an object with schemaVersion: 1 and relationships[]: ${resolvedPath}`,
+    });
+    return undefined;
+  }
+  return value;
+}
+
+function readConceptRelationshipMetadata(
+  conceptRelationshipPath: string,
+  issues: CheckIssue[]
+): ConceptRelationshipMetadata | undefined {
+  const resolvedPath = path.resolve(process.cwd(), conceptRelationshipPath);
+  const value = readJsonFile(resolvedPath, 'concept-relationship.json', issues);
+  if (!value) {
+    return undefined;
+  }
+  if (!isConceptRelationshipMetadata(value)) {
+    issues.push({
+      severity: 'error',
+      code: 'CONCEPT_RELATIONSHIP_SCHEMA_ERROR',
+      message: `concept-relationship.json must be an object with schemaVersion: 1: ${resolvedPath}`,
+    });
+    return undefined;
+  }
+  return value;
+}
+
+function readProcessIds(value: RelationshipMetadata): Set<string> {
   const ids = new Set<string>();
   for (const entry of value.relationships) {
     for (const process of entry.processes ?? []) {

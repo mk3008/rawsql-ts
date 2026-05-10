@@ -119,6 +119,52 @@ test('check fails when table-docs references a missing DDL column', () => {
   expect(result.errors.map((issue) => issue.code)).toContain('TABLE_DOCS_UNKNOWN_COLUMN');
 });
 
+test('check fails when table-docs refs are absent from empty concept and process registries', () => {
+  const work = createTempDir('ddl-docs-check-empty-registries');
+  const ddlDir = path.join(work, 'ddl');
+  const conceptsDir = path.join(work, 'docs', 'concepts');
+  const tableDocsPath = path.join(ddlDir, 'table-docs.json');
+  const relationshipPath = path.join(ddlDir, 'relationship.json');
+  const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), `
+    CREATE TABLE public.accounts (
+      account_id bigint PRIMARY KEY
+    );
+  `);
+  writeText(tableDocsPath, JSON.stringify({
+    schemaVersion: 1,
+    tables: {
+      'public.accounts': {
+        conceptRefs: ['missing-concept'],
+        processRefs: ['missing-process'],
+      },
+    },
+  }, null, 2));
+  writeText(relationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    relationships: [],
+  }, null, 2));
+  writeText(conceptRelationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    concepts: [],
+    relationships: [],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    tableDocsPath,
+    relationshipPath,
+    conceptRelationshipPath,
+  });
+
+  expect(result.errors.map((issue) => issue.code)).toContain('TABLE_DOCS_UNKNOWN_CONCEPT_REF');
+  expect(result.errors.map((issue) => issue.code)).toContain('TABLE_DOCS_UNKNOWN_PROCESS_REF');
+});
+
 test('check fails when order metadata does not cover discovered DDL files', () => {
   const work = createTempDir('ddl-docs-check-order');
   const ddlDir = path.join(work, 'ddl');

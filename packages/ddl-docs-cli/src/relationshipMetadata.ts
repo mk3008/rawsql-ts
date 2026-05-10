@@ -41,7 +41,7 @@ export interface ResolvedRelationshipTarget {
   label: string;
   path: string;
   reason: string;
-  href: string;
+  href?: string;
 }
 
 export function loadDdlRelationshipMetadata(metadataPath: string | undefined): DdlRelationshipMetadata | undefined {
@@ -135,7 +135,14 @@ export function conceptPagePath(outDir: string, conceptId: string): string {
 }
 
 export function processPagePath(outDir: string, processPath: string): string {
-  return path.join(outDir, 'processes', `${slugifyIdentifier(path.basename(processPath, path.extname(processPath)))}.md`);
+  return path.join(outDir, 'processes', `${processPageSlug(processPath)}.md`);
+}
+
+export function processPageSlug(processPath: string): string {
+  const normalized = normalizeRelativePath(processPath);
+  const extension = path.extname(normalized);
+  const withoutExtension = extension ? normalized.slice(0, -extension.length) : normalized;
+  return slugifyIdentifier(withoutExtension);
 }
 
 function resolveConceptTarget(
@@ -152,7 +159,7 @@ function resolveConceptTarget(
     label,
     path: target.path,
     reason: target.reason ?? '',
-    href: `../concepts/${slugifyIdentifier(label)}.md`,
+    href: concept ? `../concepts/${slugifyIdentifier(concept.id)}.md` : undefined,
   };
 }
 
@@ -162,7 +169,7 @@ function resolveProcessTarget(target: DdlRelationshipTarget): ResolvedRelationsh
     label,
     path: target.path,
     reason: target.reason ?? '',
-    href: `../processes/${slugifyIdentifier(label)}.md`,
+    href: `../processes/${processPageSlug(target.path)}.md`,
   };
 }
 
@@ -188,7 +195,7 @@ function dedupeTargets(targets: ResolvedRelationshipTarget[]): ResolvedRelations
   const seen = new Set<string>();
   const result: ResolvedRelationshipTarget[] = [];
   for (const target of targets) {
-    const key = `${target.href}|${target.reason}`;
+    const key = `${target.href ?? ''}|${target.path}|${target.reason}`;
     if (seen.has(key)) {
       continue;
     }
