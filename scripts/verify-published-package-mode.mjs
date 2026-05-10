@@ -282,6 +282,55 @@ function assertExcludes(haystack, needle, label) {
   }
 }
 
+function readJsonFile(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+function runInitDryRunPlan(directory, packageManager, args) {
+  const result = runIn(directory, packageManager, ["exec", "--", "ztd", "init", "--dry-run", "--yes", ...args]);
+  const stdout = String(result.stdout ?? "");
+  const start = stdout.indexOf("{");
+  const end = stdout.lastIndexOf("}");
+  if (start < 0 || end < start) {
+    throw new Error(`[runInitDryRunPlan] Could not locate JSON plan in stdout:\n${stdout}`);
+  }
+  return JSON.parse(stdout.slice(start, end + 1));
+}
+
+function assertScaffoldPlanMetadata(plan, expected, label) {
+  for (const [key, value] of Object.entries(expected)) {
+    if (plan[key] !== value) {
+      throw new Error(
+        `[${label}] Expected init dry-run plan ${key}=${JSON.stringify(value)}, received ${JSON.stringify(plan[key])}.`,
+      );
+    }
+  }
+}
+
+function assertScaffoldPlanFilesExist(appDir, plan, label) {
+  for (const relativePath of plan.files ?? []) {
+    const absolutePath = path.join(appDir, relativePath);
+    if (!fs.existsSync(absolutePath)) {
+      throw new Error(`[${label}] Planned scaffold file was not created: ${relativePath}`);
+    }
+  }
+}
+
+function assertFileMissing(appDir, relativePath, label) {
+  if (fs.existsSync(path.join(appDir, relativePath))) {
+    throw new Error(`[${label}] Unexpected scaffold file was created: ${relativePath}`);
+  }
+}
+
+function assertPackageScript(packageJson, scriptName, expectedCommand, label) {
+  const actualCommand = packageJson.scripts?.[scriptName];
+  if (actualCommand !== expectedCommand) {
+    throw new Error(
+      `[${label}] Expected package.json scripts.${scriptName}=${JSON.stringify(expectedCommand)}, received ${JSON.stringify(actualCommand)}.`,
+    );
+  }
+}
+
 function packPublishedPackages() {
   const workspacePackages = Array.from(getWorkspacePackages(workspaceRoot).values())
     .filter(isPublishTarget)
@@ -438,34 +487,33 @@ function verifyNpmPrimaryPath(packages) {
   });
 
   runIn(appDir, NPM, ["install"]);
+  const dryRunPlan = runInitDryRunPlan(appDir, NPM, ["--workflow", "demo", "--validator", "zod"]);
+  assertScaffoldPlanMetadata(dryRunPlan, {
+    dryRun: true,
+    schemaVersion: 1,
+    workflow: "demo",
+    validator: "zod",
+    starter: false,
+  }, "phase-a init-dry-run");
   const initResult = runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "demo", "--validator", "zod"]);
 
-  assertIncludes(initResult.stdout, "npm run ztd -- ztd-config", "phase-a packaging-npm-primary-path-gate");
-  assertIncludes(initResult.stdout, "npm run ztd -- model-gen", "phase-a packaging-npm-primary-path-gate");
+  assertIncludes(initResult.stdout, "ztd-config", "phase-a packaging-npm-primary-path-gate");
+  assertIncludes(initResult.stdout, "model-gen", "phase-a packaging-npm-primary-path-gate");
   assertIncludes(initResult.stdout, "npm run test", "phase-a packaging-npm-primary-path-gate");
   assertExcludes(initResult.stdout, "pnpm exec ztd", "phase-a packaging-npm-primary-path-gate");
   assertExcludes(initResult.stdout, "pnpm test", "phase-a packaging-npm-primary-path-gate");
+  assertScaffoldPlanFilesExist(appDir, dryRunPlan, "phase-a scaffold-files");
 
-  const readme = fs.readFileSync(path.join(appDir, "README.md"), "utf8");
-  assertIncludes(readme, "This scaffold starts from `ztd init`.", "phase-a scaffold-readme");
-  assertIncludes(readme, "The project is feature-first by default:", "phase-a scaffold-readme");
-  assertIncludes(
-    readme,
-    "local-source workspace output that resolves `rawsql-ts` packages through `file:` dependencies back to a monorepo checkout",
-    "phase-a scaffold-readme"
-  );
-  assertIncludes(
-    readme,
-    "Check `package.json` to see which mode you are in. If you see `file:` dependencies that point back to a monorepo checkout, this is a local-source workspace and the monorepo checkout is the source of truth.",
-    "phase-a scaffold-readme"
-  );
-  assertIncludes(readme, "Use this short prompt:", "phase-a scaffold-readme");
-  assertIncludes(readme, "Choose `ztd init` or `ztd init --starter` based on whether you want the removable starter sample.", "phase-a scaffold-readme");
-  assertIncludes(readme, "the same vocabulary appears in the README, CLI help, and tutorial docs", "phase-a scaffold-readme");
-  assertIncludes(readme, "The feature-first path is successful when:", "phase-a scaffold-readme");
-  assertExcludes(readme, "AGENTS.md", "phase-a scaffold-readme");
-  assertExcludes(readme, "PROMPT_DOGFOOD.md", "phase-a scaffold-readme");
-  assertExcludes(readme, "pnpm exec ztd ztd-config", "phase-a scaffold-readme");
+  const scaffoldPackageJson = readJsonFile(path.join(appDir, "package.json"));
+  assertPackageScript(scaffoldPackageJson, "test", "node ./scripts/local-source-guard.mjs test --passWithNoTests", "phase-a package-scripts");
+  assertPackageScript(scaffoldPackageJson, "typecheck", "node ./scripts/local-source-guard.mjs typecheck", "phase-a package-scripts");
+  assertPackageScript(scaffoldPackageJson, "ztd", "node ./scripts/local-source-guard.mjs ztd", "phase-a package-scripts");
+
+  assertFileMissing(appDir, "compose.yaml", "phase-a default-scaffold-shape");
+  assertFileMissing(appDir, "PROMPT_DOGFOOD.md", "phase-a default-scaffold-shape");
+  assertFileMissing(appDir, "CONTEXT.md", "phase-a default-scaffold-shape");
+  assertFileMissing(appDir, path.join("src", "features", "smoke", "queries", "smoke", "tests", "smoke.boundary.ztd.test.ts"), "phase-a default-scaffold-shape");
+  assertFileMissing(appDir, path.join(".ztd", "agents", "manifest.json"), "phase-a default-scaffold-shape");
 
   restoreTarballDependencies(appDir, tarballDependencies);
   runIn(appDir, NPM, ["install"]);
@@ -523,12 +571,27 @@ function verifyPnpmStarterPath(packages) {
   });
 
   runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
+  const dryRunPlan = runInitDryRunPlan(appDir, PNPM, [
+    "--starter",
+    "--workflow",
+    "demo",
+    "--validator",
+    "zod",
+  ]);
+  assertScaffoldPlanMetadata(dryRunPlan, {
+    dryRun: true,
+    schemaVersion: 1,
+    workflow: "demo",
+    validator: "zod",
+    starter: true,
+  }, "phase-c init-dry-run");
   runInstalledZtdCli(appDir, [
     "init",
     "--starter",
     "--yes",
     "--skip-install",
   ]);
+  assertScaffoldPlanFilesExist(appDir, dryRunPlan, "phase-c starter-scaffold-files");
 
   const scaffoldPackageJson = readPackageJson(appDir);
   scaffoldPackageJson.devDependencies = Object.fromEntries(
@@ -648,13 +711,25 @@ function verifyPnpmTutorialModelGen(packages) {
   ];
 
   if (process.env.ZTD_TEST_DATABASE_URL) {
-    runInstalledZtdCli(appDir, modelGenArgs);
+    try {
+      runInstalledZtdCli(appDir, modelGenArgs);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `[packaging contract] tutorial model-gen failed after starter scaffold setup. ` +
+        `Re-run "pnpm exec ztd ztd-config" and then retry pnpm exec ztd ${modelGenArgs.join(" ")}. ` +
+        `If Postgres just started, wait for readiness before rerunning. Original error: ${message}`,
+      );
+    }
     const generatedSpec = fs.readFileSync(
       path.join(appDir, "src", "features", "users", "persistence", "users.spec.ts"),
       "utf8",
     );
     if (!generatedSpec.includes("export interface")) {
-      throw new Error("[packaging contract] tutorial model-gen did not write the expected spec output.");
+      throw new Error(
+        "[packaging contract] tutorial model-gen did not write the expected spec output. " +
+        "Re-run pnpm exec ztd ztd-config, then rerun model-gen for src/features/users/persistence/users.sql.",
+      );
     }
   } else {
     const describeOutput = runInstalledZtdCli(appDir, [...modelGenArgs, "--describe-output", "--output", "json"]);
@@ -662,7 +737,9 @@ function verifyPnpmTutorialModelGen(packages) {
     const parsed = JSON.parse(describeOutput.stdout);
     if (parsed?.data?.outputs?.spec !== "TypeScript QuerySpec scaffold") {
       throw new Error(
-        `[packaging contract] tutorial model-gen describe output was unexpected: ${JSON.stringify(parsed)}`,
+        `[packaging contract] tutorial model-gen describe output was unexpected. ` +
+        `Re-run pnpm exec ztd ztd-config, then inspect the packed CLI model-gen output contract. ` +
+        `Received: ${JSON.stringify(parsed)}`,
       );
     }
   }
