@@ -3,12 +3,15 @@ import { loadDictionary, resolveLocale } from '../analyzer/dictionary';
 import { analyzeColumns } from '../analyzer/columnConcepts';
 import { resolveSchemaSettings } from '../config';
 import { snapshotTableDocs } from '../parser/snapshotTableDocs';
+import { loadConceptRegistry, loadDdlRelationshipMetadata, resolveTableRelationship } from '../relationshipMetadata';
 import { renderColumnPages } from '../render/columnPages';
 import { renderIndexPages } from '../render/indexPages';
 import { renderReferencesPage } from '../render/referencesPage';
+import { renderConceptIndex, renderConceptPages, renderProcessIndex, renderProcessPages } from '../render/sourcePages';
 import { renderTableMarkdown, tableDocPath } from '../render/tableMarkdown';
 import type { TableSuggestionSql } from '../render/tableMarkdown';
 import { writeManifest } from '../state/manifest';
+import { loadTableDocsMetadata } from '../tableDocsMetadata';
 import type { DdlInput, GenerateDocsOptions, SuggestionItem } from '../types';
 import { dedupeDdlInputsByInstanceAndPath } from '../utils/ddlInputDedupe';
 import { collectSqlFiles, ensureDirectory, expandGlobPatterns } from '../utils/fs';
@@ -60,6 +63,9 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
   }
 
   const dictionary = loadDictionary(options.dictionaryPath);
+  const tableDocsMetadata = loadTableDocsMetadata(options.tableDocsPath);
+  const ddlRelationshipMetadata = loadDdlRelationshipMetadata(options.relationshipPath);
+  const conceptRegistry = loadConceptRegistry(options.conceptRelationshipPath);
   const locale = resolveLocale(options.locale, dictionary);
   const analysis = analyzeColumns(snapshot.tables, { locale, dictionary });
   const referenceSuggestions = buildReferenceSuggestions(snapshot.tables);
@@ -69,6 +75,7 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
   const generatedFiles: string[] = [];
   const tableOutputs: string[] = [];
   const columnOutputs: string[] = [];
+  const assetOutputs: string[] = [];
   const nameMap: Record<string, string> = {};
   const suggestionsByTable = groupSuggestionsByTable(allSuggestions);
 
@@ -79,7 +86,20 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
       columnCommentSql: [],
       foreignKeySql: [],
     };
-    writeTextFileNormalized(outputPath, renderTableMarkdown(table, tableSuggestions, { labelSeparator: options.labelSeparator }));
+    writeTextFileNormalized(
+      outputPath,
+      renderTableMarkdown(table, tableSuggestions, {
+        labelSeparator: options.labelSeparator,
+        getColumnSample: (column) => tableDocsMetadata.getColumnSample(table.schema, table.table, column.name),
+        getTableDesignNotes: () => tableDocsMetadata.getTableDesignNotes(table.schema, table.table),
+        getColumnDesignNotes: (column) => tableDocsMetadata.getColumnDesignNotes(table.schema, table.table, column.name),
+        getConstraintDesignNotes: (constraint) => tableDocsMetadata.getConstraintDesignNotes(table.schema, table.table, constraint.name),
+        getTableDesignIntent: () => tableDocsMetadata.getTableDesignIntent(table.schema, table.table),
+        getColumnDesignIntent: (column) => tableDocsMetadata.getColumnDesignIntent(table.schema, table.table, column.name),
+        getConstraintDesignIntent: (constraint) => tableDocsMetadata.getConstraintDesignIntent(table.schema, table.table, constraint.name),
+        tableRelationship: resolveTableRelationship(table.sourceFiles, ddlRelationshipMetadata, conceptRegistry),
+      })
+    );
     generatedFiles.push(outputPath);
     tableOutputs.push(outputPath);
     nameMap[`${table.schema}.${table.table}`] = `${table.schemaSlug}/${table.tableSlug}.md`;
@@ -109,6 +129,25 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
   generatedFiles.push(referencesPage.path);
   tableOutputs.push(referencesPage.path);
 
+  const sourcePages = [
+    ...renderConceptPages(options.outDir, conceptRegistry),
+    ...renderProcessPages(options.outDir, ddlRelationshipMetadata),
+  ];
+  const conceptIndex = renderConceptIndex(options.outDir, conceptRegistry);
+  const processIndex = renderProcessIndex(options.outDir, ddlRelationshipMetadata);
+  if (conceptIndex) {
+    sourcePages.push(conceptIndex);
+  }
+  if (processIndex) {
+    sourcePages.push(processIndex);
+  }
+  for (const page of sourcePages) {
+    ensureDirectory(path.dirname(page.path));
+    writeTextFileNormalized(page.path, page.content);
+    generatedFiles.push(page.path);
+    tableOutputs.push(page.path);
+  }
+
   const metaDir = path.join(options.outDir, '_meta');
   ensureDirectory(metaDir);
   const warningsJsonPath = path.join(metaDir, 'warnings.json');
@@ -136,6 +175,10 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
     suggestedPath
   );
 
+  const vitePressAssets = writeVitePressPreviewAssets(options.outDir);
+  generatedFiles.push(...vitePressAssets);
+  assetOutputs.push(...vitePressAssets);
+
   const manifest = writeManifest({
     outDir: options.outDir,
     generatorVersion: GENERATOR_VERSION,
@@ -150,16 +193,148 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
       ddlDirectories: normalizedDirectories,
       ddlFiles: uniqueFiles,
       ddlGlobs: normalizedGlobs,
+      tableDocsPath: options.tableDocsPath,
+      relationshipPath: options.relationshipPath,
+      conceptRelationshipPath: options.conceptRelationshipPath,
     },
     nameMap,
     tableOutputs,
     columnOutputs,
+    assetOutputs,
   });
 
   const totalIssues = snapshot.warnings.length + analysis.findings.length;
   if (options.strict && totalIssues > 0) {
     throw new Error(`Strict mode failed: ${totalIssues} issues found.`);
   }
+}
+
+function writeVitePressPreviewAssets(outDir: string): string[] {
+  const configPath = path.join(outDir, '.vitepress', 'config.mts');
+  const themeIndexPath = path.join(outDir, '.vitepress', 'theme', 'index.ts');
+  const themeStylePath = path.join(outDir, '.vitepress', 'theme', 'style.css');
+
+  ensureDirectory(path.dirname(configPath));
+  ensureDirectory(path.dirname(themeIndexPath));
+
+  writeTextFileNormalized(configPath, renderVitePressConfig());
+  writeTextFileNormalized(themeIndexPath, renderVitePressThemeIndex());
+  writeTextFileNormalized(themeStylePath, renderVitePressThemeCss());
+
+  return [configPath, themeIndexPath, themeStylePath];
+}
+
+function renderVitePressConfig(): string {
+  return [
+    "import { defineConfig } from 'vitepress';",
+    '',
+    'export default defineConfig({',
+    "  title: 'DDL Review',",
+    "  description: 'Generated table definition review docs',",
+    '  cleanUrls: true,',
+    '  appearance: true,',
+    '});',
+    '',
+  ].join('\n');
+}
+
+function renderVitePressThemeIndex(): string {
+  return [
+    "import DefaultTheme from 'vitepress/theme';",
+    "import './style.css';",
+    '',
+    'export default DefaultTheme;',
+    '',
+  ].join('\n');
+}
+
+function renderVitePressThemeCss(): string {
+  return [
+    '.VPDoc .container {',
+    '  max-width: none !important;',
+    '}',
+    '',
+    '.VPDoc .content {',
+    '  max-width: none !important;',
+    '}',
+    '',
+    '.VPDoc .content-container {',
+    '  max-width: none !important;',
+    '}',
+    '',
+    '.VPDoc.has-aside .content {',
+    '  padding-right: 0 !important;',
+    '}',
+    '',
+    '.VPDoc .aside {',
+    '  display: none !important;',
+    '}',
+    '',
+    '.vp-doc h1 {',
+    '  margin-top: 0;',
+    '}',
+    '',
+    '.vp-doc h2 {',
+    '  margin: 32px 0 14px;',
+    '  padding-top: 18px;',
+    '}',
+    '',
+    '.vp-doc table {',
+    '  display: table;',
+    '  min-width: 100%;',
+    '  width: max-content;',
+    '  margin: 12px 0 22px;',
+    '  font-size: 12px;',
+    '  line-height: 1.25;',
+    '}',
+    '',
+    '.vp-doc tr {',
+    '  border-top: 1px solid var(--vp-c-divider);',
+    '}',
+    '',
+    '.vp-doc th,',
+    '.vp-doc td {',
+    '  padding: 5px 8px;',
+    '  vertical-align: top;',
+    '}',
+    '',
+    '.vp-doc th {',
+    '  white-space: nowrap;',
+    '}',
+    '',
+    '.vp-doc td {',
+    '  min-width: 56px;',
+    '}',
+    '',
+    '.vp-doc td:nth-child(2),',
+    '.vp-doc td:nth-child(3),',
+    '.vp-doc td:nth-child(4),',
+    '.vp-doc td:nth-child(5),',
+    '.vp-doc td:nth-child(6),',
+    '.vp-doc td:nth-child(7) {',
+    '  white-space: nowrap;',
+    '}',
+    '',
+    '.vp-doc td:last-child {',
+    '  min-width: 260px;',
+    '  max-width: 520px;',
+    '}',
+    '',
+    '.vp-doc code {',
+    '  font-size: 0.9em;',
+    '  line-height: 1.15;',
+    '  padding: 1px 5px;',
+    '}',
+    '',
+    ".vp-doc div[class*='language-'] {",
+    '  margin: 12px 0 22px;',
+    '}',
+    '',
+    ".vp-doc div[class*='language-'] pre {",
+    '  max-height: 440px;',
+    '}',
+    '',
+  ].join('\n');
 }
 
 function normalizeDdlInputs(inputs: Array<DdlInput | string>): DdlInput[] {
