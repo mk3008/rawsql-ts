@@ -25,6 +25,18 @@ export function formatCodeCell(value: string | null | undefined): string {
   if (value === null || value === undefined || value.trim().length === 0) {
     return '-';
   }
+  if (/\r?\n/.test(value)) {
+    return `<code>${escapeHtml(value).replace(/\r?\n/g, '<br>')}</code>`;
+  }
   const escaped = escapeMarkdownText(value.replace(/`/g, '\\`'));
   return `\`${escaped}\``;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/\|/g, '&#124;');
 }

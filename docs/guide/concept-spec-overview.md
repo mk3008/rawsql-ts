@@ -63,8 +63,14 @@ Do not create a Concept Spec for:
 When unsure, keep the note in an issue or feature-local spec first.
 Promote it to a Concept Spec only after the cross-feature concept is clear.
 
-AI agents must not create, move, split, or merge Concept Specs unless the current issue explicitly instructs the agent to create, move, split, or merge a Concept Spec and names the target Concept Spec path.
-If an agent finds a concept that may deserve a Concept Spec, it should report the candidate instead of creating a new spec on its own.
+## Authority Model
+
+Humans own Concept Spec authority.
+
+AI agents may review drafts, point out contradictions, suggest wording, find missing references, and report candidate concepts.
+They must not decide that a draft concept is authoritative, create a new Concept Spec, promote a concept, redefine concept ownership, move, split, merge, or reorganize the concept graph unless the current issue explicitly names the target Concept Spec, the requested action, and the intended destination or ownership change.
+
+This keeps AI useful as a reviewer and consistency checker without making it the source of domain truth.
 
 ## Standard Shape
 
@@ -81,7 +87,8 @@ Use short additional sections when they explain an important design decision.
 For example, a `Why` section can preserve why a responsibility boundary was narrowed.
 
 Do not keep per-spec `Related Terms` lists when the package has a concept map or machine-readable relationship file.
-Concept relationships should be normalized at the concept root, for example in `concept-map.md` and `concept-relationship.json`, so relationship maintenance does not drift across individual specs.
+Concept relationships should be normalized at the concept root, primarily in `concept-relationship.json`, so relationship maintenance does not drift across individual specs.
+`concept-map.md` may present that metadata as a human review view, but relationship facts should not exist only in the map.
 
 Avoid copying generic Concept Spec management rules into every individual spec.
 Package-level guidance and repository documentation should carry the common rules.
@@ -102,7 +109,7 @@ For example:
 ```
 
 Do not add a long relationship list only to satisfy this rule.
-If the owner is obvious from `concept-map.md`, a short pointer is enough.
+If the owner is obvious from `concept-relationship.json` or a generated Concept Map review view, a short pointer is enough.
 If the owner is not known yet, state that the ownership is unresolved instead of silently ending with a negation.
 
 ## What Not To Put In Concept Specs
@@ -130,6 +137,10 @@ Use the right artifact for the job:
 | Artifact | Primary Role |
 |---|---|
 | Concept Spec | durable meaning, responsibility boundaries, non-responsibilities, and invariants |
+| concept-relationship.json | machine-readable concept graph, lifecycle, glossary, and relationship metadata |
+| Concept Map | generated or regeneratable human review view for concept lists, glossary terms, lifecycle status, and static relationships |
+| DFD | coarse logical data-flow harness for business operations, timing, actors, inputs, outputs, and system boundaries |
+| DFD relationship metadata | machine-readable compiled logical model for DFD terms, concept groups, inputs, and outputs |
 | Issue | the change request for the current work |
 | feature-local spec | feature-specific behavior that has not become a cross-feature concept |
 | DDL comment | table, column, and constraint meaning |
@@ -139,25 +150,70 @@ Use the right artifact for the job:
 | RFBA boundary | reviewable implementation surface |
 | ztd-cli | scaffold, report, and structural check support |
 
+## Relationship To Issues
+
+An Issue is a change request, not the source of durable domain meaning.
+
+Issues should reference the relevant Concept Specs, DFDs, Process Maps, or feature-local specs that constrain the work.
+If an issue needs a concept that does not exist yet, the issue should call that out as concept work instead of allowing implementation to invent the concept implicitly.
+
+Reviewing an issue therefore includes checking whether the issue is grounded in the approved concept and process context.
+
+## Review Support Views
+
+Logical-model prose is human-owned.
+AI agents may help structure, compare, and review it, but they do not own the domain truth.
+
+Review support views are derived views over logical-model metadata.
+They may include Concept Maps, Concept indexes, DFD group indexes, Process Map indexes, generated VitePress source pages, table-definition review pages, and other coverage or drift dashboards.
+
+These views are useful because humans are bad at spotting missing entries, stale links, duplicated terms, and lifecycle gaps across many documents.
+However, review support views should be regeneratable from structured metadata whenever possible.
+They may be kept out of version control if the project can recreate them deterministically.
+
+Do not put durable facts only in a review support view.
+If a fact needs to be searched, counted, checked, linked, or used by AI/CLI without inference, put it in structured metadata such as `concept-relationship.json`, `docs/dfd/relationship.json`, `docs/processes/process-map.json`, `db/ddl/relationship.json`, `db/ddl/table-docs.json`, or `db/ddl/order.json`.
+
 ## Concept-Driven Development Flow
 
 Concept Spec work follows an intentionally staged development style.
 
 1. Create and review Concept Specs.
-2. Create and review Process Maps only when the logic is complex enough to need them.
-3. Feed Process Map findings back into Concept Specs when the process exposes a missing concept, ambiguous term, or responsibility gap.
-4. Implement with RFBA after the concept and process review surfaces are stable enough.
+2. Create and review DFDs when the domain needs business-operation, timing, actor, input/output, or system-boundary clarity.
+3. Create and review Process Maps only when the logic is complex enough to need process-level flow and concrete concept input/output.
+4. Feed DFD and Process Map findings back into Concept Specs when they expose a missing concept, ambiguous term, duplicate concept, or responsibility gap.
+5. Implement with RFBA after the concept, DFD, and process review surfaces are stable enough.
 
 Concept Specs are not expected to become perfect from desk review alone.
 They should be correct enough to protect durable meaning, responsibility boundaries, and invariants.
-When a Process Map cannot express the use case without inventing undefined terms, contradicting a Concept Spec, or hiding a responsibility gap, update the Concept Spec or Concept Map before continuing.
+When a DFD or Process Map cannot express the use case without inventing undefined terms, contradicting a Concept Spec, or hiding a responsibility gap, update the Concept Spec or the relevant structured relationship metadata before continuing.
+
+Logical models are requirements-like artifacts.
+Humans should own and write the durable meaning, but prose alone is weak at coverage, overview, and drift detection.
+Therefore each human-readable logical design should have structured metadata where the stable relationships can be recorded without repeated inference.
+Human review views may exist, but they should be generated from structured metadata whenever possible so review format changes do not require AI or humans to re-infer the graph.
+
+Review support views are not authoritative logical models.
+They exist to help humans inspect coverage, lifecycle state, relationships, and omissions.
+
+DFDs are intentionally coarser than Process Maps.
+They are often created alongside or soon after Concept Specs, before detailed process review.
+A DFD should show what business operation runs, when it runs, who or what performs it, which data enters, which data leaves, and which system boundary is crossed.
+It should not force detailed process order, SQL, transaction design, or physical storage.
+
+DFDs may use DFD Concept Groups to keep diagrams readable.
+For example, a DFD may group several concrete Concepts under `Transfer Configuration` when the data-flow question does not need each concrete concept node.
+These groups are explanation labels for DFD readability, not standalone runtime concepts.
+They are useful when business operations need to be reviewed before every concrete Concept boundary has been fully expanded in the diagram.
+The group lets reviewers discuss the business data flow at the right grain while still requiring a later expansion to concrete Concepts or explicit non-concept terms.
+Process Maps must not use DFD Concept Groups; Process Maps should expand to concrete Concepts in detail views.
 
 Process Maps are optional.
 Create them for complex flows that combine multiple concepts, branching decisions, duplicate prevention, auditability, history, or state transitions.
 Do not create Process Maps for every CRUD feature or simple query.
 
 This flow is deliberately not physical design.
-Concept Specs and Process Maps should avoid DDL details, SQL shape, Zod schemas, API paths, function names, class structure, file layout, and transaction implementation unless the user explicitly asks for a separate implementation design.
+Concept Specs, DFDs, and Process Maps should avoid DDL details, SQL shape, Zod schemas, API paths, function names, class structure, file layout, and transaction implementation unless the user explicitly asks for a separate implementation design.
 Their value is long document lifetime: they should remain useful across implementation rewrites, schema refactors, and RFBA feature reshaping.
 
 ## Relationship To Agent Workflow Skills
@@ -173,7 +229,10 @@ The intended layering is:
 | Layer | Role |
 |---|---|
 | Concept Spec | define what must keep its meaning |
-| Concept Map | normalize concept names, glossary terms, and static relationships |
+| concept-relationship.json | store machine-readable concept names, glossary terms, lifecycle state, and static relationships |
+| Concept Map | generated or regeneratable human review view over the concept relationship metadata |
+| DFD | show coarse business-operation data flow, timing, actors, inputs, outputs, and system boundaries |
+| DFD relationship metadata | compile DFD terms into a machine-checkable logical model |
 | Process Map | check whether complex use cases can be expressed from approved concepts |
 | RFBA | expose the implementation surfaces humans should review |
 | ztd-cli / ZTD / tests | provide scaffold, generated artifacts, drift checks, and executable verification |
@@ -202,6 +261,11 @@ packages/<package-name>/docs/concepts/
 packages/<package-name>/docs/processes/
   process-map.json
   <process-name>-process.md
+
+packages/<package-name>/docs/dfd/
+  README.md
+  relationship.json
+  <dfd-name>.md
 ```
 
 `packages/<package-name>/docs/concepts/README.md` is the package-local entrypoint.
@@ -228,9 +292,9 @@ When the concept is approved, promote it in place:
 
 1. Replace `DRAFT.md` with `SPEC.md`.
 2. Remove the old `DRAFT.md`.
-3. Update `concept-map.md` from `Draft Concepts` to `Defined Concepts`.
-4. Update `concept-relationship.json` from `draftPath` / `status: "draft"` to `path` / `status: "defined"`.
-5. Recheck process maps and feature references that depended on the draft wording.
+3. Update `concept-relationship.json` from `draftPath` / `status: "draft"` to `path` / `status: "defined"`.
+4. Regenerate or refresh Concept Map review views from the structured metadata.
+5. Recheck DFDs, Process Maps, and feature references that depended on the draft wording.
 
 Do not use a separate `_drafts/` folder for ordinary concept drafts.
 The concept directory keeps links stable, makes unfinished work visible, and keeps promotion cheap.
@@ -243,12 +307,28 @@ A concept may participate in multiple views, such as execution, transfer model, 
 
 Represent concept dependencies, static relationships, and glossary lookup in:
 
-- `concept-map.md`
 - `concept-relationship.json`
+
+Represent generated or regeneratable concept coverage and relationship review views in:
+
+- `concept-map.md`
 
 Represent process order, use-case flow, and input/output process details in process maps under:
 
 - `docs/processes/`
+
+Represent business-operation data flow, event timing, actor ownership, input/output data, and system boundaries in DFDs under:
+
+- `docs/dfd/`
+
+DFDs are allowed to use DFD Concept Groups when concrete Concept lists would make the diagram too noisy.
+DFD Concept Groups are not normal Concept Specs and should not be placed under `docs/concepts/`.
+They are DFD-only virtual display labels that exist in `docs/dfd/relationship.json`.
+Their concrete Concept or external-store members must be derivable from that metadata.
+Do not maintain a separate handwritten membership document for them.
+
+Process Maps must not use DFD Concept Groups.
+They should use concrete Concept names in detail diagrams so process-level input/output remains reviewable.
 
 Filesystem nesting should be used only when a concept is truly a sub-concept that cannot be understood without its direct parent and does not naturally belong to multiple parents.
 
@@ -280,8 +360,17 @@ docs/concepts/
     SPEC.md
 ```
 
-Use the concept map as the package-level structure for static concept relationships.
-It may provide static views over the same flat set of concepts, such as master correlation or glossary-oriented lookup.
+Use `concept-relationship.json` as the package-level structured source for concept names, glossary terms, lifecycle state, and static concept relationships.
+
+Use the Concept Map as a human review view generated or regenerated from that structured source.
+It helps humans review coverage, draft/defined status, glossary terms, and static relationships, but it should not become a separate hand-maintained source of truth.
+If the Concept Map format changes, regenerate it from structured metadata instead of re-inferring the concept graph from prose.
+
+The Concept Map is a lookup and review index, not a business-flow document.
+
+Keep maintenance workflows, registration flows, input/output data movement, timing, actors, and system-boundary questions in DFDs.
+Keep process order and detailed process input/output in Process Maps.
+If a static relationship starts to read like "how to register, update, search, or maintain this data", move that view to a DFD or Process Map instead of keeping it in the Concept Map.
 
 Separate defined and draft concepts in the human-facing map:
 
@@ -316,7 +405,8 @@ AI agents and CLI tools must not reorganize Concept Spec layout to infer or expr
 
 ## Term Reference Style
 
-Use the concept map as the lookup table for Concept IDs, display names, glossary terms, and spec paths.
+Use `concept-relationship.json` as the structured lookup table for Concept IDs, display names, glossary terms, and spec paths.
+Use the Concept Map as the human-facing view over that lookup table.
 
 Concept IDs and file paths use kebab-case for machines and files.
 Concept Spec prose should use the human-facing display name from the concept map.
@@ -326,15 +416,15 @@ For example, write `Transfer Setting`, `Destination Link`, or `source key`.
 
 Do not add per-term links in Concept Spec prose by default.
 Links are harder to maintain and can create noisy documents.
-Readers and agents should use `concept-map.md` to resolve a display name or glossary term to the owning Concept Spec.
+Readers and agents should use `concept-relationship.json`, or a generated Concept Map review view derived from it, to resolve a display name or glossary term to the owning Concept Spec.
 
-The concept map should therefore expose both:
+The structured metadata and generated Concept Map should therefore expose both:
 
 - a machine-facing `Concept ID`
 - a human-facing `Display Name`
 
-Glossary terms that are not standalone Concept Specs should live in a dedicated `Glossary Terms` section of the concept map.
-They should not be added to `concept-relationship.json` unless a future CLI check needs machine-readable glossary metadata.
+Glossary terms that are not standalone Concept Specs should live in `concept-relationship.json` when tools or agents need to resolve them without inference.
+The Concept Map may render those entries in a dedicated `Glossary Terms` section for human review.
 
 ## spec-relationship.json
 
@@ -382,6 +472,11 @@ That list drifts easily when new features are added.
 ## concept-relationship.json
 
 Package-level `concept-relationship.json` records concept discovery metadata for Concept Maps and future CLI checks.
+It is the structured source for generated Concept Map review views.
+
+Keep information that must be searched, counted, checked, or regenerated here rather than only in prose.
+Examples include concept IDs, display names, lifecycle status, spec paths, glossary terms, static relationships, and relationship reasons.
+This lets tools answer questions such as how many draft concepts remain, whether a referenced concept exists, and whether a generated review view is stale.
 
 For defined concepts, use `status: "defined"` and point to `SPEC.md`:
 
@@ -408,6 +503,124 @@ For draft concepts, use `status: "draft"` and point to `DRAFT.md`:
 Do not put both `path` and `draftPath` on the same concept entry.
 `path` means the concept is defined.
 `draftPath` means the concept is unfinished.
+
+## Why Relationship Metadata Exists
+
+Concept Specs are intentionally human-readable, but prose alone is not a reliable harness.
+
+A natural-language specification can contain missing terms, renamed concepts, stale assumptions, unresolved ownership, or responsibility gaps that are difficult for humans and AI agents to notice during ordinary reading.
+
+Relationship metadata exists to make those failures visible before implementation review.
+
+It is not a second specification body.
+It does not prove semantic correctness.
+It records the concept graph, draft/defined lifecycle, DFD inputs and outputs, concept groups, and feature dependencies so tools and agents can detect unresolved references, stale links, hidden ownership gaps, and drift between human-readable documents and structured design metadata.
+
+In other words, prose explains the meaning.
+Relationship metadata makes the review surface searchable, checkable, and harder to silently bypass.
+Relationship metadata is therefore a review index, not a replacement for human judgment.
+
+## DFD relationship.json
+
+Package-level DFD metadata records the compiled logical model behind human-readable DFD Markdown.
+
+The Markdown files remain the human-readable logical design.
+The structured file exists so CLI tools and agents do not have to infer the same concepts, groups, inputs, outputs, and external stores from prose every time.
+
+DFD Concept Groups are virtual grouping labels for DFD diagrams.
+They are not Concept Specs and are not normal Markdown-owned documents.
+Their identity, display name, scope, and members should live in `docs/dfd/relationship.json` so tools can expand a group into its concrete Concepts or external stores without inference.
+
+A DFD Concept Group exists only to simplify a DFD view.
+It is similar to a folder, section heading, or composite label: it bundles existing terms for the diagram but does not create a new domain concept.
+For that reason, a group must not own responsibilities, non-responsibilities, invariants, DDL, Process Map detail, or feature behavior.
+
+The benefit is that early business definitions can be reviewed without forcing every DFD to show every concrete Concept node.
+For example, a DFD can say that `Transfer Execution` reads `Transfer Configuration`, while `relationship.json` records that the group expands to `Transfer Setting`, `Destination Link`, and `Destination`.
+
+This shortcut is only safe when expansion is mechanical.
+Every DFD Concept Group must have members in `docs/dfd/relationship.json`.
+Each member must resolve to a defined Concept or an explicit allowed non-concept term such as an external store or derived view.
+If a group has no members, references an unknown member, or is used outside DFDs, treat it as a structural check finding.
+
+Do not maintain handwritten group membership in a separate Markdown file.
+If humans need a group index, generate or check it from `docs/dfd/relationship.json`.
+
+Use `docs/dfd/relationship.json` to record:
+
+- DFD Concept Groups
+- members of each DFD Concept Group
+- external stores referenced by DFDs
+- derived views when they are intentionally used as intermediate logical outputs
+- DFD business operations
+- DFD input and output references
+
+Example:
+
+```json
+{
+  "schemaVersion": 1,
+  "externalStores": [
+    {
+      "id": "source-data",
+      "displayName": "Source Data"
+    }
+  ],
+  "conceptGroups": [
+    {
+      "id": "transfer-configuration",
+      "displayName": "Transfer Configuration",
+      "scope": "dfd-only",
+      "members": [
+        { "type": "concept", "id": "transfer-setting" },
+        { "type": "concept", "id": "destination-link" },
+        { "type": "concept", "id": "destination" }
+      ]
+    }
+  ],
+  "dfds": [
+    {
+      "id": "transfer-execution-data-flow",
+      "displayName": "Transfer Execution Data Flow",
+      "path": "transfer-execution-data-flow.md",
+      "businessOperations": [
+        {
+          "id": "transfer-execution",
+          "displayName": "Transfer Execution",
+          "inputs": [
+            { "type": "concept", "id": "dirty-key" },
+            { "type": "concept-group", "id": "transfer-configuration" }
+          ],
+          "outputs": [
+            { "type": "concept", "id": "transfer-run" }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Allowed DFD reference types should start small:
+
+- `concept`
+- `concept-group`
+- `external-store`
+- `derived-view`
+
+DFD Concept Group members should normally be concrete `concept` entries or explicit `external-store` entries.
+Do not nest DFD Concept Groups unless a future CLI check also handles cycle detection and expansion.
+
+The DFD metadata should let a structural checker answer these questions without natural-language inference:
+
+- Does every DFD input/output resolve to a defined Concept, a DFD Concept Group, an external store, or an allowed derived view?
+- Does every DFD Concept Group member resolve to a defined Concept or allowed non-concept term?
+- Does every referenced DFD Markdown file exist?
+- Does the Markdown table for input/output drift from the structured metadata?
+- Does any Process Map use a DFD-only Concept Group?
+
+These checks do not prove semantic correctness.
+They make drift, missing links, and unresolved terms visible before human review.
 
 ## AGENTS.md Relationship
 
@@ -437,6 +650,11 @@ Early CLI support should stay structural and mechanical:
 - reject manual parent dependencies
 - show related specs for a feature
 - detect invalid `DRAFT.md` / `SPEC.md` lifecycle states
+- check `concept-relationship.json` concept IDs, paths, statuses, and relationship references
+- check `docs/dfd/relationship.json` DFD Concept Groups, input/output references, external stores, and Markdown paths
+- check `docs/processes/process-map.json` Process Map IDs, Markdown paths, view IDs, and referenced Concepts
+- check that Process Maps do not use DFD-only Concept Groups
+- check that DFD Markdown input/output tables do not drift from structured DFD metadata
 
 CLI tools must not reinterpret the spec body, move specs, split specs, merge specs, or reorganize the Concept Spec tree automatically.
 Those actions require human review.
@@ -462,6 +680,9 @@ Use these rules to reduce drift:
 - Let feature specs describe feature-specific behavior.
 - Let tests prove behavior.
 - Let Concept Specs define concepts, responsibility boundaries, non-responsibilities, and invariants.
+- Let DFDs define coarse business-operation data flow, timing, actors, inputs, outputs, and system boundaries.
+- Let Process Maps define process order and concrete concept-level process input/output.
+- Keep DFD Concept Group membership in `docs/dfd/relationship.json` so it can be mechanically checked.
 
 If a Concept Spec carries constants, keep them in a mechanically readable `Constants` section, such as fenced YAML.
 Do not add constant-drift checks until the source artifacts can be mapped reliably.
@@ -481,6 +702,14 @@ Errors:
 - `concept-relationship.json` marks a concept as `draft` but its `draftPath` is missing or does not exist
 - `concept-relationship.json` marks a concept as `draft` while `SPEC.md` exists in that concept directory
 - a concept directory with `SPEC.md` or `DRAFT.md` is missing from `concept-relationship.json`
+- `docs/dfd/relationship.json` is invalid JSON or has an invalid schema
+- a DFD input/output reference points to an unknown Concept, Concept Group, external store, or derived view
+- a DFD Concept Group member points to an unknown or non-defined Concept
+- a Process Map uses a DFD-only Concept Group
+- `docs/processes/process-map.json` references a missing Process Map Markdown file
+- `docs/processes/process-map.json` view references an unknown Process Map or Concept
+- a Process Map Markdown file is missing from `docs/processes/process-map.json`
+- a referenced DFD Markdown file does not exist
 
 Warnings:
 
@@ -491,6 +720,9 @@ Warnings:
 - a draft concept is used as a production dependency or process premise without explicit human approval
 - a draft concept remains unresolved for a long time
 - a draft concept appears under `Defined Concepts` in `concept-map.md`
+- a DFD Markdown input/output table appears to drift from `docs/dfd/relationship.json`
+- a DFD Concept Group exists in Markdown but is missing from structured metadata, or vice versa
+- a DFD relationship entry has no human-readable explanation where one is needed for review
 
 Unreferenced Concept Specs should usually be warnings, not errors.
 New root or seed specs may exist before features depend on them.
@@ -519,4 +751,9 @@ It fixes meaning, responsibilities, non-responsibilities, and invariants.
 
 It stays human-readable, mechanically discoverable, and light enough to maintain.
 
-AI and CLI tools may help find, link, and check Concept Specs, but they must not decide Concept Spec creation, movement, splitting, or merging without explicit human direction.
+Relationship metadata does not replace prose.
+It makes the concept graph, lifecycle state, feature dependencies, and DFD references checkable so unresolved terms, stale links, and drift become visible before implementation review.
+
+Generated human review views such as Concept Maps may make coverage and lifecycle state easier to inspect, but they should be derived from structured metadata rather than maintained by repeated inference.
+
+AI and CLI tools may help find, link, check, generate review views, and review Concept Specs, but they must not decide Concept Spec creation, promotion, movement, splitting, merging, or ownership without explicit human direction.

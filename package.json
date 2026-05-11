@@ -46,7 +46,8 @@
     "docs:api": "typedoc && node scripts/postprocess-docs.mjs",
     "verify:customer-consumers": "node scripts/verify-published-package-mode.mjs",
     "verify:published-package-mode": "node scripts/verify-published-package-mode.mjs",
-    "verify:generated-project-mode": "node scripts/verify-generated-project-mode.mjs"
+    "verify:generated-project-mode": "node scripts/verify-generated-project-mode.mjs",
+    "verify:transfer-ddl-metadata": "pnpm --filter @rawsql-ts/ddl-docs-cli run build && node packages/ddl-docs-cli/dist/src/index.js check --ddl-dir packages/transfer/db/ddl --table-docs packages/transfer/db/ddl/table-docs.json --relationship packages/transfer/db/ddl/relationship.json --order packages/transfer/db/ddl/order.json --concept-relationship packages/transfer/docs/concepts/concept-relationship.json --concept-map packages/transfer/docs/concepts/concept-map.md --dfd-relationship packages/transfer/docs/dfd/relationship.json --process-dir packages/transfer/docs/processes --default-schema rawsql_transfer"
   },
   "keywords": [
     "sql",

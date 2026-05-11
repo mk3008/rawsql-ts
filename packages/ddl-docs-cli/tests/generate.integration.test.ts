@@ -50,6 +50,8 @@ test('generate writes table pages, index pages, and warnings metadata', () => {
   const schemaIndex = path.join(outDir, 'public', 'index.md');
   const rootIndex = path.join(outDir, 'index.md');
   const globalColumnsIndex = path.join(outDir, 'columns', 'index.md');
+  const vitePressConfig = path.join(outDir, '.vitepress', 'config.mts');
+  const vitePressTheme = path.join(outDir, '.vitepress', 'theme', 'style.css');
   const manifest = path.join(outDir, '_meta', 'manifest.json');
   const warnings = path.join(outDir, '_meta', 'warnings.json');
 
@@ -57,6 +59,8 @@ test('generate writes table pages, index pages, and warnings metadata', () => {
   expect(existsSync(schemaIndex)).toBe(true);
   expect(existsSync(rootIndex)).toBe(true);
   expect(existsSync(globalColumnsIndex)).toBe(true);
+  expect(existsSync(vitePressConfig)).toBe(true);
+  expect(existsSync(vitePressTheme)).toBe(true);
   expect(existsSync(manifest)).toBe(true);
   expect(existsSync(warnings)).toBe(true);
 
@@ -72,6 +76,16 @@ test('generate writes table pages, index pages, and warnings metadata', () => {
 
   const warningsJson = JSON.parse(readFileSync(warnings, 'utf8')) as Array<{ kind: string }>;
   expect(warningsJson).toHaveLength(0);
+
+  const themeCss = normalizeLineEndings(readFileSync(vitePressTheme, 'utf8'));
+  expect(themeCss).toContain('.VPDoc .container');
+  expect(themeCss).toContain('font-size: 12px;');
+  expect(themeCss).toContain('.VPDoc .aside');
+
+  const manifestJson = JSON.parse(readFileSync(manifest, 'utf8')) as {
+    outputs: { assets?: string[] };
+  };
+  expect(manifestJson.outputs.assets).toContain('.vitepress/theme/style.css');
 });
 
 test('strict mode fails when warnings exist', () => {
@@ -219,6 +233,7 @@ test('generate renders column samples from table docs metadata before comments',
         id bigint PRIMARY KEY,
         source_key_json jsonb NOT NULL
       );
+      CREATE INDEX active_rows_source_lookup ON public.active_rows (source_key_json);
       COMMENT ON COLUMN public.active_rows.source_key_json IS 'source key';
     `,
     'utf8'
@@ -230,9 +245,16 @@ test('generate renders column samples from table docs metadata before comments',
         schemaVersion: 1,
         tables: {
           'public.active_rows': {
+            designNotes: ['Active rows are optimized for source-key lookup during processing.'],
+            constraints: {
+              active_rows_source_lookup: {
+                designNotes: ['This index supports the hot source-key lookup path.'],
+              },
+            },
             columns: {
               source_key_json: {
                 sample: { sales_id: 123 },
+                designNotes: ['This JSON value is the source of truth for source identity.'],
               },
             },
           },
@@ -258,8 +280,179 @@ test('generate renders column samples from table docs metadata before comments',
   });
 
   const tableDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'public', 'active-rows.md'), 'utf8'));
-  expect(tableDoc).toContain('| Key | Column | Type | Nullable | Default | Seq | Sample | Comment | Usages |');
+  expect(tableDoc).toContain('| Key | Column | Type | Nullable | Default | Seq | Sample | Comment | Review Notes |');
   expect(tableDoc).toContain('|  | `source_key_json` | `jsonb` | NO | - |  | `{"sales_id":123}` | source key |');
+  expect(tableDoc).toContain('## Design Notes');
+  expect(tableDoc).toContain('Active rows are optimized for source-key lookup during processing.');
+  expect(tableDoc).toContain('This JSON value is the source of truth for source identity.');
+  expect(tableDoc).toContain('| Kind | Name | Expression | Review Notes |');
+  expect(tableDoc).toContain('This index supports the hot source-key lookup path.');
+});
+
+test('generate renders related concept and process pages from relationship metadata', () => {
+  const work = createTempDir('ddl-docs-related-sources');
+  const ddlDir = path.join(work, 'ddl');
+  const conceptsDir = path.join(work, 'docs', 'concepts');
+  const processesDir = path.join(work, 'docs', 'processes');
+  const outDir = path.join(work, 'docs-out');
+  const tableDocsPath = path.join(ddlDir, 'table-docs.json');
+  const relationshipPath = path.join(ddlDir, 'relationship.json');
+  const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+  mkdirSync(ddlDir, { recursive: true });
+  mkdirSync(path.join(conceptsDir, 'active-row'), { recursive: true });
+  mkdirSync(processesDir, { recursive: true });
+
+  writeFileSync(
+    path.join(ddlDir, 'active_rows.sql'),
+    `
+      CREATE TABLE public.active_rows (
+        id bigint PRIMARY KEY,
+        source_key_json jsonb NOT NULL,
+        source_key_hash text NOT NULL
+      );
+      CREATE INDEX active_rows_source_lookup ON public.active_rows (source_key_hash);
+    `,
+    'utf8'
+  );
+  writeFileSync(path.join(conceptsDir, 'active-row/SPEC.md'), '# Active Row Concept\n\nDefined concept.', 'utf8');
+  writeFileSync(path.join(processesDir, 'active-row-process.md'), '# Active Row Process\n\nDefined process.', 'utf8');
+  writeFileSync(
+    tableDocsPath,
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        tables: {
+          'public.active_rows': {
+            decision: 'Use source_key_json as identity.',
+            reviewRisk: 'identity-boundary',
+            conceptRefs: ['active-row'],
+            processRefs: ['active-row-process'],
+            tradeoff: ['Hash supports lookup.'],
+            alternativesRejected: ['Do not use hash as identity.'],
+            columns: {
+              source_key_json: { sample: { id: 1 } },
+              source_key_hash: { sample: 'sha256:key' },
+            },
+          },
+        },
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+  writeFileSync(
+    relationshipPath,
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        relationships: [
+          {
+            path: 'active_rows.sql',
+            kind: 'table-ddl',
+            concepts: [{ path: '../docs/concepts/active-row/SPEC.md', reason: 'Active row current state.' }],
+            processes: [{ path: '../docs/processes/active-row-process.md', reason: 'Active row lookup.' }],
+          },
+        ],
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+  writeFileSync(
+    conceptRelationshipPath,
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        concepts: [
+          {
+            id: 'active-row',
+            displayName: 'Active Row',
+            path: 'active-row/SPEC.md',
+            status: 'defined',
+            summary: 'Active row summary',
+          },
+          {
+            id: 'row-key',
+            displayName: 'Row Key',
+            path: null,
+            status: 'alias',
+            summary: 'Row identity explanation term.',
+            note: 'Not an authoritative Concept Spec.',
+          },
+        ],
+        relationships: [
+          {
+            from: 'active-row',
+            to: 'row-key',
+            kind: 'uses',
+            reason: 'Active row uses row key terminology.',
+          },
+        ],
+        glossaryTerms: [
+          {
+            id: 'active-row-key',
+            displayTerm: 'active row key',
+            definedIn: ['active-row/SPEC.md'],
+            meaning: 'Logical active row identity.',
+            note: 'Generated review-map metadata.',
+          },
+        ],
+        relatedProcessMaps: [
+          {
+            id: 'active-row-process',
+            displayName: 'Active Row Process',
+            path: '../processes/active-row-process.md',
+            reason: 'Process map linked from concept metadata.',
+          },
+        ],
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+
+  runGenerateDocs({
+    ddlDirectories: [ddlDir],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    outDir,
+    includeIndexes: true,
+    strict: false,
+    dialect: 'postgres',
+    columnOrder: 'definition',
+    tableDocsPath,
+    relationshipPath,
+    conceptRelationshipPath,
+  });
+
+  const tableDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'public', 'active-rows.md'), 'utf8'));
+  expect(tableDoc).toContain('## Related Concepts / Processes');
+  expect(tableDoc).toContain('[active-row](../concepts/active-row.md)');
+  expect(tableDoc).toContain('[active-row-process](../processes/active-row-process.md)');
+  expect(tableDoc).toContain('decision: Use source_key_json as identity.');
+  expect(tableDoc).toContain('alternativesRejected: Do not use hash as identity.');
+
+  const conceptDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'active-row.md'), 'utf8'));
+  expect(conceptDoc).toContain('# active-row');
+  expect(conceptDoc).toContain('Defined concept.');
+
+  const processDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'processes', 'active-row-process.md'), 'utf8'));
+  expect(processDoc).toContain('# active-row-process');
+  expect(processDoc).toContain('Defined process.');
+
+  const conceptIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'index.md'), 'utf8'));
+  expect(conceptIndex).toContain('# Concept Map');
+  expect(conceptIndex).toContain('| [active-row](./active-row.md) | Active Row | `defined` | Active row summary |');
+  expect(conceptIndex).toContain('## Glossary Terms');
+  expect(conceptIndex).toContain('active-row-key');
+  expect(conceptIndex).toContain('## Planned Or Candidate Concepts');
+  expect(conceptIndex).toContain('row-key');
+  expect(conceptIndex).toContain('## Relationships');
+  expect(conceptIndex).toContain('Active row uses row key terminology.');
 });
 
 test('filter-pg-dump fails when no schema DDL remains after filtering', () => {

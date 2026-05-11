@@ -23,18 +23,71 @@ export interface GenerateDocsOptions {
   locale?: string;
   dictionaryPath?: string;
   tableDocsPath?: string;
+  relationshipPath?: string;
+  conceptRelationshipPath?: string;
   configPath?: string;
   defaultSchema?: string;
   searchPath?: string[];
   filterPgDump?: boolean;
 }
 
+export interface CheckDocsOptions {
+  ddlDirectories: DdlInput[];
+  ddlFiles: DdlInput[];
+  ddlGlobs: DdlInput[];
+  extensions: string[];
+  tableDocsPath?: string;
+  relationshipPath?: string;
+  orderPath?: string;
+  conceptRelationshipPath?: string;
+  conceptMapPath?: string;
+  dfdRelationshipPath?: string;
+  processDirectories?: string[];
+  configPath?: string;
+  defaultSchema?: string;
+  searchPath?: string[];
+  filterPgDump?: boolean;
+}
+
+export interface GenerateConceptMapCliOptions {
+  conceptRelationshipPath: string;
+  outPath: string;
+}
+
 export interface TableDocsColumnMetadata {
   sample?: unknown;
+  designNotes?: string[];
+  decision?: string;
+  reviewRisk?: string;
+  conceptRefs?: string[];
+  processRefs?: string[];
+  ddlRefs?: string[];
+  tradeoff?: string[];
+  alternativesRejected?: string[];
+}
+
+export interface TableDocsConstraintMetadata {
+  designNotes?: string[];
+  decision?: string;
+  reviewRisk?: string;
+  conceptRefs?: string[];
+  processRefs?: string[];
+  ddlRefs?: string[];
+  tradeoff?: string[];
+  alternativesRejected?: string[];
 }
 
 export interface TableDocsTableMetadata {
+  designNotes?: string[];
+  decision?: string;
+  reviewRisk?: string;
+  conceptRefs?: string[];
+  processRefs?: string[];
+  ddlRefs?: string[];
+  tradeoff?: string[];
+  alternativesRejected?: string[];
   columns?: Record<string, TableDocsColumnMetadata>;
+  constraints?: Record<string, TableDocsConstraintMetadata>;
 }
 
 export interface TableDocsMetadata {
@@ -107,6 +160,7 @@ export interface DocsManifest {
   outputs: {
     tables: string[];
     columns: string[];
+    assets?: string[];
   };
 }
 
