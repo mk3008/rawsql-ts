@@ -16,6 +16,7 @@ export interface ManifestWriteOptions {
   nameMap: Record<string, string>;
   tableOutputs: string[];
   columnOutputs: string[];
+  assetOutputs?: string[];
 }
 
 export function manifestPath(outDir: string): string {
@@ -37,6 +38,7 @@ export function writeManifest(options: ManifestWriteOptions): string {
     outputs: {
       tables: toSortedPosix(options.outDir, options.tableOutputs),
       columns: toSortedPosix(options.outDir, options.columnOutputs),
+      assets: toSortedPosix(options.outDir, options.assetOutputs ?? []),
     },
   };
   const outputPath = manifestPath(options.outDir);
@@ -60,6 +62,7 @@ export function readManifest(outDir: string): DocsManifest | null {
     outputs: {
       tables: parsed.outputs.tables ?? [],
       columns: parsed.outputs.columns ?? [],
+      assets: parsed.outputs.assets ?? [],
     },
   } as DocsManifest;
 }
@@ -70,11 +73,19 @@ export function pruneManagedFiles(outDir: string, dryRun: boolean, pruneOrphans:
     return { removed: [], dryRun };
   }
 
-  const managed = [...manifest.outputs.tables, ...manifest.outputs.columns];
+  const managed = [...manifest.outputs.tables, ...manifest.outputs.columns, ...(manifest.outputs.assets ?? [])];
   const removed: string[] = [];
+  const baseDir = path.resolve(outDir);
   for (const relativeFile of managed) {
     const resolvedFile = path.resolve(outDir, relativeFile);
-    if (!existsSync(resolvedFile) || !isManagedGeneratedFile(resolvedFile)) {
+    if (!isPathInside(resolvedFile, baseDir)) {
+      continue;
+    }
+    if (!existsSync(resolvedFile)) {
+      continue;
+    }
+    const isManifestAsset = (manifest.outputs.assets ?? []).includes(relativeFile);
+    if (!isManifestAsset && !isManagedGeneratedFile(resolvedFile)) {
       continue;
     }
     if (!dryRun) {
@@ -116,6 +127,11 @@ export function pruneManagedFiles(outDir: string, dryRun: boolean, pruneOrphans:
   }
 
   return { removed: Array.from(new Set(removed)).sort(), dryRun };
+}
+
+function isPathInside(filePath: string, baseDir: string): boolean {
+  const relative = path.relative(baseDir, filePath);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
 function hashOptions(options: Record<string, unknown>): string {

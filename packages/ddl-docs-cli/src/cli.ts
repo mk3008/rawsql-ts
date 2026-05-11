@@ -1,7 +1,8 @@
 import path from 'node:path';
+import { runCheckDocs } from './commands/check';
 import { runGenerateDocs } from './commands/generate';
 import { runPruneDocs } from './commands/prune';
-import type { GenerateDocsOptions, PruneDocsOptions } from './types';
+import type { CheckDocsOptions, GenerateDocsOptions, PruneDocsOptions } from './types';
 import { dedupeDdlInputsByInstanceAndPath } from './utils/ddlInputDedupe';
 
 const DEFAULT_DDL_DIRECTORY = 'ztd/ddl';
@@ -28,7 +29,7 @@ export async function runCli(argv: string[]): Promise<void> {
       printHelp('all');
       return;
     }
-    if (target === 'generate' || target === 'prune') {
+    if (target === 'generate' || target === 'prune' || target === 'check') {
       printHelp(target);
       return;
     }
@@ -53,6 +54,15 @@ export async function runCli(argv: string[]): Promise<void> {
     return;
   }
 
+  if (command === 'check') {
+    const options = parseCheckOptions(rest);
+    if (!options) {
+      return;
+    }
+    runCheckDocs(options);
+    return;
+  }
+
   throw new Error(`Unknown command: ${command}`);
 }
 
@@ -70,6 +80,9 @@ function parseGenerateOptions(args: string[]): GenerateDocsOptions | null {
     labelSeparator: undefined,
     locale: undefined,
     dictionaryPath: undefined,
+    tableDocsPath: undefined,
+    relationshipPath: undefined,
+    conceptRelationshipPath: undefined,
     configPath: undefined,
     defaultSchema: undefined,
     searchPath: undefined,
@@ -123,6 +136,18 @@ function parseGenerateOptions(args: string[]): GenerateDocsOptions | null {
       options.dictionaryPath = readRequiredValue(args, ++index, '--dictionary');
       continue;
     }
+    if (arg === '--table-docs') {
+      options.tableDocsPath = readRequiredValue(args, ++index, '--table-docs');
+      continue;
+    }
+    if (arg === '--relationship') {
+      options.relationshipPath = readRequiredValue(args, ++index, '--relationship');
+      continue;
+    }
+    if (arg === '--concept-relationship') {
+      options.conceptRelationshipPath = readRequiredValue(args, ++index, '--concept-relationship');
+      continue;
+    }
     if (arg === '--locale') {
       options.locale = readRequiredValue(args, ++index, '--locale');
       continue;
@@ -172,6 +197,110 @@ function parseGenerateOptions(args: string[]): GenerateDocsOptions | null {
     }
 
     throw new Error(`Unknown option for generate: ${arg}`);
+  }
+
+  if (options.ddlDirectories.length === 0 && options.ddlFiles.length === 0 && options.ddlGlobs.length === 0) {
+    options.ddlDirectories = [{ path: DEFAULT_DDL_DIRECTORY, instance: '' }];
+  }
+
+  options.ddlDirectories = dedupeDdlInputsByInstanceAndPath(options.ddlDirectories);
+  options.ddlFiles = dedupeDdlInputsByInstanceAndPath(options.ddlFiles);
+  options.ddlGlobs = dedupeDdlInputsByInstanceAndPath(options.ddlGlobs);
+  options.extensions = dedupe(options.extensions);
+  return options;
+}
+
+function parseCheckOptions(args: string[]): CheckDocsOptions | null {
+  const options: CheckDocsOptions = {
+    ddlDirectories: [],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    tableDocsPath: undefined,
+    relationshipPath: undefined,
+    orderPath: undefined,
+    conceptRelationshipPath: undefined,
+    configPath: undefined,
+    defaultSchema: undefined,
+    searchPath: undefined,
+  };
+
+  let currentInstance = '';
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (arg === '--ddl-instance') {
+      currentInstance = readRequiredValue(args, ++index, '--ddl-instance');
+      continue;
+    }
+
+    if (arg === '--ddl-dir') {
+      options.ddlDirectories.push({ path: readRequiredValue(args, ++index, '--ddl-dir'), instance: currentInstance });
+      continue;
+    }
+
+    if (arg === '--ddl-file' || arg === '--ddl') {
+      options.ddlFiles.push({ path: readRequiredValue(args, ++index, arg), instance: currentInstance });
+      continue;
+    }
+
+    if (arg === '--ddl-glob') {
+      options.ddlGlobs.push({ path: readRequiredValue(args, ++index, '--ddl-glob'), instance: currentInstance });
+      continue;
+    }
+
+    if (arg === '--extensions') {
+      options.extensions = parseExtensions(readRequiredValue(args, ++index, '--extensions'));
+      continue;
+    }
+
+    if (arg === '--config') {
+      options.configPath = readRequiredValue(args, ++index, '--config');
+      continue;
+    }
+
+    if (arg === '--table-docs') {
+      options.tableDocsPath = readRequiredValue(args, ++index, '--table-docs');
+      continue;
+    }
+
+    if (arg === '--relationship') {
+      options.relationshipPath = readRequiredValue(args, ++index, '--relationship');
+      continue;
+    }
+
+    if (arg === '--order') {
+      options.orderPath = readRequiredValue(args, ++index, '--order');
+      continue;
+    }
+
+    if (arg === '--concept-relationship') {
+      options.conceptRelationshipPath = readRequiredValue(args, ++index, '--concept-relationship');
+      continue;
+    }
+
+    if (arg === '--default-schema') {
+      options.defaultSchema = readRequiredValue(args, ++index, '--default-schema');
+      continue;
+    }
+
+    if (arg === '--search-path') {
+      options.searchPath = parseCsvList(readRequiredValue(args, ++index, '--search-path'));
+      continue;
+    }
+
+    if (arg === '--filter-pg-dump') {
+      options.filterPgDump = true;
+      continue;
+    }
+
+    if (arg === '--help' || arg === '-h') {
+      printHelp('check');
+      return null;
+    }
+
+    throw new Error(`Unknown option for check: ${arg}`);
   }
 
   if (options.ddlDirectories.length === 0 && options.ddlFiles.length === 0 && options.ddlGlobs.length === 0) {
@@ -254,7 +383,7 @@ function dedupe(values: string[]): string[] {
   return Array.from(new Set(values));
 }
 
-function printHelp(target: 'all' | 'generate' | 'prune'): void {
+function printHelp(target: 'all' | 'generate' | 'prune' | 'check'): void {
   const generateHelp = `ddl-docs generate [options]
   --ddl-instance <name>   DB instance name for subsequent --ddl-dir/--ddl-file/--ddl-glob (repeatable)
   --ddl-dir <directory>   Recursively scan DDL files under directory (repeatable)
@@ -265,6 +394,9 @@ function printHelp(target: 'all' | 'generate' | 'prune'): void {
   --out-dir <directory>   Output root directory (default: ztd/docs/tables)
   --config <path>         Optional ztd.config.json path
   --dictionary <path>     Optional column dictionary json
+  --table-docs <path>     Optional table documentation metadata json
+  --relationship <path>   Optional DDL relationship metadata json
+  --concept-relationship <path> Optional concept relationship registry json
   --locale <code>         Dictionary locale (fallback: LANG -> en -> first)
   --default-schema <name> Override default schema for unqualified tables
   --search-path <list>    Comma-separated schema search path
@@ -281,6 +413,23 @@ function printHelp(target: 'all' | 'generate' | 'prune'): void {
   --prune-orphans         Also prune generated markdown not listed in manifest
 `;
 
+  const checkHelp = `ddl-docs check [options]
+  --ddl-instance <name>          DB instance name for subsequent --ddl-dir/--ddl-file/--ddl-glob (repeatable)
+  --ddl-dir <directory>          Recursively scan DDL files under directory (repeatable)
+  --ddl-file <file>              Include explicit DDL file (repeatable)
+  --ddl <file>                   Alias of --ddl-file
+  --ddl-glob <pattern>           Glob pattern for DDL files (repeatable)
+  --extensions <list>            Comma-separated extensions (default: .sql)
+  --config <path>                Optional ztd.config.json path
+  --table-docs <path>            Optional table documentation metadata json
+  --relationship <path>          Optional DDL relationship metadata json
+  --order <path>                 Optional DDL execution order metadata json
+  --concept-relationship <path>  Optional concept relationship registry json
+  --default-schema <name>        Override default schema for unqualified tables
+  --search-path <list>           Comma-separated schema search path
+  --filter-pg-dump               Strip GRANT/REVOKE/OWNER TO/SET/\\connect statements from pg_dump output
+`;
+
   if (target === 'generate') {
     console.log(generateHelp);
     return;
@@ -289,14 +438,20 @@ function printHelp(target: 'all' | 'generate' | 'prune'): void {
     console.log(pruneHelp);
     return;
   }
+  if (target === 'check') {
+    console.log(checkHelp);
+    return;
+  }
 
   console.log(`ddl-docs <command> [options]
 
 Commands:
   generate               Generate markdown docs from DDL
   prune                  Remove stale generated markdown docs
+  check                  Check DDL review metadata references
   help [command]         Show help for all commands or one command
 
 ${generateHelp}
-${pruneHelp}`);
+${pruneHelp}
+${checkHelp}`);
 }

@@ -1,4 +1,5 @@
 import path from 'node:path';
+import type { ResolvedTableRelationship } from '../relationshipMetadata';
 import type { ReferenceDocModel, TableDocModel } from '../types';
 import { formatCodeCell, formatTableCell } from '../utils/markdown';
 
@@ -24,6 +25,26 @@ export interface RenderTableOptions {
    * Optional delimiter (regex syntax) used to split a column comment into label and description.
    */
   labelSeparator?: string;
+  /**
+   * Optional sample provider for columns. Samples are rendered before comments.
+   */
+  getColumnSample?: (column: TableDocModel['columns'][number]) => string;
+  /**
+   * Optional table-level design notes. These explain why a physical design was chosen.
+   */
+  getTableDesignNotes?: () => string[];
+  /**
+   * Optional column-level design notes. These are separate from DB comments.
+   */
+  getColumnDesignNotes?: (column: TableDocModel['columns'][number]) => string[];
+  /**
+   * Optional constraint/index-level design notes. These are rendered only when provided.
+   */
+  getConstraintDesignNotes?: (constraint: TableDocModel['constraints'][number]) => string[];
+  getTableDesignIntent?: () => string[];
+  getColumnDesignIntent?: (column: TableDocModel['columns'][number]) => string[];
+  getConstraintDesignIntent?: (constraint: TableDocModel['constraints'][number]) => string[];
+  tableRelationship?: ResolvedTableRelationship;
 }
 
 /**
@@ -49,18 +70,32 @@ export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSug
   lines.push(`- Comment: ${formatTableCell(table.tableComment)}`);
   lines.push(`- Source Files: ${formatTableCell(table.sourceFiles.map((entry) => `\`${entry}\``).join('<br>'))}`);
   lines.push('');
+  lines.push(...renderRelatedSources(renderOptions?.tableRelationship));
+  lines.push('');
+  lines.push(...renderDesignNotes(table, renderOptions));
+  lines.push('');
   lines.push('## Columns');
   lines.push('');
   if (labelSeparator) {
-    lines.push('| Key | Label | Column | Type | Nullable | Default | Seq | Comment | Usages |');
-    lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+    lines.push('| Key | Label | Column | Type | Nullable | Default | Seq | Sample | Comment | Review Notes |');
+    lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
   } else {
-    lines.push('| Key | Column | Type | Nullable | Default | Seq | Comment | Usages |');
-    lines.push('| --- | --- | --- | --- | --- | --- | --- | --- |');
+    lines.push('| Key | Column | Type | Nullable | Default | Seq | Sample | Comment | Review Notes |');
+    lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- |');
   }
 
   for (const column of table.columns) {
-    lines.push(renderColumnRow(column, labelSeparator));
+    lines.push(
+      renderColumnRow(
+        column,
+        labelSeparator,
+      renderOptions?.getColumnSample?.(column) ?? '',
+        [
+          ...(renderOptions?.getColumnDesignNotes?.(column) ?? []),
+          ...(renderOptions?.getColumnDesignIntent?.(column) ?? []),
+        ]
+      )
+    );
   }
 
   lines.push('');
@@ -70,10 +105,16 @@ export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSug
   if (nonKeyConstraints.length === 0) {
     lines.push('- None');
   } else {
-    lines.push('| Kind | Name | Expression |');
-    lines.push('| --- | --- | --- |');
+    lines.push('| Kind | Name | Expression | Review Notes |');
+    lines.push('| --- | --- | --- | --- |');
     for (const constraint of nonKeyConstraints) {
-      lines.push(`| ${constraint.kind} | ${formatCodeCell(constraint.name)} | ${formatTableCell(constraint.expression)} |`);
+      const designNotes = [
+        ...(renderOptions?.getConstraintDesignNotes?.(constraint) ?? []),
+        ...(renderOptions?.getConstraintDesignIntent?.(constraint) ?? []),
+      ];
+      lines.push(
+        `| ${constraint.kind} | ${formatCodeCell(constraint.name)} | ${formatTableCell(constraint.expression)} | ${formatConstraintNotesCell(designNotes)} |`
+      );
     }
   }
 
@@ -220,22 +261,115 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function renderColumnRow(column: TableDocModel['columns'][number], labelSeparator: string | undefined): string {
+function renderDesignNotes(table: TableDocModel, renderOptions: RenderTableOptions | undefined): string[] {
+  const tableNotes = [
+    ...(renderOptions?.getTableDesignNotes?.() ?? []),
+    ...(renderOptions?.getTableDesignIntent?.() ?? []),
+  ];
+  const columnNotes = table.columns
+    .map((column) => ({
+      column,
+      notes: [
+        ...(renderOptions?.getColumnDesignNotes?.(column) ?? []),
+        ...(renderOptions?.getColumnDesignIntent?.(column) ?? []),
+      ],
+    }))
+    .filter((entry) => entry.notes.length > 0);
+  if (tableNotes.length === 0 && columnNotes.length === 0) {
+    return [];
+  }
+
+  const lines: string[] = [];
+  lines.push('## Design Notes');
+  lines.push('');
+  lines.push('These notes explain physical design intent separately from DB comments.');
+  lines.push('');
+
+  if (tableNotes.length > 0) {
+    lines.push('### Table');
+    lines.push('');
+    for (const note of tableNotes) {
+      lines.push(`- ${formatTableCell(note)}`);
+    }
+    lines.push('');
+  }
+
+  if (columnNotes.length > 0) {
+    lines.push('### Columns');
+    lines.push('');
+    lines.push('| Column | Design Notes |');
+    lines.push('| --- | --- |');
+    for (const { column, notes } of columnNotes) {
+      lines.push(`| ${formatCodeCell(column.name)} | ${formatTableCell(notes.map((note) => `- ${note}`).join('<br>'))} |`);
+    }
+  }
+
+  return lines;
+}
+
+function renderRelatedSources(relationship: ResolvedTableRelationship | undefined): string[] {
+  if (!relationship || (relationship.concepts.length === 0 && relationship.processes.length === 0)) {
+    return [];
+  }
+  const lines: string[] = [];
+  lines.push('## Related Concepts / Processes');
+  lines.push('');
+  if (relationship.concepts.length > 0) {
+    lines.push('### Related Concepts');
+    lines.push('');
+    lines.push('| Concept | Source | Reason |');
+    lines.push('| --- | --- | --- |');
+    for (const concept of relationship.concepts) {
+      lines.push(`| ${formatRelationshipLabel(concept.label, concept.href)} | ${formatCodeCell(concept.path)} | ${formatTableCell(concept.reason)} |`);
+    }
+    lines.push('');
+  }
+  if (relationship.processes.length > 0) {
+    lines.push('### Related Processes');
+    lines.push('');
+    lines.push('| Process | Source | Reason |');
+    lines.push('| --- | --- | --- |');
+    for (const process of relationship.processes) {
+      lines.push(`| ${formatRelationshipLabel(process.label, process.href)} | ${formatCodeCell(process.path)} | ${formatTableCell(process.reason)} |`);
+    }
+  }
+  return lines;
+}
+
+function formatRelationshipLabel(label: string, href: string | undefined): string {
+  return href ? `[${label}](${href})` : formatTableCell(label);
+}
+
+function renderColumnRow(
+  column: TableDocModel['columns'][number],
+  labelSeparator: string | undefined,
+  sample: string,
+  designNotes: string[]
+): string {
   const keyCell = column.isPrimaryKey ? 'PK' : '';
   const nameCell = formatCodeCell(column.name);
   const typeCell = formatCodeCell(column.typeName);
   const nullableCell = column.nullable ? 'YES' : 'NO';
   const defaultCell = formatCodeCell(column.defaultValue);
   const seqCell = isSequenceColumn(column) ? 'YES' : '';
-  const usagesCell = `[usages](./columns/${column.conceptSlug}.md)`;
+  const sampleCell = formatCodeCell(sample);
+  const designNoteMarker = designNotes.length > 0 ? '<br>Design notes: yes' : '';
+  const usagesCell = `[column usages](./columns/${column.conceptSlug}.md)${designNoteMarker}`;
   if (labelSeparator) {
     const { label, description } = splitComment(column.comment, labelSeparator);
     const labelCell = formatTableCell(label);
     const commentCell = formatTableCell(description);
-    return `| ${keyCell} | ${labelCell} | ${nameCell} | ${typeCell} | ${nullableCell} | ${defaultCell} | ${seqCell} | ${commentCell} | ${usagesCell} |`;
+    return `| ${keyCell} | ${labelCell} | ${nameCell} | ${typeCell} | ${nullableCell} | ${defaultCell} | ${seqCell} | ${sampleCell} | ${commentCell} | ${usagesCell} |`;
   }
   const commentCell = formatTableCell(column.comment);
-  return `| ${keyCell} | ${nameCell} | ${typeCell} | ${nullableCell} | ${defaultCell} | ${seqCell} | ${commentCell} | ${usagesCell} |`;
+  return `| ${keyCell} | ${nameCell} | ${typeCell} | ${nullableCell} | ${defaultCell} | ${seqCell} | ${sampleCell} | ${commentCell} | ${usagesCell} |`;
+}
+
+function formatConstraintNotesCell(designNotes: string[]): string {
+  if (designNotes.length === 0) {
+    return '';
+  }
+  return formatTableCell(designNotes.map((note) => `- ${note}`).join('<br>'));
 }
 
 function renderUnifiedReferenceTable(references: ReferenceDocModel[], table: TableDocModel): string[] {

@@ -25,6 +25,7 @@ Show help:
 ddl-docs help
 ddl-docs help generate
 ddl-docs help prune
+ddl-docs help check
 ```
 
 Generated layout:
@@ -44,9 +45,62 @@ Options:
 - `--config <path>` optional `ztd.config.json` path
 - `--default-schema <name>` schema override for unqualified table names
 - `--search-path <csv>` schema search path override
+- `--table-docs <path>` optional table documentation metadata JSON for review-only fields such as column samples
+- `--relationship <path>` optional DDL relationship metadata JSON for Related Concepts / Processes
+- `--concept-relationship <path>` optional concept registry JSON used to generate concept pages
 - `--no-index` skip index page generation
 - `--strict` fail when warnings exist
 - `--column-order <mode>` `definition` (default) or `name`
+
+### Table Docs Metadata
+
+Use `--table-docs <path>` when review-only documentation should be rendered without writing it into database comments.
+For example, column samples can be provided from JSON and rendered in the generated table report before the `Comment` column.
+
+```json
+{
+  "schemaVersion": 1,
+  "tables": {
+    "public.transfer_active_black": {
+      "columns": {
+        "source_key_json": {
+          "sample": {
+            "sales_id": 123
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Design intent can be added without writing it into DB comments:
+
+```json
+{
+  "schemaVersion": 1,
+  "tables": {
+    "public.transfer_active_black": {
+      "decision": "source_key_hash is kept as a lookup aid, not as identity.",
+      "reviewRisk": "identity-boundary",
+      "conceptRefs": ["active-black"],
+      "processRefs": ["transfer-execution-process"],
+      "tradeoff": [
+        "Hash lookup improves large-scale search.",
+        "Final identity remains source_key_json."
+      ],
+      "alternativesRejected": [
+        "Do not include source_key_hash in unique identity."
+      ]
+    }
+  }
+}
+```
+
+When `--relationship` and `--concept-relationship` are supplied, generated table pages include Related Concepts / Processes, and review pages are emitted under:
+
+- `<outDir>/concepts/`
+- `<outDir>/processes/`
 
 Prune generated files:
 
@@ -65,6 +119,24 @@ Optional orphan cleanup:
 ```bash
 ddl-docs prune --out-dir ztd/docs/tables --prune-orphans
 ```
+
+### Metadata Check
+
+Use `check` to detect stale review metadata before rendering or review.
+This command checks structure and references only; it does not judge whether the concept/process meaning is correct.
+
+```bash
+ddl-docs check \
+  --ddl-dir packages/transfer/db/ddl \
+  --table-docs packages/transfer/db/ddl/table-docs.json \
+  --relationship packages/transfer/db/ddl/relationship.json \
+  --order packages/transfer/db/ddl/order.json \
+  --concept-relationship packages/transfer/docs/concepts/concept-relationship.json \
+  --default-schema rawsql_transfer
+```
+
+Errors are intended for CI failure, such as missing files, stale table/column/index/constraint references, invalid JSON shape, or DDL files missing from `order.json`.
+Warnings are review aids, such as important constraints without review notes or JSON columns without samples.
 
 ## VitePress Integration
 
