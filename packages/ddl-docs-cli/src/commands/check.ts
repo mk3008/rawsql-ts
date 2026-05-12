@@ -146,6 +146,7 @@ interface ProcessMapViewEntry {
 
 const CONCEPT_SUMMARY_MAX_LENGTH = 160;
 const CONCEPT_METADATA_NOTE_MAX_LENGTH = 240;
+const PROCESS_MAP_RULE_REFERENCE_TARGET = 'concept-spec-overview.md#process-map-rules';
 
 /**
  * Checks DDL review metadata for structural drift.
@@ -894,7 +895,7 @@ function checkDfdRelationshipMetadata(
       });
     } else {
       dfdMarkdownPaths.add(path.resolve(baseDir, dfd.path));
-      checkDfdMarkdownAgainstRelationship(path.resolve(baseDir, dfd.path), dfd, { groupIds, groupLabels }, issues);
+      checkDfdMarkdownAgainstRelationship(path.resolve(baseDir, dfd.path), dfd, issues);
     }
     for (const operation of dfd.businessOperations ?? []) {
       for (const input of operation.inputs ?? []) {
@@ -966,12 +967,15 @@ function checkProcessMapMetadata(
     }
     processMapIds.add(processMap.id);
     processMapPaths.add(normalizeRelativePath(processMap.path));
-    if (!existsSync(path.resolve(baseDir, processMap.path))) {
+    const resolvedProcessMapPath = path.resolve(baseDir, processMap.path);
+    if (!existsSync(resolvedProcessMapPath)) {
       issues.push({
         severity: 'error',
         code: 'PROCESS_MAP_MISSING_PATH',
         message: `process-map.json references missing process map path for ${processMap.id}: ${processMap.path}`,
       });
+    } else {
+      checkProcessMapRuleReference(resolvedProcessMapPath, baseDir, issues);
     }
   }
 
@@ -1027,14 +1031,27 @@ function checkProcessMapMetadata(
   }
 }
 
+function checkProcessMapRuleReference(processMapPath: string, baseDir: string, issues: CheckIssue[]): void {
+  const body = readFileSync(processMapPath, 'utf8');
+  if (body.includes(PROCESS_MAP_RULE_REFERENCE_TARGET)) {
+    return;
+  }
+
+  issues.push({
+    severity: 'warning',
+    code: 'PROCESS_MAP_RULE_REFERENCE_MISSING',
+    message: `process map markdown should link to the shared Process Map Rules: ${normalizeRelativePath(path.relative(baseDir, processMapPath))}`,
+  });
+}
+
 function checkDfdMarkdownAgainstRelationship(
   dfdPath: string,
   dfd: DfdEntry,
-  registry: { groupIds: Set<string>; groupLabels: Map<string, string> },
   issues: CheckIssue[]
 ): void {
   const body = readFileSync(dfdPath, 'utf8');
   for (const operation of dfd.businessOperations ?? []) {
+    const operationBody = extractOperationSectionBody(body, operation.displayName ?? operation.id);
     if (operation.displayName && !body.includes(operation.displayName)) {
       issues.push({
         severity: 'warning',
@@ -1042,85 +1059,59 @@ function checkDfdMarkdownAgainstRelationship(
         message: `DFD markdown does not mention operation displayName ${operation.displayName}: ${dfd.path}`,
       });
     }
-    const inputStorage = extractScopeTableValue(body, operation.displayName ?? operation.id, 'Input storage');
-    if (inputStorage) {
-      checkDfdMarkdownTerms(
-        `DFD ${dfd.id} operation ${operation.id} Input storage`,
-        inputStorage,
-        operation.inputs ?? [],
-        registry,
-        issues
-      );
-    }
-    const outputStorage = extractScopeTableValue(body, operation.displayName ?? operation.id, 'Output storage');
-    if (outputStorage) {
-      checkDfdMarkdownTerms(
-        `DFD ${dfd.id} operation ${operation.id} Output storage`,
-        outputStorage,
-        operation.outputs ?? [],
-        registry,
-        issues
-      );
-    }
+    checkDfdWhoLabels(
+      `DFD ${dfd.id} operation ${operation.id}`,
+      operationBody,
+      issues
+    );
   }
 }
 
-function checkDfdMarkdownTerms(
-  scope: string,
-  rawValue: string,
-  refs: DfdTermRef[],
-  registry: { groupIds: Set<string>; groupLabels: Map<string, string> },
-  issues: CheckIssue[]
-): void {
-  const tokens = splitDfdListValue(rawValue);
-  const labels = new Set(refs.map((ref) => ref.id));
-  for (const ref of refs) {
-    if (ref.type === 'concept-group') {
-      const groupLabel = registry.groupLabels.get(ref.id);
-      if (groupLabel) {
-        labels.add(groupLabel);
-      }
-    }
-  }
-  for (const token of tokens) {
-    if (!Array.from(labels).some((label) => normalizeDfdLabel(label) === normalizeDfdLabel(token))) {
-      issues.push({
-        severity: 'warning',
-        code: 'DFD_MARKDOWN_TERM_NOT_IN_RELATIONSHIP',
-        message: `${scope} mentions "${token}" but it is not represented in dfd-relationship.json.`,
-      });
-    }
+function checkDfdWhoLabels(scope: string, body: string, issues: CheckIssue[]): void {
+  const whoLabels = extractMermaidWhoLabels(body);
+  if (whoLabels.length === 0) {
+    issues.push({
+      severity: 'warning',
+      code: 'DFD_MARKDOWN_WHO_LABEL_MISSING',
+      message: `${scope} should expose one or more Mermaid Who labels for role extraction.`,
+    });
+    return;
   }
 }
 
-function extractScopeTableValue(body: string, operationName: string, itemName: string): string | undefined {
+function extractMermaidWhoLabels(body: string): string[] {
+  const labels: string[] = [];
+  const pattern = /Who:\s*([^"\/\]]+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(body)) !== null) {
+    const rawLabel = match[1]?.trim();
+    if (rawLabel) {
+      labels.push(rawLabel);
+    }
+  }
+  return labels;
+}
+
+function extractOperationSectionBody(body: string, operationName: string): string {
   const lines = body.split(/\r?\n/);
   let inSection = false;
+  const sectionLines: string[] = [];
   for (const line of lines) {
     if (line.startsWith('## ')) {
+      if (inSection) {
+        break;
+      }
       inSection = line.toLowerCase().includes(operationName.toLowerCase());
+      if (inSection) {
+        sectionLines.push(line);
+      }
       continue;
     }
-    if (!inSection) {
-      continue;
-    }
-    const match = line.match(/^\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|/);
-    if (match && match[1].trim() === itemName) {
-      return match[2].trim();
+    if (inSection) {
+      sectionLines.push(line);
     }
   }
-  return undefined;
-}
-
-function splitDfdListValue(value: string): string[] {
-  return value
-    .split(',')
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
-
-function normalizeDfdLabel(value: string): string {
-  return value.trim().toLowerCase().replace(/[-_\s]+/g, '');
+  return sectionLines.join('\n');
 }
 
 function checkDfdTermRef(

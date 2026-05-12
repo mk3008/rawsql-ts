@@ -439,15 +439,17 @@ test('generate renders related concept and process pages from relationship metad
 
   const conceptDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'active-row.md'), 'utf8'));
   expect(conceptDoc).toContain('# Active Row');
-  expect(conceptDoc).toContain('This page is a generated human review view.');
+  expect(conceptDoc).toContain('Defined concept.');
+  expect(conceptDoc).toContain('## Generated Review Metadata');
+  expect(conceptDoc).toContain('This section is generated for human review.');
   expect(conceptDoc).toContain('## Related Concepts');
   expect(conceptDoc).toContain('| outgoing | `uses` | `row-key` | Active row uses row key terminology. |');
   expect(conceptDoc).toContain('## Glossary Terms Defined Here');
   expect(conceptDoc).toContain('active-row-key');
-  expect(conceptDoc).toContain('Defined concept.');
 
   const processDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'processes', 'active-row-process.md'), 'utf8'));
-  expect(processDoc).toContain('# active-row-process');
+  expect(processDoc).toContain('# Active Row Process');
+  expect(processDoc).toContain('## Generated Review Metadata');
   expect(processDoc).toContain('Defined process.');
 
   const conceptIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'index.md'), 'utf8'));
@@ -464,13 +466,39 @@ test('generate renders related concept and process pages from relationship metad
 test('concept-site generates VitePress concept and process pages without DDL input', () => {
   const work = createTempDir('ddl-docs-concept-site');
   const conceptsDir = path.join(work, 'docs', 'concepts');
+  const dfdDir = path.join(work, 'docs', 'dfd');
   const processesDir = path.join(work, 'docs', 'processes');
   const outDir = path.join(work, 'site');
   const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+  const dfdRelationshipPath = path.join(dfdDir, 'relationship.json');
   mkdirSync(path.join(conceptsDir, 'active-row'), { recursive: true });
+  mkdirSync(dfdDir, { recursive: true });
   mkdirSync(processesDir, { recursive: true });
 
   writeFileSync(path.join(conceptsDir, 'active-row/SPEC.md'), '# Active Row Concept\n\nDefined concept.', 'utf8');
+  writeFileSync(
+    path.join(dfdDir, 'active-row-flow.md'),
+    [
+      '# Active Row Flow',
+      '',
+      'Defined DFD.',
+      '',
+      '## Active Row Registration Detail Flow',
+      '',
+      '```mermaid',
+      'flowchart LR',
+      '  Event{{"When: active row changes"}}',
+      '  User[/"Who: User"/]',
+      '  Scheduler[/"Who: Scheduler"/]',
+      '  Register(("Active Row Registration"))',
+      '  Event -. "trigger" .-> Register',
+      '  User -. "manual run" .-> Register',
+      '  Scheduler -. "scheduled run" .-> Register',
+      '```',
+      '',
+    ].join('\n'),
+    'utf8'
+  );
   writeFileSync(path.join(processesDir, 'active-row-process.md'), '# Active Row Process\n\nDefined process.', 'utf8');
   writeFileSync(
     conceptRelationshipPath,
@@ -515,9 +543,34 @@ test('concept-site generates VitePress concept and process pages without DDL inp
     ),
     'utf8'
   );
+  writeFileSync(
+    dfdRelationshipPath,
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        dfds: [
+          {
+            id: 'active-row-flow',
+            displayName: 'Active Row Flow',
+            path: 'active-row-flow.md',
+            businessOperations: [
+              {
+                id: 'active-row-registration',
+                displayName: 'Active Row Registration',
+              },
+            ],
+          },
+        ],
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
 
   runGenerateConceptSite({
     conceptRelationshipPath,
+    dfdRelationshipPath,
     outDir,
   });
 
@@ -528,16 +581,40 @@ test('concept-site generates VitePress concept and process pages without DDL inp
 
   const conceptDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'active-row.md'), 'utf8'));
   expect(conceptDoc).toContain('# Active Row');
+  expect(conceptDoc.indexOf('Defined concept.')).toBeLessThan(conceptDoc.indexOf('## Generated Review Metadata'));
   expect(conceptDoc).toContain('## Related Concepts');
   expect(conceptDoc).toContain('Defined concept.');
 
   const processIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'processes', 'index.md'), 'utf8'));
   expect(processIndex).toContain('[active-row-process](./active-row-process.md)');
+  const dfdIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'dfd', 'index.md'), 'utf8'));
+  expect(dfdIndex).toContain('[Active Row Flow](./active-row-flow.md)');
+  const dfdDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'dfd', 'active-row-flow.md'), 'utf8'));
+  expect(dfdDoc).toContain('# Active Row Flow');
+  expect(dfdDoc).toContain('Defined DFD.');
+  expect(dfdDoc).toContain('## Generated Review Metadata');
+  const roleIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'roles', 'index.md'), 'utf8'));
+  expect(roleIndex).toContain('# Roles');
+  expect(roleIndex).toContain('## Role List');
+  expect(roleIndex).toContain('| [Scheduler](#role-');
+  expect(roleIndex).toContain('| [User](#role-');
+  expect(roleIndex).toContain('## Scheduler');
+  expect(roleIndex).toContain('## User');
+  expect(roleIndex).toContain('| Active Row Registration | active row changes | [Active Row Flow](../dfd/active-row-flow.md) |');
   const rootIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'index.md'), 'utf8'));
   expect(rootIndex).toContain('# Concept Spec Review');
   expect(rootIndex).toContain('[Concepts](./concepts/)');
+  expect(rootIndex).toContain('[DFDs](./dfd/)');
+  expect(rootIndex).toContain('[Roles](./roles/)');
+  expect(rootIndex.indexOf('[Concepts](./concepts/)')).toBeLessThan(rootIndex.indexOf('[DFDs](./dfd/)'));
+  expect(rootIndex.indexOf('[DFDs](./dfd/)')).toBeLessThan(rootIndex.indexOf('[Roles](./roles/)'));
+  expect(rootIndex.indexOf('[Roles](./roles/)')).toBeLessThan(rootIndex.indexOf('[Processes](./processes/)'));
   const vitePressConfig = normalizeLineEndings(readFileSync(path.join(outDir, '.vitepress', 'config.mts'), 'utf8'));
   expect(vitePressConfig).toContain('title: "Concept Spec Review"');
+  expect(vitePressConfig).toContain("if (info === 'mermaid')");
+  expect(vitePressConfig).toContain('function normalizeMermaid');
+  const vitePressTheme = normalizeLineEndings(readFileSync(path.join(outDir, '.vitepress', 'theme', 'index.ts'), 'utf8'));
+  expect(vitePressTheme).toContain('function loadMermaid()');
   expect(existsSync(path.join(outDir, '.vitepress', 'config.mts'))).toBe(true);
 });
 

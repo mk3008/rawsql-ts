@@ -1,6 +1,6 @@
 import path from 'node:path';
-import { loadConceptRegistry } from '../relationshipMetadata';
-import { renderConceptIndex, renderConceptPages, renderProcessIndex, renderProcessPages } from '../render/sourcePages';
+import { loadConceptRegistry, loadDfdRegistry } from '../relationshipMetadata';
+import { renderConceptIndex, renderConceptPages, renderDfdIndex, renderDfdPages, renderDfdRoleIndex, renderProcessIndex, renderProcessPages } from '../render/sourcePages';
 import { ensureDirectory } from '../utils/fs';
 import { writeTextFileNormalized } from '../utils/io';
 import type { GenerateConceptSiteOptions } from '../types';
@@ -14,22 +14,32 @@ export function runGenerateConceptSite(options: GenerateConceptSiteOptions): voi
   if (!conceptRegistry) {
     throw new Error('concept-site requires --concept-relationship.');
   }
+  const dfdRegistry = loadDfdRegistry(options.dfdRelationshipPath);
 
   const pages = [
     ...renderConceptPages(options.outDir, conceptRegistry),
     ...renderProcessPages(options.outDir, undefined, conceptRegistry),
+    ...renderDfdPages(options.outDir, dfdRegistry),
   ];
   const conceptIndex = renderConceptIndex(options.outDir, conceptRegistry);
   const processIndex = renderProcessIndex(options.outDir, undefined, conceptRegistry);
+  const dfdIndex = renderDfdIndex(options.outDir, dfdRegistry);
+  const roleIndex = renderDfdRoleIndex(options.outDir, dfdRegistry);
   if (conceptIndex) {
     pages.push(conceptIndex);
   }
   if (processIndex) {
     pages.push(processIndex);
   }
+  if (dfdIndex) {
+    pages.push(dfdIndex);
+  }
+  if (roleIndex) {
+    pages.push(roleIndex);
+  }
   pages.push({
     path: path.join(options.outDir, 'index.md'),
-    content: renderConceptSiteRootIndex(),
+    content: renderConceptSiteRootIndex({ hasDfd: dfdRegistry !== undefined }),
   });
 
   for (const page of pages) {
@@ -42,7 +52,15 @@ export function runGenerateConceptSite(options: GenerateConceptSiteOptions): voi
   });
 }
 
-function renderConceptSiteRootIndex(): string {
+function renderConceptSiteRootIndex(options: { hasDfd: boolean }): string {
+  const links = [
+    '- [Concepts](./concepts/)',
+  ];
+  if (options.hasDfd) {
+    links.push('- [DFDs](./dfd/)');
+    links.push('- [Roles](./roles/)');
+  }
+  links.push('- [Processes](./processes/)');
   return [
     '<!-- generated-by: @rawsql-ts/ddl-docs-cli -->',
     '',
@@ -50,8 +68,7 @@ function renderConceptSiteRootIndex(): string {
     '',
     'Generated from Concept Spec source files and concept relationship metadata.',
     '',
-    '- [Concepts](./concepts/)',
-    '- [Processes](./processes/)',
+    ...links,
     '',
   ].join('\n');
 }

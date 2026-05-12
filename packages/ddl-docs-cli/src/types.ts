@@ -56,6 +56,7 @@ export interface GenerateConceptMapCliOptions {
 
 export interface GenerateConceptSiteOptions {
   conceptRelationshipPath: string;
+  dfdRelationshipPath?: string;
   outDir: string;
 }
 

@@ -268,6 +268,10 @@ function parseConceptSiteOptions(args: string[]): GenerateConceptSiteOptions | n
       options.conceptRelationshipPath = readRequiredValue(args, ++index, '--concept-relationship');
       continue;
     }
+    if (arg === '--dfd-relationship') {
+      options.dfdRelationshipPath = readRequiredValue(args, ++index, '--dfd-relationship');
+      continue;
+    }
     if (arg === '--out-dir') {
       options.outDir = readRequiredValue(args, ++index, '--out-dir');
       continue;
@@ -536,6 +540,7 @@ function printHelp(target: 'all' | 'generate' | 'prune' | 'check' | 'concept-map
 
   const conceptSiteHelp = `ddl-docs concept-site [options]
   --concept-relationship <path>  Concept relationship registry json
+  --dfd-relationship <path>      Optional DFD relationship metadata json
   --out-dir <directory>          Output root directory for generated VitePress pages
 `;
 

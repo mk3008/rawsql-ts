@@ -41,8 +41,24 @@ test('check passes when relationship, order, table-docs, and concept registry re
     CREATE INDEX idx_accounts_source_lookup ON public.accounts (source_key_hash);
   `);
   writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
-  writeText(path.join(dfdDir, 'account-flow.md'), '# Account Flow\n');
-  writeText(path.join(processesDir, 'account-process.md'), '# Account Process\n');
+  writeText(path.join(dfdDir, 'account-flow.md'), [
+    '# Account Flow',
+    '',
+    '## Account Registration Detail Flow',
+    '',
+    '```mermaid',
+    'flowchart LR',
+    '  Event{{"When: account changes"}}',
+    '  User[/"Who: User"/]',
+    '  Register(("Account Registration"))',
+    '  Event -. "trigger" .-> Register',
+    '  User -. "manual run" .-> Register',
+    '```',
+  ].join('\n'));
+  writeText(
+    path.join(processesDir, 'account-process.md'),
+    '# Account Process\n\n## Process Map Rule Reference\n\nThis document follows the shared [Process Map Rules](../../../docs/guide/concept-spec-overview.md#process-map-rules).\n'
+  );
   writeText(path.join(processesDir, 'process-map.json'), JSON.stringify({
     schemaVersion: 1,
     processMaps: [
@@ -134,6 +150,7 @@ test('check passes when relationship, order, table-docs, and concept registry re
         businessOperations: [
           {
             id: 'account-registration',
+            displayName: 'Account Registration',
             inputs: [{ type: 'external-store', id: 'external-account-source' }],
             outputs: [{ type: 'concept-group', id: 'account-configuration' }],
           },
@@ -194,6 +211,63 @@ test('check fails when DFD relationship references an unknown concept', () => {
   });
 
   expect(result.errors.map((issue) => issue.code)).toContain('DFD_REF_UNKNOWN_CONCEPT');
+});
+
+test('check warns when DFD operation has no Mermaid Who labels', () => {
+  const work = createTempDir('ddl-docs-check-dfd-who-missing');
+  const ddlDir = path.join(work, 'ddl');
+  const conceptsDir = path.join(work, 'docs', 'concepts');
+  const dfdDir = path.join(work, 'docs', 'dfd');
+  const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+  const dfdRelationshipPath = path.join(dfdDir, 'relationship.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
+  writeText(path.join(dfdDir, 'account-flow.md'), [
+    '# Account Flow',
+    '',
+    '## Account Registration Detail Flow',
+    '',
+    '```mermaid',
+    'flowchart LR',
+    '  Event{{"When: account changes"}}',
+    '  Register(("Account Registration"))',
+    '  Event -. "trigger" .-> Register',
+    '```',
+  ].join('\n'));
+  writeText(conceptRelationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    concepts: [{ id: 'account', path: 'account/SPEC.md', status: 'defined' }],
+  }, null, 2));
+  writeText(dfdRelationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    dfds: [
+      {
+        id: 'account-flow',
+        path: 'account-flow.md',
+        businessOperations: [
+          {
+            id: 'account-registration',
+            displayName: 'Account Registration',
+            inputs: [{ type: 'concept', id: 'account' }],
+            outputs: [{ type: 'concept', id: 'account' }],
+          },
+        ],
+      },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    conceptRelationshipPath,
+    dfdRelationshipPath,
+  });
+
+  expect(result.errors).toHaveLength(0);
+  expect(result.warnings.map((issue) => issue.code)).toContain('DFD_MARKDOWN_WHO_LABEL_MISSING');
 });
 
 test('check warns when defined concept summary metadata is missing or too long', () => {
@@ -543,6 +617,50 @@ test('check fails when process-map metadata references missing paths or unknown 
   expect(codes).toContain('PROCESS_MAP_VIEW_DUPLICATE_ID');
 });
 
+test('check warns when process map markdown does not link to shared process map rules', () => {
+  const work = createTempDir('ddl-docs-check-process-map-rule-reference');
+  const ddlDir = path.join(work, 'ddl');
+  const conceptsDir = path.join(work, 'docs', 'concepts');
+  const processesDir = path.join(work, 'docs', 'processes');
+  const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
+  writeText(path.join(processesDir, 'account-process.md'), '# Account Process\n');
+  writeText(path.join(processesDir, 'process-map.json'), JSON.stringify({
+    schemaVersion: 1,
+    processMaps: [
+      {
+        id: 'account-process',
+        path: 'account-process.md',
+      },
+    ],
+    views: [
+      {
+        id: 'account-view',
+        processMap: 'account-process',
+        concepts: ['account'],
+      },
+    ],
+  }, null, 2));
+  writeText(conceptRelationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    concepts: [{ id: 'account', path: 'account/SPEC.md', status: 'defined' }],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    conceptRelationshipPath,
+    processDirectories: [processesDir],
+  });
+
+  expect(result.errors).toHaveLength(0);
+  expect(result.warnings.map((issue) => issue.code)).toContain('PROCESS_MAP_RULE_REFERENCE_MISSING');
+});
+
 test('check fails when generated concept-map markdown drifts from concept metadata', () => {
   const work = createTempDir('ddl-docs-check-concept-map');
   const ddlDir = path.join(work, 'ddl');
@@ -590,7 +708,10 @@ test('check warns instead of failing concept refs when process-map metadata has 
   const processesDir = path.join(work, 'docs', 'processes');
 
   writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
-  writeText(path.join(processesDir, 'account-process.md'), '# Account Process\n');
+  writeText(
+    path.join(processesDir, 'account-process.md'),
+    '# Account Process\n\n## Process Map Rule Reference\n\nThis document follows the shared [Process Map Rules](../../../docs/guide/concept-spec-overview.md#process-map-rules).\n'
+  );
   writeText(path.join(processesDir, 'process-map.json'), JSON.stringify({
     schemaVersion: 1,
     processMaps: [

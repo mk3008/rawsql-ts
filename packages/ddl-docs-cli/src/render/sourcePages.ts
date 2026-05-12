@@ -3,9 +3,10 @@ import path from 'node:path';
 import type {
   ConceptRegistry,
   ConceptRegistryEntry,
+  DfdRegistry,
   DdlRelationshipMetadata,
 } from '../relationshipMetadata';
-import { conceptPagePath, processPagePath } from '../relationshipMetadata';
+import { conceptPagePath, dfdPagePath, processPagePath } from '../relationshipMetadata';
 import { formatCodeCell, formatTableCell } from '../utils/markdown';
 import { slugifyIdentifier } from '../utils/slug';
 
@@ -27,13 +28,15 @@ export function renderConceptPages(outDir: string, conceptRegistry: ConceptRegis
     if (!existsSync(sourcePath)) {
       continue;
     }
-    const source = readFileSync(sourcePath, 'utf8');
+    const source = normalizeMermaidFences(readFileSync(sourcePath, 'utf8'));
     const lines: string[] = [];
     lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
     lines.push('');
-    lines.push(`# ${concept.displayName ?? concept.id}`);
+    lines.push(source.trimEnd());
     lines.push('');
-    lines.push('This page is a generated human review view. Edit the source Concept Spec and relationship metadata instead.');
+    lines.push('## Generated Review Metadata');
+    lines.push('');
+    lines.push('This section is generated for human review. Edit the source Concept Spec and relationship metadata instead.');
     lines.push('');
     lines.push(`- Concept ID: ${formatCodeCell(concept.id)}`);
     lines.push(`- Source: ${formatCodeCell(concept.path)}`);
@@ -46,10 +49,6 @@ export function renderConceptPages(outDir: string, conceptRegistry: ConceptRegis
     lines.push('');
     appendConceptRelationshipSection(lines, concept, conceptRegistry);
     appendConceptGlossarySection(lines, concept, conceptRegistry);
-    lines.push('## Source Document');
-    lines.push('');
-    lines.push(source.trimEnd());
-    lines.push('');
     pages.push({
       path: conceptPagePath(outDir, concept.id),
       content: lines.join('\n'),
@@ -71,18 +70,17 @@ export function renderProcessPages(
     if (!existsSync(processPath)) {
       continue;
     }
-    const source = readFileSync(processPath, 'utf8');
-    const label = path.basename(processPath, path.extname(processPath));
+    const source = normalizeMermaidFences(readFileSync(processPath, 'utf8'));
     const lines: string[] = [];
     lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
     lines.push('');
-    lines.push(`# ${label}`);
+    lines.push(source.trimEnd());
+    lines.push('');
+    lines.push('## Generated Review Metadata');
+    lines.push('');
+    lines.push('This section is generated for human review. Edit the source Process Map and relationship metadata instead.');
     lines.push('');
     lines.push(`- Source: ${formatCodeCell(formatProcessSourcePath(processPath, relationshipMetadata, conceptRegistry))}`);
-    lines.push('');
-    lines.push('## Source Document');
-    lines.push('');
-    lines.push(source.trimEnd());
     lines.push('');
     pages.push({
       path: processPagePath(outDir, processPath),
@@ -253,6 +251,27 @@ function formatConceptSourceLink(sourcePath: string, conceptRegistry: ConceptReg
   return `[${formatTableCell(sourcePath)}](./${slugifyIdentifier(concept.id)}.md)`;
 }
 
+function normalizeMermaidFences(source: string): string {
+  return source.replace(/```mermaid\n([\s\S]*?)```/g, (_match, body: string) => {
+    return `\`\`\`mermaid\n${normalizeMermaid(body).trimEnd()}\n\`\`\``;
+  });
+}
+
+function normalizeMermaid(source: string): string {
+  return source
+    .replace(/\{\{\s*"([^"]+)"\s*\}\}/g, (_match, label: string) => `{{${normalizeMermaidLabel(label)}}}`)
+    .replace(/\[\/\s*"([^"]+)"\s*\"?\/\]/g, (_match, label: string) => `[/${normalizeMermaidLabel(label)}/]`)
+    .replace(/\|\s*"([^"]+)"\s*\|/g, (_match, label: string) => `|${normalizeMermaidLabel(label)}|`)
+    .replace(/\|\s*([^|\n]+)\s*\|/g, (_match, label: string) => `|${normalizeMermaidLabel(label)}|`)
+    .replace(/([-.=]+)\s+"([^"]+)"\s+([-.=]+>)/g, (_match, left: string, label: string, right: string) =>
+      `${left} ${normalizeMermaidLabel(label)} ${right}`
+    );
+}
+
+function normalizeMermaidLabel(value: string): string {
+  return value.replace(/[<>\-]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 export function renderProcessIndex(
   outDir: string,
   relationshipMetadata: DdlRelationshipMetadata | undefined,
@@ -279,6 +298,202 @@ export function renderProcessIndex(
     path: path.join(outDir, 'processes', 'index.md'),
     content: lines.join('\n'),
   };
+}
+
+export function renderDfdPages(outDir: string, dfdRegistry: DfdRegistry | undefined): RenderedSourcePage[] {
+  if (!dfdRegistry) {
+    return [];
+  }
+  const pages: RenderedSourcePage[] = [];
+  for (const dfd of dfdRegistry.dfds) {
+    const sourcePath = path.resolve(dfdRegistry.baseDir, dfd.path);
+    if (!existsSync(sourcePath)) {
+      continue;
+    }
+    const source = normalizeMermaidFences(readFileSync(sourcePath, 'utf8'));
+    const lines: string[] = [];
+    lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
+    lines.push('');
+    lines.push(source.trimEnd());
+    lines.push('');
+    lines.push('## Generated Review Metadata');
+    lines.push('');
+    lines.push('This section is generated for human review. Edit the source DFD and relationship metadata instead.');
+    lines.push('');
+    lines.push(`- DFD ID: ${formatCodeCell(dfd.id)}`);
+    lines.push(`- Source: ${formatCodeCell(dfd.path)}`);
+    lines.push('');
+    pages.push({
+      path: dfdPagePath(outDir, sourcePath),
+      content: lines.join('\n'),
+    });
+  }
+  return pages;
+}
+
+export function renderDfdIndex(outDir: string, dfdRegistry: DfdRegistry | undefined): RenderedSourcePage | undefined {
+  if (!dfdRegistry) {
+    return undefined;
+  }
+  const lines: string[] = [];
+  lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
+  lines.push('');
+  lines.push('# DFDs');
+  lines.push('');
+  lines.push('Generated from DFD relationship metadata.');
+  lines.push('');
+  lines.push('| DFD | Source |');
+  lines.push('| --- | --- |');
+  for (const dfd of [...dfdRegistry.dfds].sort((left, right) => left.id.localeCompare(right.id))) {
+    const label = dfd.displayName ?? dfd.id;
+    const link = `./${slugifyIdentifier(path.basename(dfd.path, path.extname(dfd.path)))}.md`;
+    lines.push(`| [${formatTableCell(label)}](${link}) | ${formatCodeCell(dfd.path)} |`);
+  }
+  if (dfdRegistry.dfds.length === 0) {
+    lines.push('| - | - |');
+  }
+  lines.push('');
+  return {
+    path: path.join(outDir, 'dfd', 'index.md'),
+    content: lines.join('\n'),
+  };
+}
+
+interface DfdRoleEntry {
+  dfdId: string;
+  dfdDisplayName: string;
+  dfdPath: string;
+  businessName: string;
+  role: string;
+  eventWhen: string;
+}
+
+export function renderDfdRoleIndex(outDir: string, dfdRegistry: DfdRegistry | undefined): RenderedSourcePage | undefined {
+  if (!dfdRegistry) {
+    return undefined;
+  }
+  const roles = collectDfdRoles(dfdRegistry);
+  const rolesByName = new Map<string, DfdRoleEntry[]>();
+  for (const role of roles) {
+    const entries = rolesByName.get(role.role) ?? [];
+    entries.push(role);
+    rolesByName.set(role.role, entries);
+  }
+  const lines: string[] = [];
+  lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
+  lines.push('');
+  lines.push('# Roles');
+  lines.push('');
+  lines.push('Generated from DFD Mermaid diagrams. Roles are extracted from `Who:` nodes.');
+  lines.push('');
+  lines.push('## Role List');
+  lines.push('');
+  lines.push('| Role / Who | Business Count |');
+  lines.push('| --- | --- |');
+  for (const [roleName, entries] of Array.from(rolesByName.entries()).sort((left, right) => left[0].localeCompare(right[0]))) {
+    lines.push(`| [${formatTableCell(roleName)}](#${roleAnchorId(roleName)}) | ${entries.length} |`);
+  }
+  if (roles.length === 0) {
+    lines.push('| - | - |');
+  }
+  for (const [roleName, entries] of Array.from(rolesByName.entries()).sort((left, right) => left[0].localeCompare(right[0]))) {
+    lines.push('');
+    lines.push(`<a id="${roleAnchorId(roleName)}"></a>`);
+    lines.push('');
+    lines.push(`## ${roleName}`);
+    lines.push('');
+    lines.push('| Business | Event / When | DFD |');
+    lines.push('| --- | --- | --- |');
+    for (const role of entries) {
+      const link = `../dfd/${slugifyIdentifier(path.basename(role.dfdPath, path.extname(role.dfdPath)))}.md`;
+      lines.push(
+        `| ${formatTableCell(role.businessName)} | ${formatTableCell(role.eventWhen)} | [${formatTableCell(role.dfdDisplayName)}](${link}) |`
+      );
+    }
+  }
+  lines.push('');
+  return {
+    path: path.join(outDir, 'roles', 'index.md'),
+    content: lines.join('\n'),
+  };
+}
+
+function roleAnchorId(roleName: string): string {
+  return `role-${createHashCode(roleName)}`;
+}
+
+function createHashCode(value: string): string {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) - hash + value.charCodeAt(index)) | 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function collectDfdRoles(dfdRegistry: DfdRegistry): DfdRoleEntry[] {
+  const roles: DfdRoleEntry[] = [];
+  for (const dfd of dfdRegistry.dfds) {
+    const sourcePath = path.resolve(dfdRegistry.baseDir, dfd.path);
+    if (!existsSync(sourcePath)) {
+      continue;
+    }
+    const source = readFileSync(sourcePath, 'utf8');
+    for (const operation of dfd.businessOperations ?? []) {
+      const operationName = operation.displayName ?? operation.id;
+      const section = extractOperationSectionBody(source, operationName);
+      const roleNames = extractMermaidPrefixedLabels(section, 'Who:');
+      const eventWhen = extractMermaidPrefixedLabels(section, 'When:').join(', ') || '-';
+      for (const roleName of roleNames) {
+        roles.push({
+          dfdId: dfd.id,
+          dfdDisplayName: dfd.displayName ?? dfd.id,
+          dfdPath: dfd.path,
+          businessName: operationName,
+          role: roleName,
+          eventWhen,
+        });
+      }
+    }
+  }
+  return roles.sort((left, right) =>
+    `${left.role}|${left.businessName}|${left.dfdId}`.localeCompare(`${right.role}|${right.businessName}|${right.dfdId}`)
+  );
+}
+
+function extractOperationSectionBody(source: string, operationName: string): string {
+  const lines = source.split(/\r?\n/);
+  let inSection = false;
+  const sectionLines: string[] = [];
+  for (const line of lines) {
+    if (line.startsWith('## ')) {
+      if (inSection) {
+        break;
+      }
+      inSection = line.toLowerCase().includes(operationName.toLowerCase());
+      if (inSection) {
+        sectionLines.push(line);
+      }
+      continue;
+    }
+    if (inSection) {
+      sectionLines.push(line);
+    }
+  }
+  return sectionLines.join('\n');
+}
+
+function extractMermaidPrefixedLabels(source: string, prefix: string): string[] {
+  const labels: string[] = [];
+  const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`${escapedPrefix}\\s*([^"\\]}]+)`, 'g');
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(source)) !== null) {
+    const label = match[1]?.trim();
+    if (label) {
+      labels.push(label);
+    }
+  }
+  return labels;
 }
 
 function collectProcessPaths(

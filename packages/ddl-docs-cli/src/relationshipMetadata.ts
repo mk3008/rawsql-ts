@@ -59,6 +59,23 @@ export interface ConceptRegistryProcessMapEntry {
   reason?: string;
 }
 
+export interface DfdRegistry {
+  baseDir: string;
+  dfds: DfdRegistryEntry[];
+}
+
+export interface DfdRegistryEntry {
+  id: string;
+  displayName?: string;
+  path: string;
+  businessOperations?: DfdRegistryBusinessOperationEntry[];
+}
+
+export interface DfdRegistryBusinessOperationEntry {
+  id: string;
+  displayName?: string;
+}
+
 export interface ResolvedTableRelationship {
   concepts: ResolvedRelationshipTarget[];
   processes: ResolvedRelationshipTarget[];
@@ -133,6 +150,53 @@ export function loadConceptRegistry(metadataPath: string | undefined): ConceptRe
   };
 }
 
+export function loadDfdRegistry(metadataPath: string | undefined): DfdRegistry | undefined {
+  if (!metadataPath) {
+    return undefined;
+  }
+  const resolvedPath = path.resolve(process.cwd(), metadataPath);
+  if (!existsSync(resolvedPath)) {
+    throw new Error(`DFD relationship metadata file does not exist: ${resolvedPath}`);
+  }
+  const raw = JSON.parse(readFileSync(resolvedPath, 'utf8')) as unknown;
+  if (!isRecord(raw) || raw.schemaVersion !== 1 || !Array.isArray(raw.dfds)) {
+    throw new Error(`DFD relationship metadata must have schemaVersion: 1 and dfds[]: ${resolvedPath}`);
+  }
+  return {
+    baseDir: path.dirname(resolvedPath),
+    dfds: raw.dfds.map((entry) => {
+      if (!isRecord(entry) || typeof entry.id !== 'string' || typeof entry.path !== 'string') {
+        throw new Error(`DFD relationship entry must include id and path: ${resolvedPath}`);
+      }
+      return {
+        id: entry.id,
+        displayName: typeof entry.displayName === 'string' ? entry.displayName : undefined,
+        path: entry.path,
+        businessOperations: parseDfdBusinessOperations(entry.businessOperations, resolvedPath),
+      };
+    }),
+  };
+}
+
+function parseDfdBusinessOperations(value: unknown, sourcePath: string): DfdRegistryBusinessOperationEntry[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`DFD relationship businessOperations must be an array when provided: ${sourcePath}`);
+  }
+  return value.map((entry) => {
+    if (!isRecord(entry) || typeof entry.id !== 'string') {
+      throw new Error(`DFD business operation entry must include id: ${sourcePath}`);
+    }
+    return {
+      id: entry.id,
+      displayName: typeof entry.displayName === 'string' ? entry.displayName : undefined,
+    };
+  });
+}
+
+
 export function resolveTableRelationship(
   sourceFiles: string[],
   relationshipMetadata: DdlRelationshipMetadata | undefined,
@@ -168,6 +232,10 @@ export function conceptPagePath(outDir: string, conceptId: string): string {
 
 export function processPagePath(outDir: string, processPath: string): string {
   return path.join(outDir, 'processes', `${slugifyIdentifier(path.basename(processPath, path.extname(processPath)))}.md`);
+}
+
+export function dfdPagePath(outDir: string, dfdPath: string): string {
+  return path.join(outDir, 'dfd', `${slugifyIdentifier(path.basename(dfdPath, path.extname(dfdPath)))}.md`);
 }
 
 function resolveConceptTarget(
