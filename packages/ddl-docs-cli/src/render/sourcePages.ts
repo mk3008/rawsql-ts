@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import type {
   ConceptRegistry,
+  ConceptRegistryEntry,
   DdlRelationshipMetadata,
 } from '../relationshipMetadata';
 import { conceptPagePath, processPagePath } from '../relationshipMetadata';
@@ -30,8 +31,11 @@ export function renderConceptPages(outDir: string, conceptRegistry: ConceptRegis
     const lines: string[] = [];
     lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
     lines.push('');
-    lines.push(`# ${concept.id}`);
+    lines.push(`# ${concept.displayName ?? concept.id}`);
     lines.push('');
+    lines.push('This page is a generated human review view. Edit the source Concept Spec and relationship metadata instead.');
+    lines.push('');
+    lines.push(`- Concept ID: ${formatCodeCell(concept.id)}`);
     lines.push(`- Source: ${formatCodeCell(concept.path)}`);
     if (concept.status) {
       lines.push(`- Status: ${formatCodeCell(concept.status)}`);
@@ -40,6 +44,8 @@ export function renderConceptPages(outDir: string, conceptRegistry: ConceptRegis
       lines.push(`- Summary: ${formatTableCell(concept.summary)}`);
     }
     lines.push('');
+    appendConceptRelationshipSection(lines, concept, conceptRegistry);
+    appendConceptGlossarySection(lines, concept, conceptRegistry);
     lines.push('## Source Document');
     lines.push('');
     lines.push(source.trimEnd());
@@ -102,6 +108,8 @@ export function renderConceptIndex(outDir: string, conceptRegistry: ConceptRegis
   lines.push('');
   lines.push('## Defined Concepts');
   lines.push('');
+  lines.push('Authoritative Concept Specs with approved source documents.');
+  lines.push('');
   lines.push('| Concept ID | Display Name | Status | Summary |');
   lines.push('| --- | --- | --- | --- |');
   for (const concept of definedConcepts) {
@@ -115,6 +123,8 @@ export function renderConceptIndex(outDir: string, conceptRegistry: ConceptRegis
     lines.push('');
     lines.push('## Glossary Terms');
     lines.push('');
+    lines.push('Index terms used across Concept Specs; meanings here are review aids, not authoritative prose.');
+    lines.push('');
     lines.push('| Term ID | Display Term | Defined In | Meaning | Notes |');
     lines.push('| --- | --- | --- | --- | --- |');
     for (const term of [...conceptRegistry.glossaryTerms].sort((left, right) => left.id.localeCompare(right.id))) {
@@ -126,6 +136,8 @@ export function renderConceptIndex(outDir: string, conceptRegistry: ConceptRegis
     lines.push('');
     lines.push('## Planned Or Candidate Concepts');
     lines.push('');
+    lines.push('Non-authoritative entries such as aliases, variants, candidates, or future concepts without their own approved Concept Spec.');
+    lines.push('');
     lines.push('| Concept ID | Display Name | Status | Summary | Notes |');
     lines.push('| --- | --- | --- | --- | --- |');
     for (const concept of nonAuthoritativeConcepts) {
@@ -135,6 +147,8 @@ export function renderConceptIndex(outDir: string, conceptRegistry: ConceptRegis
   if (conceptRegistry.relatedProcessMaps.length > 0) {
     lines.push('');
     lines.push('## Related Process Maps');
+    lines.push('');
+    lines.push('Process review views linked from concept metadata; process meaning stays in the source process documents.');
     lines.push('');
     lines.push('| Process Map | Reason |');
     lines.push('| --- | --- |');
@@ -148,13 +162,15 @@ export function renderConceptIndex(outDir: string, conceptRegistry: ConceptRegis
     lines.push('');
     lines.push('## Relationships');
     lines.push('');
+    lines.push('Static concept relationships from metadata; reasons are review aids, not a replacement for the owning specs.');
+    lines.push('');
     lines.push('| From | Kind | To | Reason |');
     lines.push('| --- | --- | --- | --- |');
     const relationships = [...conceptRegistry.relationships].sort((left, right) =>
       `${left.from}|${left.kind ?? ''}|${left.to}`.localeCompare(`${right.from}|${right.kind ?? ''}|${right.to}`)
     );
     for (const relationship of relationships) {
-      lines.push(`| ${formatCodeCell(relationship.from)} | ${formatCodeCell(relationship.kind ?? '')} | ${formatCodeCell(relationship.to)} | ${formatTableCell(relationship.reason)} |`);
+      lines.push(`| ${formatConceptReference(relationship.from, conceptRegistry)} | ${formatCodeCell(relationship.kind ?? '')} | ${formatConceptReference(relationship.to, conceptRegistry)} | ${formatTableCell(relationship.reason)} |`);
     }
   }
   lines.push('');
@@ -162,6 +178,71 @@ export function renderConceptIndex(outDir: string, conceptRegistry: ConceptRegis
     path: path.join(outDir, 'concepts', 'index.md'),
     content: lines.join('\n'),
   };
+}
+
+function appendConceptRelationshipSection(
+  lines: string[],
+  concept: ConceptRegistryEntry,
+  conceptRegistry: ConceptRegistry
+): void {
+  const relationships = conceptRegistry.relationships
+    .filter((relationship) => relationship.from === concept.id || relationship.to === concept.id)
+    .sort((left, right) =>
+      `${left.from === concept.id ? 'outgoing' : 'incoming'}|${left.kind ?? ''}|${left.from}|${left.to}`.localeCompare(
+        `${right.from === concept.id ? 'outgoing' : 'incoming'}|${right.kind ?? ''}|${right.from}|${right.to}`
+      )
+    );
+  lines.push('## Related Concepts');
+  lines.push('');
+  if (relationships.length === 0) {
+    lines.push('- None recorded in relationship metadata.');
+    lines.push('');
+    return;
+  }
+  lines.push('| Direction | Kind | Concept | Reason |');
+  lines.push('| --- | --- | --- | --- |');
+  for (const relationship of relationships) {
+    const direction = relationship.from === concept.id ? 'outgoing' : 'incoming';
+    const relatedId = relationship.from === concept.id ? relationship.to : relationship.from;
+    lines.push(
+      `| ${direction} | ${formatCodeCell(relationship.kind ?? '')} | ${formatConceptReference(relatedId, conceptRegistry)} | ${formatTableCell(relationship.reason)} |`
+    );
+  }
+  lines.push('');
+}
+
+function appendConceptGlossarySection(
+  lines: string[],
+  concept: ConceptRegistryEntry,
+  conceptRegistry: ConceptRegistry
+): void {
+  if (!concept.path) {
+    return;
+  }
+  const terms = conceptRegistry.glossaryTerms
+    .filter((term) => term.definedIn.includes(concept.path as string))
+    .sort((left, right) => left.id.localeCompare(right.id));
+  if (terms.length === 0) {
+    return;
+  }
+  lines.push('## Glossary Terms Defined Here');
+  lines.push('');
+  lines.push('| Term ID | Display Term | Meaning | Notes |');
+  lines.push('| --- | --- | --- | --- |');
+  for (const term of terms) {
+    lines.push(
+      `| ${formatCodeCell(term.id)} | ${formatTableCell(term.displayTerm)} | ${formatTableCell(term.meaning)} | ${formatTableCell(term.note)} |`
+    );
+  }
+  lines.push('');
+}
+
+function formatConceptReference(conceptId: string, conceptRegistry: ConceptRegistry): string {
+  const concept = conceptRegistry.concepts.find((entry) => entry.id === conceptId);
+  if (!concept?.path) {
+    return formatCodeCell(conceptId);
+  }
+  return `[${formatTableCell(conceptId)}](./${slugifyIdentifier(conceptId)}.md)`;
 }
 
 function formatConceptSourceLink(sourcePath: string, conceptRegistry: ConceptRegistry): string {

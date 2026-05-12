@@ -23,6 +23,8 @@ export function renderConceptMapMarkdown(conceptRegistry: ConceptRegistry): stri
 
   lines.push('## Defined Concepts');
   lines.push('');
+  lines.push('Authoritative Concept Specs with approved source documents.');
+  lines.push('');
   lines.push('| Concept ID | Display Name | Spec |');
   lines.push('| --- | --- | --- |');
   for (const concept of definedConcepts) {
@@ -36,6 +38,8 @@ export function renderConceptMapMarkdown(conceptRegistry: ConceptRegistry): stri
     lines.push('');
     lines.push('## Glossary Terms');
     lines.push('');
+    lines.push('Index terms used across Concept Specs; meanings in metadata are review aids, not authoritative prose.');
+    lines.push('');
     lines.push('| Term ID | Display Term | Defined In |');
     lines.push('| --- | --- | --- |');
     for (const term of [...conceptRegistry.glossaryTerms].sort((left, right) => left.id.localeCompare(right.id))) {
@@ -46,7 +50,9 @@ export function renderConceptMapMarkdown(conceptRegistry: ConceptRegistry): stri
 
   if (nonAuthoritativeConcepts.length > 0) {
     lines.push('');
-    lines.push('## Non-Authoritative Concept Entries');
+    lines.push('## Planned Or Candidate Concepts');
+    lines.push('');
+    lines.push('Non-authoritative entries such as aliases, variants, candidates, or future concepts without their own approved Concept Spec.');
     lines.push('');
     lines.push('| Concept ID | Display Name | Status |');
     lines.push('| --- | --- | --- |');
@@ -59,6 +65,8 @@ export function renderConceptMapMarkdown(conceptRegistry: ConceptRegistry): stri
     lines.push('');
     lines.push('## Related Process Maps');
     lines.push('');
+    lines.push('Process review views linked from concept metadata; process meaning stays in the source process documents.');
+    lines.push('');
     lines.push('| Process Map | Source |');
     lines.push('| --- | --- |');
     for (const process of [...conceptRegistry.relatedProcessMaps].sort((left, right) => left.id.localeCompare(right.id))) {
@@ -70,6 +78,8 @@ export function renderConceptMapMarkdown(conceptRegistry: ConceptRegistry): stri
   if (conceptRegistry.relationships.length > 0) {
     lines.push('');
     lines.push('## Concept Relationships');
+    lines.push('');
+    lines.push('Static concept relationships from metadata; relationship facts stay in `concept-relationship.json`.');
     lines.push('');
     lines.push('| From | Kind | To |');
     lines.push('| --- | --- | --- |');

@@ -209,7 +209,10 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
   }
 }
 
-function writeVitePressPreviewAssets(outDir: string): string[] {
+export function writeVitePressPreviewAssets(
+  outDir: string,
+  site: { title?: string; description?: string } = {}
+): string[] {
   const configPath = path.join(outDir, '.vitepress', 'config.mts');
   const themeIndexPath = path.join(outDir, '.vitepress', 'theme', 'index.ts');
   const themeStylePath = path.join(outDir, '.vitepress', 'theme', 'style.css');
@@ -217,20 +220,22 @@ function writeVitePressPreviewAssets(outDir: string): string[] {
   ensureDirectory(path.dirname(configPath));
   ensureDirectory(path.dirname(themeIndexPath));
 
-  writeTextFileNormalized(configPath, renderVitePressConfig());
+  writeTextFileNormalized(configPath, renderVitePressConfig(site));
   writeTextFileNormalized(themeIndexPath, renderVitePressThemeIndex());
   writeTextFileNormalized(themeStylePath, renderVitePressThemeCss());
 
   return [configPath, themeIndexPath, themeStylePath];
 }
 
-function renderVitePressConfig(): string {
+function renderVitePressConfig(site: { title?: string; description?: string }): string {
+  const title = site.title ?? 'DDL Review';
+  const description = site.description ?? 'Generated table definition review docs';
   return [
     "import { defineConfig } from 'vitepress';",
     '',
     'export default defineConfig({',
-    "  title: 'DDL Review',",
-    "  description: 'Generated table definition review docs',",
+    `  title: ${JSON.stringify(title)},`,
+    `  description: ${JSON.stringify(description)},`,
     '  cleanUrls: true,',
     '  appearance: true,',
     '});',

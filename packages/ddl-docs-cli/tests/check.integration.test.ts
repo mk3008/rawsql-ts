@@ -196,6 +196,107 @@ test('check fails when DFD relationship references an unknown concept', () => {
   expect(result.errors.map((issue) => issue.code)).toContain('DFD_REF_UNKNOWN_CONCEPT');
 });
 
+test('check warns when defined concept summary metadata is missing or too long', () => {
+  const work = createTempDir('ddl-docs-check-concept-summary');
+  const ddlDir = path.join(work, 'ddl');
+  const conceptsDir = path.join(work, 'docs', 'concepts');
+  const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
+  writeText(path.join(conceptsDir, 'customer/SPEC.md'), '# Customer Concept\n');
+  writeText(conceptRelationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    concepts: [
+      {
+        id: 'account',
+        displayName: 'Account',
+        path: 'account/SPEC.md',
+        status: 'defined',
+      },
+      {
+        id: 'customer',
+        displayName: 'Customer',
+        path: 'customer/SPEC.md',
+        status: 'defined',
+        summary: 'A'.repeat(161),
+      },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    conceptRelationshipPath,
+  });
+
+  expect(result.errors).toHaveLength(0);
+  expect(result.warnings.map((warning) => warning.code)).toContain('CONCEPT_SUMMARY_MISSING');
+  expect(result.warnings.map((warning) => warning.code)).toContain('CONCEPT_SUMMARY_TOO_LONG');
+});
+
+test('check warns when concept relationship helper metadata is too long', () => {
+  const work = createTempDir('ddl-docs-check-concept-helper-metadata');
+  const ddlDir = path.join(work, 'ddl');
+  const conceptsDir = path.join(work, 'docs', 'concepts');
+  const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+  const longText = 'A'.repeat(241);
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
+  writeText(path.join(conceptsDir, 'customer/SPEC.md'), '# Customer Concept\n');
+  writeText(conceptRelationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    concepts: [
+      {
+        id: 'account',
+        displayName: 'Account',
+        path: 'account/SPEC.md',
+        status: 'defined',
+        summary: 'Account concept.',
+        note: longText,
+      },
+      {
+        id: 'customer',
+        displayName: 'Customer',
+        path: 'customer/SPEC.md',
+        status: 'defined',
+        summary: 'Customer concept.',
+      },
+    ],
+    relationships: [
+      {
+        from: 'account',
+        to: 'customer',
+        kind: 'uses',
+        reason: longText,
+      },
+    ],
+    glossaryTerms: [
+      {
+        id: 'account-key',
+        displayTerm: 'account key',
+        definedIn: ['account/SPEC.md'],
+        meaning: longText,
+        note: longText,
+      },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    conceptRelationshipPath,
+  });
+
+  expect(result.errors).toHaveLength(0);
+  expect(result.warnings.filter((warning) => warning.code === 'CONCEPT_METADATA_NOTE_TOO_LONG')).toHaveLength(4);
+});
+
 test('check fails when concept lifecycle metadata drifts from SPEC and DRAFT files', () => {
   const work = createTempDir('ddl-docs-check-concept-lifecycle');
   const ddlDir = path.join(work, 'ddl');

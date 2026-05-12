@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from 'vitest';
+import { runGenerateConceptSite } from '../src/commands/conceptSite';
 import { runGenerateDocs } from '../src/commands/generate';
 import { normalizeLineEndings } from './utils/normalize';
 
@@ -437,7 +438,12 @@ test('generate renders related concept and process pages from relationship metad
   expect(tableDoc).toContain('alternativesRejected: Do not use hash as identity.');
 
   const conceptDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'active-row.md'), 'utf8'));
-  expect(conceptDoc).toContain('# active-row');
+  expect(conceptDoc).toContain('# Active Row');
+  expect(conceptDoc).toContain('This page is a generated human review view.');
+  expect(conceptDoc).toContain('## Related Concepts');
+  expect(conceptDoc).toContain('| outgoing | `uses` | `row-key` | Active row uses row key terminology. |');
+  expect(conceptDoc).toContain('## Glossary Terms Defined Here');
+  expect(conceptDoc).toContain('active-row-key');
   expect(conceptDoc).toContain('Defined concept.');
 
   const processDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'processes', 'active-row-process.md'), 'utf8'));
@@ -452,7 +458,87 @@ test('generate renders related concept and process pages from relationship metad
   expect(conceptIndex).toContain('## Planned Or Candidate Concepts');
   expect(conceptIndex).toContain('row-key');
   expect(conceptIndex).toContain('## Relationships');
-  expect(conceptIndex).toContain('Active row uses row key terminology.');
+  expect(conceptIndex).toContain('| [active-row](./active-row.md) | `uses` | `row-key` | Active row uses row key terminology. |');
+});
+
+test('concept-site generates VitePress concept and process pages without DDL input', () => {
+  const work = createTempDir('ddl-docs-concept-site');
+  const conceptsDir = path.join(work, 'docs', 'concepts');
+  const processesDir = path.join(work, 'docs', 'processes');
+  const outDir = path.join(work, 'site');
+  const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+  mkdirSync(path.join(conceptsDir, 'active-row'), { recursive: true });
+  mkdirSync(processesDir, { recursive: true });
+
+  writeFileSync(path.join(conceptsDir, 'active-row/SPEC.md'), '# Active Row Concept\n\nDefined concept.', 'utf8');
+  writeFileSync(path.join(processesDir, 'active-row-process.md'), '# Active Row Process\n\nDefined process.', 'utf8');
+  writeFileSync(
+    conceptRelationshipPath,
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        concepts: [
+          {
+            id: 'active-row',
+            displayName: 'Active Row',
+            path: 'active-row/SPEC.md',
+            status: 'defined',
+            summary: 'Active row summary',
+          },
+          {
+            id: 'row-key',
+            displayName: 'Row Key',
+            path: null,
+            status: 'alias',
+            summary: 'Row identity explanation term.',
+          },
+        ],
+        relationships: [
+          {
+            from: 'active-row',
+            to: 'row-key',
+            kind: 'uses',
+            reason: 'Active row uses row key terminology.',
+          },
+        ],
+        relatedProcessMaps: [
+          {
+            id: 'active-row-process',
+            displayName: 'Active Row Process',
+            path: '../processes/active-row-process.md',
+            reason: 'Process map linked from concept metadata.',
+          },
+        ],
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+
+  runGenerateConceptSite({
+    conceptRelationshipPath,
+    outDir,
+  });
+
+  const conceptIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'index.md'), 'utf8'));
+  expect(conceptIndex).toContain('# Concept Map');
+  expect(conceptIndex).toContain('| [active-row](./active-row.md) | Active Row | `defined` | Active row summary |');
+  expect(conceptIndex).toContain('| [active-row](./active-row.md) | `uses` | `row-key` | Active row uses row key terminology. |');
+
+  const conceptDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'active-row.md'), 'utf8'));
+  expect(conceptDoc).toContain('# Active Row');
+  expect(conceptDoc).toContain('## Related Concepts');
+  expect(conceptDoc).toContain('Defined concept.');
+
+  const processIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'processes', 'index.md'), 'utf8'));
+  expect(processIndex).toContain('[active-row-process](./active-row-process.md)');
+  const rootIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'index.md'), 'utf8'));
+  expect(rootIndex).toContain('# Concept Spec Review');
+  expect(rootIndex).toContain('[Concepts](./concepts/)');
+  const vitePressConfig = normalizeLineEndings(readFileSync(path.join(outDir, '.vitepress', 'config.mts'), 'utf8'));
+  expect(vitePressConfig).toContain('title: "Concept Spec Review"');
+  expect(existsSync(path.join(outDir, '.vitepress', 'config.mts'))).toBe(true);
 });
 
 test('filter-pg-dump fails when no schema DDL remains after filtering', () => {

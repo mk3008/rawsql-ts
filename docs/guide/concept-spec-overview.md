@@ -478,6 +478,17 @@ Keep information that must be searched, counted, checked, or regenerated here ra
 Examples include concept IDs, display names, lifecycle status, spec paths, glossary terms, static relationships, and relationship reasons.
 This lets tools answer questions such as how many draft concepts remain, whether a referenced concept exists, and whether a generated review view is stale.
 
+`summary` is allowed as a short index note for humans, AI agents, and generated review views.
+It may be written by a human or proposed by an AI agent, but it is not authoritative concept prose.
+The owning `SPEC.md` or `DRAFT.md` remains the source of concept meaning.
+Keep `summary` to about one sentence, avoid implementation detail, and do not use it as the basis for implementation decisions.
+If `summary` conflicts with the spec body, the spec body wins and the summary should be corrected.
+
+The same rule applies to other short metadata notes such as glossary `meaning`, glossary `note`, concept `note`, and relationship `reason`.
+They are search, discovery, and review-aid text.
+They may make generated indexes easier to use, but they must not become a second source of concept truth.
+When they conflict with the owning Concept Spec or approved logical model, correct the metadata.
+
 For defined concepts, use `status: "defined"` and point to `SPEC.md`:
 
 ```json
@@ -714,6 +725,9 @@ Errors:
 Warnings:
 
 - a Concept Spec has no visible references from `AGENTS.md`, `docs/concepts/README.md`, `README.md`, or `spec-relationship.json`
+- a defined or draft concept has no short `summary` index note in `concept-relationship.json`
+- a `summary` in `concept-relationship.json` is too long to behave as an index note
+- glossary `meaning`, glossary `note`, concept `note`, or relationship `reason` is too long to behave as review-aid metadata
 - a spec is becoming too long
 - a spec has many additional dependencies
 - constants look duplicated across specs

@@ -27,6 +27,7 @@ ddl-docs help generate
 ddl-docs help prune
 ddl-docs help check
 ddl-docs help concept-map
+ddl-docs help concept-site
 ```
 
 Generated layout:
@@ -112,6 +113,24 @@ The generated Markdown is not the source of concept truth; concept meanings stay
 ddl-docs concept-map \
   --concept-relationship packages/transfer/docs/concepts/concept-relationship.json \
   --out packages/transfer/docs/concepts/concept-map.md
+```
+
+### Concept Spec VitePress Generation
+
+Use `concept-site` when Concept Specs need the same generated human review surface as DDL docs.
+The command reads Concept Spec source files and `concept-relationship.json`, then emits secondary VitePress-ready pages with:
+
+- an index page
+- one page per defined Concept Spec
+- related concept links from structured relationship metadata
+- related process map pages listed from concept metadata
+
+The generated pages are review views, not source truth. Edit the Concept Specs and relationship metadata, then regenerate.
+
+```bash
+ddl-docs concept-site \
+  --concept-relationship packages/transfer/docs/concepts/concept-relationship.json \
+  --out-dir tmp/concept-site
 ```
 
 Prune generated files:

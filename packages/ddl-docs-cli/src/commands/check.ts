@@ -144,6 +144,9 @@ interface ProcessMapViewEntry {
   purpose?: string;
 }
 
+const CONCEPT_SUMMARY_MAX_LENGTH = 160;
+const CONCEPT_METADATA_NOTE_MAX_LENGTH = 240;
+
 /**
  * Checks DDL review metadata for structural drift.
  *
@@ -595,6 +598,8 @@ function checkConceptRelationshipMetadata(conceptRelationshipPath: string, issue
         message: `concept-relationship.json concept must not set both path and draftPath: ${concept.id}`,
       });
     }
+    checkConceptSummaryMetadata(concept, issues);
+    checkConceptMetadataNote(`concept note ${concept.id}`, concept.note, issues);
     checkConceptLifecycleEntry(baseDir, concept, issues);
   }
   checkConceptDirectoriesRegistered(baseDir, conceptIds, issues);
@@ -614,6 +619,7 @@ function checkConceptRelationshipMetadata(conceptRelationshipPath: string, issue
         message: `concept relationship uses unknown to id: ${relationship.to}`,
       });
     }
+    checkConceptMetadataNote(`concept relationship reason ${relationship.from}->${relationship.to}`, relationship.reason, issues);
   }
 
   for (const view of value.views ?? []) {
@@ -647,6 +653,8 @@ function checkConceptRelationshipMetadata(conceptRelationshipPath: string, issue
         });
       }
     }
+    checkConceptMetadataNote(`glossary meaning ${term.id}`, term.meaning, issues);
+    checkConceptMetadataNote(`glossary note ${term.id}`, term.note, issues);
   }
 
   const relatedProcessMapIds = new Set<string>();
@@ -666,6 +674,35 @@ function checkConceptRelationshipMetadata(conceptRelationshipPath: string, issue
         message: `concept-relationship.json related process map ${processMap.id} references missing path: ${processMap.path}`,
       });
     }
+  }
+}
+
+function checkConceptMetadataNote(scope: string, value: string | undefined, issues: CheckIssue[]): void {
+  if (value !== undefined && value.trim().length > CONCEPT_METADATA_NOTE_MAX_LENGTH) {
+    issues.push({
+      severity: 'warning',
+      code: 'CONCEPT_METADATA_NOTE_TOO_LONG',
+      message: `concept-relationship.json ${scope} should stay short and index-like.`,
+    });
+  }
+}
+
+function checkConceptSummaryMetadata(concept: ConceptEntry, issues: CheckIssue[]): void {
+  const summary = concept.summary?.trim();
+  if ((concept.status === 'defined' || concept.status === 'draft') && !summary) {
+    issues.push({
+      severity: 'warning',
+      code: 'CONCEPT_SUMMARY_MISSING',
+      message: `concept-relationship.json ${concept.status} concept has no summary index note: ${concept.id}`,
+    });
+    return;
+  }
+  if (summary && summary.length > CONCEPT_SUMMARY_MAX_LENGTH) {
+    issues.push({
+      severity: 'warning',
+      code: 'CONCEPT_SUMMARY_TOO_LONG',
+      message: `concept-relationship.json summary should stay short and index-like: ${concept.id}`,
+    });
   }
 }
 

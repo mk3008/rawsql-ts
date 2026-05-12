@@ -54,6 +54,11 @@ export interface GenerateConceptMapCliOptions {
   outPath: string;
 }
 
+export interface GenerateConceptSiteOptions {
+  conceptRelationshipPath: string;
+  outDir: string;
+}
+
 export interface TableDocsColumnMetadata {
   sample?: unknown;
   designNotes?: string[];
