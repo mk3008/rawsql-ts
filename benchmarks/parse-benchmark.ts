@@ -59,6 +59,7 @@ interface QueryBenchmarkCase {
 
 interface ParserMethod {
     label: string;
+    packageName: string;
     parse: (sql: string) => void;
     borderColor: string;
     backgroundColor: string;
@@ -356,49 +357,48 @@ function createComparedLibraryVersions(methods: ParserMethod[]): ComparedLibrary
         .filter(method => method.label !== 'rawsql-ts')
         .map(method => ({
             label: method.label,
-            version: getPackageVersion(method.label.split('/')[0]),
+            version: getPackageVersion(method.packageName),
         }));
 }
 
-function parseWithRawSql(sql: string) {
-    return () => {
-        SqlParser.parse(sql, { mode: 'single' });
-    };
+function parseWithRawSql(sql: string): void {
+    SqlParser.parse(sql, { mode: 'single' });
 }
 
-function parseWithNodeSqlParser(sql: string) {
-    return () => {
-        nodeSqlParser.astify(sql, { database: 'postgresql' });
-    };
+function parseWithNodeSqlParser(sql: string): void {
+    nodeSqlParser.astify(sql, { database: 'postgresql' });
 }
 
-function parseWithSqlite3Parser(sqlite3Parser: Sqlite3ParserModule, sql: string) {
-    return () => {
-        const result = sqlite3Parser.parse(sql);
-        if (result.status !== 'ok') {
-            const reason = result.errors.map((error: { message: string }) => error.message).join('; ') || 'parse error';
-            throw new Error(reason);
-        }
-    };
+function parseWithSqlite3Parser(sqlite3Parser: Sqlite3ParserModule, sql: string): void {
+    const result = sqlite3Parser.parse(sql);
+    if (result.status !== 'ok') {
+        const reason = result.errors.map((error: { message: string }) => error.message).join('; ') || 'parse error';
+        throw new Error(reason);
+    }
 }
 
 function createParserMethods(sqlite3Parser: Sqlite3ParserModule): ParserMethod[] {
+    const parseSqlite3 = (sql: string) => parseWithSqlite3Parser(sqlite3Parser, sql);
+
     return [
         {
             label: 'rawsql-ts',
-            parse: sql => parseWithRawSql(sql)(),
+            packageName: 'rawsql-ts',
+            parse: parseWithRawSql,
             borderColor: 'rgba(54,162,235,1)',
             backgroundColor: 'rgba(54,162,235,0.15)',
         },
         {
             label: 'node-sql-parser',
-            parse: sql => parseWithNodeSqlParser(sql)(),
+            packageName: 'node-sql-parser',
+            parse: parseWithNodeSqlParser,
             borderColor: 'rgba(255,206,86,1)',
             backgroundColor: 'rgba(255,206,86,0.15)',
         },
         {
             label: 'sqlite3-parser',
-            parse: sql => parseWithSqlite3Parser(sqlite3Parser, sql)(),
+            packageName: 'sqlite3-parser',
+            parse: parseSqlite3,
             borderColor: 'rgba(75,192,192,1)',
             backgroundColor: 'rgba(75,192,192,0.15)',
         },

@@ -10,7 +10,7 @@ pnpm --filter rawsql-ts run benchmark
 
 ## Latest Run
 
-```
+```text
 benchmark.js v2.1.4, Windows_NT 10.0.26200
 AMD Ryzen 7 7800X3D 8-Core Processor, 16 logical cores
 Node.js v22.14.0
@@ -27,11 +27,11 @@ The mid-large and very large cases use benchmark-only analytics-style SQL worklo
 
 | Workload | rawsql-ts | node-sql-parser | sqlite3-parser |
 |----------|----------:|----------------:|----------------:|
-| Small query, about 8 lines (70 tokens) | 0.053 ms | 0.646 ms (12.2x slower) | 0.015 ms |
-| Medium query, about 12 lines (140 tokens) | 0.094 ms | 0.874 ms (9.3x slower) | 0.026 ms |
-| Large query, about 20 lines (230 tokens) | 0.175 ms | 1.954 ms (11.2x slower) | 0.062 ms |
-| Mid-large query, about 400-500 lines (5,000 tokens) | 4.462 ms | 31.672 ms (7.1x slower) | n/a |
-| Very large query, about 1,000+ lines (~12,000 tokens) | 9.715 ms | 79.583 ms (8.2x slower) | n/a |
+| Small query, about 8 lines (70 tokens) | 0.061 ms | 0.609 ms (10.1x slower) | 0.014 ms |
+| Medium query, about 12 lines (140 tokens) | 0.104 ms | 0.911 ms (8.8x slower) | 0.025 ms |
+| Large query, about 20 lines (230 tokens) | 0.174 ms | 2.044 ms (11.7x slower) | 0.052 ms |
+| Mid-large query, about 400-500 lines (5,000 tokens) | 4.732 ms | 28.333 ms (6.0x slower) | n/a |
+| Very large query, about 1,000+ lines (~12,000 tokens) | 9.144 ms | 75.919 ms (8.3x slower) | n/a |
 
 ## Interpretation
 
@@ -57,4 +57,4 @@ The prototype was not merged because the speedup does not justify the additional
 
 ## Raw Artifacts
 
-- Latest rawsql-ts benchmark report: `tmp/parse-benchmark-report-2026-05-13T13-45-50.424Z.md`
+- Latest rawsql-ts benchmark report: `tmp/parse-benchmark-report-2026-05-13T14-08-05.381Z.md`

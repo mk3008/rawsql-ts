@@ -11,7 +11,7 @@ pnpm --filter rawsql-ts run benchmark:sqlite3-parser:bun
 
 ## Latest Run
 
-```
+```text
 benchmark.js v2.1.4, Windows_NT 10.0.26200
 AMD Ryzen 7 7800X3D 8-Core Processor, 16 logical cores
 Node.js v22.14.0
@@ -46,7 +46,7 @@ The rawsql-ts result is still useful: rawsql-ts is consistently slower than the 
 
 The Bun benchmark keeps the broader sqlite3-parser-js-style competitor set where npm packages are available.
 
-```
+```text
 mitata under Bun 1.3.14, Windows_NT 10.0.26200
 AMD Ryzen 7 7800X3D 8-Core Processor, 16 logical cores
 Date 2026-05-13
