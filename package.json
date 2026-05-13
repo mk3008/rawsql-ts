@@ -23,6 +23,8 @@
     "clean": "pnpm -r --if-present clean",
     "lint": "pnpm -r --if-present lint",
     "benchmark": "pnpm --filter rawsql-ts benchmark",
+    "benchmark:sqlite3-parser": "pnpm --filter rawsql-ts benchmark:sqlite3-parser",
+    "benchmark:sqlite3-parser:bun": "pnpm --filter rawsql-ts benchmark:sqlite3-parser:bun",
     "benchmark:parser:pr": "ts-node benchmarks/parser-phase-benchmark.ts --profile=pr",
     "benchmark:parser:full": "ts-node benchmarks/parser-phase-benchmark.ts --profile=full",
     "ztd:bench": "ts-node benchmarks/ztd-test-benchmark.ts",

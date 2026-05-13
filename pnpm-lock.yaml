@@ -232,6 +232,12 @@ importers:
 
   packages/core:
     devDependencies:
+      '@appland/sql-parser':
+        specifier: ^1.5.1
+        version: 1.5.1
+      '@guanmingchiu/sqlparser-ts':
+        specifier: ^0.61.1
+        version: 0.61.1
       '@types/benchmark':
         specifier: ^2.1.5
         version: 2.1.5
@@ -268,15 +274,27 @@ importers:
       microtime:
         specifier: ^3.1.1
         version: 3.1.1
+      mitata:
+        specifier: ^1.0.34
+        version: 1.0.34
       node-sql-parser:
         specifier: ^5.4.0
         version: 5.4.0
+      pgsql-ast-parser:
+        specifier: ^12.0.2
+        version: 12.0.2
       sql-formatter:
         specifier: ^15.5.2
         version: 15.6.9
       sql-parser-cst:
         specifier: ^0.33.1
         version: 0.33.1
+      sqlite-parser:
+        specifier: ^1.0.1
+        version: 1.0.1
+      sqlite3-parser:
+        specifier: ^0.7.1
+        version: 0.7.1
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@22.18.7)(typescript@5.9.2)
@@ -650,6 +668,11 @@ packages:
   '@algolia/requester-node-http@5.39.0':
     resolution: {integrity: sha512-6beG+egPwXmvhAg+m0STCj+ZssDcjrLzf4L05aKm2nGglMXSSPz0cH/rM+kVD9krNfldiMctURd4wjojW1fV0w==}
     engines: {node: '>= 14.0.0'}
+
+  '@appland/sql-parser@1.5.1':
+    resolution: {integrity: sha512-R2FBHUOdzdBPUCCiL6WvXT9Fu+Xaj89exa1g+wMlatIe5z6vqitzLkY5a9zGDL3IByTiwbR0jiYuvFMfhp1Q+Q==}
+    engines: {node: '>=4'}
+    hasBin: true
 
   '@azure-rest/core-client@2.5.1':
     resolution: {integrity: sha512-EHaOXW0RYDKS5CFffnixdyRPak5ytiCtU7uXDcP/uiY+A6jFRwNGzzJBiznkCzvi5EYpY+YWinieqHb0oY916A==}
@@ -1096,6 +1119,10 @@ packages:
     resolution: {integrity: sha512-rc1hOQtjIWGxcxpb9aHAfLpIctjEnsDehj0DAiVfBlmT84uvR0uUtN2hEi/ecvWVjXUGf5qPF4qEgiLOx1YIMQ==}
     engines: {node: '>=6'}
     hasBin: true
+
+  '@guanmingchiu/sqlparser-ts@0.61.1':
+    resolution: {integrity: sha512-5RA05UHDkcm4cyhBNz2oJqU+8+fhCZvseSGtAvuVcwM1EEh2FfRaU1qdPygpriGqsQRT3Cn1PK5YShJffQjmXg==}
+    engines: {node: '>=16.0.0'}
 
   '@hono/node-server@1.19.13':
     resolution: {integrity: sha512-TsQLe4i2gvoTtrHje625ngThGBySOgSK3Xo2XRYOdqGN1teR8+I7vchQC46uLJi8OF62YTYA3AhSpumtkhsaKQ==}
@@ -3074,6 +3101,9 @@ packages:
   minisearch@7.2.0:
     resolution: {integrity: sha512-dqT2XBYUOZOiC5t2HRnwADjhNS2cecp9u+TJRiJ1Qp/f5qjkeT5APcGPjHw+bz89Ms8Jp+cG4AlE+QZ/QnDglg==}
 
+  mitata@1.0.34:
+    resolution: {integrity: sha512-Mc3zrtNBKIMeHSCQ0XqRLo1vbdIx1wvFV9c8NJAiyho6AjNfMY8bVhbS12bwciUdd1t4rj8099CH3N3NFahaUA==}
+
   mitt@3.0.1:
     resolution: {integrity: sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw==}
 
@@ -3345,6 +3375,9 @@ packages:
 
   pgpass@1.0.5:
     resolution: {integrity: sha512-FdW9r/jQZhSeohs1Z3sI1yxFQNFvMcnmfuj4WBMUTxOrAyLMaTcE1aAMBiTlbMNaXvBCQuVi0R7hd8udDSP7ug==}
+
+  pgsql-ast-parser@12.0.2:
+    resolution: {integrity: sha512-1WWa96Sw6h4uv9GLw98EzH/+xoBTC8j2TwV/AMW3E+Ir/fHOu/jLLbj6kPiz3y2bGISTKNYvKWwHoqvQ5FLuAw==}
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -3692,6 +3725,15 @@ packages:
 
   sql.js@1.13.0:
     resolution: {integrity: sha512-RJbVP1HRDlUUXahJ7VMTcu9Rm1Nzw+EBpoPr94vnbD4LwR715F3CcxE2G2k45PewcaZ57pjetYa+LoSJLAASgA==}
+
+  sqlite-parser@1.0.1:
+    resolution: {integrity: sha512-/es+YmgQG+VFbwAQD0Nd0Mdzgky8rW3M85zcy2+Vtk3Sj5ydaMl/lopWPehsjsByGw/swVuXSBeMJFh47doRUw==}
+    engines: {node: '>=4'}
+    hasBin: true
+
+  sqlite3-parser@0.7.1:
+    resolution: {integrity: sha512-+KcAIcmD9xk4Sz3hNsEI7QEGAMGl3s5PyigIf6ri/u1DzAuAmi5YZInjtnXKqHvx9ySl5e0RYILfCVhTdAeKJg==}
+    hasBin: true
 
   sqlstring@2.3.3:
     resolution: {integrity: sha512-qC9iz2FlN7DQl3+wjwn3802RTyjCx7sDvfQEXchwa6CWOx07/WVfh91gBmQ9fahw8snwGEWU3xGzOt4tFyHLxg==}
@@ -4390,6 +4432,8 @@ snapshots:
     dependencies:
       '@algolia/client-common': 5.39.0
 
+  '@appland/sql-parser@1.5.1': {}
+
   '@azure-rest/core-client@2.5.1':
     dependencies:
       '@azure/abort-controller': 2.1.2
@@ -4939,6 +4983,8 @@ snapshots:
       long: 5.3.2
       protobufjs: 7.5.5
       yargs: 17.7.2
+
+  '@guanmingchiu/sqlparser-ts@0.61.1': {}
 
   '@hono/node-server@1.19.13(hono@4.12.14)':
     dependencies:
@@ -7082,6 +7128,8 @@ snapshots:
 
   minisearch@7.2.0: {}
 
+  mitata@1.0.34: {}
+
   mitt@3.0.1: {}
 
   mkdirp-classic@0.5.3: {}
@@ -7351,6 +7399,11 @@ snapshots:
   pgpass@1.0.5:
     dependencies:
       split2: 4.2.0
+
+  pgsql-ast-parser@12.0.2:
+    dependencies:
+      moo: 0.5.2
+      nearley: 2.20.1
 
   picocolors@1.1.1: {}
 
@@ -7709,6 +7762,10 @@ snapshots:
   sql-parser-cst@0.33.1: {}
 
   sql.js@1.13.0: {}
+
+  sqlite-parser@1.0.1: {}
+
+  sqlite3-parser@0.7.1: {}
 
   sqlstring@2.3.3: {}
 

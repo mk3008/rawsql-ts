@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { createRequire } from 'module';
+import { pathToFileURL } from 'url';
 import Benchmark = require('benchmark');
 type BenchmarkCase = Benchmark;
 import * as os from 'os';
@@ -8,6 +9,8 @@ import { SqlParser } from '../packages/core/src/parsers/SqlParser';
 
 interface BenchmarkResult {
     name: string;
+    methodLabel: string;
+    queryKey: string;
     hz: number;
     stats: Benchmark.Stats;
     rme: number;
@@ -54,6 +57,20 @@ interface QueryBenchmarkCase {
     sql: string;
 }
 
+interface ParserMethod {
+    label: string;
+    packageName: string;
+    parse: (sql: string) => void;
+    borderColor: string;
+    backgroundColor: string;
+}
+
+interface SkippedBenchmarkCase {
+    methodLabel: string;
+    queryKey: string;
+    reason: string;
+}
+
 const BENCHMARK_RUN_CONFIG: BenchmarkRunConfig = {
     defaultMinSamples: 10,
     defaultMaxTimeSec: 0.2,
@@ -64,12 +81,12 @@ const BENCHMARK_RUN_CONFIG: BenchmarkRunConfig = {
 const corePackageRequire = createRequire(path.resolve(__dirname, '../packages/core/package.json'));
 const NodeSqlParser = corePackageRequire('node-sql-parser').Parser as typeof import('node-sql-parser').Parser;
 
-const COMPARED_LIBRARY_VERSIONS: ComparedLibraryVersion[] = [
-    {
-        label: 'node-sql-parser',
-        version: corePackageRequire('node-sql-parser/package.json').version,
-    },
-];
+type Sqlite3ParserModule = {
+    parse(sql: string): { status: 'ok'; root: unknown } | { status: 'error'; errors: Array<{ message: string }> };
+};
+type NativeDynamicImport = (specifier: string) => Promise<Sqlite3ParserModule>;
+
+const nativeDynamicImport = new Function('specifier', 'return import(specifier)') as NativeDynamicImport;
 
 function createLargeAnalyticsSql(sectionCount: number): string {
     const lines: string[] = [
@@ -306,22 +323,86 @@ const queries: QueryBenchmarkCase[] = [
 const nodeSqlParser = new NodeSqlParser();
 const suite = new Benchmark.Suite();
 const reportLines: string[] = [];
+const skippedCases: SkippedBenchmarkCase[] = [];
 
 const logLine = (line = '') => {
     console.log(line);
     reportLines.push(line);
 };
 
-function parseWithRawSql(sql: string) {
-    return () => {
-        SqlParser.parse(sql, { mode: 'single' });
-    };
+function getPackageVersion(packageName: string): string {
+    if (packageName === 'rawsql-ts') {
+        return (corePackageRequire('./package.json') as { version?: string }).version ?? 'unknown';
+    }
+
+    const entryPath = corePackageRequire.resolve(packageName);
+    let currentDir = path.dirname(entryPath);
+
+    while (currentDir !== path.dirname(currentDir)) {
+        const packageJsonPath = path.join(currentDir, 'package.json');
+        if (fs.existsSync(packageJsonPath)) {
+            const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')) as { name?: string; version?: string };
+            if (packageJson.name === packageName) {
+                return packageJson.version ?? 'unknown';
+            }
+        }
+        currentDir = path.dirname(currentDir);
+    }
+
+    return 'unknown';
 }
 
-function parseWithNodeSqlParser(sql: string) {
-    return () => {
-        nodeSqlParser.astify(sql, { database: 'postgresql' });
-    };
+function createComparedLibraryVersions(methods: ParserMethod[]): ComparedLibraryVersion[] {
+    return methods
+        .filter(method => method.label !== 'rawsql-ts')
+        .map(method => ({
+            label: method.label,
+            version: getPackageVersion(method.packageName),
+        }));
+}
+
+function parseWithRawSql(sql: string): void {
+    SqlParser.parse(sql, { mode: 'single' });
+}
+
+function parseWithNodeSqlParser(sql: string): void {
+    nodeSqlParser.astify(sql, { database: 'postgresql' });
+}
+
+function parseWithSqlite3Parser(sqlite3Parser: Sqlite3ParserModule, sql: string): void {
+    const result = sqlite3Parser.parse(sql);
+    if (result.status !== 'ok') {
+        const reason = result.errors.map((error: { message: string }) => error.message).join('; ') || 'parse error';
+        throw new Error(reason);
+    }
+}
+
+function createParserMethods(sqlite3Parser: Sqlite3ParserModule): ParserMethod[] {
+    const parseSqlite3 = (sql: string) => parseWithSqlite3Parser(sqlite3Parser, sql);
+
+    return [
+        {
+            label: 'rawsql-ts',
+            packageName: 'rawsql-ts',
+            parse: parseWithRawSql,
+            borderColor: 'rgba(54,162,235,1)',
+            backgroundColor: 'rgba(54,162,235,0.15)',
+        },
+        {
+            label: 'node-sql-parser',
+            packageName: 'node-sql-parser',
+            parse: parseWithNodeSqlParser,
+            borderColor: 'rgba(255,206,86,1)',
+            backgroundColor: 'rgba(255,206,86,0.15)',
+        },
+        {
+            label: 'sqlite3-parser',
+            packageName: 'sqlite3-parser',
+            parse: parseSqlite3,
+            borderColor: 'rgba(75,192,192,1)',
+            backgroundColor: 'rgba(75,192,192,0.15)',
+        },
+    ];
 }
 
 function getSystemInfo(): SystemInfo {
@@ -340,11 +421,11 @@ function getSystemInfo(): SystemInfo {
     };
 }
 
-function printHeader() {
+function printHeader(comparedLibraryVersions: ComparedLibraryVersion[]) {
     const info = getSystemInfo();
     const currentDate = new Date().toISOString().split('T')[0];
     const benchmarkVersion = require('benchmark/package.json').version;
-    const comparedVersions = COMPARED_LIBRARY_VERSIONS
+    const comparedVersions = comparedLibraryVersions
         .map(item => `${item.label} ${item.version}`)
         .join(', ');
 
@@ -359,12 +440,12 @@ function printHeader() {
     logLine('');
 }
 
-function printResults(results: BenchmarkResult[]) {
+function printResults(results: BenchmarkResult[], methods: ParserMethod[]) {
     const queryKeys = queries.map(q => q.key);
     const groupedResults: Record<string, BenchmarkResult[]> = {};
 
     queryKeys.forEach(key => {
-        groupedResults[key] = results.filter(r => r.name.includes(key));
+        groupedResults[key] = results.filter(r => r.queryKey === key);
     });
 
     Object.keys(groupedResults).forEach(groupKey => {
@@ -374,13 +455,17 @@ function printResults(results: BenchmarkResult[]) {
         logLine('|---------------------------------- |-----------:|----------:|----------:|--------------------------:|');
 
         const groupResults = groupedResults[groupKey];
-        const rawsqlResult = groupResults.find(r => r.name.startsWith('rawsql-ts'));
+        const rawsqlResult = groupResults.find(r => r.methodLabel === 'rawsql-ts');
         const rawsqlMean = rawsqlResult ? rawsqlResult.mean : null;
 
-        groupResults.forEach(result => {
-            const methodMatch = result.name.match(/^([^]+)\s+Tokens\d+$/);
-            const methodName = methodMatch ? methodMatch[1] : result.name;
-            const name = methodName.padEnd(30).substring(0, 30);
+        methods.forEach(method => {
+            const result = groupResults.find(item => item.methodLabel === method.label);
+            const name = method.label.padEnd(30).substring(0, 30);
+
+            if (!result) {
+                logLine(`| ${name} |      n/a |      n/a |      n/a |              n/a |`);
+                return;
+            }
 
             const meanMs = result.mean * 1000;
             const mean = meanMs.toFixed(3).padStart(8);
@@ -392,7 +477,7 @@ function printResults(results: BenchmarkResult[]) {
             const stddev = stddevMs.toFixed(4).padStart(7);
 
             let ratioStr = '-';
-            if (rawsqlMean && !result.name.startsWith('rawsql-ts')) {
+            if (rawsqlMean && method.label !== 'rawsql-ts') {
                 const ratio = result.mean / rawsqlMean;
                 ratioStr = ratio >= 1.01 ? `${ratio.toFixed(1)}x` : '<1x';
             }
@@ -401,27 +486,24 @@ function printResults(results: BenchmarkResult[]) {
         });
     });
 
+    if (skippedCases.length > 0) {
+        logLine('');
+        logLine('#### Skipped Cases');
+        logLine('| Method | Case | Reason |');
+        logLine('|--------|------|--------|');
+        skippedCases.forEach(skipped => {
+            logLine(`| ${skipped.methodLabel} | ${skipped.queryKey} | ${skipped.reason.replace(/\s+/g, ' ')} |`);
+        });
+    }
+
     logLine('');
 }
 
-function buildChartDataset(results: BenchmarkResult[]): ChartDataset {
+function buildChartDataset(results: BenchmarkResult[], methods: ParserMethod[]): ChartDataset {
     const labels = queries.map(query => query.chartLabel);
-    const methods = [
-        {
-            label: 'rawsql-ts',
-            borderColor: 'rgba(54,162,235,1)',
-            backgroundColor: 'rgba(54,162,235,0.15)',
-        },
-        {
-            label: 'node-sql-parser',
-            borderColor: 'rgba(255,206,86,1)',
-            backgroundColor: 'rgba(255,206,86,0.15)',
-        }
-    ];
-
     const datasets = methods.map(method => {
         const data = queries.map(query => {
-            const match = results.find(result => result.name.startsWith(method.label) && result.name.endsWith(query.key));
+            const match = results.find(result => result.methodLabel === method.label && result.queryKey === query.key);
             if (!match) {
                 return null;
             }
@@ -446,8 +528,8 @@ function buildChartDataset(results: BenchmarkResult[]): ChartDataset {
     };
 }
 
-function printChartDataset(results: BenchmarkResult[]) {
-    const dataset = buildChartDataset(results);
+function printChartDataset(results: BenchmarkResult[], methods: ParserMethod[]) {
+    const dataset = buildChartDataset(results, methods);
     logLine('#### Chart Dataset');
     logLine('```json');
     logLine(JSON.stringify(dataset, null, 2));
@@ -474,33 +556,71 @@ function getBenchmarkOptions(queryKey: string): Benchmark.Options {
     };
 }
 
-queries.forEach(query => {
-    const options = getBenchmarkOptions(query.key);
-    suite.add(`rawsql-ts ${query.key}`, parseWithRawSql(query.sql), options);
-    suite.add(`node-sql-parser ${query.key}`, parseWithNodeSqlParser(query.sql), options);
+function getSkipReason(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+function addBenchmarks(methods: ParserMethod[]) {
+    queries.forEach(query => {
+        const options = getBenchmarkOptions(query.key);
+        methods.forEach(method => {
+            try {
+                method.parse(query.sql);
+                suite.add(`${method.label} ${query.key}`, () => method.parse(query.sql), {
+                    ...options,
+                    methodLabel: method.label,
+                    queryKey: query.key,
+                } as Benchmark.Options & { methodLabel: string; queryKey: string });
+            } catch (error) {
+                skippedCases.push({
+                    methodLabel: method.label,
+                    queryKey: query.key,
+                    reason: getSkipReason(error),
+                });
+            }
+        });
+    });
+}
+
+async function main() {
+    const sqlite3Parser = await nativeDynamicImport(pathToFileURL(corePackageRequire.resolve('sqlite3-parser')).href);
+    const methods = createParserMethods(sqlite3Parser);
+    const comparedLibraryVersions = createComparedLibraryVersions(methods);
+
+    addBenchmarks(methods);
+
+    suite.on('cycle', () => {
+        // Suppress per-cycle output to keep the report concise.
+    });
+
+    suite.on('complete', function (this: Benchmark.Suite) {
+        const results = this.filter('successful').map((benchmark: BenchmarkCase) => {
+            const benchmarkName = benchmark.name ?? '';
+            return {
+            name: benchmarkName,
+            methodLabel: (benchmark as BenchmarkCase & { methodLabel?: string }).methodLabel ?? benchmarkName.split(' ')[0],
+            queryKey: (benchmark as BenchmarkCase & { queryKey?: string }).queryKey ?? benchmarkName.split(' ').pop() ?? '',
+            hz: benchmark.hz,
+            stats: benchmark.stats,
+            rme: benchmark.stats.rme,
+            mean: benchmark.stats.mean,
+            samples: benchmark.stats.sample.length
+        };
+        }) as BenchmarkResult[];
+
+        printHeader(comparedLibraryVersions);
+        printResults(results, methods);
+        printChartDataset(results, methods);
+
+        const reportPath = writeReportFile(reportLines);
+        console.log(`Report saved to ${path.relative(process.cwd(), reportPath)}`);
+    });
+
+    console.log('running...');
+    suite.run({ async: false });
+}
+
+main().catch(error => {
+    console.error(error);
+    process.exitCode = 1;
 });
-
-suite.on('cycle', () => {
-    // Suppress per-cycle output to keep the report concise.
-});
-
-suite.on('complete', function (this: Benchmark.Suite) {
-    const results = this.filter('successful').map((benchmark: BenchmarkCase) => ({
-        name: benchmark.name,
-        hz: benchmark.hz,
-        stats: benchmark.stats,
-        rme: benchmark.stats.rme,
-        mean: benchmark.stats.mean,
-        samples: benchmark.stats.sample.length
-    })) as BenchmarkResult[];
-
-    printHeader();
-    printResults(results);
-    printChartDataset(results);
-
-    const reportPath = writeReportFile(reportLines);
-    console.log(`Report saved to ${path.relative(process.cwd(), reportPath)}`);
-});
-
-console.log('running...');
-suite.run({ async: false });

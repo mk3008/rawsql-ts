@@ -147,19 +147,19 @@ This section reports **parse-only** benchmark results for the SQL parser. It mea
 
 For readability, workloads are described by approximate SQL line counts, with token counts included in parentheses for technical precision. Parser cost is driven more directly by token volume than by formatting style.
 
-Across these workloads, parsing remains fast and stable, performance remains practical, and no performance cliff was observed up to the very large case.
+Across these workloads, parsing remains fast and stable, performance remains practical, and no performance cliff was observed up to the very large case. `sqlite3-parser` is faster on SQLite-compatible inputs, as expected for a SQLite-focused parser, but rawsql-ts remains substantially faster than `node-sql-parser` while preserving its broader AST, comment, formatting, and transformation surface.
 
-![Parser Scaling Chart](https://quickchart.io/chart?c={type:'line',data:{labels:['Small%208%20lines','Medium%2012%20lines','Large%2020%20lines','Mid-large%20400-500%20lines','Very%20large%201,000%2B%20lines'],datasets:[{label:'rawsql-ts',data:[0.04,0.08,0.168,4.438,8.173],borderColor:'rgba(54,162,235,1)',backgroundColor:'rgba(54,162,235,0.15)',fill:false,tension:0.2},{label:'node-sql-parser',data:[0.687,0.744,1.56,36.52,54.775],borderColor:'rgba(255,206,86,1)',backgroundColor:'rgba(255,206,86,0.15)',fill:false,tension:0.2}]},options:{plugins:{legend:{labels:{color:'black'}}},elements:{point:{radius:3}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}}&width=760&height=420)
+![Parser Scaling Chart](https://quickchart.io/chart?c={type:'line',data:{labels:['Small%208%20lines','Medium%2012%20lines','Large%2020%20lines','Mid-large%20400-500%20lines','Very%20large%201,000%2B%20lines'],datasets:[{label:'rawsql-ts',data:[0.061,0.104,0.174,4.732,9.144],borderColor:'rgba(54,162,235,1)',backgroundColor:'rgba(54,162,235,0.15)',fill:false,tension:0.2},{label:'node-sql-parser',data:[0.609,0.911,2.044,28.333,75.919],borderColor:'rgba(255,206,86,1)',backgroundColor:'rgba(255,206,86,0.15)',fill:false,tension:0.2},{label:'sqlite3-parser',data:[0.014,0.025,0.052,null,null],borderColor:'rgba(75,192,192,1)',backgroundColor:'rgba(75,192,192,0.15)',fill:false,tension:0.2}]},options:{plugins:{legend:{labels:{color:'black'}}},elements:{point:{radius:3}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}}&width=760&height=420)
 
-| Workload | rawsql-ts | node-sql-parser |
-|----------|----------:|----------------:|
-| Small query, about 8 lines (70 tokens) | 0.040 ms | 0.687 ms (17.0x) |
-| Medium query, about 12 lines (140 tokens) | 0.080 ms | 0.744 ms (9.3x) |
-| Large query, about 20 lines (230 tokens) | 0.168 ms | 1.560 ms (9.3x) |
-| Mid-large query, about 400-500 lines (5,000 tokens) | 4.438 ms | 36.520 ms (8.2x) |
-| Very large query, about 1,000+ lines (~12,000 tokens) | 8.173 ms | 54.775 ms (6.7x) |
+| Workload | rawsql-ts | node-sql-parser | sqlite3-parser |
+|----------|----------:|----------------:|----------------:|
+| Small query, about 8 lines (70 tokens) | 0.061 ms | 0.609 ms (10.1x slower) | 0.014 ms |
+| Medium query, about 12 lines (140 tokens) | 0.104 ms | 0.911 ms (8.8x slower) | 0.025 ms |
+| Large query, about 20 lines (230 tokens) | 0.174 ms | 2.044 ms (11.7x slower) | 0.052 ms |
+| Mid-large query, about 400-500 lines (5,000 tokens) | 4.732 ms | 28.333 ms (6.0x slower) | n/a |
+| Very large query, about 1,000+ lines (~12,000 tokens) | 9.144 ms | 75.919 ms (8.3x slower) | n/a |
 
-> Benchmarked on AMD Ryzen 7 7800X3D / Node.js v22.14.0 / node-sql-parser 5.4.0 (2026-03-06). The mid-large and very large cases use benchmark-only analytics-style SQL workloads that represent practical long-query classes rather than formatter scenarios. See [benchmark details](../../docs/bench/parse-benchmark.md) for full results.
+> Benchmarked on AMD Ryzen 7 7800X3D / Node.js v22.14.0 / node-sql-parser 5.4.0 / sqlite3-parser 0.7.1 (2026-05-13). The mid-large and very large cases use benchmark-only analytics-style SQL workloads that represent practical long-query classes rather than formatter scenarios. `sqlite3-parser` is reported as `n/a` for cases containing PostgreSQL-style typed literals that it does not accept. See [benchmark details](../../docs/bench/parse-benchmark.md) and [sqlite3-parser comparison details](../../docs/bench/sqlite3-parser-comparison.md) for full results.
 
 ## Online Demo
 
