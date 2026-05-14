@@ -6,13 +6,14 @@ import type {
 } from '../boundary-ztd-types.js';
 
 const emptyBeforeDb = {
-  public: {
-    transfer_setting_destination_definition: []
+  rawsql_transfer: {
+    destination_link: []
   }
 } satisfies InsertTransferSettingDestinationDefinitionBeforeDb;
 
-const sourceKeyDefinition = {
-  keys: [{ name: 'sale_id', sourceColumn: 'sale_id', type: 'bigint' }]
+const destinationKeyMapping = {
+  sourceKey: ['sale_id'],
+  destinationKey: [{ name: 'journal_id', sourceColumn: 'journal_id' }]
 };
 
 const mappingDefinition = {
@@ -31,26 +32,25 @@ const cases: readonly InsertTransferSettingDestinationDefinitionQueryBoundaryZtd
     name: 'creates transfer setting destination definition with generated SQL placeholders',
     beforeDb: emptyBeforeDb,
     input: {
-      transfer_setting_id: '100',
-      transfer_destination_definition_id: '10',
+      setting_id: '100',
+      destination_definition_id: '10',
       execution_order: 1,
-      source_key_definition: sourceKeyDefinition,
+      destination_key_mapping: destinationKeyMapping,
       mapping_definition: mappingDefinition,
       diff_compare_excluded_columns: diffCompareExcludedColumns,
       is_enabled: true,
       note: null
     },
     output: {
-      transfer_setting_destination_definition_id: expect.any(String),
-      transfer_setting_id: '100',
-      transfer_destination_definition_id: '10',
+      destination_link_id: expect.any(String),
+      setting_id: '100',
+      destination_definition_id: '10',
       execution_order: 1,
-      source_key_definition: sourceKeyDefinition,
+      destination_key_mapping: destinationKeyMapping,
       mapping_definition: mappingDefinition,
       diff_compare_excluded_columns: diffCompareExcludedColumns,
       generated_insert_transfer_sql_body: '',
       generated_update_transfer_sql_body: '',
-      generated_red_transfer_sql_body: '',
       generated_delete_transfer_sql_body: '',
       generated_sql_status: 'not_generated',
       generated_sql_error: null,

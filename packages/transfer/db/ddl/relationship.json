@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "relationships": [
+    {
+      "path": "schema.sql",
+      "kind": "ddl-control",
+      "reason": "Creates the rawsql_transfer schema explicitly so transfer package tables do not rely on the user public schema or a generic transfer schema name."
+    },
+    {
+      "path": "dirty_key.sql",
+      "kind": "table-ddl",
+      "concepts": [
+        {
+          "path": "../../docs/concepts/dirty-key/SPEC.md",
+          "reason": "dirty_key stores immutable change-detection history. It intentionally does not store a source key hash so manual registration remains simple."
+        }
+      ]
+    },
+    {
+      "path": "destination_definition.sql",
+      "kind": "table-ddl",
+      "concepts": [
+        {
+          "path": "../../docs/concepts/destination/SPEC.md",
+          "reason": "destination_definition stores destination-side table, key, sequence, transfer model, red-transfer column definitions, and generated red-transfer SQL because Red Transfer is based on destination-side active black rows rather than Destination Link mapping."
+        },
+        {
+          "path": "../../docs/concepts/posting-date-lower-bound/SPEC.md",
+          "reason": "destination_definition stores the Date Lower Bound Control hook for destination rows. The transfer package does not own the closing-date master table or business-specific lower-bound logic; it stores the application-provided correction function and destination-row argument columns so generated transfer SQL can call that hook."
+        }
+      ]
+    },
+    {
+      "path": "setting.sql",
+      "kind": "table-ddl",
+      "concepts": [
+        {
+          "path": "../../docs/concepts/transfer-setting/SPEC.md",
+          "reason": "setting stores the source data definition and source key definition used by transfer execution."
+        }
+      ]
+    },
+    {
+      "path": "destination_link.sql",
+      "kind": "table-ddl",
+      "concepts": [
+        {
+          "path": "../../docs/concepts/destination-link/SPEC.md",
+          "reason": "destination_link stores Destination Link. Stable references use destination_link_id. destination_link_name is a Transfer Setting-local human-facing role name. destination_key_mapping stores how the Transfer Setting source key maps to the Destination Link-specific destination row key; it does not redefine source identity. The DDL intentionally does not enforce unique (setting_id, destination_definition_id) because one Transfer Setting may connect to the same Destination multiple times with different roles or mappings. Mapping-dependent generated transfer SQL body columns are stored on Destination Link because those AOT SQL bodies are determined by the Transfer Setting, Destination, and Destination Link mapping together. Generated Red Transfer SQL is intentionally not stored here because Red Transfer is destination-side and belongs to destination_definition."
+        }
+      ]
+    },
+    {
+      "path": "order.json",
+      "kind": "ddl-control",
+      "reason": "DDL execution order is controlled by metadata instead of file names. File names should describe the DDL artifact, not encode dependency order."
+    },
+    {
+      "path": "run.sql",
+      "kind": "table-ddl",
+      "concepts": [
+        {
+          "path": "../../docs/concepts/transfer-run/SPEC.md",
+          "reason": "run stores the execution argument record, process header, lifecycle state, and run context. It exposes a composite run/setting identity so runtime tables can mechanically verify that their setting context matches the Transfer Run."
+        }
+      ],
+      "processes": [
+        {
+          "path": "../../docs/processes/transfer-execution-process.md",
+          "reason": "Transfer Execution creates Transfer Run before preparing Work Items."
+        }
+      ]
+    },
+    {
+      "path": "active_black.sql",
+      "kind": "table-ddl",
+      "concepts": [
+        {
+          "path": "../../docs/concepts/active-black/SPEC.md",
+          "reason": "active_black is scoped to Transfer Execution. It stores the current active black row per Destination Link and source key so Prepare Work Item can check existence and transfer operations can identify the existing destination row. Its uniqueness is based on destination_link_id and source_key_json because source_key_json is the source-of-truth identity. source_key_hash is kept only as a lookup aid. It intentionally does not store Transfer Setting, Transfer Run, Lineage, destination table name, or destination key hash because those are not required by the Active Black transfer-process lookup."
+        }
+      ],
+      "processes": [
+        {
+          "path": "../../docs/processes/transfer-execution-process.md",
+          "reason": "Prepare Work Item uses Active Black existence by Destination Link and source key to decide route side effects. Red Transfer, Black Update Transfer, and Physical Delete Transfer use the stored destination key to target the current active black row."
+        }
+      ]
+    },
+    {
+      "path": "work_item.sql",
+      "kind": "table-ddl",
+      "concepts": [
+        {
+          "path": "../../docs/concepts/work-item/SPEC.md",
+          "reason": "work_item persists fixed Dirty Key work with the decision materials needed by the transfer route. Composite foreign keys keep run, setting, Destination Link, and referenced Active Black contexts aligned."
+        }
+      ],
+      "processes": [
+        {
+          "path": "../../docs/processes/transfer-execution-process.md",
+          "reason": "Prepare Work Item produces Work Items before transfer route processing."
+        }
+      ]
+    },
+    {
+      "path": "lineage.sql",
+      "kind": "table-ddl",
+      "concepts": [
+        {
+          "path": "../../docs/concepts/lineage/SPEC.md",
+          "reason": "lineage records immutable transfer source-to-destination correspondence for audit and debugging. Its destination-row identity is destination_table_name plus destination_key_json; destination_key_hash is kept only as a lookup aid."
+        }
+      ],
+      "processes": [
+        {
+          "path": "../../docs/processes/transfer-execution-process.md",
+          "reason": "Black and Red transfer operations record Lineage when destination rows are written."
+        },
+        {
+          "path": "../../docs/processes/lineage-trace-process.md",
+          "reason": "Lineage trace processes start from destination rows and resolve Lineage records."
+        }
+      ]
+    },
+    {
+      "path": "dirty_key_processing.sql",
+      "kind": "table-ddl",
+      "concepts": [
+        {
+          "path": "../../docs/concepts/dirty-key-processing/SPEC.md",
+          "reason": "dirty_key_processing records processed Dirty Keys, processing results, and duplicate-transfer prevention scope. Composite foreign keys keep the recorded run, setting, Destination Link, and Work Item contexts aligned."
+        }
+      ],
+      "processes": [
+        {
+          "path": "../../docs/processes/transfer-execution-process.md",
+          "reason": "Record Processing Result writes Dirty Key Processing after transfer route processing or skip decisions."
+        }
+      ]
+    }
+  ]
+}

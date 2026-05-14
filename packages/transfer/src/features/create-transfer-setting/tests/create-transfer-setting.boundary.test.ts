@@ -8,16 +8,17 @@ const validInput: CreateTransferSettingInput = {
   name: 'sales_transfer',
   description: '売上転送',
   sourceSqlBody:
-    'select sale_id, sale_date, customer_id, amount, remarks from sales_transfer_source',
+    'select sale_id, nextval(\'journal_seq\') as journal_id, sale_date, customer_id, amount, remarks from sales_transfer_source',
   sourceKeyDefinition: {
-    keys: [{ name: 'sale_id', sourceColumn: 'sale_id', type: 'bigint' }],
+    keys: [{ column: 'sale_id', type: 'bigint' }],
   },
   destinations: [
     {
       destinationDefinitionName: 'journal',
       executionOrder: 1,
-      sourceKeyDefinition: {
-        keys: [{ name: 'sale_id', sourceColumn: 'sale_id', type: 'bigint' }],
+      destinationKeyMapping: {
+        sourceKey: ['sale_id'],
+        destinationKey: [{ name: 'journal_id', sourceColumn: 'journal_id' }],
       },
       mappingDefinition: {
         columns: {
@@ -61,7 +62,6 @@ test('creates a transfer setting and destination links in one transaction', asyn
     diffCompareExcludedColumns: validInput.destinations[0]?.diffCompareExcludedColumns,
     generatedInsertTransferSqlBody: '',
     generatedUpdateTransferSqlBody: '',
-    generatedRedTransferSqlBody: '',
     generatedDeleteTransferSqlBody: '',
     generatedSqlStatus: 'not_generated',
     generatedSqlError: null,
@@ -72,7 +72,7 @@ test('creates a transfer setting and destination links in one transaction', asyn
     'insert-transfer-setting-destination',
   ]);
   expect(seenQueries[1]?.params).toMatchObject({
-    transfer_setting_name: 'sales_transfer',
+    setting_name: 'sales_transfer',
     source_key_definition: validInput.sourceKeyDefinition,
     source_sql_analysis_result: null,
     search_condition_analysis_result: null,
@@ -81,9 +81,10 @@ test('creates a transfer setting and destination links in one transaction', asyn
     is_enabled: true,
   });
   expect(seenQueries[2]?.params).toMatchObject({
-    transfer_setting_id: '100',
-    transfer_destination_definition_id: '10',
+    setting_id: '100',
+    destination_definition_id: '10',
     execution_order: 1,
+    destination_key_mapping: validInput.destinations[0]?.destinationKeyMapping,
     diff_compare_excluded_columns: validInput.destinations[0]?.diffCompareExcludedColumns,
     is_enabled: true,
   });
@@ -168,16 +169,16 @@ function createMockTransactionalExecutor(
       if (kind === 'resolve-destinations') {
         return (options.resolvedDestinations ?? [
           {
-            transfer_destination_definition_id: '10',
-            transfer_destination_definition_name: 'journal',
+            destination_definition_id: '10',
+            destination_definition_name: 'journal',
           },
         ]) as T[];
       }
       if (kind === 'insert-transfer-setting') {
         return [
           {
-            transfer_setting_id: '100',
-            transfer_setting_name: params.transfer_setting_name,
+            setting_id: '100',
+            setting_name: params.setting_name,
             description: params.description,
             source_sql_body: params.source_sql_body,
             source_sql_hash: params.source_sql_hash,
@@ -196,16 +197,15 @@ function createMockTransactionalExecutor(
       if (kind === 'insert-transfer-setting-destination') {
         return [
           {
-            transfer_setting_destination_definition_id: '200',
-            transfer_setting_id: params.transfer_setting_id,
-            transfer_destination_definition_id: params.transfer_destination_definition_id,
+            destination_link_id: '200',
+            setting_id: params.setting_id,
+            destination_definition_id: params.destination_definition_id,
             execution_order: params.execution_order,
-            source_key_definition: params.source_key_definition,
+            destination_key_mapping: params.destination_key_mapping,
             mapping_definition: params.mapping_definition,
             diff_compare_excluded_columns: params.diff_compare_excluded_columns,
             generated_insert_transfer_sql_body: '',
             generated_update_transfer_sql_body: '',
-            generated_red_transfer_sql_body: '',
             generated_delete_transfer_sql_body: '',
             generated_sql_status: 'not_generated',
             generated_sql_error: null,
@@ -226,13 +226,13 @@ function createMockTransactionalExecutor(
 
 function classifyQuery(sql: string): string {
   const normalizedSql = sql.replace(/\s+/g, ' ').trim();
-  if (normalizedSql.includes('"transfer_destination_definition_name" = any')) {
+  if (normalizedSql.includes('"destination_definition_name" = any')) {
     return 'resolve-destinations';
   }
-  if (normalizedSql.includes('insert into "public"."transfer_setting_destination_definition"')) {
+  if (normalizedSql.includes('insert into "rawsql_transfer"."destination_link"')) {
     return 'insert-transfer-setting-destination';
   }
-  if (normalizedSql.includes('insert into "public"."transfer_setting"')) {
+  if (normalizedSql.includes('insert into "rawsql_transfer"."setting"')) {
     return 'insert-transfer-setting';
   }
   return 'unknown';

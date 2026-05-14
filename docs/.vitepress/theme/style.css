@@ -1,0 +1,83 @@
+.VPDoc .container {
+  max-width: none !important;
+}
+
+.VPDoc .content {
+  max-width: none !important;
+}
+
+.VPDoc .content-container {
+  max-width: none !important;
+}
+
+.VPDoc.has-aside .content {
+  padding-right: 0 !important;
+}
+
+.VPDoc .aside {
+  display: none !important;
+}
+
+.vp-doc h1 {
+  margin-top: 0;
+}
+
+.vp-doc h2 {
+  margin: 32px 0 14px;
+  padding-top: 18px;
+}
+
+.vp-doc table {
+  display: table;
+  min-width: 100%;
+  width: max-content;
+  margin: 12px 0 22px;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.vp-doc tr {
+  border-top: 1px solid var(--vp-c-divider);
+}
+
+.vp-doc th,
+.vp-doc td {
+  padding: 5px 8px;
+  vertical-align: top;
+}
+
+.vp-doc th {
+  white-space: nowrap;
+}
+
+.vp-doc td {
+  min-width: 56px;
+}
+
+.vp-doc td:nth-child(2),
+.vp-doc td:nth-child(3),
+.vp-doc td:nth-child(4),
+.vp-doc td:nth-child(5),
+.vp-doc td:nth-child(6),
+.vp-doc td:nth-child(7) {
+  white-space: nowrap;
+}
+
+.vp-doc td:last-child {
+  min-width: 260px;
+  max-width: 520px;
+}
+
+.vp-doc code {
+  font-size: 0.9em;
+  line-height: 1.15;
+  padding: 1px 5px;
+}
+
+.vp-doc div[class*='language-'] {
+  margin: 12px 0 22px;
+}
+
+.vp-doc div[class*='language-'] pre {
+  max-height: 440px;
+}

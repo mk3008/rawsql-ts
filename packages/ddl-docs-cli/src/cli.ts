@@ -1,8 +1,10 @@
 import path from 'node:path';
 import { runCheckDocs } from './commands/check';
+import { runGenerateConceptMap } from './commands/conceptMap';
+import { runGenerateConceptSite } from './commands/conceptSite';
 import { runGenerateDocs } from './commands/generate';
 import { runPruneDocs } from './commands/prune';
-import type { CheckDocsOptions, GenerateDocsOptions, PruneDocsOptions } from './types';
+import type { CheckDocsOptions, GenerateConceptMapCliOptions, GenerateConceptSiteOptions, GenerateDocsOptions, PruneDocsOptions } from './types';
 import { dedupeDdlInputsByInstanceAndPath } from './utils/ddlInputDedupe';
 
 const DEFAULT_DDL_DIRECTORY = 'ztd/ddl';
@@ -29,7 +31,7 @@ export async function runCli(argv: string[]): Promise<void> {
       printHelp('all');
       return;
     }
-    if (target === 'generate' || target === 'prune' || target === 'check') {
+    if (target === 'generate' || target === 'prune' || target === 'check' || target === 'concept-map' || target === 'concept-site') {
       printHelp(target);
       return;
     }
@@ -60,6 +62,24 @@ export async function runCli(argv: string[]): Promise<void> {
       return;
     }
     runCheckDocs(options);
+    return;
+  }
+
+  if (command === 'concept-map') {
+    const options = parseConceptMapOptions(rest);
+    if (!options) {
+      return;
+    }
+    runGenerateConceptMap(options);
+    return;
+  }
+
+  if (command === 'concept-site') {
+    const options = parseConceptSiteOptions(rest);
+    if (!options) {
+      return;
+    }
+    runGenerateConceptSite(options);
     return;
   }
 
@@ -210,6 +230,68 @@ function parseGenerateOptions(args: string[]): GenerateDocsOptions | null {
   return options;
 }
 
+function parseConceptMapOptions(args: string[]): GenerateConceptMapCliOptions | null {
+  const options: Partial<GenerateConceptMapCliOptions> = {};
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === '--concept-relationship') {
+      options.conceptRelationshipPath = readRequiredValue(args, ++index, '--concept-relationship');
+      continue;
+    }
+    if (arg === '--out') {
+      options.outPath = readRequiredValue(args, ++index, '--out');
+      continue;
+    }
+    if (arg === '--help' || arg === '-h') {
+      printHelp('concept-map');
+      return null;
+    }
+    throw new Error(`Unknown option for concept-map: ${arg}`);
+  }
+
+  if (!options.conceptRelationshipPath) {
+    throw new Error('concept-map requires --concept-relationship.');
+  }
+  if (!options.outPath) {
+    throw new Error('concept-map requires --out.');
+  }
+  return options as GenerateConceptMapCliOptions;
+}
+
+function parseConceptSiteOptions(args: string[]): GenerateConceptSiteOptions | null {
+  const options: Partial<GenerateConceptSiteOptions> = {};
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === '--concept-relationship') {
+      options.conceptRelationshipPath = readRequiredValue(args, ++index, '--concept-relationship');
+      continue;
+    }
+    if (arg === '--dfd-relationship') {
+      options.dfdRelationshipPath = readRequiredValue(args, ++index, '--dfd-relationship');
+      continue;
+    }
+    if (arg === '--out-dir') {
+      options.outDir = readRequiredValue(args, ++index, '--out-dir');
+      continue;
+    }
+    if (arg === '--help' || arg === '-h') {
+      printHelp('concept-site');
+      return null;
+    }
+    throw new Error(`Unknown option for concept-site: ${arg}`);
+  }
+
+  if (!options.conceptRelationshipPath) {
+    throw new Error('concept-site requires --concept-relationship.');
+  }
+  if (!options.outDir) {
+    throw new Error('concept-site requires --out-dir.');
+  }
+  return options as GenerateConceptSiteOptions;
+}
+
 function parseCheckOptions(args: string[]): CheckDocsOptions | null {
   const options: CheckDocsOptions = {
     ddlDirectories: [],
@@ -220,6 +302,9 @@ function parseCheckOptions(args: string[]): CheckDocsOptions | null {
     relationshipPath: undefined,
     orderPath: undefined,
     conceptRelationshipPath: undefined,
+    conceptMapPath: undefined,
+    dfdRelationshipPath: undefined,
+    processDirectories: [],
     configPath: undefined,
     defaultSchema: undefined,
     searchPath: undefined,
@@ -277,6 +362,21 @@ function parseCheckOptions(args: string[]): CheckDocsOptions | null {
 
     if (arg === '--concept-relationship') {
       options.conceptRelationshipPath = readRequiredValue(args, ++index, '--concept-relationship');
+      continue;
+    }
+
+    if (arg === '--concept-map') {
+      options.conceptMapPath = readRequiredValue(args, ++index, '--concept-map');
+      continue;
+    }
+
+    if (arg === '--dfd-relationship') {
+      options.dfdRelationshipPath = readRequiredValue(args, ++index, '--dfd-relationship');
+      continue;
+    }
+
+    if (arg === '--process-dir') {
+      options.processDirectories?.push(readRequiredValue(args, ++index, '--process-dir'));
       continue;
     }
 
@@ -383,7 +483,7 @@ function dedupe(values: string[]): string[] {
   return Array.from(new Set(values));
 }
 
-function printHelp(target: 'all' | 'generate' | 'prune' | 'check'): void {
+function printHelp(target: 'all' | 'generate' | 'prune' | 'check' | 'concept-map' | 'concept-site'): void {
   const generateHelp = `ddl-docs generate [options]
   --ddl-instance <name>   DB instance name for subsequent --ddl-dir/--ddl-file/--ddl-glob (repeatable)
   --ddl-dir <directory>   Recursively scan DDL files under directory (repeatable)
@@ -425,9 +525,23 @@ function printHelp(target: 'all' | 'generate' | 'prune' | 'check'): void {
   --relationship <path>          Optional DDL relationship metadata json
   --order <path>                 Optional DDL execution order metadata json
   --concept-relationship <path>  Optional concept relationship registry json
+  --concept-map <path>           Optional generated Concept Map markdown to compare
+  --dfd-relationship <path>      Optional DFD relationship metadata json
+  --process-dir <directory>      Optional Process Map directory for logical-model checks (repeatable)
   --default-schema <name>        Override default schema for unqualified tables
   --search-path <list>           Comma-separated schema search path
   --filter-pg-dump               Strip GRANT/REVOKE/OWNER TO/SET/\\connect statements from pg_dump output
+`;
+
+  const conceptMapHelp = `ddl-docs concept-map [options]
+  --concept-relationship <path>  Concept relationship registry json
+  --out <path>                   Output concept-map markdown path
+`;
+
+  const conceptSiteHelp = `ddl-docs concept-site [options]
+  --concept-relationship <path>  Concept relationship registry json
+  --dfd-relationship <path>      Optional DFD relationship metadata json
+  --out-dir <directory>          Output root directory for generated VitePress pages
 `;
 
   if (target === 'generate') {
@@ -442,6 +556,14 @@ function printHelp(target: 'all' | 'generate' | 'prune' | 'check'): void {
     console.log(checkHelp);
     return;
   }
+  if (target === 'concept-map') {
+    console.log(conceptMapHelp);
+    return;
+  }
+  if (target === 'concept-site') {
+    console.log(conceptSiteHelp);
+    return;
+  }
 
   console.log(`ddl-docs <command> [options]
 
@@ -449,9 +571,13 @@ Commands:
   generate               Generate markdown docs from DDL
   prune                  Remove stale generated markdown docs
   check                  Check DDL review metadata references
+  concept-map            Generate concept-map markdown from concept metadata
+  concept-site           Generate VitePress Concept Spec review pages from concept metadata
   help [command]         Show help for all commands or one command
 
 ${generateHelp}
 ${pruneHelp}
-${checkHelp}`);
+${checkHelp}
+${conceptMapHelp}
+${conceptSiteHelp}`);
 }

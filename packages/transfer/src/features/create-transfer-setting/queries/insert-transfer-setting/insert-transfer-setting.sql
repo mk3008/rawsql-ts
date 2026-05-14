@@ -1,5 +1,5 @@
-insert into "public"."transfer_setting" (
-  "transfer_setting_name"
+insert into "rawsql_transfer"."setting" (
+  "setting_name"
   , "description"
   , "source_sql_body"
   , "source_sql_hash"
@@ -11,7 +11,7 @@ insert into "public"."transfer_setting" (
   , "is_enabled"
   , "note"
 ) values (
-  :transfer_setting_name
+  :setting_name
   , :description
   , :source_sql_body
   , :source_sql_hash
@@ -23,8 +23,8 @@ insert into "public"."transfer_setting" (
   , :is_enabled
   , :note
 ) returning
-  "transfer_setting_id"
-  , "transfer_setting_name"
+  "setting_id"
+  , "setting_name"
   , "description"
   , "source_sql_body"
   , "source_sql_hash"

@@ -23,13 +23,97 @@ export interface DdlRelationshipTarget {
 export interface ConceptRegistry {
   baseDir: string;
   concepts: ConceptRegistryEntry[];
+  relationships: ConceptRegistryRelationshipEntry[];
+  glossaryTerms: ConceptRegistryGlossaryTermEntry[];
+  relatedProcessMaps: ConceptRegistryProcessMapEntry[];
 }
 
 export interface ConceptRegistryEntry {
   id: string;
+  displayName?: string;
   path?: string | null;
   status?: string;
   summary?: string;
+  note?: string;
+}
+
+export interface ConceptRegistryRelationshipEntry {
+  from: string;
+  to: string;
+  kind?: string;
+  reason?: string;
+}
+
+export interface ConceptRegistryGlossaryTermEntry {
+  id: string;
+  displayTerm: string;
+  definedIn: string[];
+  meaning?: string;
+  note?: string;
+}
+
+export interface ConceptRegistryProcessMapEntry {
+  id: string;
+  displayName?: string;
+  path: string;
+  reason?: string;
+}
+
+export interface DfdRegistry {
+  baseDir: string;
+  subsystems: DfdRegistrySubsystemEntry[];
+  externalStores: DfdRegistryExternalStoreEntry[];
+  conceptGroups: DfdRegistryConceptGroupEntry[];
+  dfds: DfdRegistryEntry[];
+}
+
+export interface DfdRegistrySubsystemEntry {
+  id: string;
+  displayName?: string;
+  summary?: string;
+}
+
+export interface DfdRegistryExternalStoreEntry {
+  id: string;
+  displayName?: string;
+}
+
+export interface DfdRegistryConceptGroupEntry {
+  id: string;
+  displayName?: string;
+  scope?: string;
+  summary?: string;
+  members: DfdRegistryTermRef[];
+}
+
+export interface DfdRegistryEntry {
+  id: string;
+  displayName?: string;
+  subsystem?: string;
+  path: string;
+  summary?: string;
+  businessOperations?: DfdRegistryBusinessOperationEntry[];
+}
+
+export interface DfdRegistryBusinessOperationEntry {
+  id: string;
+  displayName?: string;
+  summary?: string;
+  relatedProcesses?: DfdRegistryRelatedProcessEntry[];
+  inputs?: DfdRegistryTermRef[];
+  outputs?: DfdRegistryTermRef[];
+  uses?: DfdRegistryTermRef[];
+}
+
+export interface DfdRegistryRelatedProcessEntry {
+  id: string;
+  path: string;
+  reason?: string;
+}
+
+export interface DfdRegistryTermRef {
+  type: string;
+  id: string;
 }
 
 export interface ResolvedTableRelationship {
@@ -41,7 +125,7 @@ export interface ResolvedRelationshipTarget {
   label: string;
   path: string;
   reason: string;
-  href?: string;
+  href: string;
 }
 
 export function loadDdlRelationshipMetadata(metadataPath: string | undefined): DdlRelationshipMetadata | undefined {
@@ -93,13 +177,170 @@ export function loadConceptRegistry(metadataPath: string | undefined): ConceptRe
       }
       return {
         id: entry.id,
+        displayName: typeof entry.displayName === 'string' ? entry.displayName : undefined,
         path: typeof entry.path === 'string' || entry.path === null ? entry.path : undefined,
         status: typeof entry.status === 'string' ? entry.status : undefined,
         summary: typeof entry.summary === 'string' ? entry.summary : undefined,
+        note: typeof entry.note === 'string' ? entry.note : undefined,
+      };
+    }),
+    relationships: parseConceptRelationships(raw.relationships, resolvedPath),
+    glossaryTerms: parseGlossaryTerms(raw.glossaryTerms, resolvedPath),
+    relatedProcessMaps: parseRelatedProcessMaps(raw.relatedProcessMaps, resolvedPath),
+  };
+}
+
+export function loadDfdRegistry(metadataPath: string | undefined): DfdRegistry | undefined {
+  if (!metadataPath) {
+    return undefined;
+  }
+  const resolvedPath = path.resolve(process.cwd(), metadataPath);
+  if (!existsSync(resolvedPath)) {
+    throw new Error(`DFD relationship metadata file does not exist: ${resolvedPath}`);
+  }
+  const raw = JSON.parse(readFileSync(resolvedPath, 'utf8')) as unknown;
+  if (!isRecord(raw) || raw.schemaVersion !== 1 || !Array.isArray(raw.dfds)) {
+    throw new Error(`DFD relationship metadata must have schemaVersion: 1 and dfds[]: ${resolvedPath}`);
+  }
+  return {
+    baseDir: path.dirname(resolvedPath),
+    subsystems: parseDfdSubsystems(raw.subsystems, resolvedPath),
+    externalStores: parseDfdExternalStores(raw.externalStores, resolvedPath),
+    conceptGroups: parseDfdConceptGroups(raw.conceptGroups, resolvedPath),
+    dfds: raw.dfds.map((entry) => {
+      if (!isRecord(entry) || typeof entry.id !== 'string' || typeof entry.path !== 'string') {
+        throw new Error(`DFD relationship entry must include id and path: ${resolvedPath}`);
+      }
+      return {
+        id: entry.id,
+        displayName: typeof entry.displayName === 'string' ? entry.displayName : undefined,
+        subsystem: typeof entry.subsystem === 'string' ? entry.subsystem : undefined,
+        path: entry.path,
+        summary: typeof entry.summary === 'string' ? entry.summary : undefined,
+        businessOperations: parseDfdBusinessOperations(entry.businessOperations, resolvedPath),
       };
     }),
   };
 }
+
+function parseDfdSubsystems(value: unknown, sourcePath: string): DfdRegistrySubsystemEntry[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`DFD relationship subsystems must be an array when provided: ${sourcePath}`);
+  }
+  return value.map((entry) => {
+    if (!isRecord(entry) || typeof entry.id !== 'string') {
+      throw new Error(`DFD relationship subsystem entry must include id: ${sourcePath}`);
+    }
+    return {
+      id: entry.id,
+      displayName: typeof entry.displayName === 'string' ? entry.displayName : undefined,
+      summary: typeof entry.summary === 'string' ? entry.summary : undefined,
+    };
+  });
+}
+
+function parseDfdExternalStores(value: unknown, sourcePath: string): DfdRegistryExternalStoreEntry[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`DFD relationship externalStores must be an array when provided: ${sourcePath}`);
+  }
+  return value.map((entry) => {
+    if (!isRecord(entry) || typeof entry.id !== 'string') {
+      throw new Error(`DFD external store entry must include id: ${sourcePath}`);
+    }
+    return {
+      id: entry.id,
+      displayName: typeof entry.displayName === 'string' ? entry.displayName : undefined,
+    };
+  });
+}
+
+function parseDfdConceptGroups(value: unknown, sourcePath: string): DfdRegistryConceptGroupEntry[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`DFD relationship conceptGroups must be an array when provided: ${sourcePath}`);
+  }
+  return value.map((entry) => {
+    if (!isRecord(entry) || typeof entry.id !== 'string') {
+      throw new Error(`DFD concept group entry must include id: ${sourcePath}`);
+    }
+    return {
+      id: entry.id,
+      displayName: typeof entry.displayName === 'string' ? entry.displayName : undefined,
+      scope: typeof entry.scope === 'string' ? entry.scope : undefined,
+      summary: typeof entry.summary === 'string' ? entry.summary : undefined,
+      members: parseDfdTermRefs(entry.members, sourcePath) ?? [],
+    };
+  });
+}
+
+function parseDfdBusinessOperations(value: unknown, sourcePath: string): DfdRegistryBusinessOperationEntry[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`DFD relationship businessOperations must be an array when provided: ${sourcePath}`);
+  }
+  return value.map((entry) => {
+    if (!isRecord(entry) || typeof entry.id !== 'string') {
+      throw new Error(`DFD business operation entry must include id: ${sourcePath}`);
+    }
+    return {
+      id: entry.id,
+      displayName: typeof entry.displayName === 'string' ? entry.displayName : undefined,
+      summary: typeof entry.summary === 'string' ? entry.summary : undefined,
+      relatedProcesses: parseDfdRelatedProcesses(entry.relatedProcesses, sourcePath),
+      inputs: parseDfdTermRefs(entry.inputs, sourcePath),
+      outputs: parseDfdTermRefs(entry.outputs, sourcePath),
+      uses: parseDfdTermRefs(entry.uses, sourcePath),
+    };
+  });
+}
+
+function parseDfdRelatedProcesses(value: unknown, sourcePath: string): DfdRegistryRelatedProcessEntry[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`DFD business operation relatedProcesses must be an array when provided: ${sourcePath}`);
+  }
+  return value.map((entry) => {
+    if (!isRecord(entry) || typeof entry.id !== 'string' || typeof entry.path !== 'string') {
+      throw new Error(`DFD business operation related process entry must include id and path: ${sourcePath}`);
+    }
+    return {
+      id: entry.id,
+      path: entry.path,
+      reason: typeof entry.reason === 'string' ? entry.reason : undefined,
+    };
+  });
+}
+
+function parseDfdTermRefs(value: unknown, sourcePath: string): DfdRegistryTermRef[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`DFD term references must be an array when provided: ${sourcePath}`);
+  }
+  return value.map((entry) => {
+    if (!isRecord(entry) || typeof entry.type !== 'string' || typeof entry.id !== 'string') {
+      throw new Error(`DFD term reference entry must include type and id: ${sourcePath}`);
+    }
+    return {
+      type: entry.type,
+      id: entry.id,
+    };
+  });
+}
+
 
 export function resolveTableRelationship(
   sourceFiles: string[],
@@ -135,14 +376,31 @@ export function conceptPagePath(outDir: string, conceptId: string): string {
 }
 
 export function processPagePath(outDir: string, processPath: string): string {
-  return path.join(outDir, 'processes', `${processPageSlug(processPath)}.md`);
+  return path.join(outDir, 'processes', `${slugifyIdentifier(path.basename(processPath, path.extname(processPath)))}.md`);
 }
 
-export function processPageSlug(processPath: string): string {
-  const normalized = normalizeRelativePath(processPath);
-  const extension = path.extname(normalized);
-  const withoutExtension = extension ? normalized.slice(0, -extension.length) : normalized;
-  return slugifyIdentifier(withoutExtension);
+export function dfdPagePath(outDir: string, dfdPath: string): string {
+  return path.join(outDir, 'dfd', `${slugifyIdentifier(path.basename(dfdPath, path.extname(dfdPath)))}.md`);
+}
+
+export function dfdSubsystemPagePath(outDir: string, subsystemId: string): string {
+  return path.join(outDir, 'dfd', slugifyIdentifier(subsystemId), 'index.md');
+}
+
+export function dfdBusinessPagePath(outDir: string, subsystemId: string, businessId: string): string {
+  return path.join(outDir, 'dfd', slugifyIdentifier(subsystemId), 'business', `${slugifyIdentifier(businessId)}.md`);
+}
+
+export function dfdBusinessProcessPagePath(outDir: string, subsystemId: string, businessId: string, processPath: string): string {
+  return path.join(
+    outDir,
+    'dfd',
+    slugifyIdentifier(subsystemId),
+    'business',
+    slugifyIdentifier(businessId),
+    'process',
+    `${slugifyIdentifier(path.basename(processPath, path.extname(processPath)))}.md`
+  );
 }
 
 function resolveConceptTarget(
@@ -159,7 +417,7 @@ function resolveConceptTarget(
     label,
     path: target.path,
     reason: target.reason ?? '',
-    href: concept ? `../concepts/${slugifyIdentifier(concept.id)}.md` : undefined,
+    href: `../concepts/${slugifyIdentifier(label)}.md`,
   };
 }
 
@@ -169,7 +427,7 @@ function resolveProcessTarget(target: DdlRelationshipTarget): ResolvedRelationsh
     label,
     path: target.path,
     reason: target.reason ?? '',
-    href: `../processes/${processPageSlug(target.path)}.md`,
+    href: `../processes/${slugifyIdentifier(label)}.md`,
   };
 }
 
@@ -191,11 +449,75 @@ function parseTargets(value: unknown, sourcePath: string): DdlRelationshipTarget
   });
 }
 
+function parseConceptRelationships(value: unknown, sourcePath: string): ConceptRegistryRelationshipEntry[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`Concept relationships must be an array: ${sourcePath}`);
+  }
+  return value.map((entry) => {
+    if (!isRecord(entry) || typeof entry.from !== 'string' || typeof entry.to !== 'string') {
+      throw new Error(`Concept relationship entry must include from and to: ${sourcePath}`);
+    }
+    return {
+      from: entry.from,
+      to: entry.to,
+      kind: typeof entry.kind === 'string' ? entry.kind : undefined,
+      reason: typeof entry.reason === 'string' ? entry.reason : undefined,
+    };
+  });
+}
+
+function parseGlossaryTerms(value: unknown, sourcePath: string): ConceptRegistryGlossaryTermEntry[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`Concept glossary terms must be an array: ${sourcePath}`);
+  }
+  return value.map((entry) => {
+    if (!isRecord(entry) || typeof entry.id !== 'string' || typeof entry.displayTerm !== 'string') {
+      throw new Error(`Concept glossary term entry must include id and displayTerm: ${sourcePath}`);
+    }
+    if (entry.definedIn !== undefined && !Array.isArray(entry.definedIn)) {
+      throw new Error(`Concept glossary term definedIn must be an array: ${sourcePath}`);
+    }
+    return {
+      id: entry.id,
+      displayTerm: entry.displayTerm,
+      definedIn: Array.isArray(entry.definedIn) ? entry.definedIn.filter((item): item is string => typeof item === 'string') : [],
+      meaning: typeof entry.meaning === 'string' ? entry.meaning : undefined,
+      note: typeof entry.note === 'string' ? entry.note : undefined,
+    };
+  });
+}
+
+function parseRelatedProcessMaps(value: unknown, sourcePath: string): ConceptRegistryProcessMapEntry[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`Concept related process maps must be an array: ${sourcePath}`);
+  }
+  return value.map((entry) => {
+    if (!isRecord(entry) || typeof entry.id !== 'string' || typeof entry.path !== 'string') {
+      throw new Error(`Concept related process map entry must include id and path: ${sourcePath}`);
+    }
+    return {
+      id: entry.id,
+      displayName: typeof entry.displayName === 'string' ? entry.displayName : undefined,
+      path: entry.path,
+      reason: typeof entry.reason === 'string' ? entry.reason : undefined,
+    };
+  });
+}
+
 function dedupeTargets(targets: ResolvedRelationshipTarget[]): ResolvedRelationshipTarget[] {
   const seen = new Set<string>();
   const result: ResolvedRelationshipTarget[] = [];
   for (const target of targets) {
-    const key = `${target.href ?? ''}|${target.path}|${target.reason}`;
+    const key = `${target.href}|${target.reason}`;
     if (seen.has(key)) {
       continue;
     }

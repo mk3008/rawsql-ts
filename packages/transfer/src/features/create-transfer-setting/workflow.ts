@@ -46,7 +46,7 @@ export async function execute(
     const transferSetting = await insertTransferSetting(transactionExecutor, request);
     const destinations = await insertTransferSettingDestinations(
       transactionExecutor,
-      transferSetting.transfer_setting_id,
+      transferSetting.setting_id,
       request.destinations,
       destinationDefinitionIdByName,
     );
@@ -80,8 +80,8 @@ async function resolveTransferDestinationDefinitionIds(
   });
   const idByName = new Map(
     result.items.map((item) => [
-      item.transfer_destination_definition_name,
-      item.transfer_destination_definition_id,
+      item.destination_definition_name,
+      item.destination_definition_id,
     ]),
   );
   const missingNames = destinationDefinitionNames.filter((name) => !idByName.has(name));
@@ -100,7 +100,7 @@ async function insertTransferSetting(
   request: CreateTransferSettingInput,
 ): Promise<InsertTransferSettingQueryResult> {
   return executeInsertTransferSettingQuerySpec(executor, {
-    transfer_setting_name: request.name,
+    setting_name: request.name,
     description: request.description ?? null,
     source_sql_body: request.sourceSqlBody,
     source_sql_hash: hashSourceSql(request.sourceSqlBody),
@@ -138,10 +138,10 @@ async function insertTransferSettingDestinations(
 
     insertedDestinations.push(
       await executeInsertTransferSettingDestinationDefinitionQuerySpec(executor, {
-        transfer_setting_id: transferSettingId,
-        transfer_destination_definition_id: transferDestinationDefinitionId,
+        setting_id: transferSettingId,
+        destination_definition_id: transferDestinationDefinitionId,
         execution_order: destination.executionOrder,
-        source_key_definition: destination.sourceKeyDefinition,
+        destination_key_mapping: destination.destinationKeyMapping,
         mapping_definition: destination.mappingDefinition,
         diff_compare_excluded_columns: destination.diffCompareExcludedColumns ?? null,
         is_enabled: destination.isEnabled ?? true,

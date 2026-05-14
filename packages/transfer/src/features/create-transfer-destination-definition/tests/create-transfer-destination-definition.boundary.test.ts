@@ -12,23 +12,16 @@ const validInput: CreateTransferDestinationDefinitionInput = {
   destinationTableName: 'public.journal',
   destinationColumns: {
     columns: [
-      { name: 'journal_id', type: 'bigint', role: 'key' },
-      { name: 'amount', type: 'numeric', role: 'amount' },
+      { name: 'journal_id', type: 'bigint' },
+      { name: 'amount', type: 'numeric' },
     ],
   },
-  destinationKeyDefinition: {
-    keys: ['journal_id'],
-  },
+  destinationKeyColumns: ['journal_id'],
   sequenceExpressionDefinition: {
     journal_id: "nextval('journal_seq')",
   },
   transferModel: 'immutable',
-  signInversionColumns: {
-    columns: ['amount'],
-  },
-  redTransferSourceColumns: {
-    columns: ['amount'],
-  },
+  signInversionColumns: ['amount'],
   note: 'reviewed',
 };
 
@@ -39,16 +32,18 @@ test('maps camelCase feature input to snake_case query params and response field
       seenParams.push(params);
       return [
         {
-          transfer_destination_definition_id: '1',
-          transfer_destination_definition_name: 'journal',
+          destination_definition_id: '1',
+          destination_definition_name: 'journal',
           description: '仕訳転送先',
           destination_table_name: 'public.journal',
           destination_columns: validInput.destinationColumns,
-          destination_key_definition: validInput.destinationKeyDefinition,
+          destination_key_columns: validInput.destinationKeyColumns,
           sequence_expression_definition: validInput.sequenceExpressionDefinition,
           transfer_model: 'immutable',
           sign_inversion_columns: validInput.signInversionColumns,
-          red_transfer_source_columns: validInput.redTransferSourceColumns,
+          generated_red_transfer_sql_body: '',
+          generated_red_transfer_sql_status: 'not_generated',
+          generated_red_transfer_sql_error: null,
           created_at: new Date('2026-04-29T00:00:00.000Z'),
           updated_at: new Date('2026-04-29T00:00:00.000Z'),
           note: 'reviewed',
@@ -61,15 +56,14 @@ test('maps camelCase feature input to snake_case query params and response field
 
   expect(seenParams).toEqual([
     {
-      transfer_destination_definition_name: 'journal',
+      destination_definition_name: 'journal',
       description: '仕訳転送先',
       destination_table_name: 'public.journal',
       destination_columns: validInput.destinationColumns,
-      destination_key_definition: validInput.destinationKeyDefinition,
+      destination_key_columns: validInput.destinationKeyColumns,
       sequence_expression_definition: validInput.sequenceExpressionDefinition,
       transfer_model: 'immutable',
       sign_inversion_columns: validInput.signInversionColumns,
-      red_transfer_source_columns: validInput.redTransferSourceColumns,
       note: 'reviewed',
     },
   ]);
@@ -79,11 +73,13 @@ test('maps camelCase feature input to snake_case query params and response field
     description: '仕訳転送先',
     destinationTableName: 'public.journal',
     destinationColumns: validInput.destinationColumns,
-    destinationKeyDefinition: validInput.destinationKeyDefinition,
+    destinationKeyColumns: validInput.destinationKeyColumns,
     sequenceExpressionDefinition: validInput.sequenceExpressionDefinition,
     transferModel: 'immutable',
     signInversionColumns: validInput.signInversionColumns,
-    redTransferSourceColumns: validInput.redTransferSourceColumns,
+    generatedRedTransferSqlBody: '',
+    generatedRedTransferSqlStatus: 'not_generated',
+    generatedRedTransferSqlError: null,
     createdAt: new Date('2026-04-29T00:00:00.000Z'),
     updatedAt: new Date('2026-04-29T00:00:00.000Z'),
     note: 'reviewed',
@@ -109,17 +105,15 @@ test.each([
       },
     },
   ],
-  ['empty destination key definition', { destinationKeyDefinition: { keys: [] } }],
-  ['unknown destination key column', { destinationKeyDefinition: { keys: ['missing_id'] } }],
+  ['empty destination key columns', { destinationKeyColumns: [] }],
+  ['unknown destination key column', { destinationKeyColumns: ['missing_id'] }],
   [
     'unknown sequence expression column',
     { sequenceExpressionDefinition: { missing_id: "nextval('x')" } },
   ],
-  ['unknown sign inversion column', { signInversionColumns: { columns: ['missing_amount'] } }],
-  [
-    'unknown red transfer source column',
-    { redTransferSourceColumns: { columns: ['missing_amount'] } },
-  ],
+  ['unknown sign inversion column', { signInversionColumns: ['missing_amount'] }],
+  ['missing immutable sign inversion columns', { signInversionColumns: undefined }],
+  ['empty immutable sign inversion columns', { signInversionColumns: [] }],
   ['invalid transfer model', { transferModel: 'merge' }],
 ])('rejects invalid input: %s', async (_name, patch) => {
   const executor = createGuardedExecutor();

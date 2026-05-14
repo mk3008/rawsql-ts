@@ -94,6 +94,21 @@ jobs:
           echo "run=false" >> "$GITHUB_OUTPUT"
         fi
 
+    - name: Detect transfer DDL metadata changes
+      id: transfer_ddl_metadata
+      shell: bash
+      run: |
+        base_sha="${{ github.event.pull_request.base.sha }}"
+        head_sha="${{ github.event.pull_request.head.sha }}"
+        changed_files=$(git diff --name-only "$base_sha...$head_sha")
+        printf '%s\n' "$changed_files"
+
+        if printf '%s\n' "$changed_files" | grep -Eq '^(package\.json|packages/ddl-docs-cli/|packages/transfer/db/ddl/|packages/transfer/docs/concepts/|packages/transfer/docs/dfd/|packages/transfer/docs/processes/|\.github/workflows/pr-check\.yml$)'; then
+          echo "run=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "run=false" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Build ZTD CLI dependencies
       if: steps.playground_changes.outputs.run == 'true'
       run: |
@@ -140,6 +155,10 @@ jobs:
     - name: Run ztd-cli essential gates
       if: steps.ztd_cli_gates.outputs.run == 'true'
       run: node scripts/run-ztd-cli-quality-gates.js pr
+
+    - name: Check transfer DDL metadata
+      if: steps.transfer_ddl_metadata.outputs.run == 'true'
+      run: pnpm verify:transfer-ddl-metadata
 
     - name: Run parser benchmark (PR lightweight)
       run: pnpm run benchmark:parser:pr

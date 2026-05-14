@@ -22,12 +22,11 @@ export type CreateTransferSettingResult = {
     transferSettingId: string;
     transferDestinationDefinitionId: string;
     executionOrder: number;
-    sourceKeyDefinition: Record<string, unknown>;
+    destinationKeyMapping: Record<string, unknown>;
     mappingDefinition: Record<string, unknown>;
     diffCompareExcludedColumns: Record<string, unknown> | null;
     generatedInsertTransferSqlBody: string;
     generatedUpdateTransferSqlBody: string;
-    generatedRedTransferSqlBody: string;
     generatedDeleteTransferSqlBody: string;
     generatedSqlStatus: 'not_generated' | 'success' | 'failed';
     generatedSqlError: string | null;
@@ -43,8 +42,8 @@ export function buildResult(
 ): CreateTransferSettingResult {
   return {
     transferSetting: {
-      transferSettingId: created.transferSetting.transfer_setting_id,
-      name: created.transferSetting.transfer_setting_name,
+      transferSettingId: created.transferSetting.setting_id,
+      name: created.transferSetting.setting_name,
       description: created.transferSetting.description,
       sourceSqlBody: created.transferSetting.source_sql_body,
       sourceSqlHash: created.transferSetting.source_sql_hash,
@@ -60,16 +59,15 @@ export function buildResult(
     },
     destinations: created.destinations.map((destination) => ({
       transferSettingDestinationDefinitionId:
-        destination.transfer_setting_destination_definition_id,
-      transferSettingId: destination.transfer_setting_id,
-      transferDestinationDefinitionId: destination.transfer_destination_definition_id,
+        destination.destination_link_id,
+      transferSettingId: destination.setting_id,
+      transferDestinationDefinitionId: destination.destination_definition_id,
       executionOrder: destination.execution_order,
-      sourceKeyDefinition: destination.source_key_definition,
+      destinationKeyMapping: destination.destination_key_mapping,
       mappingDefinition: destination.mapping_definition,
       diffCompareExcludedColumns: destination.diff_compare_excluded_columns,
       generatedInsertTransferSqlBody: destination.generated_insert_transfer_sql_body,
       generatedUpdateTransferSqlBody: destination.generated_update_transfer_sql_body,
-      generatedRedTransferSqlBody: destination.generated_red_transfer_sql_body,
       generatedDeleteTransferSqlBody: destination.generated_delete_transfer_sql_body,
       generatedSqlStatus: destination.generated_sql_status,
       generatedSqlError: destination.generated_sql_error,

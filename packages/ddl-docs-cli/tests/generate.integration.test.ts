@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from 'vitest';
+import { runGenerateConceptSite } from '../src/commands/conceptSite';
 import { runGenerateDocs } from '../src/commands/generate';
 import { normalizeLineEndings } from './utils/normalize';
 
@@ -51,7 +52,6 @@ test('generate writes table pages, index pages, and warnings metadata', () => {
   const rootIndex = path.join(outDir, 'index.md');
   const globalColumnsIndex = path.join(outDir, 'columns', 'index.md');
   const vitePressConfig = path.join(outDir, '.vitepress', 'config.mts');
-  const vitePressThemeIndex = path.join(outDir, '.vitepress', 'theme', 'index.ts');
   const vitePressTheme = path.join(outDir, '.vitepress', 'theme', 'style.css');
   const manifest = path.join(outDir, '_meta', 'manifest.json');
   const warnings = path.join(outDir, '_meta', 'warnings.json');
@@ -61,7 +61,6 @@ test('generate writes table pages, index pages, and warnings metadata', () => {
   expect(existsSync(rootIndex)).toBe(true);
   expect(existsSync(globalColumnsIndex)).toBe(true);
   expect(existsSync(vitePressConfig)).toBe(true);
-  expect(existsSync(vitePressThemeIndex)).toBe(true);
   expect(existsSync(vitePressTheme)).toBe(true);
   expect(existsSync(manifest)).toBe(true);
   expect(existsSync(warnings)).toBe(true);
@@ -83,11 +82,6 @@ test('generate writes table pages, index pages, and warnings metadata', () => {
   expect(themeCss).toContain('.VPDoc .container');
   expect(themeCss).toContain('font-size: 12px;');
   expect(themeCss).toContain('.VPDoc .aside');
-  expect(themeCss).toContain('.ddl-docs-mermaid');
-
-  const themeIndexText = normalizeLineEndings(readFileSync(vitePressThemeIndex, 'utf8'));
-  expect(themeIndexText).toContain('MERMAID_CDN_URL');
-  expect(themeIndexText).toContain('renderMermaidBlocks');
 
   const manifestJson = JSON.parse(readFileSync(manifest, 'utf8')) as {
     outputs: { assets?: string[] };
@@ -322,18 +316,7 @@ test('generate renders related concept and process pages from relationship metad
     'utf8'
   );
   writeFileSync(path.join(conceptsDir, 'active-row/SPEC.md'), '# Active Row Concept\n\nDefined concept.', 'utf8');
-  writeFileSync(path.join(processesDir, 'active-row-process.md'), [
-    '# Active Row Process',
-    '',
-    'Defined process.',
-    '',
-    '```mermaid',
-    'flowchart TD',
-    '  A["start"] -->|"quoted label"| B{{"done"}}',
-    '  B -. "review note" .-> C[/"external table"/]',
-    '```',
-    '',
-  ].join('\n'), 'utf8');
+  writeFileSync(path.join(processesDir, 'active-row-process.md'), '# Active Row Process\n\nDefined process.', 'utf8');
   writeFileSync(
     tableDocsPath,
     JSON.stringify(
@@ -383,8 +366,48 @@ test('generate renders related concept and process pages from relationship metad
     JSON.stringify(
       {
         schemaVersion: 1,
-        concepts: [{ id: 'active-row', path: 'active-row/SPEC.md', status: 'defined', summary: 'Active row summary' }],
-        relationships: [],
+        concepts: [
+          {
+            id: 'active-row',
+            displayName: 'Active Row',
+            path: 'active-row/SPEC.md',
+            status: 'defined',
+            summary: 'Active row summary',
+          },
+          {
+            id: 'row-key',
+            displayName: 'Row Key',
+            path: null,
+            status: 'alias',
+            summary: 'Row identity explanation term.',
+            note: 'Not an authoritative Concept Spec.',
+          },
+        ],
+        relationships: [
+          {
+            from: 'active-row',
+            to: 'row-key',
+            kind: 'uses',
+            reason: 'Active row uses row key terminology.',
+          },
+        ],
+        glossaryTerms: [
+          {
+            id: 'active-row-key',
+            displayTerm: 'active row key',
+            definedIn: ['active-row/SPEC.md'],
+            meaning: 'Logical active row identity.',
+            note: 'Generated review-map metadata.',
+          },
+        ],
+        relatedProcessMaps: [
+          {
+            id: 'active-row-process',
+            displayName: 'Active Row Process',
+            path: '../processes/active-row-process.md',
+            reason: 'Process map linked from concept metadata.',
+          },
+        ],
       },
       null,
       2
@@ -410,24 +433,271 @@ test('generate renders related concept and process pages from relationship metad
   const tableDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'public', 'active-rows.md'), 'utf8'));
   expect(tableDoc).toContain('## Related Concepts / Processes');
   expect(tableDoc).toContain('[active-row](../concepts/active-row.md)');
-  expect(tableDoc).toContain('[active-row-process](../processes/docs-processes-active-row-process.md)');
+  expect(tableDoc).toContain('[active-row-process](../processes/active-row-process.md)');
   expect(tableDoc).toContain('decision: Use source_key_json as identity.');
   expect(tableDoc).toContain('alternativesRejected: Do not use hash as identity.');
 
   const conceptDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'active-row.md'), 'utf8'));
-  expect(conceptDoc).toContain('# active-row');
+  expect(conceptDoc).toContain('# Active Row');
+  expect(conceptDoc).toContain('Defined concept.');
+  expect(conceptDoc).toContain('## Generated Review Metadata');
+  expect(conceptDoc).toContain('This section is generated for human review.');
+  expect(conceptDoc).toContain('## Related Concepts');
+  expect(conceptDoc).toContain('| outgoing | `uses` | `row-key` | Active row uses row key terminology. |');
+  expect(conceptDoc).toContain('## Glossary Terms Defined Here');
+  expect(conceptDoc).toContain('active-row-key');
+
+  const processDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'processes', 'active-row-process.md'), 'utf8'));
+  expect(processDoc).toContain('# Active Row Process');
+  expect(processDoc).toContain('## Generated Review Metadata');
+  expect(processDoc).toContain('Defined process.');
+
+  const conceptIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'index.md'), 'utf8'));
+  expect(conceptIndex).toContain('# Concept Map');
+  expect(conceptIndex).toContain('| [active-row](./active-row.md) | Active Row | `defined` | Active row summary |');
+  expect(conceptIndex).toContain('## Glossary Terms');
+  expect(conceptIndex).toContain('active-row-key');
+  expect(conceptIndex).toContain('## Planned Or Candidate Concepts');
+  expect(conceptIndex).toContain('row-key');
+  expect(conceptIndex).toContain('## Relationships');
+  expect(conceptIndex).toContain('| [active-row](./active-row.md) | `uses` | `row-key` | Active row uses row key terminology. |');
+});
+
+test('concept-site generates VitePress concept and process pages without DDL input', () => {
+  const work = createTempDir('ddl-docs-concept-site');
+  const conceptsDir = path.join(work, 'docs', 'concepts');
+  const dfdDir = path.join(work, 'docs', 'dfd');
+  const processesDir = path.join(work, 'docs', 'processes');
+  const outDir = path.join(work, 'site');
+  const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+  const dfdRelationshipPath = path.join(dfdDir, 'relationship.json');
+  mkdirSync(path.join(conceptsDir, 'active-row'), { recursive: true });
+  mkdirSync(dfdDir, { recursive: true });
+  mkdirSync(processesDir, { recursive: true });
+
+  writeFileSync(path.join(conceptsDir, 'active-row/SPEC.md'), '# Active Row Concept\n\nDefined concept.', 'utf8');
+  writeFileSync(
+    path.join(dfdDir, 'active-row-flow.md'),
+    [
+      '# Active Row Flow',
+      '',
+      'Defined DFD.',
+      '',
+      '## Overall Flow',
+      '',
+      '```mermaid',
+      'flowchart TD',
+      '  Registration(("Active Row Registration"))',
+      '```',
+      '',
+      '## Active Row Registration Detail Flow',
+      '',
+      '```mermaid',
+      'flowchart LR',
+      '  Event{{"When: active row changes"}}',
+      '  User[/"Who: User"/]',
+      '  Scheduler[/"Who: Scheduler"/]',
+      '  Register(("Active Row Registration"))',
+      '  ActiveRow[("Active Row")]',
+      '  Event -. "trigger" .-> Register',
+      '  User -. "manual run" .-> Register',
+      '  Scheduler -. "scheduled run" .-> Register',
+      '  Register -->|"created active row"| ActiveRow',
+      '```',
+      '',
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(path.join(processesDir, 'active-row-process.md'), '# Active Row Process\n\nDefined process.', 'utf8');
+  writeFileSync(
+    conceptRelationshipPath,
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        concepts: [
+          {
+            id: 'active-row',
+            displayName: 'Active Row',
+            path: 'active-row/SPEC.md',
+            status: 'defined',
+            summary: 'Active row summary',
+          },
+          {
+            id: 'row-key',
+            displayName: 'Row Key',
+            path: null,
+            status: 'alias',
+            summary: 'Row identity explanation term.',
+          },
+        ],
+        relationships: [
+          {
+            from: 'active-row',
+            to: 'row-key',
+            kind: 'uses',
+            reason: 'Active row uses row key terminology.',
+          },
+        ],
+        relatedProcessMaps: [
+          {
+            id: 'active-row-process',
+            displayName: 'Active Row Process',
+            path: '../processes/active-row-process.md',
+            reason: 'Process map linked from concept metadata.',
+          },
+        ],
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+  writeFileSync(
+    dfdRelationshipPath,
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        subsystems: [
+          {
+            id: 'operations',
+            displayName: 'Operations',
+            summary: 'Operational flows.',
+          },
+          {
+            id: 'reporting',
+            displayName: 'Reporting',
+            summary: 'Reporting flows.',
+          },
+        ],
+        dfds: [
+          {
+            id: 'active-row-flow',
+            displayName: 'Active Row Flow',
+            subsystem: 'operations',
+            path: 'active-row-flow.md',
+            summary: 'Active row intake and processing flow.',
+            businessOperations: [
+              {
+                id: 'active-row-registration',
+                displayName: 'Active Row Registration',
+                summary: 'Registers active row changes.',
+                relatedProcesses: [
+                  {
+                    id: 'active-row-process',
+                    path: '../processes/active-row-process.md',
+                    reason: 'Defines active row processing.',
+                  },
+                ],
+                outputs: [
+                  {
+                    type: 'concept',
+                    id: 'active-row',
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'active-row-reporting-flow',
+            displayName: 'Active Row Reporting Flow',
+            subsystem: 'reporting',
+            path: 'active-row-reporting-flow.md',
+            summary: 'Active row reporting flow.',
+            businessOperations: [
+              {
+                id: 'active-row-reporting',
+                displayName: 'Active Row Reporting',
+                summary: 'Reads active row changes for reporting.',
+                inputs: [
+                  {
+                    type: 'concept',
+                    id: 'active-row',
+                  },
+                ],
+                outputs: [],
+              },
+            ],
+          },
+        ],
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+
+  runGenerateConceptSite({
+    conceptRelationshipPath,
+    dfdRelationshipPath,
+    outDir,
+  });
+
+  const conceptIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'index.md'), 'utf8'));
+  expect(conceptIndex).toContain('# Concept Map');
+  expect(conceptIndex).toContain('| [active-row](./active-row.md) | Active Row | `defined` | Active row summary |');
+  expect(conceptIndex).toContain('| [active-row](./active-row.md) | `uses` | `row-key` | Active row uses row key terminology. |');
+
+  const conceptDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'active-row.md'), 'utf8'));
+  expect(conceptDoc).toContain('# Active Row');
+  expect(conceptDoc.indexOf('Defined concept.')).toBeLessThan(conceptDoc.indexOf('## Generated Review Metadata'));
+  expect(conceptDoc).toContain('## Related Concepts');
   expect(conceptDoc).toContain('Defined concept.');
 
-  const processDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'processes', 'docs-processes-active-row-process.md'), 'utf8'));
-  expect(processDoc).toContain('# active-row-process');
-  expect(processDoc).toContain('Defined process.');
-  expect(processDoc).toContain('<pre v-pre class="ddl-docs-mermaid">');
-  expect(processDoc).toContain('flowchart TD');
-  expect(processDoc).toContain('--&gt;|quoted label|');
-  expect(processDoc).toContain('B{{done}}');
-  expect(processDoc).toContain('-. review note .-&gt;');
-  expect(processDoc).toContain('C[/external table/]');
-  expect(processDoc).not.toContain('```mermaid');
+  const processIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'processes', 'index.md'), 'utf8'));
+  expect(processIndex).toContain('[active-row-process](./active-row-process.md)');
+  const dfdIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'dfd', 'index.md'), 'utf8'));
+  expect(dfdIndex).toContain('## Subsystem Correlation');
+  expect(dfdIndex).toContain('S_operations((" Operations "))');
+  expect(dfdIndex).toContain('S_reporting((" Reporting "))');
+  expect(dfdIndex).toContain('S_operations -->|"参照"| S_reporting');
+  expect(dfdIndex).toContain('## Boundary Notes');
+  expect(dfdIndex).toContain('| Operations | Reporting | R / 参照 |');
+  expect(dfdIndex).toContain('| [Operations](./operations/) | Operational flows. | 1 |');
+  expect(dfdIndex).toContain('| [Reporting](./reporting/) | Reporting flows. | 1 |');
+  expect(dfdIndex).not.toContain('[Active Row Flow](./active-row-flow.md)');
+  const dfdSubsystemIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'dfd', 'operations', 'index.md'), 'utf8'));
+  expect(dfdSubsystemIndex).toContain('# Operations');
+  expect(dfdSubsystemIndex).toContain('## Business Correlation');
+  expect(dfdSubsystemIndex).toContain('## Business Operations');
+  expect(dfdSubsystemIndex).toContain('| Business | Summary | Related Processes | Source |');
+  expect(dfdSubsystemIndex).toContain('| [Active Row Registration](./business/active-row-registration.md) | Registers active row changes. | [active-row-process](./business/active-row-registration/process/active-row-process.md) | `active-row-flow.md` |');
+  expect(dfdSubsystemIndex).not.toContain('## Source DFDs');
+  expect(existsSync(path.join(outDir, 'dfd', 'active-row-flow.md'))).toBe(false);
+  const dfdBusinessDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'dfd', 'operations', 'business', 'active-row-registration.md'), 'utf8'));
+  expect(dfdBusinessDoc).toContain('## Active Row Registration Detail Flow');
+  expect(dfdBusinessDoc).toContain('- Parent Subsystem: [Operations](../)');
+  expect(dfdBusinessDoc).toContain('- Parent DFD: Active Row Flow');
+  expect(dfdBusinessDoc).not.toContain('- Parent DFD: [Active Row Flow]');
+  expect(dfdBusinessDoc).toContain('| Outputs | `concept:`[active-row](../../../concepts/active-row.md) |');
+  expect(dfdBusinessDoc).toContain('## Related Processes');
+  expect(dfdBusinessDoc).toContain('| [active-row-process](./active-row-registration/process/active-row-process.md) | Defines active row processing. |');
+  const dfdBusinessProcessDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'dfd', 'operations', 'business', 'active-row-registration', 'process', 'active-row-process.md'), 'utf8'));
+  expect(dfdBusinessProcessDoc).toContain('- Parent Business: [Active Row Registration](../../active-row-registration.md)');
+  expect(existsSync(path.join(outDir, 'dfd', 'operations', 'business', 'process', 'active-row-process.md'))).toBe(false);
+  const roleIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'roles', 'index.md'), 'utf8'));
+  expect(roleIndex).toContain('# Roles');
+  expect(roleIndex).toContain('## Role List');
+  expect(roleIndex).toContain('| [Scheduler](#role-');
+  expect(roleIndex).toContain('| [User](#role-');
+  expect(roleIndex).toContain('## Scheduler');
+  expect(roleIndex).toContain('## User');
+  expect(roleIndex).toContain('| Business | Event / When | Business Page |');
+  expect(roleIndex).toContain('| Active Row Registration | active row changes | [Active Row Registration](../dfd/operations/business/active-row-registration.md) |');
+  const rootIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'index.md'), 'utf8'));
+  expect(rootIndex).toContain('# Concept Spec Review');
+  expect(rootIndex).toContain('[Concepts](./concepts/)');
+  expect(rootIndex).toContain('[DFDs](./dfd/)');
+  expect(rootIndex).toContain('[Roles](./roles/)');
+  expect(rootIndex.indexOf('[Concepts](./concepts/)')).toBeLessThan(rootIndex.indexOf('[DFDs](./dfd/)'));
+  expect(rootIndex.indexOf('[DFDs](./dfd/)')).toBeLessThan(rootIndex.indexOf('[Roles](./roles/)'));
+  expect(rootIndex.indexOf('[Roles](./roles/)')).toBeLessThan(rootIndex.indexOf('[Processes](./processes/)'));
+  const vitePressConfig = normalizeLineEndings(readFileSync(path.join(outDir, '.vitepress', 'config.mts'), 'utf8'));
+  expect(vitePressConfig).toContain('title: "Concept Spec Review"');
+  expect(vitePressConfig).toContain("if (info === 'mermaid')");
+  expect(vitePressConfig).toContain('function normalizeMermaid');
+  const vitePressTheme = normalizeLineEndings(readFileSync(path.join(outDir, '.vitepress', 'theme', 'index.ts'), 'utf8'));
+  expect(vitePressTheme).toContain('function loadMermaid()');
+  expect(existsSync(path.join(outDir, '.vitepress', 'config.mts'))).toBe(true);
 });
 
 test('filter-pg-dump fails when no schema DDL remains after filtering', () => {

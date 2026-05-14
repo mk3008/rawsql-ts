@@ -1,9 +1,9 @@
-﻿---
+---
 layout: home
 hero:
   name: rawsql-ts
   text: TypeScript-native SQL parser and transformer
-  tagline: High-performance SQL parsing and transformation — all starting from your existing SQL.
+  tagline: High-performance SQL parsing and transformation - all starting from your existing SQL.
   actions:
     - theme: brand
       text: Get Started
@@ -11,6 +11,9 @@ hero:
     - theme: alt
       text: View API Docs
       link: /api/index
+    - theme: alt
+      text: Transfer Docs
+      link: /transfer-docs
     - theme: alt
       text: Open Playground
       link: /cud-demo/index.html
@@ -20,7 +23,7 @@ features:
   - title: Zero Dependency
     details: Fully self-contained and lightweight. Works in Node.js and browsers without external packages.
   - title: High-performance SQL Parsing
-    details: 3–8× faster than major SQL libraries while supporting complex PostgreSQL queries.
+    details: 3-8x faster than major SQL libraries while supporting complex PostgreSQL queries.
   - title: Transform Existing SQL
     details: Parse raw SQL into AST, apply dynamic filters and structural transformations, then regenerate optimized queries.
   - title: Browser & Playground Ready

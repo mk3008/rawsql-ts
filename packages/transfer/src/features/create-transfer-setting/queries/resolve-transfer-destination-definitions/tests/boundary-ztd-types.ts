@@ -5,18 +5,20 @@ import type {
 } from '../boundary.js';
 
 export type ResolveTransferDestinationDefinitionsBeforeDb = {
-  public: {
-    transfer_destination_definition: readonly {
-      transfer_destination_definition_id?: unknown;
-      transfer_destination_definition_name?: unknown;
+  rawsql_transfer: {
+    destination_definition: readonly {
+      destination_definition_id?: unknown;
+      destination_definition_name?: unknown;
       description?: unknown;
       destination_table_name?: unknown;
       destination_columns?: unknown;
-      destination_key_definition?: unknown;
+      destination_key_columns?: unknown;
       sequence_expression_definition?: unknown;
       transfer_model?: unknown;
       sign_inversion_columns?: unknown;
-      red_transfer_source_columns?: unknown;
+      generated_red_transfer_sql_body?: unknown;
+      generated_red_transfer_sql_status?: unknown;
+      generated_red_transfer_sql_error?: unknown;
       created_at?: unknown;
       updated_at?: unknown;
       note?: unknown;

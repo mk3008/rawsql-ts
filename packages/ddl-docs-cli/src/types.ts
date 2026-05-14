@@ -40,10 +40,24 @@ export interface CheckDocsOptions {
   relationshipPath?: string;
   orderPath?: string;
   conceptRelationshipPath?: string;
+  conceptMapPath?: string;
+  dfdRelationshipPath?: string;
+  processDirectories?: string[];
   configPath?: string;
   defaultSchema?: string;
   searchPath?: string[];
   filterPgDump?: boolean;
+}
+
+export interface GenerateConceptMapCliOptions {
+  conceptRelationshipPath: string;
+  outPath: string;
+}
+
+export interface GenerateConceptSiteOptions {
+  conceptRelationshipPath: string;
+  dfdRelationshipPath?: string;
+  outDir: string;
 }
 
 export interface TableDocsColumnMetadata {

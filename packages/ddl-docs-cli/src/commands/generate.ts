@@ -209,7 +209,10 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
   }
 }
 
-function writeVitePressPreviewAssets(outDir: string): string[] {
+export function writeVitePressPreviewAssets(
+  outDir: string,
+  options: { title?: string; description?: string } = {}
+): string[] {
   const configPath = path.join(outDir, '.vitepress', 'config.mts');
   const themeIndexPath = path.join(outDir, '.vitepress', 'theme', 'index.ts');
   const themeStylePath = path.join(outDir, '.vitepress', 'theme', 'style.css');
@@ -217,23 +220,51 @@ function writeVitePressPreviewAssets(outDir: string): string[] {
   ensureDirectory(path.dirname(configPath));
   ensureDirectory(path.dirname(themeIndexPath));
 
-  writeTextFileNormalized(configPath, renderVitePressConfig());
+  writeTextFileNormalized(configPath, renderVitePressConfig(options));
   writeTextFileNormalized(themeIndexPath, renderVitePressThemeIndex());
   writeTextFileNormalized(themeStylePath, renderVitePressThemeCss());
 
   return [configPath, themeIndexPath, themeStylePath];
 }
 
-function renderVitePressConfig(): string {
+function renderVitePressConfig(options: { title?: string; description?: string } = {}): string {
+  const title = options.title ?? 'DDL Review';
+  const description = options.description ?? 'Generated table definition review docs';
   return [
     "import { defineConfig } from 'vitepress';",
     '',
     'export default defineConfig({',
-    "  title: 'DDL Review',",
-    "  description: 'Generated table definition review docs',",
+    `  title: ${JSON.stringify(title)},`,
+    `  description: ${JSON.stringify(description)},`,
     '  cleanUrls: true,',
     '  appearance: true,',
+    '  markdown: {',
+    '    config(md) {',
+    '      const defaultFence = md.renderer.rules.fence;',
+    '      md.renderer.rules.fence = (tokens, idx, options, env, self) => {',
+    '        const token = tokens[idx];',
+    "        const info = token.info.trim().split(/\\s+/)[0];",
+    "        if (info === 'mermaid') {",
+    '          return `<pre v-pre class="ddl-docs-mermaid">${normalizeMermaid(token.content)}</pre>`;',
+    '        }',
+    '        return defaultFence(tokens, idx, options, env, self);',
+    '      };',
+    '    },',
+    '  },',
     '});',
+    '',
+    'function normalizeMermaid(value: string): string {',
+    '  return value',
+    "    .replace(/\\{\\{\\s*\"([^\"]+)\"\\s*\\}\\}/g, (_, label) => `{{${normalizeMermaidLabel(label)}}}`)",
+    "    .replace(/\\[\\/\\s*\"([^\"]+)\"\\s*\"?\\/\\]/g, (_, label) => `[/${normalizeMermaidLabel(label)}/]`)",
+    "    .replace(/\\|\\s*\"([^\"]+)\"\\s*\\|/g, (_, label) => `|${normalizeMermaidLabel(label)}|`)",
+    "    .replace(/\\|\\s*([^|\\n]+)\\s*\\|/g, (_, label) => `|${normalizeMermaidLabel(label)}|`)",
+    "    .replace(/([-.=]+)\\s+\"([^\"]+)\"\\s+([-.=]+>)/g, (_, left, label, right) => `${left} ${normalizeMermaidLabel(label)} ${right}`);",
+    '}',
+    '',
+    'function normalizeMermaidLabel(value: string): string {',
+    "  return value.replace(/[<>\\-]/g, ' ').replace(/\\s+/g, ' ').trim();",
+    '}',
     '',
   ].join('\n');
 }
@@ -245,7 +276,7 @@ function renderVitePressThemeIndex(): string {
     "import { useRoute } from 'vitepress';",
     "import './style.css';",
     '',
-    "const MERMAID_CDN_URL = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';",
+    "const MERMAID_CDN_URL = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.5/dist/mermaid.min.js';",
     '',
     'declare global {',
     '  interface Window {',
@@ -322,12 +353,12 @@ function renderVitePressThemeIndex(): string {
     '  setup() {',
     '    const route = useRoute();',
     '    onMounted(() => {',
-    '      void nextTick(renderMermaidBlocks);',
+    '      void nextTick(renderMermaidBlocks).catch((error: unknown) => console.warn(error));',
     '    });',
     '    watch(',
     '      () => route.path,',
     '      () => {',
-    '        void nextTick(renderMermaidBlocks);',
+    '        void nextTick(renderMermaidBlocks).catch((error: unknown) => console.warn(error));',
     '      }',
     '    );',
     '    return () => h(DefaultTheme.Layout);',

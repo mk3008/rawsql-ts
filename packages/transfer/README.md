@@ -4,9 +4,11 @@
 
 The initial features register transfer destination definitions and transfer settings for PostgreSQL transfer workflows.
 
+Transfer package tables live under the `rawsql_transfer` schema to avoid collisions with user tables or generic schemas such as `transfer`.
+
 ## Transfer Destination Definition
 
-The `transfer_destination_definition` table stores:
+The `rawsql_transfer.destination_definition` table stores:
 
 - the destination table name
 - destination column metadata
@@ -15,7 +17,7 @@ The `transfer_destination_definition` table stores:
 - transfer model
 - optional red-transfer column metadata
 
-DDL lives in `db/ddl/transfer_destination_definition.sql`.
+DDL lives in `db/ddl/schema.sql` and `db/ddl/destination_definition.sql`.
 
 ## Transfer Model
 
@@ -28,7 +30,7 @@ DDL lives in `db/ddl/transfer_destination_definition.sql`.
 
 ## Transfer Setting
 
-The `transfer_setting` table stores the source SQL text, a deterministic source SQL hash, and analysis placeholders.
+The `rawsql_transfer.setting` table stores the source SQL text, a deterministic source SQL hash, and analysis placeholders.
 Source SQL parsing is intentionally out of scope for the create feature; new rows save `source_sql_analysis_status` as `not_analyzed`.
 
 ## Feature Boundary
