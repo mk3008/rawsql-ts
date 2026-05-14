@@ -36,7 +36,35 @@
       "observations closed since the previous report"
     ]
   },
-  "unresolvedObservations": [],
+  "unresolvedObservations": [
+    {
+      "id": "explicit-control-over-implicit-order",
+      "domains": [
+        "rawsql-ts",
+        "ztd-cli",
+        "ztd",
+        "RFBA",
+        "Concept Spec"
+      ],
+      "summary": "Important constraints must be controlled explicitly instead of depending on implicit expectations such as file-name ordering.",
+      "signals": [
+        "Runtime DDL files were initially named with a zz_ prefix so they would load after master DDL files.",
+        "The human pointed out that file names should not carry execution-order semantics.",
+        "The correction introduced an explicit DDL order metadata file and kept file names descriptive.",
+        "The human clarified the broader development stance: relying on AI inference is the last resort; first prefer mechanisms and mechanical checks that prevent mistakes."
+      ],
+      "risk": "If important constraints are hidden in naming, ordering, inference, or convention alone, agents and maintainers may miss the rule, edit it accidentally, or make changes that are hard to review mechanically.",
+      "expectedPattern": [
+        "Treat AI inference as the last resort, not the primary safety mechanism.",
+        "First ask whether a mechanism, schema, metadata file, test, lint rule, generated check, or explicit control surface can prevent the mistake.",
+        "Use explicit machine-readable control files or schema fields for important constraints.",
+        "Keep maintenance cost low when the constraint needs to be edited.",
+        "Prefer mechanically checkable constraints over implicit expectations."
+      ],
+      "possibleFollowUp": "Add or extend checks so DDL order, concept relationships, generated artifact sources, and other important constraints are validated from explicit metadata rather than inferred from names.",
+      "status": "unresolved"
+    }
+  ],
   "closedObservations": [
     {
       "id": "concept-map-needed",

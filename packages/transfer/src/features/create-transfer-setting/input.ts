@@ -14,9 +14,24 @@ const SourceKeyDefinitionSchema = z
       .array(
         z
           .object({
+            column: z.string().trim().min(1),
+            type: z.string().trim().min(1),
+          })
+          .strict(),
+      )
+      .min(1),
+  })
+  .strict();
+
+const DestinationKeyMappingSchema = z
+  .object({
+    sourceKey: z.array(z.string().trim().min(1)).min(1),
+    destinationKey: z
+      .array(
+        z
+          .object({
             name: z.string().trim().min(1),
             sourceColumn: z.string().trim().min(1),
-            type: z.string().trim().min(1),
           })
           .strict(),
       )
@@ -28,7 +43,7 @@ const DestinationInputSchema = z
   .object({
     destinationDefinitionName: z.string().trim().min(1),
     executionOrder: z.number().int().positive(),
-    sourceKeyDefinition: SourceKeyDefinitionSchema,
+    destinationKeyMapping: DestinationKeyMappingSchema,
     mappingDefinition: JsonObjectSchema,
     diffCompareExcludedColumns: ColumnListSchema.optional(),
     isEnabled: z.boolean().optional(),

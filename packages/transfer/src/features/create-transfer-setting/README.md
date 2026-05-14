@@ -1,6 +1,6 @@
 # create-transfer-setting
 
-Creates one `transfer_setting` row and one or more `transfer_setting_destination_definition` rows.
+Creates one `setting` row and one or more `destination_link` rows.
 
 This feature is intentionally scoped to the create use case. Do not reshape it into a table-level `transfer-settings` CRUD feature.
 
@@ -20,7 +20,7 @@ Each destination item contains:
 
 - `destinationDefinitionName`
 - `executionOrder`
-- `sourceKeyDefinition`
+- `destinationKeyMapping`
 - `mappingDefinition`
 - `diffCompareExcludedColumns`
 - `isEnabled`
@@ -37,11 +37,11 @@ Each destination item contains:
 - positive integer `destinations[].executionOrder`
 - unique `destinations[].executionOrder` within the input
 - unique `destinations[].destinationDefinitionName` within the input
-- object-shaped `destinations[].sourceKeyDefinition`
+- object-shaped `destinations[].destinationKeyMapping`
 - object-shaped `destinations[].mappingDefinition`
 - object-shaped `destinations[].diffCompareExcludedColumns` when provided
 
-Destination definitions are resolved by `transfer_destination_definition_name` before inserting the setting row.
+Destination definitions are resolved by `destination_definition_name` before inserting the setting row.
 Unknown destination definitions fail the operation before any setting row is inserted.
 
 ## Boundary Shape

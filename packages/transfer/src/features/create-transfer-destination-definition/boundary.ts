@@ -13,7 +13,6 @@ const DestinationColumnSchema = z
   .object({
     name: z.string().trim().min(1),
     type: z.string().trim().min(1),
-    role: z.string().trim().min(1).optional(),
   })
   .strict();
 
@@ -23,17 +22,7 @@ const DestinationColumnsSchema = z
   })
   .strict();
 
-const DestinationKeyDefinitionSchema = z
-  .object({
-    keys: z.array(z.string().trim().min(1)),
-  })
-  .strict();
-
-const ColumnListSchema = z
-  .object({
-    columns: z.array(z.string().trim().min(1)),
-  })
-  .strict();
+const ColumnNameArraySchema = z.array(z.string().trim().min(1));
 
 const RequestSchema = z
   .object({
@@ -48,11 +37,10 @@ const RequestSchema = z
         'destinationTableName must be a fully qualified table name, such as public.journal.',
       ),
     destinationColumns: DestinationColumnsSchema,
-    destinationKeyDefinition: DestinationKeyDefinitionSchema,
+    destinationKeyColumns: ColumnNameArraySchema,
     sequenceExpressionDefinition: z.record(z.string(), z.string().trim().min(1)).optional(),
     transferModel: z.enum(TRANSFER_MODELS),
-    signInversionColumns: ColumnListSchema.optional(),
-    redTransferSourceColumns: ColumnListSchema.optional(),
+    signInversionColumns: ColumnNameArraySchema.optional(),
     note: z.string().trim().min(1).optional(),
   })
   .strict();
@@ -66,11 +54,13 @@ const ResponseSchema = z
     description: z.string().nullable(),
     destinationTableName: z.string(),
     destinationColumns: DestinationColumnsSchema,
-    destinationKeyDefinition: DestinationKeyDefinitionSchema,
+    destinationKeyColumns: ColumnNameArraySchema,
     sequenceExpressionDefinition: z.record(z.string(), z.string()).nullable(),
     transferModel: z.enum(TRANSFER_MODELS),
-    signInversionColumns: ColumnListSchema.nullable(),
-    redTransferSourceColumns: ColumnListSchema.nullable(),
+    signInversionColumns: ColumnNameArraySchema.nullable(),
+    generatedRedTransferSqlBody: z.string(),
+    generatedRedTransferSqlStatus: z.enum(['not_generated', 'success', 'failed']),
+    generatedRedTransferSqlError: z.string().nullable(),
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
     note: z.string().nullable(),
@@ -95,14 +85,9 @@ function normalizeRequest(
   return {
     ...request,
     destinationColumns: {
-      columns: request.destinationColumns.columns.map((column) => ({
-        ...column,
-        role: column.role === undefined ? undefined : column.role,
-      })),
+      columns: request.destinationColumns.columns.map((column) => ({ ...column })),
     },
-    destinationKeyDefinition: {
-      keys: request.destinationKeyDefinition.keys,
-    },
+    destinationKeyColumns: [...request.destinationKeyColumns],
     sequenceExpressionDefinition:
       request.sequenceExpressionDefinition === undefined
         ? undefined
@@ -110,11 +95,7 @@ function normalizeRequest(
     signInversionColumns:
       request.signInversionColumns === undefined
         ? undefined
-        : { columns: request.signInversionColumns.columns },
-    redTransferSourceColumns:
-      request.redTransferSourceColumns === undefined
-        ? undefined
-        : { columns: request.redTransferSourceColumns.columns },
+        : [...request.signInversionColumns],
   };
 }
 
@@ -128,13 +109,13 @@ function rejectRequest(request: CreateTransferDestinationDefinitionInput): void 
   if (destinationColumnNameSet.size !== destinationColumnNames.length) {
     throw new Error('destinationColumns.columns[].name must be unique.');
   }
-  if (request.destinationKeyDefinition.keys.length === 0) {
-    throw new Error('destinationKeyDefinition.keys must contain at least one key.');
+  if (request.destinationKeyColumns.length === 0) {
+    throw new Error('destinationKeyColumns must contain at least one key column.');
   }
 
   rejectUnknownColumnReferences(
-    'destinationKeyDefinition.keys',
-    request.destinationKeyDefinition.keys,
+    'destinationKeyColumns',
+    request.destinationKeyColumns,
     destinationColumnNameSet,
   );
   rejectUnknownColumnReferences(
@@ -143,13 +124,8 @@ function rejectRequest(request: CreateTransferDestinationDefinitionInput): void 
     destinationColumnNameSet,
   );
   rejectUnknownColumnReferences(
-    'signInversionColumns.columns',
-    request.signInversionColumns?.columns ?? [],
-    destinationColumnNameSet,
-  );
-  rejectUnknownColumnReferences(
-    'redTransferSourceColumns.columns',
-    request.redTransferSourceColumns?.columns ?? [],
+    'signInversionColumns',
+    request.signInversionColumns ?? [],
     destinationColumnNameSet,
   );
 }
@@ -173,15 +149,14 @@ function toQueryParams(
   request: CreateTransferDestinationDefinitionInput,
 ): InsertTransferDestinationDefinitionQueryParams {
   return {
-    transfer_destination_definition_name: request.name,
+    destination_definition_name: request.name,
     description: request.description ?? null,
     destination_table_name: request.destinationTableName,
     destination_columns: request.destinationColumns,
-    destination_key_definition: request.destinationKeyDefinition,
+    destination_key_columns: request.destinationKeyColumns,
     sequence_expression_definition: request.sequenceExpressionDefinition ?? null,
     transfer_model: request.transferModel,
     sign_inversion_columns: request.signInversionColumns ?? null,
-    red_transfer_source_columns: request.redTransferSourceColumns ?? null,
     note: request.note ?? null,
   };
 }
@@ -190,16 +165,18 @@ function fromQueryResult(
   result: InsertTransferDestinationDefinitionQueryResult,
 ): CreateTransferDestinationDefinitionResult {
   return ResponseSchema.parse({
-    transferDestinationDefinitionId: result.transfer_destination_definition_id,
-    name: result.transfer_destination_definition_name,
+    transferDestinationDefinitionId: result.destination_definition_id,
+    name: result.destination_definition_name,
     description: result.description,
     destinationTableName: result.destination_table_name,
     destinationColumns: result.destination_columns,
-    destinationKeyDefinition: result.destination_key_definition,
+    destinationKeyColumns: result.destination_key_columns,
     sequenceExpressionDefinition: result.sequence_expression_definition,
     transferModel: result.transfer_model,
     signInversionColumns: result.sign_inversion_columns,
-    redTransferSourceColumns: result.red_transfer_source_columns,
+    generatedRedTransferSqlBody: result.generated_red_transfer_sql_body,
+    generatedRedTransferSqlStatus: result.generated_red_transfer_sql_status,
+    generatedRedTransferSqlError: result.generated_red_transfer_sql_error,
     createdAt: result.created_at,
     updatedAt: result.updated_at,
     note: result.note,

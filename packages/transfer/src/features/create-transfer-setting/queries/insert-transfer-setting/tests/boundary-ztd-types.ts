@@ -5,9 +5,9 @@ import type {
 } from '../boundary.js';
 
 export type InsertTransferSettingBeforeDb = {
-  public: {
-    transfer_setting: readonly {
-      transfer_setting_name?: unknown;
+  rawsql_transfer: {
+    setting: readonly {
+      setting_name?: unknown;
       description?: unknown;
       source_sql_body?: unknown;
       source_sql_hash?: unknown;
@@ -18,7 +18,7 @@ export type InsertTransferSettingBeforeDb = {
       source_sql_analysis_error?: unknown;
       is_enabled?: unknown;
       note?: unknown;
-      transfer_setting_id?: unknown;
+      setting_id?: unknown;
       created_at?: unknown;
       updated_at?: unknown;
     }[];

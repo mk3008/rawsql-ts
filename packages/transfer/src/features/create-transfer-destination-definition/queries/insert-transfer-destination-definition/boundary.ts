@@ -12,33 +12,35 @@ const insertTransferDestinationDefinitionSqlResource = loadSqlResource(
 );
 
 const JsonObjectSchema = z.record(z.string(), z.unknown());
+const TextArraySchema = z.array(z.string().min(1));
 
 const QueryParamsSchema = z.object({
-  transfer_destination_definition_name: z.string().min(1),
+  destination_definition_name: z.string().min(1),
   description: z.string().min(1).nullable(),
   destination_table_name: z.string().min(1),
   destination_columns: JsonObjectSchema,
-  destination_key_definition: JsonObjectSchema,
+  destination_key_columns: TextArraySchema,
   sequence_expression_definition: JsonObjectSchema.nullable(),
   transfer_model: z.enum(['immutable', 'mutable']),
-  sign_inversion_columns: JsonObjectSchema.nullable(),
-  red_transfer_source_columns: JsonObjectSchema.nullable(),
+  sign_inversion_columns: TextArraySchema.nullable(),
   note: z.string().min(1).nullable()
 }).strict();
 
 export type InsertTransferDestinationDefinitionQueryParams = z.infer<typeof QueryParamsSchema>;
 
 const RowSchema = z.object({
-  transfer_destination_definition_id: z.coerce.string(),
-  transfer_destination_definition_name: z.string(),
+  destination_definition_id: z.coerce.string(),
+  destination_definition_name: z.string(),
   description: z.string().nullable(),
   destination_table_name: z.string(),
   destination_columns: JsonObjectSchema,
-  destination_key_definition: JsonObjectSchema,
+  destination_key_columns: TextArraySchema,
   sequence_expression_definition: JsonObjectSchema.nullable(),
   transfer_model: z.enum(['immutable', 'mutable']),
-  sign_inversion_columns: JsonObjectSchema.nullable(),
-  red_transfer_source_columns: JsonObjectSchema.nullable(),
+  sign_inversion_columns: TextArraySchema.nullable(),
+  generated_red_transfer_sql_body: z.string(),
+  generated_red_transfer_sql_status: z.enum(['not_generated', 'success', 'failed']),
+  generated_red_transfer_sql_error: z.string().nullable(),
   created_at: z.coerce.date(),
   updated_at: z.coerce.date(),
   note: z.string().nullable()

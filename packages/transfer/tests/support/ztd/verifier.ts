@@ -54,6 +54,11 @@ interface StarterProjectConfigFile {
   searchPath?: string[];
 }
 
+interface DdlOrderFile {
+  schemaVersion?: number;
+  order?: unknown;
+}
+
 interface StarterProjectDefaults {
   projectRootDir: string;
   ztdRootDir: string;
@@ -343,7 +348,7 @@ async function applySqlFiles(
   schemaName: string
 ): Promise<void> {
   for (const ddlDirectory of ddlDirectories) {
-    for (const fileName of readdirSync(ddlDirectory).filter((entry) => entry.endsWith('.sql')).sort()) {
+    for (const fileName of resolveDdlFileOrder(ddlDirectory)) {
       const sql = readFileSync(path.join(ddlDirectory, fileName), 'utf8').trim();
       if (sql.length === 0) {
         continue;
@@ -351,6 +356,45 @@ async function applySqlFiles(
       await client.query(rewriteSchemaQualifiedSql(sql, defaultSchema, schemaName));
     }
   }
+}
+
+function resolveDdlFileOrder(ddlDirectory: string): string[] {
+  const sqlFiles = readdirSync(ddlDirectory)
+    .filter((entry) => entry.endsWith('.sql'))
+    .sort();
+  const orderPath = path.join(ddlDirectory, 'order.json');
+  if (!existsSync(orderPath)) {
+    return sqlFiles;
+  }
+
+  const parsed = JSON.parse(readFileSync(orderPath, 'utf8')) as DdlOrderFile;
+  if (!Array.isArray(parsed.order) || !parsed.order.every((entry) => typeof entry === 'string')) {
+    throw new Error(`DDL order file must contain string array "order": ${orderPath}`);
+  }
+
+  const orderedFiles = parsed.order as string[];
+  const knownSqlFiles = new Set(sqlFiles);
+  const seen = new Set<string>();
+
+  for (const fileName of orderedFiles) {
+    if (!fileName.endsWith('.sql')) {
+      throw new Error(`DDL order entry must be a SQL file: ${fileName}`);
+    }
+    if (!knownSqlFiles.has(fileName)) {
+      throw new Error(`DDL order entry does not exist: ${fileName}`);
+    }
+    if (seen.has(fileName)) {
+      throw new Error(`DDL order entry is duplicated: ${fileName}`);
+    }
+    seen.add(fileName);
+  }
+
+  const unorderedFiles = sqlFiles.filter((fileName) => !seen.has(fileName));
+  if (unorderedFiles.length > 0) {
+    throw new Error(`DDL order file does not include SQL files: ${unorderedFiles.join(', ')}`);
+  }
+
+  return orderedFiles;
 }
 
 async function seedFixtureRows(

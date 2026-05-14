@@ -11,7 +11,7 @@ const insertTransferSettingSqlResource = loadSqlResource(__dirname, 'insert-tran
 const JsonObjectSchema = z.record(z.string(), z.unknown());
 
 const QueryParamsSchema = z.object({
-  transfer_setting_name: z.string().min(1),
+  setting_name: z.string().min(1),
   description: z.string().min(1).nullable(),
   source_sql_body: z.string().min(1),
   source_sql_hash: z.string().min(1),
@@ -27,8 +27,8 @@ const QueryParamsSchema = z.object({
 export type InsertTransferSettingQueryParams = z.infer<typeof QueryParamsSchema>;
 
 const RowSchema = z.object({
-  transfer_setting_id: z.coerce.string(),
-  transfer_setting_name: z.string(),
+  setting_id: z.coerce.string(),
+  setting_name: z.string(),
   description: z.string().nullable(),
   source_sql_body: z.string(),
   source_sql_hash: z.string(),

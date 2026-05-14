@@ -7,8 +7,8 @@ import type { InsertTransferSettingQueryResult, InsertTransferSettingRow } from 
 
 export function mapInsertTransferSettingRowToResult(row: InsertTransferSettingRow): InsertTransferSettingQueryResult {
   return {
-    "transfer_setting_id": row["transfer_setting_id"],
-    "transfer_setting_name": row["transfer_setting_name"],
+    "setting_id": row["setting_id"],
+    "setting_name": row["setting_name"],
     "description": row["description"],
     "source_sql_body": row["source_sql_body"],
     "source_sql_hash": row["source_sql_hash"],

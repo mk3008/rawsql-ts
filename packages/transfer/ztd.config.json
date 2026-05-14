@@ -3,8 +3,9 @@
   "dialect": "postgres",
   "ddlDir": "db/ddl",
   "testsDir": ".ztd/tests",
-  "defaultSchema": "public",
+  "defaultSchema": "rawsql_transfer",
   "searchPath": [
+    "rawsql_transfer",
     "public"
   ],
   "ddlLint": "strict"

@@ -10,8 +10,8 @@ export function mapResolveTransferDestinationDefinitionsRowsToResult(rows: Resol
   for (let index = 0; index < rows.length; index += 1) {
     const row = rows[index];
     items[index] = {
-      "transfer_destination_definition_id": row["transfer_destination_definition_id"],
-      "transfer_destination_definition_name": row["transfer_destination_definition_name"],
+      "destination_definition_id": row["destination_definition_id"],
+      "destination_definition_name": row["destination_definition_name"],
     };
   }
   return { items };

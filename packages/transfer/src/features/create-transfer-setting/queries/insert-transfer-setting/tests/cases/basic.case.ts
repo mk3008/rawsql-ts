@@ -6,8 +6,8 @@ import type {
 } from '../boundary-ztd-types.js';
 
 const emptyBeforeDb = {
-  public: {
-    transfer_setting: [],
+  rawsql_transfer: {
+    setting: [],
   },
 } satisfies InsertTransferSettingBeforeDb;
 
@@ -16,12 +16,12 @@ const cases: readonly InsertTransferSettingQueryBoundaryZtdCase[] = [
     name: 'creates transfer setting with not analyzed status',
     beforeDb: emptyBeforeDb,
     input: {
-      transfer_setting_name: 'sales_transfer',
+      setting_name: 'sales_transfer',
       description: '売上転送',
       source_sql_body: 'select sale_id, amount from sales_transfer_source',
       source_sql_hash: '3b2c66b1596f0dcf1f3c4f65f3c0e15b9b19a7c637f3ea5b47d3c3c9b0d16773',
       source_key_definition: {
-        keys: [{ name: 'sale_id', sourceColumn: 'sale_id', type: 'bigint' }],
+        keys: [{ column: 'sale_id', type: 'bigint' }],
       },
       source_sql_analysis_result: null,
       search_condition_analysis_result: null,
@@ -31,13 +31,13 @@ const cases: readonly InsertTransferSettingQueryBoundaryZtdCase[] = [
       note: null,
     },
     output: {
-      transfer_setting_id: expect.any(String),
-      transfer_setting_name: 'sales_transfer',
+      setting_id: expect.any(String),
+      setting_name: 'sales_transfer',
       description: '売上転送',
       source_sql_body: 'select sale_id, amount from sales_transfer_source',
       source_sql_hash: '3b2c66b1596f0dcf1f3c4f65f3c0e15b9b19a7c637f3ea5b47d3c3c9b0d16773',
       source_key_definition: {
-        keys: [{ name: 'sale_id', sourceColumn: 'sale_id', type: 'bigint' }],
+        keys: [{ column: 'sale_id', type: 'bigint' }],
       },
       source_sql_analysis_result: null,
       search_condition_analysis_result: null,

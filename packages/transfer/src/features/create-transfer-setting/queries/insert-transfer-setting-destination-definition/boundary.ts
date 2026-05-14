@@ -14,10 +14,10 @@ const insertTransferSettingDestinationDefinitionSqlResource = loadSqlResource(
 const JsonObjectSchema = z.record(z.string(), z.unknown());
 
 const QueryParamsSchema = z.object({
-  transfer_setting_id: z.string().min(1),
-  transfer_destination_definition_id: z.string().min(1),
+  setting_id: z.string().min(1),
+  destination_definition_id: z.string().min(1),
   execution_order: z.number().int().positive(),
-  source_key_definition: JsonObjectSchema,
+  destination_key_mapping: JsonObjectSchema,
   mapping_definition: JsonObjectSchema,
   diff_compare_excluded_columns: JsonObjectSchema.nullable(),
   is_enabled: z.boolean(),
@@ -27,16 +27,15 @@ const QueryParamsSchema = z.object({
 export type InsertTransferSettingDestinationDefinitionQueryParams = z.infer<typeof QueryParamsSchema>;
 
 const RowSchema = z.object({
-  transfer_setting_destination_definition_id: z.coerce.string(),
-  transfer_setting_id: z.coerce.string(),
-  transfer_destination_definition_id: z.coerce.string(),
+  destination_link_id: z.coerce.string(),
+  setting_id: z.coerce.string(),
+  destination_definition_id: z.coerce.string(),
   execution_order: z.number().int(),
-  source_key_definition: JsonObjectSchema,
+  destination_key_mapping: JsonObjectSchema,
   mapping_definition: JsonObjectSchema,
   diff_compare_excluded_columns: JsonObjectSchema.nullable(),
   generated_insert_transfer_sql_body: z.string(),
   generated_update_transfer_sql_body: z.string(),
-  generated_red_transfer_sql_body: z.string(),
   generated_delete_transfer_sql_body: z.string(),
   generated_sql_status: z.enum(['not_generated', 'success', 'failed']),
   generated_sql_error: z.string().nullable(),

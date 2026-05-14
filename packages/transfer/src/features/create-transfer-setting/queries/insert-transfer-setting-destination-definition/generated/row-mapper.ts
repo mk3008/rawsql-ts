@@ -7,16 +7,15 @@ import type { InsertTransferSettingDestinationDefinitionQueryResult, InsertTrans
 
 export function mapInsertTransferSettingDestinationDefinitionRowToResult(row: InsertTransferSettingDestinationDefinitionRow): InsertTransferSettingDestinationDefinitionQueryResult {
   return {
-    "transfer_setting_destination_definition_id": row["transfer_setting_destination_definition_id"],
-    "transfer_setting_id": row["transfer_setting_id"],
-    "transfer_destination_definition_id": row["transfer_destination_definition_id"],
+    "destination_link_id": row["destination_link_id"],
+    "setting_id": row["setting_id"],
+    "destination_definition_id": row["destination_definition_id"],
     "execution_order": row["execution_order"],
-    "source_key_definition": row["source_key_definition"],
+    "destination_key_mapping": row["destination_key_mapping"],
     "mapping_definition": row["mapping_definition"],
     "diff_compare_excluded_columns": row["diff_compare_excluded_columns"],
     "generated_insert_transfer_sql_body": row["generated_insert_transfer_sql_body"],
     "generated_update_transfer_sql_body": row["generated_update_transfer_sql_body"],
-    "generated_red_transfer_sql_body": row["generated_red_transfer_sql_body"],
     "generated_delete_transfer_sql_body": row["generated_delete_transfer_sql_body"],
     "generated_sql_status": row["generated_sql_status"],
     "generated_sql_error": row["generated_sql_error"],

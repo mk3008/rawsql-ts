@@ -5,8 +5,8 @@ import type {
 } from '../boundary.js';
 
 export type InsertTransferDestinationDefinitionBeforeDb = {
-  public: {
-    transfer_destination_definition: readonly Partial<InsertTransferDestinationDefinitionQueryResult>[];
+  rawsql_transfer: {
+    destination_definition: readonly Partial<InsertTransferDestinationDefinitionQueryResult>[];
   };
 };
 export type InsertTransferDestinationDefinitionInput = InsertTransferDestinationDefinitionQueryParams;

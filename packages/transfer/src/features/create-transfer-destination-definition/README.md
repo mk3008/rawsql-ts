@@ -1,6 +1,6 @@
 # create-transfer-destination-definition
 
-Creates one `transfer_destination_definition` row.
+Creates one `destination_definition` row.
 
 This feature is intentionally scoped to the create use case. Do not rename or reshape it into a table-level `transfer-destination-definitions` CRUD feature.
 
@@ -12,11 +12,10 @@ The public feature boundary accepts `CreateTransferDestinationDefinitionInput` w
 - `description`
 - `destinationTableName`
 - `destinationColumns`
-- `destinationKeyDefinition`
+- `destinationKeyColumns`
 - `sequenceExpressionDefinition`
 - `transferModel`
 - `signInversionColumns`
-- `redTransferSourceColumns`
 - `note`
 
 ## Validation
@@ -27,11 +26,11 @@ The feature boundary validates the minimum create rules before calling the query
 - non-blank, fully qualified, unique `destinationTableName`
 - at least one `destinationColumns.columns` entry
 - unique `destinationColumns.columns[].name`
-- at least one `destinationKeyDefinition.keys` entry
-- referenced key, sequence, sign inversion, and red-transfer source columns exist in `destinationColumns.columns`
+- at least one `destinationKeyColumns` entry
+- referenced key, sequence, and sign inversion columns exist in `destinationColumns.columns`
 - allowed `transferModel` values
 
-Duplicate `transfer_destination_definition_name` and `destination_table_name` values are not preflighted in the feature SQL. The database unique constraints own that fail-fast behavior.
+Duplicate `destination_definition_name` and `destination_table_name` values are not preflighted in the feature SQL. The database unique constraints own that fail-fast behavior.
 
 Transfer-setting-specific diff comparison exclusions are intentionally not part of Destination Definition input.
 Those exclusions belong to the Transfer Setting Destination Link.
@@ -40,7 +39,7 @@ Those exclusions belong to the Transfer Setting Destination Link.
 
 The query boundary lives under `queries/insert-transfer-destination-definition/`.
 
-`insert-transfer-destination-definition.sql` explicitly lists caller-supplied columns, casts JSONB values, omits `created_at` and `updated_at` so the DB defaults apply, and returns the inserted row.
+`insert-transfer-destination-definition.sql` explicitly lists caller-supplied columns, casts structured values, omits generated red-transfer SQL and timestamps so the DB defaults apply, and returns the inserted row.
 
 ## RFBA Note
 

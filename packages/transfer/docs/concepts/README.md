@@ -4,14 +4,20 @@ This directory contains Concept Specs for `@rawsql-ts/transfer`.
 
 Concept Specs define stable meanings, responsibility boundaries, and invariants for concepts that span multiple features. They are not implementation plans, SQL, DDL, queryspecs, or test cases.
 
+Human-owned Concept Specs live in each `<concept-id>/SPEC.md`.
+Machine-readable concept lifecycle, glossary, and relationship metadata lives in `concept-relationship.json`.
+Human review views such as Concept Maps or generated VitePress indexes should be regenerated or checked from that metadata; do not add concept graph facts only to a review view.
+
 Concept lifecycle:
 
 - Defined concepts use `<concept-id>/SPEC.md`.
 - Draft concepts use `<concept-id>/DRAFT.md`.
 - A draft is reviewable work in progress, not an authoritative Concept Spec.
-- Promote a draft by replacing `DRAFT.md` with `SPEC.md`, then updating `concept-map.md` and `concept-relationship.json`.
+- Promote a draft by replacing `DRAFT.md` with `SPEC.md`, then updating `concept-relationship.json` and regenerating or refreshing review views.
 
 Available Concept Specs:
+
+This list is a human entrypoint. Use `concept-relationship.json` and generated Concept Map views for completeness checks.
 
 - [Active Black](./active-black/SPEC.md)
 - [Black Transfer](./black-transfer/SPEC.md)
@@ -31,6 +37,11 @@ Concept relationship entrypoints:
 
 - [Concept Map](./concept-map.md)
 - [Concept Relationship Metadata](./concept-relationship.json)
+
+Related DFDs:
+
+- [Transfer DFDs](../dfd/README.md)
+- [DFD Relationship Metadata](../dfd/relationship.json)
 
 Related process maps:
 

@@ -47,7 +47,7 @@ Transfer Setting は、転送元データソースを定義し、そのデータ
 - Transfer Setting の基礎 SQL は、転送先行を識別するために `Destination` の採番式または自然キーを使ってよい。
 - transfer engine は、Transfer Setting の基礎 SQL に `destination row key`、採番式、検索条件、転送先列を暗黙に追加しない。
 - Transfer Setting の基礎 SQL は、転送先への INSERT / UPDATE / DELETE そのものではない。
-- 任意検索条件は、基礎 SQL の [SSSQL](../../../../../docs/guide/sssql-overview.md) として表現する。転送 SQL 生成側が WHERE 条件を暗黙に追加しない。
+- 任意検索条件は、基礎 SQL の [SSSQL](/guide/sssql-overview) として表現する。転送 SQL 生成側が WHERE 条件を暗黙に追加しない。
 - Transfer Setting と `Destination` の接続は、`Destination Link` として管理する。
 - 生成済み転送 SQL は、Transfer Setting 単体ではなく、`Destination Link` 単位で管理する。
 

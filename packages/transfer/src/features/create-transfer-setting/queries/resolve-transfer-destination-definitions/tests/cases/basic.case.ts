@@ -4,34 +4,38 @@ import type {
 } from '../boundary-ztd-types.js';
 
 const beforeDb = {
-  public: {
-    transfer_destination_definition: [
+  rawsql_transfer: {
+    destination_definition: [
       {
-        transfer_destination_definition_id: '10',
-        transfer_destination_definition_name: 'journal',
+        destination_definition_id: '10',
+        destination_definition_name: 'journal',
         description: '仕訳転送先',
-        destination_table_name: 'journal',
+        destination_table_name: 'public.journal',
         destination_columns: { columns: [{ name: 'journal_id', type: 'bigint' }] },
-        destination_key_definition: { keys: ['journal_id'] },
+        destination_key_columns: '{journal_id}',
         sequence_expression_definition: null,
         transfer_model: 'immutable',
-        sign_inversion_columns: null,
-        red_transfer_source_columns: null,
+        sign_inversion_columns: '{amount}',
+        generated_red_transfer_sql_body: '',
+        generated_red_transfer_sql_status: 'not_generated',
+        generated_red_transfer_sql_error: null,
         created_at: new Date('2026-05-02T00:00:00.000Z'),
         updated_at: new Date('2026-05-02T00:00:00.000Z'),
         note: null
       },
       {
-        transfer_destination_definition_id: '11',
-        transfer_destination_definition_name: 'account_balance',
+        destination_definition_id: '11',
+        destination_definition_name: 'account_balance',
         description: '科目残高転送先',
-        destination_table_name: 'account_balance',
+        destination_table_name: 'public.account_balance',
         destination_columns: { columns: [{ name: 'account_balance_id', type: 'bigint' }] },
-        destination_key_definition: { keys: ['account_balance_id'] },
+        destination_key_columns: '{account_balance_id}',
         sequence_expression_definition: null,
         transfer_model: 'mutable',
         sign_inversion_columns: null,
-        red_transfer_source_columns: null,
+        generated_red_transfer_sql_body: '',
+        generated_red_transfer_sql_status: 'not_generated',
+        generated_red_transfer_sql_error: null,
         created_at: new Date('2026-05-02T00:00:00.000Z'),
         updated_at: new Date('2026-05-02T00:00:00.000Z'),
         note: null
@@ -50,8 +54,8 @@ const cases: readonly ResolveTransferDestinationDefinitionsQueryBoundaryZtdCase[
     output: {
       items: [
         {
-          transfer_destination_definition_id: '10',
-          transfer_destination_definition_name: 'journal'
+          destination_definition_id: '10',
+          destination_definition_name: 'journal'
         }
       ]
     }

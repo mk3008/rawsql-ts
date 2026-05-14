@@ -20,8 +20,8 @@ const QueryParamsSchema = z.object({
 export type ResolveTransferDestinationDefinitionsQueryParams = z.infer<typeof QueryParamsSchema>;
 
 const RowSchema = z.object({
-  transfer_destination_definition_id: z.coerce.string(),
-  transfer_destination_definition_name: z.string()
+  destination_definition_id: z.coerce.string(),
+  destination_definition_name: z.string()
 }).strict();
 
 const QueryResultSchema = z.object({
@@ -54,8 +54,8 @@ const resolveTransferDestinationDefinitionsCatalogSpec: QuerySpec<
   output: {
     validate: (row) => parseRow(row),
     example: RowSchema.parse({
-      transfer_destination_definition_id: '1',
-      transfer_destination_definition_name: 'journal'
+      destination_definition_id: '1',
+      destination_definition_name: 'journal'
     })
   }
 };

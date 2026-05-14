@@ -72,7 +72,7 @@ They must not decide that a draft concept is authoritative, create a new Concept
 
 This keeps AI useful as a reviewer and consistency checker without making it the source of domain truth.
 
-## Standard Shape
+## Concept Spec Format Rules
 
 Use a `SPEC.md` file for the human-readable specification body.
 
@@ -92,6 +92,12 @@ Concept relationships should be normalized at the concept root, primarily in `co
 
 Avoid copying generic Concept Spec management rules into every individual spec.
 Package-level guidance and repository documentation should carry the common rules.
+
+Concept Spec prose may reference other Concepts or glossary terms with inline code, such as `Transfer Setting` or `source key`.
+Do not require inline Markdown links for every term; generated Concept review views and relationship metadata should be the lookup surface.
+
+Concept Specs should avoid scope tables, relationship tables, or generated indexes that are only useful as review aids.
+If a view can be generated from structured metadata, keep the metadata as the maintained source and generate the view.
 
 ## Negative Boundary Rule
 
@@ -211,6 +217,92 @@ Process Maps must not use DFD Concept Groups; Process Maps should expand to conc
 Process Maps are optional.
 Create them for complex flows that combine multiple concepts, branching decisions, duplicate prevention, auditability, history, or state transitions.
 Do not create Process Maps for every CRUD feature or simple query.
+
+## DFD Format Rules
+
+DFD Markdown is a human-readable business-operation flow, not physical design.
+It should be readable without opening JSON, but it should not duplicate mechanically extractable metadata in handwritten scope tables.
+
+A DFD Markdown file should usually include:
+
+- `## Purpose`
+- `## Overall Flow`
+- `## Boundary` when system boundary matters
+- one `## <Business Operation> Detail Flow` per business operation
+- optional notes or review points
+
+Overall flow diagrams should:
+
+- use `flowchart TD`
+- show business operations and their high-level data dependency
+- avoid detail-level input/output, storage design, SQL, DDL, functions, classes, and transaction details
+
+Detail flow diagrams should:
+
+- use `flowchart LR`
+- describe one business operation
+- include independent Mermaid nodes for `When:` and `Who:` when timing or actors matter
+- use separate nodes for event timing, role, business operation, system-scope storage, and external storage
+- use business-operation nodes visually distinct from role and storage nodes
+- use solid arrows for data flow
+- use dotted arrows for trigger, responsibility, control, or context
+- avoid hiding roles or timing only inside prose or operation labels
+- avoid handwritten Scope tables for role, timing, input, or output metadata
+
+When multiple roles can perform the same business operation, model them as multiple `Who:` nodes.
+Do not combine roles into a single "A or B" role label.
+
+DFD roles should be role names or system actor names.
+They should not be vague descriptions such as "the entity that starts the process" when a clearer role such as "user", "scheduler", or "external producer" is available.
+
+Machine extraction should be explicit:
+
+- tools may extract roles from Mermaid `Who:` nodes
+- tools may extract timing from Mermaid `When:` nodes when needed
+- `docs/dfd/relationship.json` should own stable DFD IDs, business-operation IDs, input/output references, DFD Concept Groups, external stores, and derived views
+- if metadata cannot be extracted mechanically from Mermaid, add it to structured metadata or define a stable Mermaid convention
+- do not rely on repeated AI inference from prose to rebuild DFD metadata
+
+DFDs may use DFD Concept Groups.
+Process Maps must not use DFD Concept Groups.
+
+## Process Map Rules
+
+Process Maps are long-lived logical review documents, not implementation procedures.
+
+Mermaid diagrams in Process Maps should be Step Functions-like process maps.
+
+Main routine diagrams should:
+
+- use `flowchart TD`
+- show process order
+- have explicit `start` and `done` nodes
+- contain process and branch nodes only
+- avoid storage nodes, data stores, DDL details, SQL, functions, classes, and implementation artifacts
+
+Detail diagrams should:
+
+- explain one process only
+- use `flowchart LR`
+- show concept-level input, the process, and concept-level output
+- treat temporary logical outputs as allowed review aids, but keep final outputs grounded in defined Concepts when possible
+- avoid calling the next subprocess unless that call is the subject of the detail view
+
+When a diagram describes movement, fixation, transfer, tracing, or result recording, route the relationship through an operation or routine node.
+Diagram arrows should not imply that data moves directly from one stored concept to another.
+
+Process Maps must use concrete Concepts, glossary terms, external stores, or explicitly registered derived views.
+They must not use DFD Concept Groups.
+DFD Concept Groups are allowed in DFDs only, where coarse business-operation review needs a simpler view.
+
+Process Maps may be supported by `docs/processes/process-map.json`.
+That metadata should record process map IDs, source Markdown paths, views, typed process inputs, typed process outputs, process-local derived views, external stores, and related Concepts.
+Use `inputs` and `outputs` for concept-level process I/O.
+Use `relatedConcepts` for Concepts that explain or classify the view but are not the direct input or output.
+Use `uses` for Concepts that represent the operation semantics used by the process.
+This lets tools detect missing process documents, stale links, unknown Concepts, unknown external stores, unknown derived views, and accidental use of DFD-only groups.
+
+Each Process Map Markdown file should link to this section so new process documents inherit the same review rules instead of copying them.
 
 This flow is deliberately not physical design.
 Concept Specs, DFDs, and Process Maps should avoid DDL details, SQL shape, Zod schemas, API paths, function names, class structure, file layout, and transaction implementation unless the user explicitly asks for a separate implementation design.
@@ -559,6 +651,7 @@ If humans need a group index, generate or check it from `docs/dfd/relationship.j
 
 Use `docs/dfd/relationship.json` to record:
 
+- DFD subsystems
 - DFD Concept Groups
 - members of each DFD Concept Group
 - external stores referenced by DFDs
@@ -571,6 +664,13 @@ Example:
 ```json
 {
   "schemaVersion": 1,
+  "subsystems": [
+    {
+      "id": "batch",
+      "displayName": "Batch",
+      "summary": "Batch-oriented business operations."
+    }
+  ],
   "externalStores": [
     {
       "id": "source-data",
@@ -593,6 +693,7 @@ Example:
     {
       "id": "transfer-execution-data-flow",
       "displayName": "Transfer Execution Data Flow",
+      "subsystem": "batch",
       "path": "transfer-execution-data-flow.md",
       "businessOperations": [
         {
@@ -612,6 +713,26 @@ Example:
 }
 ```
 
+DFD pages are generated as subsystem and business views:
+
+```text
+docs/dfd/
+  index.md
+  <subsystem-id>/
+    index.md
+    business/
+      <business-id>.md
+      <business-id>/
+        process/
+          index.md
+          <process-id>.md
+```
+
+The DFD root page is an index. A subsystem page owns the business correlation for that subsystem.
+A business page owns the business definition.
+Related Process Maps are business-owned views because a Process Map explains how one business operation is decomposed into reviewable logical steps.
+Do not generate or maintain intermediate pages such as `docs/dfd/<dfd-id>.md`; they blur the boundary between subsystem indexes and business definitions.
+
 Allowed DFD reference types should start small:
 
 - `concept`
@@ -627,7 +748,9 @@ The DFD metadata should let a structural checker answer these questions without 
 - Does every DFD input/output resolve to a defined Concept, a DFD Concept Group, an external store, or an allowed derived view?
 - Does every DFD Concept Group member resolve to a defined Concept or allowed non-concept term?
 - Does every referenced DFD Markdown file exist?
-- Does the Markdown table for input/output drift from the structured metadata?
+- Does DFD Markdown expose parseable `Who:` nodes when role review views depend on them?
+- Does DFD Markdown expose parseable `When:` nodes when timing review views depend on them?
+- Do DFD operation IDs and input/output references in metadata stay aligned with the human-readable Mermaid flow?
 - Does any Process Map use a DFD-only Concept Group?
 
 These checks do not prove semantic correctness.
@@ -663,9 +786,11 @@ Early CLI support should stay structural and mechanical:
 - detect invalid `DRAFT.md` / `SPEC.md` lifecycle states
 - check `concept-relationship.json` concept IDs, paths, statuses, and relationship references
 - check `docs/dfd/relationship.json` DFD Concept Groups, input/output references, external stores, and Markdown paths
-- check `docs/processes/process-map.json` Process Map IDs, Markdown paths, view IDs, and referenced Concepts
+- check `docs/processes/process-map.json` Process Map IDs, Markdown paths, view IDs, typed input/output refs, external stores, derived views, and related Concepts
 - check that Process Maps do not use DFD-only Concept Groups
-- check that DFD Markdown input/output tables do not drift from structured DFD metadata
+- check that Process Map Markdown files link to the common Process Map rules
+- check that DFD Markdown exposes parseable Mermaid `Who:` nodes where role extraction is required
+- check that DFD Markdown does not reintroduce handwritten Scope tables that duplicate Mermaid or relationship metadata
 
 CLI tools must not reinterpret the spec body, move specs, split specs, merge specs, or reorganize the Concept Spec tree automatically.
 Those actions require human review.
@@ -734,9 +859,11 @@ Warnings:
 - a draft concept is used as a production dependency or process premise without explicit human approval
 - a draft concept remains unresolved for a long time
 - a draft concept appears under `Defined Concepts` in `concept-map.md`
-- a DFD Markdown input/output table appears to drift from `docs/dfd/relationship.json`
+- a DFD operation lacks parseable Mermaid `Who:` nodes where generated role views depend on them
+- a DFD Markdown file contains handwritten Scope tables that duplicate Mermaid or relationship metadata
 - a DFD Concept Group exists in Markdown but is missing from structured metadata, or vice versa
 - a DFD relationship entry has no human-readable explanation where one is needed for review
+- a Process Map Markdown file does not link to the common Process Map rules in `docs/guide/concept-spec-overview.md`
 
 Unreferenced Concept Specs should usually be warnings, not errors.
 New root or seed specs may exist before features depend on them.
