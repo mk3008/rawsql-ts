@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { loadConceptRegistry, loadDfdRegistry } from '../relationshipMetadata';
-import { renderConceptIndex, renderConceptPages, renderDfdIndex, renderDfdPages, renderDfdRoleIndex, renderProcessIndex, renderProcessPages } from '../render/sourcePages';
+import { renderConceptIndex, renderConceptPages, renderDfdBusinessPages, renderDfdBusinessProcessPages, renderDfdIndex, renderDfdRoleIndex, renderDfdSubsystemPages, renderProcessIndex, renderProcessPages } from '../render/sourcePages';
 import { ensureDirectory } from '../utils/fs';
 import { writeTextFileNormalized } from '../utils/io';
 import type { GenerateConceptSiteOptions } from '../types';
@@ -19,7 +19,9 @@ export function runGenerateConceptSite(options: GenerateConceptSiteOptions): voi
   const pages = [
     ...renderConceptPages(options.outDir, conceptRegistry),
     ...renderProcessPages(options.outDir, undefined, conceptRegistry),
-    ...renderDfdPages(options.outDir, dfdRegistry),
+    ...renderDfdSubsystemPages(options.outDir, dfdRegistry),
+    ...renderDfdBusinessPages(options.outDir, dfdRegistry, conceptRegistry),
+    ...renderDfdBusinessProcessPages(options.outDir, dfdRegistry),
   ];
   const conceptIndex = renderConceptIndex(options.outDir, conceptRegistry);
   const processIndex = renderProcessIndex(options.outDir, undefined, conceptRegistry);

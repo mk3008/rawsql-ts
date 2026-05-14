@@ -61,20 +61,6 @@ export function renderConceptMapMarkdown(conceptRegistry: ConceptRegistry): stri
     }
   }
 
-  if (conceptRegistry.relatedProcessMaps.length > 0) {
-    lines.push('');
-    lines.push('## Related Process Maps');
-    lines.push('');
-    lines.push('Process review views linked from concept metadata; process meaning stays in the source process documents.');
-    lines.push('');
-    lines.push('| Process Map | Source |');
-    lines.push('| --- | --- |');
-    for (const process of [...conceptRegistry.relatedProcessMaps].sort((left, right) => left.id.localeCompare(right.id))) {
-      const label = process.displayName ?? process.id;
-      lines.push(`| ${formatTableCell(label)} | ${formatConceptPath(process.path)} |`);
-    }
-  }
-
   if (conceptRegistry.relationships.length > 0) {
     lines.push('');
     lines.push('## Concept Relationships');

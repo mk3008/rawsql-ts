@@ -93,6 +93,7 @@ interface ConceptRelatedProcessMapEntry {
 
 interface DfdRelationshipMetadata {
   schemaVersion: 1;
+  subsystems?: DfdSubsystemEntry[];
   conceptGroups?: DfdConceptGroupEntry[];
   externalStores?: DfdNamedEntry[];
   derivedViews?: DfdNamedEntry[];
@@ -104,19 +105,34 @@ interface DfdNamedEntry {
   displayName?: string;
 }
 
+interface DfdSubsystemEntry extends DfdNamedEntry {
+  summary?: string;
+}
+
 interface DfdConceptGroupEntry extends DfdNamedEntry {
   scope?: string;
   members: DfdTermRef[];
 }
 
 interface DfdEntry extends DfdNamedEntry {
+  subsystem?: string;
   path: string;
+  summary?: string;
   businessOperations?: DfdBusinessOperationEntry[];
 }
 
 interface DfdBusinessOperationEntry extends DfdNamedEntry {
+  summary?: string;
+  relatedProcesses?: DfdRelatedProcessEntry[];
   inputs?: DfdTermRef[];
   outputs?: DfdTermRef[];
+  uses?: DfdTermRef[];
+}
+
+interface DfdRelatedProcessEntry {
+  id: string;
+  path: string;
+  reason?: string;
 }
 
 interface DfdTermRef {
@@ -127,6 +143,8 @@ interface DfdTermRef {
 interface ProcessMapMetadata {
   schemaVersion: 1;
   processMaps?: ProcessMapEntry[];
+  externalStores?: DfdNamedEntry[];
+  derivedViews?: DfdNamedEntry[];
   views?: ProcessMapViewEntry[];
 }
 
@@ -141,6 +159,10 @@ interface ProcessMapViewEntry {
   name?: string;
   processMap: string;
   concepts?: string[];
+  relatedConcepts?: string[];
+  inputs?: DfdTermRef[];
+  outputs?: DfdTermRef[];
+  uses?: DfdTermRef[];
   purpose?: string;
 }
 
@@ -834,6 +856,17 @@ function checkDfdRelationshipMetadata(
 
   const groupIds = new Set<string>();
   const groupLabels = new Map<string, string>();
+  const subsystemIds = new Set<string>();
+  for (const subsystem of value.subsystems ?? []) {
+    if (subsystemIds.has(subsystem.id)) {
+      issues.push({
+        severity: 'error',
+        code: 'DFD_SUBSYSTEM_DUPLICATE_ID',
+        message: `dfd-relationship.json contains duplicate subsystem id: ${subsystem.id}`,
+      });
+    }
+    subsystemIds.add(subsystem.id);
+  }
   for (const group of value.conceptGroups ?? []) {
     if (groupIds.has(group.id)) {
       issues.push({
@@ -887,6 +920,13 @@ function checkDfdRelationshipMetadata(
       });
     }
     dfdIds.add(dfd.id);
+    if (dfd.subsystem && subsystemIds.size > 0 && !subsystemIds.has(dfd.subsystem)) {
+      issues.push({
+        severity: 'error',
+        code: 'DFD_UNKNOWN_SUBSYSTEM',
+        message: `DFD ${dfd.id} references unknown subsystem: ${dfd.subsystem}`,
+      });
+    }
     if (!existsSync(path.resolve(baseDir, dfd.path))) {
       issues.push({
         severity: 'error',
@@ -910,6 +950,14 @@ function checkDfdRelationshipMetadata(
         checkDfdTermRef(
           `DFD ${dfd.id} operation ${operation.id} output`,
           output,
+          { conceptRegistry, groupIds, externalStoreIds, derivedViewIds },
+          issues
+        );
+      }
+      for (const use of operation.uses ?? []) {
+        checkDfdTermRef(
+          `DFD ${dfd.id} operation ${operation.id} use`,
+          use,
           { conceptRegistry, groupIds, externalStoreIds, derivedViewIds },
           issues
         );
@@ -994,6 +1042,8 @@ function checkProcessMapMetadata(
   }
 
   const viewIds = new Set<string>();
+  const externalStoreIds = new Set((value.externalStores ?? []).map((entry) => entry.id));
+  const derivedViewIds = new Set((value.derivedViews ?? []).map((entry) => entry.id));
   if (conceptRegistry.definedIds.size === 0) {
     issues.push({
       severity: 'warning',
@@ -1017,7 +1067,7 @@ function checkProcessMapMetadata(
         message: `process-map.json view references unknown process map ${view.processMap}: ${view.id}`,
       });
     }
-    for (const conceptId of view.concepts ?? []) {
+    for (const conceptId of [...(view.concepts ?? []), ...(view.relatedConcepts ?? [])]) {
       if (conceptRegistry.definedIds.size > 0 && !conceptRegistry.definedIds.has(conceptId)) {
         issues.push({
           severity: 'error',
@@ -1026,6 +1076,20 @@ function checkProcessMapMetadata(
             : 'PROCESS_MAP_VIEW_UNKNOWN_CONCEPT',
           message: `process-map.json view references ${conceptRegistry.allIds.has(conceptId) ? 'non-defined' : 'unknown'} concept ${conceptId}: ${view.id}`,
         });
+      }
+    }
+    for (const [fieldName, refs] of [
+      ['input', view.inputs ?? []],
+      ['output', view.outputs ?? []],
+      ['use', view.uses ?? []],
+    ] as const) {
+      for (const ref of refs) {
+        checkProcessMapTermRef(
+          `Process Map view ${view.id} ${fieldName}`,
+          ref,
+          { conceptRegistry, externalStoreIds, derivedViewIds },
+          issues
+        );
       }
     }
   }
@@ -1170,6 +1234,62 @@ function checkDfdTermRef(
     severity: 'error',
     code: 'DFD_REF_UNKNOWN_TYPE',
     message: `${scope} uses unsupported DFD ref type: ${ref.type}`,
+  });
+}
+
+function checkProcessMapTermRef(
+  scope: string,
+  ref: DfdTermRef,
+  registry: {
+    conceptRegistry: { allIds: Set<string>; definedIds: Set<string> };
+    externalStoreIds: Set<string>;
+    derivedViewIds: Set<string>;
+  },
+  issues: CheckIssue[]
+): void {
+  if (ref.type === 'concept') {
+    if (registry.conceptRegistry.definedIds.size > 0 && !registry.conceptRegistry.definedIds.has(ref.id)) {
+      const knownButNotDefined = registry.conceptRegistry.allIds.has(ref.id);
+      issues.push({
+        severity: 'error',
+        code: knownButNotDefined ? 'PROCESS_MAP_REF_CONCEPT_NOT_DEFINED' : 'PROCESS_MAP_REF_UNKNOWN_CONCEPT',
+        message: `${scope} references ${knownButNotDefined ? 'non-defined' : 'unknown'} concept: ${ref.id}`,
+      });
+    }
+    return;
+  }
+  if (ref.type === 'external-store') {
+    if (!registry.externalStoreIds.has(ref.id)) {
+      issues.push({
+        severity: 'error',
+        code: 'PROCESS_MAP_REF_UNKNOWN_EXTERNAL_STORE',
+        message: `${scope} references unknown external store: ${ref.id}`,
+      });
+    }
+    return;
+  }
+  if (ref.type === 'derived-view') {
+    if (!registry.derivedViewIds.has(ref.id)) {
+      issues.push({
+        severity: 'error',
+        code: 'PROCESS_MAP_REF_UNKNOWN_DERIVED_VIEW',
+        message: `${scope} references unknown derived view: ${ref.id}`,
+      });
+    }
+    return;
+  }
+  if (ref.type === 'concept-group') {
+    issues.push({
+      severity: 'error',
+      code: 'PROCESS_MAP_REF_CONCEPT_GROUP_NOT_ALLOWED',
+      message: `${scope} must not use DFD concept group: ${ref.id}`,
+    });
+    return;
+  }
+  issues.push({
+    severity: 'error',
+    code: 'PROCESS_MAP_REF_UNKNOWN_TYPE',
+    message: `${scope} uses unsupported Process Map ref type: ${ref.type}`,
   });
 }
 
@@ -1397,6 +1517,9 @@ function isDfdRelationshipMetadata(value: unknown): value is DfdRelationshipMeta
   if (value.conceptGroups !== undefined && !Array.isArray(value.conceptGroups)) {
     return false;
   }
+  if (value.subsystems !== undefined && !Array.isArray(value.subsystems)) {
+    return false;
+  }
   if (value.externalStores !== undefined && !Array.isArray(value.externalStores)) {
     return false;
   }
@@ -1406,10 +1529,17 @@ function isDfdRelationshipMetadata(value: unknown): value is DfdRelationshipMeta
   if (value.dfds !== undefined && !Array.isArray(value.dfds)) {
     return false;
   }
-  return (value.conceptGroups ?? []).every(isDfdConceptGroupEntry)
+  return (value.subsystems ?? []).every(isDfdSubsystemEntry)
+    && (value.conceptGroups ?? []).every(isDfdConceptGroupEntry)
     && (value.externalStores ?? []).every(isDfdNamedEntry)
     && (value.derivedViews ?? []).every(isDfdNamedEntry)
     && (value.dfds ?? []).every(isDfdEntry);
+}
+
+function isDfdSubsystemEntry(value: unknown): value is DfdSubsystemEntry {
+  return isRecord(value)
+    && isDfdNamedEntry(value)
+    && (value.summary === undefined || typeof value.summary === 'string');
 }
 
 function isProcessMapMetadata(value: unknown): value is ProcessMapMetadata {
@@ -1419,10 +1549,18 @@ function isProcessMapMetadata(value: unknown): value is ProcessMapMetadata {
   if (value.processMaps !== undefined && !Array.isArray(value.processMaps)) {
     return false;
   }
+  if (value.externalStores !== undefined && !Array.isArray(value.externalStores)) {
+    return false;
+  }
+  if (value.derivedViews !== undefined && !Array.isArray(value.derivedViews)) {
+    return false;
+  }
   if (value.views !== undefined && !Array.isArray(value.views)) {
     return false;
   }
   return (value.processMaps ?? []).every(isProcessMapEntry)
+    && (value.externalStores ?? []).every(isDfdNamedEntry)
+    && (value.derivedViews ?? []).every(isDfdNamedEntry)
     && (value.views ?? []).every(isProcessMapViewEntry);
 }
 
@@ -1439,7 +1577,11 @@ function isProcessMapViewEntry(value: unknown): value is ProcessMapViewEntry {
     && typeof value.processMap === 'string'
     && (value.name === undefined || typeof value.name === 'string')
     && (value.purpose === undefined || typeof value.purpose === 'string')
-    && (value.concepts === undefined || (Array.isArray(value.concepts) && value.concepts.every((concept) => typeof concept === 'string')));
+    && (value.concepts === undefined || (Array.isArray(value.concepts) && value.concepts.every((concept) => typeof concept === 'string')))
+    && (value.relatedConcepts === undefined || (Array.isArray(value.relatedConcepts) && value.relatedConcepts.every((concept) => typeof concept === 'string')))
+    && (value.inputs === undefined || (Array.isArray(value.inputs) && value.inputs.every(isDfdTermRef)))
+    && (value.outputs === undefined || (Array.isArray(value.outputs) && value.outputs.every(isDfdTermRef)))
+    && (value.uses === undefined || (Array.isArray(value.uses) && value.uses.every(isDfdTermRef)));
 }
 
 function isDfdNamedEntry(value: unknown): value is DfdNamedEntry {
@@ -1459,7 +1601,9 @@ function isDfdConceptGroupEntry(value: unknown): value is DfdConceptGroupEntry {
 function isDfdEntry(value: unknown): value is DfdEntry {
   return isRecord(value)
     && isDfdNamedEntry(value)
+    && (value.subsystem === undefined || typeof value.subsystem === 'string')
     && typeof value.path === 'string'
+    && (value.summary === undefined || typeof value.summary === 'string')
     && (value.businessOperations === undefined || (
       Array.isArray(value.businessOperations)
       && value.businessOperations.every(isDfdBusinessOperationEntry)
@@ -1469,8 +1613,21 @@ function isDfdEntry(value: unknown): value is DfdEntry {
 function isDfdBusinessOperationEntry(value: unknown): value is DfdBusinessOperationEntry {
   return isRecord(value)
     && isDfdNamedEntry(value)
+    && (value.summary === undefined || typeof value.summary === 'string')
+    && (value.relatedProcesses === undefined || (
+      Array.isArray(value.relatedProcesses)
+      && value.relatedProcesses.every(isDfdRelatedProcessEntry)
+    ))
     && (value.inputs === undefined || (Array.isArray(value.inputs) && value.inputs.every(isDfdTermRef)))
-    && (value.outputs === undefined || (Array.isArray(value.outputs) && value.outputs.every(isDfdTermRef)));
+    && (value.outputs === undefined || (Array.isArray(value.outputs) && value.outputs.every(isDfdTermRef)))
+    && (value.uses === undefined || (Array.isArray(value.uses) && value.uses.every(isDfdTermRef)));
+}
+
+function isDfdRelatedProcessEntry(value: unknown): value is DfdRelatedProcessEntry {
+  return isRecord(value)
+    && typeof value.id === 'string'
+    && typeof value.path === 'string'
+    && (value.reason === undefined || typeof value.reason === 'string');
 }
 
 function isDfdTermRef(value: unknown): value is DfdTermRef {

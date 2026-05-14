@@ -483,6 +483,13 @@ test('concept-site generates VitePress concept and process pages without DDL inp
       '',
       'Defined DFD.',
       '',
+      '## Overall Flow',
+      '',
+      '```mermaid',
+      'flowchart TD',
+      '  Registration(("Active Row Registration"))',
+      '```',
+      '',
       '## Active Row Registration Detail Flow',
       '',
       '```mermaid',
@@ -491,9 +498,11 @@ test('concept-site generates VitePress concept and process pages without DDL inp
       '  User[/"Who: User"/]',
       '  Scheduler[/"Who: Scheduler"/]',
       '  Register(("Active Row Registration"))',
+      '  ActiveRow[("Active Row")]',
       '  Event -. "trigger" .-> Register',
       '  User -. "manual run" .-> Register',
       '  Scheduler -. "scheduled run" .-> Register',
+      '  Register -->|"created active row"| ActiveRow',
       '```',
       '',
     ].join('\n'),
@@ -548,15 +557,64 @@ test('concept-site generates VitePress concept and process pages without DDL inp
     JSON.stringify(
       {
         schemaVersion: 1,
+        subsystems: [
+          {
+            id: 'operations',
+            displayName: 'Operations',
+            summary: 'Operational flows.',
+          },
+          {
+            id: 'reporting',
+            displayName: 'Reporting',
+            summary: 'Reporting flows.',
+          },
+        ],
         dfds: [
           {
             id: 'active-row-flow',
             displayName: 'Active Row Flow',
+            subsystem: 'operations',
             path: 'active-row-flow.md',
+            summary: 'Active row intake and processing flow.',
             businessOperations: [
               {
                 id: 'active-row-registration',
                 displayName: 'Active Row Registration',
+                summary: 'Registers active row changes.',
+                relatedProcesses: [
+                  {
+                    id: 'active-row-process',
+                    path: '../processes/active-row-process.md',
+                    reason: 'Defines active row processing.',
+                  },
+                ],
+                outputs: [
+                  {
+                    type: 'concept',
+                    id: 'active-row',
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'active-row-reporting-flow',
+            displayName: 'Active Row Reporting Flow',
+            subsystem: 'reporting',
+            path: 'active-row-reporting-flow.md',
+            summary: 'Active row reporting flow.',
+            businessOperations: [
+              {
+                id: 'active-row-reporting',
+                displayName: 'Active Row Reporting',
+                summary: 'Reads active row changes for reporting.',
+                inputs: [
+                  {
+                    type: 'concept',
+                    id: 'active-row',
+                  },
+                ],
+                outputs: [],
               },
             ],
           },
@@ -588,11 +646,34 @@ test('concept-site generates VitePress concept and process pages without DDL inp
   const processIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'processes', 'index.md'), 'utf8'));
   expect(processIndex).toContain('[active-row-process](./active-row-process.md)');
   const dfdIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'dfd', 'index.md'), 'utf8'));
-  expect(dfdIndex).toContain('[Active Row Flow](./active-row-flow.md)');
-  const dfdDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'dfd', 'active-row-flow.md'), 'utf8'));
-  expect(dfdDoc).toContain('# Active Row Flow');
-  expect(dfdDoc).toContain('Defined DFD.');
-  expect(dfdDoc).toContain('## Generated Review Metadata');
+  expect(dfdIndex).toContain('## Subsystem Correlation');
+  expect(dfdIndex).toContain('S_operations((" Operations "))');
+  expect(dfdIndex).toContain('S_reporting((" Reporting "))');
+  expect(dfdIndex).toContain('S_operations -->|"参照"| S_reporting');
+  expect(dfdIndex).toContain('## Boundary Notes');
+  expect(dfdIndex).toContain('| Operations | Reporting | R / 参照 |');
+  expect(dfdIndex).toContain('| [Operations](./operations/) | Operational flows. | 1 |');
+  expect(dfdIndex).toContain('| [Reporting](./reporting/) | Reporting flows. | 1 |');
+  expect(dfdIndex).not.toContain('[Active Row Flow](./active-row-flow.md)');
+  const dfdSubsystemIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'dfd', 'operations', 'index.md'), 'utf8'));
+  expect(dfdSubsystemIndex).toContain('# Operations');
+  expect(dfdSubsystemIndex).toContain('## Business Correlation');
+  expect(dfdSubsystemIndex).toContain('## Business Operations');
+  expect(dfdSubsystemIndex).toContain('| Business | Summary | Related Processes | Source |');
+  expect(dfdSubsystemIndex).toContain('| [Active Row Registration](./business/active-row-registration.md) | Registers active row changes. | [active-row-process](./business/active-row-registration/process/active-row-process.md) | `active-row-flow.md` |');
+  expect(dfdSubsystemIndex).not.toContain('## Source DFDs');
+  expect(existsSync(path.join(outDir, 'dfd', 'active-row-flow.md'))).toBe(false);
+  const dfdBusinessDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'dfd', 'operations', 'business', 'active-row-registration.md'), 'utf8'));
+  expect(dfdBusinessDoc).toContain('## Active Row Registration Detail Flow');
+  expect(dfdBusinessDoc).toContain('- Parent Subsystem: [Operations](../)');
+  expect(dfdBusinessDoc).toContain('- Parent DFD: Active Row Flow');
+  expect(dfdBusinessDoc).not.toContain('- Parent DFD: [Active Row Flow]');
+  expect(dfdBusinessDoc).toContain('| Outputs | `concept:`[active-row](../../../concepts/active-row.md) |');
+  expect(dfdBusinessDoc).toContain('## Related Processes');
+  expect(dfdBusinessDoc).toContain('| [active-row-process](./active-row-registration/process/active-row-process.md) | Defines active row processing. |');
+  const dfdBusinessProcessDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'dfd', 'operations', 'business', 'active-row-registration', 'process', 'active-row-process.md'), 'utf8'));
+  expect(dfdBusinessProcessDoc).toContain('- Parent Business: [Active Row Registration](../../active-row-registration.md)');
+  expect(existsSync(path.join(outDir, 'dfd', 'operations', 'business', 'process', 'active-row-process.md'))).toBe(false);
   const roleIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'roles', 'index.md'), 'utf8'));
   expect(roleIndex).toContain('# Roles');
   expect(roleIndex).toContain('## Role List');
@@ -600,7 +681,8 @@ test('concept-site generates VitePress concept and process pages without DDL inp
   expect(roleIndex).toContain('| [User](#role-');
   expect(roleIndex).toContain('## Scheduler');
   expect(roleIndex).toContain('## User');
-  expect(roleIndex).toContain('| Active Row Registration | active row changes | [Active Row Flow](../dfd/active-row-flow.md) |');
+  expect(roleIndex).toContain('| Business | Event / When | Business Page |');
+  expect(roleIndex).toContain('| Active Row Registration | active row changes | [Active Row Registration](../dfd/operations/business/active-row-registration.md) |');
   const rootIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'index.md'), 'utf8'));
   expect(rootIndex).toContain('# Concept Spec Review');
   expect(rootIndex).toContain('[Concepts](./concepts/)');

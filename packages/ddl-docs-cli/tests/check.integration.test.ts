@@ -581,7 +581,10 @@ test('check fails when process-map metadata references missing paths or unknown 
       {
         id: 'account-view',
         processMap: 'missing-process-map',
-        concepts: ['missing-concept'],
+        relatedConcepts: ['missing-concept'],
+        inputs: [{ type: 'concept', id: 'missing-input-concept' }],
+        outputs: [{ type: 'external-store', id: 'missing-external-store' }],
+        uses: [{ type: 'concept-group', id: 'dfd-only-group' }],
       },
       {
         id: 'duplicate-view',
@@ -614,6 +617,9 @@ test('check fails when process-map metadata references missing paths or unknown 
   expect(codes).toContain('PROCESS_MAP_MARKDOWN_NOT_REGISTERED');
   expect(codes).toContain('PROCESS_MAP_VIEW_UNKNOWN_PROCESS_MAP');
   expect(codes).toContain('PROCESS_MAP_VIEW_UNKNOWN_CONCEPT');
+  expect(codes).toContain('PROCESS_MAP_REF_UNKNOWN_CONCEPT');
+  expect(codes).toContain('PROCESS_MAP_REF_UNKNOWN_EXTERNAL_STORE');
+  expect(codes).toContain('PROCESS_MAP_REF_CONCEPT_GROUP_NOT_ALLOWED');
   expect(codes).toContain('PROCESS_MAP_VIEW_DUPLICATE_ID');
 });
 
