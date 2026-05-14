@@ -65,6 +65,12 @@ create table rawsql_transfer.work_item (
       or (
         route_type <> 'skipped'
         and skip_reason is null
+        and (
+          requires_red_transfer
+          or requires_black_insert_transfer
+          or requires_black_update_transfer
+          or requires_physical_delete_transfer
+        )
       )
     )
 

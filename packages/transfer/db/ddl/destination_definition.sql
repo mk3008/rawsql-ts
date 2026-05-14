@@ -51,6 +51,9 @@ create table rawsql_transfer.destination_definition (
   , constraint chk_transfer_destination_key_columns_no_blank
     check (array_position(destination_key_columns, '') is null)
 
+  , constraint chk_transfer_destination_key_columns_no_null
+    check (array_position(destination_key_columns, null) is null)
+
   , constraint chk_transfer_sequence_expression_definition_object
     check (
       sequence_expression_definition is null
@@ -61,6 +64,12 @@ create table rawsql_transfer.destination_definition (
     check (
       sign_inversion_columns is null
       or array_position(sign_inversion_columns, '') is null
+    )
+
+  , constraint chk_transfer_sign_inversion_columns_no_null
+    check (
+      sign_inversion_columns is null
+      or array_position(sign_inversion_columns, null) is null
     )
 
   , constraint chk_transfer_immutable_sign_inversion_columns_required

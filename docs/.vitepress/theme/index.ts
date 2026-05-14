@@ -21,7 +21,7 @@ function loadMermaid(): Promise<void> {
   if (!mermaidLoad) {
     mermaidLoad = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+      script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.5/dist/mermaid.min.js';
       script.async = true;
       script.onload = () => resolve();
       script.onerror = () => reject(new Error(`Failed to load Mermaid renderer.`));
@@ -49,7 +49,9 @@ export default {
   setup() {
     const route = useRoute();
     const scheduleRender = () => {
-      void nextTick().then(renderMermaid);
+      void nextTick().then(renderMermaid).catch((error: unknown) => {
+        console.warn(error);
+      });
     };
     onMounted(scheduleRender);
     watch(() => route.path, scheduleRender);

@@ -26,8 +26,6 @@ ddl-docs help
 ddl-docs help generate
 ddl-docs help prune
 ddl-docs help check
-ddl-docs help concept-map
-ddl-docs help concept-site
 ```
 
 Generated layout:
@@ -104,35 +102,6 @@ When `--relationship` and `--concept-relationship` are supplied, generated table
 - `<outDir>/concepts/`
 - `<outDir>/processes/`
 
-### Concept Map Generation
-
-Use `concept-map` when a human review index should be regenerated from structured concept metadata.
-The generated Markdown is not the source of concept truth; concept meanings stay in each `SPEC.md`, and relationship facts stay in `concept-relationship.json`.
-
-```bash
-ddl-docs concept-map \
-  --concept-relationship packages/transfer/docs/concepts/concept-relationship.json \
-  --out packages/transfer/docs/concepts/concept-map.md
-```
-
-### Concept Spec VitePress Generation
-
-Use `concept-site` when Concept Specs need the same generated human review surface as DDL docs.
-The command reads Concept Spec source files and `concept-relationship.json`, then emits secondary VitePress-ready pages with:
-
-- an index page
-- one page per defined Concept Spec
-- related concept links from structured relationship metadata
-- related process map pages listed from concept metadata
-
-The generated pages are review views, not source truth. Edit the Concept Specs and relationship metadata, then regenerate.
-
-```bash
-ddl-docs concept-site \
-  --concept-relationship packages/transfer/docs/concepts/concept-relationship.json \
-  --out-dir tmp/concept-site
-```
-
 Prune generated files:
 
 ```bash
@@ -163,13 +132,10 @@ ddl-docs check \
   --relationship packages/transfer/db/ddl/relationship.json \
   --order packages/transfer/db/ddl/order.json \
   --concept-relationship packages/transfer/docs/concepts/concept-relationship.json \
-  --concept-map packages/transfer/docs/concepts/concept-map.md \
-  --dfd-relationship packages/transfer/docs/dfd/relationship.json \
-  --process-dir packages/transfer/docs/processes \
   --default-schema rawsql_transfer
 ```
 
-Errors are intended for CI failure, such as missing files, stale table/column/index/constraint references, invalid JSON shape, DDL files missing from `order.json`, broken Concept/DFD/Process references, stale generated Concept Map Markdown, or Process Map Markdown files missing from `process-map.json`.
+Errors are intended for CI failure, such as missing files, stale table/column/index/constraint references, invalid JSON shape, or DDL files missing from `order.json`.
 Warnings are review aids, such as important constraints without review notes or JSON columns without samples.
 
 ## VitePress Integration

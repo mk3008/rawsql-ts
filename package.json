@@ -23,6 +23,8 @@
     "clean": "pnpm -r --if-present clean",
     "lint": "pnpm -r --if-present lint",
     "benchmark": "pnpm --filter rawsql-ts benchmark",
+    "benchmark:sqlite3-parser": "pnpm --filter rawsql-ts benchmark:sqlite3-parser",
+    "benchmark:sqlite3-parser:bun": "pnpm --filter rawsql-ts benchmark:sqlite3-parser:bun",
     "benchmark:parser:pr": "ts-node benchmarks/parser-phase-benchmark.ts --profile=pr",
     "benchmark:parser:full": "ts-node benchmarks/parser-phase-benchmark.ts --profile=full",
     "ztd:bench": "ts-node benchmarks/ztd-test-benchmark.ts",
@@ -117,8 +119,8 @@
       "vitest>vite": "7.3.2",
       "preact": "10.27.3",
       "@prisma/dev": "0.24.7",
-      "hono": "4.12.14",
-      "@prisma/dev>hono": "4.12.14",
+      "hono": "4.12.18",
+      "@prisma/dev>hono": "4.12.18",
       "@prisma/dev>@hono/node-server": "1.19.13",
       "ajv": "6.14.0",
       "minimatch": "10.2.3",
@@ -126,7 +128,8 @@
       "diff": "8.0.3",
       "lodash": "4.18.0",
       "undici": "7.24.5",
-      "protobufjs": "7.5.5",
+      "protobufjs": "7.5.6",
+      "@protobufjs/utf8": "1.1.1",
       "effect": "3.21.1",
       "defu": "6.1.5",
       "flatted": "3.4.2",
@@ -135,7 +138,8 @@
       "tinyglobby>picomatch": "4.0.4",
       "vitest>picomatch": "4.0.4",
       "vite>picomatch": "4.0.4",
-      "markdown-it": "14.1.1"
+      "markdown-it": "14.1.1",
+      "postcss": "8.5.10"
     }
   }
 }

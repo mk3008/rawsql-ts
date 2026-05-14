@@ -6,6 +6,7 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 ## Global Guardrails
 
 - Keep generated artifacts, fixtures, and derived docs aligned with their source assets.
+- Keep scaffold code, scaffold-facing docs, and published-package smoke checks aligned when they describe the same workflow.
 - Do not weaken completion criteria or skip required verification.
 - Prefer `pnpm` and scoped commands when working in a package.
 - Keep repository artifacts in English unless a deeper rule says otherwise.
@@ -17,6 +18,7 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 - Use the repo-local guidance under `.codex/agents/` and `.agents/skills/` for planning, verification, review, and reporting details.
 - Root `AGENTS.md` defines repository-wide policy only; detailed output formats and workflows belong to subagent or skill guidance.
 - Before substantial multi-step work, read the relevant guidance under `.codex/agents/` or `.agents/skills/` instead of relying on root policy alone.
+- Do not turn `AGENTS.md` into the storage location for starter walkthroughs, AI onboarding prompts, dogfooding playbooks, or investigation scripts; keep those in dedicated docs or skills.
 
 ## Documentation Guardrails
 
@@ -109,6 +111,8 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 - Before adding a fallback, first consider whether the problem should instead be fixed directly, rejected as unsupported, or made fail-fast with a clear error.
 - Prefer an explicit error over a silent degradation when silent recovery would hide a configuration problem, weaken guarantees, or make quality harder to judge.
 - If a fallback is still the best option, make the trigger condition and guarantee limits explicit in code, tests, and reporting.
+- For local-source dogfooding or scaffold developer-mode flows, fail fast when dependencies or CLI entrypoints are missing and make the next recovery step explicit.
+- Do not overwrite scaffold-owned or user-authored files without an explicit force path; failed initialization must not leave partial overwrites behind.
 - Scope decisions should be intentional: do not broaden a task automatically, but do not reject closely aligned follow-up work automatically either; decide based on fit, risk, and verification cost.
 
 ## Collaboration and Escalation

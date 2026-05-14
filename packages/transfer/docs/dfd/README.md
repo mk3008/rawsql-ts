@@ -42,7 +42,7 @@ Use `relationship.json` to record:
 - DFD input and output references.
 - external stores used by DFDs.
 
-This avoids asking humans or AI to infer the logical model from prose every time.
+This keeps the logical model reviewable without rebuilding the same relationship facts from prose each time.
 
 ## DFD Policy
 

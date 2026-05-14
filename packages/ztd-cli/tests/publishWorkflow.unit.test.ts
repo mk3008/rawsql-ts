@@ -75,6 +75,17 @@ test('published-package mode includes the rawsql-ts getting-started smoke path',
   expect(publishedPackageModeScript).toContain('const formatter = new SqlFormatter();');
 });
 
+test('published-package mode expects local-source guard scripts from npm consumer scaffolds', () => {
+  const npmSection = publishedPackageModeScript.slice(
+    publishedPackageModeScript.indexOf('function verifyNpmPrimaryPath(packages) {'),
+    publishedPackageModeScript.indexOf('function verifyNpmConsumerSmoke(phaseAResult) {'),
+  );
+
+  expect(npmSection).toContain('node ./scripts/local-source-guard.mjs test --passWithNoTests');
+  expect(npmSection).toContain('node ./scripts/local-source-guard.mjs typecheck');
+  expect(npmSection).toContain('node ./scripts/local-source-guard.mjs ztd');
+});
+
 test('overwrite safety uses the installed ztd bin so npm does not consume --force', () => {
   const overwriteSection = publishedPackageModeScript.slice(
     publishedPackageModeScript.indexOf('function verifyOverwriteSafety(packages) {'),

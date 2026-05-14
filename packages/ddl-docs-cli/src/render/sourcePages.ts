@@ -1078,7 +1078,11 @@ function extractOperationSectionBody(source: string, operationName: string): str
       if (inSection) {
         break;
       }
-      inSection = line.toLowerCase().includes(operationName.toLowerCase());
+      const heading = line.replace(/^##\s+/, '').trim().toLowerCase();
+      const normalizedOperationName = operationName.trim().toLowerCase();
+      inSection =
+        heading === normalizedOperationName ||
+        heading === `${normalizedOperationName} detail flow`;
       if (inSection) {
         sectionLines.push(line);
       }

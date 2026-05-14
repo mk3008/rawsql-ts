@@ -28,7 +28,10 @@ export function formatCodeCell(value: string | null | undefined): string {
   if (/\r?\n/.test(value)) {
     return `<code>${escapeHtml(value).replace(/\r?\n/g, '<br>')}</code>`;
   }
-  const escaped = escapeMarkdownText(value.replace(/`/g, '\\`'));
+  const escaped = value
+    .replace(/`/g, '\\`')
+    .replace(/\|/g, '\\|')
+    .replace(/\r?\n/g, '<br>');
   return `\`${escaped}\``;
 }
 

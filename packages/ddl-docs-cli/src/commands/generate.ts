@@ -131,10 +131,10 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
 
   const sourcePages = [
     ...renderConceptPages(options.outDir, conceptRegistry),
-    ...renderProcessPages(options.outDir, ddlRelationshipMetadata, conceptRegistry),
+    ...renderProcessPages(options.outDir, ddlRelationshipMetadata),
   ];
   const conceptIndex = renderConceptIndex(options.outDir, conceptRegistry);
-  const processIndex = renderProcessIndex(options.outDir, ddlRelationshipMetadata, conceptRegistry);
+  const processIndex = renderProcessIndex(options.outDir, ddlRelationshipMetadata);
   if (conceptIndex) {
     sourcePages.push(conceptIndex);
   }
@@ -211,7 +211,7 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
 
 export function writeVitePressPreviewAssets(
   outDir: string,
-  site: { title?: string; description?: string } = {}
+  options: { title?: string; description?: string } = {}
 ): string[] {
   const configPath = path.join(outDir, '.vitepress', 'config.mts');
   const themeIndexPath = path.join(outDir, '.vitepress', 'theme', 'index.ts');
@@ -220,16 +220,16 @@ export function writeVitePressPreviewAssets(
   ensureDirectory(path.dirname(configPath));
   ensureDirectory(path.dirname(themeIndexPath));
 
-  writeTextFileNormalized(configPath, renderVitePressConfig(site));
+  writeTextFileNormalized(configPath, renderVitePressConfig(options));
   writeTextFileNormalized(themeIndexPath, renderVitePressThemeIndex());
   writeTextFileNormalized(themeStylePath, renderVitePressThemeCss());
 
   return [configPath, themeIndexPath, themeStylePath];
 }
 
-function renderVitePressConfig(site: { title?: string; description?: string }): string {
-  const title = site.title ?? 'DDL Review';
-  const description = site.description ?? 'Generated table definition review docs';
+function renderVitePressConfig(options: { title?: string; description?: string } = {}): string {
+  const title = options.title ?? 'DDL Review';
+  const description = options.description ?? 'Generated table definition review docs';
   return [
     "import { defineConfig } from 'vitepress';",
     '',
@@ -245,7 +245,7 @@ function renderVitePressConfig(site: { title?: string; description?: string }): 
     '        const token = tokens[idx];',
     "        const info = token.info.trim().split(/\\s+/)[0];",
     "        if (info === 'mermaid') {",
-    '          return `<pre v-pre class="mermaid">${normalizeMermaid(token.content)}</pre>`;',
+    '          return `<pre v-pre class="ddl-docs-mermaid">${normalizeMermaid(token.content)}</pre>`;',
     '        }',
     '        return defaultFence(tokens, idx, options, env, self);',
     '      };',
@@ -272,64 +272,102 @@ function renderVitePressConfig(site: { title?: string; description?: string }): 
 function renderVitePressThemeIndex(): string {
   return [
     "import DefaultTheme from 'vitepress/theme';",
-    "import { h, nextTick, onMounted, watch } from 'vue';",
+    "import { defineComponent, h, nextTick, onMounted, watch } from 'vue';",
     "import { useRoute } from 'vitepress';",
     "import './style.css';",
+    '',
+    "const MERMAID_CDN_URL = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.5/dist/mermaid.min.js';",
     '',
     'declare global {',
     '  interface Window {',
     '    mermaid?: {',
     '      initialize: (options: Record<string, unknown>) => void;',
-    '      run: (options: { nodes: Element[] }) => Promise<void>;',
+    '      run: (options: { nodes: HTMLElement[] }) => Promise<void>;',
     '    };',
+    '    ddlDocsMermaidLoading?: Promise<void>;',
     '  }',
     '}',
     '',
-    'let mermaidLoad: Promise<void> | undefined;',
-    '',
     'function loadMermaid(): Promise<void> {',
+    "  if (typeof window === 'undefined') {",
+    '    return Promise.resolve();',
+    '  }',
     '  if (window.mermaid) {',
     '    return Promise.resolve();',
     '  }',
-    '  if (!mermaidLoad) {',
-    '    mermaidLoad = new Promise((resolve, reject) => {',
-    "      const script = document.createElement('script');",
-    "      script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';",
-    '      script.async = true;',
-    '      script.onload = () => resolve();',
-    '      script.onerror = () => reject(new Error(`Failed to load Mermaid renderer.`));',
-    '      document.head.appendChild(script);',
-    '    });',
+    '  if (window.ddlDocsMermaidLoading) {',
+    '    return window.ddlDocsMermaidLoading;',
     '  }',
-    '  return mermaidLoad;',
+    '  window.ddlDocsMermaidLoading = new Promise((resolve, reject) => {',
+    "    const script = document.createElement('script');",
+    '    script.src = MERMAID_CDN_URL;',
+    '    script.async = true;',
+    '    script.onload = () => resolve();',
+    '    script.onerror = () => reject(new Error(`Failed to load Mermaid from ${MERMAID_CDN_URL}`));',
+    '    document.head.appendChild(script);',
+    '  });',
+    '  return window.ddlDocsMermaidLoading;',
     '}',
     '',
-    'async function renderMermaid(): Promise<void> {',
-    "  const nodes = Array.from(document.querySelectorAll('.mermaid:not([data-processed=\"true\"])'));",
-    '  if (nodes.length === 0) {',
+    'async function renderMermaidBlocks(): Promise<void> {',
+    "  if (typeof document === 'undefined') {",
     '    return;',
     '  }',
-    '  await loadMermaid();',
-    '  window.mermaid?.initialize({',
-    '    startOnLoad: false,',
-    "    theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default',",
-    '  });',
-    '  await window.mermaid?.run({ nodes });',
+    '  const renderTargets: HTMLElement[] = [];',
+    "  const markdownBlocks = Array.from(document.querySelectorAll<HTMLElement>('div.language-mermaid'));",
+    '  for (const block of markdownBlocks) {',
+    "    const code = block.querySelector('code')?.textContent?.trim() ?? '';",
+    '    if (!code) {',
+    '      continue;',
+    '    }',
+    "    const target = document.createElement('div');",
+    "    target.className = 'ddl-docs-mermaid';",
+    '    target.textContent = code;',
+    '    block.replaceWith(target);',
+    '  }',
+    "  const blocks = Array.from(document.querySelectorAll<HTMLElement>('.ddl-docs-mermaid:not([data-ddl-docs-mermaid-rendered])'));",
+    '  for (const block of blocks) {',
+    "    const code = block.textContent?.trim() ?? '';",
+    '    if (!code) {',
+    '      continue;',
+    '    }',
+    "    block.dataset.ddlDocsMermaidRendered = 'true';",
+    '    renderTargets.push(block);',
+    '  }',
+    '  if (renderTargets.length === 0) {',
+    '    return;',
+    '  }',
+    '  try {',
+    '    await loadMermaid();',
+    '    window.mermaid?.initialize({ startOnLoad: false, securityLevel: "strict" });',
+    '    await window.mermaid?.run({ nodes: renderTargets });',
+    '  } catch (error) {',
+    '    for (const target of renderTargets) {',
+    "      target.classList.add('ddl-docs-mermaid-failed');",
+    '    }',
+    '    console.warn(error);',
+    '  }',
     '}',
+    '',
+    'const DdlDocsLayout = defineComponent({',
+    '  setup() {',
+    '    const route = useRoute();',
+    '    onMounted(() => {',
+    '      void nextTick(renderMermaidBlocks).catch((error: unknown) => console.warn(error));',
+    '    });',
+    '    watch(',
+    '      () => route.path,',
+    '      () => {',
+    '        void nextTick(renderMermaidBlocks).catch((error: unknown) => console.warn(error));',
+    '      }',
+    '    );',
+    '    return () => h(DefaultTheme.Layout);',
+    '  },',
+    '});',
     '',
     'export default {',
     '  extends: DefaultTheme,',
-    '  setup() {',
-    '    const route = useRoute();',
-    '    const scheduleRender = () => {',
-    '      void nextTick().then(renderMermaid);',
-    '    };',
-    '    onMounted(scheduleRender);',
-    '    watch(() => route.path, scheduleRender);',
-    '  },',
-    '  Layout() {',
-    '    return h(DefaultTheme.Layout);',
-    '  },',
+    '  Layout: DdlDocsLayout,',
     '};',
     '',
   ].join('\n');
@@ -419,6 +457,26 @@ function renderVitePressThemeCss(): string {
     '',
     ".vp-doc div[class*='language-'] pre {",
     '  max-height: 440px;',
+    '}',
+    '',
+    '.ddl-docs-mermaid {',
+    '  margin: 16px 0 24px;',
+    '  padding: 16px;',
+    '  overflow-x: auto;',
+    '  border: 1px solid var(--vp-c-divider);',
+    '  border-radius: 8px;',
+    '  background: var(--vp-c-bg-soft);',
+    '}',
+    '',
+    '.ddl-docs-mermaid svg {',
+    '  max-width: 100%;',
+    '  height: auto;',
+    '}',
+    '',
+    '.ddl-docs-mermaid-failed {',
+    '  white-space: pre;',
+    '  font-family: var(--vp-font-family-mono);',
+    '  font-size: 12px;',
     '}',
     '',
   ].join('\n');

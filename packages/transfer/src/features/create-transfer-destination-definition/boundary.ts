@@ -23,6 +23,7 @@ const DestinationColumnsSchema = z
   .strict();
 
 const ColumnNameArraySchema = z.array(z.string().trim().min(1));
+const RequiredColumnNameArraySchema = ColumnNameArraySchema.min(1);
 
 const RequestSchema = z
   .object({
@@ -37,7 +38,7 @@ const RequestSchema = z
         'destinationTableName must be a fully qualified table name, such as public.journal.',
       ),
     destinationColumns: DestinationColumnsSchema,
-    destinationKeyColumns: ColumnNameArraySchema,
+    destinationKeyColumns: RequiredColumnNameArraySchema,
     sequenceExpressionDefinition: z.record(z.string(), z.string().trim().min(1)).optional(),
     transferModel: z.enum(TRANSFER_MODELS),
     signInversionColumns: ColumnNameArraySchema.optional(),
@@ -54,7 +55,7 @@ const ResponseSchema = z
     description: z.string().nullable(),
     destinationTableName: z.string(),
     destinationColumns: DestinationColumnsSchema,
-    destinationKeyColumns: ColumnNameArraySchema,
+    destinationKeyColumns: RequiredColumnNameArraySchema,
     sequenceExpressionDefinition: z.record(z.string(), z.string()).nullable(),
     transferModel: z.enum(TRANSFER_MODELS),
     signInversionColumns: ColumnNameArraySchema.nullable(),
@@ -111,6 +112,12 @@ function rejectRequest(request: CreateTransferDestinationDefinitionInput): void 
   }
   if (request.destinationKeyColumns.length === 0) {
     throw new Error('destinationKeyColumns must contain at least one key column.');
+  }
+  if (
+    request.transferModel === 'immutable' &&
+    (request.signInversionColumns === undefined || request.signInversionColumns.length === 0)
+  ) {
+    throw new Error('signInversionColumns must contain at least one column for immutable transferModel.');
   }
 
   rejectUnknownColumnReferences(

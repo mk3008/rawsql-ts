@@ -13,13 +13,14 @@ const insertTransferDestinationDefinitionSqlResource = loadSqlResource(
 
 const JsonObjectSchema = z.record(z.string(), z.unknown());
 const TextArraySchema = z.array(z.string().min(1));
+const RequiredTextArraySchema = TextArraySchema.min(1);
 
 const QueryParamsSchema = z.object({
   destination_definition_name: z.string().min(1),
   description: z.string().min(1).nullable(),
   destination_table_name: z.string().min(1),
   destination_columns: JsonObjectSchema,
-  destination_key_columns: TextArraySchema,
+  destination_key_columns: RequiredTextArraySchema,
   sequence_expression_definition: JsonObjectSchema.nullable(),
   transfer_model: z.enum(['immutable', 'mutable']),
   sign_inversion_columns: TextArraySchema.nullable(),
@@ -34,7 +35,7 @@ const RowSchema = z.object({
   description: z.string().nullable(),
   destination_table_name: z.string(),
   destination_columns: JsonObjectSchema,
-  destination_key_columns: TextArraySchema,
+  destination_key_columns: RequiredTextArraySchema,
   sequence_expression_definition: JsonObjectSchema.nullable(),
   transfer_model: z.enum(['immutable', 'mutable']),
   sign_inversion_columns: TextArraySchema.nullable(),

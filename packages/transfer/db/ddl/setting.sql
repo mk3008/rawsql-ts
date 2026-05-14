@@ -28,7 +28,10 @@ create table rawsql_transfer.setting (
     check (btrim(source_sql_hash) <> '')
 
   , constraint chk_setting_source_key_definition_object
-    check (jsonb_typeof(source_key_definition) = 'object')
+    check (
+      jsonb_typeof(source_key_definition) = 'object'
+      and jsonb_object_length(source_key_definition) > 0
+    )
 
   , constraint chk_setting_source_sql_analysis_status
     check (source_sql_analysis_status in ('not_analyzed', 'success', 'failed'))

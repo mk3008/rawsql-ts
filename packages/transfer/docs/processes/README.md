@@ -16,6 +16,7 @@ Process maps must not use DFD Concept Groups; they should use concrete Concepts 
 Available process maps:
 
 This list is a human entrypoint. Use `process-map.json` for completeness checks.
+Read DFDs first for business boundaries, then process maps for the detailed process flow of each business operation.
 
 - [Transfer Execution Process](./transfer-execution-process.md)
 - [Lineage Trace Process](./lineage-trace-process.md)

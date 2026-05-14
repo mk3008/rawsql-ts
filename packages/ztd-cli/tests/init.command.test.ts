@@ -377,20 +377,23 @@ test('init dry-run plan matches starter outputs without AGENTS files', () => {
     'src/adapters/console/repositoryTelemetry.ts',
     '.ztd/support/postgres-testkit.ts'
   ]));
-  expect(plan.files).not.toEqual(expect.arrayContaining([
-    'src/features/smoke/application/README.md',
-    'src/features/smoke/domain/README.md',
-    'src/features/smoke/persistence/README.md',
-    'src/features/smoke/domain/smoke-policy.ts',
-    'src/features/smoke/application/smoke-workflow.ts',
-    'src/features/smoke/persistence/smoke.sql',
-    'src/features/smoke/persistence/boundary.ts',
-    'AGENTS.md',
-    'db/AGENTS.md',
-    'db/ddl/AGENTS.md',
-    'src/AGENTS.md',
-    'src/features/AGENTS.md'
-  ]));
+  expect(plan.files.filter((file) => file === 'src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts')).toHaveLength(1);
+  expect(plan.files).not.toContain('.gitignore');
+  expect(plan.files).not.toContain('.ztd/generated/ztd-row-map.generated.ts');
+  expect(plan.files).not.toContain('.ztd/generated/ztd-layout.generated.ts');
+  expect(plan.files).not.toContain('.ztd/generated/ztd-fixture-manifest.generated.ts');
+  expect(plan.files).not.toContain('src/features/smoke/application/README.md');
+  expect(plan.files).not.toContain('src/features/smoke/domain/README.md');
+  expect(plan.files).not.toContain('src/features/smoke/persistence/README.md');
+  expect(plan.files).not.toContain('src/features/smoke/domain/smoke-policy.ts');
+  expect(plan.files).not.toContain('src/features/smoke/application/smoke-workflow.ts');
+  expect(plan.files).not.toContain('src/features/smoke/persistence/smoke.sql');
+  expect(plan.files).not.toContain('src/features/smoke/persistence/boundary.ts');
+  expect(plan.files).not.toContain('AGENTS.md');
+  expect(plan.files).not.toContain('db/AGENTS.md');
+  expect(plan.files).not.toContain('db/ddl/AGENTS.md');
+  expect(plan.files).not.toContain('src/AGENTS.md');
+  expect(plan.files).not.toContain('src/features/AGENTS.md');
 });
 
 test('init dry-run plan for non-starter init excludes starter-only readmes', () => {
@@ -408,13 +411,31 @@ test('init dry-run plan for non-starter init excludes starter-only readmes', () 
     'src/libraries/sql/sql-client.ts',
     'src/adapters/pg/sql-client.ts'
   ]));
-  expect(plan.files).not.toEqual(expect.arrayContaining([
-    'src/libraries/README.md',
-    'src/libraries/sql/README.md',
-    'src/adapters/README.md',
-    'compose.yaml',
-    'src/features/smoke/README.md'
+  expect(plan.files).not.toContain('src/libraries/README.md');
+  expect(plan.files).not.toContain('src/libraries/sql/README.md');
+  expect(plan.files).not.toContain('src/adapters/README.md');
+  expect(plan.files).not.toContain('compose.yaml');
+  expect(plan.files).not.toContain('src/features/smoke/README.md');
+});
+
+test('init dry-run plan with app interface keeps scaffold files and adds AGENTS once', () => {
+  const workspace = createTempDir('cli-init-dry-run-plan-app-interface');
+  const plan = buildInitDryRunPlan(workspace, {
+    appShape: 'default',
+    starter: false,
+    workflow: 'empty',
+    validator: 'zod',
+    localSourceRoot: null,
+    withAppInterface: true
+  });
+
+  expect(plan.dryRun).toBe(true);
+  expect(plan.files).toEqual(expect.arrayContaining([
+    'AGENTS.md',
+    'src/libraries/sql/sql-client.ts',
+    'src/adapters/pg/sql-client.ts'
   ]));
+  expect(plan.files.filter((file) => file === 'AGENTS.md')).toHaveLength(1);
 });
 
 test('init derives generated lint-staged hook command from the package manager lockfile', async () => {

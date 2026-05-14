@@ -27,6 +27,7 @@ This list is a human entrypoint. Use `concept-relationship.json` and generated C
 - [Dirty Key Processing](./dirty-key-processing/SPEC.md)
 - [Lineage](./lineage/SPEC.md)
 - [Physical Delete Transfer](./physical-delete-transfer/SPEC.md)
+- [Posting Date Lower Bound](./posting-date-lower-bound/SPEC.md)
 - [Red Transfer](./red-transfer/SPEC.md)
 - [Transfer Execution](./transfer-execution/SPEC.md)
 - [Transfer Run](./transfer-run/SPEC.md)

@@ -269,7 +269,10 @@ function renderDesignNotes(table: TableDocModel, renderOptions: RenderTableOptio
   const columnNotes = table.columns
     .map((column) => ({
       column,
-      notes: renderOptions?.getColumnDesignNotes?.(column) ?? [],
+      notes: [
+        ...(renderOptions?.getColumnDesignNotes?.(column) ?? []),
+        ...(renderOptions?.getColumnDesignIntent?.(column) ?? []),
+      ],
     }))
     .filter((entry) => entry.notes.length > 0);
   if (tableNotes.length === 0 && columnNotes.length === 0) {
@@ -317,7 +320,7 @@ function renderRelatedSources(relationship: ResolvedTableRelationship | undefine
     lines.push('| Concept | Source | Reason |');
     lines.push('| --- | --- | --- |');
     for (const concept of relationship.concepts) {
-      lines.push(`| [${concept.label}](${concept.href}) | ${formatCodeCell(concept.path)} | ${formatTableCell(concept.reason)} |`);
+      lines.push(`| ${formatRelationshipLabel(concept.label, concept.href)} | ${formatCodeCell(concept.path)} | ${formatTableCell(concept.reason)} |`);
     }
     lines.push('');
   }
@@ -327,10 +330,14 @@ function renderRelatedSources(relationship: ResolvedTableRelationship | undefine
     lines.push('| Process | Source | Reason |');
     lines.push('| --- | --- | --- |');
     for (const process of relationship.processes) {
-      lines.push(`| [${process.label}](${process.href}) | ${formatCodeCell(process.path)} | ${formatTableCell(process.reason)} |`);
+      lines.push(`| ${formatRelationshipLabel(process.label, process.href)} | ${formatCodeCell(process.path)} | ${formatTableCell(process.reason)} |`);
     }
   }
   return lines;
+}
+
+function formatRelationshipLabel(label: string, href: string | undefined): string {
+  return href ? `[${label}](${href})` : formatTableCell(label);
 }
 
 function renderColumnRow(

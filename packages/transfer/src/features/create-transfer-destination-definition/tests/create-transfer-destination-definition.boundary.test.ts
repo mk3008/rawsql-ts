@@ -112,6 +112,8 @@ test.each([
     { sequenceExpressionDefinition: { missing_id: "nextval('x')" } },
   ],
   ['unknown sign inversion column', { signInversionColumns: ['missing_amount'] }],
+  ['missing immutable sign inversion columns', { signInversionColumns: undefined }],
+  ['empty immutable sign inversion columns', { signInversionColumns: [] }],
   ['invalid transfer model', { transferModel: 'merge' }],
 ])('rejects invalid input: %s', async (_name, patch) => {
   const executor = createGuardedExecutor();

@@ -17,8 +17,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 env:
   READINESS_CONTRACT_ARTIFACT_NAME: publish-readiness-contract
@@ -34,6 +33,8 @@ env:
 jobs:
   verify_publish_readiness:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       should_publish: ${{ steps.plan.outputs.should_publish }}
     steps:
@@ -58,6 +59,7 @@ jobs:
         with:
           node-version: "24"
           use-pnpm: "true"
+          use-pnpm-cache: "false"
           install-dependencies: "true"
           update-npm: "false"
           required-commands: "node,npm,pnpm"
@@ -96,6 +98,8 @@ jobs:
     needs: verify_publish_readiness
     if: ${{ needs.verify_publish_readiness.outputs.should_publish == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -104,6 +108,7 @@ jobs:
         with:
           node-version: "24"
           use-pnpm: "true"
+          use-pnpm-cache: "false"
           install-dependencies: "true"
           update-npm: "false"
           required-commands: "node,npm,pnpm"
@@ -150,6 +155,8 @@ jobs:
     needs: [verify_publish_readiness, build_publish_artifacts]
     if: ${{ needs.verify_publish_readiness.outputs.should_publish == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -158,6 +165,7 @@ jobs:
         with:
           node-version: "24"
           use-pnpm: "true"
+          use-pnpm-cache: "false"
           install-dependencies: "true"
           update-npm: "false"
           required-commands: "node,npm,pnpm"
@@ -199,6 +207,9 @@ jobs:
     needs: [verify_publish_readiness, build_publish_artifacts, verify_publish_artifacts]
     if: ${{ needs.verify_publish_readiness.outputs.should_publish == 'true' && inputs.verification_mode != 'proof' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
