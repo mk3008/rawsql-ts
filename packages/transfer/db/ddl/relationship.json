@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "metadataLanguagePolicy": "Human-facing reason text may use the language of the referenced product documentation. For @rawsql-ts/transfer review metadata, Japanese is allowed so generated review pages can be read by the product reviewers.",
   "relationships": [
     {
       "path": "schema.sql",

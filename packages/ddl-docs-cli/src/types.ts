@@ -80,6 +80,7 @@ export interface TableDocsConstraintMetadata {
 
 export interface TableDocsSchemaMetadata {
   summary?: string;
+  language?: string;
 }
 
 export interface TableDocsTableMetadata {
@@ -97,6 +98,7 @@ export interface TableDocsTableMetadata {
 
 export interface TableDocsMetadata {
   schemaVersion: 1;
+  metadataLanguagePolicy?: string;
   schemas?: Record<string, TableDocsSchemaMetadata>;
   tables?: Record<string, TableDocsTableMetadata>;
 }

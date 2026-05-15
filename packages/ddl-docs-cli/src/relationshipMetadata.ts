@@ -4,6 +4,7 @@ import { slugifyIdentifier } from './utils/slug';
 
 export interface DdlRelationshipMetadata {
   baseDir: string;
+  metadataLanguagePolicy?: string;
   relationships: DdlRelationshipEntry[];
 }
 
@@ -144,6 +145,7 @@ export function loadDdlRelationshipMetadata(metadataPath: string | undefined): D
   }
   return {
     baseDir: path.dirname(resolvedPath),
+    metadataLanguagePolicy: typeof raw.metadataLanguagePolicy === 'string' ? raw.metadataLanguagePolicy : undefined,
     relationships: raw.relationships.map((entry) => {
       if (!isRecord(entry) || typeof entry.path !== 'string' || typeof entry.kind !== 'string') {
         throw new Error(`DDL relationship entry must include path and kind: ${resolvedPath}`);

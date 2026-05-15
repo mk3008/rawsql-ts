@@ -74,26 +74,32 @@ function writeProductReviewReport() {
   ].join("\n");
 
   fs.writeFileSync(assertInsideWorkspace(productReviewPath), productReview, "utf8");
-  if (fs.existsSync(ddlReviewPath)) {
-    fs.rmSync(assertInsideWorkspace(ddlReviewPath), { force: true });
-  }
 
   if (fs.existsSync(ddlIndexPath)) {
     const ddlIndex = fs.readFileSync(ddlIndexPath, "utf8");
-    fs.writeFileSync(
-      ddlIndexPath,
-      ddlIndex.replace(/^- \[Review Report\]\(\.\/review\.md\)\r?\n/m, ""),
-      "utf8"
-    );
+    const newDdlIndex = ddlIndex.replace(/^- \[Review Report\]\(\.\/review\.md\)\r?\n/m, "");
+    if (newDdlIndex === ddlIndex) {
+      throw new Error(`Expected to remove upstream review link from ${ddlIndexPath}, but no matching link was found.`);
+    }
+    fs.writeFileSync(ddlIndexPath, newDdlIndex, "utf8");
   }
 
   if (fs.existsSync(ddlColumnIndexPath)) {
     const ddlColumnIndex = fs.readFileSync(ddlColumnIndexPath, "utf8");
-    fs.writeFileSync(
-      ddlColumnIndexPath,
-      ddlColumnIndex.replace(/\[Review Report\]\(\.\.\/review\.md\)/g, "[Review Report](../../review.md)"),
-      "utf8"
+    const newDdlColumnIndex = ddlColumnIndex.replace(
+      /\[Review Report\]\(\.\.\/review\.md\)/g,
+      "[Review Report](../../review.md)"
     );
+    if (newDdlColumnIndex === ddlColumnIndex) {
+      throw new Error(
+        `Expected to retarget upstream review links from ${ddlColumnIndexPath}, but no matching links were found.`
+      );
+    }
+    fs.writeFileSync(ddlColumnIndexPath, newDdlColumnIndex, "utf8");
+  }
+
+  if (fs.existsSync(ddlReviewPath)) {
+    fs.rmSync(assertInsideWorkspace(ddlReviewPath), { force: true });
   }
 }
 

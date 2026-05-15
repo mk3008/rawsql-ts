@@ -22,6 +22,7 @@ export interface CheckDocsResult {
 
 interface RelationshipMetadata {
   schemaVersion: 1;
+  metadataLanguagePolicy?: string;
   relationships: RelationshipEntry[];
 }
 
@@ -1426,6 +1427,9 @@ function readJsonFile(filePath: string, label: string, issues: CheckIssue[]): un
 
 function isRelationshipMetadata(value: unknown): value is RelationshipMetadata {
   if (!isRecord(value) || value.schemaVersion !== 1 || !Array.isArray(value.relationships)) {
+    return false;
+  }
+  if (value.metadataLanguagePolicy !== undefined && typeof value.metadataLanguagePolicy !== 'string') {
     return false;
   }
   return value.relationships.every((entry) => {

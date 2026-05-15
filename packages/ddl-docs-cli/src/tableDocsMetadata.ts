@@ -101,6 +101,9 @@ function assertTableDocsMetadata(value: unknown, sourcePath: string): asserts va
   if (value.schemaVersion !== 1) {
     throw new Error(`Table docs metadata schemaVersion must be 1: ${sourcePath}`);
   }
+  if (value.metadataLanguagePolicy !== undefined && typeof value.metadataLanguagePolicy !== 'string') {
+    throw new Error(`Table docs metadata metadataLanguagePolicy must be a string: ${sourcePath}`);
+  }
   if (value.schemas !== undefined && !isRecord(value.schemas)) {
     throw new Error(`Table docs metadata schemas must be an object: ${sourcePath}`);
   }
@@ -121,6 +124,9 @@ function assertSchemaMetadata(schemaName: string, value: unknown, sourcePath: st
   }
   if (value.summary !== undefined && typeof value.summary !== 'string') {
     throw new Error(`Table docs metadata schema summary must be a string for ${schemaName}: ${sourcePath}`);
+  }
+  if (value.language !== undefined && typeof value.language !== 'string') {
+    throw new Error(`Table docs metadata schema language must be a string for ${schemaName}: ${sourcePath}`);
   }
 }
 
