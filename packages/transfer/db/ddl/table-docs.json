@@ -1,5 +1,10 @@
 {
   "schemaVersion": 1,
+  "schemas": {
+    "rawsql_transfer": {
+      "summary": "Transfer package のマスタ、実行、作業状態、監査用テーブルをまとめるスキーマ。"
+    }
+  },
   "tables": {
     "rawsql_transfer.destination_definition": {
       "designNotes": [

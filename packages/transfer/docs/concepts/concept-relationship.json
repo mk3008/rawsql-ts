@@ -604,12 +604,14 @@
       "id": "lineage-trace-process",
       "displayName": "Lineage Trace Process",
       "path": "../processes/lineage-trace-process.md",
+      "summary": "転送先行から由来や履歴を追跡する監査・デバッグ向けプロセス。",
       "reason": "監査、デバッグ、転送先行からの由来追跡プロセスをレビューするときに参照する。"
     },
     {
       "id": "transfer-execution-process",
       "displayName": "Transfer Execution Process",
       "path": "../processes/transfer-execution-process.md",
+      "summary": "Dirty Key と転送設定から Work Item を準備し、転送モデルに応じた転送処理を行うメインプロセス。",
       "reason": "転送実行順序とプロセス単位の概念入出力をレビューするときに参照する。"
     }
   ]

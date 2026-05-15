@@ -56,6 +56,7 @@ export interface ConceptRegistryProcessMapEntry {
   id: string;
   displayName?: string;
   path: string;
+  summary?: string;
   reason?: string;
 }
 
@@ -119,6 +120,7 @@ export interface DfdRegistryTermRef {
 export interface ResolvedTableRelationship {
   concepts: ResolvedRelationshipTarget[];
   processes: ResolvedRelationshipTarget[];
+  businesses: ResolvedRelationshipTarget[];
 }
 
 export interface ResolvedRelationshipTarget {
@@ -345,9 +347,10 @@ function parseDfdTermRefs(value: unknown, sourcePath: string): DfdRegistryTermRe
 export function resolveTableRelationship(
   sourceFiles: string[],
   relationshipMetadata: DdlRelationshipMetadata | undefined,
-  conceptRegistry: ConceptRegistry | undefined
+  conceptRegistry: ConceptRegistry | undefined,
+  dfdRegistry?: DfdRegistry
 ): ResolvedTableRelationship {
-  const empty = { concepts: [], processes: [] };
+  const empty = { concepts: [], processes: [], businesses: [] };
   if (!relationshipMetadata) {
     return empty;
   }
@@ -358,16 +361,25 @@ export function resolveTableRelationship(
   );
   const conceptTargets: ResolvedRelationshipTarget[] = [];
   const processTargets: ResolvedRelationshipTarget[] = [];
+  const conceptIds = new Set<string>();
   for (const entry of relationshipMetadata.relationships) {
     if (!sourceSet.has(entry.path)) {
       continue;
     }
-    conceptTargets.push(...entry.concepts.map((target) => resolveConceptTarget(target, relationshipMetadata, conceptRegistry)));
+    for (const target of entry.concepts) {
+      const resolved = resolveConceptTarget(target, relationshipMetadata, conceptRegistry);
+      conceptTargets.push(resolved);
+      const conceptId = resolveConceptId(target, relationshipMetadata, conceptRegistry);
+      if (conceptId) {
+        conceptIds.add(conceptId);
+      }
+    }
     processTargets.push(...entry.processes.map((target) => resolveProcessTarget(target)));
   }
   return {
     concepts: dedupeTargets(conceptTargets),
     processes: dedupeTargets(processTargets),
+    businesses: collectBusinessTargetsForConcepts(conceptIds, dfdRegistry),
   };
 }
 
@@ -417,7 +429,7 @@ function resolveConceptTarget(
     label,
     path: target.path,
     reason: target.reason ?? '',
-    href: `../concepts/${slugifyIdentifier(label)}.md`,
+    href: `/concepts/${slugifyIdentifier(label)}`,
   };
 }
 
@@ -427,8 +439,104 @@ function resolveProcessTarget(target: DdlRelationshipTarget): ResolvedRelationsh
     label,
     path: target.path,
     reason: target.reason ?? '',
-    href: `../processes/${slugifyIdentifier(label)}.md`,
+    href: `/processes/${slugifyIdentifier(label)}`,
   };
+}
+
+function resolveConceptId(
+  target: DdlRelationshipTarget,
+  relationshipMetadata: DdlRelationshipMetadata,
+  conceptRegistry: ConceptRegistry | undefined
+): string | undefined {
+  const resolvedTarget = path.resolve(relationshipMetadata.baseDir, target.path);
+  const concept = conceptRegistry?.concepts.find((entry) =>
+    entry.path != null && path.resolve(conceptRegistry.baseDir, entry.path) === resolvedTarget
+  );
+  return concept?.id;
+}
+
+function collectBusinessTargetsForConcepts(
+  conceptIds: Set<string>,
+  dfdRegistry: DfdRegistry | undefined
+): ResolvedRelationshipTarget[] {
+  if (!dfdRegistry || conceptIds.size === 0) {
+    return [];
+  }
+  const targets: ResolvedRelationshipTarget[] = [];
+  for (const dfd of dfdRegistry.dfds) {
+    const subsystemId = dfd.subsystem ?? 'default';
+    for (const operation of dfd.businessOperations ?? []) {
+      const operationConceptRefs = collectOperationConceptReferences(operation, dfdRegistry);
+      const matchedConceptRefs = operationConceptRefs
+        .filter((ref) => conceptIds.has(ref.conceptId))
+        .sort((left, right) => {
+          const leftKey = `${left.groupId ?? ''}:${left.conceptId}`;
+          const rightKey = `${right.groupId ?? ''}:${right.conceptId}`;
+          return leftKey.localeCompare(rightKey);
+        });
+      if (matchedConceptRefs.length === 0) {
+        continue;
+      }
+      targets.push({
+        label: operation.displayName ?? operation.id,
+        path: dfd.path,
+        reason: formatBusinessConceptReason(matchedConceptRefs),
+        href: `/dfd/${slugifyIdentifier(subsystemId)}/business/${slugifyIdentifier(operation.id)}`,
+      });
+    }
+  }
+  return dedupeTargets(targets);
+}
+
+interface OperationConceptReference {
+  conceptId: string;
+  groupId?: string;
+}
+
+function collectOperationConceptReferences(
+  operation: DfdRegistryBusinessOperationEntry,
+  dfdRegistry: DfdRegistry
+): OperationConceptReference[] {
+  const result: OperationConceptReference[] = [];
+  const seen = new Set<string>();
+  for (const ref of [...(operation.inputs ?? []), ...(operation.outputs ?? []), ...(operation.uses ?? [])]) {
+    if (ref.type === 'concept') {
+      pushOperationConceptReference(result, seen, { conceptId: ref.id });
+      continue;
+    }
+    if (ref.type === 'concept-group') {
+      const group = dfdRegistry.conceptGroups.find((entry) => entry.id === ref.id);
+      for (const member of group?.members ?? []) {
+        if (member.type === 'concept') {
+          pushOperationConceptReference(result, seen, { conceptId: member.id, groupId: ref.id });
+        }
+      }
+    }
+  }
+  return result;
+}
+
+function pushOperationConceptReference(
+  result: OperationConceptReference[],
+  seen: Set<string>,
+  ref: OperationConceptReference
+): void {
+  const key = `${ref.groupId ?? ''}:${ref.conceptId}`;
+  if (seen.has(key)) {
+    return;
+  }
+  seen.add(key);
+  result.push(ref);
+}
+
+function formatBusinessConceptReason(refs: OperationConceptReference[]): string {
+  const clauses = refs.map((ref) => {
+    if (ref.groupId) {
+      return `\`${ref.groupId}\` に含まれる \`${ref.conceptId}\``;
+    }
+    return `\`${ref.conceptId}\``;
+  });
+  return `DFDの業務メタデータで ${clauses.join('、')} を参照しているため。`;
 }
 
 function parseTargets(value: unknown, sourcePath: string): DdlRelationshipTarget[] {
@@ -508,6 +616,7 @@ function parseRelatedProcessMaps(value: unknown, sourcePath: string): ConceptReg
       id: entry.id,
       displayName: typeof entry.displayName === 'string' ? entry.displayName : undefined,
       path: entry.path,
+      summary: typeof entry.summary === 'string' ? entry.summary : undefined,
       reason: typeof entry.reason === 'string' ? entry.reason : undefined,
     };
   });

@@ -25,6 +25,7 @@ export interface GenerateDocsOptions {
   tableDocsPath?: string;
   relationshipPath?: string;
   conceptRelationshipPath?: string;
+  dfdRelationshipPath?: string;
   configPath?: string;
   defaultSchema?: string;
   searchPath?: string[];
@@ -40,18 +41,12 @@ export interface CheckDocsOptions {
   relationshipPath?: string;
   orderPath?: string;
   conceptRelationshipPath?: string;
-  conceptMapPath?: string;
   dfdRelationshipPath?: string;
   processDirectories?: string[];
   configPath?: string;
   defaultSchema?: string;
   searchPath?: string[];
   filterPgDump?: boolean;
-}
-
-export interface GenerateConceptMapCliOptions {
-  conceptRelationshipPath: string;
-  outPath: string;
 }
 
 export interface GenerateConceptSiteOptions {
@@ -83,6 +78,10 @@ export interface TableDocsConstraintMetadata {
   alternativesRejected?: string[];
 }
 
+export interface TableDocsSchemaMetadata {
+  summary?: string;
+}
+
 export interface TableDocsTableMetadata {
   designNotes?: string[];
   decision?: string;
@@ -98,6 +97,7 @@ export interface TableDocsTableMetadata {
 
 export interface TableDocsMetadata {
   schemaVersion: 1;
+  schemas?: Record<string, TableDocsSchemaMetadata>;
   tables?: Record<string, TableDocsTableMetadata>;
 }
 

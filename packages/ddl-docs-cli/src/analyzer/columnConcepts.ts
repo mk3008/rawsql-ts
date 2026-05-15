@@ -19,7 +19,7 @@ export interface AnalyzeResult {
   suggestions: SuggestionItem[];
 }
 
-const KNOWN_RAW_TYPES = new Set(['text', 'date']);
+const KNOWN_RAW_TYPES = new Set(['text', 'date', 'json', 'jsonb', 'text[]']);
 const FLEXIBLE_CANONICAL_TYPES = new Set(['date', 'text']);
 const PG_INT_ALIASES: Record<string, string> = {
   int: 'integer',
@@ -62,7 +62,7 @@ export function analyzeColumns(tables: TableDocModel[], options: AnalyzeOptions)
       } satisfies ObservedColumnUsage);
       conceptMap.set(concept, conceptItem);
 
-      if (column.unknownType && !KNOWN_RAW_TYPES.has(column.typeName.toLowerCase())) {
+      if (column.unknownType && !isAllowedRawType(column.typeName)) {
         findings.push({
           kind: 'UNSUPPORTED_OR_UNKNOWN_TYPE',
           severity: 'info',
@@ -143,6 +143,11 @@ export function analyzeColumns(tables: TableDocModel[], options: AnalyzeOptions)
     findings: findings.sort((a, b) => `${a.kind}|${a.message}`.localeCompare(`${b.kind}|${b.message}`)),
     suggestions: suggestions.sort((a, b) => a.sql.localeCompare(b.sql)),
   };
+}
+
+function isAllowedRawType(typeName: string): boolean {
+  const normalized = typeName.toLowerCase().replace(/\s+/g, ' ').trim();
+  return KNOWN_RAW_TYPES.has(normalized) || normalized.endsWith('[]');
 }
 
 function buildSuggestedComment(entry: NonNullable<ColumnDictionary['columns'][string]>, locale: string): string {

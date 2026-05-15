@@ -1,8 +1,15 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import type { TableDocsColumnMetadata, TableDocsConstraintMetadata, TableDocsMetadata, TableDocsTableMetadata } from './types';
+import type {
+  TableDocsColumnMetadata,
+  TableDocsConstraintMetadata,
+  TableDocsMetadata,
+  TableDocsSchemaMetadata,
+  TableDocsTableMetadata,
+} from './types';
 
 export interface ResolvedTableDocsMetadata {
+  getSchemaSummary(schema: string): string;
   getColumnSample(schema: string, table: string, column: string): string;
   getTableDesignNotes(schema: string, table: string): string[];
   getColumnDesignNotes(schema: string, table: string, column: string): string[];
@@ -13,6 +20,7 @@ export interface ResolvedTableDocsMetadata {
 }
 
 const EMPTY_TABLE_DOCS_METADATA: ResolvedTableDocsMetadata = {
+  getSchemaSummary: () => '',
   getColumnSample: () => '',
   getTableDesignNotes: () => [],
   getColumnDesignNotes: () => [],
@@ -31,6 +39,7 @@ export function loadTableDocsMetadata(metadataPath: string | undefined): Resolve
   const raw = loadRawTableDocsMetadata(resolvedPath);
 
   return {
+    getSchemaSummary: (schema) => raw.schemas?.[schema]?.summary?.trim() ?? '',
     getColumnSample: (schema, table, column) => {
       const tableMetadata = raw.tables?.[`${schema}.${table}`] ?? raw.tables?.[table];
       const columnMetadata = tableMetadata?.columns?.[column];
@@ -92,11 +101,26 @@ function assertTableDocsMetadata(value: unknown, sourcePath: string): asserts va
   if (value.schemaVersion !== 1) {
     throw new Error(`Table docs metadata schemaVersion must be 1: ${sourcePath}`);
   }
+  if (value.schemas !== undefined && !isRecord(value.schemas)) {
+    throw new Error(`Table docs metadata schemas must be an object: ${sourcePath}`);
+  }
   if (value.tables !== undefined && !isRecord(value.tables)) {
     throw new Error(`Table docs metadata tables must be an object: ${sourcePath}`);
   }
+  for (const [schemaName, schemaMetadata] of Object.entries(value.schemas ?? {})) {
+    assertSchemaMetadata(schemaName, schemaMetadata, sourcePath);
+  }
   for (const [tableKey, tableMetadata] of Object.entries(value.tables ?? {})) {
     assertTableMetadata(tableKey, tableMetadata, sourcePath);
+  }
+}
+
+function assertSchemaMetadata(schemaName: string, value: unknown, sourcePath: string): asserts value is TableDocsSchemaMetadata {
+  if (!isRecord(value)) {
+    throw new Error(`Table docs metadata schema entry must be an object for ${schemaName}: ${sourcePath}`);
+  }
+  if (value.summary !== undefined && typeof value.summary !== 'string') {
+    throw new Error(`Table docs metadata schema summary must be a string for ${schemaName}: ${sourcePath}`);
   }
 }
 

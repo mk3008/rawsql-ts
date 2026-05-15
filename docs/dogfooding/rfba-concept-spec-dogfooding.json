@@ -308,6 +308,15 @@
         "Concept Spec"
       ],
       "question": "Transfer engine may be OSS while operational services may be commercial; should Concept Specs preserve enough transfer history context for visualization, analysis, logs, debugging, and secondary use without forcing every detail into core tables?"
+    },
+    {
+      "id": "ddl-docs-check-validator-modularization",
+      "domains": [
+        "rawsql-ts",
+        "Concept Spec",
+        "RFBA"
+      ],
+      "question": "Should ddl-docs-cli check.ts be split into schema, table, column, index, relationship, and lifecycle validators so future Concept Spec / DFD / DDL metadata checks can grow without one large validator becoming fragile?"
     }
   ],
   "lastReportedUnresolvedObservationIds": []

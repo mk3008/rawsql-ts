@@ -86,9 +86,9 @@ A Concept Spec should usually include:
 Use short additional sections when they explain an important design decision.
 For example, a `Why` section can preserve why a responsibility boundary was narrowed.
 
-Do not keep per-spec `Related Terms` lists when the package has a concept map or machine-readable relationship file.
+Do not keep per-spec `Related Terms` lists when the package has generated concept review views or machine-readable relationship files.
 Concept relationships should be normalized at the concept root, primarily in `concept-relationship.json`, so relationship maintenance does not drift across individual specs.
-`concept-map.md` may present that metadata as a human review view, but relationship facts should not exist only in the map.
+Generated Concept review pages may present that metadata as human review views, but relationship facts should not exist only in generated pages.
 
 Avoid copying generic Concept Spec management rules into every individual spec.
 Package-level guidance and repository documentation should carry the common rules.
@@ -184,15 +184,42 @@ If a fact needs to be searched, counted, checked, linked, or used by AI/CLI with
 
 Concept Spec work follows an intentionally staged development style.
 
+The default order is:
+
+```text
+Concept -> DFD -> Process -> DDL -> RFBA -> Verification
+```
+
+This is not a waterfall process.
+Each stage is a review harness for the next stage, and findings may flow backward.
+
 1. Create and review Concept Specs.
 2. Create and review DFDs when the domain needs business-operation, timing, actor, input/output, or system-boundary clarity.
 3. Create and review Process Maps only when the logic is complex enough to need process-level flow and concrete concept input/output.
 4. Feed DFD and Process Map findings back into Concept Specs when they expose a missing concept, ambiguous term, duplicate concept, or responsibility gap.
-5. Implement with RFBA after the concept, DFD, and process review surfaces are stable enough.
+5. Design DDL after the relevant DFD and required Process Map surfaces make the physical design derivable.
+6. Implement with RFBA after the logical review surfaces and DDL review surfaces are stable enough.
+7. Verify with mechanical checks, SQL/ZTD tests, package tests, and generated review reports as appropriate.
 
 Concept Specs are not expected to become perfect from desk review alone.
 They should be correct enough to protect durable meaning, responsibility boundaries, and invariants.
 When a DFD or Process Map cannot express the use case without inventing undefined terms, contradicting a Concept Spec, or hiding a responsibility gap, update the Concept Spec or the relevant structured relationship metadata before continuing.
+
+Initial Concept Specs may be rough.
+They should still be independently explainable as concepts, but their relationship graph may remain incomplete until DFD review exposes how the concepts are used.
+
+DFD review is the point where concept usage becomes visible.
+Before moving from DFD toward DDL, the DFD should identify the relevant business operation, event timing, actor, input/output data, and system boundary.
+The DFD does not need to define every detailed process, but it should make it clear where a concept is created, read, or used.
+
+Process Maps are optional and risk-driven.
+Create them for complex or critical logic that needs proof that the use case can be derived from the approved concepts.
+A Process Map may be created before every DFD is complete when a core risk needs early validation.
+Simple master registration, CRUD, or query-only work may skip a Process Map when the DFD is enough.
+
+DDL is physical design derived from the logical model.
+Before DDL review, the relevant subsystem ownership should be clear enough that create/update/delete responsibility does not cross subsystem boundaries accidentally.
+Subsystems are logical boundaries first; they are not automatically database schemas.
 
 Logical models are requirements-like artifacts.
 Humans should own and write the durable meaning, but prose alone is weak at coverage, overview, and drift detection.
@@ -201,6 +228,31 @@ Human review views may exist, but they should be generated from structured metad
 
 Review support views are not authoritative logical models.
 They exist to help humans inspect coverage, lifecycle state, relationships, and omissions.
+
+The intended operating model is simple:
+
+- AI drafts Concept, DFD, Process, relationship, and DDL candidates.
+- Humans review and accept concept ownership, promotion, boundaries, and domain meaning.
+- CLI checks detect structural drift, broken references, duplicate or missing metadata, and generated-doc inconsistencies.
+- Review skills use the mechanical check output as evidence, then add human-facing semantic review where judgment is required.
+
+## Artifact Grounding
+
+Artifacts that carry domain meaning should usually be grounded in the logical model.
+
+For example:
+
+- DDL usually physicalizes Concepts, DFD outputs, Process outputs, current-state records, or durable processing records.
+- RFBA features usually implement a business operation, a Process Map, or a narrow feature-local use case constrained by Concepts.
+- SQL and queryspecs should be reviewable against the Concept, DFD, Process, or DDL responsibility they serve.
+- Tests should make it possible to see which concept/process/SQL contract they protect when that relationship is important.
+- Generated documentation is a review view over source artifacts and structured metadata, not the durable source of meaning.
+
+Do not force every artifact to link to a Concept.
+Framework glue, generated code, technical support tables, caches, operational control tables, or purely mechanical checks may be valid without being standalone domain concepts.
+When such an artifact affects business behavior, classify its role clearly and record the reason in structured metadata instead of leaving the connection to reviewer inference.
+
+If an artifact has business meaning but cannot be traced to a Concept, DFD, Process Map, feature-local spec, or explicit technical-support classification, treat that as a review risk.
 
 DFDs are intentionally coarser than Process Maps.
 They are often created alongside or soon after Concept Specs, before detailed process review.
@@ -265,6 +317,20 @@ Machine extraction should be explicit:
 
 DFDs may use DFD Concept Groups.
 Process Maps must not use DFD Concept Groups.
+
+## Subsystems
+
+Subsystems are logical ownership boundaries for DFDs, processes, and later physical design review.
+
+A subsystem should help reviewers understand which business operations own create/update/delete responsibility and which other subsystems may only read or depend on the resulting data.
+Cross-subsystem reads may be valid, but cross-subsystem create/update/delete paths should be explicit and reviewed.
+
+Do not treat a subsystem as a database schema by default.
+Small products may use one physical schema while still keeping logical subsystem ownership in DFD metadata.
+Large products may choose to map subsystems to database schemas or other physical deployment boundaries, but that is a physical design decision, not the definition of a subsystem.
+
+Before DDL design, assign business operations to subsystems when the domain is large enough that ownership would otherwise become unclear.
+This reduces physical-design churn by making CUD ownership visible before table layout and schema naming decisions begin.
 
 ## Process Map Rules
 
@@ -345,7 +411,6 @@ Package-local Concept Specs live under package documentation, not under TypeScri
 ```text
 packages/<package-name>/docs/concepts/
   README.md
-  concept-map.md
   concept-relationship.json
   <concept-name>/
     SPEC.md
@@ -385,7 +450,7 @@ When the concept is approved, promote it in place:
 1. Replace `DRAFT.md` with `SPEC.md`.
 2. Remove the old `DRAFT.md`.
 3. Update `concept-relationship.json` from `draftPath` / `status: "draft"` to `path` / `status: "defined"`.
-4. Regenerate or refresh Concept Map review views from the structured metadata.
+4. Regenerate or refresh generated Concept review views from the structured metadata.
 5. Recheck DFDs, Process Maps, and feature references that depended on the draft wording.
 
 Do not use a separate `_drafts/` folder for ordinary concept drafts.
@@ -401,9 +466,7 @@ Represent concept dependencies, static relationships, and glossary lookup in:
 
 - `concept-relationship.json`
 
-Represent generated or regeneratable concept coverage and relationship review views in:
-
-- `concept-map.md`
+Represent generated concept coverage and relationship review views through the docs generation pipeline, such as VitePress Concept pages.
 
 Represent process order, use-case flow, and input/output process details in process maps under:
 
@@ -444,7 +507,6 @@ Start with one direct directory per concept:
 
 ```text
 docs/concepts/
-  concept-map.md
   concept-relationship.json
   dirty-key/
     SPEC.md
@@ -858,7 +920,7 @@ Warnings:
 - constants look duplicated across specs
 - a draft concept is used as a production dependency or process premise without explicit human approval
 - a draft concept remains unresolved for a long time
-- a draft concept appears under `Defined Concepts` in `concept-map.md`
+- a draft concept appears as a defined concept in generated Concept review views
 - a DFD operation lacks parseable Mermaid `Who:` nodes where generated role views depend on them
 - a DFD Markdown file contains handwritten Scope tables that duplicate Mermaid or relationship metadata
 - a DFD Concept Group exists in Markdown but is missing from structured metadata, or vice versa

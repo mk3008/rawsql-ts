@@ -77,13 +77,13 @@
       "concepts": [
         {
           "path": "../../docs/concepts/active-black/SPEC.md",
-          "reason": "active_black is scoped to Transfer Execution. It stores the current active black row per Destination Link and source key so Prepare Work Item can check existence and transfer operations can identify the existing destination row. Its uniqueness is based on destination_link_id and source_key_json because source_key_json is the source-of-truth identity. source_key_hash is kept only as a lookup aid. It intentionally does not store Transfer Setting, Transfer Run, Lineage, destination table name, or destination key hash because those are not required by the Active Black transfer-process lookup."
+          "reason": "active_black は Transfer Execution の中で参照する current-state table である。Destination Link と source key ごとに現在有効な黒伝を保持し、Prepare Work Item が存在確認を行い、転送処理が既存の転送先行を特定できるようにする。同一性は source_key_json を正本とし、source_key_hash は検索補助としてのみ保持する。Transfer Setting、Transfer Run、Lineage、destination table name、destination key hash は Active Black の転送プロセス内lookupには不要なため保持しない。"
         }
       ],
       "processes": [
         {
           "path": "../../docs/processes/transfer-execution-process.md",
-          "reason": "Prepare Work Item uses Active Black existence by Destination Link and source key to decide route side effects. Red Transfer, Black Update Transfer, and Physical Delete Transfer use the stored destination key to target the current active black row."
+          "reason": "Prepare Work Item は Destination Link と source key に対する Active Black の有無を使って転送経路の副作用を判断する。Red Transfer、Black Update Transfer、Physical Delete Transfer は、保存された destination key を使って現在有効な黒伝行を対象にする。"
         }
       ]
     },

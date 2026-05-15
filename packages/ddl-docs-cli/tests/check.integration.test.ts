@@ -1,8 +1,7 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from 'vitest';
 import { checkDocs, runCheckDocs } from '../src/commands/check';
-import { runGenerateConceptMap } from '../src/commands/conceptMap';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const tmpRoot = path.join(repoRoot, 'tmp');
@@ -79,6 +78,11 @@ test('check passes when relationship, order, table-docs, and concept registry re
   }, null, 2));
   writeText(tableDocsPath, JSON.stringify({
     schemaVersion: 1,
+    schemas: {
+      public: {
+        summary: 'Application tables.',
+      },
+    },
     tables: {
       'public.accounts': {
         columns: {
@@ -665,47 +669,6 @@ test('check warns when process map markdown does not link to shared process map 
 
   expect(result.errors).toHaveLength(0);
   expect(result.warnings.map((issue) => issue.code)).toContain('PROCESS_MAP_RULE_REFERENCE_MISSING');
-});
-
-test('check fails when generated concept-map markdown drifts from concept metadata', () => {
-  const work = createTempDir('ddl-docs-check-concept-map');
-  const ddlDir = path.join(work, 'ddl');
-  const conceptsDir = path.join(work, 'docs', 'concepts');
-  const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
-  const conceptMapPath = path.join(conceptsDir, 'concept-map.md');
-
-  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
-  writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
-  writeText(conceptRelationshipPath, JSON.stringify({
-    schemaVersion: 1,
-    concepts: [{ id: 'account', displayName: 'Account', path: 'account/SPEC.md', status: 'defined' }],
-  }, null, 2));
-
-  runGenerateConceptMap({
-    conceptRelationshipPath,
-    outPath: conceptMapPath,
-  });
-
-  const passResult = checkDocs({
-    ddlDirectories: [{ path: ddlDir, instance: '' }],
-    ddlFiles: [],
-    ddlGlobs: [],
-    extensions: ['.sql'],
-    conceptRelationshipPath,
-    conceptMapPath,
-  });
-  expect(passResult.errors).toHaveLength(0);
-
-  writeText(conceptMapPath, `${readFileSync(conceptMapPath, 'utf8')}\nmanual drift\n`);
-  const driftResult = checkDocs({
-    ddlDirectories: [{ path: ddlDir, instance: '' }],
-    ddlFiles: [],
-    ddlGlobs: [],
-    extensions: ['.sql'],
-    conceptRelationshipPath,
-    conceptMapPath,
-  });
-  expect(driftResult.errors.map((issue) => issue.code)).toContain('CONCEPT_MAP_DRIFT');
 });
 
 test('check warns instead of failing concept refs when process-map metadata has no concept registry', () => {

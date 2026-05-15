@@ -3,7 +3,7 @@ import { loadDictionary, resolveLocale } from '../analyzer/dictionary';
 import { analyzeColumns } from '../analyzer/columnConcepts';
 import { resolveSchemaSettings } from '../config';
 import { snapshotTableDocs } from '../parser/snapshotTableDocs';
-import { loadConceptRegistry, loadDdlRelationshipMetadata, resolveTableRelationship } from '../relationshipMetadata';
+import { loadConceptRegistry, loadDdlRelationshipMetadata, loadDfdRegistry, resolveTableRelationship } from '../relationshipMetadata';
 import { renderColumnPages } from '../render/columnPages';
 import { renderIndexPages } from '../render/indexPages';
 import { renderReferencesPage } from '../render/referencesPage';
@@ -66,6 +66,7 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
   const tableDocsMetadata = loadTableDocsMetadata(options.tableDocsPath);
   const ddlRelationshipMetadata = loadDdlRelationshipMetadata(options.relationshipPath);
   const conceptRegistry = loadConceptRegistry(options.conceptRelationshipPath);
+  const dfdRegistry = loadDfdRegistry(options.dfdRelationshipPath);
   const locale = resolveLocale(options.locale, dictionary);
   const analysis = analyzeColumns(snapshot.tables, { locale, dictionary });
   const referenceSuggestions = buildReferenceSuggestions(snapshot.tables);
@@ -97,7 +98,7 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
         getTableDesignIntent: () => tableDocsMetadata.getTableDesignIntent(table.schema, table.table),
         getColumnDesignIntent: (column) => tableDocsMetadata.getColumnDesignIntent(table.schema, table.table, column.name),
         getConstraintDesignIntent: (constraint) => tableDocsMetadata.getConstraintDesignIntent(table.schema, table.table, constraint.name),
-        tableRelationship: resolveTableRelationship(table.sourceFiles, ddlRelationshipMetadata, conceptRegistry),
+        tableRelationship: resolveTableRelationship(table.sourceFiles, ddlRelationshipMetadata, conceptRegistry, dfdRegistry),
       })
     );
     generatedFiles.push(outputPath);
@@ -106,7 +107,14 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
   }
 
   if (options.includeIndexes) {
-    const indexPages = renderIndexPages(options.outDir, snapshot.tables, analysis.findings, tableSuggestSet);
+    const indexPages = renderIndexPages(
+      options.outDir,
+      snapshot.tables,
+      analysis.findings,
+      snapshot.warnings,
+      tableSuggestSet,
+      tableDocsMetadata
+    );
     for (const page of indexPages) {
       ensureDirectory(path.dirname(page.path));
       writeTextFileNormalized(page.path, page.content);
@@ -196,6 +204,7 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
       tableDocsPath: options.tableDocsPath,
       relationshipPath: options.relationshipPath,
       conceptRelationshipPath: options.conceptRelationshipPath,
+      dfdRelationshipPath: options.dfdRelationshipPath,
     },
     nameMap,
     tableOutputs,

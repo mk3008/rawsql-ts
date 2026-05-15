@@ -43,7 +43,6 @@ export function renderConceptPages(outDir: string, conceptRegistry: ConceptRegis
     lines.push('This section is generated for human review. Edit the source Concept Spec and relationship metadata instead.');
     lines.push('');
     lines.push(`- Concept ID: ${formatCodeCell(concept.id)}`);
-    lines.push(`- Source: ${formatCodeCell(concept.path)}`);
     if (concept.status) {
       lines.push(`- Status: ${formatCodeCell(concept.status)}`);
     }
@@ -83,8 +82,6 @@ export function renderProcessPages(
     lines.push('## Generated Review Metadata');
     lines.push('');
     lines.push('This section is generated for human review. Edit the source Process Map and relationship metadata instead.');
-    lines.push('');
-    lines.push(`- Source: ${formatCodeCell(formatProcessSourcePath(processPath, relationshipMetadata, conceptRegistry))}`);
     lines.push('');
     pages.push({
       path: processPagePath(outDir, processPath),
@@ -144,21 +141,6 @@ export function renderConceptIndex(outDir: string, conceptRegistry: ConceptRegis
     lines.push('| --- | --- | --- | --- | --- |');
     for (const concept of nonAuthoritativeConcepts) {
       lines.push(`| ${formatCodeCell(concept.id)} | ${formatTableCell(concept.displayName ?? '')} | ${formatCodeCell(concept.status ?? '')} | ${formatTableCell(concept.summary)} | ${formatTableCell(concept.note)} |`);
-    }
-  }
-  if (conceptRegistry.relationships.length > 0) {
-    lines.push('');
-    lines.push('## Relationships');
-    lines.push('');
-    lines.push('Static concept relationships from metadata; reasons are review aids, not a replacement for the owning specs.');
-    lines.push('');
-    lines.push('| From | Kind | To | Reason |');
-    lines.push('| --- | --- | --- | --- |');
-    const relationships = [...conceptRegistry.relationships].sort((left, right) =>
-      `${left.from}|${left.kind ?? ''}|${left.to}`.localeCompare(`${right.from}|${right.kind ?? ''}|${right.to}`)
-    );
-    for (const relationship of relationships) {
-      lines.push(`| ${formatConceptReference(relationship.from, conceptRegistry)} | ${formatCodeCell(relationship.kind ?? '')} | ${formatConceptReference(relationship.to, conceptRegistry)} | ${formatTableCell(relationship.reason)} |`);
     }
   }
   lines.push('');
@@ -276,18 +258,31 @@ export function renderProcessIndex(
   lines.push('');
   lines.push('# Processes');
   lines.push('');
-  lines.push('| Process | Source |');
+  lines.push('| Process | Summary |');
   lines.push('| --- | --- |');
   for (const processPath of processPaths) {
     const label = path.basename(processPath, path.extname(processPath));
     const link = `./${slugifyIdentifier(label)}.md`;
-    lines.push(`| [${label}](${link}) | ${formatCodeCell(formatProcessSourcePath(processPath, relationshipMetadata, conceptRegistry))} |`);
+    const processMetadata = findRelatedProcessMap(processPath, conceptRegistry);
+    lines.push(`| [${formatTableCell(processMetadata?.displayName ?? label)}](${link}) | ${formatTableCell(processMetadata?.summary)} |`);
   }
   lines.push('');
   return {
     path: path.join(outDir, 'processes', 'index.md'),
     content: lines.join('\n'),
   };
+}
+
+function findRelatedProcessMap(
+  processPath: string,
+  conceptRegistry: ConceptRegistry | undefined
+): ConceptRegistry['relatedProcessMaps'][number] | undefined {
+  if (!conceptRegistry) {
+    return undefined;
+  }
+  return conceptRegistry.relatedProcessMaps.find((processMap) =>
+    path.resolve(conceptRegistry.baseDir, processMap.path) === processPath
+  );
 }
 
 export function renderDfdPages(
@@ -316,7 +311,6 @@ export function renderDfdPages(
     lines.push('This section is generated for human review. Edit the source DFD and relationship metadata instead.');
     lines.push('');
     lines.push(`- DFD ID: ${formatCodeCell(dfd.id)}`);
-    lines.push(`- Source: ${formatCodeCell(dfd.path)}`);
     lines.push('');
     appendDfdConceptSection(lines, source, conceptRegistry, dfdRegistry);
     pages.push({
@@ -507,7 +501,9 @@ export function renderDfdBusinessPages(
     const source = normalizeMermaidFences(readFileSync(sourcePath, 'utf8'));
     for (const operation of dfd.businessOperations ?? []) {
       const operationName = operation.displayName ?? operation.id;
-      const operationSection = extractOperationSectionBody(source, operationName).trim();
+      const operationSection = normalizeOperationSectionHeading(
+        extractOperationSectionBody(source, operationName).trim()
+      );
       const lines: string[] = [];
       lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
       lines.push('');
@@ -524,7 +520,6 @@ export function renderDfdBusinessPages(
       lines.push(`- Business ID: ${formatCodeCell(operation.id)}`);
       lines.push(`- Parent Subsystem: [${formatTableCell(subsystem.displayName ?? subsystem.id)}](../)`);
       lines.push(`- Parent DFD: ${formatTableCell(dfd.displayName ?? dfd.id)}`);
-      lines.push(`- Source: ${formatCodeCell(dfd.path)}`);
       if (operation.summary) {
         lines.push(`- Summary: ${formatTableCell(operation.summary)}`);
       }
@@ -581,7 +576,6 @@ export function renderDfdBusinessProcessPages(outDir: string, dfdRegistry: DfdRe
         lines.push(`- Business ID: ${formatCodeCell(operation.id)}`);
         lines.push(`- Parent Business: [${formatTableCell(operation.displayName ?? operation.id)}](../../${slugifyIdentifier(operation.id)}.md)`);
         lines.push(`- Parent DFD: ${formatTableCell(dfd.displayName ?? dfd.id)}`);
-        lines.push(`- Source: ${formatCodeCell(relatedProcess.path)}`);
         if (relatedProcess.reason) {
           lines.push(`- Reason: ${formatTableCell(relatedProcess.reason)}`);
         }
@@ -678,15 +672,15 @@ export function renderDfdSubsystemPages(outDir: string, dfdRegistry: DfdRegistry
     lines.push('');
     lines.push('## Business Operations');
     lines.push('');
-    lines.push('| Business | Summary | Related Processes | Source |');
-    lines.push('| --- | --- | --- | --- |');
-    for (const { dfd, operation } of subsystemOperations) {
+    lines.push('| Business | Summary | Related Processes |');
+    lines.push('| --- | --- | --- |');
+    for (const { operation } of subsystemOperations) {
       const operationLabel = operation.displayName ?? operation.id;
       const operationLink = `./business/${slugifyIdentifier(operation.id)}.md`;
-      lines.push(`| [${formatTableCell(operationLabel)}](${operationLink}) | ${formatTableCell(operation.summary)} | ${formatTableCell(formatDfdRelatedProcesses(operation, `./business/${slugifyIdentifier(operation.id)}/process`))} | ${formatCodeCell(dfd.path)} |`);
+      lines.push(`| [${formatTableCell(operationLabel)}](${operationLink}) | ${formatTableCell(operation.summary)} | ${formatTableCell(formatDfdRelatedProcesses(operation, `./business/${slugifyIdentifier(operation.id)}/process`))} |`);
     }
     if (subsystemOperations.length === 0) {
-      lines.push('| - | - | - | - |');
+      lines.push('| - | - | - |');
     }
     lines.push('');
     pages.push({
@@ -895,11 +889,18 @@ function appendDfdBusinessIoSection(
 ): void {
   lines.push('## Business I/O Metadata');
   lines.push('');
-  lines.push('| Direction | Terms |');
-  lines.push('| --- | --- |');
-  lines.push(`| Inputs | ${formatDfdTermRefs(operation.inputs, conceptRegistry, dfdRegistry, conceptHrefPrefix)} |`);
-  lines.push(`| Uses | ${formatDfdTermRefs(operation.uses, conceptRegistry, dfdRegistry, conceptHrefPrefix)} |`);
-  lines.push(`| Outputs | ${formatDfdTermRefs(operation.outputs, conceptRegistry, dfdRegistry, conceptHrefPrefix)} |`);
+  lines.push('| Direction | Kind | Group | Term | Summary |');
+  lines.push('| --- | --- | --- | --- | --- |');
+  const rows = [
+    ...formatDfdBusinessIoRows('Input', operation.inputs, conceptRegistry, dfdRegistry, conceptHrefPrefix),
+    ...formatDfdBusinessIoRows('Use', operation.uses, conceptRegistry, dfdRegistry, conceptHrefPrefix),
+    ...formatDfdBusinessIoRows('Output', operation.outputs, conceptRegistry, dfdRegistry, conceptHrefPrefix),
+  ];
+  if (rows.length === 0) {
+    lines.push('| - | - | - | - | - |');
+  } else {
+    lines.push(...rows);
+  }
   lines.push('');
 }
 
@@ -920,38 +921,98 @@ function appendDfdRelatedProcessSection(lines: string[], operation: DfdRegistryB
   lines.push('');
 }
 
-function formatDfdTermRefs(
+function formatDfdBusinessIoRows(
+  direction: string,
   refs: DfdRegistryBusinessOperationEntry['uses'],
   conceptRegistry: ConceptRegistry | undefined,
   dfdRegistry: DfdRegistry,
   conceptHrefPrefix: string
-): string {
+): string[] {
   if (!refs || refs.length === 0) {
-    return '-';
+    return [];
   }
-  return refs.map((ref) => formatDfdBusinessIoTermRef(ref, conceptRegistry, dfdRegistry, conceptHrefPrefix)).join(', ');
+  return refs.flatMap((ref) => formatDfdBusinessIoTermRows(direction, ref, conceptRegistry, dfdRegistry, conceptHrefPrefix));
 }
 
-function formatDfdBusinessIoTermRef(
+function formatDfdBusinessIoTermRows(
+  direction: string,
+  ref: DfdRegistryTermRef,
+  conceptRegistry: ConceptRegistry | undefined,
+  dfdRegistry: DfdRegistry,
+  conceptHrefPrefix: string
+): string[] {
+  if (ref.type === 'concept') {
+    return [
+      formatDfdBusinessIoRow(direction, 'Concept', '-', formatDfdBusinessIoConcept(ref.id, conceptRegistry, conceptHrefPrefix), formatDfdBusinessIoConceptSummary(ref.id, conceptRegistry)),
+    ];
+  }
+  if (ref.type === 'concept-group') {
+    const group = dfdRegistry.conceptGroups.find((entry) => entry.id === ref.id);
+    if (!group || group.members.length === 0) {
+      return [formatDfdBusinessIoRow(direction, 'Concept Group', formatCodeCell(ref.id), '-', group?.summary)];
+    }
+    return group.members.map((member) =>
+      formatDfdBusinessIoRow(
+        direction,
+        formatDfdTermKind(member.type),
+        formatTableCell(group.displayName ?? group.id),
+        formatDfdBusinessIoTerm(member, conceptRegistry, dfdRegistry, conceptHrefPrefix),
+        formatDfdBusinessIoTermSummary(member, conceptRegistry)
+      )
+    );
+  }
+  if (ref.type === 'external-store') {
+    const store = dfdRegistry.externalStores.find((entry) => entry.id === ref.id);
+    if (store?.displayName) {
+      return [formatDfdBusinessIoRow(direction, 'External Store', '-', formatTableCell(store.displayName), undefined)];
+    }
+  }
+  return [formatDfdBusinessIoRow(direction, formatDfdTermKind(ref.type), '-', formatCodeCell(ref.id), undefined)];
+}
+
+function formatDfdBusinessIoRow(direction: string, kind: string, group: string, term: string, summary: string | undefined): string {
+  return `| ${formatTableCell(direction)} | ${formatTableCell(kind)} | ${group || '-'} | ${term || '-'} | ${formatTableCell(summary)} |`;
+}
+
+function formatDfdBusinessIoTerm(
   ref: DfdRegistryTermRef,
   conceptRegistry: ConceptRegistry | undefined,
   dfdRegistry: DfdRegistry,
   conceptHrefPrefix: string
 ): string {
-  const prefix = `${ref.type}:`;
   if (ref.type === 'concept') {
-    const concept = conceptRegistry?.concepts.find((entry) => entry.id === ref.id);
-    if (concept?.path) {
-      return `${formatCodeCell(prefix)}[${formatTableCell(ref.id)}](${conceptHrefPrefix}/${slugifyIdentifier(ref.id)}.md)`;
-    }
+    return formatDfdBusinessIoConcept(ref.id, conceptRegistry, conceptHrefPrefix);
   }
   if (ref.type === 'external-store') {
     const store = dfdRegistry.externalStores.find((entry) => entry.id === ref.id);
     if (store?.displayName) {
-      return `${formatCodeCell(prefix)}${formatTableCell(store.displayName)} ${formatCodeCell(ref.id)}`;
+      return formatTableCell(store.displayName);
     }
   }
-  return formatCodeCell(`${ref.type}:${ref.id}`);
+  return formatCodeCell(ref.id);
+}
+
+function formatDfdBusinessIoConcept(
+  conceptId: string,
+  conceptRegistry: ConceptRegistry | undefined,
+  conceptHrefPrefix: string
+): string {
+  const concept = conceptRegistry?.concepts.find((entry) => entry.id === conceptId);
+  if (concept?.path) {
+    return `[${formatTableCell(concept.displayName ?? concept.id)}](${conceptHrefPrefix}/${slugifyIdentifier(concept.id)}.md)`;
+  }
+  return formatCodeCell(conceptId);
+}
+
+function formatDfdBusinessIoTermSummary(ref: DfdRegistryTermRef, conceptRegistry: ConceptRegistry | undefined): string | undefined {
+  if (ref.type !== 'concept') {
+    return undefined;
+  }
+  return formatDfdBusinessIoConceptSummary(ref.id, conceptRegistry);
+}
+
+function formatDfdBusinessIoConceptSummary(conceptId: string, conceptRegistry: ConceptRegistry | undefined): string | undefined {
+  return conceptRegistry?.concepts.find((entry) => entry.id === conceptId)?.summary;
 }
 
 function formatDfdRelatedProcesses(operation: DfdRegistryBusinessOperationEntry, processHrefPrefix: string): string {
@@ -1008,12 +1069,12 @@ export function renderDfdRoleIndex(outDir: string, dfdRegistry: DfdRegistry | un
     lines.push('');
     lines.push(`## ${roleName}`);
     lines.push('');
-    lines.push('| Business | Event / When | Business Page |');
-    lines.push('| --- | --- | --- |');
+    lines.push('| Business | Event / When |');
+    lines.push('| --- | --- |');
     for (const role of entries) {
       const link = `../dfd/${slugifyIdentifier(role.subsystemId)}/business/${slugifyIdentifier(role.businessId)}.md`;
       lines.push(
-        `| ${formatTableCell(role.businessName)} | ${formatTableCell(role.eventWhen)} | [${formatTableCell(role.businessName)}](${link}) |`
+        `| [${formatTableCell(role.businessName)}](${link}) | ${formatTableCell(role.eventWhen)} |`
       );
     }
   }
@@ -1095,6 +1156,10 @@ function extractOperationSectionBody(source: string, operationName: string): str
   return sectionLines.join('\n');
 }
 
+function normalizeOperationSectionHeading(section: string): string {
+  return section.replace(/^##\s+/, '# ');
+}
+
 function extractMarkdownSection(source: string, heading: string): string {
   const lines = source.split(/\r?\n/);
   let inSection = false;
@@ -1146,24 +1211,4 @@ function collectProcessPaths(
     }
   }
   return Array.from(processPaths).sort();
-}
-
-function formatProcessSourcePath(
-  processPath: string,
-  relationshipMetadata: DdlRelationshipMetadata | undefined,
-  conceptRegistry: ConceptRegistry | undefined
-): string {
-  if (relationshipMetadata) {
-    const relative = path.relative(relationshipMetadata.baseDir, processPath).replace(/\\/g, '/');
-    if (!relative.startsWith('..')) {
-      return relative;
-    }
-  }
-  if (conceptRegistry) {
-    const relative = path.relative(conceptRegistry.baseDir, processPath).replace(/\\/g, '/');
-    if (!relative.startsWith('..')) {
-      return relative;
-    }
-  }
-  return processPath.replace(/\\/g, '/');
 }
