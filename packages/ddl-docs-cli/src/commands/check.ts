@@ -30,14 +30,48 @@ interface RelationshipEntry {
   path: string;
   kind: string;
   reason?: string;
+  scopeRules?: RelationshipScopeRuleRef[];
   concepts?: RelationshipTarget[];
   processes?: RelationshipTarget[];
+}
+
+interface RelationshipScopeRuleRef {
+  id: string;
+  reason?: string;
 }
 
 interface RelationshipTarget {
   path: string;
   reason?: string;
 }
+
+interface ScopeRulesMetadata {
+  schemaVersion: 1;
+  metadataLanguagePolicy?: unknown;
+  scopeRules: ScopeRuleEntry[];
+}
+
+interface ScopeRuleEntry {
+  id: string;
+  kind: ScopeRuleKind;
+  statement: string;
+  reviewRisk?: string;
+  riskProbes?: string[];
+  allowedInstead?: string[];
+  reviewAction?: string;
+  ownedDomains?: string[];
+  externalDomains?: string[];
+}
+
+type ScopeRuleKind =
+  | 'purpose'
+  | 'in-scope'
+  | 'out-of-scope'
+  | 'global-invariant'
+  | 'ownership-boundary'
+  | 'extension-policy'
+  | 'assumption'
+  | 'review-policy';
 
 interface OrderMetadata {
   schemaVersion: 1;
@@ -169,6 +203,16 @@ interface ProcessMapViewEntry {
 const CONCEPT_SUMMARY_MAX_LENGTH = 160;
 const CONCEPT_METADATA_NOTE_MAX_LENGTH = 240;
 const PROCESS_MAP_RULE_REFERENCE_TARGET = 'concept-spec-overview.md#process-map-rules';
+const SCOPE_RULE_KINDS = new Set<ScopeRuleKind>([
+  'purpose',
+  'in-scope',
+  'out-of-scope',
+  'global-invariant',
+  'ownership-boundary',
+  'extension-policy',
+  'assumption',
+  'review-policy',
+]);
 
 /**
  * Checks DDL review metadata for structural drift.
@@ -206,8 +250,11 @@ export function checkDocs(options: CheckDocsOptions): CheckDocsResult {
     ? readConceptRegistry(options.conceptRelationshipPath, issues)
     : { allIds: new Set<string>(), definedIds: new Set<string>() };
   const conceptIds = conceptRegistry.allIds;
-  const processIds = options.relationshipPath ? readProcessIds(options.relationshipPath, issues) : new Set<string>();
+  const processIds = readProcessIdsFromProcessMapMetadata(options.processDirectories ?? [], issues);
   const processFiles = collectProcessMapFiles(options.relationshipPath, options.processDirectories ?? [], issues);
+  const scopeRuleRegistry = options.scopeRulesPath
+    ? readScopeRuleRegistry(options.scopeRulesPath, issues)
+    : undefined;
 
   if (options.tableDocsPath) {
     checkTableDocsMetadata(options.tableDocsPath, tableIndex, { conceptIds, processIds }, issues);
@@ -216,7 +263,7 @@ export function checkDocs(options: CheckDocsOptions): CheckDocsResult {
     checkOrderMetadata(options.orderPath, sources, issues);
   }
   if (options.relationshipPath) {
-    checkRelationshipMetadata(options.relationshipPath, sources, issues);
+    checkRelationshipMetadata(options.relationshipPath, sources, scopeRuleRegistry, issues);
   }
   if (options.conceptRelationshipPath) {
     checkConceptRelationshipMetadata(options.conceptRelationshipPath, issues);
@@ -465,7 +512,12 @@ function checkOrderMetadata(orderPath: string, sources: SqlSource[], issues: Che
   }
 }
 
-function checkRelationshipMetadata(relationshipPath: string, sources: SqlSource[], issues: CheckIssue[]): void {
+function checkRelationshipMetadata(
+  relationshipPath: string,
+  sources: SqlSource[],
+  scopeRuleRegistry: Set<string> | undefined,
+  issues: CheckIssue[]
+): void {
   const resolvedPath = path.resolve(process.cwd(), relationshipPath);
   const value = readJsonFile(resolvedPath, 'relationship.json', issues);
   if (!value) {
@@ -512,6 +564,9 @@ function checkRelationshipMetadata(relationshipPath: string, sources: SqlSource[
     for (const target of entry.processes ?? []) {
       checkRelationshipTarget(baseDir, 'process', entry.path, target, issues);
     }
+    for (const scopeRule of entry.scopeRules ?? []) {
+      checkRelationshipScopeRule(entry.path, scopeRule, scopeRuleRegistry, issues);
+    }
   }
 
   for (const ddlPath of ddlPaths) {
@@ -522,6 +577,36 @@ function checkRelationshipMetadata(relationshipPath: string, sources: SqlSource[
         message: `DDL file is not registered in relationship.json: ${ddlPath}`,
       });
     }
+  }
+}
+
+function checkRelationshipScopeRule(
+  entryPath: string,
+  scopeRule: RelationshipScopeRuleRef,
+  scopeRuleRegistry: Set<string> | undefined,
+  issues: CheckIssue[]
+): void {
+  if (!scopeRuleRegistry) {
+    issues.push({
+      severity: 'warning',
+      code: 'RELATIONSHIP_SCOPE_RULES_WITHOUT_REGISTRY',
+      message: `relationship.json references scope rule without --scope-rules validation for ${entryPath}: ${scopeRule.id}`,
+    });
+    return;
+  }
+  if (!scopeRuleRegistry.has(scopeRule.id)) {
+    issues.push({
+      severity: 'error',
+      code: 'RELATIONSHIP_UNKNOWN_SCOPE_RULE',
+      message: `relationship.json references unknown scope rule for ${entryPath}: ${scopeRule.id}`,
+    });
+  }
+  if (scopeRule.reason !== undefined && scopeRule.reason.trim() === '') {
+    issues.push({
+      severity: 'warning',
+      code: 'RELATIONSHIP_EMPTY_SCOPE_RULE_REASON',
+      message: `relationship.json scope rule reason is empty for ${entryPath}: ${scopeRule.id}`,
+    });
   }
 }
 
@@ -1305,16 +1390,57 @@ function readConceptRegistry(conceptRelationshipPath: string, issues: CheckIssue
   };
 }
 
-function readProcessIds(relationshipPath: string, issues: CheckIssue[]): Set<string> {
-  const resolvedPath = path.resolve(process.cwd(), relationshipPath);
-  const value = readJsonFile(resolvedPath, 'relationship.json', issues);
-  if (!isRelationshipMetadata(value)) {
+function readScopeRuleRegistry(scopeRulesPath: string, issues: CheckIssue[]): Set<string> {
+  const resolvedPath = path.resolve(process.cwd(), scopeRulesPath);
+  const value = readJsonFile(resolvedPath, 'scope-rules.json', issues);
+  if (!value) {
+    return new Set();
+  }
+  if (!isScopeRulesMetadata(value)) {
+    issues.push({
+      severity: 'error',
+      code: 'SCOPE_RULES_SCHEMA_ERROR',
+      message: `scope-rules.json must be an object with schemaVersion: 1 and scopeRules[]: ${resolvedPath}`,
+    });
     return new Set();
   }
   const ids = new Set<string>();
-  for (const entry of value.relationships) {
-    for (const process of entry.processes ?? []) {
-      ids.add(path.basename(process.path, path.extname(process.path)));
+  for (const scopeRule of value.scopeRules) {
+    if (ids.has(scopeRule.id)) {
+      issues.push({
+        severity: 'error',
+        code: 'SCOPE_RULE_DUPLICATE_ID',
+        message: `scope-rules.json contains duplicate scope rule id: ${scopeRule.id}`,
+      });
+    }
+    ids.add(scopeRule.id);
+    if (!SCOPE_RULE_KINDS.has(scopeRule.kind)) {
+      issues.push({
+        severity: 'error',
+        code: 'SCOPE_RULE_UNKNOWN_KIND',
+        message: `scope-rules.json uses unknown scope rule kind for ${scopeRule.id}: ${scopeRule.kind}`,
+      });
+    }
+    if (scopeRule.statement.trim() === '') {
+      issues.push({
+        severity: 'error',
+        code: 'SCOPE_RULE_EMPTY_STATEMENT',
+        message: `scope-rules.json scope rule statement must not be empty: ${scopeRule.id}`,
+      });
+    }
+  }
+  return ids;
+}
+
+function readProcessIdsFromProcessMapMetadata(processDirectories: string[], issues: CheckIssue[]): Set<string> {
+  const ids = new Set<string>();
+  for (const processMapPath of collectProcessMapMetadataPaths(processDirectories)) {
+    const value = readJsonFile(processMapPath, 'process-map.json', issues);
+    if (!isProcessMapMetadata(value)) {
+      continue;
+    }
+    for (const processMap of value.processMaps ?? []) {
+      ids.add(processMap.id);
     }
   }
   return ids;
@@ -1439,8 +1565,43 @@ function isRelationshipMetadata(value: unknown): value is RelationshipMetadata {
     if (entry.reason !== undefined && typeof entry.reason !== 'string') {
       return false;
     }
-    return isTargetArray(entry.concepts) && isTargetArray(entry.processes);
+    return isScopeRuleRefArray(entry.scopeRules)
+      && isTargetArray(entry.concepts)
+      && isTargetArray(entry.processes);
   });
+}
+
+function isScopeRulesMetadata(value: unknown): value is ScopeRulesMetadata {
+  if (!isRecord(value) || value.schemaVersion !== 1 || !Array.isArray(value.scopeRules)) {
+    return false;
+  }
+  return value.scopeRules.every((entry) =>
+    isRecord(entry)
+      && typeof entry.id === 'string'
+      && typeof entry.kind === 'string'
+      && typeof entry.statement === 'string'
+      && (entry.reviewRisk === undefined || typeof entry.reviewRisk === 'string')
+      && isOptionalStringArray(entry.riskProbes)
+      && isOptionalStringArray(entry.allowedInstead)
+      && isOptionalStringArray(entry.ownedDomains)
+      && isOptionalStringArray(entry.externalDomains)
+      && (entry.reviewAction === undefined || typeof entry.reviewAction === 'string')
+  );
+}
+
+function isScopeRuleRefArray(value: unknown): value is RelationshipScopeRuleRef[] | undefined {
+  if (value === undefined) {
+    return true;
+  }
+  return Array.isArray(value) && value.every((entry) =>
+    isRecord(entry)
+      && typeof entry.id === 'string'
+      && (entry.reason === undefined || typeof entry.reason === 'string')
+  );
+}
+
+function isOptionalStringArray(value: unknown): value is string[] | undefined {
+  return value === undefined || (Array.isArray(value) && value.every((entry) => typeof entry === 'string'));
 }
 
 function isTargetArray(value: unknown): value is RelationshipTarget[] | undefined {

@@ -305,7 +305,7 @@
         "active-black"
       ],
       "processRefs": [
-        "transfer-execution-process"
+        "transfer-execution"
       ],
       "tradeoff": [
         "Destination Link と source key から現在有効な黒伝を高速に見つけるため、source_key_hash をlookup補助値として保持する。",

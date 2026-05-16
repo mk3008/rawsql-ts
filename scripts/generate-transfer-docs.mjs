@@ -41,6 +41,30 @@ function copyDir(sourcePath, targetPath) {
   fs.cpSync(source, target, { recursive: true });
 }
 
+function copyScopeDoc() {
+  const sourcePath = path.join(workspaceRoot, "packages", "transfer", "docs", "scope", "SYSTEM_SCOPE.md");
+  const targetDir = path.join(workspaceRoot, "docs", "scope");
+  const targetPath = path.join(targetDir, "index.md");
+  removeDir(targetDir);
+  fs.mkdirSync(assertInsideWorkspace(targetDir), { recursive: true });
+  const body = fs.readFileSync(assertInsideWorkspace(sourcePath), "utf8");
+  fs.writeFileSync(
+    assertInsideWorkspace(targetPath),
+    [
+      "<!-- generated-by: transfer-docs -->",
+      "",
+      body.trimEnd(),
+      "",
+      "## Source",
+      "",
+      "- `packages/transfer/docs/scope/SYSTEM_SCOPE.md`",
+      "- `packages/transfer/docs/scope/scope-rules.json`",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+}
+
 function writeProductReviewReport() {
   const ddlReviewPath = path.join(workspaceRoot, "docs", "rawsql-transfer", "review.md");
   const productReviewPath = path.join(workspaceRoot, "docs", "review.md");
@@ -129,6 +153,7 @@ run([
 for (const dir of generatedSiteDirs) {
   copyDir(path.join(tempConceptSiteDir, dir), path.join(workspaceRoot, "docs", dir));
 }
+copyScopeDoc();
 
 removeDir(path.join(workspaceRoot, "docs", "rawsql-transfer"));
 run([

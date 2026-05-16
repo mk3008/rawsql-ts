@@ -42,11 +42,26 @@ export interface CheckDocsOptions {
   orderPath?: string;
   conceptRelationshipPath?: string;
   dfdRelationshipPath?: string;
+  scopeRulesPath?: string;
   processDirectories?: string[];
   configPath?: string;
   defaultSchema?: string;
   searchPath?: string[];
   filterPgDump?: boolean;
+}
+
+export interface ReviewPlanOptions {
+  changedFilesPath: string;
+  ddlDirectories: DdlInput[];
+  relationshipPath?: string;
+  tableDocsPath?: string;
+  conceptRelationshipPath?: string;
+  dfdRelationshipPath?: string;
+  processDirectories?: string[];
+  scopeRulesPath?: string;
+  scopeDocPath?: string;
+  outPath?: string;
+  packageName?: string;
 }
 
 export interface GenerateConceptSiteOptions {

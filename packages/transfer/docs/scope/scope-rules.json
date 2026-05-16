@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "metadataLanguagePolicy": {
+    "humanFacingLanguage": "ja",
+    "generatedViewLanguage": "en",
+    "policy": "CLI-generated boilerplate may be English. Human-authored docs and AI-authored human-facing metadata should use the package human-facing language unless a file explicitly overrides it."
+  },
+  "scopeRules": [
+    {
+      "id": "db-centered-transfer",
+      "kind": "global-invariant",
+      "statement": "transfer は DB-centered / SQL-first の転送制御 package である。",
+      "reviewRisk": "architecture-boundary",
+      "riskProbes": [
+        "この変更は転送実行中にDB外部I/Oを必要としていないか。",
+        "この変更は generated SQL をレビュー不能な形に隠していないか。",
+        "この変更は利用アプリ固有の業務ロジックを transfer core に移していないか。"
+      ]
+    },
+    {
+      "id": "human-owned-logical-model",
+      "kind": "review-policy",
+      "statement": "安定した論理モデルの意味は人間が所有し、AIはdraftや候補提案を行う。",
+      "reviewRisk": "review-authority"
+    },
+    {
+      "id": "generated-docs-not-source",
+      "kind": "global-invariant",
+      "statement": "generated docs は review view であり、source of truth ではない。",
+      "reviewRisk": "source-of-truth-drift"
+    },
+    {
+      "id": "dirty-key-intake-only",
+      "kind": "ownership-boundary",
+      "statement": "transfer は Dirty Key の受け口と永続化を所有するが、変更検知そのものは所有しない。",
+      "reviewRisk": "ownership-boundary",
+      "ownedDomains": [
+        "dirty-key table",
+        "dirty-key processing records"
+      ],
+      "externalDomains": [
+        "source table mutation detection",
+        "CDC runtime",
+        "producer scheduling"
+      ]
+    },
+    {
+      "id": "no-cdc-engine",
+      "kind": "out-of-scope",
+      "statement": "transfer は CDC engine を実装または所有しない。",
+      "reviewRisk": "scope-creep",
+      "allowedInstead": [
+        "external producer writes Dirty Key",
+        "database trigger writes Dirty Key",
+        "manual process writes Dirty Key"
+      ],
+      "reviewAction": "CDC ownership は scope expansion として扱う。"
+    },
+    {
+      "id": "no-file-load",
+      "kind": "out-of-scope",
+      "statement": "transfer は file loading または external resource ingestion を所有しない。",
+      "reviewRisk": "scope-creep",
+      "reviewAction": "file loading は upstream producer、adapter、または別packageの責務として扱う。"
+    },
+    {
+      "id": "no-runtime-hosting",
+      "kind": "out-of-scope",
+      "statement": "transfer は runtime hosting environment または scheduler を提供しない。",
+      "reviewRisk": "scope-creep",
+      "reviewAction": "runtime execution は CLI、Lambda adapter、または別host boundaryの責務として扱う。"
+    }
+  ]
+}

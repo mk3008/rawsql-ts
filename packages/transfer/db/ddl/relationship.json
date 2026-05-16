@@ -10,6 +10,16 @@
     {
       "path": "dirty_key.sql",
       "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "dirty-key-intake-only",
+          "reason": "dirty_key は変更検知producerではなく、Dirty Key の受け口と永続化を担う。"
+        },
+        {
+          "id": "no-cdc-engine",
+          "reason": "Dirty Key は CDC から登録されてもよいが、CDC実装は transfer core の外側にある。"
+        }
+      ],
       "concepts": [
         {
           "path": "../../docs/concepts/dirty-key/SPEC.md",
@@ -20,6 +30,12 @@
     {
       "path": "destination_definition.sql",
       "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "db-centered-transfer",
+          "reason": "Destination は DB上の転送先定義としてSQL生成と転送実行に使われる。"
+        }
+      ],
       "concepts": [
         {
           "path": "../../docs/concepts/destination/SPEC.md",
@@ -34,6 +50,12 @@
     {
       "path": "setting.sql",
       "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "db-centered-transfer",
+          "reason": "Transfer Setting は SQL-based source definition を保持する。"
+        }
+      ],
       "concepts": [
         {
           "path": "../../docs/concepts/transfer-setting/SPEC.md",
@@ -44,6 +66,12 @@
     {
       "path": "destination_link.sql",
       "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "db-centered-transfer",
+          "reason": "Destination Link は generated transfer SQL metadata とDestination接続をDB上で保持する。"
+        }
+      ],
       "concepts": [
         {
           "path": "../../docs/concepts/destination-link/SPEC.md",
@@ -59,6 +87,16 @@
     {
       "path": "run.sql",
       "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "db-centered-transfer",
+          "reason": "Transfer Run はDB内の転送実行コンテキストとして管理する。"
+        },
+        {
+          "id": "no-runtime-hosting",
+          "reason": "Transfer Run は実行記録であり、schedulerやruntime hostそのものではない。"
+        }
+      ],
       "concepts": [
         {
           "path": "../../docs/concepts/transfer-run/SPEC.md",
@@ -75,6 +113,12 @@
     {
       "path": "active_black.sql",
       "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "db-centered-transfer",
+          "reason": "Active Black は転送プロセス内で参照するcurrent-state tableである。"
+        }
+      ],
       "concepts": [
         {
           "path": "../../docs/concepts/active-black/SPEC.md",
@@ -91,6 +135,12 @@
     {
       "path": "work_item.sql",
       "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "db-centered-transfer",
+          "reason": "Work Item はDirty Keyを転送実行内で固定化したDB上の作業対象である。"
+        }
+      ],
       "concepts": [
         {
           "path": "../../docs/concepts/work-item/SPEC.md",
@@ -107,6 +157,12 @@
     {
       "path": "lineage.sql",
       "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "db-centered-transfer",
+          "reason": "Lineage はDB上の転送結果追跡情報として保持する。"
+        }
+      ],
       "concepts": [
         {
           "path": "../../docs/concepts/lineage/SPEC.md",
@@ -127,6 +183,16 @@
     {
       "path": "dirty_key_processing.sql",
       "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "dirty-key-intake-only",
+          "reason": "Dirty Key Processing はDirty Keyの処理済み記録であり、変更検知そのものではない。"
+        },
+        {
+          "id": "db-centered-transfer",
+          "reason": "Dirty Key Processing は転送実行内の重複処理防止をDB上で記録する。"
+        }
+      ],
       "concepts": [
         {
           "path": "../../docs/concepts/dirty-key-processing/SPEC.md",

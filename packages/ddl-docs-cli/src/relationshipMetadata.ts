@@ -12,8 +12,14 @@ export interface DdlRelationshipEntry {
   path: string;
   kind: string;
   reason?: string;
+  scopeRules: DdlRelationshipScopeRuleRef[];
   concepts: DdlRelationshipTarget[];
   processes: DdlRelationshipTarget[];
+}
+
+export interface DdlRelationshipScopeRuleRef {
+  id: string;
+  reason?: string;
 }
 
 export interface DdlRelationshipTarget {
@@ -154,6 +160,7 @@ export function loadDdlRelationshipMetadata(metadataPath: string | undefined): D
         path: normalizeRelativePath(entry.path),
         kind: entry.kind,
         reason: typeof entry.reason === 'string' ? entry.reason : undefined,
+        scopeRules: parseScopeRuleRefs(entry.scopeRules, resolvedPath),
         concepts: parseTargets(entry.concepts, resolvedPath),
         processes: parseTargets(entry.processes, resolvedPath),
       };
@@ -554,6 +561,24 @@ function parseTargets(value: unknown, sourcePath: string): DdlRelationshipTarget
     }
     return {
       path: entry.path,
+      reason: typeof entry.reason === 'string' ? entry.reason : undefined,
+    };
+  });
+}
+
+function parseScopeRuleRefs(value: unknown, sourcePath: string): DdlRelationshipScopeRuleRef[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`DDL relationship scopeRules must be an array when provided: ${sourcePath}`);
+  }
+  return value.map((entry) => {
+    if (!isRecord(entry) || typeof entry.id !== 'string') {
+      throw new Error(`DDL relationship scope rule reference must include id: ${sourcePath}`);
+    }
+    return {
+      id: entry.id,
       reason: typeof entry.reason === 'string' ? entry.reason : undefined,
     };
   });
