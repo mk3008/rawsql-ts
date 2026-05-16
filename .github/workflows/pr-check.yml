@@ -103,7 +103,7 @@ jobs:
         changed_files=$(git diff --name-only "$base_sha...$head_sha")
         printf '%s\n' "$changed_files"
 
-        if printf '%s\n' "$changed_files" | grep -Eq '^(package\.json|packages/ddl-docs-cli/|packages/transfer/db/ddl/|packages/transfer/docs/(concepts|dfd|processes|scope|testing)/|docs/(transfer-docs|review)\.md|docs/(concepts|dfd|processes|roles|scope|testing|rawsql-transfer)/|scripts/generate-transfer-docs\.mjs|\.github/workflows/pr-check\.yml$)'; then
+        if printf '%s\n' "$changed_files" | grep -Eq '^(package\.json|packages/ddl-docs-cli/|packages/transfer/db/ddl/|packages/transfer/docs/(concepts|dfd|processes|scope|testing|review|technology)/|docs/(transfer-docs|review)\.md|docs/(authority|concepts|dfd|processes|roles|scope|testing|technology|rawsql-transfer)/|scripts/(generate-transfer-docs|verify-transfer-docs-drift)\.mjs|\.github/workflows/pr-check\.yml$)'; then
           echo "run=true" >> "$GITHUB_OUTPUT"
         else
           echo "run=false" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "metadataLanguagePolicy": {
+    "humanFacingLanguage": "ja",
+    "generatedViewLanguage": "en",
+    "policy": "CLI-generated boilerplate may be English. Human-authored docs and AI-authored human-facing metadata should use the package human-facing language unless a file explicitly overrides it."
+  },
+  "authorityRules": [
+    {
+      "id": "human-owned-requirements",
+      "kind": "requirements-authority",
+      "statement": "Concept Spec、DFD、Process Map、Scope Spec、Issueや人間が明示した要件は人間主体であり、AIはフォロー、整理、質問、提案を行う。",
+      "reviewRisk": "authority-boundary",
+      "probes": [
+        "AIの提案が承認済み要件として扱われていないか。",
+        "Concept SpecやProcess Mapの意味を、実装や生成物に合わせてAIが書き換えていないか。"
+      ]
+    },
+    {
+      "id": "ai-owned-review-management",
+      "kind": "review-workflow-authority",
+      "statement": "review skill、横断レビュー、review-plan required reads の確認はAIが主体で管理し、人間が結果を承認または差し戻す。",
+      "reviewRisk": "review-authority",
+      "probes": [
+        "AIレビュー結果が人間承認なしに確定判断として扱われていないか。",
+        "review-plan の required reads と mandatory inputs をAIが確認したか。"
+      ]
+    },
+    {
+      "id": "cli-owned-review-views",
+      "kind": "generated-review-authority",
+      "statement": "Review Report、VitePress generated pages、tmp/transfer-review-plan.json、metadata check output はCLI主体のreview inputであり、source of truth ではない。",
+      "reviewRisk": "generated-view-authority",
+      "probes": [
+        "generated viewを直接編集して正本扱いしていないか。",
+        "CLI outputをAIが少し推論して読む場合、その推論が人間承認待ちとして扱われているか。"
+      ]
+    }
+  ]
+}

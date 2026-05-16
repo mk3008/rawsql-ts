@@ -42,11 +42,13 @@ This section aggregates the package-level review harness inputs used before sema
 
 - Metadata check errors: 0
 - Metadata check warnings: 0
-- Review-plan source artifacts: 38
+- Review-plan source artifacts: 42
 - Unmapped business artifacts: 0
 - Review-plan diagnostics: 0
 - Mandatory scope rules: `db-centered-transfer`, `human-owned-logical-model`, `generated-docs-not-source`
 - Mandatory verification policies: `db-backed-contract-verification`, `no-hot-path-runtime-validation`
+- Mandatory authority rules: `human-owned-requirements`, `ai-owned-review-management`, `cli-owned-review-views`
+- Mandatory technology rules: `postgres-primary-db`, `sql-first-ztd-cli`, `no-standard-orm-path`, `cli-front-facing-surface`
 
 ### Review-plan Diagnostics
 
@@ -62,4 +64,8 @@ This section aggregates the package-level review harness inputs used before sema
 - Scope rules: `packages/transfer/docs/scope/scope-rules.json`
 - Test policy: `packages/transfer/docs/testing/TEST_POLICY.md`
 - Test rules: `packages/transfer/docs/testing/test-rules.json`
+- Authority model: `packages/transfer/docs/review/AUTHORITY_MODEL.md`
+- Authority rules: `packages/transfer/docs/review/authority-rules.json`
+- Technology policy: `packages/transfer/docs/technology/TECHNOLOGY_POLICY.md`
+- Technology rules: `packages/transfer/docs/technology/tech-rules.json`
 - Review plan snapshot: `tmp/transfer-review-plan.json`

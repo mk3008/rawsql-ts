@@ -63,6 +63,10 @@ export interface ReviewPlanOptions {
   scopeDocPath?: string;
   testRulesPath?: string;
   testPolicyPath?: string;
+  authorityRulesPath?: string;
+  authorityModelPath?: string;
+  technologyRulesPath?: string;
+  technologyPolicyPath?: string;
   outPath?: string;
   packageName?: string;
 }

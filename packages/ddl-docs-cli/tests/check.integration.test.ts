@@ -1152,6 +1152,108 @@ test('review-plan treats DDL control files as technical support when explicitly 
 
   expect(plan.unmappedArtifacts).toHaveLength(0);
   expect(plan.changedFiles[0]?.diagnostics).toHaveLength(0);
+  expect(plan.changedFiles[0]?.requiredReads.scopeRules).toEqual([]);
+  expect(plan.changedFiles[0]?.requiredReads.concepts).toEqual([]);
+  expect(plan.changedFiles[0]?.requiredReads.processes).toEqual([]);
+  expect(plan.changedFiles[0]?.reviewRisks).toEqual([]);
+});
+
+test('review-plan includes package technology policy as mandatory review input', () => {
+  const work = createTempDir('ddl-docs-review-plan-technology-policy');
+  const ddlDir = path.join(work, 'ddl');
+  const technologyDir = path.join(work, 'docs', 'technology');
+  const changedFilesPath = path.join(work, 'changed-files.txt');
+  const technologyPolicyPath = path.join(technologyDir, 'TECHNOLOGY_POLICY.md');
+  const technologyRulesPath = path.join(technologyDir, 'tech-rules.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(technologyPolicyPath, '# Technology Policy\n');
+  writeText(technologyRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    metadataLanguagePolicy: {
+      humanFacingLanguage: 'ja',
+      generatedViewLanguage: 'en',
+      policy: 'Human-authored technology metadata follows the package documentation language.',
+    },
+    technologyRules: [
+      { id: 'postgres-primary-db', kind: 'database-platform', statement: 'Use PostgreSQL.' },
+      { id: 'sql-first-ztd-cli', kind: 'data-access', statement: 'Use SQL-first ztd-cli.' },
+      { id: 'no-standard-orm-path', kind: 'data-access-boundary', statement: 'Do not introduce an ORM standard path.' },
+      { id: 'cli-front-facing-surface', kind: 'front-facing-surface', statement: 'Use CLI as the package front-facing surface.' },
+    ],
+  }, null, 2));
+  writeText(changedFilesPath, `${technologyPolicyPath}\n${technologyRulesPath}\n`);
+
+  const plan = buildReviewPlan({
+    changedFilesPath,
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    technologyPolicyPath,
+    technologyRulesPath,
+  });
+
+  expect(plan.mandatoryTechnology?.files).toEqual([technologyPolicyPath, technologyRulesPath]);
+  expect(plan.mandatoryTechnology?.rules.map((entry) => entry.id)).toEqual([
+    'postgres-primary-db',
+    'sql-first-ztd-cli',
+    'no-standard-orm-path',
+    'cli-front-facing-surface',
+  ]);
+  expect(plan.changedFiles.map((entry) => entry.artifactKind)).toEqual(['technology-policy', 'technology-rules']);
+  expect(plan.changedFiles[0]?.packageWideImpact).toBe(true);
+  expect(plan.changedFiles[0]?.requiredReads.technologyRules).toEqual([
+    'postgres-primary-db',
+    'sql-first-ztd-cli',
+    'no-standard-orm-path',
+    'cli-front-facing-surface',
+  ]);
+});
+
+test('review-plan includes package review authority model as mandatory review input', () => {
+  const work = createTempDir('ddl-docs-review-plan-authority-model');
+  const ddlDir = path.join(work, 'ddl');
+  const reviewDir = path.join(work, 'docs', 'review');
+  const changedFilesPath = path.join(work, 'changed-files.txt');
+  const authorityModelPath = path.join(reviewDir, 'AUTHORITY_MODEL.md');
+  const authorityRulesPath = path.join(reviewDir, 'authority-rules.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(authorityModelPath, '# Authority Model\n');
+  writeText(authorityRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    metadataLanguagePolicy: {
+      humanFacingLanguage: 'ja',
+      generatedViewLanguage: 'en',
+      policy: 'Human-authored authority metadata follows the package documentation language.',
+    },
+    authorityRules: [
+      { id: 'human-owned-requirements', kind: 'requirements-authority', statement: 'Humans own requirements.' },
+      { id: 'ai-owned-review-management', kind: 'review-workflow-authority', statement: 'AI manages review workflows.' },
+      { id: 'cli-owned-review-views', kind: 'generated-review-authority', statement: 'CLI owns generated review views.' },
+    ],
+  }, null, 2));
+  writeText(changedFilesPath, `${authorityModelPath}\n${authorityRulesPath}\n`);
+
+  const plan = buildReviewPlan({
+    changedFilesPath,
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    authorityModelPath,
+    authorityRulesPath,
+  });
+
+  expect(plan.mandatoryAuthority?.files).toEqual([authorityModelPath, authorityRulesPath]);
+  expect(plan.mandatoryAuthority?.rules.map((entry) => entry.id)).toEqual([
+    'human-owned-requirements',
+    'ai-owned-review-management',
+    'cli-owned-review-views',
+  ]);
+  expect(plan.changedFiles.map((entry) => entry.artifactKind)).toEqual(['authority-model', 'authority-rules']);
+  expect(plan.changedFiles[0]?.packageWideImpact).toBe(true);
+  expect(plan.changedFiles[0]?.requiredReads.authorityRules).toEqual([
+    'human-owned-requirements',
+    'ai-owned-review-management',
+    'cli-owned-review-views',
+  ]);
+  expect(plan.changedFiles[0]?.reviewRisks).toEqual(['package-review-authority-impact']);
 });
 
 test('review-plan reports unmapped DDL and classifies generated docs as review views', () => {

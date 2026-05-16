@@ -409,6 +409,10 @@ function parseReviewPlanOptions(args: string[]): ReviewPlanOptions | null {
     scopeDocPath: undefined,
     testRulesPath: undefined,
     testPolicyPath: undefined,
+    authorityRulesPath: undefined,
+    authorityModelPath: undefined,
+    technologyRulesPath: undefined,
+    technologyPolicyPath: undefined,
     outPath: undefined,
     packageName: undefined,
   };
@@ -464,6 +468,22 @@ function parseReviewPlanOptions(args: string[]): ReviewPlanOptions | null {
     }
     if (arg === '--test-policy') {
       options.testPolicyPath = readRequiredValue(args, ++index, '--test-policy');
+      continue;
+    }
+    if (arg === '--authority-rules') {
+      options.authorityRulesPath = readRequiredValue(args, ++index, '--authority-rules');
+      continue;
+    }
+    if (arg === '--authority-model') {
+      options.authorityModelPath = readRequiredValue(args, ++index, '--authority-model');
+      continue;
+    }
+    if (arg === '--technology-rules') {
+      options.technologyRulesPath = readRequiredValue(args, ++index, '--technology-rules');
+      continue;
+    }
+    if (arg === '--technology-policy') {
+      options.technologyPolicyPath = readRequiredValue(args, ++index, '--technology-policy');
       continue;
     }
     if (arg === '--package') {
@@ -630,6 +650,10 @@ function printHelp(target: 'all' | 'generate' | 'prune' | 'check' | 'concept-sit
   --scope-doc <path>             Optional package scope markdown source
   --test-rules <path>            Optional package verification/test rules metadata json
   --test-policy <path>           Optional package verification/test policy markdown source
+  --authority-rules <path>       Optional package review authority rules metadata json
+  --authority-model <path>       Optional package review authority model markdown source
+  --technology-rules <path>      Optional package technology rules metadata json
+  --technology-policy <path>     Optional package technology policy markdown source
   --package <name>               Package name for the review plan
   --out <path>                   Write JSON output to file instead of stdout
 `;
