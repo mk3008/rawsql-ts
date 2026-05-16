@@ -26,6 +26,14 @@ interface RelationshipMetadata {
   relationships: RelationshipEntry[];
 }
 
+type MetadataLanguagePolicy = string | StructuredMetadataLanguagePolicy;
+
+interface StructuredMetadataLanguagePolicy {
+  humanFacingLanguage: string;
+  generatedViewLanguage?: string;
+  policy: string;
+}
+
 interface RelationshipEntry {
   path: string;
   kind: string;
@@ -47,13 +55,13 @@ interface RelationshipTarget {
 
 interface ScopeRulesMetadata {
   schemaVersion: 1;
-  metadataLanguagePolicy?: unknown;
+  metadataLanguagePolicy?: MetadataLanguagePolicy;
   scopeRules: ScopeRuleEntry[];
 }
 
 interface TestRulesMetadata {
   schemaVersion: 1;
-  metadataLanguagePolicy?: unknown;
+  metadataLanguagePolicy?: MetadataLanguagePolicy;
   testPolicies: TestPolicyEntry[];
 }
 
@@ -1662,7 +1670,10 @@ function isRelationshipMetadata(value: unknown): value is RelationshipMetadata {
   if (!isRecord(value) || value.schemaVersion !== 1 || !Array.isArray(value.relationships)) {
     return false;
   }
-  if (value.metadataLanguagePolicy !== undefined && typeof value.metadataLanguagePolicy !== 'string') {
+  if (value.metadataLanguagePolicy !== undefined && (
+    typeof value.metadataLanguagePolicy !== 'string'
+    || value.metadataLanguagePolicy.trim().length === 0
+  )) {
     return false;
   }
   return value.relationships.every((entry) => {
@@ -1680,6 +1691,9 @@ function isRelationshipMetadata(value: unknown): value is RelationshipMetadata {
 
 function isScopeRulesMetadata(value: unknown): value is ScopeRulesMetadata {
   if (!isRecord(value) || value.schemaVersion !== 1 || !Array.isArray(value.scopeRules)) {
+    return false;
+  }
+  if (value.metadataLanguagePolicy !== undefined && !isMetadataLanguagePolicy(value.metadataLanguagePolicy)) {
     return false;
   }
   return value.scopeRules.every((entry) =>
@@ -1700,6 +1714,9 @@ function isTestRulesMetadata(value: unknown): value is TestRulesMetadata {
   if (!isRecord(value) || value.schemaVersion !== 1 || !Array.isArray(value.testPolicies)) {
     return false;
   }
+  if (value.metadataLanguagePolicy !== undefined && !isMetadataLanguagePolicy(value.metadataLanguagePolicy)) {
+    return false;
+  }
   return value.testPolicies.every((entry) =>
     isRecord(entry)
       && typeof entry.id === 'string'
@@ -1709,6 +1726,21 @@ function isTestRulesMetadata(value: unknown): value is TestRulesMetadata {
       && (entry.reviewRisk === undefined || typeof entry.reviewRisk === 'string')
       && isOptionalStringArray(entry.probes)
   );
+}
+
+function isMetadataLanguagePolicy(value: unknown): value is MetadataLanguagePolicy {
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+  return isRecord(value)
+    && typeof value.humanFacingLanguage === 'string'
+    && value.humanFacingLanguage.trim().length > 0
+    && (value.generatedViewLanguage === undefined || (
+      typeof value.generatedViewLanguage === 'string'
+      && value.generatedViewLanguage.trim().length > 0
+    ))
+    && typeof value.policy === 'string'
+    && value.policy.trim().length > 0;
 }
 
 function isScopeRuleRefArray(value: unknown): value is RelationshipScopeRuleRef[] | undefined {

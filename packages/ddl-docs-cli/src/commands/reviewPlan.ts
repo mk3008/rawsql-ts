@@ -58,12 +58,22 @@ type ReviewClass =
 
 interface ScopeRulesMetadata {
   schemaVersion: 1;
+  metadataLanguagePolicy?: MetadataLanguagePolicy;
   scopeRules: ScopeRuleEntry[];
 }
 
 interface TestRulesMetadata {
   schemaVersion: 1;
+  metadataLanguagePolicy?: MetadataLanguagePolicy;
   testPolicies: TestPolicyEntry[];
+}
+
+type MetadataLanguagePolicy = string | StructuredMetadataLanguagePolicy;
+
+interface StructuredMetadataLanguagePolicy {
+  humanFacingLanguage: string;
+  generatedViewLanguage?: string;
+  policy: string;
 }
 
 interface ScopeRuleEntry {
@@ -350,6 +360,9 @@ function applyDdlRelationship(
       .map((scopeRuleId) => context.scopeRules.get(scopeRuleId)?.reviewRisk)
       .filter((entry): entry is string => Boolean(entry))
   );
+  if (entry.kind === 'ddl-control' || entry.kind === 'technical-support') {
+    return;
+  }
   if (
     plan.requiredReads.scopeRules.length === 0
     && plan.requiredReads.concepts.length === 0
@@ -680,6 +693,7 @@ function normalizeRelativePath(value: string): string {
 function isScopeRulesMetadata(value: unknown): value is ScopeRulesMetadata {
   return isRecord(value)
     && value.schemaVersion === 1
+    && (value.metadataLanguagePolicy === undefined || isMetadataLanguagePolicy(value.metadataLanguagePolicy))
     && Array.isArray(value.scopeRules)
     && value.scopeRules.every((entry) =>
       isRecord(entry)
@@ -693,6 +707,7 @@ function isScopeRulesMetadata(value: unknown): value is ScopeRulesMetadata {
 function isTestRulesMetadata(value: unknown): value is TestRulesMetadata {
   return isRecord(value)
     && value.schemaVersion === 1
+    && (value.metadataLanguagePolicy === undefined || isMetadataLanguagePolicy(value.metadataLanguagePolicy))
     && Array.isArray(value.testPolicies)
     && value.testPolicies.every((entry) =>
       isRecord(entry)
@@ -705,6 +720,21 @@ function isTestRulesMetadata(value: unknown): value is TestRulesMetadata {
         ))
         && (entry.reviewRisk === undefined || typeof entry.reviewRisk === 'string')
     );
+}
+
+function isMetadataLanguagePolicy(value: unknown): value is MetadataLanguagePolicy {
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+  return isRecord(value)
+    && typeof value.humanFacingLanguage === 'string'
+    && value.humanFacingLanguage.trim().length > 0
+    && (value.generatedViewLanguage === undefined || (
+      typeof value.generatedViewLanguage === 'string'
+      && value.generatedViewLanguage.trim().length > 0
+    ))
+    && typeof value.policy === 'string'
+    && value.policy.trim().length > 0;
 }
 
 function isArtifactKind(value: unknown): value is ArtifactKind {

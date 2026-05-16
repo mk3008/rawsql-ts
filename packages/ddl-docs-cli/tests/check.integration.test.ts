@@ -772,6 +772,11 @@ test('check validates scope rules and relationship scope references', () => {
   writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
   writeText(scopeRulesPath, JSON.stringify({
     schemaVersion: 1,
+    metadataLanguagePolicy: {
+      humanFacingLanguage: 'ja',
+      generatedViewLanguage: 'en',
+      policy: 'Human-authored review metadata follows the package documentation language.',
+    },
     scopeRules: [
       { id: 'db-centered-transfer', kind: 'global-invariant', statement: 'DB centered.' },
       { id: 'dirty-key-intake-only', kind: 'ownership-boundary', statement: 'Dirty Key intake only.' },
@@ -827,6 +832,34 @@ test('check reports invalid scope rule metadata', () => {
   expect(result.errors.map((issue) => issue.code)).toContain('SCOPE_RULE_UNKNOWN_KIND');
 });
 
+test('check rejects invalid scope rule metadata language policy', () => {
+  const work = createTempDir('ddl-docs-check-invalid-scope-language-policy');
+  const ddlDir = path.join(work, 'ddl');
+  const scopeRulesPath = path.join(work, 'docs', 'scope', 'scope-rules.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(scopeRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    metadataLanguagePolicy: {
+      humanFacingLanguage: '',
+      policy: 'Human-authored review metadata follows the package documentation language.',
+    },
+    scopeRules: [
+      { id: 'db-centered-transfer', kind: 'global-invariant', statement: 'DB centered.' },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    scopeRulesPath,
+  });
+
+  expect(result.errors.map((issue) => issue.code)).toContain('SCOPE_RULES_SCHEMA_ERROR');
+});
+
 test('check fails when relationship metadata references an unknown scope rule', () => {
   const work = createTempDir('ddl-docs-check-unknown-scope-rule');
   const ddlDir = path.join(work, 'ddl');
@@ -871,6 +904,11 @@ test('check validates package test policy metadata', () => {
   writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
   writeText(testRulesPath, JSON.stringify({
     schemaVersion: 1,
+    metadataLanguagePolicy: {
+      humanFacingLanguage: 'ja',
+      generatedViewLanguage: 'en',
+      policy: 'Human-authored test review metadata follows the package documentation language.',
+    },
     testPolicies: [
       {
         id: 'db-backed-contract-verification',
@@ -921,6 +959,40 @@ test('check reports invalid package test policy metadata', () => {
   expect(result.errors.map((issue) => issue.code)).toContain('TEST_POLICY_UNKNOWN_KIND');
   expect(result.errors.map((issue) => issue.code)).toContain('TEST_POLICY_EMPTY_STATEMENT');
   expect(result.errors.map((issue) => issue.code)).toContain('TEST_POLICY_UNKNOWN_ARTIFACT_KIND');
+});
+
+test('check rejects invalid package test metadata language policy', () => {
+  const work = createTempDir('ddl-docs-check-invalid-test-language-policy');
+  const ddlDir = path.join(work, 'ddl');
+  const testRulesPath = path.join(work, 'docs', 'testing', 'test-rules.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(testRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    metadataLanguagePolicy: {
+      humanFacingLanguage: 'ja',
+      generatedViewLanguage: '',
+      policy: 'Human-authored test review metadata follows the package documentation language.',
+    },
+    testPolicies: [
+      {
+        id: 'db-backed-contract-verification',
+        kind: 'verification-policy',
+        statement: 'Use DB-backed contract tests.',
+        appliesTo: ['ddl'],
+      },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    testRulesPath,
+  });
+
+  expect(result.errors.map((issue) => issue.code)).toContain('TEST_RULES_SCHEMA_ERROR');
 });
 
 test('review-plan resolves DDL required reads from relationship metadata', () => {
@@ -1050,6 +1122,36 @@ test('review-plan rejects unknown test policy artifact kinds', () => {
     ddlDirectories: [{ path: ddlDir, instance: '' }],
     testRulesPath,
   })).toThrow(/test-rules metadata must have schemaVersion: 1 and testPolicies\[\]/u);
+});
+
+test('review-plan treats DDL control files as technical support when explicitly mapped', () => {
+  const work = createTempDir('ddl-docs-review-plan-ddl-control');
+  const ddlDir = path.join(work, 'ddl');
+  const changedFilesPath = path.join(work, 'changed-files.txt');
+  const relationshipPath = path.join(ddlDir, 'relationship.json');
+  const schemaPath = path.join(ddlDir, 'schema.sql');
+
+  writeText(schemaPath, 'CREATE SCHEMA app;');
+  writeText(changedFilesPath, `${schemaPath}\n`);
+  writeText(relationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    relationships: [
+      {
+        path: 'schema.sql',
+        kind: 'ddl-control',
+        reason: 'Creates the package schema.',
+      },
+    ],
+  }, null, 2));
+
+  const plan = buildReviewPlan({
+    changedFilesPath,
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    relationshipPath,
+  });
+
+  expect(plan.unmappedArtifacts).toHaveLength(0);
+  expect(plan.changedFiles[0]?.diagnostics).toHaveLength(0);
 });
 
 test('review-plan reports unmapped DDL and classifies generated docs as review views', () => {
