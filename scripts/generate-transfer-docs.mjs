@@ -7,6 +7,8 @@ const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 const cliPath = path.join(workspaceRoot, "packages", "ddl-docs-cli", "dist", "src", "index.js");
 const tempConceptSiteDir = path.join(workspaceRoot, "tmp", "transfer-concept-site");
 const transferDdlDir = path.join(workspaceRoot, "packages", "transfer", "db", "ddl");
+const transferReviewChangedFilesPath = path.join(workspaceRoot, "tmp", "transfer-review-report-changed-files.txt");
+const transferReviewPlanPath = path.join(workspaceRoot, "tmp", "transfer-review-plan.json");
 
 const generatedSiteDirs = ["concepts", "dfd", "processes", "roles"];
 
@@ -19,6 +21,19 @@ function run(args) {
   if (result.status !== 0) {
     throw new Error(`ddl-docs ${args[0]} failed with exit code ${result.status ?? "unknown"}`);
   }
+}
+
+function runCapture(args) {
+  const result = spawnSync(process.execPath, [cliPath, ...args], {
+    cwd: workspaceRoot,
+    encoding: "utf8",
+    shell: false,
+  });
+  const output = [result.stdout, result.stderr].filter(Boolean).join("\n");
+  if (result.status !== 0) {
+    throw new Error(`ddl-docs ${args[0]} failed with exit code ${result.status ?? "unknown"}\n${output}`);
+  }
+  return output;
 }
 
 function assertInsideWorkspace(targetPath) {
@@ -89,7 +104,184 @@ function copyTestingDoc() {
   );
 }
 
-function writeProductReviewReport() {
+function collectFilesRecursive(rootPath, extensions) {
+  const resolvedRoot = assertInsideWorkspace(rootPath);
+  if (!fs.existsSync(resolvedRoot)) {
+    return [];
+  }
+  const entries = fs.readdirSync(resolvedRoot, { withFileTypes: true });
+  return entries.flatMap((entry) => {
+    const entryPath = path.join(resolvedRoot, entry.name);
+    if (entry.isDirectory()) {
+      return collectFilesRecursive(entryPath, extensions);
+    }
+    if (!entry.isFile() || !extensions.includes(path.extname(entry.name))) {
+      return [];
+    }
+    if (entry.name === "README.md") {
+      return [];
+    }
+    return [path.relative(workspaceRoot, entryPath).replace(/\\/g, "/")];
+  }).sort();
+}
+
+function getTransferReviewSourcePaths() {
+  const orderPath = path.join(transferDdlDir, "order.json");
+  const order = JSON.parse(fs.readFileSync(orderPath, "utf8"));
+  const ddlFiles = Array.isArray(order.order)
+    ? order.order.map((fileName) => path.join("packages", "transfer", "db", "ddl", fileName).replace(/\\/g, "/"))
+    : [];
+  return Array.from(new Set([
+    ...ddlFiles,
+    "packages/transfer/db/ddl/order.json",
+    "packages/transfer/db/ddl/relationship.json",
+    "packages/transfer/db/ddl/table-docs.json",
+    "packages/transfer/docs/scope/SYSTEM_SCOPE.md",
+    "packages/transfer/docs/scope/scope-rules.json",
+    "packages/transfer/docs/testing/TEST_POLICY.md",
+    "packages/transfer/docs/testing/test-rules.json",
+    "packages/transfer/docs/concepts/concept-relationship.json",
+    ...collectFilesRecursive(path.join(workspaceRoot, "packages", "transfer", "docs", "concepts"), [".md"]),
+    "packages/transfer/docs/dfd/relationship.json",
+    ...collectFilesRecursive(path.join(workspaceRoot, "packages", "transfer", "docs", "dfd"), [".md"]),
+    ...collectFilesRecursive(path.join(workspaceRoot, "packages", "transfer", "docs", "processes"), [".md", ".json"]),
+  ])).sort();
+}
+
+function runTransferMetadataCheck() {
+  const output = runCapture([
+    "check",
+    "--ddl-dir",
+    "packages/transfer/db/ddl",
+    "--table-docs",
+    "packages/transfer/db/ddl/table-docs.json",
+    "--relationship",
+    "packages/transfer/db/ddl/relationship.json",
+    "--order",
+    "packages/transfer/db/ddl/order.json",
+    "--concept-relationship",
+    "packages/transfer/docs/concepts/concept-relationship.json",
+    "--dfd-relationship",
+    "packages/transfer/docs/dfd/relationship.json",
+    "--scope-rules",
+    "packages/transfer/docs/scope/scope-rules.json",
+    "--test-rules",
+    "packages/transfer/docs/testing/test-rules.json",
+    "--process-dir",
+    "packages/transfer/docs/processes",
+    "--default-schema",
+    "rawsql_transfer",
+  ]);
+  const summary = output.match(/DDL docs metadata check: (\d+) error\(s\), (\d+) warning\(s\)\./);
+  const result = {
+    errors: summary ? Number(summary[1]) : 0,
+    warnings: summary ? Number(summary[2]) : 0,
+    output,
+  };
+  if (result.warnings > 0) {
+    throw new Error(`transfer metadata check produced warning(s), which block generated review report readiness.\n${output}`);
+  }
+  return result;
+}
+
+function runTransferReviewPlan() {
+  const changedFiles = getTransferReviewSourcePaths();
+  fs.mkdirSync(assertInsideWorkspace(path.dirname(transferReviewChangedFilesPath)), { recursive: true });
+  fs.writeFileSync(assertInsideWorkspace(transferReviewChangedFilesPath), `${changedFiles.join("\n")}\n`, "utf8");
+  run([
+    "review-plan",
+    "--changed-files",
+    path.relative(workspaceRoot, transferReviewChangedFilesPath),
+    "--ddl-dir",
+    "packages/transfer/db/ddl",
+    "--relationship",
+    "packages/transfer/db/ddl/relationship.json",
+    "--table-docs",
+    "packages/transfer/db/ddl/table-docs.json",
+    "--concept-relationship",
+    "packages/transfer/docs/concepts/concept-relationship.json",
+    "--dfd-relationship",
+    "packages/transfer/docs/dfd/relationship.json",
+    "--process-dir",
+    "packages/transfer/docs/processes",
+    "--scope-rules",
+    "packages/transfer/docs/scope/scope-rules.json",
+    "--scope-doc",
+    "packages/transfer/docs/scope/SYSTEM_SCOPE.md",
+    "--test-rules",
+    "packages/transfer/docs/testing/test-rules.json",
+    "--test-policy",
+    "packages/transfer/docs/testing/TEST_POLICY.md",
+    "--package",
+    "@rawsql-ts/transfer",
+    "--out",
+    path.relative(workspaceRoot, transferReviewPlanPath),
+  ]);
+  return JSON.parse(fs.readFileSync(assertInsideWorkspace(transferReviewPlanPath), "utf8"));
+}
+
+function assertTransferReviewPlanClean(reviewPlan) {
+  const diagnostics = reviewPlan.changedFiles.flatMap((entry) => entry.diagnostics ?? []);
+  if (reviewPlan.unmappedArtifacts.length === 0 && diagnostics.length === 0) {
+    return;
+  }
+  const lines = [
+    "transfer review-plan produced blocking diagnostics.",
+    `Unmapped business artifacts: ${reviewPlan.unmappedArtifacts.length}`,
+    `Diagnostics: ${diagnostics.length}`,
+    "",
+    ...reviewPlan.unmappedArtifacts.map((artifact) => `unmapped: ${artifact.path}`),
+    ...diagnostics.map((diagnostic) => `${diagnostic.severity}: ${diagnostic.message}`),
+  ];
+  throw new Error(lines.join("\n"));
+}
+
+function formatIdList(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return "None";
+  }
+  return items.map((item) => `\`${item.id}\``).join(", ");
+}
+
+function renderReviewHarnessSummary(metadataCheck, reviewPlan) {
+  const diagnostics = reviewPlan.changedFiles.flatMap((entry) => entry.diagnostics ?? []);
+  return [
+    "## Review Harness Summary",
+    "",
+    "This section aggregates the package-level review harness inputs used before semantic review.",
+    "",
+    "- Metadata check errors: " + metadataCheck.errors,
+    "- Metadata check warnings: " + metadataCheck.warnings,
+    "- Review-plan source artifacts: " + reviewPlan.changedFiles.length,
+    "- Unmapped business artifacts: " + reviewPlan.unmappedArtifacts.length,
+    "- Review-plan diagnostics: " + diagnostics.length,
+    "- Mandatory scope rules: " + formatIdList(reviewPlan.mandatoryScope?.rules),
+    "- Mandatory verification policies: " + formatIdList(reviewPlan.mandatoryVerification?.policies),
+    "",
+    "### Review-plan Diagnostics",
+    "",
+    ...(diagnostics.length === 0
+      ? ["- None"]
+      : diagnostics.map((diagnostic) => `- ${diagnostic.severity}: ${diagnostic.message}`)),
+    "",
+    "### Unmapped Business Artifacts",
+    "",
+    ...(reviewPlan.unmappedArtifacts.length === 0
+      ? ["- None"]
+      : reviewPlan.unmappedArtifacts.map((artifact) => `- \`${artifact.path}\``)),
+    "",
+    "### Source Inputs",
+    "",
+    "- Package scope: `packages/transfer/docs/scope/SYSTEM_SCOPE.md`",
+    "- Scope rules: `packages/transfer/docs/scope/scope-rules.json`",
+    "- Test policy: `packages/transfer/docs/testing/TEST_POLICY.md`",
+    "- Test rules: `packages/transfer/docs/testing/test-rules.json`",
+    "- Review plan snapshot: `tmp/transfer-review-plan.json`",
+    "",
+  ].join("\n");
+}
+
+function writeProductReviewReport(metadataCheck, reviewPlan) {
   const ddlReviewPath = path.join(workspaceRoot, "docs", "rawsql-transfer", "review.md");
   const productReviewPath = path.join(workspaceRoot, "docs", "review.md");
   const ddlIndexPath = path.join(workspaceRoot, "docs", "rawsql-transfer", "index.md");
@@ -112,12 +304,15 @@ function writeProductReviewReport() {
     "## Review Sections",
     "",
     "- [DDL / Column Mechanical Review](#ddl-column-mechanical-review)",
+    "- [Review Harness Summary](#review-harness-summary)",
     "- [Table Definitions](./rawsql-transfer/)",
     "- [Column Index](./rawsql-transfer/columns/)",
     "",
     "## DDL / Column Mechanical Review",
     "",
     ddlReviewBody.trimEnd() || "- No DDL review report was generated.",
+    "",
+    renderReviewHarnessSummary(metadataCheck, reviewPlan).trimEnd(),
     "",
   ].join("\n");
 
@@ -180,6 +375,10 @@ for (const dir of generatedSiteDirs) {
 copyScopeDoc();
 copyTestingDoc();
 
+const metadataCheck = runTransferMetadataCheck();
+const reviewPlan = runTransferReviewPlan();
+assertTransferReviewPlanClean(reviewPlan);
+
 removeDir(path.join(workspaceRoot, "docs", "rawsql-transfer"));
 run([
   "generate",
@@ -198,6 +397,6 @@ run([
   "rawsql_transfer",
 ]);
 
-writeProductReviewReport();
+writeProductReviewReport(metadataCheck, reviewPlan);
 
 console.log("[transfer-docs] generated Concept/DFD/Process and DDL review pages.");

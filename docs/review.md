@@ -8,6 +8,7 @@ It collects machine-check review signals first, then leaves semantic Concept / P
 ## Review Sections
 
 - [DDL / Column Mechanical Review](#ddl-column-mechanical-review)
+- [Review Harness Summary](#review-harness-summary)
 - [Table Definitions](./rawsql-transfer/)
 - [Column Index](./rawsql-transfer/columns/)
 
@@ -34,3 +35,31 @@ It is the machine-check layer of review. Use it together with human / AI semanti
 Mechanical checks do not prove that the design is conceptually correct.
 For semantic review, check whether each table, column, index, and constraint is justified by Concept Specs, DFDs, Process Maps, and use cases.
 The DDL Concept / Process review skill should be used for that inference layer.
+
+## Review Harness Summary
+
+This section aggregates the package-level review harness inputs used before semantic review.
+
+- Metadata check errors: 0
+- Metadata check warnings: 0
+- Review-plan source artifacts: 38
+- Unmapped business artifacts: 0
+- Review-plan diagnostics: 0
+- Mandatory scope rules: `db-centered-transfer`, `human-owned-logical-model`, `generated-docs-not-source`
+- Mandatory verification policies: `db-backed-contract-verification`, `no-hot-path-runtime-validation`
+
+### Review-plan Diagnostics
+
+- None
+
+### Unmapped Business Artifacts
+
+- None
+
+### Source Inputs
+
+- Package scope: `packages/transfer/docs/scope/SYSTEM_SCOPE.md`
+- Scope rules: `packages/transfer/docs/scope/scope-rules.json`
+- Test policy: `packages/transfer/docs/testing/TEST_POLICY.md`
+- Test rules: `packages/transfer/docs/testing/test-rules.json`
+- Review plan snapshot: `tmp/transfer-review-plan.json`
