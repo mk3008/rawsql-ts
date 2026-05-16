@@ -94,8 +94,8 @@ interface CorrelatedRefreshPlan {
     sourceAlias: string;
 }
 
-const formatter = new SqlFormatter();
 const SUPPORTED_SCALAR_OPERATORS = new Set<SssqlScalarOperator>(["=", "<>", "<", "<=", ">", ">=", "like", "ilike"]);
+let formatter: SqlFormatter | null = null;
 
 const normalizeIdentifier = (value: string): string => value.trim().toLowerCase();
 
@@ -268,6 +268,7 @@ const rebuildWhereWithoutTerm = (query: SimpleSelectQuery, termToRemove: ValueCo
 };
 
 const formatSqlComponent = (component: ValueComponent | SelectQuery): string => {
+    formatter ??= new SqlFormatter();
     return formatter.format(component).formattedSql;
 };
 

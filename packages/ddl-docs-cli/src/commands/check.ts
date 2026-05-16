@@ -3,7 +3,6 @@ import path from 'node:path';
 import { resolveSchemaSettings } from '../config';
 import { snapshotTableDocs } from '../parser/snapshotTableDocs';
 import { loadConceptRegistry } from '../relationshipMetadata';
-import { renderConceptMapMarkdown } from '../render/conceptMapMarkdown';
 import { loadRawTableDocsMetadata } from '../tableDocsMetadata';
 import type { CheckDocsOptions, DdlInput, SqlSource, TableDocModel, TableDocsMetadata } from '../types';
 import { dedupeDdlInputsByInstanceAndPath } from '../utils/ddlInputDedupe';
@@ -23,6 +22,7 @@ export interface CheckDocsResult {
 
 interface RelationshipMetadata {
   schemaVersion: 1;
+  metadataLanguagePolicy?: string;
   relationships: RelationshipEntry[];
 }
 
@@ -221,9 +221,6 @@ export function checkDocs(options: CheckDocsOptions): CheckDocsResult {
   if (options.conceptRelationshipPath) {
     checkConceptRelationshipMetadata(options.conceptRelationshipPath, issues);
   }
-  if (options.conceptRelationshipPath && options.conceptMapPath) {
-    checkGeneratedConceptMap(options.conceptRelationshipPath, options.conceptMapPath, issues);
-  }
   if (options.dfdRelationshipPath) {
     checkDfdRelationshipMetadata(options.dfdRelationshipPath, conceptRegistry, processFiles, issues);
   }
@@ -263,40 +260,6 @@ function collectCheckSqlSources(options: CheckDocsOptions, issues: CheckIssue[])
   }
 }
 
-function checkGeneratedConceptMap(conceptRelationshipPath: string, conceptMapPath: string, issues: CheckIssue[]): void {
-  const resolvedMapPath = path.resolve(process.cwd(), conceptMapPath);
-  if (!existsSync(resolvedMapPath)) {
-    issues.push({
-      severity: 'error',
-      code: 'CONCEPT_MAP_MISSING',
-      message: `concept-map markdown does not exist: ${conceptMapPath}`,
-    });
-    return;
-  }
-
-  try {
-    const conceptRegistry = loadConceptRegistry(conceptRelationshipPath);
-    if (!conceptRegistry) {
-      return;
-    }
-    const expected = normalizeGeneratedMarkdown(renderConceptMapMarkdown(conceptRegistry));
-    const actual = normalizeGeneratedMarkdown(readFileSync(resolvedMapPath, 'utf8'));
-    if (actual !== expected) {
-      issues.push({
-        severity: 'error',
-        code: 'CONCEPT_MAP_DRIFT',
-        message: `concept-map markdown is stale; regenerate it from concept-relationship.json: ${conceptMapPath}`,
-      });
-    }
-  } catch (error) {
-    issues.push({
-      severity: 'error',
-      code: 'CONCEPT_MAP_CHECK_FAILED',
-      message: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
-
 function checkTableDocsMetadata(
   metadataPath: string,
   tableIndex: Map<string, TableDocModel>,
@@ -313,6 +276,17 @@ function checkTableDocsMetadata(
       message: error instanceof Error ? error.message : String(error),
     });
     return;
+  }
+
+  const schemaNames = new Set(Array.from(tableIndex.values()).map((table) => table.schema));
+  for (const schemaName of Object.keys(metadata.schemas ?? {})) {
+    if (!schemaNames.has(schemaName)) {
+      issues.push({
+        severity: 'error',
+        code: 'TABLE_DOCS_UNKNOWN_SCHEMA',
+        message: `table-docs.json references unknown schema: ${schemaName}`,
+      });
+    }
   }
 
   const documentedTables = new Set<string>();
@@ -1455,6 +1429,9 @@ function isRelationshipMetadata(value: unknown): value is RelationshipMetadata {
   if (!isRecord(value) || value.schemaVersion !== 1 || !Array.isArray(value.relationships)) {
     return false;
   }
+  if (value.metadataLanguagePolicy !== undefined && typeof value.metadataLanguagePolicy !== 'string') {
+    return false;
+  }
   return value.relationships.every((entry) => {
     if (!isRecord(entry) || typeof entry.path !== 'string' || typeof entry.kind !== 'string') {
       return false;
@@ -1691,10 +1668,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizeRelativePath(value: string): string {
   return value.replace(/\\/g, '/').replace(/^\.\//, '');
-}
-
-function normalizeGeneratedMarkdown(value: string): string {
-  return value.replace(/\r\n/g, '\n').trimEnd();
 }
 
 function printCheckResult(result: CheckDocsResult): void {

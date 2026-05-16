@@ -17,7 +17,7 @@ Concept lifecycle:
 
 Available Concept Specs:
 
-This list is a human entrypoint. Use `concept-relationship.json` and generated Concept Map views for completeness checks.
+This list is a human entrypoint. Use `concept-relationship.json` and generated VitePress Concept views for completeness checks.
 
 - [Active Black](./active-black/SPEC.md)
 - [Black Transfer](./black-transfer/SPEC.md)
@@ -36,7 +36,6 @@ This list is a human entrypoint. Use `concept-relationship.json` and generated C
 
 Concept relationship entrypoints:
 
-- [Concept Map](./concept-map.md)
 - [Concept Relationship Metadata](./concept-relationship.json)
 
 Related DFDs:

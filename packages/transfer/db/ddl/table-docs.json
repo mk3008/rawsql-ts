@@ -1,5 +1,12 @@
 {
   "schemaVersion": 1,
+  "metadataLanguagePolicy": "Human-facing summary, designNotes, decision, tradeoff, alternativesRejected, and review notes may use the language of the product documentation. For @rawsql-ts/transfer table review metadata, Japanese is allowed so generated review pages can be read by the product reviewers.",
+  "schemas": {
+    "rawsql_transfer": {
+      "language": "ja",
+      "summary": "Transfer package のマスタ、実行、作業状態、監査用テーブルをまとめるスキーマ。"
+    }
+  },
   "tables": {
     "rawsql_transfer.destination_definition": {
       "designNotes": [

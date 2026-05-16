@@ -41,6 +41,68 @@ function copyDir(sourcePath, targetPath) {
   fs.cpSync(source, target, { recursive: true });
 }
 
+function writeProductReviewReport() {
+  const ddlReviewPath = path.join(workspaceRoot, "docs", "rawsql-transfer", "review.md");
+  const productReviewPath = path.join(workspaceRoot, "docs", "review.md");
+  const ddlIndexPath = path.join(workspaceRoot, "docs", "rawsql-transfer", "index.md");
+  const ddlColumnIndexPath = path.join(workspaceRoot, "docs", "rawsql-transfer", "columns", "index.md");
+
+  const ddlReview = fs.existsSync(ddlReviewPath) ? fs.readFileSync(ddlReviewPath, "utf8") : "";
+  const ddlReviewBody = ddlReview
+    .replace(/^<!-- generated-by: @rawsql-ts\/ddl-docs-cli -->\r?\n\r?\n/, "")
+    .replace(/^# Review Report\r?\n\r?\n/, "")
+    .replace(/^## /gm, "### ");
+
+  const productReview = [
+    "<!-- generated-by: transfer-docs -->",
+    "",
+    "# Transfer Review Report",
+    "",
+    "This page is the product-level review report for `@rawsql-ts/transfer`.",
+    "It collects machine-check review signals first, then leaves semantic Concept / Process / DDL review to human and AI review workflows.",
+    "",
+    "## Review Sections",
+    "",
+    "- [DDL / Column Mechanical Review](#ddl-column-mechanical-review)",
+    "- [Table Definitions](./rawsql-transfer/)",
+    "- [Column Index](./rawsql-transfer/columns/)",
+    "",
+    "## DDL / Column Mechanical Review",
+    "",
+    ddlReviewBody.trimEnd() || "- No DDL review report was generated.",
+    "",
+  ].join("\n");
+
+  fs.writeFileSync(assertInsideWorkspace(productReviewPath), productReview, "utf8");
+
+  if (fs.existsSync(ddlIndexPath)) {
+    const ddlIndex = fs.readFileSync(ddlIndexPath, "utf8");
+    const newDdlIndex = ddlIndex.replace(/^- \[Review Report\]\(\.\/review\.md\)\r?\n/m, "");
+    if (newDdlIndex === ddlIndex) {
+      throw new Error(`Expected to remove upstream review link from ${ddlIndexPath}, but no matching link was found.`);
+    }
+    fs.writeFileSync(ddlIndexPath, newDdlIndex, "utf8");
+  }
+
+  if (fs.existsSync(ddlColumnIndexPath)) {
+    const ddlColumnIndex = fs.readFileSync(ddlColumnIndexPath, "utf8");
+    const newDdlColumnIndex = ddlColumnIndex.replace(
+      /\[Review Report\]\(\.\.\/review\.md\)/g,
+      "[Review Report](../../review.md)"
+    );
+    if (newDdlColumnIndex === ddlColumnIndex) {
+      throw new Error(
+        `Expected to retarget upstream review links from ${ddlColumnIndexPath}, but no matching links were found.`
+      );
+    }
+    fs.writeFileSync(ddlColumnIndexPath, newDdlColumnIndex, "utf8");
+  }
+
+  if (fs.existsSync(ddlReviewPath)) {
+    fs.rmSync(assertInsideWorkspace(ddlReviewPath), { force: true });
+  }
+}
+
 function getOrderedTransferDdlArgs() {
   const orderPath = path.join(transferDdlDir, "order.json");
   const order = JSON.parse(fs.readFileSync(orderPath, "utf8"));
@@ -80,8 +142,12 @@ run([
   "packages/transfer/db/ddl/relationship.json",
   "--concept-relationship",
   "packages/transfer/docs/concepts/concept-relationship.json",
+  "--dfd-relationship",
+  "packages/transfer/docs/dfd/relationship.json",
   "--default-schema",
   "rawsql_transfer",
 ]);
+
+writeProductReviewReport();
 
 console.log("[transfer-docs] generated Concept/DFD/Process and DDL review pages.");

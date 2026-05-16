@@ -73,7 +73,8 @@ test('generate writes table pages, index pages, and warnings metadata', () => {
   expect(tableText.endsWith('\n')).toBe(true);
 
   const globalColumnsText = normalizeLineEndings(readFileSync(globalColumnsIndex, 'utf8'));
-  expect(globalColumnsText).toContain('# Column Index (Alerts)');
+  expect(globalColumnsText).toContain('# Column Index');
+  expect(globalColumnsText).toContain('See [Review Report](../review.md)');
 
   const warningsJson = JSON.parse(readFileSync(warnings, 'utf8')) as Array<{ kind: string }>;
   expect(warningsJson).toHaveLength(0);
@@ -244,6 +245,11 @@ test('generate renders column samples from table docs metadata before comments',
     JSON.stringify(
       {
         schemaVersion: 1,
+        schemas: {
+          public: {
+            summary: 'Application tables for active row processing.',
+          },
+        },
         tables: {
           'public.active_rows': {
             designNotes: ['Active rows are optimized for source-key lookup during processing.'],
@@ -281,9 +287,12 @@ test('generate renders column samples from table docs metadata before comments',
   });
 
   const tableDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'public', 'active-rows.md'), 'utf8'));
+  const schemaIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'index.md'), 'utf8'));
+  expect(schemaIndex).toContain('| Schema | Summary | Tables |');
+  expect(schemaIndex).toContain('| [public](./public/index.md) | Application tables for active row processing. | 1 |');
   expect(tableDoc).toContain('| Key | Column | Type | Nullable | Default | Seq | Sample | Comment | Review Notes |');
   expect(tableDoc).toContain('|  | `source_key_json` | `jsonb` | NO | - |  | `{"sales_id":123}` | source key |');
-  expect(tableDoc).toContain('## Design Notes');
+  expect(tableDoc).toContain('### Design Notes');
   expect(tableDoc).toContain('Active rows are optimized for source-key lookup during processing.');
   expect(tableDoc).toContain('This JSON value is the source of truth for source identity.');
   expect(tableDoc).toContain('| Kind | Name | Expression | Review Notes |');
@@ -294,13 +303,16 @@ test('generate renders related concept and process pages from relationship metad
   const work = createTempDir('ddl-docs-related-sources');
   const ddlDir = path.join(work, 'ddl');
   const conceptsDir = path.join(work, 'docs', 'concepts');
+  const dfdDir = path.join(work, 'docs', 'dfd');
   const processesDir = path.join(work, 'docs', 'processes');
   const outDir = path.join(work, 'docs-out');
   const tableDocsPath = path.join(ddlDir, 'table-docs.json');
   const relationshipPath = path.join(ddlDir, 'relationship.json');
   const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+  const dfdRelationshipPath = path.join(dfdDir, 'relationship.json');
   mkdirSync(ddlDir, { recursive: true });
   mkdirSync(path.join(conceptsDir, 'active-row'), { recursive: true });
+  mkdirSync(dfdDir, { recursive: true });
   mkdirSync(processesDir, { recursive: true });
 
   writeFileSync(
@@ -317,6 +329,7 @@ test('generate renders related concept and process pages from relationship metad
   );
   writeFileSync(path.join(conceptsDir, 'active-row/SPEC.md'), '# Active Row Concept\n\nDefined concept.', 'utf8');
   writeFileSync(path.join(processesDir, 'active-row-process.md'), '# Active Row Process\n\nDefined process.', 'utf8');
+  writeFileSync(path.join(dfdDir, 'active-row-flow.md'), '# Active Row Flow\n', 'utf8');
   writeFileSync(
     tableDocsPath,
     JSON.stringify(
@@ -405,7 +418,59 @@ test('generate renders related concept and process pages from relationship metad
             id: 'active-row-process',
             displayName: 'Active Row Process',
             path: '../processes/active-row-process.md',
+            summary: 'Defines active row processing.',
             reason: 'Process map linked from concept metadata.',
+          },
+        ],
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+  writeFileSync(
+    dfdRelationshipPath,
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        subsystems: [
+          {
+            id: 'operations',
+            displayName: 'Operations',
+            summary: 'Operational flows.',
+          },
+        ],
+        conceptGroups: [
+          {
+            id: 'active-row-state',
+            members: [
+              {
+                type: 'concept',
+                id: 'active-row',
+              },
+            ],
+          },
+        ],
+        dfds: [
+          {
+            id: 'active-row-flow',
+            displayName: 'Active Row Flow',
+            subsystem: 'operations',
+            path: 'active-row-flow.md',
+            summary: 'Active row intake flow.',
+            businessOperations: [
+              {
+                id: 'active-row-registration',
+                displayName: 'Active Row Registration',
+                summary: 'Registers active rows.',
+                outputs: [
+                  {
+                    type: 'concept-group',
+                    id: 'active-row-state',
+                  },
+                ],
+              },
+            ],
           },
         ],
       },
@@ -428,12 +493,17 @@ test('generate renders related concept and process pages from relationship metad
     tableDocsPath,
     relationshipPath,
     conceptRelationshipPath,
+    dfdRelationshipPath,
   });
 
   const tableDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'public', 'active-rows.md'), 'utf8'));
-  expect(tableDoc).toContain('## Related Concepts / Processes');
-  expect(tableDoc).toContain('[active-row](../concepts/active-row.md)');
-  expect(tableDoc).toContain('[active-row-process](../processes/active-row-process.md)');
+  expect(tableDoc).toContain('## Generated Review Metadata');
+  expect(tableDoc).toContain('### Related Concepts / Processes / Business');
+  expect(tableDoc).toContain('[active-row](/concepts/active-row)');
+  expect(tableDoc).toContain('[active-row-process](/processes/active-row-process)');
+  expect(tableDoc).toContain('#### Related Business');
+  expect(tableDoc).toContain('[Active Row Registration](/dfd/operations/business/active-row-registration)');
+  expect(tableDoc).toContain('DFDの業務メタデータで `active-row-state` に含まれる `active-row` を参照しているため。');
   expect(tableDoc).toContain('decision: Use source_key_json as identity.');
   expect(tableDoc).toContain('alternativesRejected: Do not use hash as identity.');
 
@@ -459,8 +529,7 @@ test('generate renders related concept and process pages from relationship metad
   expect(conceptIndex).toContain('active-row-key');
   expect(conceptIndex).toContain('## Planned Or Candidate Concepts');
   expect(conceptIndex).toContain('row-key');
-  expect(conceptIndex).toContain('## Relationships');
-  expect(conceptIndex).toContain('| [active-row](./active-row.md) | `uses` | `row-key` | Active row uses row key terminology. |');
+  expect(conceptIndex).not.toContain('## Relationships');
 });
 
 test('concept-site generates VitePress concept and process pages without DDL input', () => {
@@ -543,6 +612,7 @@ test('concept-site generates VitePress concept and process pages without DDL inp
             id: 'active-row-process',
             displayName: 'Active Row Process',
             path: '../processes/active-row-process.md',
+            summary: 'Defines active row processing.',
             reason: 'Process map linked from concept metadata.',
           },
         ],
@@ -635,7 +705,7 @@ test('concept-site generates VitePress concept and process pages without DDL inp
   const conceptIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'index.md'), 'utf8'));
   expect(conceptIndex).toContain('# Concept Map');
   expect(conceptIndex).toContain('| [active-row](./active-row.md) | Active Row | `defined` | Active row summary |');
-  expect(conceptIndex).toContain('| [active-row](./active-row.md) | `uses` | `row-key` | Active row uses row key terminology. |');
+  expect(conceptIndex).not.toContain('## Relationships');
 
   const conceptDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'active-row.md'), 'utf8'));
   expect(conceptDoc).toContain('# Active Row');
@@ -644,7 +714,7 @@ test('concept-site generates VitePress concept and process pages without DDL inp
   expect(conceptDoc).toContain('Defined concept.');
 
   const processIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'processes', 'index.md'), 'utf8'));
-  expect(processIndex).toContain('[active-row-process](./active-row-process.md)');
+  expect(processIndex).toContain('| [Active Row Process](./active-row-process.md) | Defines active row processing. |');
   const dfdIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'dfd', 'index.md'), 'utf8'));
   expect(dfdIndex).toContain('## Subsystem Correlation');
   expect(dfdIndex).toContain('S_operations((" Operations "))');
@@ -659,16 +729,18 @@ test('concept-site generates VitePress concept and process pages without DDL inp
   expect(dfdSubsystemIndex).toContain('# Operations');
   expect(dfdSubsystemIndex).toContain('## Business Correlation');
   expect(dfdSubsystemIndex).toContain('## Business Operations');
-  expect(dfdSubsystemIndex).toContain('| Business | Summary | Related Processes | Source |');
-  expect(dfdSubsystemIndex).toContain('| [Active Row Registration](./business/active-row-registration.md) | Registers active row changes. | [active-row-process](./business/active-row-registration/process/active-row-process.md) | `active-row-flow.md` |');
+  expect(dfdSubsystemIndex).toContain('| Business | Summary | Related Processes |');
+  expect(dfdSubsystemIndex).toContain('| [Active Row Registration](./business/active-row-registration.md) | Registers active row changes. | [active-row-process](./business/active-row-registration/process/active-row-process.md) |');
+  expect(dfdSubsystemIndex).not.toContain('active-row-flow.md');
   expect(dfdSubsystemIndex).not.toContain('## Source DFDs');
   expect(existsSync(path.join(outDir, 'dfd', 'active-row-flow.md'))).toBe(false);
   const dfdBusinessDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'dfd', 'operations', 'business', 'active-row-registration.md'), 'utf8'));
-  expect(dfdBusinessDoc).toContain('## Active Row Registration Detail Flow');
+  expect(dfdBusinessDoc).toContain('# Active Row Registration Detail Flow');
   expect(dfdBusinessDoc).toContain('- Parent Subsystem: [Operations](../)');
   expect(dfdBusinessDoc).toContain('- Parent DFD: Active Row Flow');
   expect(dfdBusinessDoc).not.toContain('- Parent DFD: [Active Row Flow]');
-  expect(dfdBusinessDoc).toContain('| Outputs | `concept:`[active-row](../../../concepts/active-row.md) |');
+  expect(dfdBusinessDoc).toContain('| Direction | Kind | Group | Term | Summary |');
+  expect(dfdBusinessDoc).toContain('| Output | Concept | - | [Active Row](../../../concepts/active-row.md) | Active row summary |');
   expect(dfdBusinessDoc).toContain('## Related Processes');
   expect(dfdBusinessDoc).toContain('| [active-row-process](./active-row-registration/process/active-row-process.md) | Defines active row processing. |');
   const dfdBusinessProcessDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'dfd', 'operations', 'business', 'active-row-registration', 'process', 'active-row-process.md'), 'utf8'));
@@ -681,8 +753,8 @@ test('concept-site generates VitePress concept and process pages without DDL inp
   expect(roleIndex).toContain('| [User](#role-');
   expect(roleIndex).toContain('## Scheduler');
   expect(roleIndex).toContain('## User');
-  expect(roleIndex).toContain('| Business | Event / When | Business Page |');
-  expect(roleIndex).toContain('| Active Row Registration | active row changes | [Active Row Registration](../dfd/operations/business/active-row-registration.md) |');
+  expect(roleIndex).toContain('| Business | Event / When |');
+  expect(roleIndex).toContain('| [Active Row Registration](../dfd/operations/business/active-row-registration.md) | active row changes |');
   const rootIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'index.md'), 'utf8'));
   expect(rootIndex).toContain('# Concept Spec Review');
   expect(rootIndex).toContain('[Concepts](./concepts/)');

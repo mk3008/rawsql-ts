@@ -70,10 +70,6 @@ export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSug
   lines.push(`- Comment: ${formatTableCell(table.tableComment)}`);
   lines.push(`- Source Files: ${formatTableCell(table.sourceFiles.map((entry) => `\`${entry}\``).join('<br>'))}`);
   lines.push('');
-  lines.push(...renderRelatedSources(renderOptions?.tableRelationship));
-  lines.push('');
-  lines.push(...renderDesignNotes(table, renderOptions));
-  lines.push('');
   lines.push('## Columns');
   lines.push('');
   if (labelSeparator) {
@@ -158,6 +154,19 @@ export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSug
       const funcCell = formatCodeCell(trigger.functionName);
       lines.push(`| ${nameCell} | ${trigger.timing} | ${eventsCell} | ${trigger.forEach} | ${funcCell} |`);
     }
+  }
+
+  const generatedReviewMetadata = [
+    ...renderDesignNotes(table, renderOptions),
+    ...renderRelatedSources(renderOptions?.tableRelationship),
+  ];
+  if (generatedReviewMetadata.length > 0) {
+    lines.push('');
+    lines.push('## Generated Review Metadata');
+    lines.push('');
+    lines.push('This section is generated from structured review metadata. It is not stored in COMMENT ON statements.');
+    lines.push('');
+    lines.push(...generatedReviewMetadata);
   }
 
   lines.push('');
@@ -280,13 +289,13 @@ function renderDesignNotes(table: TableDocModel, renderOptions: RenderTableOptio
   }
 
   const lines: string[] = [];
-  lines.push('## Design Notes');
+  lines.push('### Design Notes');
   lines.push('');
   lines.push('These notes explain physical design intent separately from DB comments.');
   lines.push('');
 
   if (tableNotes.length > 0) {
-    lines.push('### Table');
+    lines.push('#### Table');
     lines.push('');
     for (const note of tableNotes) {
       lines.push(`- ${formatTableCell(note)}`);
@@ -295,7 +304,7 @@ function renderDesignNotes(table: TableDocModel, renderOptions: RenderTableOptio
   }
 
   if (columnNotes.length > 0) {
-    lines.push('### Columns');
+    lines.push('#### Columns');
     lines.push('');
     lines.push('| Column | Design Notes |');
     lines.push('| --- | --- |');
@@ -308,29 +317,42 @@ function renderDesignNotes(table: TableDocModel, renderOptions: RenderTableOptio
 }
 
 function renderRelatedSources(relationship: ResolvedTableRelationship | undefined): string[] {
-  if (!relationship || (relationship.concepts.length === 0 && relationship.processes.length === 0)) {
+  if (
+    !relationship ||
+    (relationship.concepts.length === 0 && relationship.processes.length === 0 && relationship.businesses.length === 0)
+  ) {
     return [];
   }
   const lines: string[] = [];
-  lines.push('## Related Concepts / Processes');
+  lines.push('### Related Concepts / Processes / Business');
   lines.push('');
   if (relationship.concepts.length > 0) {
-    lines.push('### Related Concepts');
+    lines.push('#### Related Concepts');
     lines.push('');
-    lines.push('| Concept | Source | Reason |');
-    lines.push('| --- | --- | --- |');
+    lines.push('| Concept | Reason |');
+    lines.push('| --- | --- |');
     for (const concept of relationship.concepts) {
-      lines.push(`| ${formatRelationshipLabel(concept.label, concept.href)} | ${formatCodeCell(concept.path)} | ${formatTableCell(concept.reason)} |`);
+      lines.push(`| ${formatRelationshipLabel(concept.label, concept.href)} | ${formatTableCell(concept.reason)} |`);
     }
     lines.push('');
   }
   if (relationship.processes.length > 0) {
-    lines.push('### Related Processes');
+    lines.push('#### Related Processes');
     lines.push('');
-    lines.push('| Process | Source | Reason |');
-    lines.push('| --- | --- | --- |');
+    lines.push('| Process | Reason |');
+    lines.push('| --- | --- |');
     for (const process of relationship.processes) {
-      lines.push(`| ${formatRelationshipLabel(process.label, process.href)} | ${formatCodeCell(process.path)} | ${formatTableCell(process.reason)} |`);
+      lines.push(`| ${formatRelationshipLabel(process.label, process.href)} | ${formatTableCell(process.reason)} |`);
+    }
+    lines.push('');
+  }
+  if (relationship.businesses.length > 0) {
+    lines.push('#### Related Business');
+    lines.push('');
+    lines.push('| Business | Reason |');
+    lines.push('| --- | --- |');
+    for (const business of relationship.businesses) {
+      lines.push(`| ${formatRelationshipLabel(business.label, business.href)} | ${formatTableCell(business.reason)} |`);
     }
   }
   return lines;

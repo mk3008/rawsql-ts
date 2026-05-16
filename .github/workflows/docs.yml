@@ -56,6 +56,9 @@ jobs:
           pnpm --filter @rawsql-ts/testkit-core run build
           pnpm --filter @rawsql-ts/ztd-cli run build
 
+      - name: Verify transfer docs and metadata drift
+        run: pnpm run verify:transfer-docs
+
       - name: Build documentation
         run: pnpm run docs:build
 
