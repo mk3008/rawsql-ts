@@ -25,6 +25,7 @@ Start with Concepts, then DFDs, then Processes, and finally Table Definitions wh
 
 ## Specification Views
 
+- [Scope](./scope/)
 - [Concepts](./concepts/)
 - [DFDs](./dfd/)
 - [Roles](./roles/)

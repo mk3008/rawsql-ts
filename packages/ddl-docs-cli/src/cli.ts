@@ -3,7 +3,8 @@ import { runCheckDocs } from './commands/check';
 import { runGenerateConceptSite } from './commands/conceptSite';
 import { runGenerateDocs } from './commands/generate';
 import { runPruneDocs } from './commands/prune';
-import type { CheckDocsOptions, GenerateConceptSiteOptions, GenerateDocsOptions, PruneDocsOptions } from './types';
+import { runReviewPlan } from './commands/reviewPlan';
+import type { CheckDocsOptions, GenerateConceptSiteOptions, GenerateDocsOptions, PruneDocsOptions, ReviewPlanOptions } from './types';
 import { dedupeDdlInputsByInstanceAndPath } from './utils/ddlInputDedupe';
 
 const DEFAULT_DDL_DIRECTORY = 'ztd/ddl';
@@ -30,7 +31,7 @@ export async function runCli(argv: string[]): Promise<void> {
       printHelp('all');
       return;
     }
-    if (target === 'generate' || target === 'prune' || target === 'check' || target === 'concept-site') {
+    if (target === 'generate' || target === 'prune' || target === 'check' || target === 'concept-site' || target === 'review-plan') {
       printHelp(target);
       return;
     }
@@ -70,6 +71,15 @@ export async function runCli(argv: string[]): Promise<void> {
       return;
     }
     runGenerateConceptSite(options);
+    return;
+  }
+
+  if (command === 'review-plan') {
+    const options = parseReviewPlanOptions(rest);
+    if (!options) {
+      return;
+    }
+    runReviewPlan(options);
     return;
   }
 
@@ -269,6 +279,7 @@ function parseCheckOptions(args: string[]): CheckDocsOptions | null {
     orderPath: undefined,
     conceptRelationshipPath: undefined,
     dfdRelationshipPath: undefined,
+    scopeRulesPath: undefined,
     processDirectories: [],
     configPath: undefined,
     defaultSchema: undefined,
@@ -335,6 +346,11 @@ function parseCheckOptions(args: string[]): CheckDocsOptions | null {
       continue;
     }
 
+    if (arg === '--scope-rules') {
+      options.scopeRulesPath = readRequiredValue(args, ++index, '--scope-rules');
+      continue;
+    }
+
     if (arg === '--process-dir') {
       options.processDirectories?.push(readRequiredValue(args, ++index, '--process-dir'));
       continue;
@@ -371,6 +387,91 @@ function parseCheckOptions(args: string[]): CheckDocsOptions | null {
   options.ddlFiles = dedupeDdlInputsByInstanceAndPath(options.ddlFiles);
   options.ddlGlobs = dedupeDdlInputsByInstanceAndPath(options.ddlGlobs);
   options.extensions = dedupe(options.extensions);
+  return options;
+}
+
+function parseReviewPlanOptions(args: string[]): ReviewPlanOptions | null {
+  const options: ReviewPlanOptions = {
+    changedFilesPath: '',
+    ddlDirectories: [],
+    relationshipPath: undefined,
+    tableDocsPath: undefined,
+    conceptRelationshipPath: undefined,
+    dfdRelationshipPath: undefined,
+    processDirectories: [],
+    scopeRulesPath: undefined,
+    scopeDocPath: undefined,
+    outPath: undefined,
+    packageName: undefined,
+  };
+
+  let currentInstance = '';
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (arg === '--changed-files') {
+      options.changedFilesPath = readRequiredValue(args, ++index, '--changed-files');
+      continue;
+    }
+    if (arg === '--ddl-instance') {
+      currentInstance = readRequiredValue(args, ++index, '--ddl-instance');
+      continue;
+    }
+    if (arg === '--ddl-dir') {
+      options.ddlDirectories.push({ path: readRequiredValue(args, ++index, '--ddl-dir'), instance: currentInstance });
+      continue;
+    }
+    if (arg === '--relationship') {
+      options.relationshipPath = readRequiredValue(args, ++index, '--relationship');
+      continue;
+    }
+    if (arg === '--table-docs') {
+      options.tableDocsPath = readRequiredValue(args, ++index, '--table-docs');
+      continue;
+    }
+    if (arg === '--concept-relationship') {
+      options.conceptRelationshipPath = readRequiredValue(args, ++index, '--concept-relationship');
+      continue;
+    }
+    if (arg === '--dfd-relationship') {
+      options.dfdRelationshipPath = readRequiredValue(args, ++index, '--dfd-relationship');
+      continue;
+    }
+    if (arg === '--process-dir') {
+      options.processDirectories?.push(readRequiredValue(args, ++index, '--process-dir'));
+      continue;
+    }
+    if (arg === '--scope-rules') {
+      options.scopeRulesPath = readRequiredValue(args, ++index, '--scope-rules');
+      continue;
+    }
+    if (arg === '--scope-doc') {
+      options.scopeDocPath = readRequiredValue(args, ++index, '--scope-doc');
+      continue;
+    }
+    if (arg === '--package') {
+      options.packageName = readRequiredValue(args, ++index, '--package');
+      continue;
+    }
+    if (arg === '--out') {
+      options.outPath = readRequiredValue(args, ++index, '--out');
+      continue;
+    }
+    if (arg === '--help' || arg === '-h') {
+      printHelp('review-plan');
+      return null;
+    }
+    throw new Error(`Unknown option for review-plan: ${arg}`);
+  }
+
+  if (!options.changedFilesPath) {
+    throw new Error('review-plan requires --changed-files.');
+  }
+  if (options.ddlDirectories.length === 0) {
+    options.ddlDirectories = [{ path: DEFAULT_DDL_DIRECTORY, instance: '' }];
+  }
+  options.ddlDirectories = dedupeDdlInputsByInstanceAndPath(options.ddlDirectories);
   return options;
 }
 
@@ -443,7 +544,7 @@ function dedupe(values: string[]): string[] {
   return Array.from(new Set(values));
 }
 
-function printHelp(target: 'all' | 'generate' | 'prune' | 'check' | 'concept-site'): void {
+function printHelp(target: 'all' | 'generate' | 'prune' | 'check' | 'concept-site' | 'review-plan'): void {
   const generateHelp = `ddl-docs generate [options]
   --ddl-instance <name>   DB instance name for subsequent --ddl-dir/--ddl-file/--ddl-glob (repeatable)
   --ddl-dir <directory>   Recursively scan DDL files under directory (repeatable)
@@ -487,6 +588,7 @@ function printHelp(target: 'all' | 'generate' | 'prune' | 'check' | 'concept-sit
   --order <path>                 Optional DDL execution order metadata json
   --concept-relationship <path>  Optional concept relationship registry json
   --dfd-relationship <path>      Optional DFD relationship metadata json
+  --scope-rules <path>           Optional package scope rules metadata json
   --process-dir <directory>      Optional Process Map directory for logical-model checks (repeatable)
   --default-schema <name>        Override default schema for unqualified tables
   --search-path <list>           Comma-separated schema search path
@@ -497,6 +599,20 @@ function printHelp(target: 'all' | 'generate' | 'prune' | 'check' | 'concept-sit
   --concept-relationship <path>  Concept relationship registry json
   --dfd-relationship <path>      Optional DFD relationship metadata json
   --out-dir <directory>          Output root directory for generated VitePress pages
+`;
+
+  const reviewPlanHelp = `ddl-docs review-plan [options]
+  --changed-files <path>         Newline list or JSON array of changed files
+  --ddl-dir <directory>          DDL directory used to classify DDL changed files (repeatable)
+  --relationship <path>          Optional DDL relationship metadata json
+  --table-docs <path>            Optional table documentation metadata json
+  --concept-relationship <path>  Optional concept relationship registry json
+  --dfd-relationship <path>      Optional DFD relationship metadata json
+  --process-dir <directory>      Optional Process Map directory (repeatable)
+  --scope-rules <path>           Optional package scope rules metadata json
+  --scope-doc <path>             Optional package scope markdown source
+  --package <name>               Package name for the review plan
+  --out <path>                   Write JSON output to file instead of stdout
 `;
 
   if (target === 'generate') {
@@ -515,6 +631,10 @@ function printHelp(target: 'all' | 'generate' | 'prune' | 'check' | 'concept-sit
     console.log(conceptSiteHelp);
     return;
   }
+  if (target === 'review-plan') {
+    console.log(reviewPlanHelp);
+    return;
+  }
 
   console.log(`ddl-docs <command> [options]
 
@@ -523,10 +643,12 @@ Commands:
   prune                  Remove stale generated markdown docs
   check                  Check DDL review metadata references
   concept-site           Generate VitePress Concept Spec review pages from concept metadata
+  review-plan            Build deterministic review input JSON from changed files
   help [command]         Show help for all commands or one command
 
 ${generateHelp}
 ${pruneHelp}
 ${checkHelp}
-${conceptSiteHelp}`);
+${conceptSiteHelp}
+${reviewPlanHelp}`);
 }

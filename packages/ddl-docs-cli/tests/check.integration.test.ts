@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from 'vitest';
 import { checkDocs, runCheckDocs } from '../src/commands/check';
+import { buildReviewPlan } from '../src/commands/reviewPlan';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const tmpRoot = path.join(repoRoot, 'tmp');
@@ -760,4 +761,208 @@ test('check fails when order metadata does not cover discovered DDL files', () =
   });
 
   expect(result.errors.map((issue) => issue.code)).toContain('ORDER_UNTRACKED_DDL_FILE');
+});
+
+test('check validates scope rules and relationship scope references', () => {
+  const work = createTempDir('ddl-docs-check-scope-rules');
+  const ddlDir = path.join(work, 'ddl');
+  const scopeRulesPath = path.join(work, 'docs', 'scope', 'scope-rules.json');
+  const relationshipPath = path.join(ddlDir, 'relationship.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(scopeRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    scopeRules: [
+      { id: 'db-centered-transfer', kind: 'global-invariant', statement: 'DB centered.' },
+      { id: 'dirty-key-intake-only', kind: 'ownership-boundary', statement: 'Dirty Key intake only.' },
+    ],
+  }, null, 2));
+  writeText(relationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    relationships: [
+      {
+        path: 'accounts.sql',
+        kind: 'table-ddl',
+        scopeRules: [{ id: 'dirty-key-intake-only' }],
+      },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    relationshipPath,
+    scopeRulesPath,
+  });
+
+  expect(result.errors).toHaveLength(0);
+});
+
+test('check reports invalid scope rule metadata', () => {
+  const work = createTempDir('ddl-docs-check-invalid-scope-rules');
+  const ddlDir = path.join(work, 'ddl');
+  const scopeRulesPath = path.join(work, 'docs', 'scope', 'scope-rules.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(scopeRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    scopeRules: [
+      { id: 'duplicate', kind: 'global-invariant', statement: 'A.' },
+      { id: 'duplicate', kind: 'global-invariant', statement: 'B.' },
+      { id: 'unknown-kind', kind: 'not-a-kind', statement: 'C.' },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    scopeRulesPath,
+  });
+
+  expect(result.errors.map((issue) => issue.code)).toContain('SCOPE_RULE_DUPLICATE_ID');
+  expect(result.errors.map((issue) => issue.code)).toContain('SCOPE_RULE_UNKNOWN_KIND');
+});
+
+test('check fails when relationship metadata references an unknown scope rule', () => {
+  const work = createTempDir('ddl-docs-check-unknown-scope-rule');
+  const ddlDir = path.join(work, 'ddl');
+  const scopeRulesPath = path.join(work, 'docs', 'scope', 'scope-rules.json');
+  const relationshipPath = path.join(ddlDir, 'relationship.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(scopeRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    scopeRules: [
+      { id: 'db-centered-transfer', kind: 'global-invariant', statement: 'DB centered.' },
+    ],
+  }, null, 2));
+  writeText(relationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    relationships: [
+      {
+        path: 'accounts.sql',
+        kind: 'table-ddl',
+        scopeRules: [{ id: 'missing-scope-rule' }],
+      },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    relationshipPath,
+    scopeRulesPath,
+  });
+
+  expect(result.errors.map((issue) => issue.code)).toContain('RELATIONSHIP_UNKNOWN_SCOPE_RULE');
+});
+
+test('review-plan resolves DDL required reads from relationship metadata', () => {
+  const work = createTempDir('ddl-docs-review-plan');
+  const ddlDir = path.join(work, 'ddl');
+  const conceptsDir = path.join(work, 'docs', 'concepts');
+  const processesDir = path.join(work, 'docs', 'processes');
+  const scopeDir = path.join(work, 'docs', 'scope');
+  const changedFilesPath = path.join(work, 'changed-files.txt');
+  const relationshipPath = path.join(ddlDir, 'relationship.json');
+  const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+  const scopeRulesPath = path.join(scopeDir, 'scope-rules.json');
+  const scopeDocPath = path.join(scopeDir, 'SYSTEM_SCOPE.md');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
+  writeText(path.join(processesDir, 'account-process.md'), '# Account Process\n');
+  writeText(scopeDocPath, '# Scope\n');
+  writeText(changedFilesPath, `${path.join(ddlDir, 'accounts.sql')}\n`);
+  writeText(scopeRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    scopeRules: [
+      { id: 'db-centered-transfer', kind: 'global-invariant', statement: 'DB centered.', reviewRisk: 'architecture-boundary' },
+      { id: 'human-owned-logical-model', kind: 'review-policy', statement: 'Human-owned.' },
+      { id: 'generated-docs-not-source', kind: 'global-invariant', statement: 'Generated docs are views.' },
+      { id: 'account-scope', kind: 'ownership-boundary', statement: 'Account scope.', reviewRisk: 'ownership-boundary' },
+    ],
+  }, null, 2));
+  writeText(relationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    relationships: [
+      {
+        path: 'accounts.sql',
+        kind: 'table-ddl',
+        scopeRules: [{ id: 'account-scope' }],
+        concepts: [{ path: '../docs/concepts/account/SPEC.md' }],
+        processes: [{ path: '../docs/processes/account-process.md' }],
+      },
+    ],
+  }, null, 2));
+  writeText(conceptRelationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    concepts: [{ id: 'account', path: 'account/SPEC.md', status: 'defined' }],
+  }, null, 2));
+  writeText(path.join(processesDir, 'process-map.json'), JSON.stringify({
+    schemaVersion: 1,
+    processMaps: [{ id: 'account-process', path: 'account-process.md' }],
+  }, null, 2));
+
+  const plan = buildReviewPlan({
+    changedFilesPath,
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    relationshipPath,
+    conceptRelationshipPath,
+    processDirectories: [processesDir],
+    scopeRulesPath,
+    scopeDocPath,
+  });
+
+  expect(plan.mandatoryScope.files).toContain(scopeDocPath);
+  expect(plan.mandatoryScope.rules.map((rule) => rule.id)).toEqual([
+    'db-centered-transfer',
+    'human-owned-logical-model',
+    'generated-docs-not-source',
+  ]);
+  expect(plan.changedFiles[0]?.requiredReads.scopeRules).toEqual(['account-scope']);
+  expect(plan.changedFiles[0]?.requiredReads.concepts).toEqual(['account']);
+  expect(plan.changedFiles[0]?.requiredReads.processes).toEqual(['account-process']);
+  expect(plan.changedFiles[0]?.reviewRisks).toEqual(['ownership-boundary']);
+});
+
+test('review-plan reports unmapped DDL and classifies generated docs as review views', () => {
+  const work = createTempDir('ddl-docs-review-plan-unmapped');
+  const ddlDir = path.join(work, 'ddl');
+  const scopeDir = path.join(work, 'docs', 'scope');
+  const changedFilesPath = path.join(work, 'changed-files.txt');
+  const scopeRulesPath = path.join(scopeDir, 'scope-rules.json');
+  const scopeDocPath = path.join(scopeDir, 'SYSTEM_SCOPE.md');
+
+  writeText(path.join(ddlDir, 'unmapped.sql'), 'CREATE TABLE public.unmapped (id bigint PRIMARY KEY);');
+  writeText(scopeDocPath, '# Scope\n');
+  const unmappedDdlPath = path.join(ddlDir, 'unmapped.sql');
+  writeText(changedFilesPath, [
+    unmappedDdlPath,
+    'docs/concepts/account.md',
+  ].join('\n'));
+  writeText(scopeRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    scopeRules: [
+      { id: 'db-centered-transfer', kind: 'global-invariant', statement: 'DB centered.' },
+      { id: 'human-owned-logical-model', kind: 'review-policy', statement: 'Human-owned.' },
+      { id: 'generated-docs-not-source', kind: 'global-invariant', statement: 'Generated docs are views.' },
+    ],
+  }, null, 2));
+
+  const plan = buildReviewPlan({
+    changedFilesPath,
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    scopeRulesPath,
+    scopeDocPath,
+  });
+
+  expect(plan.unmappedArtifacts.map((entry) => entry.path)).toContain(unmappedDdlPath.replace(/\\/g, '/'));
+  expect(plan.changedFiles.find((entry) => entry.path === 'docs/concepts/account.md')?.reviewClass).toBe('generated-review-view');
 });
