@@ -394,10 +394,15 @@ The intended layering is:
 | Process Map | check whether complex use cases can be expressed from approved concepts |
 | RFBA | expose the implementation surfaces humans should review |
 | ztd-cli / ZTD / tests | provide scaffold, generated artifacts, drift checks, and executable verification |
+| review-plan | provide deterministic review inputs from changed files, relationship metadata, Package Scope, and Test Policy |
 | agent workflow skills | guide planning, TDD, verification, review, branch work, and subagent execution |
 
 Agent workflow skills are useful after the concept and process context is known.
 For example, they may enforce verification before completion, help split implementation tasks, or structure review checkpoints.
+
+When a `review-plan` is available, review skills should treat it as the read-order harness instead of rediscovering related context by inference.
+The review should load Package Scope, Package Test Policy, changed-file required reads, relationship metadata, and then the changed artifact itself.
+If `review-plan` reports unresolved links or unmapped business-bearing artifacts, the review should surface those metadata gaps rather than guessing the missing relationships.
 
 They should not generate authoritative concept prose, promote draft concepts, reorganize Concept Spec layout, or decide concept ownership.
 If a workflow skill discovers an unclear concept boundary, it should report the ambiguity and route the work back to Concept Spec or Process Map review.
