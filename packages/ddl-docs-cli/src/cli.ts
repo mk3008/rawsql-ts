@@ -280,6 +280,7 @@ function parseCheckOptions(args: string[]): CheckDocsOptions | null {
     conceptRelationshipPath: undefined,
     dfdRelationshipPath: undefined,
     scopeRulesPath: undefined,
+    testRulesPath: undefined,
     processDirectories: [],
     configPath: undefined,
     defaultSchema: undefined,
@@ -351,6 +352,11 @@ function parseCheckOptions(args: string[]): CheckDocsOptions | null {
       continue;
     }
 
+    if (arg === '--test-rules') {
+      options.testRulesPath = readRequiredValue(args, ++index, '--test-rules');
+      continue;
+    }
+
     if (arg === '--process-dir') {
       options.processDirectories?.push(readRequiredValue(args, ++index, '--process-dir'));
       continue;
@@ -401,6 +407,8 @@ function parseReviewPlanOptions(args: string[]): ReviewPlanOptions | null {
     processDirectories: [],
     scopeRulesPath: undefined,
     scopeDocPath: undefined,
+    testRulesPath: undefined,
+    testPolicyPath: undefined,
     outPath: undefined,
     packageName: undefined,
   };
@@ -448,6 +456,14 @@ function parseReviewPlanOptions(args: string[]): ReviewPlanOptions | null {
     }
     if (arg === '--scope-doc') {
       options.scopeDocPath = readRequiredValue(args, ++index, '--scope-doc');
+      continue;
+    }
+    if (arg === '--test-rules') {
+      options.testRulesPath = readRequiredValue(args, ++index, '--test-rules');
+      continue;
+    }
+    if (arg === '--test-policy') {
+      options.testPolicyPath = readRequiredValue(args, ++index, '--test-policy');
       continue;
     }
     if (arg === '--package') {
@@ -589,6 +605,7 @@ function printHelp(target: 'all' | 'generate' | 'prune' | 'check' | 'concept-sit
   --concept-relationship <path>  Optional concept relationship registry json
   --dfd-relationship <path>      Optional DFD relationship metadata json
   --scope-rules <path>           Optional package scope rules metadata json
+  --test-rules <path>            Optional package verification/test rules metadata json
   --process-dir <directory>      Optional Process Map directory for logical-model checks (repeatable)
   --default-schema <name>        Override default schema for unqualified tables
   --search-path <list>           Comma-separated schema search path
@@ -611,6 +628,8 @@ function printHelp(target: 'all' | 'generate' | 'prune' | 'check' | 'concept-sit
   --process-dir <directory>      Optional Process Map directory (repeatable)
   --scope-rules <path>           Optional package scope rules metadata json
   --scope-doc <path>             Optional package scope markdown source
+  --test-rules <path>            Optional package verification/test rules metadata json
+  --test-policy <path>           Optional package verification/test policy markdown source
   --package <name>               Package name for the review plan
   --out <path>                   Write JSON output to file instead of stdout
 `;

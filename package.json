@@ -50,7 +50,7 @@
     "verify:customer-consumers": "node scripts/verify-published-package-mode.mjs",
     "verify:published-package-mode": "node scripts/verify-published-package-mode.mjs",
     "verify:generated-project-mode": "node scripts/verify-generated-project-mode.mjs",
-    "verify:transfer-ddl-metadata": "pnpm --filter @rawsql-ts/ddl-docs-cli run build && node packages/ddl-docs-cli/dist/src/index.js check --ddl-dir packages/transfer/db/ddl --table-docs packages/transfer/db/ddl/table-docs.json --relationship packages/transfer/db/ddl/relationship.json --order packages/transfer/db/ddl/order.json --concept-relationship packages/transfer/docs/concepts/concept-relationship.json --dfd-relationship packages/transfer/docs/dfd/relationship.json --scope-rules packages/transfer/docs/scope/scope-rules.json --process-dir packages/transfer/docs/processes --default-schema rawsql_transfer",
+    "verify:transfer-ddl-metadata": "pnpm --filter @rawsql-ts/ddl-docs-cli run build && node packages/ddl-docs-cli/dist/src/index.js check --ddl-dir packages/transfer/db/ddl --table-docs packages/transfer/db/ddl/table-docs.json --relationship packages/transfer/db/ddl/relationship.json --order packages/transfer/db/ddl/order.json --concept-relationship packages/transfer/docs/concepts/concept-relationship.json --dfd-relationship packages/transfer/docs/dfd/relationship.json --scope-rules packages/transfer/docs/scope/scope-rules.json --test-rules packages/transfer/docs/testing/test-rules.json --process-dir packages/transfer/docs/processes --default-schema rawsql_transfer",
     "verify:transfer-docs": "pnpm verify:transfer-ddl-metadata && pnpm docs:transfer && pnpm verify:transfer-ddl-metadata && node scripts/verify-transfer-docs-drift.mjs"
   },
   "keywords": [
