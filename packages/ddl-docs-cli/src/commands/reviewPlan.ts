@@ -29,6 +29,25 @@ type ArtifactKind =
   | 'workflow'
   | 'unknown';
 
+const ARTIFACT_KINDS = new Set<ArtifactKind>([
+  'ddl',
+  'table-docs-metadata',
+  'ddl-relationship-metadata',
+  'concept-spec',
+  'concept-relationship-metadata',
+  'dfd',
+  'dfd-relationship-metadata',
+  'process-map',
+  'scope-spec',
+  'scope-rules',
+  'test-policy',
+  'test-rules',
+  'generated-doc',
+  'script',
+  'workflow',
+  'unknown',
+]);
+
 type ReviewClass =
   | 'business-bearing'
   | 'metadata'
@@ -682,10 +701,14 @@ function isTestRulesMetadata(value: unknown): value is TestRulesMetadata {
         && typeof entry.statement === 'string'
         && (entry.appliesTo === undefined || (
           Array.isArray(entry.appliesTo)
-          && entry.appliesTo.every((kind) => typeof kind === 'string')
+          && entry.appliesTo.every(isArtifactKind)
         ))
         && (entry.reviewRisk === undefined || typeof entry.reviewRisk === 'string')
     );
+}
+
+function isArtifactKind(value: unknown): value is ArtifactKind {
+  return typeof value === 'string' && ARTIFACT_KINDS.has(value as ArtifactKind);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1024,6 +1024,34 @@ test('review-plan resolves DDL required reads from relationship metadata', () =>
   ]);
 });
 
+test('review-plan rejects unknown test policy artifact kinds', () => {
+  const work = createTempDir('ddl-docs-review-plan-invalid-test-rules');
+  const ddlDir = path.join(work, 'ddl');
+  const testingDir = path.join(work, 'docs', 'testing');
+  const changedFilesPath = path.join(work, 'changed-files.txt');
+  const testRulesPath = path.join(testingDir, 'test-rules.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(changedFilesPath, `${path.join(ddlDir, 'accounts.sql')}\n`);
+  writeText(testRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    testPolicies: [
+      {
+        id: 'bad-applies-to',
+        kind: 'verification-policy',
+        statement: 'This policy should not load.',
+        appliesTo: ['not-an-artifact'],
+      },
+    ],
+  }, null, 2));
+
+  expect(() => buildReviewPlan({
+    changedFilesPath,
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    testRulesPath,
+  })).toThrow(/test-rules metadata must have schemaVersion: 1 and testPolicies\[\]/u);
+});
+
 test('review-plan reports unmapped DDL and classifies generated docs as review views', () => {
   const work = createTempDir('ddl-docs-review-plan-unmapped');
   const ddlDir = path.join(work, 'ddl');
