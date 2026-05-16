@@ -68,7 +68,7 @@ jobs:
 
     - name: Test generated mapper scaffold and drift commands
       if: matrix.node-version == '20.x'
-      run: pnpm --filter @rawsql-ts/ztd-cli test -- featureScaffold.unit.test.ts cliCommands.test.ts
+      run: pnpm --filter @rawsql-ts/ztd-cli run test:generated-mapper
 
   customer-consumer-guard:
     runs-on: ${{ matrix.os }}

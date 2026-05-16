@@ -65,6 +65,30 @@ function copyScopeDoc() {
   );
 }
 
+function copyTestingDoc() {
+  const sourcePath = path.join(workspaceRoot, "packages", "transfer", "docs", "testing", "TEST_POLICY.md");
+  const targetDir = path.join(workspaceRoot, "docs", "testing");
+  const targetPath = path.join(targetDir, "index.md");
+  removeDir(targetDir);
+  fs.mkdirSync(assertInsideWorkspace(targetDir), { recursive: true });
+  const body = fs.readFileSync(assertInsideWorkspace(sourcePath), "utf8");
+  fs.writeFileSync(
+    assertInsideWorkspace(targetPath),
+    [
+      "<!-- generated-by: transfer-docs -->",
+      "",
+      body.trimEnd(),
+      "",
+      "## Source",
+      "",
+      "- `packages/transfer/docs/testing/TEST_POLICY.md`",
+      "- `packages/transfer/docs/testing/test-rules.json`",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+}
+
 function writeProductReviewReport() {
   const ddlReviewPath = path.join(workspaceRoot, "docs", "rawsql-transfer", "review.md");
   const productReviewPath = path.join(workspaceRoot, "docs", "review.md");
@@ -154,6 +178,7 @@ for (const dir of generatedSiteDirs) {
   copyDir(path.join(tempConceptSiteDir, dir), path.join(workspaceRoot, "docs", dir));
 }
 copyScopeDoc();
+copyTestingDoc();
 
 removeDir(path.join(workspaceRoot, "docs", "rawsql-transfer"));
 run([

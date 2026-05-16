@@ -22,10 +22,31 @@ type ArtifactKind =
   | 'process-map'
   | 'scope-spec'
   | 'scope-rules'
+  | 'test-policy'
+  | 'test-rules'
   | 'generated-doc'
   | 'script'
   | 'workflow'
   | 'unknown';
+
+const ARTIFACT_KINDS = new Set<ArtifactKind>([
+  'ddl',
+  'table-docs-metadata',
+  'ddl-relationship-metadata',
+  'concept-spec',
+  'concept-relationship-metadata',
+  'dfd',
+  'dfd-relationship-metadata',
+  'process-map',
+  'scope-spec',
+  'scope-rules',
+  'test-policy',
+  'test-rules',
+  'generated-doc',
+  'script',
+  'workflow',
+  'unknown',
+]);
 
 type ReviewClass =
   | 'business-bearing'
@@ -40,10 +61,23 @@ interface ScopeRulesMetadata {
   scopeRules: ScopeRuleEntry[];
 }
 
+interface TestRulesMetadata {
+  schemaVersion: 1;
+  testPolicies: TestPolicyEntry[];
+}
+
 interface ScopeRuleEntry {
   id: string;
   kind: string;
   statement: string;
+  reviewRisk?: string;
+}
+
+interface TestPolicyEntry {
+  id: string;
+  kind: string;
+  statement: string;
+  appliesTo?: ArtifactKind[];
   reviewRisk?: string;
 }
 
@@ -67,6 +101,7 @@ interface RequiredReads {
   dfds: string[];
   processes: string[];
   ddlRelationships: string[];
+  testPolicies: string[];
 }
 
 interface ChangedFileReviewPlan {
@@ -85,6 +120,10 @@ interface ReviewPlan {
   mandatoryScope: {
     files: string[];
     rules: Array<{ id: string; reason: string }>;
+  };
+  mandatoryVerification?: {
+    files: string[];
+    policies: Array<{ id: string; reason: string }>;
   };
   changedFiles: ChangedFileReviewPlan[];
   unmappedArtifacts: ChangedFileReviewPlan[];
@@ -109,6 +148,17 @@ const MANDATORY_SCOPE_RULES = [
   },
 ] as const;
 
+const MANDATORY_TEST_POLICIES = [
+  {
+    id: 'db-backed-contract-verification',
+    reason: 'Business-bearing transfer changes should be reviewed against the DB-backed contract verification strategy.',
+  },
+  {
+    id: 'no-hot-path-runtime-validation',
+    reason: 'Mapper safety is shifted left to queryspec contracts, generated mapper checks, and DB-backed tests.',
+  },
+] as const;
+
 export function runReviewPlan(options: ReviewPlanOptions): ReviewPlan {
   const plan = buildReviewPlan(options);
   const json = `${JSON.stringify(plan, null, 2)}\n`;
@@ -127,6 +177,7 @@ export function buildReviewPlan(options: ReviewPlanOptions): ReviewPlan {
   const dfdRegistry = loadDfdRegistry(options.dfdRelationshipPath);
   const processRegistry = loadProcessRegistry(options.processDirectories ?? []);
   const scopeRules = loadScopeRules(options.scopeRulesPath);
+  const testPolicies = loadTestPolicies(options.testRulesPath);
 
   const changedFilePlans = changedFiles.map((changedFile) =>
     buildChangedFilePlan(changedFile, {
@@ -136,6 +187,7 @@ export function buildReviewPlan(options: ReviewPlanOptions): ReviewPlan {
       dfdRegistry,
       processRegistry,
       scopeRules,
+      testPolicies,
     })
   );
 
@@ -146,6 +198,12 @@ export function buildReviewPlan(options: ReviewPlanOptions): ReviewPlan {
       files: [options.scopeDocPath, options.scopeRulesPath].filter((entry): entry is string => Boolean(entry)),
       rules: MANDATORY_SCOPE_RULES.filter((rule) => scopeRules.has(rule.id)),
     },
+    ...(options.testPolicyPath || options.testRulesPath ? {
+      mandatoryVerification: {
+        files: [options.testPolicyPath, options.testRulesPath].filter((entry): entry is string => Boolean(entry)),
+        policies: MANDATORY_TEST_POLICIES.filter((policy) => testPolicies.has(policy.id)),
+      },
+    } : {}),
     changedFiles: changedFilePlans,
     unmappedArtifacts: changedFilePlans.filter((entry) =>
       entry.reviewRisks.includes('unmapped-business-artifact')
@@ -156,6 +214,8 @@ export function buildReviewPlan(options: ReviewPlanOptions): ReviewPlan {
     reviewCoverage: [
       ...(options.scopeDocPath ? [{ artifact: options.scopeDocPath, status: 'unknown' as const }] : []),
       ...(options.scopeRulesPath ? [{ artifact: options.scopeRulesPath, status: 'unknown' as const }] : []),
+      ...(options.testPolicyPath ? [{ artifact: options.testPolicyPath, status: 'unknown' as const }] : []),
+      ...(options.testRulesPath ? [{ artifact: options.testRulesPath, status: 'unknown' as const }] : []),
     ],
   };
 }
@@ -169,6 +229,7 @@ function buildChangedFilePlan(
     dfdRegistry: DfdRegistry | undefined;
     processRegistry: ProcessRegistry;
     scopeRules: Map<string, ScopeRuleEntry>;
+    testPolicies: Map<string, TestPolicyEntry>;
   }
 ): ChangedFileReviewPlan {
   const normalizedPath = normalizeRelativePath(changedFile);
@@ -191,6 +252,17 @@ function buildChangedFilePlan(
     basePlan.reviewRisks.push('package-scope-impact');
     return basePlan;
   }
+
+  if (artifactKind === 'test-policy' || artifactKind === 'test-rules') {
+    basePlan.packageWideImpact = true;
+    basePlan.requiredReads.testPolicies = MANDATORY_TEST_POLICIES
+      .filter((policy) => context.testPolicies.has(policy.id))
+      .map((policy) => policy.id);
+    basePlan.reviewRisks.push('package-verification-policy-impact');
+    return basePlan;
+  }
+
+  basePlan.requiredReads.testPolicies = resolveTestPoliciesForArtifact(artifactKind, context.testPolicies);
 
   if (artifactKind === 'ddl') {
     applyDdlRelationship(basePlan, context);
@@ -404,6 +476,31 @@ function loadScopeRules(scopeRulesPath: string | undefined): Map<string, ScopeRu
   return new Map(raw.scopeRules.map((entry) => [entry.id, entry]));
 }
 
+function loadTestPolicies(testRulesPath: string | undefined): Map<string, TestPolicyEntry> {
+  if (!testRulesPath) {
+    return new Map();
+  }
+  const resolvedPath = path.resolve(process.cwd(), testRulesPath);
+  const raw = JSON.parse(readFileSync(resolvedPath, 'utf8')) as unknown;
+  if (!isTestRulesMetadata(raw)) {
+    throw new Error(`test-rules metadata must have schemaVersion: 1 and testPolicies[]: ${resolvedPath}`);
+  }
+  return new Map(raw.testPolicies.map((entry) => [entry.id, entry]));
+}
+
+function resolveTestPoliciesForArtifact(
+  artifactKind: ArtifactKind,
+  testPolicies: Map<string, TestPolicyEntry>
+): string[] {
+  const result: string[] = [];
+  for (const policy of testPolicies.values()) {
+    if (policy.appliesTo?.includes(artifactKind)) {
+      result.push(policy.id);
+    }
+  }
+  return result.sort();
+}
+
 function loadProcessRegistry(processDirectories: string[]): ProcessRegistry {
   const processes: ProcessRegistryEntry[] = [];
   for (const directory of processDirectories) {
@@ -432,6 +529,12 @@ function classifyArtifactKind(changedFile: string, options: ReviewPlanOptions): 
   }
   if (options.scopeRulesPath && samePath(changedFile, options.scopeRulesPath)) {
     return 'scope-rules';
+  }
+  if (options.testPolicyPath && samePath(changedFile, options.testPolicyPath)) {
+    return 'test-policy';
+  }
+  if (options.testRulesPath && samePath(changedFile, options.testRulesPath)) {
+    return 'test-rules';
   }
   if (options.relationshipPath && samePath(changedFile, options.relationshipPath)) {
     return 'ddl-relationship-metadata';
@@ -473,7 +576,7 @@ function classifyReviewClass(kind: ArtifactKind): ReviewClass {
   if (kind === 'generated-doc') {
     return 'generated-review-view';
   }
-  if (kind.endsWith('-metadata') || kind === 'scope-rules') {
+  if (kind.endsWith('-metadata') || kind === 'scope-rules' || kind === 'test-rules') {
     return 'metadata';
   }
   if (kind === 'script') {
@@ -482,7 +585,7 @@ function classifyReviewClass(kind: ArtifactKind): ReviewClass {
   if (kind === 'workflow') {
     return 'workflow-support';
   }
-  if (kind === 'ddl' || kind === 'concept-spec' || kind === 'dfd' || kind === 'process-map' || kind === 'scope-spec') {
+  if (kind === 'ddl' || kind === 'concept-spec' || kind === 'dfd' || kind === 'process-map' || kind === 'scope-spec' || kind === 'test-policy') {
     return 'business-bearing';
   }
   return 'unknown';
@@ -558,6 +661,7 @@ function emptyRequiredReads(): RequiredReads {
     dfds: [],
     processes: [],
     ddlRelationships: [],
+    testPolicies: [],
   };
 }
 
@@ -584,6 +688,27 @@ function isScopeRulesMetadata(value: unknown): value is ScopeRulesMetadata {
         && typeof entry.statement === 'string'
         && (entry.reviewRisk === undefined || typeof entry.reviewRisk === 'string')
     );
+}
+
+function isTestRulesMetadata(value: unknown): value is TestRulesMetadata {
+  return isRecord(value)
+    && value.schemaVersion === 1
+    && Array.isArray(value.testPolicies)
+    && value.testPolicies.every((entry) =>
+      isRecord(entry)
+        && typeof entry.id === 'string'
+        && typeof entry.kind === 'string'
+        && typeof entry.statement === 'string'
+        && (entry.appliesTo === undefined || (
+          Array.isArray(entry.appliesTo)
+          && entry.appliesTo.every(isArtifactKind)
+        ))
+        && (entry.reviewRisk === undefined || typeof entry.reviewRisk === 'string')
+    );
+}
+
+function isArtifactKind(value: unknown): value is ArtifactKind {
+  return typeof value === 'string' && ARTIFACT_KINDS.has(value as ArtifactKind);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

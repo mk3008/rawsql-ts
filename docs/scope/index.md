@@ -77,6 +77,8 @@
 
 `scope-rules.json` は、この文書の境界をAIとCLIが参照しやすくするための機械可読review indexである。仕様本文の代替ではない。
 
+検証方針は `docs/testing/TEST_POLICY.md` に置く。Scope Spec は package の所有境界を定義し、Test Policy はその境界内の変更をどの観点で検証するかを定義する。
+
 ## Source
 
 - `packages/transfer/docs/scope/SYSTEM_SCOPE.md`

@@ -863,6 +863,66 @@ test('check fails when relationship metadata references an unknown scope rule', 
   expect(result.errors.map((issue) => issue.code)).toContain('RELATIONSHIP_UNKNOWN_SCOPE_RULE');
 });
 
+test('check validates package test policy metadata', () => {
+  const work = createTempDir('ddl-docs-check-test-rules');
+  const ddlDir = path.join(work, 'ddl');
+  const testRulesPath = path.join(work, 'docs', 'testing', 'test-rules.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(testRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    testPolicies: [
+      {
+        id: 'db-backed-contract-verification',
+        kind: 'verification-policy',
+        statement: 'Use DB-backed contract tests.',
+        appliesTo: ['ddl'],
+      },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    testRulesPath,
+  });
+
+  expect(result.errors).toHaveLength(0);
+});
+
+test('check reports invalid package test policy metadata', () => {
+  const work = createTempDir('ddl-docs-check-invalid-test-rules');
+  const ddlDir = path.join(work, 'ddl');
+  const testRulesPath = path.join(work, 'docs', 'testing', 'test-rules.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(testRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    testPolicies: [
+      { id: 'duplicate', kind: 'verification-policy', statement: 'A.' },
+      { id: 'duplicate', kind: 'verification-policy', statement: 'B.' },
+      { id: 'unknown-kind', kind: 'not-a-kind', statement: 'C.' },
+      { id: 'empty-statement', kind: 'verification-policy', statement: '' },
+      { id: 'unknown-artifact', kind: 'verification-policy', statement: 'D.', appliesTo: ['not-an-artifact'] },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    testRulesPath,
+  });
+
+  expect(result.errors.map((issue) => issue.code)).toContain('TEST_POLICY_DUPLICATE_ID');
+  expect(result.errors.map((issue) => issue.code)).toContain('TEST_POLICY_UNKNOWN_KIND');
+  expect(result.errors.map((issue) => issue.code)).toContain('TEST_POLICY_EMPTY_STATEMENT');
+  expect(result.errors.map((issue) => issue.code)).toContain('TEST_POLICY_UNKNOWN_ARTIFACT_KIND');
+});
+
 test('review-plan resolves DDL required reads from relationship metadata', () => {
   const work = createTempDir('ddl-docs-review-plan');
   const ddlDir = path.join(work, 'ddl');
@@ -874,11 +934,15 @@ test('review-plan resolves DDL required reads from relationship metadata', () =>
   const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
   const scopeRulesPath = path.join(scopeDir, 'scope-rules.json');
   const scopeDocPath = path.join(scopeDir, 'SYSTEM_SCOPE.md');
+  const testingDir = path.join(work, 'docs', 'testing');
+  const testRulesPath = path.join(testingDir, 'test-rules.json');
+  const testPolicyPath = path.join(testingDir, 'TEST_POLICY.md');
 
   writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
   writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
   writeText(path.join(processesDir, 'account-process.md'), '# Account Process\n');
   writeText(scopeDocPath, '# Scope\n');
+  writeText(testPolicyPath, '# Test Policy\n');
   writeText(changedFilesPath, `${path.join(ddlDir, 'accounts.sql')}\n`);
   writeText(scopeRulesPath, JSON.stringify({
     schemaVersion: 1,
@@ -909,6 +973,23 @@ test('review-plan resolves DDL required reads from relationship metadata', () =>
     schemaVersion: 1,
     processMaps: [{ id: 'account-process', path: 'account-process.md' }],
   }, null, 2));
+  writeText(testRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    testPolicies: [
+      {
+        id: 'db-backed-contract-verification',
+        kind: 'verification-policy',
+        statement: 'Use DB-backed contract tests.',
+        appliesTo: ['ddl'],
+      },
+      {
+        id: 'no-hot-path-runtime-validation',
+        kind: 'mapping-policy',
+        statement: 'Shift mapper verification left.',
+        appliesTo: ['ddl'],
+      },
+    ],
+  }, null, 2));
 
   const plan = buildReviewPlan({
     changedFilesPath,
@@ -918,6 +999,8 @@ test('review-plan resolves DDL required reads from relationship metadata', () =>
     processDirectories: [processesDir],
     scopeRulesPath,
     scopeDocPath,
+    testRulesPath,
+    testPolicyPath,
   });
 
   expect(plan.mandatoryScope.files).toContain(scopeDocPath);
@@ -929,7 +1012,44 @@ test('review-plan resolves DDL required reads from relationship metadata', () =>
   expect(plan.changedFiles[0]?.requiredReads.scopeRules).toEqual(['account-scope']);
   expect(plan.changedFiles[0]?.requiredReads.concepts).toEqual(['account']);
   expect(plan.changedFiles[0]?.requiredReads.processes).toEqual(['account-process']);
+  expect(plan.changedFiles[0]?.requiredReads.testPolicies).toEqual([
+    'db-backed-contract-verification',
+    'no-hot-path-runtime-validation',
+  ]);
   expect(plan.changedFiles[0]?.reviewRisks).toEqual(['ownership-boundary']);
+  expect(plan.mandatoryVerification?.files).toEqual([testPolicyPath, testRulesPath]);
+  expect(plan.mandatoryVerification?.policies.map((policy) => policy.id)).toEqual([
+    'db-backed-contract-verification',
+    'no-hot-path-runtime-validation',
+  ]);
+});
+
+test('review-plan rejects unknown test policy artifact kinds', () => {
+  const work = createTempDir('ddl-docs-review-plan-invalid-test-rules');
+  const ddlDir = path.join(work, 'ddl');
+  const testingDir = path.join(work, 'docs', 'testing');
+  const changedFilesPath = path.join(work, 'changed-files.txt');
+  const testRulesPath = path.join(testingDir, 'test-rules.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(changedFilesPath, `${path.join(ddlDir, 'accounts.sql')}\n`);
+  writeText(testRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    testPolicies: [
+      {
+        id: 'bad-applies-to',
+        kind: 'verification-policy',
+        statement: 'This policy should not load.',
+        appliesTo: ['not-an-artifact'],
+      },
+    ],
+  }, null, 2));
+
+  expect(() => buildReviewPlan({
+    changedFilesPath,
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    testRulesPath,
+  })).toThrow(/test-rules metadata must have schemaVersion: 1 and testPolicies\[\]/u);
 });
 
 test('review-plan reports unmapped DDL and classifies generated docs as review views', () => {
