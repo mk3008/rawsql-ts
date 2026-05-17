@@ -27,6 +27,8 @@ Start with Concepts, then DFDs, then Processes, and finally Table Definitions wh
 
 - [Scope](./scope/)
 - [Testing Policy](./testing/)
+- [Review Authority Model](./authority/)
+- [Technology Policy](./technology/)
 - [Concepts](./concepts/)
 - [DFDs](./dfd/)
 - [Roles](./roles/)

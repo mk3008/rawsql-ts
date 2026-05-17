@@ -104,6 +104,54 @@ function copyTestingDoc() {
   );
 }
 
+function copyAuthorityDoc() {
+  const sourcePath = path.join(workspaceRoot, "packages", "transfer", "docs", "review", "AUTHORITY_MODEL.md");
+  const targetDir = path.join(workspaceRoot, "docs", "authority");
+  const targetPath = path.join(targetDir, "index.md");
+  removeDir(targetDir);
+  fs.mkdirSync(assertInsideWorkspace(targetDir), { recursive: true });
+  const body = fs.readFileSync(assertInsideWorkspace(sourcePath), "utf8");
+  fs.writeFileSync(
+    assertInsideWorkspace(targetPath),
+    [
+      "<!-- generated-by: transfer-docs -->",
+      "",
+      body.trimEnd(),
+      "",
+      "## Source",
+      "",
+      "- `packages/transfer/docs/review/AUTHORITY_MODEL.md`",
+      "- `packages/transfer/docs/review/authority-rules.json`",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+}
+
+function copyTechnologyDoc() {
+  const sourcePath = path.join(workspaceRoot, "packages", "transfer", "docs", "technology", "TECHNOLOGY_POLICY.md");
+  const targetDir = path.join(workspaceRoot, "docs", "technology");
+  const targetPath = path.join(targetDir, "index.md");
+  removeDir(targetDir);
+  fs.mkdirSync(assertInsideWorkspace(targetDir), { recursive: true });
+  const body = fs.readFileSync(assertInsideWorkspace(sourcePath), "utf8");
+  fs.writeFileSync(
+    assertInsideWorkspace(targetPath),
+    [
+      "<!-- generated-by: transfer-docs -->",
+      "",
+      body.trimEnd(),
+      "",
+      "## Source",
+      "",
+      "- `packages/transfer/docs/technology/TECHNOLOGY_POLICY.md`",
+      "- `packages/transfer/docs/technology/tech-rules.json`",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+}
+
 function collectFilesRecursive(rootPath, extensions) {
   const resolvedRoot = assertInsideWorkspace(rootPath);
   if (!fs.existsSync(resolvedRoot)) {
@@ -140,6 +188,10 @@ function getTransferReviewSourcePaths() {
     "packages/transfer/docs/scope/scope-rules.json",
     "packages/transfer/docs/testing/TEST_POLICY.md",
     "packages/transfer/docs/testing/test-rules.json",
+    "packages/transfer/docs/review/AUTHORITY_MODEL.md",
+    "packages/transfer/docs/review/authority-rules.json",
+    "packages/transfer/docs/technology/TECHNOLOGY_POLICY.md",
+    "packages/transfer/docs/technology/tech-rules.json",
     "packages/transfer/docs/concepts/concept-relationship.json",
     ...collectFilesRecursive(path.join(workspaceRoot, "packages", "transfer", "docs", "concepts"), [".md"]),
     "packages/transfer/docs/dfd/relationship.json",
@@ -212,6 +264,14 @@ function runTransferReviewPlan() {
     "packages/transfer/docs/testing/test-rules.json",
     "--test-policy",
     "packages/transfer/docs/testing/TEST_POLICY.md",
+    "--authority-rules",
+    "packages/transfer/docs/review/authority-rules.json",
+    "--authority-model",
+    "packages/transfer/docs/review/AUTHORITY_MODEL.md",
+    "--technology-rules",
+    "packages/transfer/docs/technology/tech-rules.json",
+    "--technology-policy",
+    "packages/transfer/docs/technology/TECHNOLOGY_POLICY.md",
     "--package",
     "@rawsql-ts/transfer",
     "--out",
@@ -257,6 +317,8 @@ function renderReviewHarnessSummary(metadataCheck, reviewPlan) {
     "- Review-plan diagnostics: " + diagnostics.length,
     "- Mandatory scope rules: " + formatIdList(reviewPlan.mandatoryScope?.rules),
     "- Mandatory verification policies: " + formatIdList(reviewPlan.mandatoryVerification?.policies),
+    "- Mandatory authority rules: " + formatIdList(reviewPlan.mandatoryAuthority?.rules),
+    "- Mandatory technology rules: " + formatIdList(reviewPlan.mandatoryTechnology?.rules),
     "",
     "### Review-plan Diagnostics",
     "",
@@ -276,6 +338,10 @@ function renderReviewHarnessSummary(metadataCheck, reviewPlan) {
     "- Scope rules: `packages/transfer/docs/scope/scope-rules.json`",
     "- Test policy: `packages/transfer/docs/testing/TEST_POLICY.md`",
     "- Test rules: `packages/transfer/docs/testing/test-rules.json`",
+    "- Authority model: `packages/transfer/docs/review/AUTHORITY_MODEL.md`",
+    "- Authority rules: `packages/transfer/docs/review/authority-rules.json`",
+    "- Technology policy: `packages/transfer/docs/technology/TECHNOLOGY_POLICY.md`",
+    "- Technology rules: `packages/transfer/docs/technology/tech-rules.json`",
     "- Review plan snapshot: `tmp/transfer-review-plan.json`",
     "",
   ].join("\n");
@@ -374,6 +440,8 @@ for (const dir of generatedSiteDirs) {
 }
 copyScopeDoc();
 copyTestingDoc();
+copyAuthorityDoc();
+copyTechnologyDoc();
 
 const metadataCheck = runTransferMetadataCheck();
 const reviewPlan = runTransferReviewPlan();
