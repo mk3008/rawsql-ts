@@ -16,6 +16,7 @@ test('repo-local Codex guidance files exist and point at developer workflows', (
   expect(existsSync(resolve(repoRoot, '.codex', 'agents', 'reporting.md'))).toBe(true);
   expect(existsSync(resolve(repoRoot, '.agents', 'skills', 'acceptance-planning', 'SKILL.md'))).toBe(true);
   expect(existsSync(resolve(repoRoot, '.agents', 'skills', 'self-review', 'SKILL.md'))).toBe(true);
+  expect(existsSync(resolve(repoRoot, '.agents', 'skills', 'package-spec-review', 'SKILL.md'))).toBe(true);
   expect(existsSync(resolve(repoRoot, '.agents', 'skills', 'attainment-reporting', 'SKILL.md'))).toBe(true);
 });
 
@@ -42,6 +43,7 @@ test('planning guidance covers acceptance items and verification methods', () =>
 test('reporting guidance covers reviewer-facing and operator-facing reporting shape', () => {
   const reportingSkill = readText('.agents/skills/attainment-reporting/SKILL.md');
   const reviewSkill = readText('.agents/skills/self-review/SKILL.md');
+  const packageSpecSkill = readText('.agents/skills/package-spec-review/SKILL.md');
   const reportingAgent = readText('.codex/agents/reporting.md');
   const reviewAgent = readText('.codex/agents/review.md');
   const rootAgents = readText('AGENTS.md');
@@ -98,13 +100,19 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(reviewSkill).toContain('human acceptance review');
   expect(reviewSkill).toContain('`blocker`, `follow-up`, or `nit`');
   expect(reviewSkill).toContain('Run both review cycles before claiming readiness for human review.');
+  expect(packageSpecSkill).toContain('Package Review Authority Model');
+  expect(packageSpecSkill).toContain('Package Technology Policy');
+  expect(packageSpecSkill).toContain('technology-policy exception warnings');
+  expect(packageSpecSkill).toContain('Web UI as a transfer package front-facing surface');
   expect(reviewAgent).toContain('Review Cycle 1: Consistency Review');
   expect(reviewAgent).toContain('Review Cycle 2: Human Acceptance Review');
+  expect(reviewAgent).toContain('.agents/skills/package-spec-review/SKILL.md');
   expect(reviewAgent).toContain('Triage Rules');
   expect(reviewAgent).toContain('Unsupported `done` claims based mainly on supplementary evidence are blockers.');
   expect(reviewAgent).toContain('If a blocker remains, the result is not ready for human review.');
   expect(rootAgents).toContain('Keep assistant-user conversation in Japanese in this repository.');
   expect(rootAgents).toContain('Keep scaffold code, scaffold-facing docs, and published-package smoke checks aligned when they describe the same workflow.');
+  expect(rootAgents).toContain('.agents/skills/package-spec-review/SKILL.md');
   expect(rootAgents).toContain('Do not turn `AGENTS.md` into the storage location for starter walkthroughs, AI onboarding prompts, dogfooding playbooks, or investigation scripts; keep those in dedicated docs or skills.');
   expect(rootAgents).toContain('For local-source dogfooding or scaffold developer-mode flows, fail fast when dependencies or CLI entrypoints are missing and make the next recovery step explicit.');
   expect(rootAgents).toContain('Do not overwrite scaffold-owned or user-authored files without an explicit force path; failed initialization must not leave partial overwrites behind.');

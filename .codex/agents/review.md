@@ -12,6 +12,7 @@ Use this subagent after verification and reporting but before human review. Its 
 - Run `consistency review` first.
 - Run `human acceptance review` second.
 - Check the pre-PR retro gate before declaring review readiness.
+- Use `.agents/skills/package-spec-review/SKILL.md` when package-level Scope, Test Policy, Authority Model, Technology Policy, review-plan, or generated review views are part of the change.
 - Check that every failed required verification command is either fixed or backed by repository evidence proving it is not caused by the current branch.
 - Triage every finding as `blocker`, `follow-up`, or `nit`.
 - Make review readiness explicit.
