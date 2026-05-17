@@ -281,6 +281,8 @@ function parseCheckOptions(args: string[]): CheckDocsOptions | null {
     dfdRelationshipPath: undefined,
     scopeRulesPath: undefined,
     testRulesPath: undefined,
+    authorityRulesPath: undefined,
+    technologyRulesPath: undefined,
     processDirectories: [],
     configPath: undefined,
     defaultSchema: undefined,
@@ -354,6 +356,16 @@ function parseCheckOptions(args: string[]): CheckDocsOptions | null {
 
     if (arg === '--test-rules') {
       options.testRulesPath = readRequiredValue(args, ++index, '--test-rules');
+      continue;
+    }
+
+    if (arg === '--authority-rules') {
+      options.authorityRulesPath = readRequiredValue(args, ++index, '--authority-rules');
+      continue;
+    }
+
+    if (arg === '--technology-rules') {
+      options.technologyRulesPath = readRequiredValue(args, ++index, '--technology-rules');
       continue;
     }
 
@@ -626,6 +638,8 @@ function printHelp(target: 'all' | 'generate' | 'prune' | 'check' | 'concept-sit
   --dfd-relationship <path>      Optional DFD relationship metadata json
   --scope-rules <path>           Optional package scope rules metadata json
   --test-rules <path>            Optional package verification/test rules metadata json
+  --authority-rules <path>       Optional package review authority rules metadata json
+  --technology-rules <path>      Optional package technology rules metadata json
   --process-dir <directory>      Optional Process Map directory for logical-model checks (repeatable)
   --default-schema <name>        Override default schema for unqualified tables
   --search-path <list>           Comma-separated schema search path

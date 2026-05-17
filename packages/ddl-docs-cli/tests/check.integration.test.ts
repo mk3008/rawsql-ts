@@ -995,6 +995,189 @@ test('check rejects invalid package test metadata language policy', () => {
   expect(result.errors.map((issue) => issue.code)).toContain('TEST_RULES_SCHEMA_ERROR');
 });
 
+test('check validates package authority rule metadata', () => {
+  const work = createTempDir('ddl-docs-check-authority-rules');
+  const ddlDir = path.join(work, 'ddl');
+  const authorityRulesPath = path.join(work, 'docs', 'review', 'authority-rules.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(authorityRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    metadataLanguagePolicy: {
+      humanFacingLanguage: 'ja',
+      generatedViewLanguage: 'en',
+      policy: 'Human-authored authority review metadata follows the package documentation language.',
+    },
+    authorityRules: [
+      {
+        id: 'human-owned-requirements',
+        kind: 'requirements-authority',
+        statement: 'Humans own requirement-like sources.',
+        probes: ['Is this AI proposal treated as pending approval?'],
+      },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    authorityRulesPath,
+  });
+
+  expect(result.errors).toHaveLength(0);
+});
+
+test('check reports invalid package authority rule metadata', () => {
+  const work = createTempDir('ddl-docs-check-invalid-authority-rules');
+  const ddlDir = path.join(work, 'ddl');
+  const authorityRulesPath = path.join(work, 'docs', 'review', 'authority-rules.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(authorityRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    authorityRules: [
+      { id: 'duplicate', kind: 'requirements-authority', statement: 'A.' },
+      { id: 'duplicate', kind: 'requirements-authority', statement: 'B.' },
+      { id: 'unknown-kind', kind: 'not-a-kind', statement: 'C.' },
+      { id: 'empty-statement', kind: 'requirements-authority', statement: '' },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    authorityRulesPath,
+  });
+
+  expect(result.errors.map((issue) => issue.code)).toContain('AUTHORITY_RULE_DUPLICATE_ID');
+  expect(result.errors.map((issue) => issue.code)).toContain('AUTHORITY_RULE_UNKNOWN_KIND');
+  expect(result.errors.map((issue) => issue.code)).toContain('AUTHORITY_RULE_EMPTY_STATEMENT');
+});
+
+test('check rejects invalid package authority metadata language policy', () => {
+  const work = createTempDir('ddl-docs-check-invalid-authority-language-policy');
+  const ddlDir = path.join(work, 'ddl');
+  const authorityRulesPath = path.join(work, 'docs', 'review', 'authority-rules.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(authorityRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    metadataLanguagePolicy: {
+      humanFacingLanguage: '',
+      policy: 'Human-authored authority review metadata follows the package documentation language.',
+    },
+    authorityRules: [
+      { id: 'human-owned-requirements', kind: 'requirements-authority', statement: 'Humans own requirements.' },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    authorityRulesPath,
+  });
+
+  expect(result.errors.map((issue) => issue.code)).toContain('AUTHORITY_RULES_SCHEMA_ERROR');
+});
+
+test('check validates package technology rule metadata', () => {
+  const work = createTempDir('ddl-docs-check-technology-rules');
+  const ddlDir = path.join(work, 'ddl');
+  const technologyRulesPath = path.join(work, 'docs', 'technology', 'tech-rules.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(technologyRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    metadataLanguagePolicy: {
+      humanFacingLanguage: 'ja',
+      generatedViewLanguage: 'en',
+      policy: 'Human-authored technology metadata follows the package documentation language.',
+    },
+    technologyRules: [
+      {
+        id: 'postgres-primary-db',
+        kind: 'database-platform',
+        statement: 'Use PostgreSQL as the primary database.',
+        probes: ['Does this change assume a non-PostgreSQL primary database?'],
+      },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    technologyRulesPath,
+  });
+
+  expect(result.errors).toHaveLength(0);
+});
+
+test('check reports invalid package technology rule metadata', () => {
+  const work = createTempDir('ddl-docs-check-invalid-technology-rules');
+  const ddlDir = path.join(work, 'ddl');
+  const technologyRulesPath = path.join(work, 'docs', 'technology', 'tech-rules.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(technologyRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    technologyRules: [
+      { id: 'duplicate', kind: 'database-platform', statement: 'A.' },
+      { id: 'duplicate', kind: 'database-platform', statement: 'B.' },
+      { id: 'unknown-kind', kind: 'not-a-kind', statement: 'C.' },
+      { id: 'empty-statement', kind: 'database-platform', statement: '' },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    technologyRulesPath,
+  });
+
+  expect(result.errors.map((issue) => issue.code)).toContain('TECHNOLOGY_RULE_DUPLICATE_ID');
+  expect(result.errors.map((issue) => issue.code)).toContain('TECHNOLOGY_RULE_UNKNOWN_KIND');
+  expect(result.errors.map((issue) => issue.code)).toContain('TECHNOLOGY_RULE_EMPTY_STATEMENT');
+});
+
+test('check rejects invalid package technology metadata language policy', () => {
+  const work = createTempDir('ddl-docs-check-invalid-technology-language-policy');
+  const ddlDir = path.join(work, 'ddl');
+  const technologyRulesPath = path.join(work, 'docs', 'technology', 'tech-rules.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(technologyRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    metadataLanguagePolicy: {
+      humanFacingLanguage: 'ja',
+      generatedViewLanguage: '',
+      policy: 'Human-authored technology metadata follows the package documentation language.',
+    },
+    technologyRules: [
+      { id: 'postgres-primary-db', kind: 'database-platform', statement: 'Use PostgreSQL.' },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    technologyRulesPath,
+  });
+
+  expect(result.errors.map((issue) => issue.code)).toContain('TECHNOLOGY_RULES_SCHEMA_ERROR');
+});
+
 test('review-plan resolves DDL required reads from relationship metadata', () => {
   const work = createTempDir('ddl-docs-review-plan');
   const ddlDir = path.join(work, 'ddl');

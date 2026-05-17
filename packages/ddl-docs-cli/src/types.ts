@@ -44,6 +44,8 @@ export interface CheckDocsOptions {
   dfdRelationshipPath?: string;
   scopeRulesPath?: string;
   testRulesPath?: string;
+  authorityRulesPath?: string;
+  technologyRulesPath?: string;
   processDirectories?: string[];
   configPath?: string;
   defaultSchema?: string;

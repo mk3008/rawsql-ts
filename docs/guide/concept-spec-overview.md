@@ -392,17 +392,30 @@ The intended layering is:
 | DFD | show coarse business-operation data flow, timing, actors, inputs, outputs, and system boundaries |
 | DFD relationship metadata | compile DFD terms into a machine-checkable logical model |
 | Process Map | check whether complex use cases can be expressed from approved concepts |
+| Package Scope Spec | define the package ownership boundary, out-of-scope work, and package-wide invariants |
+| Package Test Policy | define the package verification strategy that review skills and PR checks must consider |
+| Package Review Authority Model | define which artifacts are human-owned requirements, AI-led review work, or CLI-owned review views |
+| Package Technology Policy | define package-level technology constraints and review-trigger exceptions |
 | RFBA | expose the implementation surfaces humans should review |
 | ztd-cli / ZTD / tests | provide scaffold, generated artifacts, drift checks, and executable verification |
-| review-plan | provide deterministic review inputs from changed files, relationship metadata, Package Scope, and Test Policy |
+| review-plan | provide deterministic review inputs from changed files, relationship metadata, Package Scope, Test Policy, Authority Model, and Technology Policy |
 | agent workflow skills | guide planning, TDD, verification, review, branch work, and subagent execution |
 
 Agent workflow skills are useful after the concept and process context is known.
 For example, they may enforce verification before completion, help split implementation tasks, or structure review checkpoints.
 
 When a `review-plan` is available, review skills should treat it as the read-order harness instead of rediscovering related context by inference.
-The review should load Package Scope, Package Test Policy, changed-file required reads, relationship metadata, and then the changed artifact itself.
+The review should load Package Scope, Package Test Policy, Package Review Authority Model, Package Technology Policy, changed-file required reads, relationship metadata, and then the changed artifact itself.
 If `review-plan` reports unresolved links or unmapped business-bearing artifacts, the review should surface those metadata gaps rather than guessing the missing relationships.
+
+Package Review Authority Model controls who may treat each review input as authoritative.
+Requirement-like Concept Specs, DFDs, Process Maps, Scope Specs, and human-stated issue requirements are human-owned.
+Review skills are AI-led review management and must keep their conclusions approval-oriented.
+Generated Review Reports, VitePress pages, metadata checks, and review-plan snapshots are CLI-owned review inputs, not source documents.
+
+Package Technology Policy is not a Concept Spec.
+It records implementation constraints such as database platform, SQL-first path, standard CLI surface, and review-trigger exceptions.
+Review skills should report technology-policy exceptions explicitly instead of changing concept/process meaning to fit implementation choices.
 
 They should not generate authoritative concept prose, promote draft concepts, reorganize Concept Spec layout, or decide concept ownership.
 If a workflow skill discovers an unclear concept boundary, it should report the ambiguity and route the work back to Concept Spec or Process Map review.
