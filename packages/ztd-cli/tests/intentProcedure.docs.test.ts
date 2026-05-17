@@ -29,7 +29,7 @@ test('root policy and mirror describe intent and procedure as causality', () => 
 
   expect(mirrorAgents).toContain('# Visible Policy Mirror');
   expect(mirrorAgents).toContain('Use `.codex/agents/planning.md`, `.codex/agents/verification.md`, `.codex/agents/review.md`, and `.codex/agents/reporting.md` for developer workflow support.');
-  expect(mirrorAgents).toContain('Use `.agents/skills/acceptance-planning/SKILL.md`, `.agents/skills/self-review/SKILL.md`, and `.agents/skills/attainment-reporting/SKILL.md` for repeatable planning, review, and reporting workflows.');
+  expect(mirrorAgents).toContain('Use `.agents/skills/acceptance-planning/SKILL.md`, `.agents/skills/self-review/SKILL.md`, `.agents/skills/package-spec-review/SKILL.md`, and `.agents/skills/attainment-reporting/SKILL.md` for repeatable planning, package spec review, review, and reporting workflows.');
 });
 
 test('README exposes the high-level intent and procedure entry point', () => {

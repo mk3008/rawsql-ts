@@ -139,6 +139,12 @@ interface ReviewPlanDiagnostic {
   message: string;
 }
 
+interface TechnologyExceptionSignal {
+  ruleId: string;
+  reviewRisk: string;
+  message: string;
+}
+
 interface RequiredReads {
   scopeRules: string[];
   concepts: string[];
@@ -353,6 +359,7 @@ function buildChangedFilePlan(
     reviewRisks: [],
     diagnostics: [],
   };
+  applyTechnologyExceptionSignals(basePlan, normalizedPath, context.technologyRules);
 
   if (artifactKind === 'scope-spec' || artifactKind === 'scope-rules') {
     basePlan.packageWideImpact = true;
@@ -425,6 +432,90 @@ function buildChangedFilePlan(
   }
 
   return basePlan;
+}
+
+function applyTechnologyExceptionSignals(
+  plan: ChangedFileReviewPlan,
+  normalizedPath: string,
+  technologyRules: Map<string, TechnologyRuleEntry>
+): void {
+  if (technologyRules.size === 0 || !isTransferPackagePath(normalizedPath)) {
+    return;
+  }
+
+  const body = readChangedFileBody(normalizedPath);
+  const signals = detectTechnologyExceptionSignals(normalizedPath, body);
+  for (const signal of signals) {
+    if (technologyRules.has(signal.ruleId) && !plan.requiredReads.technologyRules.includes(signal.ruleId)) {
+      plan.requiredReads.technologyRules.push(signal.ruleId);
+    }
+    if (!plan.reviewRisks.includes(signal.reviewRisk)) {
+      plan.reviewRisks.push(signal.reviewRisk);
+    }
+    if (!plan.diagnostics.some((diagnostic) => diagnostic.message === signal.message)) {
+      plan.diagnostics.push({
+        severity: 'warning',
+        message: signal.message,
+      });
+    }
+  }
+}
+
+function detectTechnologyExceptionSignals(normalizedPath: string, body: string | undefined): TechnologyExceptionSignal[] {
+  if (!body) {
+    return [];
+  }
+  const signals: TechnologyExceptionSignal[] = [];
+  const lowerPath = normalizedPath.toLowerCase();
+  const isPackageManifest = lowerPath.endsWith('/package.json');
+  const isImplementationFile = /\/(?:src|scripts|tests|db)\//u.test(lowerPath)
+    && /\.(?:[cm]?[jt]sx?|json|sql)$/u.test(lowerPath);
+
+  if (!isPackageManifest && !isImplementationFile) {
+    return signals;
+  }
+
+  if (/(?:\bdrizzle-orm\b|@prisma\/client\b|\bprisma\b|\btypeorm\b|\bsequelize\b|\bknex\b|\bmikro-orm\b)/iu.test(body)) {
+    signals.push({
+      ruleId: 'no-standard-orm-path',
+      reviewRisk: 'technology-policy-exception',
+      message: 'Technology policy review required: transfer change references an ORM or ORM-like data access dependency.',
+    });
+  }
+
+  if (/\b(?:mysql2?|mariadb|sqlite3?|better-sqlite3|mssql)\b/iu.test(body)) {
+    signals.push({
+      ruleId: 'postgres-primary-db',
+      reviewRisk: 'technology-policy-exception',
+      message: 'Technology policy review required: transfer change references a non-PostgreSQL database dependency or adapter.',
+    });
+  }
+
+  if (
+    /\.(?:tsx|jsx)$/iu.test(lowerPath)
+    || /\b(?:honox|htmx\.org|@hono\/|hono\/jsx|react|vue|svelte|solid-js|next|vite)\b/iu.test(body)
+  ) {
+    signals.push({
+      ruleId: 'cli-front-facing-surface',
+      reviewRisk: 'technology-policy-exception',
+      message: 'Technology policy review required: transfer change appears to introduce a Web/UI surface; transfer package front-facing surface is CLI.',
+    });
+  }
+
+  return signals;
+}
+
+function readChangedFileBody(normalizedPath: string): string | undefined {
+  const resolvedPath = path.resolve(process.cwd(), normalizedPath);
+  if (!existsSync(resolvedPath)) {
+    return undefined;
+  }
+  return readFileSync(resolvedPath, 'utf8');
+}
+
+function isTransferPackagePath(normalizedPath: string): boolean {
+  const normalized = normalizeRelativePath(normalizedPath);
+  return normalized.startsWith('packages/transfer/') || normalized.includes('/packages/transfer/');
 }
 
 function applyDdlRelationship(

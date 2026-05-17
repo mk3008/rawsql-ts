@@ -1391,6 +1391,60 @@ test('review-plan includes package technology policy as mandatory review input',
   ]);
 });
 
+test('review-plan flags transfer technology policy exceptions from changed implementation files', () => {
+  const work = createTempDir('ddl-docs-review-plan-technology-exception-signals');
+  const ddlDir = path.join(work, 'ddl');
+  const transferDir = path.join(work, 'packages', 'transfer');
+  const srcDir = path.join(transferDir, 'src');
+  const changedFilesPath = path.join(work, 'changed-files.txt');
+  const technologyDir = path.join(transferDir, 'docs', 'technology');
+  const technologyRulesPath = path.join(technologyDir, 'tech-rules.json');
+  const manifestPath = path.join(transferDir, 'package.json');
+  const uiPath = path.join(srcDir, 'admin.tsx');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(technologyRulesPath, JSON.stringify({
+    schemaVersion: 1,
+    technologyRules: [
+      { id: 'postgres-primary-db', kind: 'database-platform', statement: 'Use PostgreSQL.' },
+      { id: 'no-standard-orm-path', kind: 'data-access-boundary', statement: 'Do not introduce an ORM standard path.' },
+      { id: 'cli-front-facing-surface', kind: 'front-facing-surface', statement: 'Use CLI as the package front-facing surface.' },
+    ],
+  }, null, 2));
+  writeText(manifestPath, JSON.stringify({
+    dependencies: {
+      'drizzle-orm': '^0.1.0',
+      mysql2: '^3.0.0',
+    },
+  }, null, 2));
+  writeText(uiPath, "import React from 'react';\nexport const Admin = () => <main />;\n");
+  writeText(changedFilesPath, `${manifestPath}\n${uiPath}\n`);
+
+  const plan = buildReviewPlan({
+    changedFilesPath,
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    technologyRulesPath,
+  });
+
+  const manifestPlan = plan.changedFiles.find((entry) => entry.path === manifestPath.replace(/\\/g, '/'));
+  const uiPlan = plan.changedFiles.find((entry) => entry.path === uiPath.replace(/\\/g, '/'));
+
+  expect(manifestPlan?.reviewRisks).toContain('technology-policy-exception');
+  expect(manifestPlan?.requiredReads.technologyRules).toEqual([
+    'no-standard-orm-path',
+    'postgres-primary-db',
+  ]);
+  expect(manifestPlan?.diagnostics.map((diagnostic) => diagnostic.message)).toEqual([
+    'Technology policy review required: transfer change references an ORM or ORM-like data access dependency.',
+    'Technology policy review required: transfer change references a non-PostgreSQL database dependency or adapter.',
+  ]);
+  expect(uiPlan?.reviewRisks).toContain('technology-policy-exception');
+  expect(uiPlan?.requiredReads.technologyRules).toEqual(['cli-front-facing-surface']);
+  expect(uiPlan?.diagnostics.map((diagnostic) => diagnostic.message)).toEqual([
+    'Technology policy review required: transfer change appears to introduce a Web/UI surface; transfer package front-facing surface is CLI.',
+  ]);
+});
+
 test('review-plan includes package review authority model as mandatory review input', () => {
   const work = createTempDir('ddl-docs-review-plan-authority-model');
   const ddlDir = path.join(work, 'ddl');
