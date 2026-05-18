@@ -1,0 +1,324 @@
+{
+  "schemaVersion": 2,
+  "id": "transfer-target-decision",
+  "displayName": "転送対象判定",
+  "lifecycle": {
+    "status": "defined"
+  },
+  "definition": {
+    "summary": "変更キーを候補として受け取り、転送元の現在値、有効黒伝、転送モデル、列の値評価をもとに転送対象かどうかを判定する概念",
+    "statements": [
+      {
+        "id": "dirty-key-is-transfer-candidate",
+        "displayName": "変更キーは転送の候補である",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "変更キーは転送の候補である。",
+        "evidence": [
+          "spec:transfer-target-decision"
+        ]
+      },
+      {
+        "id": "dirty-key-is-not-direct-transfer-target",
+        "displayName": "変更キーはそのまま転送するわけではない",
+        "polarity": "negative",
+        "type": "essence",
+        "text": "変更キーはそのまま転送するわけではなく、転送対象判定によって転送要否と転送表現の候補を決める。",
+        "evidence": [
+          "spec:transfer-target-decision"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "transfer-model-changes-decision",
+        "displayName": "転送モデルによって判定は異なる",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "転送対象判定は、転送モデルによって判定を変える。",
+        "evidence": [
+          "spec:transfer-target-decision"
+        ]
+      },
+      {
+        "id": "ignored-columns-owned-by-destination-link",
+        "displayName": "比較対象外列は転送先リンクが持つ",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "比較対象外列は、宛先別の設定として転送先リンクが持つ。",
+        "evidence": [
+          "spec:transfer-target-decision",
+          "spec:destination-link"
+        ]
+      },
+      {
+        "id": "immutable-no-active-black-is-insert-candidate",
+        "displayName": "immutable transfer model で有効黒伝がなければ追加転送候補",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "immutable transfer model で有効黒伝がなければ、追加転送候補として扱う。",
+        "evidence": [
+          "spec:transfer-target-decision"
+        ]
+      },
+      {
+        "id": "immutable-active-black-is-red-candidate",
+        "displayName": "immutable transfer model で有効黒伝があれば赤伝転送候補",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "immutable transfer model で有効黒伝があれば、赤伝転送候補として扱う。",
+        "evidence": [
+          "spec:transfer-target-decision"
+        ]
+      },
+      {
+        "id": "red-candidate-needs-column-evaluation",
+        "displayName": "赤伝転送候補では列の検査が必要",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "赤伝転送候補では、列の検査を行い、比較対象外列以外が変更されている場合に転送対象として扱う。",
+        "evidence": [
+          "spec:transfer-target-decision"
+        ]
+      },
+      {
+        "id": "mutable-no-active-black-is-insert-candidate",
+        "displayName": "mutable transfer model で有効黒伝がなければ追加転送候補",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "mutable transfer model で有効黒伝がなければ、追加転送候補として扱う。",
+        "evidence": [
+          "spec:transfer-target-decision"
+        ]
+      },
+      {
+        "id": "mutable-active-black-is-update-candidate",
+        "displayName": "mutable transfer model で有効黒伝があれば更新転送候補",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "mutable transfer model で有効黒伝があれば、更新転送候補として扱う。",
+        "evidence": [
+          "spec:transfer-target-decision"
+        ]
+      },
+      {
+        "id": "update-candidate-needs-column-evaluation",
+        "displayName": "更新転送候補では列の検査が必要",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "更新転送候補では、列の検査を行い、比較対象外列以外が変更されている場合に転送対象として扱う。",
+        "evidence": [
+          "spec:transfer-target-decision"
+        ]
+      },
+      {
+        "id": "ignored-columns-only-is-no-transfer",
+        "displayName": "比較対象外列だけが変わっている場合は転送不要",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "比較対象外列だけが変わっている場合は、転送対象として扱わない。",
+        "evidence": [
+          "spec:transfer-target-decision"
+        ]
+      },
+      {
+        "id": "not-dirty-key-registration",
+        "displayName": "変更キーの登録方法は定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "転送対象判定は、変更キーの登録方法を定義しない。",
+        "evidence": [
+          "spec:transfer-target-decision"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "not-column-comparison-expression",
+        "displayName": "列の具体的な比較式は定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "転送対象判定は、列の具体的な比較式、SQL、NULL 比較、型変換規則を定義しない。",
+        "evidence": [
+          "spec:transfer-target-decision"
+        ]
+      },
+      {
+        "id": "not-transfer-operation-storage",
+        "displayName": "転送表現の保存形式や実行手順は定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "転送対象判定は、黒伝転送、赤伝転送、物理削除転送の保存形式や実行手順を定義しない。",
+        "evidence": [
+          "spec:transfer-target-decision"
+        ]
+      }
+    ]
+  },
+  "internalLinks": [
+    {
+      "from": "dirty-key-is-transfer-candidate",
+      "to": "dirty-key-is-not-direct-transfer-target",
+      "kind": "bounds",
+      "reason": "変更キーは候補であって、転送対象の確定ではないため。",
+      "evidence": [
+        "spec:transfer-target-decision"
+      ]
+    },
+    {
+      "from": "immutable-active-black-is-red-candidate",
+      "to": "red-candidate-needs-column-evaluation",
+      "kind": "requires",
+      "reason": "有効黒伝があるだけでは赤伝転送が必要とは限らず、列の値評価が必要であるため。",
+      "evidence": [
+        "spec:transfer-target-decision"
+      ]
+    },
+    {
+      "from": "mutable-active-black-is-update-candidate",
+      "to": "update-candidate-needs-column-evaluation",
+      "kind": "requires",
+      "reason": "有効黒伝があるだけでは更新転送が必要とは限らず、列の値評価が必要であるため。",
+      "evidence": [
+        "spec:transfer-target-decision"
+      ]
+    },
+    {
+      "from": "ignored-columns-only-is-no-transfer",
+      "to": "red-candidate-needs-column-evaluation",
+      "kind": "constrains",
+      "reason": "赤伝転送候補でも比較対象外列だけの変更なら転送不要になるため。",
+      "evidence": [
+        "spec:transfer-target-decision"
+      ]
+    },
+    {
+      "from": "ignored-columns-only-is-no-transfer",
+      "to": "update-candidate-needs-column-evaluation",
+      "kind": "constrains",
+      "reason": "更新転送候補でも比較対象外列だけの変更なら転送不要になるため。",
+      "evidence": [
+        "spec:transfer-target-decision"
+      ]
+    }
+  ],
+  "externalRelationships": [
+    {
+      "to": "dirty-key",
+      "kind": "uses",
+      "reason": "変更キーを転送候補として受け取るため。",
+      "supportedBy": [
+        "dirty-key-is-transfer-candidate",
+        "dirty-key-is-not-direct-transfer-target"
+      ],
+      "evidence": [
+        "spec:transfer-target-decision"
+      ]
+    },
+    {
+      "to": "active-black",
+      "kind": "uses",
+      "reason": "有効黒伝の有無が追加、赤伝転送候補、更新転送候補の判定材料になるため。",
+      "supportedBy": [
+        "immutable-no-active-black-is-insert-candidate",
+        "immutable-active-black-is-red-candidate",
+        "mutable-no-active-black-is-insert-candidate",
+        "mutable-active-black-is-update-candidate"
+      ],
+      "evidence": [
+        "spec:transfer-target-decision"
+      ]
+    },
+    {
+      "to": "destination",
+      "kind": "uses",
+      "reason": "転送先仕様が持つ transfer model によって判定が変わるため。",
+      "supportedBy": [
+        "transfer-model-changes-decision"
+      ],
+      "evidence": [
+        "spec:transfer-target-decision"
+      ]
+    },
+    {
+      "to": "destination-link",
+      "kind": "uses",
+      "reason": "宛先別の比較対象外列を参照し、列の値評価で転送要否を判断するため。",
+      "supportedBy": [
+        "ignored-columns-owned-by-destination-link",
+        "red-candidate-needs-column-evaluation",
+        "update-candidate-needs-column-evaluation",
+        "ignored-columns-only-is-no-transfer"
+      ],
+      "evidence": [
+        "spec:transfer-target-decision",
+        "spec:destination-link"
+      ]
+    },
+    {
+      "to": "red-transfer",
+      "kind": "supports",
+      "reason": "immutable transfer model で有効黒伝がある場合、列の値評価を通って赤伝転送候補になるため。",
+      "supportedBy": [
+        "immutable-active-black-is-red-candidate",
+        "red-candidate-needs-column-evaluation"
+      ],
+      "evidence": [
+        "spec:transfer-target-decision"
+      ]
+    },
+    {
+      "to": "black-transfer",
+      "kind": "supports",
+      "reason": "追加転送候補と mutable transfer model の更新転送候補が黒伝転送側の表現につながるため。",
+      "supportedBy": [
+        "immutable-no-active-black-is-insert-candidate",
+        "mutable-no-active-black-is-insert-candidate",
+        "mutable-active-black-is-update-candidate",
+        "update-candidate-needs-column-evaluation"
+      ],
+      "evidence": [
+        "spec:transfer-target-decision"
+      ]
+    },
+    {
+      "to": "work-item",
+      "kind": "supports",
+      "reason": "転送作業対象に転送要否と転送表現候補の判断材料を与えるため。",
+      "supportedBy": [
+        "dirty-key-is-not-direct-transfer-target",
+        "transfer-model-changes-decision"
+      ],
+      "evidence": [
+        "spec:transfer-target-decision"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "spec:transfer-target-decision",
+      "type": "spec",
+      "path": "concept.json"
+    },
+    {
+      "id": "spec:destination-link",
+      "type": "spec",
+      "path": "../destination-link/concept.json"
+    }
+  ],
+  "reviewState": {
+    "coverage": {
+      "definition": {
+        "status": "complete",
+        "reason": "転送対象判定の意味、責務、境界、不変条件を定義済み。"
+      },
+      "relationships": {
+        "status": "complete",
+        "reason": "変更キー、有効黒伝、転送先仕様、転送先リンク、赤伝転送、黒伝転送、転送作業対象との関係を定義済み。"
+      }
+    },
+    "openIssues": []
+  }
+}

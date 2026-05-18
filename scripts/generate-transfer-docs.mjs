@@ -9,8 +9,45 @@ const tempConceptSiteDir = path.join(workspaceRoot, "tmp", "transfer-concept-sit
 const transferDdlDir = path.join(workspaceRoot, "packages", "transfer", "db", "ddl");
 const transferReviewChangedFilesPath = path.join(workspaceRoot, "tmp", "transfer-review-report-changed-files.txt");
 const transferReviewPlanPath = path.join(workspaceRoot, "tmp", "transfer-review-plan.json");
+const defaultAiReviewPath = path.join(workspaceRoot, "packages", "transfer", "docs", "review", "ai-review.json");
+const structuredConceptRelationshipPath = path.join(workspaceRoot, "tmp", "concept-relationship.json");
+const structuredConceptReverseRelationshipPath = path.join(workspaceRoot, "tmp", "concept-reverse-relationships.json");
+const structuredConceptAiContextPath = path.join(workspaceRoot, "tmp", "ai-context", "concepts.json");
+const structuredConceptReviewSummaryPath = path.join(workspaceRoot, "tmp", "structured-concept-review-summary.json");
 
-const generatedSiteDirs = ["concepts", "dfd", "processes", "roles"];
+const generatedSiteDirs = ["dfd", "processes", "roles"];
+
+function parseArgs(args) {
+  const options = {
+    includeAiReview: fs.existsSync(defaultAiReviewPath),
+    aiReviewPath: defaultAiReviewPath,
+  };
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--include-ai-review") {
+      options.includeAiReview = true;
+      continue;
+    }
+    if (arg === "--exclude-ai-review") {
+      options.includeAiReview = false;
+      continue;
+    }
+    if (arg === "--ai-review") {
+      const value = args[index + 1];
+      if (!value || value.startsWith("--")) {
+        throw new Error("--ai-review requires a JSON file path.");
+      }
+      options.includeAiReview = true;
+      options.aiReviewPath = path.resolve(workspaceRoot, value);
+      index += 1;
+      continue;
+    }
+    throw new Error(`Unknown generate-transfer-docs option: ${arg}`);
+  }
+  return options;
+}
+
+const options = parseArgs(process.argv.slice(2));
 
 function run(args) {
   const result = spawnSync(process.execPath, [cliPath, ...args], {
@@ -150,6 +187,27 @@ function copyTechnologyDoc() {
     ].join("\n"),
     "utf8"
   );
+}
+
+function buildStructuredConceptPoc() {
+  run([
+    "structured-concept",
+    "build",
+    "--concept-dir",
+    "packages/transfer/docs/concepts",
+    "--concept-relationship",
+    "packages/transfer/docs/concepts/concept-relationship.json",
+    "--out-dir",
+    "docs/concepts",
+    "--relationship-out",
+    path.relative(workspaceRoot, structuredConceptRelationshipPath),
+    "--reverse-relationship-out",
+    path.relative(workspaceRoot, structuredConceptReverseRelationshipPath),
+    "--ai-context-out",
+    path.relative(workspaceRoot, structuredConceptAiContextPath),
+    "--review-summary-out",
+    path.relative(workspaceRoot, structuredConceptReviewSummaryPath),
+  ]);
 }
 
 function collectFilesRecursive(rootPath, extensions) {
@@ -307,6 +365,134 @@ function formatIdList(items) {
   return items.map((item) => `\`${item.id}\``).join(", ");
 }
 
+function formatCount(value) {
+  return Number.isFinite(value) ? String(value) : "0";
+}
+
+function formatMarkdownInline(value) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return "";
+  }
+  return value.replace(/\r?\n/g, " ").trim();
+}
+
+function formatMarkdownBlock(value) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return "";
+  }
+  return value.trim();
+}
+
+function formatEvidence(evidence) {
+  if (!Array.isArray(evidence) || evidence.length === 0) {
+    return ["- None"];
+  }
+  return evidence.map((item) => {
+    if (typeof item === "string") {
+      return `- ${item}`;
+    }
+    if (!item || typeof item !== "object") {
+      return "- Unknown evidence";
+    }
+    const target = typeof item.path === "string"
+      ? `${item.path}${Number.isInteger(item.line) ? `:${item.line}` : ""}`
+      : undefined;
+    const note = formatMarkdownInline(item.note ?? item.reason ?? item.summary);
+    if (target && note) {
+      return `- \`${target}\` - ${note}`;
+    }
+    if (target) {
+      return `- \`${target}\``;
+    }
+    return `- ${note || "Unknown evidence"}`;
+  });
+}
+
+function readAiReview(aiReviewPath) {
+  const resolvedPath = assertInsideWorkspace(aiReviewPath);
+  if (!fs.existsSync(resolvedPath)) {
+    throw new Error(`AI review JSON was requested but not found: ${path.relative(workspaceRoot, resolvedPath)}`);
+  }
+  const parsed = JSON.parse(fs.readFileSync(resolvedPath, "utf8"));
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`AI review JSON must be an object: ${path.relative(workspaceRoot, resolvedPath)}`);
+  }
+  if (parsed.schemaVersion !== 1) {
+    throw new Error(`AI review JSON schema version ${parsed.schemaVersion} is not supported (expected: 1): ${path.relative(workspaceRoot, resolvedPath)}`);
+  }
+  if (!Array.isArray(parsed.findings)) {
+    throw new Error(`AI review JSON must contain a findings array: ${path.relative(workspaceRoot, resolvedPath)}`);
+  }
+  return {
+    path: path.relative(workspaceRoot, resolvedPath).replace(/\\/g, "/"),
+    review: parsed,
+  };
+}
+
+function renderAiReviewSummary(aiReviewArtifact) {
+  if (!aiReviewArtifact) {
+    return [
+      "## AI Semantic Review",
+      "",
+      "AI semantic review was not included.",
+      "",
+      "The CLI does not generate, refresh, infer, translate, or mutate AI review JSON.",
+      "",
+    ].join("\n");
+  }
+
+  const { path: sourcePath, review } = aiReviewArtifact;
+  const language = review.metadataLanguagePolicy?.humanFacingLanguage
+    ?? review.humanFacingLanguage
+    ?? "unspecified";
+  const counts = review.findings.reduce((acc, finding) => {
+    const status = typeof finding?.status === "string" ? finding.status : "unspecified";
+    acc[status] = (acc[status] ?? 0) + 1;
+    return acc;
+  }, {});
+  const openFindings = review.findings.filter((finding) => finding?.status === "open");
+  const nonOpenFindings = review.findings.filter((finding) => finding?.status !== "open");
+  const findingSections = [...openFindings, ...nonOpenFindings].flatMap((finding) => {
+    const id = formatMarkdownInline(finding?.id) || "unnamed-finding";
+    const title = formatMarkdownInline(finding?.title) || id;
+    const summary = formatMarkdownBlock(finding?.summary ?? finding?.description);
+    const recommendation = formatMarkdownBlock(finding?.recommendation);
+    return [
+      `### ${id}`,
+      "",
+      `- Status: \`${formatMarkdownInline(finding?.status) || "unspecified"}\``,
+      `- Severity: \`${formatMarkdownInline(finding?.severity) || "unspecified"}\``,
+      `- Category: \`${formatMarkdownInline(finding?.category) || "unspecified"}\``,
+      "",
+      `**${title}**`,
+      "",
+      ...(summary ? [summary, ""] : []),
+      "Evidence:",
+      "",
+      ...formatEvidence(finding?.evidence),
+      "",
+      ...(recommendation ? ["Recommendation:", "", recommendation, ""] : []),
+    ];
+  });
+
+  return [
+    "## AI Semantic Review",
+    "",
+    `Source: \`${sourcePath}\``,
+    `Human-facing language: \`${language}\``,
+    `Status: \`${formatMarkdownInline(review.status) || "unspecified"}\``,
+    `Total findings: ${review.findings.length}`,
+    `Open findings: ${formatCount(counts.open)}`,
+    `Resolved findings: ${formatCount(counts.resolved)}`,
+    `Accepted findings: ${formatCount(counts.accepted)}`,
+    "",
+    "This section displays an existing AI review JSON artifact.",
+    "The CLI does not generate, refresh, infer, translate, or mutate this JSON.",
+    "",
+    ...(findingSections.length === 0 ? ["- No findings.", ""] : findingSections),
+  ].join("\n");
+}
+
 function renderReviewHarnessSummary(metadataCheck, reviewPlan) {
   const diagnostics = reviewPlan.changedFiles.flatMap((entry) => entry.diagnostics ?? []);
   return [
@@ -351,7 +537,7 @@ function renderReviewHarnessSummary(metadataCheck, reviewPlan) {
   ].join("\n");
 }
 
-function writeProductReviewReport(metadataCheck, reviewPlan) {
+function writeProductReviewReport(metadataCheck, reviewPlan, aiReviewArtifact) {
   const ddlReviewPath = path.join(workspaceRoot, "docs", "rawsql-transfer", "review.md");
   const productReviewPath = path.join(workspaceRoot, "docs", "review.md");
   const ddlIndexPath = path.join(workspaceRoot, "docs", "rawsql-transfer", "index.md");
@@ -375,6 +561,7 @@ function writeProductReviewReport(metadataCheck, reviewPlan) {
     "",
     "- [DDL / Column Mechanical Review](#ddl-column-mechanical-review)",
     "- [Review Harness Summary](#review-harness-summary)",
+    "- [AI Semantic Review](#ai-semantic-review)",
     "- [Table Definitions](./rawsql-transfer/)",
     "- [Column Index](./rawsql-transfer/columns/)",
     "",
@@ -383,6 +570,8 @@ function writeProductReviewReport(metadataCheck, reviewPlan) {
     ddlReviewBody.trimEnd() || "- No DDL review report was generated.",
     "",
     renderReviewHarnessSummary(metadataCheck, reviewPlan).trimEnd(),
+    "",
+    renderAiReviewSummary(aiReviewArtifact).trimEnd(),
     "",
   ].join("\n");
 
@@ -442,6 +631,8 @@ run([
 for (const dir of generatedSiteDirs) {
   copyDir(path.join(tempConceptSiteDir, dir), path.join(workspaceRoot, "docs", dir));
 }
+removeDir(path.join(workspaceRoot, "docs", "concepts"));
+buildStructuredConceptPoc();
 copyScopeDoc();
 copyTestingDoc();
 copyAuthorityDoc();
@@ -450,6 +641,7 @@ copyTechnologyDoc();
 const metadataCheck = runTransferMetadataCheck();
 const reviewPlan = runTransferReviewPlan();
 assertTransferReviewPlanClean(reviewPlan);
+const aiReviewArtifact = options.includeAiReview ? readAiReview(options.aiReviewPath) : null;
 
 removeDir(path.join(workspaceRoot, "docs", "rawsql-transfer"));
 run([
@@ -469,6 +661,6 @@ run([
   "rawsql_transfer",
 ]);
 
-writeProductReviewReport(metadataCheck, reviewPlan);
+writeProductReviewReport(metadataCheck, reviewPlan, aiReviewArtifact);
 
 console.log("[transfer-docs] generated Concept/DFD/Process and DDL review pages.");

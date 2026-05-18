@@ -396,10 +396,10 @@ export function checkDocs(options: CheckDocsOptions): CheckDocsResult {
     checkRelationshipMetadata(options.relationshipPath, sources, scopeRuleRegistry, issues);
   }
   if (options.conceptRelationshipPath) {
-    checkConceptRelationshipMetadata(options.conceptRelationshipPath, issues);
+    checkConceptRelationshipMetadata(options.conceptRelationshipPath, processIds, issues);
   }
   if (options.dfdRelationshipPath) {
-    checkDfdRelationshipMetadata(options.dfdRelationshipPath, conceptRegistry, processFiles, issues);
+    checkDfdRelationshipMetadata(options.dfdRelationshipPath, conceptRegistry, processIds, processFiles, issues);
   }
   for (const processMapPath of collectProcessMapMetadataPaths(options.processDirectories ?? [])) {
     checkProcessMapMetadata(processMapPath, conceptRegistry, issues);
@@ -763,7 +763,11 @@ function checkRelationshipTarget(
   }
 }
 
-function checkConceptRelationshipMetadata(conceptRelationshipPath: string, issues: CheckIssue[]): void {
+function checkConceptRelationshipMetadata(
+  conceptRelationshipPath: string,
+  processIds: Set<string>,
+  issues: CheckIssue[]
+): void {
   const resolvedPath = path.resolve(process.cwd(), conceptRelationshipPath);
   const value = readJsonFile(resolvedPath, 'concept-relationship.json', issues);
   if (!value) {
@@ -803,11 +807,17 @@ function checkConceptRelationshipMetadata(conceptRelationshipPath: string, issue
         message: `concept-relationship.json references missing draft concept path for ${concept.id}: ${concept.draftPath}`,
       });
     }
-    if (concept.path !== undefined && concept.path !== null && concept.draftPath !== undefined && concept.draftPath !== null) {
+    if (
+      concept.path !== undefined
+      && concept.path !== null
+      && concept.draftPath !== undefined
+      && concept.draftPath !== null
+      && concept.status !== 'draft'
+    ) {
       issues.push({
         severity: 'error',
         code: 'CONCEPT_PATH_AND_DRAFT_PATH_BOTH_SET',
-        message: `concept-relationship.json concept must not set both path and draftPath: ${concept.id}`,
+        message: `concept-relationship.json concept must not set both path and draftPath unless it is a draft concept with concept.json plus draft notes: ${concept.id}`,
       });
     }
     checkConceptSummaryMetadata(concept, issues);
@@ -886,6 +896,13 @@ function checkConceptRelationshipMetadata(conceptRelationshipPath: string, issue
         message: `concept-relationship.json related process map ${processMap.id} references missing path: ${processMap.path}`,
       });
     }
+    if (processIds.size > 0 && !processIds.has(processMap.id)) {
+      issues.push({
+        severity: 'error',
+        code: 'CONCEPT_RELATED_PROCESS_MAP_UNKNOWN_PROCESS',
+        message: `concept-relationship.json related process map references unknown process-map id: ${processMap.id}`,
+      });
+    }
   }
 }
 
@@ -919,43 +936,36 @@ function checkConceptSummaryMetadata(concept: ConceptEntry, issues: CheckIssue[]
 }
 
 function checkConceptLifecycleEntry(baseDir: string, concept: ConceptEntry, issues: CheckIssue[]): void {
-  if (concept.status === 'defined') {
+  if (concept.status === 'defined' || concept.status === 'draft') {
     if (concept.path === undefined || concept.path === null || concept.path.trim() === '') {
       issues.push({
         severity: 'error',
-        code: 'CONCEPT_DEFINED_MISSING_PATH',
-        message: `concept-relationship.json defined concept must use path: ${concept.id}`,
+        code: concept.status === 'defined' ? 'CONCEPT_DEFINED_MISSING_PATH' : 'CONCEPT_DRAFT_MISSING_PATH',
+        message: `concept-relationship.json ${concept.status} concept must use path to concept.json: ${concept.id}`,
       });
       return;
     }
-    const specPath = path.resolve(baseDir, concept.path);
-    const conceptDir = path.dirname(specPath);
-    if (existsSync(path.join(conceptDir, 'DRAFT.md'))) {
+    if (path.basename(concept.path) !== 'concept.json') {
+      issues.push({
+        severity: 'error',
+        code: concept.status === 'defined' ? 'CONCEPT_DEFINED_PATH_NOT_CONCEPT_JSON' : 'CONCEPT_DRAFT_PATH_NOT_CONCEPT_JSON',
+        message: `concept-relationship.json ${concept.status} concept path must point to concept.json: ${concept.id}`,
+      });
+    }
+    const conceptJsonPath = path.resolve(baseDir, concept.path);
+    const conceptDir = path.dirname(conceptJsonPath);
+    if (concept.status === 'defined' && existsSync(path.join(conceptDir, 'DRAFT.md'))) {
       issues.push({
         severity: 'error',
         code: 'CONCEPT_DEFINED_HAS_DRAFT',
-        message: `concept-relationship.json marks concept as defined while DRAFT.md exists: ${concept.id}`,
+        message: `concept-relationship.json marks concept as defined while DRAFT.md notes remain: ${concept.id}`,
       });
     }
-    return;
-  }
-
-  if (concept.status === 'draft') {
-    if (concept.draftPath === undefined || concept.draftPath === null || concept.draftPath.trim() === '') {
-      issues.push({
-        severity: 'error',
-        code: 'CONCEPT_DRAFT_MISSING_DRAFT_PATH',
-        message: `concept-relationship.json draft concept must use draftPath: ${concept.id}`,
-      });
-      return;
-    }
-    const draftPath = path.resolve(baseDir, concept.draftPath);
-    const conceptDir = path.dirname(draftPath);
     if (existsSync(path.join(conceptDir, 'SPEC.md'))) {
       issues.push({
         severity: 'error',
-        code: 'CONCEPT_DRAFT_HAS_SPEC',
-        message: `concept-relationship.json marks concept as draft while SPEC.md exists: ${concept.id}`,
+        code: 'CONCEPT_DIRECTORY_HAS_SPEC',
+        message: `concept directory must not contain SPEC.md after concept.json migration: ${concept.id}`,
       });
     }
     return;
@@ -976,11 +986,11 @@ function checkConceptLifecycleEntry(baseDir: string, concept: ConceptEntry, issu
     });
   }
   const conceptDir = path.join(baseDir, concept.id);
-  if (existsSync(path.join(conceptDir, 'SPEC.md')) || existsSync(path.join(conceptDir, 'DRAFT.md'))) {
+  if (existsSync(path.join(conceptDir, 'concept.json')) || existsSync(path.join(conceptDir, 'DRAFT.md'))) {
     issues.push({
       severity: 'error',
-      code: 'CONCEPT_NON_AUTHORITATIVE_HAS_SPEC_OR_DRAFT',
-      message: `non-authoritative concept must not have SPEC.md or DRAFT.md: ${concept.id}`,
+      code: 'CONCEPT_NON_AUTHORITATIVE_HAS_CONCEPT_OR_DRAFT',
+      message: `non-authoritative concept must not have concept.json or DRAFT.md: ${concept.id}`,
     });
   }
 }
@@ -994,20 +1004,28 @@ function checkConceptDirectoriesRegistered(baseDir: string, conceptIds: Set<stri
       continue;
     }
     const conceptDir = path.join(baseDir, entry.name);
-    const hasSpec = existsSync(path.join(conceptDir, 'SPEC.md'));
+    const hasConceptJson = existsSync(path.join(conceptDir, 'concept.json'));
     const hasDraft = existsSync(path.join(conceptDir, 'DRAFT.md'));
-    if (hasSpec && hasDraft) {
+    const hasSpec = existsSync(path.join(conceptDir, 'SPEC.md'));
+    if (hasSpec) {
       issues.push({
         severity: 'error',
-        code: 'CONCEPT_DIRECTORY_HAS_SPEC_AND_DRAFT',
-        message: `concept directory must not contain both SPEC.md and DRAFT.md: ${entry.name}`,
+        code: 'CONCEPT_DIRECTORY_HAS_SPEC',
+        message: `concept directory must not contain SPEC.md after concept.json migration: ${entry.name}`,
       });
     }
-    if ((hasSpec || hasDraft) && !conceptIds.has(entry.name)) {
+    if (hasDraft && !hasConceptJson) {
+      issues.push({
+        severity: 'error',
+        code: 'CONCEPT_DRAFT_WITHOUT_CONCEPT_JSON',
+        message: `draft concept notes must be paired with concept.json: ${entry.name}`,
+      });
+    }
+    if ((hasConceptJson || hasDraft) && !conceptIds.has(entry.name)) {
       issues.push({
         severity: 'error',
         code: 'CONCEPT_DIRECTORY_NOT_REGISTERED',
-        message: `concept directory with SPEC.md or DRAFT.md is missing from concept-relationship.json: ${entry.name}`,
+        message: `concept directory with concept.json or DRAFT.md is missing from concept-relationship.json: ${entry.name}`,
       });
     }
   }
@@ -1016,6 +1034,7 @@ function checkConceptDirectoriesRegistered(baseDir: string, conceptIds: Set<stri
 function checkDfdRelationshipMetadata(
   dfdRelationshipPath: string,
   conceptRegistry: { allIds: Set<string>; definedIds: Set<string> },
+  processIds: Set<string>,
   processFiles: string[],
   issues: CheckIssue[]
 ): void {
@@ -1127,6 +1146,22 @@ function checkDfdRelationshipMetadata(
       checkDfdMarkdownAgainstRelationship(path.resolve(baseDir, dfd.path), dfd, issues);
     }
     for (const operation of dfd.businessOperations ?? []) {
+      for (const relatedProcess of operation.relatedProcesses ?? []) {
+        if (!existsSync(path.resolve(baseDir, relatedProcess.path))) {
+          issues.push({
+            severity: 'error',
+            code: 'DFD_RELATED_PROCESS_MISSING_PATH',
+            message: `DFD ${dfd.id} operation ${operation.id} related process path is missing for ${relatedProcess.id}: ${relatedProcess.path}`,
+          });
+        }
+        if (processIds.size > 0 && !processIds.has(relatedProcess.id)) {
+          issues.push({
+            severity: 'error',
+            code: 'DFD_RELATED_PROCESS_UNKNOWN_PROCESS',
+            message: `DFD ${dfd.id} operation ${operation.id} references unknown process-map id: ${relatedProcess.id}`,
+          });
+        }
+      }
       for (const input of operation.inputs ?? []) {
         checkDfdTermRef(
           `DFD ${dfd.id} operation ${operation.id} input`,

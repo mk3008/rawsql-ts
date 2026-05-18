@@ -2,7 +2,7 @@
 
 # master.product
 
-[<- All Schemas](../index.md) | [Table Index](./index.md)
+[<- Schemas](../index.md) | [Table Index](./index.md)
 
 ## Overview
 

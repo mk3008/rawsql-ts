@@ -101,7 +101,7 @@ export function renderConceptIndex(outDir: string, conceptRegistry: ConceptRegis
   const lines: string[] = [];
   lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
   lines.push('');
-  lines.push('# Concept Map');
+  lines.push('# Concepts');
   lines.push('');
   lines.push('Generated from concept-relationship metadata.');
   lines.push('');

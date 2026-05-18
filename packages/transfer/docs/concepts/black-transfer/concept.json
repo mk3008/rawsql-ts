@@ -1,0 +1,523 @@
+{
+  "schemaVersion": 2,
+  "id": "black-transfer",
+  "displayName": "黒伝転送",
+  "lifecycle": {
+    "status": "defined"
+  },
+  "definition": {
+    "summary": "転送元の現在値を転送先へコピーし、黒伝を作る通常転送",
+    "statements": [
+      {
+        "id": "black-transfer-source-destination",
+        "displayName": "転送元の現在値を転送先へコピーすること",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Black Transfer とは、転送元の現在値を転送先へコピーすることである。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-source-destination-reference",
+        "displayName": "転送時点で参照した転送元データのスナップショットを転送先へ作る。",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Black Transfer は、転送時点で参照した転送元データのスナップショットを転送先へ作る。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-destination-row",
+        "displayName": "黒伝とは、Black Transfer によって作られた転送先行",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "黒伝とは、Black Transfer によって作られた転送先行である。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-insert-transfer",
+        "displayName": "Black Insert Transfer とは、Black Transfer のうち、新しい黒伝を追加する転送表現",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Black Insert Transfer とは、Black Transfer のうち、新しい黒伝を追加する転送表現である。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-update-mutable-model",
+        "displayName": "Black Update Transfer とは、Black Transfer のうち、mutable transfer model で既存の黒伝を直接 UPDATE して現在値を反映する転送表現",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Black Update Transfer とは、Black Transfer のうち、`mutable transfer model` で既存の黒伝を直接 UPDATE して現在値を反映する転送表現である。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-insert-transfer-immutable-model",
+        "displayName": "immutable transfer model では、Black Transfer は Black Insert Transfer として表現される",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "`immutable transfer model` では、Black Transfer は Black Insert Transfer として表現される。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-insert-transfer-update-mutable-model",
+        "displayName": "mutable transfer model では、Black Transfer は状況に応じて Black Insert Transfer または Black Update Transfer として表現される",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "`mutable transfer model` では、Black Transfer は状況に応じて Black Insert Transfer または Black Update Transfer として表現される。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-destination-link-setting-source-context-state",
+        "displayName": "同じ Transfer Setting、Destination Link、source key の文脈で、同じ転送元状態を二重転送しない",
+        "polarity": "negative",
+        "type": "essence",
+        "text": "Black Transfer は、同じ `Transfer Setting`、`Destination Link`、`source key` の文脈で、同じ転送元状態を二重転送しない。",
+        "evidence": [
+          "spec:black-transfer"
+        ],
+        "negatesSimilarityWith": [
+          "destination",
+          "destination-link",
+          "transfer-setting"
+        ]
+      },
+      {
+        "id": "reference-decide-active-black",
+        "displayName": "転送対象判定は、既存の Active Black を参照して二重転送を避けられる必要がある。",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "転送対象判定は、既存の `Active Black` を参照して二重転送を避けられる必要がある。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-create-active",
+        "displayName": "が成功すると、作成または更新された黒伝は Active Black になる。",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Black Transfer が成功すると、作成または更新された黒伝は `Active Black` になる。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-lineage-create-immutable-model-active",
+        "displayName": "immutable transfer model の Black Transfer が成功すると、Active Black に加えて Lineage も作成される",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "`immutable transfer model` の Black Transfer が成功すると、`Active Black` に加えて `Lineage` も作成される。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-source-destination-2",
+        "displayName": "転送元の現在値を転送先へコピーする通常転送を説明",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Black Transfer は、転送元の現在値を転送先へコピーする通常転送を説明する。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-destination",
+        "displayName": "転送先に黒伝を追加または更新",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Black Transfer は、転送先に黒伝を追加または更新する。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-insert-transfer-update",
+        "displayName": "Black Insert Transfer と Black Update Transfer の上位概念として扱う",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Black Transfer は、Black Insert Transfer と Black Update Transfer の上位概念として扱う。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-reference-active",
+        "displayName": "二重転送を避けるために既存の Active Black を参照できる必要がある。",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Black Transfer は、転送対象判定が二重転送を避けるために参照した既存の `Active Black` に対応できる必要がある。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-create-active-2",
+        "displayName": "成功時に作成または更新された黒伝を Active Black として扱えるように",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Black Transfer は、成功時に作成または更新された黒伝を `Active Black` として扱えるようにする。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-lineage-create-immutable-model",
+        "displayName": "immutable transfer model では成功時に Lineage を作成できるように",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Black Transfer は、`immutable transfer model` では成功時に `Lineage` を作成できるようにする。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "not-black-transfer-red-define",
+        "displayName": "Red Transfer の意味を定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Black Transfer は、`Red Transfer` の意味を定義しない。",
+        "evidence": [
+          "spec:black-transfer"
+        ],
+        "negatesSimilarityWith": [
+          "red-transfer"
+        ]
+      },
+      {
+        "id": "not-black-transfer",
+        "displayName": "取消や訂正を表現しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Black Transfer は、取消や訂正を表現しない。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "not-black-transfer-target-row-decide",
+        "displayName": "転送対象行を決定しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Black Transfer は、転送対象行を決定しない。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "not-transfer-target-context-decide-work-item",
+        "displayName": "転送対象かどうかは、Transfer Target Decision で判断",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "転送対象かどうかは、`Transfer Target Decision` で判断する。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "not-black-transfer-define-active",
+        "displayName": "Active Black の保存形式を定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Black Transfer は、`Active Black` の保存形式を定義しない。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "not-black-transfer-lineage-define",
+        "displayName": "Lineage の保存形式を定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Black Transfer は、`Lineage` の保存形式を定義しない。",
+        "evidence": [
+          "spec:black-transfer"
+        ],
+        "negatesSimilarityWith": [
+          "lineage"
+        ]
+      },
+      {
+        "id": "not-black-transfer-produce-define-sql",
+        "displayName": "転送 SQL の生成手順や実行手順を定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Black Transfer は、転送 SQL の生成手順や実行手順を定義しない。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "not-black-transfer-destination-define-source-mapping",
+        "displayName": "source-to-destination mapping の具体的な計算手順を定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Black Transfer は、source-to-destination mapping の具体的な計算手順を定義しない。",
+        "evidence": [
+          "spec:black-transfer"
+        ],
+        "negatesSimilarityWith": [
+          "destination"
+        ]
+      },
+      {
+        "id": "black-transfer-source-destination-3",
+        "displayName": "転送元の現在値を転送先へコピー",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Black Transfer は、転送元の現在値を転送先へコピーする。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer",
+        "displayName": "取消や訂正のための反転行を作らない。",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "Black Transfer は、取消や訂正のための反転行を作らない。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-insert-transfer-immutable-model-2",
+        "displayName": "immutable transfer model では、Black Transfer は Black Insert Transfer として黒伝を追加",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "`immutable transfer model` では、Black Transfer は Black Insert Transfer として黒伝を追加する。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-insert-transfer-mutable-model-active",
+        "displayName": "mutable transfer model では、Active Black がない場合は Black Insert Transfer として黒伝を追加",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "`mutable transfer model` の追加転送候補では、Black Transfer は Black Insert Transfer として黒伝を追加する。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-update-transfer-mutable-model-active",
+        "displayName": "mutable transfer model では、Active Black がある場合は Black Update Transfer として既存の黒伝を直接 UPDATE して現在値を反映",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "`mutable transfer model` の更新転送候補では、Black Transfer は Black Update Transfer として既存の黒伝を直接 UPDATE して現在値を反映する。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-destination-link-setting-source-context-state-2",
+        "displayName": "同じ Transfer Setting、Destination Link、source key の文脈で、同じ転送元状態を二重転送しない",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "Black Transfer は、同じ `Transfer Setting`、`Destination Link`、`source key` の文脈で、同じ転送元状態を二重転送しない。",
+        "evidence": [
+          "spec:black-transfer"
+        ],
+        "negatesSimilarityWith": [
+          "destination",
+          "destination-link",
+          "transfer-setting"
+        ]
+      },
+      {
+        "id": "black-transfer-destination-link-setting-context-decide-source",
+        "displayName": "同じ Transfer Setting、Destination Link、source key の文脈における既存の Active Black を二重転送判断の材料として扱える必要がある",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Black Transfer は、同じ `Transfer Setting`、`Destination Link`、`source key` の文脈における既存の `Active Black` を前提にした転送対象判定の結果に対応できる必要がある。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-active",
+        "displayName": "が成功した場合、対応する黒伝は Active Black になる。",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Black Transfer が成功した場合、対応する黒伝は `Active Black` になる。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-lineage-create-immutable-model-2",
+        "displayName": "immutable transfer model では、Black Transfer の成功時に Lineage が作成される。",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "`immutable transfer model` では、Black Transfer の成功時に `Lineage` が作成される。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "lineage-create-mutable-transfer-model",
+        "displayName": "mutable transfer model では、この文書で定義する Lineage は作成されない。",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "`mutable transfer model` では、この文書で定義する `Lineage` は作成されない。",
+        "evidence": [
+          "spec:black-transfer"
+        ],
+        "negatesSimilarityWith": [
+          "lineage"
+        ]
+      },
+      {
+        "id": "black-transfer-source-destination-reference-not-guarantee-match",
+        "displayName": "Is the Normal Snapshot Transfer",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Black Transfer Is the Normal Snapshot Transfer: Black Transfer は、転送元の現在値を転送先へコピーする。 これは、転送時点で参照した転送元データを転送先に残すスナップショットである。 ここでいうスナップショットは、転送時点で参照した値を転送先へ作るという意味であり、転送元の将来の現在値と一致し続けることを保証しない。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-insert-transfer-update-destination-row-depends-model",
+        "displayName": "Depends on Transfer Model",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Black Transfer Depends on Transfer Model: Black Transfer は、transfer model によって転送先への反映方法が変わる。 `immutable transfer model` では、転送先行を直接更新しないため、Black Transfer は Black Insert Transfer として新しい黒伝を追加する。 `mutable transfer model` では、転送先行を直接更新できるため、Black Transfer は Black Insert Transfer または Black Update Transfer として表現される。どちらを選ぶかの判定正本は `Transfer Target Decision` が所有する。",
+        "evidence": [
+          "spec:black-transfer"
+        ],
+        "negatesSimilarityWith": [
+          "black-insert-transfer",
+          "black-update-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-destination-link-setting-source-context-state-3",
+        "displayName": "Must Avoid Duplicate Transfer",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Black Transfer Must Avoid Duplicate Transfer: Black Transfer は、同じ `Transfer Setting`、`Destination Link`、`source key` の文脈で、同じ転送元状態を二重転送しない。 既に有効な黒伝が存在する場合、それは同じ `Transfer Setting`、`Destination Link`、`source key` の文脈における `Active Black` として参照できる必要がある。 `Active Black` は、Black Transfer が新しい黒伝を作るべきか、既に有効な黒伝があるかを判断する材料になる。",
+        "evidence": [
+          "spec:black-transfer"
+        ],
+        "negatesSimilarityWith": [
+          "destination",
+          "destination-link",
+          "transfer-setting"
+        ]
+      },
+      {
+        "id": "black-transfer-destination-record-exists-successful-creates-active",
+        "displayName": "Successful Black Transfer Creates Active Black",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Successful Black Transfer Creates Active Black: Black Transfer が成功すると、転送先に黒伝が存在する。 その黒伝がまだ取り消されていない場合、`Active Black` として扱われる。 `mutable transfer model` では、転送成功時に `Active Black` を記録できる必要がある。 `immutable transfer model` でも、転送成功時に `Active Black` を記録できる必要がある。",
+        "evidence": [
+          "spec:black-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-lineage-physical-delete-destination-row-source",
+        "displayName": "Immutable Black Transfer Also Creates Lineage",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Immutable Black Transfer Also Creates Lineage: `immutable transfer model` では、転送先行を履歴として積み増す。 そのため、Black Transfer が成功した場合、転送元データソースの論理行と黒伝の対応を `Lineage` として追跡できる必要がある。 `mutable transfer model` では、転送先行を直接更新または `Physical Delete Transfer` で削除するため、この文書で定義する `Lineage` は作成しない。",
+        "evidence": [
+          "spec:black-transfer"
+        ],
+        "negatesSimilarityWith": [
+          "lineage",
+          "physical-delete-transfer"
+        ]
+      }
+    ]
+  },
+  "internalLinks": [],
+  "externalRelationships": [
+    {
+      "to": "active-black",
+      "kind": "uses",
+      "reason": "Black Transfer は二重転送を防ぐために Active Black を参照し、生成または更新した黒伝を Active Black にする。",
+      "supportedBy": [
+        "reference-decide-active-black",
+        "black-transfer-reference-active",
+        "black-transfer-create-active-2"
+      ],
+      "evidence": [
+        "spec:black-transfer"
+      ]
+    },
+    {
+      "to": "destination",
+      "kind": "uses",
+      "reason": "Black Transfer は Destination 側に黒伝を作る。",
+      "supportedBy": [
+        "black-transfer-source-destination-2",
+        "black-transfer-destination",
+        "black-transfer-source-destination-3"
+      ],
+      "evidence": [
+        "spec:black-transfer"
+      ]
+    },
+    {
+      "to": "lineage",
+      "kind": "records",
+      "reason": "immutable transfer model では、成功した Black Transfer が転送元データ行と黒伝の対応を Lineage として記録する。",
+      "supportedBy": [
+        "black-transfer-lineage-create-immutable-model",
+        "black-transfer-lineage-create-immutable-model-2",
+        "lineage-create-mutable-transfer-model"
+      ],
+      "evidence": [
+        "spec:black-transfer"
+      ]
+    },
+    {
+      "to": "red-transfer",
+      "kind": "is-distinct-from",
+      "reason": "Black Transfer は現在の転送元値をコピーして黒伝を作り、Red Transfer は反転する赤伝を作る。",
+      "supportedBy": [
+        "not-black-transfer-red-define",
+        "black-transfer-source-destination-2",
+        "black-transfer-destination"
+      ],
+      "evidence": [
+        "spec:black-transfer"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "spec:black-transfer",
+      "type": "spec",
+      "path": "concept.json"
+    }
+  ],
+  "reviewState": {
+    "coverage": {
+      "definition": {
+        "status": "complete",
+        "reason": "concept.json の意味、責務、境界、不変条件、理由を curated statement として移植済み。"
+      },
+      "relationships": {
+        "status": "complete",
+        "reason": "concept-relationship.json と移行元 concept.json の外部関係を反映済み。"
+      }
+    },
+    "openIssues": []
+  }
+}

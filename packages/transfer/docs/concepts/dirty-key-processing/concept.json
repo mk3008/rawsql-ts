@@ -1,0 +1,527 @@
+{
+  "schemaVersion": 2,
+  "id": "dirty-key-processing",
+  "displayName": "変更キー処理結果",
+  "lifecycle": {
+    "status": "defined"
+  },
+  "definition": {
+    "summary": "変更キーごとの処理結果を、転送実行記録と転送先リンクの文脈で記録する概念",
+    "statements": [
+      {
+        "id": "dirty-key-processing-processed-record-id",
+        "displayName": "変更キーごとの処理結果を記録する概念",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "変更キー処理結果とは、処理済みの `変更キー` とその処理結果を記録する概念である。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-transfer-run-trace",
+        "displayName": "どの Transfer Run で処理されたかを追跡できる",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Dirty Key Processing は、どの `Transfer Run` で処理されたかを追跡できる。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-transfer-setting-context-trace",
+        "displayName": "どの Transfer Setting の文脈で処理されたかを追跡できる",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Dirty Key Processing は、どの `Transfer Setting` の文脈で処理されたかを追跡できる。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "destination-link-dirty-key-processing-context-trace",
+        "displayName": "どの Destination Link の文脈で処理されたかを追跡できる",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Dirty Key Processing は、どの `Destination Link` の文脈で処理されたかを追跡できる。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "destination-link-dirty-key-processing-id",
+        "displayName": "Destination Link ID を持つ必要がある。",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Dirty Key Processing は、`Destination Link` ID を持つ必要がある。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-record-work-item",
+        "displayName": "Work Item の処理結果を記録できる",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Dirty Key Processing は、`Work Item` の処理結果を記録できる。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-processed-record-reference",
+        "displayName": "二重転送防止のために参照される処理済み記録",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Dirty Key Processing は、二重転送防止のために参照される処理済み記録である。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-management",
+        "displayName": "Dirty Key Management そのものではない。",
+        "polarity": "negative",
+        "type": "essence",
+        "text": "Dirty Key Processing は、`Dirty Key` Management そのものではない。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ],
+        "negatesSimilarityWith": [
+          "work-item"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-processed-record-id-2",
+        "displayName": "処理済みの Dirty Key ID を記録",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Dirty Key Processing は、処理済みの `Dirty Key` ID を記録する。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-transfer-run-record",
+        "displayName": "処理した Transfer Run を記録",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Dirty Key Processing は、処理した `Transfer Run` を記録する。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-transfer-setting-context-record",
+        "displayName": "処理した Transfer Setting の文脈を記録",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Dirty Key Processing は、処理した `Transfer Setting` の文脈を記録する。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "destination-link-dirty-key-processing-context-record",
+        "displayName": "処理した Destination Link の文脈を記録",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Dirty Key Processing は、処理した `Destination Link` の文脈を記録する。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "destination-link-dirty-key-processing-record-id",
+        "displayName": "Destination Link ID を記録",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Dirty Key Processing は、`Destination Link` ID を記録する。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-record-work-item-2",
+        "displayName": "Work Item の処理結果を記録",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Dirty Key Processing は、`Work Item` の処理結果を記録する。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-red-transfer-trace-work-item",
+        "displayName": "追加、更新、赤伝追加、削除、無視など、Work Item がどう処理されたかを追跡できるように",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Dirty Key Processing は、追加、更新、赤伝追加、削除、無視など、`Work Item` がどう処理されたかを追跡できるようにする。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-processed-work-item",
+        "displayName": "Work Item を作るときに、処理済み Dirty Key を除外できるように",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Dirty Key Processing は、`Work Item` を作るときに、処理済み `Dirty Key` を除外できるようにする。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "destination-link-dirty-key-processing-transfer-setting-context",
+        "displayName": "同じ Dirty Key を同じ Transfer Setting と Destination Link の文脈で二重転送しないための判断材料を提供",
+        "polarity": "negative",
+        "type": "responsibility",
+        "text": "Dirty Key Processing は、同じ `Dirty Key` を同じ `Transfer Setting` と `Destination Link` の文脈で二重転送しないための判断材料を提供する。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ],
+        "negatesSimilarityWith": [
+          "destination",
+          "destination-link",
+          "dirty-key",
+          "transfer-setting"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-trace",
+        "displayName": "監査やデバッグで、Dirty Key がどう扱われたかを追跡できるように",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Dirty Key Processing は、監査やデバッグで、`Dirty Key` がどう扱われたかを追跡できるようにする。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "not-dirty-key-processing-change-detection-history-management",
+        "displayName": "Dirty Key Management の変更検知履歴を変更しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Dirty Key Processing は、`Dirty Key` Management の変更検知履歴を変更しない。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "not-dirty-key-processing-processed-state",
+        "displayName": "Dirty Key 自体に処理済み状態を書き込まない。",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Dirty Key Processing は、`Dirty Key` 自体に処理済み状態を書き込まない。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "not-dirty-key-processing-define",
+        "displayName": "Dirty Key の登録方法を定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Dirty Key Processing は、`Dirty Key` の登録方法を定義しない。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "not-dirty-key-processing-work-item",
+        "displayName": "Work Item の処理結果を作らない。",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Dirty Key Processing は、`Work Item` の処理結果を作らない。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "not-black-transfer-dirty-key-processing-lineage-red",
+        "displayName": "Black Transfer、Red Transfer、Active Black、Lineage の保存形式を定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Dirty Key Processing は、`Black Transfer`、`Red Transfer`、`Active Black`、`Lineage` の保存形式を定義しない。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ],
+        "negatesSimilarityWith": [
+          "black-transfer",
+          "dirty-key",
+          "lineage",
+          "red-transfer"
+        ]
+      },
+      {
+        "id": "not-dirty-key-processing-produce-define-sql",
+        "displayName": "転送 SQL の生成手順や実行手順を定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Dirty Key Processing は、転送 SQL の生成手順や実行手順を定義しない。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-record-id",
+        "displayName": "Dirty Key ID を記録",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Dirty Key Processing は、`Dirty Key` ID を記録する。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-transfer-run-record-2",
+        "displayName": "Transfer Run を記録",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Dirty Key Processing は、`Transfer Run` を記録する。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "destination-link-dirty-key-processing-record-id-2",
+        "displayName": "Destination Link ID を記録",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Dirty Key Processing は、`Destination Link` ID を記録する。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-record",
+        "displayName": "処理結果を記録",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Dirty Key Processing は、処理結果を記録する。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-processed-record-work-item",
+        "displayName": "Work Item を作るとき、既に Dirty Key Processing に記録されている Dirty Key は処理済みとして除外",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "`Work Item` を作るとき、既に Dirty Key Processing に記録されている `Dirty Key` は処理済みとして除外する。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "destination-link-dirty-key-processing-transfer-run-record",
+        "displayName": "Work Item の処理が終わった後、Dirty Key Processing に Dirty Key ID、Destination Link ID、処理結果、Transfer Run を記録",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "`Work Item` の処理が終わった後、Dirty Key Processing に `Dirty Key` ID、`Destination Link` ID、処理結果、`Transfer Run` を記録する。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "dirty-key-processed-state",
+        "displayName": "Dirty Key 自体には処理済み状態を書き込まない。",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "`Dirty Key` 自体には処理済み状態を書き込まない。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "destination-link-dirty-key-processing-transfer-setting-processed",
+        "displayName": "の処理済み記録は、Transfer Setting と Destination Link の文脈を持つ",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Dirty Key Processing の処理済み記録は、`Transfer Setting` と `Destination Link` の文脈を持つ。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "destination-link-dirty-key-processing-transfer-setting",
+        "displayName": "同じ Dirty Key でも、Transfer Setting または Destination Link が異なれば別の Dirty Key Processing として扱われ得る",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "同じ `Dirty Key` でも、`Transfer Setting` または `Destination Link` が異なれば別の Dirty Key Processing として扱われ得る。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-processed-change-detection-history-record",
+        "displayName": "処理済み記録であり、変更検知履歴ではない。",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "Dirty Key Processing は、処理済み記録であり、変更検知履歴ではない。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-processed-change-detection-history-record-2",
+        "displayName": "Dirty Key Is Immutable Change Detection",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Dirty Key Is Immutable Change Detection: `Dirty Key` Management は、変更検知履歴としてイミュータブルに扱う。 同じキーに対して複数の `Dirty Key` が追加されてよい。 そのため、どの `Dirty Key` が処理済みかを `Dirty Key` 自体に書き戻してはならない。 Dirty Key Processing は、`Dirty Key` とは別に処理済み記録を持つための概念である。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-processed-record-prevents-duplicate-transfer",
+        "displayName": "Prevents Duplicate Transfer",
+        "polarity": "positive",
+        "type": "rationale",
+        "text": "Dirty Key Processing Prevents Duplicate Transfer: `Work Item` は `Dirty Key` から作られる。 しかし、既に処理済みの `Dirty Key` を再び `Work Item` として処理すると、二重転送につながる。 `Work Item` を作るときは、Dirty Key Processing に記録済みの `Dirty Key` を除外する必要がある。 この除外により、`Dirty Key` 自体を変更せずに二重転送を防止できる。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      },
+      {
+        "id": "destination-link-dirty-key-processing-transfer-run-setting",
+        "displayName": "Processing Is Destination Link Scoped",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Processing Is Destination Link Scoped: `Dirty Key` は転送アプリケーション全体で共有される変更検知履歴である。 同じ `Dirty Key` でも、`Transfer Setting` が異なれば処理対象や転送判断は異なり得る。 また、1つの `Transfer Run` は1つの `Transfer Setting` を対象にするが、その `Transfer Setting` は複数の `Destination Link` を持ち得る。 そのため、Dirty Key Processing は `Transfer Setting` だけでなく、`Destination Link` の文脈を持つ必要がある。 `Destination Link` ID がないと、ある `Dirty Key` がどの宛先別設定で処理済みなのかを区別できず、二重転送防止の粒度が粗くなる。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ],
+        "negatesSimilarityWith": [
+          "destination",
+          "destination-link",
+          "dirty-key",
+          "transfer-run",
+          "transfer-setting"
+        ]
+      },
+      {
+        "id": "black-insert-transfer-update-dirty-key-processing-physical",
+        "displayName": "Processing Records the Decision",
+        "polarity": "positive",
+        "type": "rationale",
+        "text": "Processing Records the Decision: Dirty Key Processing は、`Dirty Key` が処理済みかどうかだけでなく、`Work Item` がどの結果として処理されたかを追跡できる。 たとえば、無視した、Black Insert Transfer で追加した、Black Update Transfer で更新した、`Red Transfer` で赤伝を追加した、`Red Transfer` 後に Black Insert Transfer した、`Physical Delete Transfer` で物理削除した、などの処理結果を記録できる。 この情報は、監査、デバッグ、二重転送防止に有用である。",
+        "evidence": [
+          "spec:dirty-key-processing"
+        ]
+      }
+    ]
+  },
+  "internalLinks": [],
+  "externalRelationships": [
+    {
+      "to": "dirty-key",
+      "kind": "depends-on",
+      "reason": "Dirty Key Processing は処理済みの Dirty Key ID を記録する。",
+      "supportedBy": [
+        "dirty-key-processing-processed-record-id-2",
+        "dirty-key-processing-transfer-run-record",
+        "dirty-key-processing-transfer-setting-context-record"
+      ],
+      "evidence": [
+        "spec:dirty-key-processing"
+      ]
+    },
+    {
+      "to": "transfer-run",
+      "kind": "records",
+      "reason": "Dirty Key Processing はどの Transfer Run が Dirty Key を処理し、どの処理結果になったかを記録する。",
+      "supportedBy": [
+        "dirty-key-processing-transfer-run-record",
+        "dirty-key-processing-transfer-run-record-2",
+        "destination-link-dirty-key-processing-transfer-run-record"
+      ],
+      "evidence": [
+        "spec:dirty-key-processing"
+      ]
+    },
+    {
+      "to": "transfer-setting",
+      "kind": "depends-on",
+      "reason": "Dirty Key Processing は Transfer Setting の文脈で管理される。",
+      "supportedBy": [
+        "dirty-key-processing-transfer-setting-context-record",
+        "destination-link-dirty-key-processing-transfer-setting-context",
+        "destination-link-dirty-key-processing-transfer-setting-processed"
+      ],
+      "evidence": [
+        "spec:dirty-key-processing"
+      ]
+    },
+    {
+      "to": "destination-link",
+      "kind": "depends-on",
+      "reason": "Dirty Key Processing は、1つの Transfer Run が複数の Destination Link を処理できるため Destination Link ID を記録する。",
+      "supportedBy": [
+        "destination-link-dirty-key-processing-context-record",
+        "destination-link-dirty-key-processing-record-id",
+        "destination-link-dirty-key-processing-transfer-setting-context"
+      ],
+      "evidence": [
+        "spec:dirty-key-processing"
+      ]
+    },
+    {
+      "to": "dirty-key",
+      "kind": "is-distinct-from",
+      "reason": "Dirty Key はイミュータブルな変更検知履歴であり、Dirty Key Processing は処理済み状態の記録である。",
+      "supportedBy": [
+        "dirty-key-processing-processed-record-id-2",
+        "dirty-key-processing-transfer-run-record",
+        "dirty-key-processing-transfer-setting-context-record"
+      ],
+      "evidence": [
+        "spec:dirty-key-processing"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "spec:dirty-key-processing",
+      "type": "spec",
+      "path": "concept.json"
+    }
+  ],
+  "reviewState": {
+    "coverage": {
+      "definition": {
+        "status": "complete",
+        "reason": "concept.json の意味、責務、境界、不変条件、理由を curated statement として移植済み。"
+      },
+      "relationships": {
+        "status": "complete",
+        "reason": "concept-relationship.json と移行元 concept.json の外部関係を反映済み。"
+      }
+    },
+    "openIssues": []
+  }
+}

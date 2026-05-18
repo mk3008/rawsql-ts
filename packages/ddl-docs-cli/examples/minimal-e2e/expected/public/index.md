@@ -2,7 +2,7 @@
 
 # public Tables
 
-[<- All Schemas](../index.md)
+[<- Schemas](../index.md)
 - [Column Index](./columns/index.md)
 
 | Table | Columns | Comment | Alert | Suggest |

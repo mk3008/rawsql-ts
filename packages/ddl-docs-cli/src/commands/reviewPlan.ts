@@ -5,6 +5,7 @@ import {
   loadDdlRelationshipMetadata,
   loadDfdRegistry,
   type ConceptRegistry,
+  type ConceptRegistryEntry,
   type DdlRelationshipEntry,
   type DdlRelationshipMetadata,
   type DfdRegistry,
@@ -807,7 +808,10 @@ function classifyArtifactKind(changedFile: string, options: ReviewPlanOptions): 
   if (options.dfdRelationshipPath && samePath(changedFile, options.dfdRelationshipPath)) {
     return 'dfd-relationship-metadata';
   }
-  if (changedFile.includes('/docs/concepts/') && changedFile.endsWith('.md')) {
+  if (
+    changedFile.includes('/docs/concepts/')
+    && (changedFile.endsWith('.md') || changedFile.endsWith('/concept.json'))
+  ) {
     return 'concept-spec';
   }
   if (changedFile.includes('/docs/dfd/') && changedFile.endsWith('.md')) {
@@ -883,7 +887,7 @@ function resolveConceptIdForRelationshipTarget(
   }
   const resolvedTarget = path.resolve(relationshipMetadata.baseDir, targetPath);
   return conceptRegistry.concepts.find((entry) =>
-    entry.path != null && path.resolve(conceptRegistry.baseDir, entry.path) === resolvedTarget
+    conceptEntryPaths(entry).some((entryPath) => path.resolve(conceptRegistry.baseDir, entryPath) === resolvedTarget)
   )?.id;
 }
 
@@ -904,9 +908,14 @@ function resolveConceptIdForPath(
   conceptRegistry: ConceptRegistry | undefined
 ): string | undefined {
   return conceptRegistry?.concepts.find((entry) =>
-    entry.path != null
-      && normalizeRelativePath(path.relative(process.cwd(), path.resolve(conceptRegistry.baseDir, entry.path))) === changedFile
+    conceptEntryPaths(entry).some((entryPath) =>
+      normalizeRelativePath(path.relative(process.cwd(), path.resolve(conceptRegistry.baseDir, entryPath))) === changedFile
+    )
   )?.id;
+}
+
+function conceptEntryPaths(entry: ConceptRegistryEntry): string[] {
+  return [entry.path, entry.draftPath].filter((entryPath): entryPath is string => typeof entryPath === 'string');
 }
 
 function resolveProcessIdForPath(changedFile: string, processRegistry: ProcessRegistry): string | undefined {

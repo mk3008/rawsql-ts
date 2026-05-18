@@ -32,6 +32,7 @@ flowchart TD
   Start(["start"])
   CreateRun(["Create Transfer Run"])
   PrepareWorkItem(["Prepare Work Item"])
+  ApplyDecision(["Apply Transfer Target Decision"])
   SkipTransfer{{"Skip Transfer?"}}
   TransferModelBranch{{"Transfer Model Branch"}}
   RedTransfer(["Red Transfer - insert"])
@@ -43,7 +44,8 @@ flowchart TD
 
   Start --> CreateRun
   CreateRun --> PrepareWorkItem
-  PrepareWorkItem --> SkipTransfer
+  PrepareWorkItem --> ApplyDecision
+  ApplyDecision --> SkipTransfer
   SkipTransfer -->|"重複無視または no-op"| RecordResult
   SkipTransfer -->|"転送が必要"| TransferModelBranch
   TransferModelBranch -->|"immutable model"| RedTransfer
@@ -89,6 +91,24 @@ flowchart LR
   PrepareWorkItem -->|"判断材料を付けて作成"| WorkItem
 ```
 
+## Apply Transfer Target Decision detail
+
+```mermaid
+flowchart LR
+  WorkItem[("Work Item")]
+  DestinationLink["Destination Link"]
+  Destination["Destination"]
+  ActiveBlack{{"Active Black"}}
+  TransferTargetDecision(["Apply Transfer Target Decision"])
+  DecisionResult[("Transfer Target Decision Result")]
+
+  WorkItem -->|"判定対象"| TransferTargetDecision
+  DestinationLink -->|"比較対象外列と宛先別文脈"| TransferTargetDecision
+  Destination -->|"転送モデル"| TransferTargetDecision
+  ActiveBlack -->|"存在有無"| TransferTargetDecision
+  TransferTargetDecision -->|"転送要否と転送表現候補"| DecisionResult
+```
+
 ## Red Transfer - insert detail
 
 ```mermaid
@@ -99,7 +119,7 @@ flowchart LR
   Lineage[("Lineage")]
 
   WorkItem --> RedTransfer
-  RedTransfer -->|"Active Black がある場合に赤伝行を書き込む"| DestinationTable
+  RedTransfer -->|"判定結果が赤伝転送候補の場合に赤伝行を書き込む"| DestinationTable
   RedTransfer -->|"赤伝行を書き込んだ場合に記録する"| Lineage
 ```
 
@@ -113,7 +133,7 @@ flowchart LR
   Lineage[("Lineage")]
 
   WorkItem --> BlackTransfer
-  BlackTransfer -->|"転送元の現在値がある場合に黒伝行を書き込む"| DestinationTable
+  BlackTransfer -->|"判定結果が追加転送候補の場合に黒伝行を書き込む"| DestinationTable
   BlackTransfer -->|"黒伝行を書き込んだ場合に記録する"| Lineage
 ```
 
@@ -126,7 +146,7 @@ flowchart LR
   DestinationTable[/"destination table"/]
 
   WorkItem --> PhysicalDeleteTransfer
-  PhysicalDeleteTransfer -->|"転送元がなく Active Black がある場合に削除する"| DestinationTable
+  PhysicalDeleteTransfer -->|"判定結果が物理削除転送候補の場合に削除する"| DestinationTable
 ```
 
 ## Black Transfer - upsert detail
@@ -138,7 +158,7 @@ flowchart LR
   DestinationTable[/"destination table"/]
 
   WorkItem --> BlackTransfer
-  BlackTransfer -->|"転送元の現在値がある場合に追加または更新する"| DestinationTable
+  BlackTransfer -->|"判定結果が更新転送候補の場合に追加または更新する"| DestinationTable
 ```
 
 ## Record Processing Result detail

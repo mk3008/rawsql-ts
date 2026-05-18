@@ -74,7 +74,7 @@ This keeps AI useful as a reviewer and consistency checker without making it the
 
 ## Concept Spec Format Rules
 
-Use a `SPEC.md` file for the human-readable specification body.
+Use a `concept.json` file for the human-readable specification body.
 
 A Concept Spec should usually include:
 
@@ -431,7 +431,7 @@ packages/<package-name>/docs/concepts/
   README.md
   concept-relationship.json
   <concept-name>/
-    SPEC.md
+    concept.json
 
 packages/<package-name>/docs/processes/
   process-map.json
@@ -449,14 +449,16 @@ It lists available Concept Specs and can describe package-specific reading order
 Individual concepts own their durable specification in their own directory:
 
 ```text
-packages/transfer/docs/concepts/dirty-key/SPEC.md
+packages/transfer/docs/concepts/dirty-key/concept.json
 ```
 
 Concept folders are stable anchors.
-When a concept is still under discussion, keep the same concept directory and use `DRAFT.md` instead of `SPEC.md`:
+When a concept is still under discussion, keep the same concept directory and still use `concept.json` as the structured source of truth.
+Use `DRAFT.md` only as supplemental notes, meeting material, or unresolved draft prose:
 
 ```text
 packages/transfer/docs/concepts/<concept-id>/
+  concept.json
   DRAFT.md
 ```
 
@@ -465,9 +467,9 @@ Agents may review it, point out contradictions, and propose wording, but they mu
 
 When the concept is approved, promote it in place:
 
-1. Replace `DRAFT.md` with `SPEC.md`.
-2. Remove the old `DRAFT.md`.
-3. Update `concept-relationship.json` from `draftPath` / `status: "draft"` to `path` / `status: "defined"`.
+1. Update lifecycle status in `concept.json`.
+2. Remove `DRAFT.md` when the draft notes are no longer needed.
+3. Update `concept-relationship.json` from `status: "draft"` to `status: "defined"` and remove `draftPath` when the notes are no longer needed.
 4. Regenerate or refresh generated Concept review views from the structured metadata.
 5. Recheck DFDs, Process Maps, and feature references that depended on the draft wording.
 
@@ -509,11 +511,11 @@ Feature-local specs, when needed, stay close to the feature:
 
 ```text
 packages/<package-name>/src/features/<feature-name>/
-  SPEC.md
+  concept.json
   spec-relationship.json
 ```
 
-Feature-local `SPEC.md` files describe feature-specific behavior.
+Feature-local `concept.json` files describe feature-specific behavior.
 They are not Concept Specs unless they are promoted to `docs/concepts/` by explicit human decision.
 Feature-local specs may depend on Concept Specs, but they must not redefine Concept Specs.
 
@@ -527,9 +529,9 @@ Start with one direct directory per concept:
 docs/concepts/
   concept-relationship.json
   dirty-key/
-    SPEC.md
+    concept.json
   lineage/
-    SPEC.md
+    concept.json
 ```
 
 Use `concept-relationship.json` as the package-level structured source for concept names, glossary terms, lifecycle state, and static concept relationships.
@@ -546,8 +548,8 @@ If a static relationship starts to read like "how to register, update, search, o
 
 Separate defined and draft concepts in the human-facing map:
 
-- `Defined Concepts` have an approved `SPEC.md`.
-- `Draft Concepts` have a `DRAFT.md` and are not yet authoritative.
+- `Defined Concepts` have an approved `concept.json`.
+- `Draft Concepts` have `concept.json` with `status: "draft"` and may have supplemental `DRAFT.md` notes.
 
 Draft concepts may appear in maps as open work, but their status must be visible.
 Do not let a draft concept appear as a defined production premise without an explicit human decision.
@@ -613,7 +615,7 @@ The initial shape is:
 {
   "dependencies": [
     {
-      "path": "../../docs/concepts/dirty-key/SPEC.md",
+      "path": "../../docs/concepts/dirty-key/concept.json",
       "kind": "concept",
       "reason": "This feature depends on dirty key semantics"
     }
@@ -652,7 +654,7 @@ This lets tools answer questions such as how many draft concepts remain, whether
 
 `summary` is allowed as a short index note for humans, AI agents, and generated review views.
 It may be written by a human or proposed by an AI agent, but it is not authoritative concept prose.
-The owning `SPEC.md` or `DRAFT.md` remains the source of concept meaning.
+The owning `concept.json` remains the source of concept meaning. `DRAFT.md` may record supplemental draft notes but is not the authoritative source.
 Keep `summary` to about one sentence, avoid implementation detail, and do not use it as the basis for implementation decisions.
 If `summary` conflicts with the spec body, the spec body wins and the summary should be corrected.
 
@@ -661,31 +663,32 @@ They are search, discovery, and review-aid text.
 They may make generated indexes easier to use, but they must not become a second source of concept truth.
 When they conflict with the owning Concept Spec or approved logical model, correct the metadata.
 
-For defined concepts, use `status: "defined"` and point to `SPEC.md`:
+For defined concepts, use `status: "defined"` and point to `concept.json`:
 
 ```json
 {
   "id": "dirty-key",
   "status": "defined",
-  "path": "dirty-key/SPEC.md",
+  "path": "dirty-key/concept.json",
   "summary": "変更が起きた可能性のある発生元行を識別する変更検知履歴"
 }
 ```
 
-For draft concepts, use `status: "draft"` and point to `DRAFT.md`:
+For draft concepts, use `status: "draft"` and point `path` to `concept.json`.
+Use `draftPath` only when supplemental draft notes exist:
 
 ```json
 {
   "id": "example-concept",
   "status": "draft",
+  "path": "example-concept/concept.json",
   "draftPath": "example-concept/DRAFT.md",
   "summary": "Draft concept under human review."
 }
 ```
 
-Do not put both `path` and `draftPath` on the same concept entry.
-`path` means the concept is defined.
-`draftPath` means the concept is unfinished.
+For draft concepts, `path` is still the structured source of truth.
+`draftPath` points only to supplemental notes.
 
 ## Why Relationship Metadata Exists
 
@@ -863,7 +866,7 @@ Early CLI support should stay structural and mechanical:
 - check `dependencies[].path` link existence
 - reject manual parent dependencies
 - show related specs for a feature
-- detect invalid `DRAFT.md` / `SPEC.md` lifecycle states
+- detect invalid `DRAFT.md` / `concept.json` lifecycle states
 - check `concept-relationship.json` concept IDs, paths, statuses, and relationship references
 - check `docs/dfd/relationship.json` DFD Concept Groups, input/output references, external stores, and Markdown paths
 - check `docs/processes/process-map.json` Process Map IDs, Markdown paths, view IDs, typed input/output refs, external stores, derived views, and related Concepts
@@ -912,12 +915,11 @@ Errors:
 - `spec-relationship.json` is invalid JSON
 - `dependencies[].path` does not exist
 - a child spec manually lists its parent Concept Spec as a dependency
-- one concept directory contains both `SPEC.md` and `DRAFT.md`
 - `concept-relationship.json` marks a concept as `defined` but its `path` is missing or does not exist
 - `concept-relationship.json` marks a concept as `defined` while that concept directory still has `DRAFT.md`
-- `concept-relationship.json` marks a concept as `draft` but its `draftPath` is missing or does not exist
-- `concept-relationship.json` marks a concept as `draft` while `SPEC.md` exists in that concept directory
-- a concept directory with `SPEC.md` or `DRAFT.md` is missing from `concept-relationship.json`
+- `concept-relationship.json` marks a concept as `draft` but its `path` to `concept.json` is missing or does not exist
+- a concept directory has `DRAFT.md` but no `concept.json`
+- a concept directory with `concept.json` or `DRAFT.md` is missing from `concept-relationship.json`
 - `docs/dfd/relationship.json` is invalid JSON or has an invalid schema
 - a DFD input/output reference points to an unknown Concept, Concept Group, external store, or derived view
 - a DFD Concept Group member points to an unknown or non-defined Concept

@@ -1,8 +1,10 @@
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from 'vitest';
 import { checkDocs, runCheckDocs } from '../src/commands/check';
+import { updateConceptDisplayName } from '../src/commands/conceptDisplayName';
 import { buildReviewPlan } from '../src/commands/reviewPlan';
+import { runStructuredConceptBuild } from '../src/commands/structuredConcept';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const tmpRoot = path.join(repoRoot, 'tmp');
@@ -18,6 +20,352 @@ function writeText(filePath: string, value: string): void {
   mkdirSync(path.dirname(filePath), { recursive: true });
   writeFileSync(filePath, value, 'utf8');
 }
+
+test('concept-display-name updates concept registry displayName and reports relationships', () => {
+  const work = createTempDir('ddl-docs-concept-display-name');
+  const conceptRelationshipPath = path.join(work, 'concept-relationship.json');
+  writeText(conceptRelationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    concepts: [
+      {
+        id: 'duplicate-control',
+        displayName: 'Duplicate Control',
+        status: 'candidate',
+        path: null,
+      },
+      {
+        id: 'work-item',
+        displayName: 'Work Item',
+        status: 'defined',
+        path: 'work-item/concept.json',
+      },
+    ],
+    relationships: [
+      {
+        from: 'work-item',
+        to: 'duplicate-control',
+        kind: 'uses',
+        reason: 'Work Item uses duplicate control.',
+      },
+    ],
+  }, null, 2));
+
+  const report = updateConceptDisplayName({
+    conceptRelationshipPath,
+    id: 'duplicate-control',
+    displayName: '重複制御',
+    dryRun: false,
+  });
+
+  const updated = JSON.parse(readFileSync(conceptRelationshipPath, 'utf8')) as {
+    concepts: Array<{ id: string; displayName: string }>;
+  };
+  expect(updated.concepts.find((concept) => concept.id === 'duplicate-control')?.displayName).toBe('重複制御');
+  expect(report.concept.oldDisplayName).toBe('Duplicate Control');
+  expect(report.concept.newDisplayName).toBe('重複制御');
+  expect(report.relationships.incoming).toHaveLength(1);
+  expect(report.relationships.outgoing).toHaveLength(0);
+  expect(report.written).toBe(true);
+});
+
+test('structured-concept build renders review page and generated indexes from concept json', () => {
+  const work = createTempDir('ddl-docs-structured-concept');
+  const conceptDir = path.join(work, 'concepts');
+  const activeBlackDir = path.join(conceptDir, 'active-black');
+  const duplicateDir = path.join(conceptDir, 'duplicate-control');
+  const transferRunDir = path.join(conceptDir, 'transfer-run');
+  const outDir = path.join(work, 'docs', 'concepts');
+  const relationshipOut = path.join(work, 'tmp', 'concept-relationship.json');
+  const reverseOut = path.join(work, 'tmp', 'concept-reverse-relationships.json');
+  const aiContextOut = path.join(work, 'tmp', 'ai-context', 'concepts.json');
+  const summaryOut = path.join(work, 'tmp', 'structured-concept-review-summary.json');
+  writeText(path.join(activeBlackDir, 'concept.json'), '# Active Black\n');
+  writeText(path.join(activeBlackDir, 'concept.json'), JSON.stringify({
+    schemaVersion: 1,
+    id: 'active-black',
+    displayName: 'Active Black',
+    lifecycle: { status: 'defined' },
+    summary: '現在有効な黒伝。',
+    sources: [
+      { id: 'spec:active-black', type: 'spec', path: 'concept.json' },
+    ],
+    sections: {
+      definition: {
+        coverage: 'complete',
+        items: [
+          { id: 'definition', text: 'Active Black は現在有効な黒伝である。', sources: ['spec:active-black'] },
+        ],
+      },
+      goals: {
+        coverage: 'complete',
+        items: [
+          { id: 'identify-current-black', text: '現在有効な黒伝を特定する。', sources: ['spec:active-black'] },
+        ],
+      },
+      nonResponsibilities: {
+        coverage: 'none',
+        reason: 'This fixture does not need non-responsibilities.',
+        items: [],
+      },
+      invariants: {
+        coverage: 'complete',
+        items: [
+          { id: 'current-only', text: '取り消し済みの黒伝は Active Black ではない。', sources: ['spec:active-black'] },
+        ],
+      },
+      openIssues: {
+        coverage: 'none',
+        reason: 'This fixture has no open questions.',
+        items: [],
+      },
+    },
+    links: [],
+    relationships: [],
+  }, null, 2));
+  writeText(path.join(duplicateDir, 'DRAFT.md'), '# 重複制御 Draft\n');
+  writeText(path.join(duplicateDir, 'concept.json'), JSON.stringify({
+    schemaVersion: 1,
+    id: 'duplicate-control',
+    displayName: '重複制御',
+    lifecycle: { status: 'draft', sourceDraft: 'DRAFT.md' },
+    summary: 'Dirty Key を転送作業対象にするか、転送不要として扱うかを分ける判断境界。',
+    sources: [
+      { id: 'draft:duplicate-control', type: 'draft', path: 'DRAFT.md' },
+    ],
+    sections: {
+      definition: {
+        coverage: 'partial',
+        reason: 'Definition is still a PoC review result.',
+        resolutionCriteria: [
+          { id: 'confirm-definition', text: 'Confirm the definition boundary.', sources: ['draft:duplicate-control'] },
+        ],
+        items: [
+          { id: 'definition', text: '重複制御は転送要否を分ける判断境界である。', sources: ['draft:duplicate-control'] },
+        ],
+      },
+      goals: {
+        coverage: 'partial',
+        reason: 'Goals are still a PoC review result.',
+        resolutionCriteria: [
+          { id: 'confirm-goals', text: 'Confirm whether all draft responsibilities are goals.', sources: ['draft:duplicate-control'] },
+        ],
+        items: [
+          { id: 'avoid-duplicate-transfer', text: '同じ転送判断を二重転送しない。', sources: ['draft:duplicate-control'] },
+        ],
+      },
+      nonResponsibilities: {
+        coverage: 'none',
+        reason: 'PoC keeps non-responsibilities empty intentionally.',
+        items: [],
+      },
+      invariants: {
+        coverage: 'partial',
+        reason: 'Invariants are still a PoC review result.',
+        resolutionCriteria: [
+          { id: 'confirm-invariants', text: 'Confirm remaining invariant candidates.', sources: ['draft:duplicate-control'] },
+        ],
+        items: [
+          { id: 'dirty-key-not-mutated', text: 'Dirty Key 自体には処理済み状態を書き込まない。', sources: ['draft:duplicate-control'] },
+        ],
+      },
+      openIssues: {
+        coverage: 'partial',
+        reason: 'Open issues are still a PoC review result.',
+        resolutionCriteria: [
+          { id: 'confirm-open-issues', text: 'Confirm remaining draft open questions.', sources: ['draft:duplicate-control'] },
+        ],
+        items: [
+          { id: 'ownership-boundary', question: '独立Conceptにするか。', status: 'open', sources: ['draft:duplicate-control'] },
+        ],
+      },
+    },
+    links: [
+      {
+        from: 'goals.avoid-duplicate-transfer',
+        to: 'definition.definition',
+        kind: 'supports',
+        reason: 'The goal depends on the duplicate-control boundary.',
+        sources: ['draft:duplicate-control'],
+      },
+    ],
+    relationships: [
+      { to: 'active-black', kind: 'uses', reason: '現在有効な黒伝があるかを判断するため。', sources: ['draft:duplicate-control'] },
+    ],
+  }, null, 2));
+  writeText(path.join(transferRunDir, 'concept.json'), '# Transfer Run\n');
+  writeText(path.join(transferRunDir, 'concept.json'), JSON.stringify({
+    schemaVersion: 2,
+    id: 'transfer-run',
+    displayName: '転送実行記録',
+    lifecycle: { status: 'defined' },
+    definition: {
+      summary: 'Transfer Execution が生成する実行引数記録兼プロセスヘッダー。',
+      statements: [
+        {
+          id: 'run-header',
+          displayName: '実行ヘッダー',
+          polarity: 'positive',
+          type: 'essence',
+          text: 'Transfer Run は実行引数記録兼プロセスヘッダーである。',
+          evidence: ['spec:transfer-run'],
+        },
+        {
+          id: 'current-black-reference',
+          displayName: '有効黒伝を参照',
+          polarity: 'positive',
+          type: 'responsibility',
+          text: 'Transfer Run は有効黒伝を参照できる。',
+          evidence: ['spec:transfer-run'],
+        },
+        {
+          id: 'duplicate-control-distinct',
+          displayName: '重複制御を再定義しない',
+          polarity: 'negative',
+          type: 'boundary',
+          text: 'Transfer Run は重複制御を再定義しない。',
+          evidence: ['spec:transfer-run'],
+          negatesSimilarityWith: ['duplicate-control'],
+        },
+      ],
+    },
+    evidence: [
+      { id: 'spec:transfer-run', type: 'spec', path: 'concept.json' },
+    ],
+    internalLinks: [],
+    externalRelationships: [
+      {
+        to: 'active-black',
+        kind: 'uses',
+        reason: 'Transfer Run は有効黒伝を参照する。',
+        supportedBy: ['current-black-reference'],
+        evidence: ['spec:transfer-run'],
+      },
+      {
+        to: 'duplicate-control',
+        kind: 'must-not-redefine',
+        reason: 'Transfer Run は重複制御の判断境界を再定義しない。',
+        supportedBy: ['duplicate-control-distinct'],
+        evidence: ['spec:transfer-run'],
+      },
+    ],
+    reviewState: {
+      coverage: {
+        definition: { status: 'complete', reason: 'Fixture definition is complete.' },
+        relationships: { status: 'complete', reason: 'Fixture relationships are complete.' },
+      },
+      openIssues: [],
+    },
+  }, null, 2));
+  writeText(path.join(conceptDir, 'concept-relationship.json'), JSON.stringify({
+    schemaVersion: 1,
+    concepts: [
+      { id: 'active-black', displayName: 'Active Black', status: 'defined', path: 'active-black/concept.json' },
+      { id: 'duplicate-control', displayName: '重複制御', status: 'draft', path: 'duplicate-control/concept.json', draftPath: 'duplicate-control/DRAFT.md' },
+      { id: 'transfer-run', displayName: '転送実行記録', status: 'defined', path: 'transfer-run/concept.json' },
+    ],
+    relationships: [],
+  }, null, 2));
+
+  runStructuredConceptBuild({
+    conceptDirectories: [conceptDir],
+    conceptRelationshipPath: path.join(conceptDir, 'concept-relationship.json'),
+    outDir,
+    relationshipOutPath: relationshipOut,
+    reverseRelationshipOutPath: reverseOut,
+    aiContextOutPath: aiContextOut,
+    reviewSummaryOutPath: summaryOut,
+  });
+
+  const conceptPage = readFileSync(path.join(outDir, 'duplicate-control.md'), 'utf8');
+  expect(conceptPage).toContain('# 重複制御');
+  expect(conceptPage).toContain('- Schema version: `1`');
+  expect(conceptPage).toContain('- Open questions: present');
+  expect(conceptPage).toContain('## Open Questions');
+  expect(conceptPage).toContain('## Definition Statements');
+  expect(conceptPage).toContain('## Coverage');
+  expect(conceptPage).toContain('## Internal Links');
+  expect(conceptPage).toContain('## External Relationships');
+  expect(conceptPage).toContain('<a href="./active-black">Active Black</a><br><small><code>active-black</code></small>');
+  const transferRunPage = readFileSync(path.join(outDir, 'transfer-run.md'), 'utf8');
+  expect(transferRunPage).toContain('<div class="concept-review-summary dense">');
+  expect(transferRunPage).toContain('<span class="concept-status ok">defined</span>');
+  expect(transferRunPage).toContain('<span class="concept-status ok">open questions none</span>');
+  expect(transferRunPage).toContain('<span>format schema <code>v2</code></span>');
+  expect(transferRunPage).toContain('<span class="concept-status ok">meaning: present</span>');
+  expect(transferRunPage).toContain('<span class="concept-status ok">responsibilities: present</span>');
+  expect(transferRunPage).toContain('<span class="concept-status ok">boundaries: present</span>');
+  expect(transferRunPage).toContain('<span class="concept-status warn">invariants: missing</span>');
+  expect(transferRunPage).toContain('<span class="concept-status neutral">rationale: not set</span>');
+  expect(transferRunPage).toContain('<span class="concept-status ok">evidence: present</span>');
+  expect(transferRunPage).toContain('<span class="concept-status ok">linked concepts: present</span>');
+  expect(transferRunPage).not.toContain('relationships <strong>');
+  expect(transferRunPage).not.toContain('statements <strong>');
+  expect(transferRunPage).toContain('<div class="concept-related-concepts">');
+  expect(transferRunPage).not.toContain('<span>Related concepts</span>');
+  expect(transferRunPage).toContain('<div class="concept-definition-summary">Transfer Execution が生成する実行引数記録兼プロセスヘッダー。</div>');
+  expect(transferRunPage).toContain('<a href="./active-black">Active Black</a>');
+  expect(transferRunPage).toContain('<a href="./duplicate-control">重複制御</a>');
+  expect(transferRunPage).toContain('<p class="concept-section-count">1 statements</p>');
+  expect(transferRunPage).toContain('| Active Black<br><small><code>active-black</code></small> | `uses` |');
+  expect(transferRunPage).not.toContain('| <a href="./active-black">Active Black</a>');
+  const relationshipJson = JSON.parse(readFileSync(relationshipOut, 'utf8')) as { relationships: unknown[] };
+  expect(relationshipJson.relationships).toHaveLength(3);
+  const summaryJson = JSON.parse(readFileSync(summaryOut, 'utf8')) as {
+    coverage: Array<{ id: string; openIssueCount: number; internalLinkCount: number }>;
+    validation: { errors: number; warnings: number };
+  };
+  expect(summaryJson.validation.errors).toBe(0);
+  expect(summaryJson.validation.warnings).toBe(0);
+  expect(summaryJson.coverage).toContainEqual(expect.objectContaining({ id: 'duplicate-control', openIssueCount: 1, internalLinkCount: 1 }));
+});
+
+test('structured-concept accepts issue statements and rejects invalid open issue statuses', () => {
+  const work = createTempDir('ddl-docs-structured-concept-issue-status');
+  const conceptDir = path.join(work, 'concepts');
+  const issueDir = path.join(conceptDir, 'issue-carrier');
+  const invalidDir = path.join(conceptDir, 'invalid-status');
+  const outDir = path.join(work, 'docs');
+
+  const conceptJson = (id: string, status: string) => ({
+    schemaVersion: 2,
+    id,
+    displayName: id,
+    lifecycle: { status: 'defined' },
+    definition: {
+      summary: `${id} summary.`,
+      statements: [
+        {
+          id: 'issue-statement',
+          displayName: 'Issue statement',
+          polarity: 'positive',
+          type: 'issue',
+          text: 'This statement records an issue-shaped definition detail.',
+          evidence: [`spec:${id}`],
+        },
+      ],
+    },
+    evidence: [
+      { id: `spec:${id}`, type: 'spec', path: 'concept.json' },
+    ],
+    reviewState: {
+      openIssues: [
+        { id: 'question', question: 'Is this status valid?', status, evidence: [`spec:${id}`] },
+      ],
+    },
+  });
+
+  writeText(path.join(issueDir, 'concept.json'), JSON.stringify(conceptJson('issue-carrier', 'open'), null, 2));
+  writeText(path.join(invalidDir, 'concept.json'), JSON.stringify(conceptJson('invalid-status', 'todo'), null, 2));
+
+  expect(() => runStructuredConceptBuild({
+    conceptDirectories: [issueDir],
+    outDir: path.join(work, 'valid-docs'),
+  })).not.toThrow();
+  expect(() => runStructuredConceptBuild({
+    conceptDirectories: [conceptDir],
+    outDir,
+  })).toThrow(/structured concept build failed/u);
+});
 
 test('check passes when relationship, order, table-docs, and concept registry references are consistent', () => {
   const work = createTempDir('ddl-docs-check-pass');
@@ -40,7 +388,7 @@ test('check passes when relationship, order, table-docs, and concept registry re
     );
     CREATE INDEX idx_accounts_source_lookup ON public.accounts (source_key_hash);
   `);
-  writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
+  writeText(path.join(conceptsDir, 'account/concept.json'), '# Account Concept\n');
   writeText(path.join(dfdDir, 'account-flow.md'), [
     '# Account Flow',
     '',
@@ -103,7 +451,7 @@ test('check passes when relationship, order, table-docs, and concept registry re
       {
         path: 'accounts.sql',
         kind: 'table-ddl',
-        concepts: [{ path: '../docs/concepts/account/SPEC.md', reason: 'Account concept.' }],
+        concepts: [{ path: '../docs/concepts/account/concept.json', reason: 'Account concept.' }],
         processes: [{ path: '../docs/processes/account-process.md', reason: 'Account process.' }],
       },
     ],
@@ -114,7 +462,7 @@ test('check passes when relationship, order, table-docs, and concept registry re
     concepts: [{
       id: 'account',
       displayName: 'Account',
-      path: 'account/SPEC.md',
+      path: 'account/concept.json',
       status: 'defined',
       summary: 'Account concept.',
     }],
@@ -124,7 +472,7 @@ test('check passes when relationship, order, table-docs, and concept registry re
       {
         id: 'account-key',
         displayTerm: 'account key',
-        definedIn: ['account/SPEC.md'],
+        definedIn: ['account/concept.json'],
         meaning: 'Logical account identity.',
       },
     ],
@@ -191,7 +539,7 @@ test('check fails when DFD relationship references an unknown concept', () => {
   writeText(path.join(dfdDir, 'account-flow.md'), '# Account Flow\n');
   writeText(conceptRelationshipPath, JSON.stringify({
     schemaVersion: 1,
-    concepts: [{ id: 'account', path: 'account/SPEC.md', status: 'defined' }],
+    concepts: [{ id: 'account', path: 'account/concept.json', status: 'defined' }],
   }, null, 2));
   writeText(dfdRelationshipPath, JSON.stringify({
     schemaVersion: 1,
@@ -218,6 +566,118 @@ test('check fails when DFD relationship references an unknown concept', () => {
   expect(result.errors.map((issue) => issue.code)).toContain('DFD_REF_UNKNOWN_CONCEPT');
 });
 
+test('check fails when DFD related process does not exist in process-map metadata', () => {
+  const work = createTempDir('ddl-docs-check-dfd-related-process');
+  const ddlDir = path.join(work, 'ddl');
+  const conceptsDir = path.join(work, 'docs', 'concepts');
+  const dfdDir = path.join(work, 'docs', 'dfd');
+  const processesDir = path.join(work, 'docs', 'processes');
+  const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+  const dfdRelationshipPath = path.join(dfdDir, 'relationship.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(path.join(conceptsDir, 'account/concept.json'), '# Account Concept\n');
+  writeText(path.join(dfdDir, 'account-flow.md'), [
+    '# Account Flow',
+    '',
+    '## Account Registration',
+    '',
+    '```mermaid',
+    'flowchart LR',
+    '  Event{{"When: account changes"}}',
+    '  User[/"Who: User"/]',
+    '  Register(("Account Registration"))',
+    '  Event -. "trigger" .-> Register',
+    '  User -. "manual run" .-> Register',
+    '```',
+  ].join('\n'));
+  writeText(
+    path.join(processesDir, 'account-process.md'),
+    '# Account Process\n\n## Process Map Rule Reference\n\nThis document follows the shared [Process Map Rules](../../../docs/guide/concept-spec-overview.md#process-map-rules).\n'
+  );
+  writeText(path.join(processesDir, 'process-map.json'), JSON.stringify({
+    schemaVersion: 1,
+    processMaps: [{ id: 'account-process', path: 'account-process.md' }],
+  }, null, 2));
+  writeText(conceptRelationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    concepts: [{ id: 'account', path: 'account/concept.json', status: 'defined' }],
+  }, null, 2));
+  writeText(dfdRelationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    dfds: [
+      {
+        id: 'account-flow',
+        path: 'account-flow.md',
+        businessOperations: [
+          {
+            id: 'account-registration',
+            displayName: 'Account Registration',
+            relatedProcesses: [
+              { id: 'missing-process', path: '../processes/missing-process.md' },
+            ],
+          },
+        ],
+      },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    conceptRelationshipPath,
+    dfdRelationshipPath,
+    processDirectories: [processesDir],
+  });
+
+  const codes = result.errors.map((issue) => issue.code);
+  expect(codes).toContain('DFD_RELATED_PROCESS_MISSING_PATH');
+  expect(codes).toContain('DFD_RELATED_PROCESS_UNKNOWN_PROCESS');
+});
+
+test('check fails when concept related process map does not exist in process-map metadata', () => {
+  const work = createTempDir('ddl-docs-check-concept-related-process-map');
+  const ddlDir = path.join(work, 'ddl');
+  const conceptsDir = path.join(work, 'docs', 'concepts');
+  const processesDir = path.join(work, 'docs', 'processes');
+  const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+
+  writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
+  writeText(path.join(conceptsDir, 'account/concept.json'), '# Account Concept\n');
+  writeText(
+    path.join(processesDir, 'account-process.md'),
+    '# Account Process\n\n## Process Map Rule Reference\n\nThis document follows the shared [Process Map Rules](../../../docs/guide/concept-spec-overview.md#process-map-rules).\n'
+  );
+  writeText(path.join(processesDir, 'process-map.json'), JSON.stringify({
+    schemaVersion: 1,
+    processMaps: [{ id: 'account-process', path: 'account-process.md' }],
+  }, null, 2));
+  writeText(conceptRelationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    concepts: [{ id: 'account', path: 'account/concept.json', status: 'defined' }],
+    relatedProcessMaps: [
+      {
+        id: 'missing-process',
+        displayName: 'Missing Process',
+        path: '../processes/account-process.md',
+      },
+    ],
+  }, null, 2));
+
+  const result = checkDocs({
+    ddlDirectories: [{ path: ddlDir, instance: '' }],
+    ddlFiles: [],
+    ddlGlobs: [],
+    extensions: ['.sql'],
+    conceptRelationshipPath,
+    processDirectories: [processesDir],
+  });
+
+  expect(result.errors.map((issue) => issue.code)).toContain('CONCEPT_RELATED_PROCESS_MAP_UNKNOWN_PROCESS');
+});
+
 test('check warns when DFD operation has no Mermaid Who labels', () => {
   const work = createTempDir('ddl-docs-check-dfd-who-missing');
   const ddlDir = path.join(work, 'ddl');
@@ -227,7 +687,7 @@ test('check warns when DFD operation has no Mermaid Who labels', () => {
   const dfdRelationshipPath = path.join(dfdDir, 'relationship.json');
 
   writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
-  writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
+  writeText(path.join(conceptsDir, 'account/concept.json'), '# Account Concept\n');
   writeText(path.join(dfdDir, 'account-flow.md'), [
     '# Account Flow',
     '',
@@ -242,7 +702,7 @@ test('check warns when DFD operation has no Mermaid Who labels', () => {
   ].join('\n'));
   writeText(conceptRelationshipPath, JSON.stringify({
     schemaVersion: 1,
-    concepts: [{ id: 'account', path: 'account/SPEC.md', status: 'defined' }],
+    concepts: [{ id: 'account', path: 'account/concept.json', status: 'defined' }],
   }, null, 2));
   writeText(dfdRelationshipPath, JSON.stringify({
     schemaVersion: 1,
@@ -282,21 +742,21 @@ test('check warns when defined concept summary metadata is missing or too long',
   const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
 
   writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
-  writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
-  writeText(path.join(conceptsDir, 'customer/SPEC.md'), '# Customer Concept\n');
+  writeText(path.join(conceptsDir, 'account/concept.json'), '# Account Concept\n');
+  writeText(path.join(conceptsDir, 'customer/concept.json'), '# Customer Concept\n');
   writeText(conceptRelationshipPath, JSON.stringify({
     schemaVersion: 1,
     concepts: [
       {
         id: 'account',
         displayName: 'Account',
-        path: 'account/SPEC.md',
+        path: 'account/concept.json',
         status: 'defined',
       },
       {
         id: 'customer',
         displayName: 'Customer',
-        path: 'customer/SPEC.md',
+        path: 'customer/concept.json',
         status: 'defined',
         summary: 'A'.repeat(161),
       },
@@ -324,15 +784,15 @@ test('check warns when concept relationship helper metadata is too long', () => 
   const longText = 'A'.repeat(241);
 
   writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
-  writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
-  writeText(path.join(conceptsDir, 'customer/SPEC.md'), '# Customer Concept\n');
+  writeText(path.join(conceptsDir, 'account/concept.json'), '# Account Concept\n');
+  writeText(path.join(conceptsDir, 'customer/concept.json'), '# Customer Concept\n');
   writeText(conceptRelationshipPath, JSON.stringify({
     schemaVersion: 1,
     concepts: [
       {
         id: 'account',
         displayName: 'Account',
-        path: 'account/SPEC.md',
+        path: 'account/concept.json',
         status: 'defined',
         summary: 'Account concept.',
         note: longText,
@@ -340,7 +800,7 @@ test('check warns when concept relationship helper metadata is too long', () => 
       {
         id: 'customer',
         displayName: 'Customer',
-        path: 'customer/SPEC.md',
+        path: 'customer/concept.json',
         status: 'defined',
         summary: 'Customer concept.',
       },
@@ -357,7 +817,7 @@ test('check warns when concept relationship helper metadata is too long', () => 
       {
         id: 'account-key',
         displayTerm: 'account key',
-        definedIn: ['account/SPEC.md'],
+        definedIn: ['account/concept.json'],
         meaning: longText,
         note: longText,
       },
@@ -376,25 +836,25 @@ test('check warns when concept relationship helper metadata is too long', () => 
   expect(result.warnings.filter((warning) => warning.code === 'CONCEPT_METADATA_NOTE_TOO_LONG')).toHaveLength(4);
 });
 
-test('check fails when concept lifecycle metadata drifts from SPEC and DRAFT files', () => {
+test('check fails when concept lifecycle metadata drifts from concept.json and draft notes', () => {
   const work = createTempDir('ddl-docs-check-concept-lifecycle');
   const ddlDir = path.join(work, 'ddl');
   const conceptsDir = path.join(work, 'docs', 'concepts');
   const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
 
   writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
-  writeText(path.join(conceptsDir, 'defined-with-draft/SPEC.md'), '# Defined With Draft\n');
+  writeText(path.join(conceptsDir, 'defined-with-draft/concept.json'), '# Defined With Draft\n');
   writeText(path.join(conceptsDir, 'defined-with-draft/DRAFT.md'), '# Stale Draft\n');
-  writeText(path.join(conceptsDir, 'draft-with-spec/DRAFT.md'), '# Draft With Spec\n');
-  writeText(path.join(conceptsDir, 'draft-with-spec/SPEC.md'), '# Premature Spec\n');
-  writeText(path.join(conceptsDir, 'unregistered/SPEC.md'), '# Unregistered\n');
+  writeText(path.join(conceptsDir, 'draft-without-concept/DRAFT.md'), '# Draft Without Concept\n');
+  writeText(path.join(conceptsDir, 'path-not-concept-json/README.md'), '# Wrong Path\n');
+  writeText(path.join(conceptsDir, 'unregistered/concept.json'), '# Unregistered\n');
   writeText(conceptRelationshipPath, JSON.stringify({
     schemaVersion: 1,
     concepts: [
-      { id: 'defined-with-draft', path: 'defined-with-draft/SPEC.md', status: 'defined' },
-      { id: 'draft-with-spec', draftPath: 'draft-with-spec/DRAFT.md', status: 'draft' },
+      { id: 'defined-with-draft', path: 'defined-with-draft/concept.json', status: 'defined' },
+      { id: 'path-not-concept-json', path: 'path-not-concept-json/README.md', status: 'defined' },
       { id: 'defined-without-path', status: 'defined' },
-      { id: 'draft-without-draft-path', status: 'draft' },
+      { id: 'draft-without-path', status: 'draft' },
     ],
   }, null, 2));
 
@@ -408,10 +868,10 @@ test('check fails when concept lifecycle metadata drifts from SPEC and DRAFT fil
 
   const codes = result.errors.map((issue) => issue.code);
   expect(codes).toContain('CONCEPT_DEFINED_HAS_DRAFT');
-  expect(codes).toContain('CONCEPT_DRAFT_HAS_SPEC');
   expect(codes).toContain('CONCEPT_DEFINED_MISSING_PATH');
-  expect(codes).toContain('CONCEPT_DRAFT_MISSING_DRAFT_PATH');
-  expect(codes).toContain('CONCEPT_DIRECTORY_HAS_SPEC_AND_DRAFT');
+  expect(codes).toContain('CONCEPT_DRAFT_MISSING_PATH');
+  expect(codes).toContain('CONCEPT_DEFINED_PATH_NOT_CONCEPT_JSON');
+  expect(codes).toContain('CONCEPT_DRAFT_WITHOUT_CONCEPT_JSON');
   expect(codes).toContain('CONCEPT_DIRECTORY_NOT_REGISTERED');
 });
 
@@ -447,15 +907,15 @@ test('check fails when concept review index references missing glossary or proce
   const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
 
   writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
-  writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
+  writeText(path.join(conceptsDir, 'account/concept.json'), '# Account Concept\n');
   writeText(conceptRelationshipPath, JSON.stringify({
     schemaVersion: 1,
-    concepts: [{ id: 'account', path: 'account/SPEC.md', status: 'defined' }],
+    concepts: [{ id: 'account', path: 'account/concept.json', status: 'defined' }],
     glossaryTerms: [
       {
         id: 'account-key',
         displayTerm: 'account key',
-        definedIn: ['missing/SPEC.md'],
+        definedIn: ['missing/concept.json'],
       },
     ],
     relatedProcessMaps: [
@@ -479,20 +939,20 @@ test('check fails when concept review index references missing glossary or proce
   expect(codes).toContain('CONCEPT_RELATED_PROCESS_MAP_MISSING_PATH');
 });
 
-test('check fails when non-authoritative concepts have spec files or authoritative paths', () => {
+test('check fails when non-authoritative concepts have concept files or authoritative paths', () => {
   const work = createTempDir('ddl-docs-check-non-authoritative-concepts');
   const ddlDir = path.join(work, 'ddl');
   const conceptsDir = path.join(work, 'docs', 'concepts');
   const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
 
   writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
-  writeText(path.join(conceptsDir, 'candidate-with-spec/SPEC.md'), '# Candidate With Spec\n');
+  writeText(path.join(conceptsDir, 'candidate-with-spec/concept.json'), '# Candidate With Spec\n');
   writeText(path.join(conceptsDir, 'alias-with-draft-path/DRAFT.md'), '# Alias Draft\n');
   writeText(conceptRelationshipPath, JSON.stringify({
     schemaVersion: 1,
     concepts: [
       { id: 'candidate-with-spec', status: 'candidate' },
-      { id: 'alias-with-path', path: 'alias-with-path/SPEC.md', status: 'alias' },
+      { id: 'alias-with-path', path: 'alias-with-path/concept.json', status: 'alias' },
       { id: 'alias-with-draft-path', draftPath: 'alias-with-draft-path/DRAFT.md', status: 'alias' },
     ],
   }, null, 2));
@@ -506,7 +966,7 @@ test('check fails when non-authoritative concepts have spec files or authoritati
   });
 
   const codes = result.errors.map((issue) => issue.code);
-  expect(codes).toContain('CONCEPT_NON_AUTHORITATIVE_HAS_SPEC_OR_DRAFT');
+  expect(codes).toContain('CONCEPT_NON_AUTHORITATIVE_HAS_CONCEPT_OR_DRAFT');
   expect(codes).toContain('CONCEPT_NON_AUTHORITATIVE_HAS_PATH');
   expect(codes).toContain('CONCEPT_NON_AUTHORITATIVE_HAS_DRAFT_PATH');
 });
@@ -536,7 +996,7 @@ test('check fails when a process map uses a DFD-only concept group', () => {
   }, null, 2));
   writeText(conceptRelationshipPath, JSON.stringify({
     schemaVersion: 1,
-    concepts: [{ id: 'account', path: 'account/SPEC.md', status: 'defined' }],
+    concepts: [{ id: 'account', path: 'account/concept.json', status: 'defined' }],
   }, null, 2));
   writeText(dfdRelationshipPath, JSON.stringify({
     schemaVersion: 1,
@@ -572,7 +1032,7 @@ test('check fails when process-map metadata references missing paths or unknown 
   const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
 
   writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
-  writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
+  writeText(path.join(conceptsDir, 'account/concept.json'), '# Account Concept\n');
   writeText(path.join(processesDir, 'orphan-process.md'), '# Orphan Process\n');
   writeText(path.join(processesDir, 'process-map.json'), JSON.stringify({
     schemaVersion: 1,
@@ -605,7 +1065,7 @@ test('check fails when process-map metadata references missing paths or unknown 
   }, null, 2));
   writeText(conceptRelationshipPath, JSON.stringify({
     schemaVersion: 1,
-    concepts: [{ id: 'account', path: 'account/SPEC.md', status: 'defined' }],
+    concepts: [{ id: 'account', path: 'account/concept.json', status: 'defined' }],
   }, null, 2));
 
   const result = checkDocs({
@@ -636,7 +1096,7 @@ test('check warns when process map markdown does not link to shared process map 
   const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
 
   writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
-  writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
+  writeText(path.join(conceptsDir, 'account/concept.json'), '# Account Concept\n');
   writeText(path.join(processesDir, 'account-process.md'), '# Account Process\n');
   writeText(path.join(processesDir, 'process-map.json'), JSON.stringify({
     schemaVersion: 1,
@@ -656,7 +1116,7 @@ test('check warns when process map markdown does not link to shared process map 
   }, null, 2));
   writeText(conceptRelationshipPath, JSON.stringify({
     schemaVersion: 1,
-    concepts: [{ id: 'account', path: 'account/SPEC.md', status: 'defined' }],
+    concepts: [{ id: 'account', path: 'account/concept.json', status: 'defined' }],
   }, null, 2));
 
   const result = checkDocs({
@@ -1194,7 +1654,7 @@ test('review-plan resolves DDL required reads from relationship metadata', () =>
   const testPolicyPath = path.join(testingDir, 'TEST_POLICY.md');
 
   writeText(path.join(ddlDir, 'accounts.sql'), 'CREATE TABLE public.accounts (account_id bigint PRIMARY KEY);');
-  writeText(path.join(conceptsDir, 'account/SPEC.md'), '# Account Concept\n');
+  writeText(path.join(conceptsDir, 'account/concept.json'), '# Account Concept\n');
   writeText(path.join(processesDir, 'account-process.md'), '# Account Process\n');
   writeText(scopeDocPath, '# Scope\n');
   writeText(testPolicyPath, '# Test Policy\n');
@@ -1215,14 +1675,14 @@ test('review-plan resolves DDL required reads from relationship metadata', () =>
         path: 'accounts.sql',
         kind: 'table-ddl',
         scopeRules: [{ id: 'account-scope' }],
-        concepts: [{ path: '../docs/concepts/account/SPEC.md' }],
+        concepts: [{ path: '../docs/concepts/account/concept.json' }],
         processes: [{ path: '../docs/processes/account-process.md' }],
       },
     ],
   }, null, 2));
   writeText(conceptRelationshipPath, JSON.stringify({
     schemaVersion: 1,
-    concepts: [{ id: 'account', path: 'account/SPEC.md', status: 'defined' }],
+    concepts: [{ id: 'account', path: 'account/concept.json', status: 'defined' }],
   }, null, 2));
   writeText(path.join(processesDir, 'process-map.json'), JSON.stringify({
     schemaVersion: 1,
@@ -1277,6 +1737,32 @@ test('review-plan resolves DDL required reads from relationship metadata', () =>
     'db-backed-contract-verification',
     'no-hot-path-runtime-validation',
   ]);
+});
+
+test('review-plan classifies concept.json edits as concept specs', () => {
+  const work = createTempDir('ddl-docs-review-plan-concept-json');
+  const conceptsDir = path.join(work, 'docs', 'concepts');
+  const changedFilesPath = path.join(work, 'changed-files.txt');
+  const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+  const conceptPath = path.join(conceptsDir, 'account/concept.json');
+  const changedConceptPath = path.relative(process.cwd(), conceptPath).replace(/\\/g, '/');
+
+  writeText(conceptPath, '# Account Concept\n');
+  writeText(changedFilesPath, `${changedConceptPath}\n`);
+  writeText(conceptRelationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    concepts: [{ id: 'account', path: 'account/concept.json', status: 'defined' }],
+  }, null, 2));
+
+  const plan = buildReviewPlan({
+    changedFilesPath,
+    ddlDirectories: [],
+    conceptRelationshipPath,
+  });
+
+  expect(plan.changedFiles[0]?.artifactKind).toBe('concept-spec');
+  expect(plan.changedFiles[0]?.reviewClass).toBe('business-bearing');
+  expect(plan.changedFiles[0]?.requiredReads.concepts).toEqual(['account']);
 });
 
 test('review-plan rejects unknown test policy artifact kinds', () => {
