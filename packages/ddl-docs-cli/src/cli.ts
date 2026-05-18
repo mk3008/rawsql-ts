@@ -1,10 +1,12 @@
 import path from 'node:path';
 import { runCheckDocs } from './commands/check';
+import { runConceptDisplayName } from './commands/conceptDisplayName';
 import { runGenerateConceptSite } from './commands/conceptSite';
 import { runGenerateDocs } from './commands/generate';
 import { runPruneDocs } from './commands/prune';
 import { runReviewPlan } from './commands/reviewPlan';
-import type { CheckDocsOptions, GenerateConceptSiteOptions, GenerateDocsOptions, PruneDocsOptions, ReviewPlanOptions } from './types';
+import { runStructuredConceptBuild, runStructuredConceptCheck } from './commands/structuredConcept';
+import type { CheckDocsOptions, ConceptDisplayNameOptions, GenerateConceptSiteOptions, GenerateDocsOptions, PruneDocsOptions, ReviewPlanOptions, StructuredConceptOptions } from './types';
 import { dedupeDdlInputsByInstanceAndPath } from './utils/ddlInputDedupe';
 
 const DEFAULT_DDL_DIRECTORY = 'ztd/ddl';
@@ -31,7 +33,7 @@ export async function runCli(argv: string[]): Promise<void> {
       printHelp('all');
       return;
     }
-    if (target === 'generate' || target === 'prune' || target === 'check' || target === 'concept-site' || target === 'review-plan') {
+    if (target === 'generate' || target === 'prune' || target === 'check' || target === 'concept-site' || target === 'concept-display-name' || target === 'structured-concept' || target === 'review-plan') {
       printHelp(target);
       return;
     }
@@ -72,6 +74,32 @@ export async function runCli(argv: string[]): Promise<void> {
     }
     runGenerateConceptSite(options);
     return;
+  }
+
+  if (command === 'concept-display-name') {
+    const options = parseConceptDisplayNameOptions(rest);
+    if (!options) {
+      return;
+    }
+    runConceptDisplayName(options);
+    return;
+  }
+
+  if (command === 'structured-concept') {
+    const [subcommand, ...subcommandArgs] = rest;
+    const options = parseStructuredConceptOptions(subcommandArgs, subcommand);
+    if (!options) {
+      return;
+    }
+    if (subcommand === 'check') {
+      runStructuredConceptCheck(options);
+      return;
+    }
+    if (subcommand === 'build') {
+      runStructuredConceptBuild(options);
+      return;
+    }
+    throw new Error(`Unknown structured-concept subcommand: ${subcommand ?? ''}`);
   }
 
   if (command === 'review-plan') {
@@ -266,6 +294,102 @@ function parseConceptSiteOptions(args: string[]): GenerateConceptSiteOptions | n
     throw new Error('concept-site requires --out-dir.');
   }
   return options as GenerateConceptSiteOptions;
+}
+
+function parseConceptDisplayNameOptions(args: string[]): ConceptDisplayNameOptions | null {
+  const options: Partial<ConceptDisplayNameOptions> = {
+    dryRun: false,
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === '--concept-relationship') {
+      options.conceptRelationshipPath = readRequiredValue(args, ++index, '--concept-relationship');
+      continue;
+    }
+    if (arg === '--id') {
+      options.id = readRequiredValue(args, ++index, '--id');
+      continue;
+    }
+    if (arg === '--display-name') {
+      options.displayName = readRequiredValue(args, ++index, '--display-name');
+      continue;
+    }
+    if (arg === '--dry-run') {
+      options.dryRun = true;
+      continue;
+    }
+    if (arg === '--help' || arg === '-h') {
+      printHelp('concept-display-name');
+      return null;
+    }
+    throw new Error(`Unknown option for concept-display-name: ${arg}`);
+  }
+
+  if (!options.conceptRelationshipPath) {
+    throw new Error('concept-display-name requires --concept-relationship.');
+  }
+  if (!options.id) {
+    throw new Error('concept-display-name requires --id.');
+  }
+  if (!options.displayName) {
+    throw new Error('concept-display-name requires --display-name.');
+  }
+
+  return options as ConceptDisplayNameOptions;
+}
+
+function parseStructuredConceptOptions(args: string[], subcommand?: string): StructuredConceptOptions | null {
+  if (!subcommand || subcommand === '--help' || subcommand === '-h') {
+    printHelp('structured-concept');
+    return null;
+  }
+  if (subcommand !== 'check' && subcommand !== 'build') {
+    throw new Error(`Unknown structured-concept subcommand: ${subcommand}`);
+  }
+  const options: StructuredConceptOptions = {
+    conceptDirectories: [],
+  };
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === '--concept-dir') {
+      options.conceptDirectories.push(readRequiredValue(args, ++index, '--concept-dir'));
+      continue;
+    }
+    if (arg === '--concept-relationship') {
+      options.conceptRelationshipPath = readRequiredValue(args, ++index, '--concept-relationship');
+      continue;
+    }
+    if (arg === '--out-dir') {
+      options.outDir = readRequiredValue(args, ++index, '--out-dir');
+      continue;
+    }
+    if (arg === '--relationship-out') {
+      options.relationshipOutPath = readRequiredValue(args, ++index, '--relationship-out');
+      continue;
+    }
+    if (arg === '--reverse-relationship-out') {
+      options.reverseRelationshipOutPath = readRequiredValue(args, ++index, '--reverse-relationship-out');
+      continue;
+    }
+    if (arg === '--ai-context-out') {
+      options.aiContextOutPath = readRequiredValue(args, ++index, '--ai-context-out');
+      continue;
+    }
+    if (arg === '--review-summary-out') {
+      options.reviewSummaryOutPath = readRequiredValue(args, ++index, '--review-summary-out');
+      continue;
+    }
+    if (arg === '--help' || arg === '-h') {
+      printHelp('structured-concept');
+      return null;
+    }
+    throw new Error(`Unknown option for structured-concept ${subcommand}: ${arg}`);
+  }
+  if (options.conceptDirectories.length === 0) {
+    throw new Error('structured-concept requires --concept-dir.');
+  }
+  return options;
 }
 
 function parseCheckOptions(args: string[]): CheckDocsOptions | null {
@@ -592,7 +716,7 @@ function dedupe(values: string[]): string[] {
   return Array.from(new Set(values));
 }
 
-function printHelp(target: 'all' | 'generate' | 'prune' | 'check' | 'concept-site' | 'review-plan'): void {
+function printHelp(target: 'all' | 'generate' | 'prune' | 'check' | 'concept-site' | 'concept-display-name' | 'structured-concept' | 'review-plan'): void {
   const generateHelp = `ddl-docs generate [options]
   --ddl-instance <name>   DB instance name for subsequent --ddl-dir/--ddl-file/--ddl-glob (repeatable)
   --ddl-dir <directory>   Recursively scan DDL files under directory (repeatable)
@@ -652,6 +776,23 @@ function printHelp(target: 'all' | 'generate' | 'prune' | 'check' | 'concept-sit
   --out-dir <directory>          Output root directory for generated VitePress pages
 `;
 
+  const conceptDisplayNameHelp = `ddl-docs concept-display-name [options]
+  --concept-relationship <path>  Concept relationship registry json
+  --id <concept-id>              Concept id to update
+  --display-name <name>          New human-facing display name
+  --dry-run                      Print the impact report without writing
+`;
+
+  const structuredConceptHelp = `ddl-docs structured-concept <check|build> [options]
+  --concept-dir <directory>             Directory containing structured concept.json files (repeatable)
+  --concept-relationship <path>         Existing concept registry for reference validation
+  --out-dir <directory>                 Build: VitePress concept output directory
+  --relationship-out <path>             Build: generated relationship index JSON
+  --reverse-relationship-out <path>     Build: generated reverse relationship index JSON
+  --ai-context-out <path>               Build: generated AI context JSON
+  --review-summary-out <path>           Build: generated review summary JSON
+`;
+
   const reviewPlanHelp = `ddl-docs review-plan [options]
   --changed-files <path>         Newline list or JSON array of changed files
   --ddl-dir <directory>          DDL directory used to classify DDL changed files (repeatable)
@@ -688,6 +829,14 @@ function printHelp(target: 'all' | 'generate' | 'prune' | 'check' | 'concept-sit
     console.log(conceptSiteHelp);
     return;
   }
+  if (target === 'concept-display-name') {
+    console.log(conceptDisplayNameHelp);
+    return;
+  }
+  if (target === 'structured-concept') {
+    console.log(structuredConceptHelp);
+    return;
+  }
   if (target === 'review-plan') {
     console.log(reviewPlanHelp);
     return;
@@ -700,6 +849,8 @@ Commands:
   prune                  Remove stale generated markdown docs
   check                  Check DDL review metadata references
   concept-site           Generate VitePress Concept Spec review pages from concept metadata
+  concept-display-name   Update a Concept displayName through concept metadata
+  structured-concept     Check or build structured concept.json PoC review artifacts
   review-plan            Build deterministic review input JSON from changed files
   help [command]         Show help for all commands or one command
 
@@ -707,5 +858,7 @@ ${generateHelp}
 ${pruneHelp}
 ${checkHelp}
 ${conceptSiteHelp}
+${conceptDisplayNameHelp}
+${structuredConceptHelp}
 ${reviewPlanHelp}`);
 }

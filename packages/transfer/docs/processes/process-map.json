@@ -34,6 +34,10 @@
     {
       "id": "origin-trace-view",
       "displayName": "Origin Trace View"
+    },
+    {
+      "id": "transfer-target-decision-result",
+      "displayName": "Transfer Target Decision Result"
     }
   ],
   "views": [
@@ -42,9 +46,10 @@
       "name": "Transfer Execution Main",
       "processMap": "transfer-execution",
       "relatedConcepts": [
-        "transfer-execution"
+        "transfer-execution",
+        "transfer-target-decision"
       ],
-      "purpose": "メインルーチンの状態遷移。実行文脈を作成し、判断材料を持つ Work Item を準備し、重複無視や no-op は転送をスキップし、転送が必要な場合は転送モデルで分岐し、順序付きの転送プロセスを実行し、結果を記録して終了する。"
+      "purpose": "メインルーチンの状態遷移。実行文脈を作成し、判断材料を持つ Work Item を準備し、Transfer Target Decision を適用し、重複無視や no-op は転送をスキップし、転送が必要な場合は判定結果に従って転送モデルで分岐し、順序付きの転送プロセスを実行し、結果を記録して終了する。"
     },
     {
       "id": "create-transfer-run",
@@ -104,9 +109,50 @@
         }
       ],
       "relatedConcepts": [
+        "work-item",
+        "transfer-target-decision"
+      ],
+      "purpose": "Prepare Work Item が Dirty Key を Work Item として固定し、処理済み Dirty Key を除外し、Transfer Target Decision に必要な文脈を付与することを示す明細。"
+    },
+    {
+      "id": "apply-transfer-target-decision",
+      "name": "Apply Transfer Target Decision detail",
+      "processMap": "transfer-execution",
+      "inputs": [
+        {
+          "type": "concept",
+          "id": "work-item"
+        },
+        {
+          "type": "concept",
+          "id": "destination-link"
+        },
+        {
+          "type": "concept",
+          "id": "destination"
+        },
+        {
+          "type": "concept",
+          "id": "active-black"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "derived-view",
+          "id": "transfer-target-decision-result"
+        }
+      ],
+      "uses": [
+        {
+          "type": "concept",
+          "id": "transfer-target-decision"
+        }
+      ],
+      "relatedConcepts": [
+        "transfer-target-decision",
         "work-item"
       ],
-      "purpose": "Prepare Work Item が Dirty Key を Work Item として固定し、処理済み Dirty Key を除外し、転送モデルのルートと転送作用の判断に必要な材料を付与することを示す明細。"
+      "purpose": "Apply Transfer Target Decision が、Work Item と宛先別文脈、転送モデル、Active Black をもとに、転送要否と転送表現候補を決めることを示す明細。"
     },
     {
       "id": "red-transfer-insert",

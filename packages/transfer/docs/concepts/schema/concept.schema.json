@@ -1,0 +1,247 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rawsql-ts.local/schemas/concept.schema.json",
+  "title": "Structured Concept Spec",
+  "oneOf": [
+    { "$ref": "#/$defs/conceptV1" },
+    { "$ref": "#/$defs/conceptV2" }
+  ],
+  "$defs": {
+    "conceptV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "id", "displayName", "lifecycle", "summary", "sources", "sections", "relationships"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "id": { "$ref": "#/$defs/conceptId" },
+        "displayName": { "type": "string", "minLength": 1 },
+        "lifecycle": { "$ref": "#/$defs/lifecycle" },
+        "summary": { "type": "string", "minLength": 1 },
+        "sources": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
+        "sections": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["definition", "goals", "nonResponsibilities", "invariants", "openIssues"],
+          "properties": {
+            "definition": { "$ref": "#/$defs/textSection" },
+            "goals": { "$ref": "#/$defs/textSection" },
+            "nonResponsibilities": { "$ref": "#/$defs/textSection" },
+            "invariants": { "$ref": "#/$defs/textSection" },
+            "openIssues": { "$ref": "#/$defs/issueSection" },
+            "rationale": { "$ref": "#/$defs/textSection" }
+          }
+        },
+        "links": { "type": "array", "items": { "$ref": "#/$defs/v1InternalLink" } },
+        "relationships": { "type": "array", "items": { "$ref": "#/$defs/v1Relationship" } }
+      }
+    },
+    "conceptV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "id", "displayName", "lifecycle", "definition", "evidence"],
+      "properties": {
+        "schemaVersion": { "const": 2 },
+        "id": { "$ref": "#/$defs/conceptId" },
+        "displayName": { "type": "string", "minLength": 1 },
+        "lifecycle": { "$ref": "#/$defs/lifecycle" },
+        "definition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["summary", "statements"],
+          "properties": {
+            "summary": { "type": "string", "minLength": 1 },
+            "statements": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/statement" }
+            }
+          }
+        },
+        "internalLinks": { "type": "array", "items": { "$ref": "#/$defs/v2InternalLink" } },
+        "externalRelationships": { "type": "array", "items": { "$ref": "#/$defs/v2ExternalRelationship" } },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidence" } },
+        "reviewState": { "$ref": "#/$defs/reviewState" }
+      }
+    },
+    "conceptId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["draft", "defined", "deprecated"] },
+        "sourceDraft": { "type": "string", "minLength": 1 }
+      }
+    },
+    "coverage": { "enum": ["unreviewed", "none", "partial", "complete"] },
+    "sourceRef": { "type": "string", "minLength": 1 },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "path"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["spec", "draft", "meeting-note", "interview-note", "issue", "manual"] },
+        "path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "textSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coverage", "items"],
+      "properties": {
+        "coverage": { "$ref": "#/$defs/coverage" },
+        "reason": { "type": "string", "minLength": 1 },
+        "resolutionCriteria": { "type": "array", "items": { "$ref": "#/$defs/resolutionCriterion" } },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/textItem" } }
+      }
+    },
+    "issueSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coverage", "items"],
+      "properties": {
+        "coverage": { "$ref": "#/$defs/coverage" },
+        "reason": { "type": "string", "minLength": 1 },
+        "resolutionCriteria": { "type": "array", "items": { "$ref": "#/$defs/resolutionCriterion" } },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/issueItem" } }
+      }
+    },
+    "textItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text", "sources"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "text": { "type": "string", "minLength": 1 },
+        "sources": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sourceRef" } }
+      }
+    },
+    "issueItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "question", "status", "sources"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "question": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["open", "answered", "deferred", "closed"] },
+        "sources": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sourceRef" } }
+      }
+    },
+    "statement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "polarity", "type", "text", "evidence"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "displayName": { "type": "string", "minLength": 1 },
+        "polarity": { "enum": ["positive", "negative"] },
+        "type": { "enum": ["essence", "responsibility", "invariant", "boundary", "rationale", "issue"] },
+        "text": { "type": "string", "minLength": 1 },
+        "negatesSimilarityWith": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sourceRef" } }
+      }
+    },
+    "v1InternalLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "kind", "reason", "sources"],
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "kind": { "$ref": "#/$defs/internalLinkKind" },
+        "reason": { "type": "string", "minLength": 1 },
+        "sources": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sourceRef" } }
+      }
+    },
+    "v2InternalLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "kind", "reason", "evidence"],
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "kind": { "$ref": "#/$defs/internalLinkKind" },
+        "reason": { "type": "string", "minLength": 1 },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sourceRef" } }
+      }
+    },
+    "internalLinkKind": {
+      "enum": ["explains", "supports", "bounds", "requires", "excludes", "derives", "constrains"]
+    },
+    "v1Relationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["to", "kind", "reason", "sources"],
+      "properties": {
+        "to": { "type": "string", "minLength": 1 },
+        "kind": { "$ref": "#/$defs/relationshipKind" },
+        "reason": { "type": "string", "minLength": 1 },
+        "sources": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sourceRef" } }
+      }
+    },
+    "v2ExternalRelationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["to", "kind", "reason", "evidence"],
+      "properties": {
+        "to": { "type": "string", "minLength": 1 },
+        "kind": { "$ref": "#/$defs/relationshipKind" },
+        "reason": { "type": "string", "minLength": 1 },
+        "supportedBy": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sourceRef" } }
+      }
+    },
+    "relationshipKind": {
+      "enum": ["uses", "depends-on", "supports", "records", "produces", "is-distinct-from", "variant-of", "must-not-redefine"]
+    },
+    "resolutionCriterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "text": { "type": "string", "minLength": 1 },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sourceRef" } },
+        "sources": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sourceRef" } }
+      }
+    },
+    "reviewState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "coverage": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["status"],
+            "properties": {
+              "status": { "$ref": "#/$defs/coverage" },
+              "reason": { "type": "string", "minLength": 1 },
+              "resolutionCriteria": { "type": "array", "items": { "$ref": "#/$defs/resolutionCriterion" } }
+            }
+          }
+        },
+        "openIssues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "question", "status", "evidence"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "question": { "type": "string", "minLength": 1 },
+              "status": { "enum": ["open", "answered", "deferred", "closed"] },
+              "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sourceRef" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

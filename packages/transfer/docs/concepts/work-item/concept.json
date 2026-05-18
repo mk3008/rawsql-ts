@@ -1,0 +1,648 @@
+{
+  "schemaVersion": 2,
+  "id": "work-item",
+  "displayName": "転送作業対象",
+  "lifecycle": {
+    "status": "defined"
+  },
+  "definition": {
+    "summary": "変更キーを転送設定の文脈で固定化し、転送対象判定に必要な文脈と判定結果を運ぶ作業対象",
+    "statements": [
+      {
+        "id": "dirty-key-work-item-target",
+        "displayName": "Dirty Key から固定化された転送作業対象",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Work Item とは、`Dirty Key` から固定化された転送作業対象である。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "dirty-key-work-item",
+        "displayName": "Dirty Key そのものではない。",
+        "polarity": "negative",
+        "type": "essence",
+        "text": "Work Item は、`Dirty Key` そのものではない。",
+        "evidence": [
+          "spec:work-item"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "dirty-key-transfer-setting-context-work-item",
+        "displayName": "Dirty Key を特定の Transfer Setting の文脈で評価",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Work Item は、`Dirty Key` を特定の `Transfer Setting` の文脈で評価する。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "destination-link-transfer-setting-context-work-item",
+        "displayName": "必要に応じて Transfer Setting と Destination Link の文脈で評価される。",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Work Item は、必要に応じて `Transfer Setting` と `Destination Link` の文脈で評価される。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "decide-work-item",
+        "displayName": "固定化されただけでは転送に使えない。転送対象判定が必要",
+        "polarity": "negative",
+        "type": "essence",
+        "text": "Work Item は、固定化されただけでは転送に使えない。転送対象判定が必要である。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "destination-dirty-key-source-decide-active-black-transfer",
+        "displayName": "Dirty Key、転送元の現在値、Active Black、Destination の transfer model を転送対象判定の文脈として持つ",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Work Item は、`Dirty Key`、転送元の現在値、`Active Black`、`Destination` の transfer model を転送対象判定の文脈として持つ。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "decide-transfer-model-route-work-item",
+        "displayName": "転送対象判定の結果として転送要否と転送表現候補を保持できる",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Work Item は、転送対象判定の結果として転送要否と転送表現候補を保持できる。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "destination-link-dirty-key-transfer-setting-context-source",
+        "displayName": "同じ Transfer Setting、Destination Link、source key の文脈で重複 Dirty Key を判定できる必要がある",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Work Item は、同じ `Transfer Setting`、`Destination Link`、`source key` の文脈で重複 `Dirty Key` を判定できる必要がある。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "dirty-key-processed-work-item",
+        "displayName": "処理済みかどうかを Dirty Key へ書き戻さない。",
+        "polarity": "negative",
+        "type": "essence",
+        "text": "Work Item は、処理済みかどうかを `Dirty Key` へ書き戻さない。",
+        "evidence": [
+          "spec:work-item"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-processed-record-work-item",
+        "displayName": "の処理済み記録は、Dirty Key Processing に残す。",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Work Item の処理済み記録は、`Dirty Key Processing` に残す。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "dirty-key-target-work-item",
+        "displayName": "Dirty Key から処理対象を固定化",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Work Item は、`Dirty Key` から処理対象を固定化する。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "dirty-key-trace-work-item",
+        "displayName": "どの Dirty Key に由来するかを追跡できる必要がある。",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Work Item は、どの `Dirty Key` に由来するかを追跡できる必要がある。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "transfer-setting-context-trace-decide-work-item",
+        "displayName": "どの Transfer Setting の文脈で判断されたかを追跡できる必要がある。",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Work Item は、どの `Transfer Setting` の文脈で判断されたかを追跡できる必要がある。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "destination-link-context-trace-decide-work-item",
+        "displayName": "必要に応じてどの Destination Link の文脈で判断されたかを追跡できる必要がある。",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Work Item は、必要に応じてどの `Destination Link` の文脈で判断されたかを追跡できる必要がある。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "source-hold-exists-decide-work-item",
+        "displayName": "転送元の現在値が存在するかどうかを判断材料として保持できる必要がある。",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Work Item は、転送元の現在値が存在するかどうかを判断材料として保持できる必要がある。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "hold-exists-decide-active-black-work-item",
+        "displayName": "Active Black が存在するかどうかを判断材料として保持できる必要がある。",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Work Item は、`Active Black` が存在するかどうかを判断材料として保持できる必要がある。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "decide-transfer-model-work-item",
+        "displayName": "transfer model を転送対象判定の入力文脈として持つ",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Work Item は、transfer model を転送対象判定の入力文脈として持つ。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "black-insert-transfer-update-physical-delete-red-execution",
+        "displayName": "Transfer Execution が転送対象判定の結果に従って転送表現を実行できるように",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Work Item は、`Transfer Execution` が転送対象判定の結果に従って `Black Transfer`、`Red Transfer`、`Physical Delete Transfer`、または no-op を実行できるようにする。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-processed-reference-work-item",
+        "displayName": "Dirty Key Processing を参照して処理済み Dirty Key を除外できる必要がある。",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Work Item は、`Dirty Key Processing` を参照して処理済み `Dirty Key` を除外できる必要がある。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "destination-link-dirty-key-transfer-setting-context-decide",
+        "displayName": "同じ Transfer Setting、Destination Link、source key の文脈で重複する Dirty Key を無視する判断を持てる必要がある",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Work Item は、同じ `Transfer Setting`、`Destination Link`、`source key` の文脈で重複する `Dirty Key` を無視する判断を持てる必要がある。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-processed-record-work-item-2",
+        "displayName": "の処理が終わった後、Dirty Key Processing に処理済み記録を残せる必要がある。",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Work Item の処理が終わった後、`Dirty Key Processing` に処理済み記録を残せる必要がある。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "not-dirty-key-change-detection-history-management-work",
+        "displayName": "Dirty Key Management の変更検知履歴を変更しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Work Item は、`Dirty Key` Management の変更検知履歴を変更しない。",
+        "evidence": [
+          "spec:work-item"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "not-dirty-key-processed-state-work-item",
+        "displayName": "Dirty Key 自体に処理済み状態を書き込まない。",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Work Item は、`Dirty Key` 自体に処理済み状態を書き込まない。",
+        "evidence": [
+          "spec:work-item"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "not-dirty-key-define-work-item",
+        "displayName": "Dirty Key の登録方法を定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Work Item は、`Dirty Key` の登録方法を定義しない。",
+        "evidence": [
+          "spec:work-item"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "not-transfer-run-arguments-record-work-item",
+        "displayName": "Transfer Run の実行引数記録兼プロセスヘッダーを代替しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Work Item は、`Transfer Run` の実行引数記録兼プロセスヘッダーを代替しない。",
+        "evidence": [
+          "spec:work-item"
+        ],
+        "negatesSimilarityWith": [
+          "transfer-run"
+        ]
+      },
+      {
+        "id": "not-dirty-key-processing-processed-record-work-item",
+        "displayName": "Dirty Key Processing の処理済み記録を代替しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Work Item は、`Dirty Key Processing` の処理済み記録を代替しない。",
+        "evidence": [
+          "spec:work-item"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key",
+          "dirty-key-processing"
+        ]
+      },
+      {
+        "id": "not-black-transfer-lineage-red-define-active-work",
+        "displayName": "Black Transfer、Red Transfer、Active Black、Lineage の保存形式を定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Work Item は、`Black Transfer`、`Red Transfer`、`Active Black`、`Lineage` の保存形式を定義しない。",
+        "evidence": [
+          "spec:work-item"
+        ],
+        "negatesSimilarityWith": [
+          "black-transfer",
+          "lineage",
+          "red-transfer"
+        ]
+      },
+      {
+        "id": "not-produce-define-sql-work-item",
+        "displayName": "転送 SQL の生成手順や実行手順を定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Work Item は、転送 SQL の生成手順や実行手順を定義しない。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "dirty-key-work-item-2",
+        "displayName": "Dirty Key を固定化して作られる。",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Work Item は、`Dirty Key` を固定化して作られる。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "dirty-key-work-item-3",
+        "displayName": "少なくとも1つの Dirty Key に由来",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Work Item は、少なくとも1つの `Dirty Key` に由来する。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "dirty-key-processed-state-management-work-item",
+        "displayName": "Dirty Key の処理済み状態を Dirty Key Management に書き戻さない。",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "Work Item は、`Dirty Key` の処理済み状態を `Dirty Key` Management に書き戻さない。",
+        "evidence": [
+          "spec:work-item"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-processed-work-item",
+        "displayName": "Dirty Key Processing にある Dirty Key を処理済みとして除外",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Work Item は、`Dirty Key Processing` にある `Dirty Key` を処理済みとして除外する。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "destination-link-dirty-key-transfer-setting-context-decide-2",
+        "displayName": "同じ Transfer Setting、Destination Link、source key の文脈で既に同じ判定結果として扱われた重複 Dirty Key を無視できる",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Work Item は、同じ `Transfer Setting`、`Destination Link`、`source key` の文脈で既に同じ判定結果として扱われた重複 `Dirty Key` を無視できる。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-processed-record-work-item-3",
+        "displayName": "の処理済み記録は、Dirty Key Processing に残す。",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Work Item の処理済み記録は、`Dirty Key Processing` に残す。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "dirty-key-transfer-setting-decide-work-item",
+        "displayName": "同じ Dirty Key でも、Transfer Setting が異なれば転送対象判定の結果は異なり得る。",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "同じ `Dirty Key` でも、`Transfer Setting` が異なれば転送対象判定の結果は異なり得る。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "destination-link-dirty-key-decide-transfer-model-work",
+        "displayName": "同じ Dirty Key でも、Destination Link や transfer model が異なれば転送対象判定の結果は異なり得る",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "同じ `Dirty Key` でも、`Destination Link` や transfer model が異なれば転送対象判定の結果は異なり得る。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "dirty-key-decide-work-item",
+        "displayName": "Dirty Key だけで転送判断を決めない。",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "Work Item は、`Dirty Key` だけで転送判断を決めない。",
+        "evidence": [
+          "spec:work-item"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "destination-source-decide-active-black-transfer-model-work",
+        "displayName": "転送元の現在値、Active Black、Destination の transfer model を転送対象判定の材料として扱う",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Work Item は、転送元の現在値、`Active Black`、`Destination` の transfer model を転送対象判定の材料として扱う。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "transfer-execution-decide-route-work-item",
+        "displayName": "転送対象判定の結果を持つ",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "Work Item は、転送対象判定の結果を持つ。これがない場合、`Transfer Execution` はどの転送表現を成立させるべきかを判断できない。",
+        "evidence": [
+          "spec:work-item"
+        ],
+        "negatesSimilarityWith": [
+          "transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-work-item-immutable-route-mutable",
+        "displayName": "Transfer Execution は、Work Item に保持された転送対象判定の結果を実行する",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "`Transfer Execution` は、Work Item に保持された転送対象判定の結果をもとに、必要な転送操作だけを成立させる。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "dirty-key-transfer-execution-change-detection-history-target",
+        "displayName": "Dirty Key Must Be Fixed Before Transfer",
+        "polarity": "positive",
+        "type": "rationale",
+        "text": "Dirty Key Must Be Fixed Before Transfer: `Dirty Key` Management は、変更検知履歴として常に追記され続ける。 `Dirty Key` は、同じキーに対して複数回記録されてよい。 そのため、`Transfer Execution` が処理するには、どの `Dirty Key` を今回の作業対象として扱うかを固定化する必要がある。 Work Item は、その固定化された作業対象である。",
+        "evidence": [
+          "spec:work-item"
+        ]
+      },
+      {
+        "id": "destination-dirty-key-source-reference-decide-fixed-still",
+        "displayName": "Fixed Dirty Key Still Needs Transfer Target Decision",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Fixed Dirty Key Still Needs Transfer Target Decision: `Dirty Key` は変更通知であり、転送操作を表さない。 `Dirty Key` を Work Item として固定化しただけでは、まだ転送に使えない。 Work Item は、転送対象判定に必要な転送元の現在値、`Active Black`、`Destination` の transfer model などの文脈を揃える。具体的な判定式と転送表現候補の正本は `Transfer Target Decision` が所有する。",
+        "evidence": [
+          "spec:work-item"
+        ],
+        "negatesSimilarityWith": [
+          "destination",
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "black-insert-transfer-update-dirty-key-physical-delete",
+        "displayName": "Decision Categories Belong to Transfer Target Decision",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Decision Categories Belong to Transfer Target Decision: Work Item は判定対象と判定結果を運ぶが、no-op、追加転送候補、赤伝転送候補、更新転送候補、物理削除転送候補などの分類規則を所有しない。これらの分類は `Transfer Target Decision` と Transfer Execution Process Map が扱う。",
+        "evidence": [
+          "spec:work-item"
+        ],
+        "negatesSimilarityWith": [
+          "black-insert-transfer",
+          "black-update-transfer",
+          "dirty-key",
+          "physical-delete-transfer",
+          "red-transfer"
+        ]
+      },
+      {
+        "id": "destination-link-dirty-key-processing-transfer-run-setting",
+        "displayName": "Dirty Key Does Not Own Processed State",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Dirty Key Does Not Own Processed State: `Dirty Key` は変更検知履歴であり、`Transfer Setting` ごとの処理状態ではない。 同じ `Dirty Key` でも、`Transfer Setting` が異なれば転送対象判定の結果は異なり得る。 そのため、`Dirty Key` 自体に処理済みかどうかを書き込んではならない。 Work Item の処理済み記録は、`Dirty Key Processing` に残す。 `Dirty Key Processing` は、`Dirty Key` ID、`Destination Link` ID、処理結果、`Transfer Run` を記録し、`Transfer Setting` と `Destination Link` の文脈で処理済みを追跡できる必要がある。",
+        "evidence": [
+          "spec:work-item"
+        ],
+        "negatesSimilarityWith": [
+          "destination",
+          "destination-link",
+          "dirty-key",
+          "dirty-key-processing",
+          "transfer-run",
+          "transfer-setting"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-transfer-execution-processed-state-record",
+        "displayName": "Transfer Execution Uses Work Items",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Transfer Execution Uses Work Items: `Transfer Execution` は、Work Item に保持された転送対象判定の結果をもとに、必要な転送操作だけを成立させる。 転送が終わったら、`Transfer Execution` は `Dirty Key Processing` に記録し、Work Item を処理済みとして扱える状態にする必要がある。 これは、同じ Work Item を複数回転送しないためである。",
+        "evidence": [
+          "spec:work-item"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key",
+          "dirty-key-processing",
+          "transfer-execution"
+        ]
+      }
+    ]
+  },
+  "internalLinks": [],
+  "externalRelationships": [
+    {
+      "to": "dirty-key",
+      "kind": "depends-on",
+      "reason": "Work Item は Dirty Key を転送作業として固定化して作られる。",
+      "supportedBy": [
+        "dirty-key-target-work-item",
+        "dirty-key-trace-work-item",
+        "dirty-key-processing-processed-reference-work-item"
+      ],
+      "evidence": [
+        "spec:work-item"
+      ]
+    },
+    {
+      "to": "dirty-key-processing",
+      "kind": "uses",
+      "reason": "Work Item 作成では、同じ setting と destination-link の文脈で Dirty Key Processing 記録がある Dirty Key を除外する。",
+      "supportedBy": [
+        "dirty-key-processing-processed-reference-work-item",
+        "dirty-key-processing-processed-record-work-item-2",
+        "dirty-key-processing-processed-work-item"
+      ],
+      "evidence": [
+        "spec:work-item"
+      ]
+    },
+    {
+      "to": "transfer-setting",
+      "kind": "depends-on",
+      "reason": "Work Item は Transfer Setting の文脈で転送対象判定に渡される。",
+      "supportedBy": [
+        "transfer-setting-context-trace-decide-work-item",
+        "destination-link-dirty-key-transfer-setting-context-decide",
+        "destination-link-dirty-key-transfer-setting-context-decide-2"
+      ],
+      "evidence": [
+        "spec:work-item"
+      ]
+    },
+    {
+      "to": "active-black",
+      "kind": "uses",
+      "reason": "Work Item は転送対象判定の入力文脈として Active Black の有無を持つ。",
+      "supportedBy": [
+        "hold-exists-decide-active-black-work-item",
+        "destination-source-decide-active-black-transfer-model-work",
+        "destination-dirty-key-source-decide-active-black-transfer"
+      ],
+      "evidence": [
+        "spec:work-item"
+      ]
+    },
+    {
+      "to": "destination",
+      "kind": "uses",
+      "reason": "Work Item は転送対象判定の入力文脈として Destination の transfer model を持つ。",
+      "supportedBy": [
+        "destination-link-context-trace-decide-work-item",
+        "destination-link-dirty-key-transfer-setting-context-decide",
+        "destination-link-dirty-key-transfer-setting-context-decide-2"
+      ],
+      "evidence": [
+        "spec:work-item"
+      ]
+    },
+    {
+      "to": "dirty-key",
+      "kind": "is-distinct-from",
+      "reason": "Dirty Key は変更検知履歴であり、Work Item は転送判断を持つ固定化された作業対象である。",
+      "supportedBy": [
+        "dirty-key-target-work-item",
+        "dirty-key-trace-work-item",
+        "dirty-key-processing-processed-reference-work-item"
+      ],
+      "evidence": [
+        "spec:work-item"
+      ]
+    },
+    {
+      "to": "lineage",
+      "kind": "depends-on",
+      "reason": "Work Item は重複、再転送、削除相当の判断で Lineage の影響を受けることがある。",
+      "supportedBy": [
+        "not-black-transfer-lineage-red-define-active-work"
+      ],
+      "evidence": [
+        "spec:work-item"
+      ]
+    },
+    {
+      "to": "transfer-target-decision",
+      "kind": "uses",
+      "reason": "Work Item は Transfer Target Decision の入力文脈と判定結果を運ぶ。",
+      "supportedBy": [
+        "destination-dirty-key-source-decide-active-black-transfer",
+        "decide-transfer-model-work-item",
+        "transfer-execution-decide-route-work-item"
+      ],
+      "evidence": [
+        "spec:work-item"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "spec:work-item",
+      "type": "spec",
+      "path": "concept.json"
+    }
+  ],
+  "reviewState": {
+    "coverage": {
+      "definition": {
+        "status": "complete",
+        "reason": "concept.json の意味、責務、境界、不変条件、理由を curated statement として移植済み。"
+      },
+      "relationships": {
+        "status": "complete",
+        "reason": "concept-relationship.json と移行元 concept.json の外部関係を反映済み。"
+      }
+    },
+    "openIssues": []
+  }
+}

@@ -39,6 +39,7 @@ export interface ConceptRegistryEntry {
   id: string;
   displayName?: string;
   path?: string | null;
+  draftPath?: string | null;
   status?: string;
   summary?: string;
   note?: string;
@@ -190,6 +191,7 @@ export function loadConceptRegistry(metadataPath: string | undefined): ConceptRe
         id: entry.id,
         displayName: typeof entry.displayName === 'string' ? entry.displayName : undefined,
         path: typeof entry.path === 'string' || entry.path === null ? entry.path : undefined,
+        draftPath: typeof entry.draftPath === 'string' || entry.draftPath === null ? entry.draftPath : undefined,
         status: typeof entry.status === 'string' ? entry.status : undefined,
         summary: typeof entry.summary === 'string' ? entry.summary : undefined,
         note: typeof entry.note === 'string' ? entry.note : undefined,
@@ -431,7 +433,7 @@ function resolveConceptTarget(
 ): ResolvedRelationshipTarget {
   const resolvedTarget = path.resolve(relationshipMetadata.baseDir, target.path);
   const concept = conceptRegistry?.concepts.find((entry) =>
-    entry.path != null && path.resolve(conceptRegistry.baseDir, entry.path) === resolvedTarget
+    conceptEntryPaths(entry).some((entryPath) => path.resolve(conceptRegistry.baseDir, entryPath) === resolvedTarget)
   );
   const label = concept?.id ?? (path.basename(path.dirname(target.path)) || target.path);
   return {
@@ -459,9 +461,13 @@ function resolveConceptId(
 ): string | undefined {
   const resolvedTarget = path.resolve(relationshipMetadata.baseDir, target.path);
   const concept = conceptRegistry?.concepts.find((entry) =>
-    entry.path != null && path.resolve(conceptRegistry.baseDir, entry.path) === resolvedTarget
+    conceptEntryPaths(entry).some((entryPath) => path.resolve(conceptRegistry.baseDir, entryPath) === resolvedTarget)
   );
   return concept?.id;
+}
+
+function conceptEntryPaths(entry: ConceptRegistryEntry): string[] {
+  return [entry.path, entry.draftPath].filter((entryPath): entryPath is string => typeof entryPath === 'string');
 }
 
 function collectBusinessTargetsForConcepts(

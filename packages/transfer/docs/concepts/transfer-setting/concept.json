@@ -1,0 +1,434 @@
+{
+  "schemaVersion": 2,
+  "id": "transfer-setting",
+  "displayName": "転送設定",
+  "lifecycle": {
+    "status": "defined"
+  },
+  "definition": {
+    "summary": "転送元データソースを定義し、Destination への接続を管理する設定",
+    "statements": [
+      {
+        "id": "transfer-setting-source",
+        "displayName": "転送元データソースを表す設定",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Transfer Setting とは、転送元データソースを表す設定である。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "transfer-setting",
+        "displayName": "名前で一意に特定できる",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Transfer Setting は、名前で一意に特定できる。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "source",
+        "displayName": "転送元データソースは、物理テーブルに基づいてもよいし、クエリに基づいてもよい。",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "転送元データソースは、物理テーブルに基づいてもよいし、クエリに基づいてもよい。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "source-key",
+        "displayName": "source key とは、転送元データソースの論理行または再評価単位を識別するキーである。キーは単一キーでも複合キーでもよい。",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "`source key` とは、転送元データソースの論理行または再評価単位を識別するキーである。キーは単一キーでも複合キーでもよい。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "transfer-setting-source-key",
+        "displayName": "source key の定義を持つ",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Transfer Setting は `source key` の定義を持つ。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "destination-source-row-key",
+        "displayName": "転送元データソースは、Destination の採番式を使って destination row key を投影してよい。",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "転送元データソースは、`Destination` の採番式を使って `destination row key` を投影してよい。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "destination-link-transfer-setting",
+        "displayName": "Destination Link を通じて Destination へ接続される。",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Transfer Setting は、`Destination Link` を通じて `Destination` へ接続される。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "destination-link-transfer-setting-2",
+        "displayName": "Destination Link とは、Transfer Setting のデータソースを特定の Destination へ接続するための宛先別設定",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "`Destination Link` とは、Transfer Setting のデータソースを特定の `Destination` へ接続するための宛先別設定である。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "transfer-setting-2",
+        "displayName": "転送ルールであり、転送実行そのものではない。",
+        "polarity": "negative",
+        "type": "essence",
+        "text": "Transfer Setting は、転送ルールであり、転送実行そのものではない。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "transfer-setting-source-base-sql",
+        "displayName": "転送元データソースを抽出する基礎 SQL を持つ",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Transfer Setting は、転送元データソースを抽出する基礎 SQL を持つ。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "transfer-setting-source-key-2",
+        "displayName": "転送元データソースの論理行または再評価単位を特定する source key 定義を持つ",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Transfer Setting は、転送元データソースの論理行または再評価単位を特定する `source key` 定義を持つ。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "destination-transfer-setting-row-base-sql",
+        "displayName": "Destination の採番式または自然キーを使って、転送先行を識別するための値を基礎 SQL に含めてよい。",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Transfer Setting は、`Destination` の採番式または自然キーを使って、転送先行を識別するための値を基礎 SQL に含めてよい。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "destination-link-transfer-setting-base-sql",
+        "displayName": "基礎 SQL をどの Destination へ接続するかを Destination Link として管理",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Transfer Setting は、基礎 SQL をどの `Destination` へ接続するかを `Destination Link` として管理する。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "destination-link-produce-source-mapping-sql",
+        "displayName": "Destination Link は、宛先ごとの実行順、source-to-destination mapping、生成済み転送 SQL、差分比較除外列を持つ",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "`Destination Link` は、宛先ごとの実行順、source-to-destination mapping、生成済み転送 SQL、差分比較除外列を持つ。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "not-transfer-setting-change-detection-history-manage",
+        "displayName": "変更検知履歴を管理しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Transfer Setting は変更検知履歴を管理しない。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "not-transfer-setting-change-detection-history-define",
+        "displayName": "変更検知履歴の登録方法を定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Transfer Setting は変更検知履歴の登録方法を定義しない。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "not-transfer-run-setting-create-manage",
+        "displayName": "Transfer Run の作成、スケジューリング、実行タイミングを管理しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Transfer Setting は `Transfer Run` の作成、スケジューリング、実行タイミングを管理しない。",
+        "evidence": [
+          "spec:transfer-setting"
+        ],
+        "negatesSimilarityWith": [
+          "transfer-run"
+        ]
+      },
+      {
+        "id": "not-transfer-setting-state-manage",
+        "displayName": "転送実行状態を管理しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Transfer Setting は転送実行状態を管理しない。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "not-transfer-setting-manage",
+        "displayName": "転送履歴を管理しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Transfer Setting は転送履歴を管理しない。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "not-transfer-setting-active-black-red-reference-manage",
+        "displayName": "赤伝時に参照すべき現在有効な黒を管理しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Transfer Setting は赤伝時に参照すべき現在有効な黒を管理しない。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "not-transfer-setting-destination-define",
+        "displayName": "転送先テーブルの保存モデルを定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Transfer Setting は転送先テーブルの保存モデルを定義しない。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "not-transfer-setting-base-sql-engine",
+        "displayName": "transfer engine が基礎 SQL に列や採番式を暗黙に追加することを前提にしない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Transfer Setting は、transfer engine が基礎 SQL に列や採番式を暗黙に追加することを前提にしない。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "transfer-setting-source-base-sql-2",
+        "displayName": "の基礎 SQL は、転送元データソースの正本",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Transfer Setting の基礎 SQL は、転送元データソースの正本である。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "transfer-setting-reference-package",
+        "displayName": "の名前は、同じ package 内で一意であり、アプリケーションや後続処理から参照できる必要がある。",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Transfer Setting の名前は、同じ package 内で一意であり、アプリケーションや後続処理から参照できる必要がある。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "transfer-setting-source-reference-decide-key",
+        "displayName": "の source key 定義は、後続の転送処理が同じ転送元データを識別し、二重転送を防止する判断材料として参照できる必要がある。",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Transfer Setting の `source key` 定義は、後続の転送処理が同じ転送元データを識別し、二重転送を防止する判断材料として参照できる必要がある。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "destination-transfer-setting-row-base-sql-2",
+        "displayName": "の基礎 SQL は、転送先行を識別するために Destination の採番式または自然キーを使ってよい。",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Transfer Setting の基礎 SQL は、転送先行を識別するために `Destination` の採番式または自然キーを使ってよい。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "destination-transfer-setting-base-sql-engine-row-key",
+        "displayName": "transfer engine は、Transfer Setting の基礎 SQL に destination row key、採番式、検索条件、転送先列を暗黙に追加しない",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "transfer engine は、Transfer Setting の基礎 SQL に `destination row key`、採番式、検索条件、転送先列を暗黙に追加しない。",
+        "evidence": [
+          "spec:transfer-setting"
+        ],
+        "negatesSimilarityWith": [
+          "destination"
+        ]
+      },
+      {
+        "id": "transfer-setting-destination-base-sql-insert-update-delete",
+        "displayName": "の基礎 SQL は、転送先への INSERT / UPDATE / DELETE そのものではない。",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "Transfer Setting の基礎 SQL は、転送先への INSERT / UPDATE / DELETE そのものではない。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "base-sql-produce-sssql-guide-overview-where",
+        "displayName": "任意検索条件は、基礎 SQL の [SSSQL](/guide/sssql-overview) として表現",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "任意検索条件は、基礎 SQL の [SSSQL](/guide/sssql-overview) として表現する。転送 SQL 生成側が WHERE 条件を暗黙に追加しない。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "destination-link-transfer-setting-3",
+        "displayName": "と Destination の接続は、Destination Link として管理",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Transfer Setting と `Destination` の接続は、`Destination Link` として管理する。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "destination-link-transfer-setting-produce-sql",
+        "displayName": "生成済み転送 SQL は、Transfer Setting 単体ではなく、Destination Link 単位で管理",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "生成済み転送 SQL は、Transfer Setting 単体ではなく、`Destination Link` 単位で管理する。",
+        "evidence": [
+          "spec:transfer-setting"
+        ]
+      },
+      {
+        "id": "destination-link-transfer-setting-row-source-base-sql",
+        "displayName": "Represents a Data Source",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Transfer Setting Represents a Data Source: Transfer Setting は、転送先ではなく転送元データソースを定義する。 転送元データソースは、物理テーブルをそのまま表してもよいし、複数テーブルや条件を含むクエリとして表してもよい。 転送元データソースは、後続の転送処理が同じ転送元データを識別できるように `source key` 定義を持つ。 `source key` は、転送元データソースの論理行または再評価単位を識別するキーである。これは物理テーブルの主キーそのものとは限らない。 これは Transfer Setting が転送指示、転送処理、転送結果を管理するという意味ではなく、定義として二重転送防止の判断材料を提供するという意味である。 単一テーブルを転送元データソースにする場合、`source key` はそのテーブルの主キーになることが多い。 集計クエリや選択クエリを転送元データソースにする場合、`source key` は集計単位や再評価単位を識別する自然キーになる。 転送元データソースは、転送先行を識別するための値も含めてよい。たとえば `Destination` が持つ採番式を基礎 SQL 内で使い、`Destination Link` ごとの `destination row key` を投影してよい。 ただし、transfer engine は基礎 SQL を受け取って転送するだけであり、基礎 SQL に採番列や転送先列を暗黙に組み込まない。必要な値は Transfer Setting の基礎 SQL と `Destination Link` の mapping で明示する。 複数の `Destination` へ同じデータソースを流す場合でも、データソース定義は Transfer Setting 側に1つ置き、宛先ごとの差分は `Destination Link` 側に置く。",
+        "evidence": [
+          "spec:transfer-setting"
+        ],
+        "negatesSimilarityWith": [
+          "destination",
+          "destination-link"
+        ]
+      },
+      {
+        "id": "destination-link-transfer-execution-run-setting-state-connects",
+        "displayName": "Destination Link Connects a Data Source to a Destination",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Destination Link Connects a Data Source to a Destination: `Destination Link` は、Transfer Setting のデータソースを特定の `Destination` へ接続するための宛先別設定である。 このリンクは単なる中間テーブルではない。ただし、`Transfer Run`、`Transfer Execution`、実行状態、実行履歴そのものでもない。 `Destination Link` の詳細は、独立した Concept Spec で扱う。",
+        "evidence": [
+          "spec:transfer-setting"
+        ],
+        "negatesSimilarityWith": [
+          "destination",
+          "destination-link",
+          "transfer-execution",
+          "transfer-run"
+        ]
+      }
+    ]
+  },
+  "internalLinks": [],
+  "externalRelationships": [
+    {
+      "to": "destination",
+      "kind": "uses",
+      "reason": "Transfer Setting は Destination Link を通じて Destination へ接続する。",
+      "supportedBy": [
+        "destination-transfer-setting-row-base-sql",
+        "destination-link-transfer-setting-base-sql",
+        "destination-link-produce-source-mapping-sql"
+      ],
+      "evidence": [
+        "spec:transfer-setting"
+      ]
+    },
+    {
+      "to": "destination-link",
+      "kind": "uses",
+      "reason": "Transfer Setting は宛先別の接続を Destination Link として管理する。",
+      "supportedBy": [
+        "destination-link-transfer-setting-base-sql",
+        "destination-link-produce-source-mapping-sql",
+        "destination-link-transfer-setting-3"
+      ],
+      "evidence": [
+        "spec:transfer-setting"
+      ]
+    },
+    {
+      "to": "destination",
+      "kind": "must-not-redefine",
+      "reason": "Transfer Setting は Destination の意味を再定義しない。",
+      "supportedBy": [
+        "destination-transfer-setting-row-base-sql",
+        "destination-link-transfer-setting-base-sql",
+        "destination-link-produce-source-mapping-sql"
+      ],
+      "evidence": [
+        "spec:transfer-setting"
+      ]
+    },
+    {
+      "to": "dirty-key",
+      "kind": "must-not-redefine",
+      "reason": "Transfer Setting は Dirty Key の意味を再定義しない。",
+      "supportedBy": [
+        "transfer-setting-source-key-2",
+        "transfer-setting-source-reference-decide-key",
+        "destination-transfer-setting-base-sql-engine-row-key"
+      ],
+      "evidence": [
+        "spec:transfer-setting"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "spec:transfer-setting",
+      "type": "spec",
+      "path": "concept.json"
+    }
+  ],
+  "reviewState": {
+    "coverage": {
+      "definition": {
+        "status": "complete",
+        "reason": "concept.json の意味、責務、境界、不変条件、理由を curated statement として移植済み。"
+      },
+      "relationships": {
+        "status": "complete",
+        "reason": "concept-relationship.json と移行元 concept.json の外部関係を反映済み。"
+      }
+    },
+    "openIssues": []
+  }
+}

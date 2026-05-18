@@ -4,35 +4,37 @@ This directory contains Concept Specs for `@rawsql-ts/transfer`.
 
 Concept Specs define stable meanings, responsibility boundaries, and invariants for concepts that span multiple features. They are not implementation plans, SQL, DDL, queryspecs, or test cases.
 
-Human-owned Concept Specs live in each `<concept-id>/SPEC.md`.
+Structured Concept Specs live in each `<concept-id>/concept.json`.
 Machine-readable concept lifecycle, glossary, and relationship metadata lives in `concept-relationship.json`.
 Human review views such as Concept Maps or generated VitePress indexes should be regenerated or checked from that metadata; do not add concept graph facts only to a review view.
 
 Concept lifecycle:
 
-- Defined concepts use `<concept-id>/SPEC.md`.
-- Draft concepts use `<concept-id>/DRAFT.md`.
+- Defined concepts use `<concept-id>/concept.json`.
+- Draft concepts use `<concept-id>/concept.json` with optional `DRAFT.md` notes.
 - A draft is reviewable work in progress, not an authoritative Concept Spec.
-- Promote a draft by replacing `DRAFT.md` with `SPEC.md`, then updating `concept-relationship.json` and regenerating or refreshing review views.
+- Promote a draft by updating lifecycle status in `concept.json`, then regenerating review views.
 
 Available Concept Specs:
 
 This list is a human entrypoint. Use `concept-relationship.json` and generated VitePress Concept views for completeness checks.
 
-- [Active Black](./active-black/SPEC.md)
-- [Black Transfer](./black-transfer/SPEC.md)
-- [Destination](./destination/SPEC.md)
-- [Destination Link](./destination-link/SPEC.md)
-- [Dirty Key](./dirty-key/SPEC.md)
-- [Dirty Key Processing](./dirty-key-processing/SPEC.md)
-- [Lineage](./lineage/SPEC.md)
-- [Physical Delete Transfer](./physical-delete-transfer/SPEC.md)
-- [Posting Date Lower Bound](./posting-date-lower-bound/SPEC.md)
-- [Red Transfer](./red-transfer/SPEC.md)
-- [Transfer Execution](./transfer-execution/SPEC.md)
-- [Transfer Run](./transfer-run/SPEC.md)
-- [Transfer Setting](./transfer-setting/SPEC.md)
-- [Work Item](./work-item/SPEC.md)
+- [Active Black](./active-black/concept.json)
+- [Black Transfer](./black-transfer/concept.json)
+- [Destination](./destination/concept.json)
+- [Destination Link](./destination-link/concept.json)
+- [Dirty Key](./dirty-key/concept.json)
+- [Dirty Key Processing](./dirty-key-processing/concept.json)
+- [Duplicate Control](./duplicate-control/concept.json)
+- [Lineage](./lineage/concept.json)
+- [Physical Delete Transfer](./physical-delete-transfer/concept.json)
+- [Posting Date Lower Bound](./posting-date-lower-bound/concept.json)
+- [Red Transfer](./red-transfer/concept.json)
+- [Transfer Execution](./transfer-execution/concept.json)
+- [Transfer Run](./transfer-run/concept.json)
+- [Transfer Setting](./transfer-setting/concept.json)
+- [Transfer Target Decision](./transfer-target-decision/concept.json)
+- [Work Item](./work-item/concept.json)
 
 Concept relationship entrypoints:
 

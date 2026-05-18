@@ -327,7 +327,7 @@ test('generate renders related concept and process pages from relationship metad
     `,
     'utf8'
   );
-  writeFileSync(path.join(conceptsDir, 'active-row/SPEC.md'), '# Active Row Concept\n\nDefined concept.', 'utf8');
+  writeFileSync(path.join(conceptsDir, 'active-row/concept.json'), '# Active Row Concept\n\nDefined concept.', 'utf8');
   writeFileSync(path.join(processesDir, 'active-row-process.md'), '# Active Row Process\n\nDefined process.', 'utf8');
   writeFileSync(path.join(dfdDir, 'active-row-flow.md'), '# Active Row Flow\n', 'utf8');
   writeFileSync(
@@ -364,7 +364,7 @@ test('generate renders related concept and process pages from relationship metad
           {
             path: 'active_rows.sql',
             kind: 'table-ddl',
-            concepts: [{ path: '../docs/concepts/active-row/SPEC.md', reason: 'Active row current state.' }],
+            concepts: [{ path: '../docs/concepts/active-row/concept.json', reason: 'Active row current state.' }],
             processes: [{ path: '../docs/processes/active-row-process.md', reason: 'Active row lookup.' }],
           },
         ],
@@ -383,7 +383,7 @@ test('generate renders related concept and process pages from relationship metad
           {
             id: 'active-row',
             displayName: 'Active Row',
-            path: 'active-row/SPEC.md',
+            path: 'active-row/concept.json',
             status: 'defined',
             summary: 'Active row summary',
           },
@@ -408,7 +408,7 @@ test('generate renders related concept and process pages from relationship metad
           {
             id: 'active-row-key',
             displayTerm: 'active row key',
-            definedIn: ['active-row/SPEC.md'],
+            definedIn: ['active-row/concept.json'],
             meaning: 'Logical active row identity.',
             note: 'Generated review-map metadata.',
           },
@@ -523,7 +523,7 @@ test('generate renders related concept and process pages from relationship metad
   expect(processDoc).toContain('Defined process.');
 
   const conceptIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'index.md'), 'utf8'));
-  expect(conceptIndex).toContain('# Concept Map');
+  expect(conceptIndex).toContain('# Concepts');
   expect(conceptIndex).toContain('| [active-row](./active-row.md) | Active Row | `defined` | Active row summary |');
   expect(conceptIndex).toContain('## Glossary Terms');
   expect(conceptIndex).toContain('active-row-key');
@@ -544,7 +544,7 @@ test('concept-site generates VitePress concept and process pages without DDL inp
   mkdirSync(dfdDir, { recursive: true });
   mkdirSync(processesDir, { recursive: true });
 
-  writeFileSync(path.join(conceptsDir, 'active-row/SPEC.md'), '# Active Row Concept\n\nDefined concept.', 'utf8');
+  writeFileSync(path.join(conceptsDir, 'active-row/concept.json'), '# Active Row Concept\n\nDefined concept.', 'utf8');
   writeFileSync(
     path.join(dfdDir, 'active-row-flow.md'),
     [
@@ -587,7 +587,7 @@ test('concept-site generates VitePress concept and process pages without DDL inp
           {
             id: 'active-row',
             displayName: 'Active Row',
-            path: 'active-row/SPEC.md',
+            path: 'active-row/concept.json',
             status: 'defined',
             summary: 'Active row summary',
           },
@@ -703,7 +703,7 @@ test('concept-site generates VitePress concept and process pages without DDL inp
   });
 
   const conceptIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'index.md'), 'utf8'));
-  expect(conceptIndex).toContain('# Concept Map');
+  expect(conceptIndex).toContain('# Concepts');
   expect(conceptIndex).toContain('| [active-row](./active-row.md) | Active Row | `defined` | Active row summary |');
   expect(conceptIndex).not.toContain('## Relationships');
 

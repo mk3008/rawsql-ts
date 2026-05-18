@@ -1,0 +1,731 @@
+{
+  "schemaVersion": 2,
+  "id": "transfer-execution",
+  "displayName": "転送実行",
+  "lifecycle": {
+    "status": "defined"
+  },
+  "definition": {
+    "summary": "転送実行記録をプロセスヘッダーとして生成し、転送作業対象へ転送対象判定を適用して判定結果を実行するメインルーチン",
+    "statements": [
+      {
+        "id": "transfer-execution",
+        "displayName": "データ転送処理のメインルーチン",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Transfer Execution とは、データ転送処理のメインルーチンである。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-run-arguments-record",
+        "displayName": "実行引数を Transfer Run として記録",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Transfer Execution は、実行引数を `Transfer Run` として記録する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-run-arguments-record-2",
+        "displayName": "Transfer Run は、Transfer Execution の実行引数記録兼プロセスヘッダー",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "`Transfer Run` は、Transfer Execution の実行引数記録兼プロセスヘッダーである。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-run",
+        "displayName": "Transfer Run は、Transfer Execution に従属",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "`Transfer Run` は、Transfer Execution に従属する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "destination-link-transfer-execution-setting-run-arguments-target",
+        "displayName": "の外部入力は対象 Transfer Setting と実行引数であり、Destination や Destination Link は Transfer Setting から辿る",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Transfer Execution の外部入力は対象 `Transfer Setting` と実行引数であり、`Destination` や `Destination Link` は `Transfer Setting` から辿る。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-setting-target",
+        "displayName": "対象 Transfer Setting に従って転送",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Transfer Execution は、対象 `Transfer Setting` に従って転送する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-run-record",
+        "displayName": "Transfer Run に記録された引数を転送条件として利用してよい。",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Transfer Execution は、`Transfer Run` に記録された引数を転送条件として利用してよい。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-run-target",
+        "displayName": "転送対象となる行を Transfer Run の引数として直接受け取らない。",
+        "polarity": "negative",
+        "type": "essence",
+        "text": "Transfer Execution は、転送対象となる行を `Transfer Run` の引数として直接受け取らない。",
+        "evidence": [
+          "spec:transfer-execution"
+        ],
+        "negatesSimilarityWith": [
+          "transfer-run"
+        ]
+      },
+      {
+        "id": "dirty-key-transfer-execution-change-detection-history-management",
+        "displayName": "Dirty Key Management に蓄積された変更検知履歴を Work Item として固定化",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Transfer Execution は、`Dirty Key` Management に蓄積された変更検知履歴を `Work Item` として固定化する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-transfer-execution-record-work-item",
+        "displayName": "Work Item を作るとき Dirty Key Processing に記録済みの Dirty Key を除外",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Transfer Execution は、`Work Item` を作るとき `Dirty Key Processing` に記録済みの `Dirty Key` を除外する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-decide-work-item",
+        "displayName": "Work Item に転送対象判定を適用し、その結果を実行する",
+        "polarity": "positive",
+        "type": "essence",
+        "text": "Transfer Execution は、`Work Item` に `Transfer Target Decision` を適用し、その結果を実行する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-run-arguments-state-trace-create",
+        "displayName": "実行引数を Transfer Run として作成し、実行開始時の引数と進捗状態を追跡できるように",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Transfer Execution は、実行引数を `Transfer Run` として作成し、実行開始時の引数と進捗状態を追跡できるようにする。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-setting-target-reference",
+        "displayName": "対象 Transfer Setting を参照",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Transfer Execution は、対象 `Transfer Setting` を参照する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "destination-link-transfer-execution-setting-reference-belongs",
+        "displayName": "Transfer Setting に紐づく Destination Link 群と、その先の Destination 群を参照",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Transfer Execution は、`Transfer Setting` に紐づく `Destination Link` 群と、その先の `Destination` 群を参照する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "dirty-key-transfer-execution-management-work-item",
+        "displayName": "Dirty Key Management に蓄積された行を Work Item として固定化",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Transfer Execution は、`Dirty Key` Management に蓄積された行を `Work Item` として固定化する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-decide-work-item-2",
+        "displayName": "Work Item が持つ転送対象判定の結果をもとに、実際の転送処理へ進める",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Transfer Execution は、`Work Item` が持つ転送対象判定の結果をもとに、実際の転送処理へ進める。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-source-exists",
+        "displayName": "転送元の現在値が存在するかどうかを確認",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Transfer Execution は、転送元の現在値が存在するかどうかを確認する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-exists-active-black",
+        "displayName": "既存の Active Black が存在するかどうかを確認",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Transfer Execution は、既存の `Active Black` が存在するかどうかを確認する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "black-transfer-destination-physical-delete-red-execution-decide",
+        "displayName": "Transfer Target Decision の結果に従って Black Transfer、Red Transfer、Physical Delete Transfer、または no-op を実行する",
+        "polarity": "negative",
+        "type": "responsibility",
+        "text": "Transfer Execution は、`Transfer Target Decision` の結果に従って `Black Transfer`、`Red Transfer`、`Physical Delete Transfer`、または no-op を実行する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ],
+        "negatesSimilarityWith": [
+          "black-transfer",
+          "destination",
+          "physical-delete-transfer",
+          "red-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-lineage-red-execution-create-immutable-model",
+        "displayName": "immutable transfer model では Lineage 作成を伴う Black Transfer または Red Transfer を選択できるように",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Transfer Execution は、`immutable transfer model` では `Lineage` 作成を伴う `Black Transfer` または `Red Transfer` を選択できるようにする。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-transfer-execution-processed-state-record",
+        "displayName": "転送が終わった Work Item を Dirty Key Processing に記録し、処理済みとして扱える状態に",
+        "polarity": "positive",
+        "type": "responsibility",
+        "text": "Transfer Execution は、転送が終わった `Work Item` を `Dirty Key Processing` に記録し、処理済みとして扱える状態にする。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "not-transfer-execution-run",
+        "displayName": "Transfer Run を事前に積まれた実行待ち項目として扱わない。",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Transfer Execution は、`Transfer Run` を事前に積まれた実行待ち項目として扱わない。",
+        "evidence": [
+          "spec:transfer-execution"
+        ],
+        "negatesSimilarityWith": [
+          "transfer-run"
+        ]
+      },
+      {
+        "id": "not-dirty-key-transfer-execution-processed-state",
+        "displayName": "Dirty Key 自体に処理済み状態を書き込まない。",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Transfer Execution は、`Dirty Key` 自体に処理済み状態を書き込まない。",
+        "evidence": [
+          "spec:transfer-execution"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "not-destination-transfer-execution-setting",
+        "displayName": "Transfer Setting の内容や Destination の転送先仕様を変更しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Transfer Execution は、`Transfer Setting` の内容や `Destination` の転送先仕様を変更しない。",
+        "evidence": [
+          "spec:transfer-execution"
+        ],
+        "negatesSimilarityWith": [
+          "destination",
+          "transfer-setting"
+        ]
+      },
+      {
+        "id": "not-dirty-key-transfer-execution-define",
+        "displayName": "Dirty Key の登録方法を定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Transfer Execution は、`Dirty Key` の登録方法を定義しない。",
+        "evidence": [
+          "spec:transfer-execution"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "not-black-transfer-lineage-red-execution-define-active",
+        "displayName": "Black Transfer、Red Transfer、Active Black、Lineage の保存形式を定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Transfer Execution は、`Black Transfer`、`Red Transfer`、`Active Black`、`Lineage` の保存形式を定義しない。",
+        "evidence": [
+          "spec:transfer-execution"
+        ],
+        "negatesSimilarityWith": [
+          "black-transfer",
+          "lineage",
+          "red-transfer"
+        ]
+      },
+      {
+        "id": "not-transfer-execution-manage",
+        "displayName": "スケジューリングそのものを管理しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Transfer Execution は、スケジューリングそのものを管理しない。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "not-transfer-execution-produce-define-sql",
+        "displayName": "SQL 生成手順や SQL 実行手順の具体形を定義しない",
+        "polarity": "negative",
+        "type": "boundary",
+        "text": "Transfer Execution は、SQL 生成手順や SQL 実行手順の具体形を定義しない。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-run-2",
+        "displayName": "必ず Transfer Run をプロセスヘッダーとして持つ",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Transfer Execution は、必ず `Transfer Run` をプロセスヘッダーとして持つ。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-run-produce",
+        "displayName": "Transfer Run を生成",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Transfer Execution は、`Transfer Run` を生成する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-setting-target-requires-one",
+        "displayName": "必ず1つの Transfer Setting を対象に",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Transfer Execution は、必ず1つの `Transfer Setting` を対象にする。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "destination-link-transfer-execution",
+        "displayName": "Destination や Destination Link を外部入力として要求しない",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "Transfer Execution は、`Destination` や `Destination Link` を外部入力として要求しない。",
+        "evidence": [
+          "spec:transfer-execution"
+        ],
+        "negatesSimilarityWith": [
+          "destination",
+          "destination-link"
+        ]
+      },
+      {
+        "id": "transfer-execution-run-target-row",
+        "displayName": "転送対象行を Transfer Run の引数として受け付けない。",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "Transfer Execution は、転送対象行を `Transfer Run` の引数として受け付けない。",
+        "evidence": [
+          "spec:transfer-execution"
+        ],
+        "negatesSimilarityWith": [
+          "transfer-run"
+        ]
+      },
+      {
+        "id": "dirty-key-transfer-execution-not-decide",
+        "displayName": "Dirty Key を変更通知として扱い、Dirty Key だけで転送操作を決定しない",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "Transfer Execution は、`Dirty Key` を変更通知として扱い、`Dirty Key` だけで転送操作を決定しない。",
+        "evidence": [
+          "spec:transfer-execution"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "dirty-key-transfer-execution-work-item",
+        "displayName": "Dirty Key を Work Item として固定化してから転送処理に使う。",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Transfer Execution は、`Dirty Key` を `Work Item` として固定化してから転送処理に使う。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-transfer-execution-processed-reference-work",
+        "displayName": "Work Item を作る前に Dirty Key Processing を参照して処理済み Dirty Key を除外",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Transfer Execution は、`Work Item` を作る前に `Dirty Key Processing` を参照して処理済み `Dirty Key` を除外する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "dirty-key-transfer-execution-processed-state",
+        "displayName": "Dirty Key 自体に処理済み状態を書き込まない。",
+        "polarity": "negative",
+        "type": "invariant",
+        "text": "Transfer Execution は、`Dirty Key` 自体に処理済み状態を書き込まない。",
+        "evidence": [
+          "spec:transfer-execution"
+        ],
+        "negatesSimilarityWith": [
+          "dirty-key"
+        ]
+      },
+      {
+        "id": "dirty-key-processing-transfer-execution-record-work-item-2",
+        "displayName": "転送が終わった Work Item を Dirty Key Processing に記録",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Transfer Execution は、転送が終わった `Work Item` を `Dirty Key Processing` に記録する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "transfer-execution-source-decide-active-black",
+        "displayName": "転送対象判定の結果を転送処理の判断材料として扱う",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Transfer Execution は、転送対象判定の結果を転送処理の判断材料として扱う。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "destination-transfer-execution-model",
+        "displayName": "Transfer Target Decision の結果に従って転送表現を実行する。",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "Transfer Execution は、`Transfer Target Decision` の結果に従って転送表現を実行する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "black-transfer-lineage-red-immutable-model",
+        "displayName": "immutable transfer model では、Lineage は Black Transfer または Red Transfer の成功結果として扱う",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "`immutable transfer model` では、`Lineage` は `Black Transfer` または `Red Transfer` の成功結果として扱う。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "red-transfer-immutable-model-active-black",
+        "displayName": "immutable transfer model では、既存の Active Black を取り消す場合に Red Transfer を使う",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "`immutable transfer model` では、既存の `Active Black` を取り消す場合に `Red Transfer` を使う。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "black-update-transfer-physical-delete-mutable-model",
+        "displayName": "mutable transfer model では、既存行の現在値反映は Black Update Transfer として扱い、取消は Physical Delete Transfer として扱う",
+        "polarity": "positive",
+        "type": "invariant",
+        "text": "`mutable transfer model` では、既存行の現在値反映は Black Update Transfer として扱い、取消は `Physical Delete Transfer` として扱う。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "destination-dirty-key-transfer-execution-run-setting-lifecycle",
+        "displayName": "Owns the Main Routine",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Transfer Execution Owns the Main Routine: Transfer Execution は、転送処理のメインルーチンである。 `Transfer Run` は Transfer Execution の引数記録兼プロセスヘッダーであり、実行全体のライフサイクル状態を保持するが、転送対象判定そのものではない。 `Dirty Key` は変更通知であり、どのように転送するかを決定しない。 そのため、Transfer Execution は `Work Item` に `Transfer Target Decision` を適用し、その判定結果に従って転送表現を実行する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ],
+        "negatesSimilarityWith": [
+          "destination",
+          "dirty-key",
+          "transfer-run",
+          "transfer-setting"
+        ]
+      },
+      {
+        "id": "transfer-execution-run-setting-source-arguments-context-target",
+        "displayName": "Transfer Run Provides the Execution Context",
+        "polarity": "positive",
+        "type": "rationale",
+        "text": "Transfer Run Provides the Execution Context: Transfer Execution は、転送元、転送条件、実行開始時引数を `Transfer Run` として記録する。 `Transfer Run` は、Transfer Execution が生成する実行引数記録兼プロセスヘッダーである。 `Transfer Run` は、進捗管理、監査、デバッグの実行文脈として有用である。 Transfer Execution は対象 `Transfer Setting` を実行し、その実行文脈を `Transfer Run` として残す。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      },
+      {
+        "id": "black-transfer-dirty-key-processing-physical-delete-red",
+        "displayName": "Dirty Key Provides Candidates, Not Operations",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Dirty Key Provides Candidates, Not Operations: `Dirty Key` は、転送元行に何らかの変更が起きた可能性を示す。 `Dirty Key` は変更通知であり、`Black Transfer`、`Red Transfer`、`Physical Delete Transfer`、または no-op を直接表さない。 Transfer Execution は、`Dirty Key` が示す候補を `Work Item` として固定化し、`Transfer Target Decision` を適用する。 Transfer Execution は、処理後に `Dirty Key Processing` へ記録し、`Work Item` を処理済みとして扱える状態にする。",
+        "evidence": [
+          "spec:transfer-execution"
+        ],
+        "negatesSimilarityWith": [
+          "black-transfer",
+          "dirty-key",
+          "dirty-key-processing",
+          "physical-delete-transfer",
+          "red-transfer",
+          "transfer-setting"
+        ]
+      },
+      {
+        "id": "black-transfer-update-physical-delete-red-execution-source",
+        "displayName": "Transfer Decision Is Applied Through Transfer Target Decision",
+        "polarity": "negative",
+        "type": "rationale",
+        "text": "Transfer Decision Is Applied Through Transfer Target Decision: Transfer Execution は、`Work Item` に `Transfer Target Decision` を適用し、転送要否と転送表現候補の結果を得る。具体的な判定表は `Transfer Target Decision` と Transfer Execution Process Map が扱う。Transfer Execution はその結果に従って、転送をスキップするか、`Black Transfer`、`Red Transfer`、`Physical Delete Transfer` の処理へ進める。",
+        "evidence": [
+          "spec:transfer-execution"
+        ],
+        "negatesSimilarityWith": [
+          "black-transfer",
+          "black-update-transfer",
+          "physical-delete-transfer",
+          "red-transfer"
+        ]
+      },
+      {
+        "id": "black-transfer-destination-lineage-red-execution-row-record",
+        "displayName": "Immutable Transfer Produces Traceable Destination Rows",
+        "polarity": "positive",
+        "type": "rationale",
+        "text": "Immutable Transfer Produces Traceable Destination Rows: `immutable transfer model` では、転送先行を履歴として積み増す。 そのため、`Black Transfer` または `Red Transfer` が成功した場合、生成された転送先行の由来を `Lineage` として追跡できる必要がある。 Transfer Execution は `Lineage` を直接記録する概念ではなく、`Lineage` 作成を伴う転送表現を選択する。",
+        "evidence": [
+          "spec:transfer-execution"
+        ]
+      }
+    ]
+  },
+  "internalLinks": [],
+  "externalRelationships": [
+    {
+      "to": "transfer-run",
+      "kind": "produces",
+      "reason": "Transfer Execution は実行引数記録兼プロセスヘッダーとして Transfer Run を生成する。",
+      "supportedBy": [
+        "transfer-execution-run-arguments-state-trace-create",
+        "transfer-execution-run-2",
+        "transfer-execution-run-produce"
+      ],
+      "evidence": [
+        "spec:transfer-execution"
+      ]
+    },
+    {
+      "to": "transfer-setting",
+      "kind": "uses",
+      "reason": "Transfer Execution は Transfer Run が対象にする Transfer Setting に従う。",
+      "supportedBy": [
+        "transfer-execution-setting-target-reference",
+        "destination-link-transfer-execution-setting-reference-belongs",
+        "transfer-execution-setting-target-requires-one"
+      ],
+      "evidence": [
+        "spec:transfer-execution"
+      ]
+    },
+    {
+      "to": "destination",
+      "kind": "uses",
+      "reason": "Transfer Execution は Destination の transfer model と転送先側ルールを参照する。",
+      "supportedBy": [
+        "destination-link-transfer-execution-setting-reference-belongs",
+        "black-transfer-destination-physical-delete-red-execution-decide",
+        "destination-link-transfer-execution"
+      ],
+      "evidence": [
+        "spec:transfer-execution"
+      ]
+    },
+    {
+      "to": "dirty-key",
+      "kind": "consumes",
+      "reason": "Transfer Execution は Dirty Key Management の記録を転送候補として消費する。",
+      "supportedBy": [
+        "dirty-key-transfer-execution-management-work-item",
+        "dirty-key-processing-transfer-execution-processed-state-record",
+        "dirty-key-transfer-execution-not-decide"
+      ],
+      "evidence": [
+        "spec:transfer-execution"
+      ]
+    },
+    {
+      "to": "dirty-key-processing",
+      "kind": "uses",
+      "reason": "Transfer Execution は Work Item 作成前に Dirty Key Processing を参照して処理済み Dirty Key を除外し、処理後に Dirty Key Processing を記録する。",
+      "supportedBy": [
+        "dirty-key-processing-transfer-execution-processed-state-record",
+        "dirty-key-processing-transfer-execution-processed-reference-work",
+        "dirty-key-processing-transfer-execution-record-work-item-2"
+      ],
+      "evidence": [
+        "spec:transfer-execution"
+      ]
+    },
+    {
+      "to": "work-item",
+      "kind": "produces",
+      "reason": "Transfer Execution は Dirty Key を Work Item として固定化する。",
+      "supportedBy": [
+        "dirty-key-transfer-execution-management-work-item",
+        "transfer-execution-decide-work-item-2",
+        "dirty-key-transfer-execution-work-item"
+      ],
+      "evidence": [
+        "spec:transfer-execution"
+      ]
+    },
+    {
+      "to": "work-item",
+      "kind": "uses",
+      "reason": "Transfer Execution は Work Item に Transfer Target Decision を適用し、転送要否と転送表現候補を得る。",
+      "supportedBy": [
+        "dirty-key-transfer-execution-management-work-item",
+        "transfer-execution-decide-work-item-2",
+        "dirty-key-transfer-execution-work-item"
+      ],
+      "evidence": [
+        "spec:transfer-execution"
+      ]
+    },
+    {
+      "to": "active-black",
+      "kind": "uses",
+      "reason": "Transfer Execution は Transfer Target Decision の結果に従って黒転送、赤転送、更新、削除、または no-op を実行する。",
+      "supportedBy": [
+        "transfer-execution-exists-active-black",
+        "transfer-execution-source-decide-active-black",
+        "red-transfer-immutable-model-active-black"
+      ],
+      "evidence": [
+        "spec:transfer-execution"
+      ]
+    },
+    {
+      "to": "black-transfer",
+      "kind": "uses",
+      "reason": "Transfer Execution は現在の転送元値を転送先へコピーすべき場合に Black Transfer を実行する。",
+      "supportedBy": [
+        "black-transfer-destination-physical-delete-red-execution-decide",
+        "black-transfer-lineage-red-execution-create-immutable-model",
+        "black-transfer-lineage-red-immutable-model"
+      ],
+      "evidence": [
+        "spec:transfer-execution"
+      ]
+    },
+    {
+      "to": "red-transfer",
+      "kind": "uses",
+      "reason": "Transfer Execution は immutable transfer model で active black row を反転すべき場合に Red Transfer を実行する。",
+      "supportedBy": [
+        "red-transfer-immutable-model-active-black",
+        "black-transfer-destination-physical-delete-red-execution-decide",
+        "black-transfer-lineage-red-execution-create-immutable-model"
+      ],
+      "evidence": [
+        "spec:transfer-execution"
+      ]
+    },
+    {
+      "to": "physical-delete-transfer",
+      "kind": "uses",
+      "reason": "Transfer Execution は mutable transfer model の削除ケースで Physical Delete Transfer を使う。",
+      "supportedBy": [
+        "black-transfer-destination-physical-delete-red-execution-decide",
+        "black-update-transfer-physical-delete-mutable-model",
+        "black-transfer-dirty-key-processing-physical-delete-red"
+      ],
+      "evidence": [
+        "spec:transfer-execution"
+      ]
+    },
+    {
+      "to": "transfer-target-decision",
+      "kind": "uses",
+      "reason": "Transfer Execution は Work Item に Transfer Target Decision を適用し、転送要否と転送表現候補を得る。",
+      "supportedBy": [
+        "transfer-execution-decide-work-item",
+        "transfer-execution-decide-work-item-2"
+      ],
+      "evidence": [
+        "spec:transfer-execution"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "spec:transfer-execution",
+      "type": "spec",
+      "path": "concept.json"
+    }
+  ],
+  "reviewState": {
+    "coverage": {
+      "definition": {
+        "status": "complete",
+        "reason": "concept.json の意味、責務、境界、不変条件、理由を curated statement として移植済み。"
+      },
+      "relationships": {
+        "status": "complete",
+        "reason": "concept-relationship.json と移行元 concept.json の外部関係を反映済み。"
+      }
+    },
+    "openIssues": []
+  }
+}

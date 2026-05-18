@@ -79,6 +79,23 @@ export interface GenerateConceptSiteOptions {
   outDir: string;
 }
 
+export interface ConceptDisplayNameOptions {
+  conceptRelationshipPath: string;
+  id: string;
+  displayName: string;
+  dryRun: boolean;
+}
+
+export interface StructuredConceptOptions {
+  conceptDirectories: string[];
+  conceptRelationshipPath?: string;
+  outDir?: string;
+  relationshipOutPath?: string;
+  reverseRelationshipOutPath?: string;
+  aiContextOutPath?: string;
+  reviewSummaryOutPath?: string;
+}
+
 export interface TableDocsColumnMetadata {
   sample?: unknown;
   designNotes?: string[];

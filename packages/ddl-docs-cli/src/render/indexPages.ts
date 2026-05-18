@@ -141,7 +141,7 @@ function renderInstanceIndex(groupedByInstance: Map<string, TableDocModel[]>): s
   lines.push('');
   lines.push('# Instance Index');
   lines.push('');
-  lines.push('[<- All Schemas](./index.md)');
+  lines.push('[<- Schemas](./index.md)');
   lines.push('');
   lines.push('| Instance | Schemas | Tables |');
   lines.push('| --- | --- | --- |');
@@ -174,8 +174,7 @@ function renderSchemaIndex(
   lines.push('');
   lines.push(`# ${schema} Tables`);
   lines.push('');
-  lines.push('- [<- All Schemas](../index.md)');
-  lines.push('- [Column Index](./columns/index.md)');
+  lines.push('[<- Schemas](../index.md) | [Column Index](./columns/index.md)');
   lines.push('');
   lines.push('| Table | Columns | Comment | Alert | Suggest |');
   lines.push('| --- | --- | --- | --- | --- |');

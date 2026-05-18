@@ -62,7 +62,7 @@ export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSug
   lines.push('');
   lines.push(`# ${table.schema}.${table.table}`);
   lines.push('');
-  lines.push('[<- All Schemas](../index.md) | [Table Index](./index.md)');
+  lines.push('[<- Schemas](../index.md) | [Table Index](./index.md)');
   lines.push('');
   lines.push('## Overview');
   lines.push('');
