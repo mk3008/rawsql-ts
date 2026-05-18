@@ -1,3 +1,29 @@
+.VPDoc {
+  --vp-concept-status-ok-color: #18794e;
+  --vp-concept-status-ok-border: rgba(24, 121, 78, 0.28);
+  --vp-concept-status-ok-bg: rgba(24, 121, 78, 0.08);
+  --vp-concept-status-warn-color: #8a5a00;
+  --vp-concept-status-warn-border: rgba(138, 90, 0, 0.28);
+  --vp-concept-status-warn-bg: rgba(138, 90, 0, 0.08);
+  --vp-concept-status-danger-color: #b42318;
+  --vp-concept-status-danger-border: rgba(180, 35, 24, 0.3);
+  --vp-concept-status-danger-bg: rgba(180, 35, 24, 0.08);
+  --vp-concept-related-border: rgba(64, 112, 204, 0.35);
+}
+
+html.dark .VPDoc {
+  --vp-concept-status-ok-color: var(--vp-c-green-1);
+  --vp-concept-status-ok-border: var(--vp-c-green-soft);
+  --vp-concept-status-ok-bg: var(--vp-c-green-soft);
+  --vp-concept-status-warn-color: var(--vp-c-yellow-1);
+  --vp-concept-status-warn-border: var(--vp-c-yellow-soft);
+  --vp-concept-status-warn-bg: var(--vp-c-yellow-soft);
+  --vp-concept-status-danger-color: var(--vp-c-red-1);
+  --vp-concept-status-danger-border: var(--vp-c-red-soft);
+  --vp-concept-status-danger-bg: var(--vp-c-red-soft);
+  --vp-concept-related-border: var(--vp-c-brand-soft);
+}
+
 .VPDoc .container {
   max-width: none !important;
 }
@@ -214,7 +240,7 @@
   justify-content: center;
   min-height: 26px;
   padding: 3px 10px;
-  border: 1px solid rgba(64, 112, 204, 0.35);
+  border: 1px solid var(--vp-concept-related-border);
   border-radius: 999px;
   background: var(--vp-c-bg);
   font-weight: 700;
@@ -243,15 +269,15 @@
 }
 
 .vp-doc .concept-status.ok {
-  color: #18794e;
-  border-color: rgba(24, 121, 78, 0.28);
-  background: rgba(24, 121, 78, 0.08);
+  color: var(--vp-concept-status-ok-color);
+  border-color: var(--vp-concept-status-ok-border);
+  background: var(--vp-concept-status-ok-bg);
 }
 
 .vp-doc .concept-status.warn {
-  color: #8a5a00;
-  border-color: rgba(138, 90, 0, 0.28);
-  background: rgba(138, 90, 0, 0.08);
+  color: var(--vp-concept-status-warn-color);
+  border-color: var(--vp-concept-status-warn-border);
+  background: var(--vp-concept-status-warn-bg);
 }
 
 .vp-doc .concept-status.neutral {
@@ -261,9 +287,9 @@
 }
 
 .vp-doc .concept-status.danger {
-  color: #b42318;
-  border-color: rgba(180, 35, 24, 0.3);
-  background: rgba(180, 35, 24, 0.08);
+  color: var(--vp-concept-status-danger-color);
+  border-color: var(--vp-concept-status-danger-border);
+  background: var(--vp-concept-status-danger-bg);
 }
 
 .vp-doc .concept-section-count {

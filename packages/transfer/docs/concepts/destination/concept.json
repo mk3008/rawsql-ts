@@ -595,8 +595,7 @@
       "kind": "uses",
       "reason": "Destination は締め済み期間に対する計上日補正が必要な場合に日付下限制御を持つことがある。",
       "supportedBy": [
-        "destination-posting-date-lower-bound-hook",
-        "destination-link-posting-date-lower-bound-red-transfer"
+        "destination-posting-date-lower-bound-hook"
       ],
       "evidence": [
         "spec:destination"

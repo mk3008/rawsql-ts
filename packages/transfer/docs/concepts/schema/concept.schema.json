@@ -197,7 +197,7 @@
       }
     },
     "relationshipKind": {
-      "enum": ["uses", "depends-on", "supports", "records", "produces", "is-distinct-from", "variant-of", "must-not-redefine"]
+      "enum": ["uses", "targets", "consumes", "depends-on", "supports", "records", "produces", "is-distinct-from", "variant-of", "must-not-redefine"]
     },
     "resolutionCriterion": {
       "type": "object",

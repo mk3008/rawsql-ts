@@ -808,7 +808,10 @@ function classifyArtifactKind(changedFile: string, options: ReviewPlanOptions): 
   if (options.dfdRelationshipPath && samePath(changedFile, options.dfdRelationshipPath)) {
     return 'dfd-relationship-metadata';
   }
-  if (changedFile.includes('/docs/concepts/') && changedFile.endsWith('.md')) {
+  if (
+    changedFile.includes('/docs/concepts/')
+    && (changedFile.endsWith('.md') || changedFile.endsWith('/concept.json'))
+  ) {
     return 'concept-spec';
   }
   if (changedFile.includes('/docs/dfd/') && changedFile.endsWith('.md')) {

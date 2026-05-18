@@ -16,6 +16,35 @@ function createTempDir(prefix: string): string {
   return mkdtempSync(path.join(tmpRoot, `${prefix}-`));
 }
 
+function structuredConceptFixture(id: string, displayName: string): string {
+  return JSON.stringify(
+    {
+      schemaVersion: 2,
+      id,
+      displayName,
+      lifecycle: { status: 'defined' },
+      definition: {
+        summary: `${displayName} summary.`,
+        statements: [
+          {
+            id: 'definition',
+            displayName: `${displayName} definition`,
+            polarity: 'positive',
+            type: 'essence',
+            text: `${displayName} is a defined concept.`,
+            evidence: [`spec:${id}`],
+          },
+        ],
+      },
+      evidence: [
+        { id: `spec:${id}`, type: 'spec', path: 'concept.json' },
+      ],
+    },
+    null,
+    2
+  );
+}
+
 test('generate writes table pages, index pages, and warnings metadata', () => {
   const work = createTempDir('ddl-docs-generate');
   const ddlDir = path.join(work, 'ddl');
@@ -327,7 +356,7 @@ test('generate renders related concept and process pages from relationship metad
     `,
     'utf8'
   );
-  writeFileSync(path.join(conceptsDir, 'active-row/concept.json'), '# Active Row Concept\n\nDefined concept.', 'utf8');
+  writeFileSync(path.join(conceptsDir, 'active-row/concept.json'), structuredConceptFixture('active-row', 'Active Row'), 'utf8');
   writeFileSync(path.join(processesDir, 'active-row-process.md'), '# Active Row Process\n\nDefined process.', 'utf8');
   writeFileSync(path.join(dfdDir, 'active-row-flow.md'), '# Active Row Flow\n', 'utf8');
   writeFileSync(
@@ -508,8 +537,8 @@ test('generate renders related concept and process pages from relationship metad
   expect(tableDoc).toContain('alternativesRejected: Do not use hash as identity.');
 
   const conceptDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'active-row.md'), 'utf8'));
-  expect(conceptDoc).toContain('# Active Row');
-  expect(conceptDoc).toContain('Defined concept.');
+  expect(conceptDoc).toContain('"displayName": "Active Row"');
+  expect(conceptDoc).toContain('"text": "Active Row is a defined concept."');
   expect(conceptDoc).toContain('## Generated Review Metadata');
   expect(conceptDoc).toContain('This section is generated for human review.');
   expect(conceptDoc).toContain('## Related Concepts');
@@ -544,7 +573,7 @@ test('concept-site generates VitePress concept and process pages without DDL inp
   mkdirSync(dfdDir, { recursive: true });
   mkdirSync(processesDir, { recursive: true });
 
-  writeFileSync(path.join(conceptsDir, 'active-row/concept.json'), '# Active Row Concept\n\nDefined concept.', 'utf8');
+  writeFileSync(path.join(conceptsDir, 'active-row/concept.json'), structuredConceptFixture('active-row', 'Active Row'), 'utf8');
   writeFileSync(
     path.join(dfdDir, 'active-row-flow.md'),
     [
@@ -708,10 +737,10 @@ test('concept-site generates VitePress concept and process pages without DDL inp
   expect(conceptIndex).not.toContain('## Relationships');
 
   const conceptDoc = normalizeLineEndings(readFileSync(path.join(outDir, 'concepts', 'active-row.md'), 'utf8'));
-  expect(conceptDoc).toContain('# Active Row');
-  expect(conceptDoc.indexOf('Defined concept.')).toBeLessThan(conceptDoc.indexOf('## Generated Review Metadata'));
+  expect(conceptDoc).toContain('"displayName": "Active Row"');
+  expect(conceptDoc.indexOf('"text": "Active Row is a defined concept."')).toBeLessThan(conceptDoc.indexOf('## Generated Review Metadata'));
   expect(conceptDoc).toContain('## Related Concepts');
-  expect(conceptDoc).toContain('Defined concept.');
+  expect(conceptDoc).toContain('"text": "Active Row is a defined concept."');
 
   const processIndex = normalizeLineEndings(readFileSync(path.join(outDir, 'processes', 'index.md'), 'utf8'));
   expect(processIndex).toContain('| [Active Row Process](./active-row-process.md) | Defines active row processing. |');

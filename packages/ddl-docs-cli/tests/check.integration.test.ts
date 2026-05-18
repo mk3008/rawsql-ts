@@ -319,6 +319,54 @@ test('structured-concept build renders review page and generated indexes from co
   expect(summaryJson.coverage).toContainEqual(expect.objectContaining({ id: 'duplicate-control', openIssueCount: 1, internalLinkCount: 1 }));
 });
 
+test('structured-concept accepts issue statements and rejects invalid open issue statuses', () => {
+  const work = createTempDir('ddl-docs-structured-concept-issue-status');
+  const conceptDir = path.join(work, 'concepts');
+  const issueDir = path.join(conceptDir, 'issue-carrier');
+  const invalidDir = path.join(conceptDir, 'invalid-status');
+  const outDir = path.join(work, 'docs');
+
+  const conceptJson = (id: string, status: string) => ({
+    schemaVersion: 2,
+    id,
+    displayName: id,
+    lifecycle: { status: 'defined' },
+    definition: {
+      summary: `${id} summary.`,
+      statements: [
+        {
+          id: 'issue-statement',
+          displayName: 'Issue statement',
+          polarity: 'positive',
+          type: 'issue',
+          text: 'This statement records an issue-shaped definition detail.',
+          evidence: [`spec:${id}`],
+        },
+      ],
+    },
+    evidence: [
+      { id: `spec:${id}`, type: 'spec', path: 'concept.json' },
+    ],
+    reviewState: {
+      openIssues: [
+        { id: 'question', question: 'Is this status valid?', status, evidence: [`spec:${id}`] },
+      ],
+    },
+  });
+
+  writeText(path.join(issueDir, 'concept.json'), JSON.stringify(conceptJson('issue-carrier', 'open'), null, 2));
+  writeText(path.join(invalidDir, 'concept.json'), JSON.stringify(conceptJson('invalid-status', 'todo'), null, 2));
+
+  expect(() => runStructuredConceptBuild({
+    conceptDirectories: [issueDir],
+    outDir: path.join(work, 'valid-docs'),
+  })).not.toThrow();
+  expect(() => runStructuredConceptBuild({
+    conceptDirectories: [conceptDir],
+    outDir,
+  })).toThrow(/structured concept build failed/u);
+});
+
 test('check passes when relationship, order, table-docs, and concept registry references are consistent', () => {
   const work = createTempDir('ddl-docs-check-pass');
   const ddlDir = path.join(work, 'ddl');
@@ -1689,6 +1737,32 @@ test('review-plan resolves DDL required reads from relationship metadata', () =>
     'db-backed-contract-verification',
     'no-hot-path-runtime-validation',
   ]);
+});
+
+test('review-plan classifies concept.json edits as concept specs', () => {
+  const work = createTempDir('ddl-docs-review-plan-concept-json');
+  const conceptsDir = path.join(work, 'docs', 'concepts');
+  const changedFilesPath = path.join(work, 'changed-files.txt');
+  const conceptRelationshipPath = path.join(conceptsDir, 'concept-relationship.json');
+  const conceptPath = path.join(conceptsDir, 'account/concept.json');
+  const changedConceptPath = path.relative(process.cwd(), conceptPath).replace(/\\/g, '/');
+
+  writeText(conceptPath, '# Account Concept\n');
+  writeText(changedFilesPath, `${changedConceptPath}\n`);
+  writeText(conceptRelationshipPath, JSON.stringify({
+    schemaVersion: 1,
+    concepts: [{ id: 'account', path: 'account/concept.json', status: 'defined' }],
+  }, null, 2));
+
+  const plan = buildReviewPlan({
+    changedFilesPath,
+    ddlDirectories: [],
+    conceptRelationshipPath,
+  });
+
+  expect(plan.changedFiles[0]?.artifactKind).toBe('concept-spec');
+  expect(plan.changedFiles[0]?.reviewClass).toBe('business-bearing');
+  expect(plan.changedFiles[0]?.requiredReads.concepts).toEqual(['account']);
 });
 
 test('review-plan rejects unknown test policy artifact kinds', () => {

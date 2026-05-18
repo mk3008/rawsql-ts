@@ -417,6 +417,9 @@ function readAiReview(aiReviewPath) {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new Error(`AI review JSON must be an object: ${path.relative(workspaceRoot, resolvedPath)}`);
   }
+  if (parsed.schemaVersion !== 1) {
+    throw new Error(`AI review JSON schema version ${parsed.schemaVersion} is not supported (expected: 1): ${path.relative(workspaceRoot, resolvedPath)}`);
+  }
   if (!Array.isArray(parsed.findings)) {
     throw new Error(`AI review JSON must contain a findings array: ${path.relative(workspaceRoot, resolvedPath)}`);
   }

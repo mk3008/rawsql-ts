@@ -106,7 +106,7 @@
       },
       {
         "id": "dirty-key-processing-processed-record-work-item",
-        "displayName": "の処理済み記録は、Dirty Key Processing に残す。",
+        "displayName": "Work Item の処理済み記録は、Dirty Key Processing に残す。",
         "polarity": "positive",
         "type": "essence",
         "text": "Work Item の処理済み記録は、`Dirty Key Processing` に残す。",
@@ -216,7 +216,7 @@
       },
       {
         "id": "dirty-key-processing-processed-record-work-item-2",
-        "displayName": "の処理が終わった後、Dirty Key Processing に処理済み記録を残せる必要がある。",
+        "displayName": "Work Item の処理が終わった後、Dirty Key Processing に処理済み記録を残せる必要がある。",
         "polarity": "positive",
         "type": "responsibility",
         "text": "Work Item の処理が終わった後、`Dirty Key Processing` に処理済み記録を残せる必要がある。",
@@ -370,7 +370,7 @@
       },
       {
         "id": "dirty-key-processing-processed-record-work-item-3",
-        "displayName": "の処理済み記録は、Dirty Key Processing に残す。",
+        "displayName": "Work Item の処理済み記録は、Dirty Key Processing に残す。",
         "polarity": "positive",
         "type": "invariant",
         "text": "Work Item の処理済み記録は、`Dirty Key Processing` に残す。",
@@ -579,9 +579,9 @@
       "kind": "uses",
       "reason": "Work Item は転送対象判定の入力文脈として Destination の transfer model を持つ。",
       "supportedBy": [
-        "destination-link-context-trace-decide-work-item",
-        "destination-link-dirty-key-transfer-setting-context-decide",
-        "destination-link-dirty-key-transfer-setting-context-decide-2"
+        "decide-transfer-model-work-item",
+        "destination-source-decide-active-black-transfer-model-work",
+        "destination-link-context-trace-decide-work-item"
       ],
       "evidence": [
         "spec:work-item"

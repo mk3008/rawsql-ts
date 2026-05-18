@@ -305,14 +305,11 @@
       {
         "id": "black-insert-transfer-mutable-model-active",
         "displayName": "mutable transfer model では、Active Black がない場合は Black Insert Transfer として黒伝を追加",
-        "polarity": "negative",
+        "polarity": "positive",
         "type": "invariant",
         "text": "`mutable transfer model` の追加転送候補では、Black Transfer は Black Insert Transfer として黒伝を追加する。",
         "evidence": [
           "spec:black-transfer"
-        ],
-        "negatesSimilarityWith": [
-          "black-insert-transfer"
         ]
       },
       {

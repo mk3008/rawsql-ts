@@ -9,7 +9,8 @@ const REQUIRED_SECTIONS = ['definition', 'goals', 'nonResponsibilities', 'invari
 const OPTIONAL_SECTIONS = ['rationale'] as const;
 const SECTION_NAMES = new Set<string>([...REQUIRED_SECTIONS, ...OPTIONAL_SECTIONS]);
 const COVERAGES = new Set(['unreviewed', 'none', 'partial', 'complete']);
-const STATEMENT_TYPES = new Set(['essence', 'responsibility', 'boundary', 'invariant', 'rationale']);
+const STATEMENT_TYPES = new Set(['essence', 'responsibility', 'boundary', 'invariant', 'rationale', 'issue']);
+const OPEN_ISSUE_STATUSES = new Set(['open', 'answered', 'deferred', 'closed']);
 const LIFECYCLE_STATUSES = new Set(['draft', 'defined', 'deprecated']);
 const RELATIONSHIP_KINDS = new Set([
   'uses',
@@ -460,6 +461,9 @@ function validateConceptV2(
     }
     if (!issue.question?.trim()) {
       push('error', `reviewState.openIssues.${index}.question`, 'open issue question must be non-empty.');
+    }
+    if (!OPEN_ISSUE_STATUSES.has(issue.status)) {
+      push('error', `reviewState.openIssues.${index}.status`, `invalid status, expected one of: ${Array.from(OPEN_ISSUE_STATUSES).join('|')}`);
     }
     validateEvidenceRefs(`reviewState.openIssues.${index}.evidence`, issue.evidence, evidenceIds, push);
   }
