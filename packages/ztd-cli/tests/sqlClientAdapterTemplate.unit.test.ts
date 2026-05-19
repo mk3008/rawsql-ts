@@ -14,6 +14,20 @@ test('fromPg unwraps QueryResult.rows from the underlying pg queryable', async (
   expect(queryable.query).toHaveBeenCalledWith('select id from users where team_id = $1', [7]);
 });
 
+test('fromPg compiles named parameters to pg placeholders', async () => {
+  const queryable = {
+    query: vi.fn().mockResolvedValue({ rows: [{ id: 7 }] })
+  };
+
+  const client = fromPg(queryable);
+  const rows = await client.query<{ id: number }>('select id from users where team_id = :teamId', {
+    teamId: 7
+  });
+
+  expect(rows).toEqual([{ id: 7 }]);
+  expect(queryable.query).toHaveBeenCalledWith('select id from users where team_id = $1', [7]);
+});
+
 test('fromPg forwards queries without values to the underlying pg queryable', async () => {
   const queryable = {
     query: vi.fn().mockResolvedValue({ rows: [{ ok: true }] })

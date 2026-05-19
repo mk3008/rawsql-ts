@@ -64,7 +64,7 @@ Do not include these in the first implementation:
 - many-to-many materialization
 - polymorphic relations
 - relation inference from aliases alone
-- PostgreSQL JSON aggregation as the default RFBA generated mapper path
+- PostgreSQL JSON aggregation as a RFBA generated mapper path
 - hand edits under `generated/**`
 - a public "fast mapper mode" option
 
@@ -119,7 +119,7 @@ Fallback should remain compatibility-oriented. The standard scaffold success pat
 
 Implemented in this pass:
 
-- `QuerySpecMetadata.relations.hasMany` types exist in `@rawsql-ts/sql-contract`.
+- JSON-compatible generated mapper metadata can describe one `hasMany` relation without a runtime package dependency.
 - ztd-cli generated mapper sync can detect one explicit `hasMany` relation from JSON-compatible query metadata.
 - The first generator entrypoint reads a JSON-compatible `*GeneratedMapperMetadata` constant that can be assigned to queryspec `metadata`; arbitrary inline `metadata` object parsing is intentionally out of scope. Parse failures explain that the metadata object literal must stay JSON-compatible and show the regeneration/check failure before CI can pass.
 - The generated mapper uses root indexing, SQL row-order preservation, direct assignment, and no object spread in the hot loop.
@@ -135,7 +135,7 @@ Still not implemented:
 
 ## Acceptance Criteria for Further Implementation
 
-- A queryspec/sql-contract metadata example can generate one root plus one collection.
+- A generated boundary metadata example can generate one root plus one collection.
 - The generated mapper uses direct assignment and does not use object spread in the hot loop.
 - The generated mapper is under `generated/**` and is covered by generated mapper drift check.
 - The query boundary stays thin.

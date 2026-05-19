@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SetClauseItem
 
-Defined in: [packages/core/src/models/Clause.ts:525](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/Clause.ts#L525)
+Defined in: [packages/core/src/models/Clause.ts:526](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/Clause.ts#L526)
 
 Represents a single SET clause item in an UPDATE statement.
 Now supports namespaces for fully qualified column names (e.g. schema.table.column).
@@ -17,13 +17,13 @@ Refactored to use QualifiedName for unified name/namespace handling.
 
 > **new SetClauseItem**(`column`, `value`): `SetClauseItem`
 
-Defined in: [packages/core/src/models/Clause.ts:529](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/Clause.ts#L529)
+Defined in: [packages/core/src/models/Clause.ts:530](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/Clause.ts#L530)
 
 #### Parameters
 
 ##### column
 
-`string` | [`IdentifierString`](IdentifierString.md) | \{ `namespaces`: `null` \| `string`[] \| [`IdentifierString`](IdentifierString.md)[]; `column`: `string` \| [`IdentifierString`](IdentifierString.md); \}
+`string` | [`IdentifierString`](IdentifierString.md) | \{ `namespaces`: `string`[] \| [`IdentifierString`](IdentifierString.md)[] \| `null`; `column`: `string` \| [`IdentifierString`](IdentifierString.md); \}
 
 ##### value
 
@@ -43,7 +43,7 @@ Defined in: [packages/core/src/models/Clause.ts:529](https://github.com/mk3008/r
 
 > `static` **kind**: `symbol`
 
-Defined in: [packages/core/src/models/Clause.ts:526](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/Clause.ts#L526)
+Defined in: [packages/core/src/models/Clause.ts:527](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/Clause.ts#L527)
 
 #### Overrides
 
@@ -55,7 +55,7 @@ Defined in: [packages/core/src/models/Clause.ts:526](https://github.com/mk3008/r
 
 > **qualifiedName**: [`QualifiedName`](QualifiedName.md)
 
-Defined in: [packages/core/src/models/Clause.ts:527](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/Clause.ts#L527)
+Defined in: [packages/core/src/models/Clause.ts:528](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/Clause.ts#L528)
 
 ***
 
@@ -63,15 +63,15 @@ Defined in: [packages/core/src/models/Clause.ts:527](https://github.com/mk3008/r
 
 > **value**: [`ValueComponent`](../type-aliases/ValueComponent.md)
 
-Defined in: [packages/core/src/models/Clause.ts:528](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/Clause.ts#L528)
+Defined in: [packages/core/src/models/Clause.ts:529](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/Clause.ts#L529)
 
 ***
 
 ### comments
 
-> **comments**: `null` \| `string`[] = `null`
+> **comments**: `string`[] \| `null` = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L29)
+Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L29)
 
 #### Inherited from
 
@@ -81,9 +81,9 @@ Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3
 
 ### positionedComments
 
-> **positionedComments**: `null` \| [`PositionedComment`](../interfaces/PositionedComment.md)[] = `null`
+> **positionedComments**: [`PositionedComment`](../interfaces/PositionedComment.md)[] \| `null` = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L32)
+Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L32)
 
 #### Inherited from
 
@@ -95,15 +95,15 @@ Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3
 
 #### Get Signature
 
-> **get** **namespaces**(): `null` \| [`IdentifierString`](IdentifierString.md)[]
+> **get** **namespaces**(): [`IdentifierString`](IdentifierString.md)[] \| `null`
 
-Defined in: [packages/core/src/models/Clause.ts:548](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/Clause.ts#L548)
+Defined in: [packages/core/src/models/Clause.ts:549](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/Clause.ts#L549)
 
 For backward compatibility: returns the namespaces as IdentifierString[] | null (readonly)
 
 ##### Returns
 
-`null` \| [`IdentifierString`](IdentifierString.md)[]
+[`IdentifierString`](IdentifierString.md)[] \| `null`
 
 ***
 
@@ -113,7 +113,7 @@ For backward compatibility: returns the namespaces as IdentifierString[] | null 
 
 > **get** **column**(): [`IdentifierString`](IdentifierString.md)
 
-Defined in: [packages/core/src/models/Clause.ts:554](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/Clause.ts#L554)
+Defined in: [packages/core/src/models/Clause.ts:555](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/Clause.ts#L555)
 
 For backward compatibility: returns the column name as IdentifierString (readonly)
 
@@ -127,7 +127,7 @@ For backward compatibility: returns the column name as IdentifierString (readonl
 
 > **getFullName**(): `string`
 
-Defined in: [packages/core/src/models/Clause.ts:564](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/Clause.ts#L564)
+Defined in: [packages/core/src/models/Clause.ts:565](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/Clause.ts#L565)
 
 Returns the fully qualified column name as a string.
 
@@ -141,7 +141,7 @@ Returns the fully qualified column name as a string.
 
 > **getKind**(): `symbol`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L15)
+Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L15)
 
 #### Returns
 
@@ -157,7 +157,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3
 
 > **accept**&lt;`T`\&gt;(`visitor`): `T`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L19)
+Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L19)
 
 #### Type Parameters
 
@@ -185,7 +185,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3
 
 > **toSqlString**(`formatter`): `string`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L23)
+Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L23)
 
 #### Parameters
 
@@ -207,7 +207,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3
 
 > **addPositionedComments**(`position`, `comments`): `void`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L37)
+Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L37)
 
 Add comments at a specific position
 
@@ -235,7 +235,7 @@ Add comments at a specific position
 
 > **getPositionedComments**(`position`): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L56)
+Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L56)
 
 Get comments for a specific position
 
@@ -259,7 +259,7 @@ Get comments for a specific position
 
 > **getAllPositionedComments**(): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L66)
+Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L66)
 
 Get all positioned comments as a flat array in order (before, after)
 

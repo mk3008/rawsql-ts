@@ -19,7 +19,7 @@ type QuerySpec<TParams extends readonly unknown[], TRow> = {
   notes: string;
 };
 
-type CatalogExecutorOptions = {
+type ThinQueryExecutorOptions = {
   loader: {
     load(sqlFile: string): Promise<string>;
   };
@@ -60,7 +60,7 @@ function parseBoolean(value: unknown): boolean {
   throw new Error('Invalid users.list-active is_active value');
 }
 
-function createCatalogExecutor({ loader, executor }: CatalogExecutorOptions) {
+function createThinQueryExecutor({ loader, executor }: ThinQueryExecutorOptions) {
   return {
     async list<TParams extends readonly unknown[], TRow>(spec: QuerySpec<TParams, TRow>, params: TParams) {
       const sql = await loader.load(spec.sqlFile);
@@ -119,11 +119,11 @@ const listActiveUsersSpec: QuerySpec<[boolean], UserSummaryRow> = {
   notes: 'Use this as the sample when you add the first users QuerySpec.'
 };
 
-test('queryspec example keeps users SQL, rowMapping, and CatalogExecutor aligned', async () => {
+test('queryspec example keeps users SQL, rowMapping, and thin executor aligned', async () => {
   const loadedSql: string[] = [];
   const executedSql: Array<{ sql: string; params: readonly unknown[] }> = [];
 
-  const executor = createCatalogExecutor({
+  const executor = createThinQueryExecutor({
     loader: {
       async load(sqlFile: string) {
         loadedSql.push(sqlFile);

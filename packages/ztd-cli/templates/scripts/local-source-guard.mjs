@@ -75,8 +75,8 @@ const forwardedArgs = process.argv.slice(3);
 const binaryArgs = command === 'test' ? ['run', ...forwardedArgs] : ['--noEmit', ...forwardedArgs];
 const binaryPath = path.join(projectRoot, 'node_modules', '.bin', binaryName);
 const packageChecks = command === 'test'
-  ? ['vitest/package.json', 'zod/package.json', '@rawsql-ts/sql-contract/package.json']
-  : ['typescript/package.json', 'zod/package.json', '@rawsql-ts/sql-contract/package.json'];
+  ? ['vitest/package.json']
+  : ['typescript/package.json'];
 
 const resolutionIssues = inspectResolution(packageChecks);
 if (!existsSync(binaryPath) || resolutionIssues.length > 0) {

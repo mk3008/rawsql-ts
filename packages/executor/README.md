@@ -99,21 +99,22 @@ disposeConnection: (conn) => conn.end()
 
 `withTransaction` attempts `ROLLBACK` when the callback or `COMMIT` fails. If `ROLLBACK` itself fails, the secondary failure is suppressed and the **original error is always propagated** to the caller. This follows the principle that the root cause should never be masked by cleanup failures.
 
-## Integration with sql-contract
+## Integration with generated query boundaries
 
-This package does **not** depend on `@rawsql-ts/sql-contract`. Since `ManagedConnection.query` returns driver-specific result types, you need a small adapter function to extract rows for sql-contract's `QueryExecutor`:
+This package does **not** depend on a runtime mapper package. Since `ManagedConnection.query` returns driver-specific result types, use a small adapter that matches the generated query executor boundary:
 
 ```typescript
-import { createReader } from '@rawsql-ts/sql-contract';
+import { executeGetUserQuerySpec } from './features/users/queries/get-user/boundary.js';
 
 await provider.withTransaction(async (conn) => {
-  const executor = async (sql: string, params: unknown[]) => {
-    const result = await conn.query<Record<string, unknown>>(sql, params);
-    return result.rows;
+  const executor = {
+    async query<T>(sql: string, params: Record<string, unknown>) {
+      const result = await conn.query<T>(sql, params);
+      return result.rows;
+    },
   };
 
-  const reader = createReader(executor);
-  const user = await reader.one('SELECT ...', [userId]);
+  const user = await executeGetUserQuerySpec(executor, { userId });
 });
 ```
 

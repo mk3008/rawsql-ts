@@ -2,7 +2,6 @@ import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 import { SqlSortInjector, SortConditions } from "./SqlSortInjector";
 import { SqlPaginationInjector, PaginationOptions } from "./SqlPaginationInjector";
-import { PostgresJsonQueryBuilder, JsonMapping } from "./PostgresJsonQueryBuilder";
 import { QueryBuilder } from "./QueryBuilder";
 import { SqlParameterBinder } from "./SqlParameterBinder";
 import { ParameterDetector } from "../utils/ParameterDetector";
@@ -125,18 +124,6 @@ export interface QueryBuildOptions {
      * Filters apply subtractively and only drop columns that exist in the original output.
      */
     excludeColumns?: string[];
-    /** JSON serialization mapping to transform results into hierarchical JSON
-     * - JsonMapping object: explicit mapping configuration
-     * - true: auto-load mapping from corresponding .json file
-     * - false/undefined: no serialization
-     */
-    serialize?: JsonMapping | boolean;
-    /**
-     * JSONB usage setting. Must be true (default) for PostgreSQL GROUP BY compatibility.
-     * Setting to false will throw an error as JSON type cannot be used in GROUP BY clauses.
-     * @default true
-     */
-    jsonb?: boolean;
     /**
      * Throw when column-anchored EXISTS filters fail to resolve.
      * Defaults to false so invalid definitions are skipped silently.
@@ -181,12 +168,12 @@ export interface DynamicQueryBuilderOptions {
 }
 
 /**
- * DynamicQueryBuilder combines SQL parsing with dynamic condition injection (filters, sorts, paging, JSON serialization).
+ * DynamicQueryBuilder combines SQL parsing with dynamic condition injection (filters, sorts, paging).
  *
  * Key behaviours verified in packages/core/tests/transformers/DynamicQueryBuilder.test.ts:
  * - Preserves the input SQL when no options are supplied.
  * - Applies filter, sort, and pagination in a deterministic order.
- * - Supports JSON serialization for hierarchical projections.
+ * - Fails fast for removed SQL-result JSON shaping.
  */
 export class DynamicQueryBuilder {
     private tableColumnResolver?: (tableName: string) => string[];
@@ -213,7 +200,7 @@ export class DynamicQueryBuilder {
      * Builds a SelectQuery from SQL content with dynamic conditions.
      * This is a pure function that does not perform any I/O operations.
      * @param sqlContent Raw SQL string to parse and modify
-     * @param options Dynamic conditions to apply (filter, sort, paging, serialize)
+     * @param options Dynamic conditions to apply (filter, sort, paging)
      * @returns Modified SelectQuery with all dynamic conditions applied
      * @example
      * ```typescript
@@ -223,13 +210,19 @@ export class DynamicQueryBuilder {
      *   {
      *     filter: { status: 'premium' },
      *     sort: { created_at: { desc: true } },
-     *     paging: { page: 2, pageSize: 10 },
-     *     serialize: { rootName: 'user', rootEntity: { id: 'user', name: 'User', columns: { id: 'id', name: 'name' } }, nestedEntities: [] }
+     *     paging: { page: 2, pageSize: 10 }
      *   }
      * );
      * ```
      */
     buildQuery(sqlContent: string, options: QueryBuildOptions = {}): SelectQuery {
+        const removedOptions = options as Record<string, unknown>;
+        if ('serialize' in removedOptions || 'jsonb' in removedOptions) {
+            throw new Error(
+                "DynamicQueryBuilder SQL-result JSON shaping has been removed. Keep SQL results as rows and use generated AOT mappers so the executed SQL remains debuggable."
+            );
+        }
+
         // Parse the base SQL
         let parsedQuery: SimpleSelectQuery;
         try {
@@ -285,24 +278,15 @@ export class DynamicQueryBuilder {
         if (Object.keys(optionalConditionParameters).length > 0) {
             modifiedQuery = pruneOptionalConditionBranches(modifiedQuery, optionalConditionParameters);
         }
-        // 6. Remove unused LEFT JOINs when asked before serialization.
+        // 6. Remove unused LEFT JOINs when asked.
         const effectiveSchemaInfo = options.schemaInfo ?? this.defaultSchemaInfo;
         if (options.removeUnusedLeftJoins && effectiveSchemaInfo?.length) {
             modifiedQuery = optimizeUnusedLeftJoinsToFixedPoint(modifiedQuery, effectiveSchemaInfo);
         }
-        // 7. Remove unused CTEs before serialization when requested.
+        // 7. Remove unused CTEs when requested.
         if (options.removeUnusedCtes) {
             modifiedQuery = optimizeUnusedCtesToFixedPoint(modifiedQuery);
         }
-        // Apply serialization last (transform the final query structure to JSON)
-        // Note: boolean values are handled at RawSqlClient level for auto-loading
-        if (options.serialize && typeof options.serialize === 'object') {
-            const jsonBuilder = new PostgresJsonQueryBuilder();
-            // Ensure we have a SimpleSelectQuery for the JSON builder
-            const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);
-            modifiedQuery = jsonBuilder.buildJsonQuery(simpleQuery, options.serialize);
-        }
-
         return modifiedQuery;
     }
 
@@ -466,18 +450,6 @@ export class DynamicQueryBuilder {
      */
     buildPaginatedQuery(sqlContent: string, paging: PaginationOptions): SelectQuery {
         return this.buildQuery(sqlContent, { paging });
-    }
-
-    /**
-     * Builds a SelectQuery with only JSON serialization applied.
-     * Convenience method for when you only need hierarchical JSON transformation.
-     *
-     * @param sqlContent Raw SQL string to parse and modify
-     * @param serialize JSON mapping configuration to apply
-     * @returns Modified SelectQuery with JSON serialization applied
-     */
-    buildSerializedQuery(sqlContent: string, serialize: JsonMapping): SelectQuery {
-        return this.buildQuery(sqlContent, { serialize });
     }
 
     /**

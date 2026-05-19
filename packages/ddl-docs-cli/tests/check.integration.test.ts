@@ -198,6 +198,10 @@ test('structured-concept build renders review page and generated indexes from co
     id: 'transfer-run',
     displayName: '転送実行記録',
     lifecycle: { status: 'defined' },
+    message: {
+      tagline: 'From execution to traceable transfer.',
+      supportingLine: 'Record transfer execution context without redefining transfer decisions.',
+    },
     definition: {
       summary: 'Transfer Execution が生成する実行引数記録兼プロセスヘッダー。',
       statements: [
@@ -300,6 +304,9 @@ test('structured-concept build renders review page and generated indexes from co
   expect(transferRunPage).toContain('<span class="concept-status ok">linked concepts: present</span>');
   expect(transferRunPage).not.toContain('relationships <strong>');
   expect(transferRunPage).not.toContain('statements <strong>');
+  expect(transferRunPage).toContain('## Message');
+  expect(transferRunPage).toContain('<p><strong>From execution to traceable transfer.</strong></p>');
+  expect(transferRunPage).toContain('<p>Record transfer execution context without redefining transfer decisions.</p>');
   expect(transferRunPage).toContain('<div class="concept-related-concepts">');
   expect(transferRunPage).not.toContain('<span>Related concepts</span>');
   expect(transferRunPage).toContain('<div class="concept-definition-summary">Transfer Execution が生成する実行引数記録兼プロセスヘッダー。</div>');
@@ -324,6 +331,7 @@ test('structured-concept accepts issue statements and rejects invalid open issue
   const conceptDir = path.join(work, 'concepts');
   const issueDir = path.join(conceptDir, 'issue-carrier');
   const invalidDir = path.join(conceptDir, 'invalid-status');
+  const invalidMessageDir = path.join(work, 'invalid-message');
   const outDir = path.join(work, 'docs');
 
   const conceptJson = (id: string, status: string) => ({
@@ -356,11 +364,22 @@ test('structured-concept accepts issue statements and rejects invalid open issue
 
   writeText(path.join(issueDir, 'concept.json'), JSON.stringify(conceptJson('issue-carrier', 'open'), null, 2));
   writeText(path.join(invalidDir, 'concept.json'), JSON.stringify(conceptJson('invalid-status', 'todo'), null, 2));
+  writeText(path.join(invalidMessageDir, 'concept.json'), JSON.stringify({
+    ...conceptJson('invalid-message', 'open'),
+    message: {
+      tagline: '',
+      supportingLine: 'This line is present.',
+    },
+  }, null, 2));
 
   expect(() => runStructuredConceptBuild({
     conceptDirectories: [issueDir],
     outDir: path.join(work, 'valid-docs'),
   })).not.toThrow();
+  expect(() => runStructuredConceptBuild({
+    conceptDirectories: [invalidMessageDir],
+    outDir: path.join(work, 'invalid-message-docs'),
+  })).toThrow(/structured concept build failed/u);
   expect(() => runStructuredConceptBuild({
     conceptDirectories: [conceptDir],
     outDir,

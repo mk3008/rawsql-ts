@@ -14,7 +14,7 @@ The project is feature-first by default:
 - keep SQL, boundaries, and tests close to each feature
 - use `src/features`, `src/adapters`, and `src/libraries` as the app-code roots
 - keep `db/` for DDL, migration, and schema assets only
-- use `@rawsql-ts/sql-contract` for query contract metadata and catalog execution
+- use thin generated query execution helpers for the standard runtime-free path
 - keep feature-root boundary tests under `src/features/<feature>/tests/`
 - keep CLI-owned generated assets under `src/features/<feature>/queries/<query>/tests/generated`
 - keep human/AI-owned persistent cases under `src/features/<feature>/queries/<query>/tests/cases`

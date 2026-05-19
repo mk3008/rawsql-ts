@@ -16,6 +16,16 @@ Concept Specs differ from ordinary implementation-driven specifications.
 They do not primarily freeze how software should move step by step.
 They freeze what must keep its meaning, what must not be broken, and which responsibility boundaries later changes must preserve.
 
+## Message
+
+<div class="concept-message">
+  <p><strong>From discovery to traceable design.</strong></p>
+  <p>Refine concepts, link them across implementation artifacts, and detect drift before changes break.</p>
+</div>
+
+This message is the positioning statement for Concept Spec documentation.
+It is not a replacement for the guide overview or the individual Concept Spec format rules.
+
 ## What Concept Specs Optimize For
 
 Concept Specs are built around four review questions:
@@ -78,10 +88,15 @@ Use a `concept.json` file for the human-readable specification body.
 
 A Concept Spec should usually include:
 
+- `message`: the strong one-line positioning statement and one supporting line when the document is a package-level concept
 - `Definition`: what the concept is
 - `Responsibilities`: what the concept owns
 - `Non-responsibilities`: what the concept does not own
 - `Invariants`: rules that later implementations must preserve
+
+Use `message` for package-level concepts or documentation concepts that need a clear promise before the detailed boundary.
+In structured Concept Specs, store it as `message.tagline` and `message.supportingLine`.
+Do not force every individual domain Concept Spec to carry a message.
 
 Use short additional sections when they explain an important design decision.
 For example, a `Why` section can preserve why a responsibility boundary was narrowed.

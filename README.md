@@ -23,8 +23,8 @@ Use this section as the shortest repo-level map. It is intentionally brief: pack
 |------------|-----------------|------------|
 | SQL parsing and AST rewriting | `rawsql-ts` | [packages/core](./packages/core) |
 | SQL impact analysis / grep | `@rawsql-ts/sql-grep-core` | [packages/sql-grep-core](./packages/sql-grep-core) |
-| Type-safe result mapping | `@rawsql-ts/sql-contract` | [packages/sql-contract](./packages/sql-contract) |
 | Execution helpers | `@rawsql-ts/executor` | [packages/executor](./packages/executor) |
+| SQL driver adapter primitives | `@rawsql-ts/driver-adapter-core` | [packages/drivers/driver-adapter-core](./packages/drivers/driver-adapter-core) |
 | ZTD fixture rewriting and testkits | `@rawsql-ts/testkit-*` | [packages/testkit-core](./packages/testkit-core) |
 | Test evidence storage and rendering | `@rawsql-ts/test-evidence-*` | [packages/test-evidence-core](./packages/test-evidence-core) |
 | Schema documentation generation | `@rawsql-ts/ddl-docs-*` | [packages/ddl-docs-cli](./packages/ddl-docs-cli) |
@@ -52,11 +52,11 @@ These capabilities are important at the repo level even though they are mostly e
 | [rawsql-ts](./packages/core) | ![npm](https://img.shields.io/npm/v/rawsql-ts) | SQL parser and AST transformer. Zero dependencies, browser-ready. |
 | [@rawsql-ts/sql-grep-core](./packages/sql-grep-core) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/sql-grep-core) | Low-dependency SQL usage analysis engine for AST-based schema impact checks. |
 
-### Contract
+### Driver Adapters
 
 | Package | Version | Description |
 |---------|---------|-------------|
-| [@rawsql-ts/sql-contract](./packages/sql-contract) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/sql-contract) | Type-safe result mapping for raw SQL queries. Driver and validator agnostic. |
+| [@rawsql-ts/driver-adapter-core](./packages/drivers/driver-adapter-core) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/driver-adapter-core) | Driver-neutral SQL client contract and named-parameter compilation helpers. |
 
 ### Execution
 
@@ -100,8 +100,8 @@ For the machine-readable CLI surface, see [ztd-cli Agent Interface](./docs/guide
 ```text
 rawsql-ts (core)
 ├─ @rawsql-ts/sql-grep-core
-├─ @rawsql-ts/sql-contract
 ├─ @rawsql-ts/executor
+├─ @rawsql-ts/driver-adapter-core
 ├─ @rawsql-ts/testkit-core
 │  ├─ @rawsql-ts/testkit-postgres
 │  │  └─ @rawsql-ts/adapter-node-pg

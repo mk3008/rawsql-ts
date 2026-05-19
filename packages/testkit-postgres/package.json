@@ -14,7 +14,7 @@
   },
   "scripts": {
     "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const npm=process.platform==='win32'?'npm.cmd':'npm';if(!fs.existsSync('dist/index.js')){process.exit(cp.spawnSync(npm,['run','build'],{stdio:'inherit'}).status??1)}\"",
-    "build": "pnpm --filter rawsql-ts run build && pnpm --filter @rawsql-ts/sql-contract run build && pnpm --filter @rawsql-ts/testkit-core run build && tsc -p tsconfig.build.json",
+    "build": "pnpm --filter rawsql-ts run build && pnpm --filter @rawsql-ts/testkit-core run build && tsc -p tsconfig.build.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src tests --ext .ts",
@@ -40,7 +40,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/sql-contract": "^0.3.1",
     "@rawsql-ts/testkit-core": "^0.16.5",
     "rawsql-ts": "^0.20.0"
   },

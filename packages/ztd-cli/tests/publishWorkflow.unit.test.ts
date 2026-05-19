@@ -92,8 +92,8 @@ test('overwrite safety uses the installed ztd bin so npm does not consume --forc
     publishedPackageModeScript.indexOf('function main() {'),
   );
 
-  expect(overwriteSection).toContain('runInstalledZtdCli(appDir, ["init", "--yes", "--workflow", "demo", "--validator", "zod"])');
-  expect(overwriteSection).toContain('runInstalledZtdCli(appDir, ["init", "--yes", "--force", "--workflow", "demo", "--validator", "zod"])');
+  expect(overwriteSection).toContain('runInstalledZtdCli(appDir, ["init", "--yes", "--workflow", "demo"])');
+  expect(overwriteSection).toContain('runInstalledZtdCli(appDir, ["init", "--yes", "--force", "--workflow", "demo"])');
   expect(overwriteSection).not.toContain('"exec"');
 });
 
@@ -118,7 +118,7 @@ test('packed tarball install smoke only runs commands for tarballs included in t
   expect(publishedPackageModeScript).toContain('if (hasTarballDependency(tarballDependencies, "@rawsql-ts/ztd-cli")) {');
   expect(publishedPackageModeScript).toContain('const smokeImportTargets = [');
   expect(publishedPackageModeScript).toContain('"@rawsql-ts/testkit-core",');
-  expect(publishedPackageModeScript).toContain('"@rawsql-ts/sql-contract-zod",');
+  expect(publishedPackageModeScript).not.toContain('"@rawsql-ts/sql-contract-zod",');
   expect(publishedPackageModeScript).toContain('.filter((packageName) => hasTarballDependency(tarballDependencies, packageName));');
   expect(publishedPackageModeScript).toContain('if (smokeImportTargets.length > 0) {');
 });

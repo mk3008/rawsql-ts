@@ -4,45 +4,15 @@ title: Validation recipe (Zod)
 
 # Validation recipe (Zod)
 
-ZTD init always selects a validator backend. When Zod is chosen, you can wire schemas through `@rawsql-ts/sql-contract` without additional helpers.
+ZTD init defaults to the runtime-free path and does not install a runtime row validator.
 
-## Install
+Use Zod at application input/output boundaries when a project needs request or DTO validation.
+Do not add `@rawsql-ts/sql-contract` for generated SQL row mapping; that package has been removed.
 
-```bash
-pnpm add -D @rawsql-ts/sql-contract zod
-```
+For generated query boundaries, prefer:
 
-`@rawsql-ts/sql-contract` exposes `reader.validator`, which accepts Zod schemas because they implement `parse(value)` (see `ReaderValidatorInput`). For convenience you can still install `@rawsql-ts/sql-contract-zod` if you want the legacy `reader.zod` helper and numeric coercion helpers described in its README, but the recommended stack is `@rawsql-ts/sql-contract` plus `zod`.
+- Zod request parsing at the boundary when input validation is needed.
+- AOT row mappers for DB rows.
+- ZTD-backed tests for SQL and mapper behavior.
 
-## Example snippet
-
-```ts
-import { z } from 'zod';
-import { createReader } from '@rawsql-ts/sql-contract/mapper';
-import { getSqlClient } from '../support/sql-client-factory';
-
-const executor = async (sql: string, params: readonly unknown[]) => {
-  const client = await getSqlClient();
-  return client.query(sql, params);
-};
-
-const reader = createReader(executor);
-
-const CustomerSchema = z.object({
-  customerId: z.number(),
-  customerName: z.string(),
-});
-
-export async function listCustomers() {
-  return reader.validator(CustomerSchema).list(
-    'SELECT customer_id, customer_name FROM public.user_account',
-    []
-  );
-}
-```
-
-Zod validation runs after the mapper binds every row to the DTO, so schema errors surface before tests rely on the result shape.
-
-## Deprecated optional helper: @rawsql-ts/sql-contract-zod
-
-`@rawsql-ts/sql-contract-zod` depends on the core mapper and adds the `reader.zod` helper plus Zod-aware coercion helpers such as `zNumberFromString`. Keep it only when you need that compatibility layer; new projects should install `@rawsql-ts/sql-contract` plus `zod` instead.
+If a legacy project still needs runtime row validation, keep that compatibility code local until it moves to an explicit advanced runtime package.

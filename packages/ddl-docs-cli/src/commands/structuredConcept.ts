@@ -62,8 +62,14 @@ interface StructuredConceptBase {
     status: string;
     sourceDraft?: string;
   };
+  message?: StructuredConceptMessage;
   sourcePath: string;
   baseDir: string;
+}
+
+interface StructuredConceptMessage {
+  tagline: string;
+  supportingLine: string;
 }
 
 interface StructuredConceptV1 extends StructuredConceptBase {
@@ -331,12 +337,28 @@ function validateConcept(concept: StructuredConcept, knownConceptIds: Set<string
   if (!LIFECYCLE_STATUSES.has(concept.lifecycle?.status)) {
     push('error', 'lifecycle.status', 'lifecycle.status must be draft, defined, or deprecated.');
   }
+  validateConceptMessage(concept.message, push);
   if (concept.schemaVersion === 2) {
     validateConceptV2(concept, knownConceptIds, push);
     return issues;
   }
   validateConceptV1(concept, knownConceptIds, push);
   return issues;
+}
+
+function validateConceptMessage(
+  message: StructuredConceptMessage | undefined,
+  push: (severity: Severity, pathName: string, message: string) => void
+): void {
+  if (message === undefined) {
+    return;
+  }
+  if (!message.tagline?.trim()) {
+    push('error', 'message.tagline', 'message tagline must be non-empty when present.');
+  }
+  if (!message.supportingLine?.trim()) {
+    push('error', 'message.supportingLine', 'message supportingLine must be non-empty when present.');
+  }
 }
 
 function validateConceptV1(
@@ -689,6 +711,9 @@ function renderConceptPageV1(concept: StructuredConceptV1, result: StructuredCon
     '',
     `# ${concept.displayName}`,
     '',
+  ];
+  appendConceptMessage(lines, concept.message);
+  lines.push(
     concept.summary,
     '',
     '## Review Summary',
@@ -698,7 +723,7 @@ function renderConceptPageV1(concept: StructuredConceptV1, result: StructuredCon
     `- Lifecycle: \`${concept.lifecycle.status}\``,
     `- Open questions: ${openIssues.length > 0 ? 'present' : 'none'}`,
     '',
-  ];
+  );
   appendV1OpenQuestions(lines, concept);
   appendDefinitionStatementsV1(lines, concept);
   appendInternalLinks(lines, concept);
@@ -720,6 +745,7 @@ function renderConceptPageV2(concept: StructuredConceptV2, result: StructuredCon
     `# ${concept.displayName}`,
     '',
   ];
+  appendConceptMessage(lines, concept.message);
   lines.push(`<div class="concept-definition-summary">${escapeHtml(concept.definition.summary)}</div>`);
   lines.push('');
   appendV2ReviewSummary(lines, concept, conceptIssues, result.conceptDisplayNameById, result.pageSlugByConceptId);
@@ -732,6 +758,19 @@ function renderConceptPageV2(concept: StructuredConceptV2, result: StructuredCon
   appendValidation(lines, conceptIssues);
   appendTechnicalMetadata(lines, concept);
   return `${lines.join('\n')}\n`;
+}
+
+function appendConceptMessage(lines: string[], message: StructuredConceptMessage | undefined): void {
+  if (message === undefined) {
+    return;
+  }
+  lines.push('## Message');
+  lines.push('');
+  lines.push('<div class="concept-message">');
+  lines.push(`  <p><strong>${escapeHtml(message.tagline)}</strong></p>`);
+  lines.push(`  <p>${escapeHtml(message.supportingLine)}</p>`);
+  lines.push('</div>');
+  lines.push('');
 }
 
 function appendV2ReviewSummary(

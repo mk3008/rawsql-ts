@@ -13,7 +13,7 @@ A high-performance SQL parser and AST transformer written in TypeScript. Parse r
 - **Zero dependencies** -- fully self-contained and lightweight
 - **High-performance** -- significantly faster than node-sql-parser in our parse-only benchmarks
 - **Browser ready** -- works in browsers via CDN (unpkg / jsdelivr)
-- **Dynamic query building** -- filtering, sorting, pagination, JSON serialization, and truthful optional-condition pruning
+- **Dynamic query building** -- filtering, sorting, pagination, and truthful optional-condition pruning
 - **CTE management** -- add, remove, and manipulate CTEs programmatically
 - **Schema validation** -- static query validation against your database schema
 - **Full TypeScript support** -- type-safe APIs throughout
@@ -108,9 +108,8 @@ Read more:
 
 | Class                      | Description                                                    | Docs                                                      |
 | -------------------------- | -------------------------------------------------------------- | --------------------------------------------------------- |
-| `DynamicQueryBuilder`      | All-in-one filtering, sorting, pagination, serialization, and SSSQL optional-condition pruning | [Guide](../../docs/guide/querybuilding-recipes.md)        |
+| `DynamicQueryBuilder`      | All-in-one filtering, sorting, pagination, and SSSQL optional-condition pruning | [Guide](../../docs/guide/querybuilding-recipes.md)        |
 | `QueryBuilder`             | Convert SELECT queries into INSERT / UPDATE statements         | [API](../../docs/api/classes/QueryBuilder.md)             |
-| `PostgresJsonQueryBuilder` | Transform relational queries into hierarchical JSON structures | [API](../../docs/api/classes/PostgresJsonQueryBuilder.md) |
 
 ### Injection
 

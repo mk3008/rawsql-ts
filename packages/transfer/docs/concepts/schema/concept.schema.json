@@ -16,6 +16,7 @@
         "id": { "$ref": "#/$defs/conceptId" },
         "displayName": { "type": "string", "minLength": 1 },
         "lifecycle": { "$ref": "#/$defs/lifecycle" },
+        "message": { "$ref": "#/$defs/message" },
         "summary": { "type": "string", "minLength": 1 },
         "sources": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
         "sections": {
@@ -44,6 +45,7 @@
         "id": { "$ref": "#/$defs/conceptId" },
         "displayName": { "type": "string", "minLength": 1 },
         "lifecycle": { "$ref": "#/$defs/lifecycle" },
+        "message": { "$ref": "#/$defs/message" },
         "definition": {
           "type": "object",
           "additionalProperties": false,
@@ -75,6 +77,15 @@
       "properties": {
         "status": { "enum": ["draft", "defined", "deprecated"] },
         "sourceDraft": { "type": "string", "minLength": 1 }
+      }
+    },
+    "message": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tagline", "supportingLine"],
+      "properties": {
+        "tagline": { "type": "string", "minLength": 1 },
+        "supportingLine": { "type": "string", "minLength": 1 }
       }
     },
     "coverage": { "enum": ["unreviewed", "none", "partial", "complete"] },

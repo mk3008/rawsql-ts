@@ -215,7 +215,7 @@ export interface InitCommandOptions {
   dryRun?: boolean;
 }
 
-type ValidatorBackend = 'zod' | 'arktype';
+type ValidatorBackend = 'none' | 'zod' | 'arktype';
 type InitDependencyProfile = 'registry' | 'local-source';
 type InitAppShape = 'default' | 'webapi';
 
@@ -291,9 +291,11 @@ interface InitScaffoldLayout {
 }
 
 const STACK_DEV_DEPENDENCIES: Record<string, string> = {
-  '@rawsql-ts/sql-contract': '^0.3.1',
   '@rawsql-ts/testkit-core': '^0.16.1',
   '@rawsql-ts/ztd-cli': resolveCurrentCliVersion(),
+};
+const STACK_RUNTIME_DEPENDENCIES: Record<string, string> = {
+  '@rawsql-ts/driver-adapter-core': '^0.1.0'
 };
 const STARTER_DEV_DEPENDENCIES: Record<string, string> = {
   pg: '^8.13.1',
@@ -301,9 +303,11 @@ const STARTER_DEV_DEPENDENCIES: Record<string, string> = {
   '@rawsql-ts/testkit-postgres': '^0.15.4'
 };
 const LOCAL_SOURCE_STACK_PACKAGE_DIRS: Record<string, string> = {
-  '@rawsql-ts/sql-contract': path.join('packages', 'sql-contract'),
   '@rawsql-ts/testkit-core': path.join('packages', 'testkit-core'),
   '@rawsql-ts/ztd-cli': path.join('packages', 'ztd-cli')
+};
+const LOCAL_SOURCE_RUNTIME_PACKAGE_DIRS: Record<string, string> = {
+  '@rawsql-ts/driver-adapter-core': path.join('packages', 'drivers', 'driver-adapter-core')
 };
 const LOCAL_SOURCE_STACK_PACKAGE_DIRS_STARTER: Record<string, string> = {
   '@rawsql-ts/testkit-postgres': path.join('packages', 'testkit-postgres')
@@ -346,10 +350,10 @@ async function gatherOptionalFeatures(
     };
   }
   const validatorChoice = await prompter.selectChoice(
-    'Runtime DTO validation is required for ZTD tests. Which validator backend should we install?',
-    ['Zod (zod, recommended)', 'ArkType (arktype)']
+    'Standard ztd-cli scaffold is runtime-free. Install an optional runtime validator compatibility backend?',
+    ['None (runtime-free standard)', 'Zod (compatibility)', 'ArkType (compatibility)']
   );
-  const validator: ValidatorBackend = validatorChoice === 0 ? 'zod' : 'arktype';
+  const validator: ValidatorBackend = validatorChoice === 0 ? 'none' : validatorChoice === 1 ? 'zod' : 'arktype';
   return {
     validator
   };
@@ -820,7 +824,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   summaries.config = configSummary;
 
-  const validatorOverride = options?.validator ?? (starter || overwritePolicy.nonInteractive ? 'zod' : undefined);
+  const validatorOverride = options?.validator ?? (starter || overwritePolicy.nonInteractive ? 'none' : undefined);
   const optionalFeatures = await gatherOptionalFeatures(
     prompter,
     dependencies,
@@ -2036,6 +2040,7 @@ function ensurePackageJsonFormatting(
     changed = true;
   }
 
+  const dependenciesField = (parsed.dependencies as Record<string, string> | undefined) ?? {};
   const devDependencies = (parsed.devDependencies as Record<string, string> | undefined) ?? {};
   const formattingDeps: Record<string, string> = {
     eslint: '^9.22.0',
@@ -2065,6 +2070,12 @@ function ensurePackageJsonFormatting(
       : {
           ...STACK_DEV_DEPENDENCIES
         };
+  const runtimeDependencies: Record<string, string> =
+    scaffoldProfile.dependencyProfile === 'local-source'
+      ? buildLocalSourceRuntimeDependencies(rootDir, scaffoldProfile)
+      : {
+          ...STACK_RUNTIME_DEPENDENCIES
+        };
   if (starter) {
     for (const [dependencyName, version] of Object.entries(STARTER_DEV_DEPENDENCIES)) {
       if (!(dependencyName in stackDependencies)) {
@@ -2074,7 +2085,7 @@ function ensurePackageJsonFormatting(
   }
   if (optionalFeatures.validator === 'zod') {
     Object.assign(stackDependencies, ZOD_DEPENDENCY);
-  } else {
+  } else if (optionalFeatures.validator === 'arktype') {
     Object.assign(stackDependencies, ARKTYPE_DEPENDENCY);
   }
 
@@ -2095,10 +2106,19 @@ function ensurePackageJsonFormatting(
     changed = true;
   }
 
+  for (const [dep, version] of Object.entries(runtimeDependencies)) {
+    if (dep in dependenciesField) {
+      continue;
+    }
+    dependenciesField[dep] = version;
+    changed = true;
+  }
+
   if (!changed) {
     return null;
   }
 
+  parsed.dependencies = dependenciesField;
   parsed.devDependencies = devDependencies;
   dependencies.ensureDirectory(path.dirname(packagePath));
   // Persist the updated manifest so the new scripts and tools are available immediately.
@@ -2424,8 +2444,8 @@ function buildNextSteps(
 
 function resolveLocalSourceStackPackageDirs(starter: boolean): Record<string, string> {
   return starter
-    ? { ...LOCAL_SOURCE_STACK_PACKAGE_DIRS, ...LOCAL_SOURCE_STACK_PACKAGE_DIRS_STARTER }
-    : LOCAL_SOURCE_STACK_PACKAGE_DIRS;
+    ? { ...LOCAL_SOURCE_RUNTIME_PACKAGE_DIRS, ...LOCAL_SOURCE_STACK_PACKAGE_DIRS, ...LOCAL_SOURCE_STACK_PACKAGE_DIRS_STARTER }
+    : { ...LOCAL_SOURCE_RUNTIME_PACKAGE_DIRS, ...LOCAL_SOURCE_STACK_PACKAGE_DIRS };
 }
 
 function resolveInitScaffoldProfile(rootDir: string, localSourceRoot?: string, starter = false): InitScaffoldProfile {
@@ -2484,7 +2504,31 @@ function buildLocalSourceStackDependencies(
   return {
     ...STACK_DEV_DEPENDENCIES,
     ...Object.fromEntries(
-      Object.entries(resolveLocalSourceStackPackageDirs(starter)).map(([packageName, packageDir]) => [
+      Object.entries(starter
+        ? { ...LOCAL_SOURCE_STACK_PACKAGE_DIRS, ...LOCAL_SOURCE_STACK_PACKAGE_DIRS_STARTER }
+        : LOCAL_SOURCE_STACK_PACKAGE_DIRS
+      ).map(([packageName, packageDir]) => [
+        packageName,
+        toFileDependencySpecifier(rootDir, path.join(scaffoldProfile.localSourceRoot!, packageDir))
+      ])
+    )
+  };
+}
+
+function buildLocalSourceRuntimeDependencies(
+  rootDir: string,
+  scaffoldProfile: InitScaffoldProfile
+): Record<string, string> {
+  if (scaffoldProfile.dependencyProfile !== 'local-source' || !scaffoldProfile.localSourceRoot) {
+    return {
+      ...STACK_RUNTIME_DEPENDENCIES
+    };
+  }
+
+  return {
+    ...STACK_RUNTIME_DEPENDENCIES,
+    ...Object.fromEntries(
+      Object.entries(LOCAL_SOURCE_RUNTIME_PACKAGE_DIRS).map(([packageName, packageDir]) => [
         packageName,
         toFileDependencySpecifier(rootDir, path.join(scaffoldProfile.localSourceRoot!, packageDir))
       ])
@@ -2570,17 +2614,21 @@ function buildSummaryLines(
     }
   }
 
-  lines.push('', 'Validation configuration:');
+  lines.push('', 'Runtime configuration:');
   const stackLine =
     scaffoldProfile.dependencyProfile === 'local-source'
-      ? ' - SQL catalog/mapping support via @rawsql-ts/sql-contract backed by a local file dependency in developer mode (see docs/recipes/sql-contract.md)'
-      : ' - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)';
+      ? ' - Runtime-free query execution scaffold with local-source development tooling links only'
+      : ' - Runtime-free query execution scaffold; no @rawsql-ts/sql-contract runtime dependency is installed by default';
   lines.push(stackLine);
-  const validatorLabel =
-    optionalFeatures.validator === 'zod'
-      ? 'Zod (zod, docs/recipes/validation-zod.md)'
-      : 'ArkType (arktype, docs/recipes/validation-arktype.md)';
-  lines.push(` - Validator backend: ${validatorLabel}`);
+  if (optionalFeatures.validator === 'none') {
+    lines.push(' - Runtime row validator: none (standard)');
+  } else {
+    const validatorLabel =
+      optionalFeatures.validator === 'zod'
+        ? 'Zod (zod, compatibility only; see docs/recipes/validation-zod.md)'
+        : 'ArkType (arktype, compatibility only; see docs/recipes/validation-arktype.md)';
+    lines.push(` - Runtime validator compatibility backend: ${validatorLabel}`);
+  }
   if (starter) {
     lines.push('', 'Starter flow:');
     lines.push(` - Bundled Postgres compose image: ${postgresImage}`);
@@ -2609,7 +2657,7 @@ function extractErrorMessage(error: unknown): string {
 }
 
 const VALID_WORKFLOWS: readonly InitWorkflow[] = ['pg_dump', 'empty', 'demo'] as const;
-const VALID_VALIDATORS: readonly ValidatorBackend[] = ['zod', 'arktype'] as const;
+const VALID_VALIDATORS: readonly ValidatorBackend[] = ['none', 'zod', 'arktype'] as const;
 const VALID_APP_SHAPES: readonly InitAppShape[] = ['default', 'webapi'] as const;
 
 export interface InitDryRunPlan {
@@ -2761,7 +2809,7 @@ export function registerInitCommand(program: Command): void {
     .option('--yes', 'Accept defaults without interactive prompts')
     .option('--force', 'Allow ztd init to overwrite files it owns')
     .option('--workflow <type>', 'Schema workflow: pg_dump, empty, or demo (default: demo)')
-    .option('--validator <type>', 'Validator backend: zod or arktype (default: zod)')
+    .option('--validator <type>', 'Optional compatibility validator backend: none, zod, or arktype (default: none)')
     .option('--dry-run', 'Validate init options and emit the planned scaffold without writing files')
     .option('--json <payload>', 'Pass init options as a JSON object')
     .option(
@@ -2814,7 +2862,7 @@ export function registerInitCommand(program: Command): void {
 
       // When --yes is used, apply defaults for unspecified flags.
       const workflow = (merged.workflow as InitWorkflow | undefined) ?? (isNonInteractive ? 'demo' : undefined);
-      const validator = (merged.validator as ValidatorBackend | undefined) ?? (isNonInteractive ? 'zod' : undefined);
+      const validator = (merged.validator as ValidatorBackend | undefined) ?? (isNonInteractive ? 'none' : undefined);
       const appShape = (merged.appShape as InitAppShape | undefined) ?? 'default';
       const starter = merged.starter === true;
       const postgresImage = (merged.postgresImage as string | undefined) ?? DEFAULT_POSTGRES_IMAGE;
@@ -2830,7 +2878,7 @@ export function registerInitCommand(program: Command): void {
           starter,
           postgresImage,
           workflow: workflow ?? 'demo',
-          validator: validator ?? 'zod',
+          validator: validator ?? 'none',
           localSourceRoot: merged.localSourceRoot
         });
         if (isJsonOutput()) {

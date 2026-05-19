@@ -5,8 +5,6 @@
     "outDir": "dist",
     "rootDir": "src",
     "paths": {
-      "@rawsql-ts/sql-contract": ["../sql-contract/dist/index"],
-      "@rawsql-ts/sql-contract/*": ["../sql-contract/dist/*"],
       "@rawsql-ts/testkit-core": ["../testkit-core/dist/index"]
     }
   },

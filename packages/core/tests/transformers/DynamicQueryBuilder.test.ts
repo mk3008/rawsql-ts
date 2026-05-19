@@ -129,8 +129,8 @@ describe('DynamicQueryBuilder', () => {
     });
 
     describe('remaining builder responsibilities', () => {
-        it('applies JSON serialization after runtime pruning and paging', () => {
-            const result = builder.buildQuery(
+        it('rejects removed SQL-result JSON shaping', () => {
+            expect(() => builder.buildQuery(
                 `
                     SELECT p.product_id AS id, p.brand_name
                     FROM products p
@@ -148,12 +148,8 @@ describe('DynamicQueryBuilder', () => {
                         },
                         nestedEntities: []
                     }
-                }
-            );
-
-            const { formattedSql } = new SqlFormatter().format(result);
-            expect(formattedSql).toContain('jsonb_agg');
-            expect(formattedSql).toContain('limit :paging_limit');
+                } as QueryBuildOptions
+            )).toThrow(/SQL-result JSON shaping has been removed/);
         });
 
         it('removes unused left joins when schema metadata is provided', () => {

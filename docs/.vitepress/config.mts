@@ -34,6 +34,7 @@ export default defineConfig({
     nav: [
       { text: 'Guide', link: '/guide/overview' },
       { text: 'API', link: '/api/index' },
+      { text: 'ztd-cli Docs', link: '/ztd-cli-docs' },
       { text: 'Transfer Docs', link: '/transfer-docs' },
       { text: 'Playground', link: '/cud-demo/index.html', target: '_blank', rel: 'noopener' },
       { text: 'Migration Demo', link: '/migration-demo/index.html', target: '_blank', rel: 'noopener' }
@@ -99,6 +100,13 @@ export default defineConfig({
             { text: 'MERGE -> SELECT', link: '/guide/merge-result-select' },
           ]
         },
+      ],
+      '/ztd-cli/': [
+        { text: 'ztd-cli Docs', link: '/ztd-cli-docs' },
+        { text: 'Package Concept Draft', link: '/ztd-cli/package-concept' },
+        { text: 'Testing Policy Draft', link: '/ztd-cli/testing-policy' },
+        { text: 'Review Authority Model Draft', link: '/ztd-cli/review-authority-model' },
+        { text: 'Technology Policy Draft', link: '/ztd-cli/technology-policy' },
       ],
       '/api/': apiSidebarWithIndex
     },

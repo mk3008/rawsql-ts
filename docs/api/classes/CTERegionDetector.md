@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CTERegionDetector
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:85](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/CTERegionDetector.ts#L85)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:85](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/CTERegionDetector.ts#L85)
 
 Utility class for detecting CTE (Common Table Expression) regions and extracting executable SQL.
 
@@ -52,7 +52,7 @@ const positions = CTERegionDetector.getCTEPositions(sql);
 
 > `static` **analyzeCursorPosition**(`sql`, `cursorPosition`): [`CursorPositionInfo`](../interfaces/CursorPositionInfo.md)
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:110](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/CTERegionDetector.ts#L110)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:110](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/CTERegionDetector.ts#L110)
 
 Analyze cursor position and return information about the current context.
 
@@ -98,9 +98,9 @@ if (analysis.isInCTE) {
 
 ### getCursorCte()
 
-> `static` **getCursorCte**(`sql`, `cursorPosition`): `null` \| `string`
+> `static` **getCursorCte**(`sql`, `cursorPosition`): `string` \| `null`
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:158](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/CTERegionDetector.ts#L158)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:158](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/CTERegionDetector.ts#L158)
 
 Get the CTE name at the specified cursor position (simplified interface).
 
@@ -123,7 +123,7 @@ The cursor position (0-based character offset)
 
 #### Returns
 
-`null` \| `string`
+`string` \| `null`
 
 The CTE name if cursor is in a CTE, null otherwise
 
@@ -139,9 +139,9 @@ console.log(cteName); // "users"
 
 ### getCursorCteAt()
 
-> `static` **getCursorCteAt**(`sql`, `line`, `column`): `null` \| `string`
+> `static` **getCursorCteAt**(`sql`, `line`, `column`): `string` \| `null`
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:185](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/CTERegionDetector.ts#L185)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:185](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/CTERegionDetector.ts#L185)
 
 Get the CTE name at the specified 2D coordinates (line, column).
 
@@ -170,7 +170,7 @@ The column number (1-based)
 
 #### Returns
 
-`null` \| `string`
+`string` \| `null`
 
 The CTE name if cursor is in a CTE, null otherwise
 
@@ -186,9 +186,9 @@ console.log(cteName); // "users"
 
 ### positionToLineColumn()
 
-> `static` **positionToLineColumn**(`text`, `position`): `null` \| \{ `line`: `number`; `column`: `number`; \}
+> `static` **positionToLineColumn**(`text`, `position`): \{ `line`: `number`; `column`: `number`; \} \| `null`
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:237](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/CTERegionDetector.ts#L237)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:237](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/CTERegionDetector.ts#L237)
 
 Convert character position to line/column coordinates.
 
@@ -208,7 +208,7 @@ The character position (0-based)
 
 #### Returns
 
-`null` \| \{ `line`: `number`; `column`: `number`; \}
+\{ `line`: `number`; `column`: `number`; \} \| `null`
 
 Object with line and column (1-based), or null if invalid position
 
@@ -218,7 +218,7 @@ Object with line and column (1-based), or null if invalid position
 
 > `static` **extractCTERegions**(`sql`): [`CTERegion`](../interfaces/CTERegion.md)[]
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:276](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/CTERegionDetector.ts#L276)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:276](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/CTERegionDetector.ts#L276)
 
 Extract all CTE regions from SQL text with their boundaries and executable content.
 
@@ -262,7 +262,7 @@ const regions = CTERegionDetector.extractCTERegions(sql);
 
 > `static` **getCTEPositions**(`sql`): `object`[]
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:507](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/utils/CTERegionDetector.ts#L507)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:507](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/CTERegionDetector.ts#L507)
 
 Get a list of all executable sections (CTEs and main query) with their start positions.
 

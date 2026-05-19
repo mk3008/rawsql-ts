@@ -15,7 +15,7 @@ PostgreSQL's `bigint` type exceeds JavaScript's safe integer range. The `pg` dri
 **Mitigation:**
 - Use `z.coerce.number()` or a runtime coercion to convert the string to a number (if values fit in safe integer range).
 - Or use `z.string()` and keep the ID as a string throughout your application layer.
-- In `rowMapping`, this happens transparently — the mapped value is whatever the driver returns.
+- In generated AOT mappers, this happens transparently: the mapped value is whatever the driver returns.
 
 ## 2. `timestamptz` returns `Date` objects (or ISO strings depending on driver config)
 
@@ -24,7 +24,7 @@ The `pg` driver parses `timestamptz` into JavaScript `Date` objects by default, 
 **Symptom:** Validation expects a `Date` but receives a string (or vice versa).
 
 **Mitigation:**
-- Use `normalizeTimestamp` from `@rawsql-ts/sql-contract` in your runtime coercion layer. It handles both `Date` objects and ISO string representations.
+- Keep timestamp normalization boundary-local when a project needs it. The standard generated runtime does not depend on a shared coercion package.
 - In your validator schema, use `z.date()` (not `z.coerce.date()`) when the runtime coercion has already normalized the value.
 
 ## 3. `pg_dump` output varies across PostgreSQL versions
@@ -46,7 +46,7 @@ PostgreSQL folds unquoted identifiers to lowercase. If your DDL uses `"User"` (q
 
 **Mitigation:**
 - Prefer lowercase, unquoted identifiers in DDL: `create table user_account (...)`.
-- If you must use quoted identifiers, ensure all SQL files, `rowMapping` column maps, and fixtures use the same quoting.
+- If you must use quoted identifiers, ensure all SQL files, generated mapper metadata, and fixtures use the same quoting.
 
 ## 5. `boolean` columns return `true`/`false`, not `1`/`0`
 
@@ -80,6 +80,5 @@ PostgreSQL uses `search_path` to resolve unqualified table names. ZTD's `ztd.con
 
 ## Further reading
 
-- [sql-contract README](https://github.com/mk3008/rawsql-ts/blob/main/packages/sql-contract/README.md) — DBMS differences section
 - [Mapping vs validation pipeline](../recipes/mapping-vs-validation.md) — how coercions and validators interact
 - [Happy Path Quickstart](https://github.com/mk3008/rawsql-ts/blob/main/packages/ztd-cli/README.md#happy-path-quickstart) — end-to-end setup guide
