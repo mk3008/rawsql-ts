@@ -24,7 +24,7 @@ Use this section as the shortest repo-level map. It is intentionally brief: pack
 | SQL parsing and AST rewriting | `rawsql-ts` | [packages/core](./packages/core) |
 | SQL impact analysis / grep | `@rawsql-ts/sql-grep-core` | [packages/sql-grep-core](./packages/sql-grep-core) |
 | Execution helpers | `@rawsql-ts/executor` | [packages/executor](./packages/executor) |
-| SQL driver adapter primitives | `@rawsql-ts/driver-adapter-core` | [packages/drivers/driver-adapter-core](./packages/drivers/driver-adapter-core) |
+| Production SQL driver adapter primitives | `@rawsql-ts/driver-adapter-core` | [packages/drivers/driver-adapter-core](./packages/drivers/driver-adapter-core) |
 | ZTD fixture rewriting and testkits | `@rawsql-ts/testkit-*` | [packages/testkit-core](./packages/testkit-core) |
 | Test evidence storage and rendering | `@rawsql-ts/test-evidence-*` | [packages/test-evidence-core](./packages/test-evidence-core) |
 | Schema documentation generation | `@rawsql-ts/ddl-docs-*` | [packages/ddl-docs-cli](./packages/ddl-docs-cli) |
@@ -52,7 +52,7 @@ These capabilities are important at the repo level even though they are mostly e
 | [rawsql-ts](./packages/core) | ![npm](https://img.shields.io/npm/v/rawsql-ts) | SQL parser and AST transformer. Zero dependencies, browser-ready. |
 | [@rawsql-ts/sql-grep-core](./packages/sql-grep-core) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/sql-grep-core) | Low-dependency SQL usage analysis engine for AST-based schema impact checks. |
 
-### Driver Adapters
+### Production Driver Adapters
 
 | Package | Version | Description |
 |---------|---------|-------------|
@@ -70,8 +70,17 @@ These capabilities are important at the repo level even though they are mostly e
 |---------|---------|-------------|
 | [@rawsql-ts/testkit-core](./packages/testkit-core) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/testkit-core) | Fixture-backed CTE rewriting and schema validation engine. Driver-agnostic ZTD foundation. |
 | [@rawsql-ts/testkit-postgres](./packages/testkit-postgres) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/testkit-postgres) | Postgres-specific CTE rewriting and fixture validation. Works with any executor. |
-| [@rawsql-ts/adapter-node-pg](./packages/adapters/adapter-node-pg) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/adapter-node-pg) | Adapter connecting `pg` (node-postgres) to testkit-postgres. |
+| [@rawsql-ts/adapter-node-pg](./packages/adapters/adapter-node-pg) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/adapter-node-pg) | Testkit adapter connecting `pg` (node-postgres) to `@rawsql-ts/testkit-postgres`; retained under its legacy name until a non-breaking `testkit-adapter-*` alias exists. |
 | [@rawsql-ts/testkit-sqlite](./packages/testkit-sqlite) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/testkit-sqlite) | SQLite-specific CTE rewriting and fixture validation. In-memory testing with `better-sqlite3`. |
+
+### Adapter Package Spaces
+
+`driver-adapter-*` packages are production runtime driver adapters.
+They handle driver mechanics such as named-parameter compilation, placeholder conversion, and row-result normalization without owning ORM behavior or fixture rewriting.
+
+`testkit-adapter-*` packages are test-only adapters that connect concrete drivers to ZTD/testkit fixture rewriting.
+`@rawsql-ts/adapter-node-pg` currently belongs to that testkit adapter role despite its legacy name.
+The planned rename path is to add a non-breaking alias such as `@rawsql-ts/testkit-adapter-node-postgres`, then document `@rawsql-ts/adapter-node-pg` as the legacy compatibility surface.
 
 ### Evidence
 

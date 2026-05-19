@@ -87,13 +87,14 @@ If `docker compose up -d` fails with `all predefined address pools have been ful
 The smoke test proves the starter wiring is sound before you add real feature work.
 It also proves the DB-backed ZTD path is reachable from the starter, not just the DB-free sample path.
 
-If the project was installed with `pnpm install`, keep using pnpm when you add the database adapter for the SQL repair loop:
+If the project was installed with `pnpm install`, keep using pnpm when you add the node-postgres testkit adapter for the SQL repair loop:
 
 ```bash
 pnpm add -D @rawsql-ts/adapter-node-pg
 ```
 
 Avoid mixing `npm install -D` into a pnpm-managed starter project because that can fail before the adapter is added.
+`@rawsql-ts/adapter-node-pg` is the current compatible testkit adapter name; it is not the production driver adapter package space.
 
 ## 3. Add the first real feature
 

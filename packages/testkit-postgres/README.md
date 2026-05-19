@@ -61,7 +61,7 @@ const client = createPostgresTestkitClient({
 });
 ```
 
-The package does not close connections or hold onto drivers — the executor you provide manages pooling and resources. For drop-in `pg` helpers (`createPgTestkitClient`, `createPgTestkitPool`, `wrapPgClient`), see `@rawsql-ts/adapter-node-pg`.
+The package does not close connections or hold onto drivers — the executor you provide manages pooling and resources. For drop-in node-postgres testkit adapter helpers (`createPgTestkitClient`, `createPgTestkitPool`, `wrapPgClient`), see `@rawsql-ts/adapter-node-pg`.
 
 > **Note:** Transaction commands (`BEGIN` / `COMMIT` / `ROLLBACK`) used within testkit are for **test isolation only**. In production code, transaction boundaries and connection lifecycle are the caller's responsibility — not a concern of the query catalog or fixture layer. See the [Execution Scope guide](../../docs/guide/execution-scope.md) for details.
 
