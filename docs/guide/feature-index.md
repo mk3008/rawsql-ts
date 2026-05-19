@@ -10,7 +10,7 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 
 | Feature | Command / Location | When to use |
 |---------|-------------------|-------------|
-| Non-interactive init | `ztd init --yes --workflow demo --validator zod` | CI/CD pipelines, agent-driven scaffolding |
+| Non-interactive init | `ztd init --yes --workflow demo` | CI/CD pipelines, agent-driven runtime-free scaffolding |
 | DDL pull from explicit target | `ztd ddl pull --url <target>` | Inspect schema state from an existing Postgres database |
 | DDL diff | `ztd ddl diff --url <target>` | Compare local DDL against an explicit target database after changes |
 | Watch mode | `ztd ztd-config --watch` | Continuous type regeneration while editing DDL |
@@ -21,30 +21,24 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Test evidence export | `ztd evidence --mode specification` | Generate specification reports from tests |
 | Entity generation | `ztd ddl gen-entities` | Create `entities.ts` for ad-hoc schema inspection |
 
-## sql-contract
+## Generated Runtime
 
 | Feature | Location | When to use |
 |---------|----------|-------------|
-| Auto snake_case → camelCase | `createReader(executor)` default | When column names follow SQL conventions |
-| Safe mode (no transform) | `createReader(executor, mapperPresets.safe())` | When you want raw column names |
-| Row mapping | `rowMapping({ name, key, columnMap })` | Explicit column-to-property mapping |
-| Multi-model mapping | `rowMapping(...).belongsTo(name, mapping, fk)` | Nested objects from JOINed results |
-| Composite keys | `key: ['col_a', 'col_b']` or `key: (row) => [...]` | Tables with multi-column primary keys |
-| Validator chaining | `.validator(v1).validator(v2)` | Multiple validation stages |
-| Scalar queries | `reader.scalar(sql, params)` | COUNT, aggregate values, RETURNING id |
-| Catalog executor | `createCatalogExecutor({ loader, executor })` | File-backed SQL with observability |
-| Observability sink | `observabilitySink: { emit(event) {} }` | Query lifecycle logging |
-| Runtime coercions | `timestampFromDriver` | Normalize driver-dependent timestamp types |
+| Thin executor boundary | `FeatureQueryExecutor` in generated projects | Keep production execution free of generator/runtime package dependencies |
+| AOT row mapper | `src/features/**/queries/**/generated/row-mapper.ts` | Map query rows to DTOs without a runtime mapper library |
+| Generated mapper drift check | `ztd feature generated-mapper check` | Detect SQL/boundary/mapper drift before review |
+| Generated mapper refresh | `ztd feature generated-mapper generate` | Refresh machine-owned mapper output after SQL or boundary changes |
 
 ## Templates & Project Structure
 
 | Feature | Location | When to use |
 |---------|----------|-------------|
-| SqlClient interface | `src/libraries/sql/sql-client.ts` | Define the app ↔ driver boundary |
-| SqlClient adapter (pg) | `src/adapters/pg/sql-client.ts` | Convert `pg` Client/Pool to `SqlClient` |
+| SqlClient interface | `src/libraries/sql/sql-client.ts` | Define the app ↔ driver boundary and allow readable `:name` SQL parameters |
+| SqlClient adapter (node-postgres) | `src/adapters/pg/sql-client.ts` | Convert node-postgres Client/Pool to `SqlClient` and compile `:name` to `$1` placeholders |
 | Repository telemetry contract | `src/libraries/telemetry/repositoryTelemetry.ts` | Keep the shared telemetry seam driver-neutral |
 | Repository telemetry console sink | `src/adapters/console/repositoryTelemetry.ts` | Emit safe local logs without widening the shared contract |
-| Runtime coercions | `src/catalog/runtime/_coercions.ts` | Driver-type normalization before validation |
+| Runtime coercions | generated boundary-local code | Driver-type normalization when a generated boundary needs it |
 | QuerySpec files | Feature-local query boundaries under `src/features/**` | Define SQL contracts near the boundary under review |
 | Legacy spec files | `src/catalog/specs/` | Maintain fixed catalog contracts in older projects |
 | Global test setup | `tests/support/global-setup.ts` | Test-runner initialization hooks |
@@ -57,7 +51,6 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | What Is RFBA? | [guide/rfba-overview](./rfba-overview.md) | Understand review-first backend architecture, review responsibilities, and ztd-cli structural vocabulary |
 | SQL-first End-to-End Tutorial | [guide/sql-first-end-to-end-tutorial](./sql-first-end-to-end-tutorial.md) | Walk from DDL to the first passing test with one table and one SQL asset |
 | After DDL Changes | [ztd-cli README](https://github.com/mk3008/rawsql-ts/blob/main/packages/ztd-cli/README.md#after-ddlschema-changes) | Schema evolution workflow |
-| Mapping vs Validation pipeline | [recipes/mapping-vs-validation](../recipes/mapping-vs-validation.md) | Avoid coerce/validator conflicts |
 | Postgres Pitfalls | [guide/postgres-pitfalls](./postgres-pitfalls.md) | Postgres-specific quirks |
 | Spec-Change Scenarios | [guide/spec-change-scenarios](./spec-change-scenarios.md) | Quick reference for common changes |
 | Query Uses Overview | [guide/query-uses-overview](./query-uses-overview.md) | Why static analysis beats grep, human vs machine output |
@@ -86,9 +79,6 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | SQL debug recovery dogfooding | [dogfooding/sql-debug-recovery](../dogfooding/sql-debug-recovery.md) | End-to-end loop for broken long-CTE recovery, safe patching, and direct-vs-decomposed perf comparison |
 | SSSQL optional-condition dogfooding | [dogfooding/sssql-optional-condition](../dogfooding/sssql-optional-condition.md) | Confirms that optional-filter requests choose truthful SSSQL branches before dynamic SQL assembly |
 | Test documentation dogfooding | [dogfooding/test-documentation](../dogfooding/test-documentation.md) | Human-readable export loop for catalog purpose, fixtures, and happy-path test coverage |
-| Validation (Zod) | [recipes/validation-zod](../recipes/validation-zod.md) | Wire Zod schemas |
-| Validation (ArkType) | [recipes/validation-arktype](../recipes/validation-arktype.md) | Wire ArkType schemas |
-| SQL catalog recipe | [recipes/sql-contract](../recipes/sql-contract.md) | Catalog executor patterns |
 | Execution scope | [guide/execution-scope](./execution-scope.md) | Transaction and connection control |
 | ZTD Theory | [guide/ztd-theory](./ztd-theory.md) | Conceptual foundation |
 

@@ -138,6 +138,7 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_PORT=5432');
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
     type?: string;
+    dependencies: Record<string, string>;
     devDependencies: Record<string, string>;
     imports?: Record<string, { types: string; default: string }>;
     'lint-staged'?: Record<string, string[]>;
@@ -146,7 +147,9 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(packageJson['lint-staged']?.['*.{ts,tsx,js,jsx,json,md,sql}']).toEqual(['prettier --write']);
   expect(packageJson['simple-git-hooks']?.['pre-commit']).toBe('pnpm lint-staged');
   expect(packageJson.devDependencies).toHaveProperty('dotenv');
-  expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/sql-contract');
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/sql-contract');
+  expect(packageJson.dependencies).toHaveProperty('@rawsql-ts/driver-adapter-core');
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/driver-adapter-core');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-core');
   expect(packageJson.imports?.['#features/*.js']).toEqual({
     types: './src/features/*.ts',
@@ -218,7 +221,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
     'derives `ZTD_DB_URL` from `ZTD_DB_PORT`'
   );
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.validation.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd feature scaffold --table users --action insert');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('@rawsql-ts/testkit-postgres');
@@ -263,7 +266,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"ztdRootDir": ".ztd"');
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"defaultSchema": "public"');
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"searchPath": [');
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'))).toContain('executeSmokeEntrySpec');
+  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'))).toBe(false);
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.boundary.test.ts'))).toContain('executeSmokeEntrySpec');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'))).toContain('Validation should reject before the query lane runs.');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'))).toContain('runQuerySpecZtdCases');
@@ -310,11 +313,14 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'src', 'adapters', 'console', 'repositoryTelemetry.ts'))).not.toContain('sqlText');
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
     type?: string;
+    dependencies: Record<string, string>;
     devDependencies: Record<string, string>;
     imports?: Record<string, { types: string; default: string }>;
   };
   expect(packageJson.devDependencies).toHaveProperty('dotenv');
-  expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/sql-contract');
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/sql-contract');
+  expect(packageJson.dependencies).toHaveProperty('@rawsql-ts/driver-adapter-core');
+  expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/driver-adapter-core');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-core');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-postgres');
   expect(packageJson.devDependencies).toHaveProperty('pg');
@@ -366,7 +372,6 @@ test('init dry-run plan matches starter outputs without AGENTS files', () => {
     'src/features/_shared/loadSqlResource.ts',
     'src/features/smoke/boundary.ts',
     'src/features/smoke/tests/smoke.boundary.test.ts',
-    'src/features/smoke/tests/smoke.test.ts',
     'src/libraries/sql/README.md',
     'src/adapters/README.md',
     'tests/support/ztd/README.md',
@@ -496,6 +501,7 @@ test('init local-source mode links rawsql-ts dependencies from the monorepo with
   });
 
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    dependencies: Record<string, string>;
     devDependencies: Record<string, string>;
     imports?: Record<string, { types: string; default: string }>;
   };
@@ -504,9 +510,11 @@ test('init local-source mode links rawsql-ts dependencies from the monorepo with
   expect(result.summary).toContain('Run pnpm ztd ztd-config');
   expect(result.summary).not.toContain('src/features/smoke/tests/smoke.test.ts');
   expect(existsSync(localSourceGuardPath)).toBe(true);
-  expect(packageJson.devDependencies['@rawsql-ts/sql-contract']).toBe(
-    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'sql-contract')).replace(/\\/g, '/')}`
+  expect(packageJson.devDependencies['@rawsql-ts/sql-contract']).toBeUndefined();
+  expect(packageJson.dependencies['@rawsql-ts/driver-adapter-core']).toBe(
+    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'drivers', 'driver-adapter-core')).replace(/\\/g, '/')}`
   );
+  expect(packageJson.devDependencies['@rawsql-ts/driver-adapter-core']).toBeUndefined();
     expect(packageJson.devDependencies['@rawsql-ts/testkit-core']).toBe(
       `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'testkit-core')).replace(/\\/g, '/')}`
     );
@@ -546,13 +554,16 @@ test('init starter local-source mode keeps starter rawsql-ts packages on file de
 
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
     type?: string;
+    dependencies: Record<string, string>;
     devDependencies: Record<string, string>;
     imports?: Record<string, { types: string; default: string }>;
   };
 
-  expect(packageJson.devDependencies['@rawsql-ts/sql-contract']).toBe(
-    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'sql-contract')).replace(/\\/g, '/')}`
+  expect(packageJson.devDependencies['@rawsql-ts/sql-contract']).toBeUndefined();
+  expect(packageJson.dependencies['@rawsql-ts/driver-adapter-core']).toBe(
+    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'drivers', 'driver-adapter-core')).replace(/\\/g, '/')}`
   );
+  expect(packageJson.devDependencies['@rawsql-ts/driver-adapter-core']).toBeUndefined();
   expect(packageJson.devDependencies['@rawsql-ts/testkit-core']).toBe(
     `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'testkit-core')).replace(/\\/g, '/')}`
   );

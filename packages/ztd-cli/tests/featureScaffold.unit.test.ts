@@ -610,12 +610,13 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
     path.join(workspace, 'src', 'features', 'users-insert', 'input.ts'),
     'utf8'
   );
-  expect(inputFile).toContain("import { z } from 'zod';");
-  expect(inputFile).toContain('const RequestSchema = z.object({');
-  expect(inputFile).toContain('}).strict();');
-  expect(inputFile).toContain('export type UsersInsertRequest = z.infer<typeof RequestSchema>;');
+  expect(inputFile).not.toContain("import { z } from 'zod';");
+  expect(inputFile).toContain('export interface UsersInsertRequest {');
+  expect(inputFile).toContain('email: string;');
+  expect(inputFile).not.toContain('RequestSchema');
   expect(inputFile).toContain('/** Parses the raw feature request at the feature boundary. */');
   expect(inputFile).toContain('function parseRawRequest');
+  expect(inputFile).toContain("email: readString(record[\"email\"], 'UsersInsertRequest.email')");
   expect(inputFile).toContain('/** Normalizes the parsed feature request for downstream feature logic. */');
   expect(inputFile).toContain('function normalizeRequest');
   expect(inputFile).toContain('email: request.email.trim()');
@@ -623,7 +624,7 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
   expect(inputFile).toContain('export function parseRequest');
   expect(inputFile).not.toContain('QueryParamsSchema');
   expect(inputFile).not.toContain('ResponseSchema');
-  expect(inputFile).not.toContain('id: z.string()');
+  expect(inputFile).not.toContain('id: string;');
 
   const workflowFile = readFileSync(
     path.join(workspace, 'src', 'features', 'users-insert', 'workflow.ts'),
@@ -675,28 +676,27 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
     path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'),
     'utf8'
   );
-  expect(querySpecFile).toContain("import { z } from 'zod';");
+  expect(querySpecFile).not.toContain("import { z } from 'zod';");
   expect(querySpecFile).toContain("import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';");
   expect(querySpecFile).toContain("const insertUsersSqlResource = loadSqlResource(__dirname, 'insert-users.sql');");
   expect(querySpecFile).toContain("import { mapInsertUsersRowToResult } from './generated/row-mapper.js';");
-  expect(querySpecFile).toContain('const QueryParamsSchema = z.object({');
-  expect(querySpecFile).toContain("}).strict();");
-  expect(querySpecFile).toContain("email: z.string().min(1, 'email must not be empty.')");
-  expect(querySpecFile).not.toContain("id: z.string().min(1, 'id must not be empty.')");
-  expect(querySpecFile).not.toContain('created_at: z.string().min(1');
-  expect(querySpecFile).toContain('export type InsertUsersQueryParams = z.infer<typeof QueryParamsSchema>;');
-  expect(querySpecFile).toContain('export type InsertUsersRow = z.infer<typeof RowSchema>;');
-  expect(querySpecFile).toContain('export type InsertUsersQueryResult = z.infer<typeof QueryResultSchema>;');
+  expect(querySpecFile).toContain('export interface InsertUsersQueryParams {');
+  expect(querySpecFile).toContain('email: string;');
+  expect(querySpecFile).toContain("email: readString(record[\"email\"], 'InsertUsersQueryParams.email')");
+  expect(querySpecFile).not.toContain('id: string;');
+  expect(querySpecFile).not.toContain('created_at: string;');
+  expect(querySpecFile).toContain('export interface InsertUsersRow {');
+  expect(querySpecFile).toContain('export interface InsertUsersQueryResult {');
   expect(querySpecFile).toContain('/** Parses raw query params at the query boundary. */');
   expect(querySpecFile).toContain('function parseQueryParams');
-  expect(querySpecFile).toContain('/** Parses a raw DB row at the query boundary. */');
-  expect(querySpecFile).toContain('function parseRow');
+  expect(querySpecFile).not.toContain('/** Parses a raw DB row at the query boundary. */');
+  expect(querySpecFile).not.toContain('function parseRow');
   expect(querySpecFile).not.toContain('function mapRowToResult');
   expect(querySpecFile).toContain('/** Executes the query boundary flow for this query spec. */');
   expect(querySpecFile).toContain('export async function executeInsertUsersQuerySpec');
   expect(querySpecFile).toContain('loadSingleRow');
   expect(querySpecFile).toContain('return mapInsertUsersRowToResult(row);');
-  expect(querySpecFile).toContain('executor.query<Record<string, unknown>>(sql, params)');
+  expect(querySpecFile).toContain('executor.query<InsertUsersRow>(sql, params)');
   expect(querySpecFile).not.toContain('export interface InsertUsersQueryContract');
   expect(querySpecFile).not.toContain('export const insertUsersQueryContract');
   expect(querySpecFile).not.toContain('export function parseInsertUsersQueryParams');
@@ -759,7 +759,7 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
   expect(readmeFile).toContain('Query-boundary tests own SQL behavior through ZTD or another SQL-specific lane.');
   expect(readmeFile).toContain('Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.');
   expect(readmeFile).toContain('Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package');
-  expect(readmeFile).toContain('uses `zod` schemas for request DTOs');
+  expect(readmeFile).toContain('uses local scaffolded request parsing');
   expect(readmeFile).toContain('Feature-local `boundary.ts` exports `execute`');
   expect(readmeFile).toContain('queries/insert-users/boundary.ts');
   expect(readmeFile).toContain('queries/insert-users/` is the query unit');
@@ -779,7 +779,7 @@ test('runFeatureScaffoldCommand writes the boundary baseline and excludes genera
   expect(readmeFile).toContain('DDL-backed default expressions written directly into SQL: `created_at`.');
   expect(readmeFile).toContain('When DDL declares a column default, the scaffold writes that default expression into SQL explicitly');
   expect(readmeFile).toContain('featureQueryExecutor.ts` is the shared runtime contract for DB execution injection');
-  expect(readmeFile).toContain('Catalog runtime primitives from `@rawsql-ts/sql-contract`');
+  expect(readmeFile).toContain('Thin generated query execution helpers with no standard runtime catalog dependency');
   expect(readmeFile).toContain('Keep this baseline as one workflow and one primary query by default');
 });
 
@@ -811,11 +811,14 @@ test('runFeatureScaffoldCommand emits camelCase feature DTOs while keeping query
     path.join(workspace, 'src', 'features', 'account-events-insert', 'input.ts'),
     'utf8'
   );
-  expect(inputFile).toContain('accountId: z.number().finite()');
-  expect(inputFile).toContain('displayName: z.string().nullable()');
-  expect(inputFile).toContain('eventPayload: z.record(z.string(), z.unknown())');
-  expect(inputFile).not.toContain('account_id: z.number().finite()');
-  expect(inputFile).not.toContain('display_name: z.string().nullable()');
+  expect(inputFile).toContain('accountId: number;');
+  expect(inputFile).toContain('displayName: string | null;');
+  expect(inputFile).toContain('eventPayload: Record<string, unknown>;');
+  expect(inputFile).toContain("accountId: readNumber(record[\"accountId\"], 'AccountEventsInsertRequest.accountId')");
+  expect(inputFile).toContain("displayName: readNullableString(record[\"displayName\"], 'AccountEventsInsertRequest.displayName')");
+  expect(inputFile).toContain("eventPayload: readJsonObject(record[\"eventPayload\"], 'AccountEventsInsertRequest.eventPayload')");
+  expect(inputFile).not.toContain('account_id: number;');
+  expect(inputFile).not.toContain('display_name: string | null;');
 
   const workflowFile = readFileSync(
     path.join(workspace, 'src', 'features', 'account-events-insert', 'workflow.ts'),
@@ -835,11 +838,14 @@ test('runFeatureScaffoldCommand emits camelCase feature DTOs while keeping query
     path.join(workspace, 'src', 'features', 'account-events-insert', 'queries', 'insert-account-events', 'boundary.ts'),
     'utf8'
   );
-  expect(querySpecFile).toContain('account_id: z.number().finite()');
-  expect(querySpecFile).toContain("display_name: z.string().min(1, 'display_name must not be empty.').nullable()");
-  expect(querySpecFile).toContain('event_payload: z.record(z.string(), z.unknown())');
-  expect(querySpecFile).not.toContain('accountId: z.number().finite()');
-  expect(querySpecFile).not.toContain('displayName: z.string().nullable()');
+  expect(querySpecFile).toContain('account_id: number;');
+  expect(querySpecFile).toContain('display_name: string | null;');
+  expect(querySpecFile).toContain('event_payload: Record<string, unknown>;');
+  expect(querySpecFile).toContain("account_id: readNumber(record[\"account_id\"], 'InsertAccountEventsQueryParams.account_id')");
+  expect(querySpecFile).toContain("display_name: readNullableString(record[\"display_name\"], 'InsertAccountEventsQueryParams.display_name')");
+  expect(querySpecFile).toContain("event_payload: readJsonObject(record[\"event_payload\"], 'InsertAccountEventsQueryParams.event_payload')");
+  expect(querySpecFile).not.toContain('accountId: number;');
+  expect(querySpecFile).not.toContain('displayName: string | null;');
 
   const sqlFile = readFileSync(
     path.join(workspace, 'src', 'features', 'account-events-insert', 'queries', 'insert-account-events', 'insert-account-events.sql'),
@@ -958,7 +964,7 @@ test('runFeatureScaffoldCommand uses default values when every insert column is 
     path.join(workspace, 'src', 'features', 'users-insert', 'input.ts'),
     'utf8'
   );
-  expect(inputFile).toContain('const RequestSchema = z.object({\n}).strict();');
+  expect(inputFile).toContain('export type UsersInsertRequest = {};');
 
   const workflowFile = readFileSync(
     path.join(workspace, 'src', 'features', 'users-insert', 'workflow.ts'),
@@ -970,7 +976,7 @@ test('runFeatureScaffoldCommand uses default values when every insert column is 
     path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'),
     'utf8'
   );
-  expect(querySpecFile).toContain('const QueryParamsSchema = z.object({\n}).strict();');
+  expect(querySpecFile).toContain('export type InsertUsersQueryParams = {};');
 });
 
 test('runFeatureScaffoldCommand renders primitive defaults directly into insert SQL', async () => {
@@ -1033,11 +1039,11 @@ test('runFeatureScaffoldCommand writes the update baseline with pk predicate and
     path.join(workspace, 'src', 'features', 'users-update', 'input.ts'),
     'utf8'
   );
-  expect(inputFile).toContain('export type UsersUpdateRequest');
-  expect(inputFile).toContain('id: z.number().finite()');
-  expect(inputFile).toContain('email: z.string()');
-  expect(inputFile).toContain('displayName: z.string().nullable()');
-  expect(inputFile).toContain('createdAt: z.string()');
+  expect(inputFile).toContain('export interface UsersUpdateRequest');
+  expect(inputFile).toContain('id: number;');
+  expect(inputFile).toContain('email: string;');
+  expect(inputFile).toContain('displayName: string | null;');
+  expect(inputFile).toContain('createdAt: string;');
 
   const workflowFile = readFileSync(
     path.join(workspace, 'src', 'features', 'users-update', 'workflow.ts'),
@@ -1056,7 +1062,7 @@ test('runFeatureScaffoldCommand writes the update baseline with pk predicate and
     path.join(workspace, 'src', 'features', 'users-update', 'queries', 'update-users', 'boundary.ts'),
     'utf8'
   );
-  expect(querySpecFile).toContain('export type UpdateUsersQueryParams');
+  expect(querySpecFile).toContain('export interface UpdateUsersQueryParams');
   expect(querySpecFile).toContain('loadSingleRow');
   expect(querySpecFile).not.toContain('queryExactlyOneRow');
 
@@ -1112,8 +1118,8 @@ test('runFeatureScaffoldCommand writes the delete baseline with key-only predica
     path.join(workspace, 'src', 'features', 'users-delete', 'input.ts'),
     'utf8'
   );
-  expect(inputFile).toContain('export type UsersDeleteRequest');
-  expect(inputFile).toContain('id: z.number().finite()');
+  expect(inputFile).toContain('export interface UsersDeleteRequest');
+  expect(inputFile).toContain('id: number;');
   expect(inputFile).not.toContain('email:');
 
   const sqlFile = readFileSync(
@@ -1162,12 +1168,12 @@ test('runFeatureScaffoldCommand writes the get-by-id baseline with zero-or-one c
     path.join(workspace, 'src', 'features', 'users-get-by-id', 'input.ts'),
     'utf8'
   );
-  expect(inputFile).toContain('const RequestSchema = z.object({');
-  expect(inputFile).toContain('}).strict();');
+  expect(inputFile).toContain('export interface UsersGetByIdRequest {');
   expect(inputFile).toContain('function parseRequest');
   expect(inputFile).toContain('function normalizeRequest');
   expect(inputFile).toContain('function rejectRequest');
-  expect(inputFile).toContain('id: z.string()');
+  expect(inputFile).toContain('id: string;');
+  expect(inputFile).toContain("id: readString(record[\"id\"], 'UsersGetByIdRequest.id')");
   expect(inputFile).not.toContain('QueryParamsSchema');
 
   const workflowFile = readFileSync(
@@ -1190,15 +1196,15 @@ test('runFeatureScaffoldCommand writes the get-by-id baseline with zero-or-one c
     'utf8'
   );
   expect(querySpecFile).not.toContain('queryZeroOrOneRow');
-  expect(querySpecFile).toContain('}).strict();');
-  expect(querySpecFile).toContain('const RowSchema = z.object({');
-  expect(querySpecFile).toContain('const QueryResultSchema = RowSchema.nullable();');
+  expect(querySpecFile).toContain('export interface GetByIdQueryParams {');
+  expect(querySpecFile).toContain('export interface GetByIdRow {');
+  expect(querySpecFile).toContain('export type GetByIdQueryResult = GetByIdRow | null;');
   expect(querySpecFile).toContain("import { mapGetByIdRowToResult } from './generated/row-mapper.js';");
   expect(querySpecFile).toContain('function parseQueryParams');
-  expect(querySpecFile).toContain('function parseRow');
+  expect(querySpecFile).not.toContain('function parseRow');
   expect(querySpecFile).not.toContain('function mapRowToResult');
   expect(querySpecFile).toContain('loadOptionalRow');
-  expect(querySpecFile).toContain('executor.query<Record<string, unknown>>(sql, params)');
+  expect(querySpecFile).toContain('executor.query<GetByIdRow>(sql, params)');
   expect(querySpecFile).toContain('return mapGetByIdRowToResult(row);');
 
   const generatedRowMapperFile = readFileSync(
@@ -1227,7 +1233,7 @@ test('runFeatureScaffoldCommand writes the get-by-id baseline with zero-or-one c
   expect(readmeFile).toContain('tightened to a strict one-row contract');
 });
 
-test('runFeatureScaffoldCommand writes the list baseline with catalog paging and items response', async () => {
+test('runFeatureScaffoldCommand writes the list baseline with generated paging and items response', async () => {
   const workspace = createTempDir('feature-scaffold-list-write');
   const ddlDir = path.join(workspace, 'db', 'ddl');
   mkdirSync(ddlDir, { recursive: true });
@@ -1254,7 +1260,7 @@ test('runFeatureScaffoldCommand writes the list baseline with catalog paging and
     path.join(workspace, 'src', 'features', 'users-list', 'input.ts'),
     'utf8'
   );
-  expect(inputFile).toContain('const RequestSchema = z.object({\n}).strict();');
+  expect(inputFile).toContain('export type UsersListRequest = {};');
   expect(inputFile).toContain('function parseRequest');
   expect(inputFile).toContain('function normalizeRequest');
   expect(inputFile).toContain('function rejectRequest');
@@ -1280,16 +1286,15 @@ test('runFeatureScaffoldCommand writes the list baseline with catalog paging and
     path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'),
     'utf8'
   );
-  expect(querySpecFile).toContain("import { createCatalogExecutor, type QuerySpec } from '@rawsql-ts/sql-contract';");
-  expect(querySpecFile).toContain('const QueryParamsSchema = z.object({\n}).strict();');
-  expect(querySpecFile).toContain('const RowSchema = z.object({');
+  expect(querySpecFile).not.toContain("import { createCatalogExecutor, type QuerySpec } from '@rawsql-ts/sql-contract';");
+  expect(querySpecFile).toContain('export type ListQueryParams = {};');
+  expect(querySpecFile).toContain('export interface ListRow {');
   expect(querySpecFile).toContain('const DEFAULT_PAGE_SIZE = 50;');
-  expect(querySpecFile).toContain('allowNamedParamsWithoutBinder: true');
-  expect(querySpecFile).toContain('items: z.array(RowSchema)');
-  expect(querySpecFile).toContain('}).strict();');
+  expect(querySpecFile).not.toContain('allowNamedParamsWithoutBinder: true');
+  expect(querySpecFile).toContain('items: ListRow[];');
   expect(querySpecFile).toContain('limit: DEFAULT_PAGE_SIZE');
   expect(querySpecFile).toContain('function parseQueryParams');
-  expect(querySpecFile).toContain('function parseRow');
+  expect(querySpecFile).not.toContain('function parseRow');
   expect(querySpecFile).toContain('function toQueryParams');
   expect(querySpecFile).toContain("import { mapListRowsToResult } from './generated/row-mapper.js';");
   expect(querySpecFile).not.toContain('function mapRowsToResult');
@@ -1362,8 +1367,8 @@ test('runFeatureScaffoldCommand keeps numeric and decimal read contracts string-
     path.join(workspace, 'src', 'features', 'products-list', 'queries', 'list', 'boundary.ts'),
     'utf8'
   );
-  expect(querySpecFile).toContain('price: z.string()');
-  expect(querySpecFile).toContain('score: z.string().nullable()');
+  expect(querySpecFile).toContain('price: string;');
+  expect(querySpecFile).toContain('score: string | null;');
   expect(querySpecFile).not.toContain('price: z.number().finite()');
   expect(querySpecFile).not.toContain('score: z.number().finite()');
 });
@@ -1630,7 +1635,6 @@ test('generated mapper generate supports explicit one-to-many metadata with dire
     path.join(queryDir, 'boundary.ts'),
     [
       "import { z } from 'zod';",
-      "import type { QuerySpecMetadata } from '@rawsql-ts/sql-contract';",
       "import { mapListRowsToResult } from './generated/row-mapper.js';",
       '',
       'const RowSchema = z.object({',
@@ -1682,7 +1686,7 @@ test('generated mapper generate supports explicit one-to-many metadata with dire
       '      }',
       '    ]',
       '  }',
-      '} as const satisfies QuerySpecMetadata;',
+      '} as const;',
       '',
       'export async function executeListQuerySpec(rows: ListRow[]): Promise<ListQueryResult> {',
       '  return mapListRowsToResult(rows);',
@@ -1774,7 +1778,6 @@ test('generated mapper generate explains that hasMany metadata must be JSON-comp
     path.join(queryDir, 'boundary.ts'),
     [
       "import { z } from 'zod';",
-      "import type { QuerySpecMetadata } from '@rawsql-ts/sql-contract';",
       '',
       'const RowSchema = z.object({',
       '  order_id: z.string(),',
@@ -1792,7 +1795,7 @@ test('generated mapper generate explains that hasMany metadata must be JSON-comp
       '  relations: {',
       '    hasMany: []',
       '  }',
-      '} as const satisfies QuerySpecMetadata;',
+      '} as const;',
       ''
     ].join('\n'),
     'utf8'
@@ -1816,7 +1819,6 @@ test('generated mapper generate fails when one-to-many metadata references a mis
     path.join(queryDir, 'boundary.ts'),
     [
       "import { z } from 'zod';",
-      "import type { QuerySpecMetadata } from '@rawsql-ts/sql-contract';",
       '',
       'const RowSchema = z.object({',
       '  order_id: z.string(),',
@@ -1845,7 +1847,7 @@ test('generated mapper generate fails when one-to-many metadata references a mis
       '      }',
       '    ]',
       '  }',
-      '} as const satisfies QuerySpecMetadata;',
+      '} as const;',
       ''
     ].join('\n'),
     'utf8'

@@ -34,20 +34,6 @@
         "@rawsql-ts/core": ["packages/core/src"],
         "@rawsql-ts/core/*": ["packages/core/src/*"],
         "@rawsql-ts/core/dist/src/*": ["packages/core/src/*"],
-        "@rawsql-ts/sql-contract": ["packages/sql-contract/src"],
-        "@rawsql-ts/sql-contract/mapper": [
-          "packages/sql-contract/src/mapper",
-          "packages/sql-contract/dist/mapper"
-        ],
-        "@rawsql-ts/sql-contract/mapper/*": [
-          "packages/sql-contract/src/mapper/*",
-          "packages/sql-contract/dist/mapper/*"
-        ],
-        "@rawsql-ts/sql-contract/writer": ["packages/sql-contract/dist/writer"],
-        "@rawsql-ts/sql-contract/writer/*": ["packages/sql-contract/dist/writer/*"],
-        "@rawsql-ts/sql-contract/*": ["packages/sql-contract/src/*"],
-        "@rawsql-ts/sql-contract-zod": ["packages/sql-contract-zod/src"],
-        "@rawsql-ts/sql-contract-zod/*": ["packages/sql-contract-zod/src/*"],
         "@rawsql-ts/testkit-core": ["packages/testkit-core/src"],
         "@rawsql-ts/test-evidence-core": ["packages/test-evidence-core/src"],
         "@rawsql-ts/test-evidence-core/*": ["packages/test-evidence-core/src/*"],
@@ -58,6 +44,8 @@
         "@rawsql-ts/ztd-cli": ["packages/ztd-cli/src"],
         "@rawsql-ts/testkit-sqlite": ["packages/testkit-sqlite/src"],
         "@rawsql-ts/adapter-node-pg": ["packages/adapters/adapter-node-pg/src"],
+        "@rawsql-ts/driver-adapter-core": ["packages/drivers/driver-adapter-core/src"],
+        "@rawsql-ts/driver-adapter-core/*": ["packages/drivers/driver-adapter-core/src/*"],
         "@rawsql-ts/shared-binder": ["packages/_shared/binder/src"],
         "@rawsql-ts/shared-binder/*": ["packages/_shared/binder/src/*"],
         "@rawsql-ts/executor": ["packages/executor/src"],
@@ -143,12 +131,6 @@
     "references": [
         {
             "path": "./packages/core"
-        },
-        {
-            "path": "./packages/sql-contract"
-        },
-        {
-            "path": "./packages/sql-contract-zod"
         },
         {
             "path": "./packages/test-evidence-core"

@@ -2,7 +2,7 @@
 
 This folder contains the feature-local verification group for the removable `smoke` sample.
 
-- `smoke.boundary.test.ts`, `smoke.test.ts`, and `smoke.validation.test.ts` stay DB-free and exercise the feature boundary without touching the database.
+- `smoke.boundary.test.ts` and `smoke.validation.test.ts` stay DB-free and exercise the feature boundary without touching the database.
 - `src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts` uses the fixed app-level ZTD harness from `tests/support/ztd/harness.ts`, requires `ZTD_DB_URL`, and proves the starter DB-backed path.
 - The fixed app-level ZTD runner lives in `tests/support/ztd/harness.ts`; query-local cases should live in `tests/cases/` and call into that runner.
 - Real feature scaffolds also add a thin `<query>.boundary.ztd.test.ts` Vitest entrypoint next to the query-local tests, plus a feature-root `<feature>.boundary.test.ts` for the mock-based lane.

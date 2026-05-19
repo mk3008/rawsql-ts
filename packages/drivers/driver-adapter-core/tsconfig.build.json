@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@rawsql-ts/shared-binder": ["../../_shared/binder/dist"],
+      "@rawsql-ts/shared-binder/*": ["../../_shared/binder/dist/*"]
+    }
+  },
+  "exclude": ["dist", "node_modules", "tests"]
+}

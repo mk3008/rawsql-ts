@@ -29,7 +29,7 @@ import {
 } from './connectionOptions';
 import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { isJsonOutput, parseJsonPayload, writeCommandEnvelope } from '../utils/agentCli';
-import { validateProjectPath, validateResourceIdentifier } from '../utils/agentSafety';
+import { validateProjectPath } from '../utils/agentSafety';
 import { emitDecisionEvent, withSpan, withSpanSync } from '../utils/telemetry';
 
 interface ModelGenCommandOptions extends ConnectionCliOptions {
@@ -40,15 +40,12 @@ interface ModelGenCommandOptions extends ConnectionCliOptions {
   debugProbe?: boolean;
   probeMode?: ModelGenProbeMode;
   ddlDir?: string;
-  importStyle?: ModelGenImportStyle;
-  importFrom?: string;
   dryRun?: boolean;
   describeOutput?: boolean;
   json?: string;
 }
 
 type ModelGenProbeMode = 'live' | 'ztd';
-type ModelGenImportStyle = 'package' | 'relative';
 
 interface ModelGenZtdProbeOptions {
   ddlDirectories: string[];
@@ -179,7 +176,6 @@ export async function runModelGen(sqlFilePath: string, options: ModelGenCommandO
       return renderModelGenFile({
         command: buildCommandText(sqlFilePath, options),
         format: resolved.format,
-        sqlContractImport: resolveSqlContractImportSpecifier(options),
         sqlFile: resolved.relativeSqlFile,
         specId: resolved.derivedNames.specId,
         interfaceName: resolved.derivedNames.interfaceName,
@@ -221,8 +217,6 @@ export function registerModelGenCommand(program: Command): void {
     .option('--allow-positional', 'Allow legacy positional placeholders ($1, $2, ...) for this run')
     .option('--probe-mode <mode>', 'Inspection source: live or ztd (default: live for backward compatibility; prefer ztd for the fast loop)', 'live')
     .option('--ddl-dir <dir>', 'DDL directory override for --probe-mode ztd (default: ztd.config.json ddlDir)')
-    .option('--import-style <style>', 'Generated sql-contract import style: package or relative (default: package)', 'package')
-    .option('--import-from <specifier>', 'Override the module specifier used for sql-contract imports in generated files')
     .option('--debug-probe', 'Print the bound inspection SQL and ordered parameter names to stderr before inspection')
     .option('--dry-run', 'Validate inspection and render output metadata without writing the generated file')
     .option('--describe-output', 'Describe the generated artifact contract and exit')
@@ -282,7 +276,6 @@ Notes:
       const rendered = await runModelGen(validateProjectPath(sqlFile, '<sql-file>'), {
         ...merged,
         ddlDir: merged.ddlDir ? validateProjectPath(String(merged.ddlDir), '--ddl-dir') : undefined,
-        importFrom: merged.importFrom ? validateImportFrom(String(merged.importFrom)) : undefined,
         out: merged.out ? validateProjectPath(String(merged.out), '--out') : undefined
       });
       if (isJsonOutput()) {
@@ -360,19 +353,6 @@ function normalizeProbeMode(value?: string): ModelGenProbeMode {
     return normalized;
   }
   throw new Error(`Unsupported probe mode "${value}". Use one of: live, ztd.`);
-}
-
-function normalizeImportStyle(value?: string): ModelGenImportStyle {
-  const normalized = (value ?? 'package').trim().toLowerCase();
-  if (normalized === 'package' || normalized === 'relative') {
-    return normalized;
-  }
-  throw new Error(`Unsupported import style "${value}". Use one of: package, relative.`);
-}
-
-function validateImportFrom(value: string): string {
-  const trimmed = validateResourceIdentifier(value, '--import-from');
-  return trimmed;
 }
 
 function normalizeRealPath(targetPath: string): string {
@@ -618,94 +598,6 @@ export function resolveModelGenZtdProbeOptions(
   };
 }
 
-export function resolveSqlContractImportSpecifier(
-  options: Pick<ModelGenCommandOptions, 'out' | 'importStyle' | 'importFrom'> & { rootDir?: string }
-): string {
-  const rootDir = options.rootDir ?? process.cwd();
-  if (options.importFrom) {
-    return normalizeImportSpecifier(options.importFrom, options.out, rootDir);
-  }
-
-  const importStyle = normalizeImportStyle(options.importStyle);
-  if (importStyle === 'package') {
-    return '@rawsql-ts/sql-contract';
-  }
-
-  if (!options.out) {
-    throw new Error(
-      'Relative sql-contract imports require --out so model-gen can compute the generated file location. Pass --out or use --import-from explicitly.'
-    );
-  }
-
-  const defaultLocalShim = resolveExistingModulePath(path.resolve(rootDir, 'src', 'local', 'sql-contract'));
-  if (!defaultLocalShim) {
-    throw new Error(
-      'Relative sql-contract imports expect src/local/sql-contract.ts (or .js/.mts/.cts) to exist. Create the shim or pass --import-from explicitly.'
-    );
-  }
-
-  return normalizeImportSpecifier(defaultLocalShim, options.out, rootDir);
-}
-
-function normalizeImportSpecifier(specifier: string, outFile: string | undefined, rootDir: string): string {
-  if (!looksLikeFilesystemPath(specifier)) {
-    const rootedCandidate = resolveExistingModulePath(path.resolve(rootDir, specifier));
-    if (!rootedCandidate) {
-      return specifier;
-    }
-    specifier = rootedCandidate;
-  }
-
-  if (!outFile) {
-    throw new Error(
-      'Filesystem import targets require --out so model-gen can compute a relative module specifier. Pass --out or use a bare package specifier.'
-    );
-  }
-
-  const resolvedTarget = resolveExistingModulePath(path.isAbsolute(specifier) ? specifier : path.resolve(rootDir, specifier));
-  if (!resolvedTarget) {
-    throw new Error(`The sql-contract import target was not found: ${specifier}`);
-  }
-
-  const absoluteOut = path.resolve(rootDir, outFile);
-  const fromDir = path.dirname(absoluteOut);
-  const relativePath = path.relative(fromDir, resolvedTarget).replace(/\\/g, '/');
-  const withoutExtension = relativePath.replace(/\.(?:[cm]?ts|[cm]?js)$/iu, '');
-  return withoutExtension.startsWith('.') ? withoutExtension : `./${withoutExtension}`;
-}
-
-function looksLikeFilesystemPath(specifier: string): boolean {
-  return specifier.startsWith('.') || specifier.startsWith('/') || /^[A-Za-z]:[\\/]/u.test(specifier);
-}
-
-function resolveExistingModulePath(basePath: string): string | null {
-  const candidates = [
-    basePath,
-    `${basePath}.ts`,
-    `${basePath}.tsx`,
-    `${basePath}.mts`,
-    `${basePath}.cts`,
-    `${basePath}.js`,
-    `${basePath}.mjs`,
-    `${basePath}.cjs`,
-    path.join(basePath, 'index.ts'),
-    path.join(basePath, 'index.tsx'),
-    path.join(basePath, 'index.mts'),
-    path.join(basePath, 'index.cts'),
-    path.join(basePath, 'index.js'),
-    path.join(basePath, 'index.mjs'),
-    path.join(basePath, 'index.cjs'),
-  ];
-
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-  }
-
-  return null;
-}
-
 export async function loadModelGenZtdFixtureState(
   options: ModelGenZtdProbeOptions
 ): Promise<ModelGenZtdFixtureState> {
@@ -779,12 +671,6 @@ function buildCommandText(sqlFilePath: string, options: ModelGenCommandOptions):
   }
   if (options.ddlDir) {
     segments.push(`--ddl-dir ${normalizeCliPath(options.ddlDir)}`);
-  }
-  if (options.importStyle && options.importStyle !== 'package') {
-    segments.push(`--import-style ${options.importStyle}`);
-  }
-  if (options.importFrom) {
-    segments.push(`--import-from ${normalizeCliPath(options.importFrom)}`);
   }
   return segments.join(' ');
 }

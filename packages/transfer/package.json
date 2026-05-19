@@ -61,7 +61,6 @@
     "typescript": "^5.8.2",
     "@types/node": "22.18.7",
     "@testcontainers/postgresql": "^11.14.0",
-    "@rawsql-ts/sql-contract": "workspace:*",
     "@rawsql-ts/testkit-core": "workspace:*",
     "@rawsql-ts/testkit-postgres": "workspace:*",
     "@rawsql-ts/ztd-cli": "workspace:*",

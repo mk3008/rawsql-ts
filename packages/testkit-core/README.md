@@ -44,13 +44,12 @@ const { sql } = rewriter.rewrite('SELECT id, name FROM users');
 
 When a table name needs to be rewritten into an internal alias, the alias is chosen deterministically and may shift if it collides with an existing CTE name or source alias.
 
-## CatalogExecutor Adapter
+## Rewriter Adapter
 
-When you want to test a `QuerySpec` end-to-end through `@rawsql-ts/sql-contract`, use `createCatalogRewriter()` to plug fixture injection into the catalog rewriter pipeline without writing a wrapper by hand.
+When you need to plug fixture injection into a custom SQL execution pipeline, use `createCatalogRewriter()` as the rewriter adapter and pass the rewritten SQL to your executor.
 
 ```ts
 import { createCatalogRewriter } from '@rawsql-ts/testkit-core';
-import { createCatalogExecutor } from '@rawsql-ts/sql-contract';
 
 const rewriter = createCatalogRewriter({
   fixtures: [
@@ -68,16 +67,8 @@ const rewriter = createCatalogRewriter({
   formatterOptions: { preset: 'postgres' },
 });
 
-const catalog = createCatalogExecutor({
-  loader: {
-    load: async () => 'SELECT id, name FROM users WHERE id = $1',
-  },
-  executor: async (sql, params) => {
-    const result = await pool.query(sql, params);
-    return result.rows;
-  },
-  rewriters: [rewriter],
-});
+const rewritten = rewriter.rewrite('SELECT id, name FROM users WHERE id = $1');
+const result = await pool.query(rewritten.sql, [1]);
 ```
 
 ## Connection Strategy Provider

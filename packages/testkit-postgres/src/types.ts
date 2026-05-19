@@ -1,14 +1,20 @@
 import type {
-  CountableResult,
   TableRowsFixture,
   MissingFixtureStrategy,
 } from '@rawsql-ts/testkit-core';
 import type { SqlFormatterOptions, TableDefinitionModel } from 'rawsql-ts';
-import type { QueryExecutionResult } from '@rawsql-ts/sql-contract';
 import type { DdlFixtureLoaderOptions } from '@rawsql-ts/testkit-core';
 
 /** Generic record shape returned by testkit query results. */
 export type Row = Record<string, unknown>;
+
+/** Executor output accepted by the driver-agnostic Postgres testkit client. */
+export type QueryExecutionResult =
+  | Row[]
+  | {
+      rows: Row[];
+      rowCount?: number;
+    };
 
 /**
  * Executes raw SQL with normalized arguments and returns the driver rows.

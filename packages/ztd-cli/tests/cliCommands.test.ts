@@ -737,13 +737,13 @@ test(
       "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor.js';"
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'input.ts'))).toContain(
-      "import { z } from 'zod';"
+      'export interface UsersInsertRequest {'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'input.ts'))).toContain(
-      'const RequestSchema = z.object({'
+      'email: string;'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'input.ts'))).toContain(
-      "const RequestSchema = z.object({\n  email: z.string(),\n}).strict();"
+      "email: readString(record[\"email\"], 'UsersInsertRequest.email')"
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'input.ts'))).toContain(
       'function parseRequest'
@@ -767,10 +767,10 @@ test(
       "const insertUsersSqlResource = loadSqlResource(__dirname, 'insert-users.sql');"
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).toContain(
-      '}).strict();'
+      'export interface InsertUsersQueryParams {'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).toContain(
-      "import { z } from 'zod';"
+      "email: readString(record[\"email\"], 'InsertUsersQueryParams.email')"
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'queries', 'insert-users', 'boundary.ts'))).toContain(
       "import type { FeatureQueryExecutor } from '../../../_shared/featureQueryExecutor.js';"
@@ -818,7 +818,7 @@ test(
       'TODO: Review this default-column policy'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toContain(
-      'Cardinality and catalog execution should come from `@rawsql-ts/sql-contract`'
+      'Cardinality checks should stay as thin generated query-local helpers'
     );
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-insert', 'README.md'))).toContain(
       'Keep this baseline as one workflow and one primary query by default'
@@ -1053,14 +1053,14 @@ test(
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-get-by-id', 'output.ts'))).toBe(true);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).toBe(true);
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'boundary.ts'))).toContain('export async function execute(');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'input.ts'))).toContain('}).strict();');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'input.ts'))).toContain('export interface UsersGetByIdRequest {');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'input.ts'))).toContain('function parseRequest');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'workflow.ts'))).toContain('function toQueryParams');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'output.ts'))).toContain('id: result.id');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).toContain('loadOptionalRow');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).not.toContain('queryZeroOrOneRow');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).toContain('}).strict();');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).toContain('const RowSchema = z.object({');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).toContain('export interface GetByIdQueryParams {');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-get-by-id', 'queries', 'get-by-id', 'boundary.ts'))).toContain('export interface GetByIdRow {');
   },
   60000,
 );
@@ -1098,13 +1098,13 @@ test(
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-list', 'output.ts'))).toBe(true);
     expect(existsSync(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'))).toBe(true);
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'boundary.ts'))).toContain('export async function execute(');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'input.ts'))).toContain('const RequestSchema = z.object({\n}).strict();');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'input.ts'))).toContain('export type UsersListRequest = {};');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'input.ts'))).toContain('function parseRequest');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'workflow.ts'))).toContain('function toQueryParams');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'output.ts'))).toContain('items: result.items.map');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'))).toContain('createCatalogExecutor');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'))).toContain('const QueryParamsSchema = z.object({\n}).strict();');
-    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'))).toContain('const RowSchema = z.object({');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'))).not.toContain('createCatalogExecutor');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'))).toContain('export type ListQueryParams = {};');
+    expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'boundary.ts'))).toContain('export interface ListRow {');
     expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'users-list', 'queries', 'list', 'list.sql'))).toContain('limit :limit;');
   },
   60000,

@@ -10,7 +10,7 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 **What changed:** A new `NOT NULL` column added to an existing table's DDL.
 
-**Steps:** `ztd ztd-config` → fix compile errors in fixtures (must include the new column) → update `rowMapping` column maps if needed → re-run tests.
+**Steps:** `ztd ztd-config` → fix compile errors in fixtures (must include the new column) → update SQL, boundary types, and generated mapper output if needed → re-run tests.
 
 **Takeaway:** NOT NULL columns force fixture updates everywhere the table appears. Plan fixture changes before adding the column.
 
@@ -18,7 +18,7 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 **What changed:** Column renamed in DDL (e.g., `name` → `display_name`).
 
-**Steps:** `ztd ztd-config` → update SQL files, `rowMapping.columnMap`, validator schemas, and fixtures → re-run tests.
+**Steps:** `ztd ztd-config` → update SQL files, boundary types, generated mapper output, validator schemas when present, and fixtures → re-run tests.
 
 **Takeaway:** TypeScript compile errors are your guide — the generated `TestRowMap` reflects the new name immediately. Fix all references before running tests.
 
@@ -70,13 +70,13 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 **Takeaway:** Validators are not auto-generated — they must be manually kept in sync with the mapped DTO. Run `ztd check-contract` to catch drift early.
 
-## 9. Add/remove a column used in rowMapping
+## 9. Add/remove a column used by a generated mapper
 
-**What changed:** Column referenced in `rowMapping.columnMap` was removed or renamed in DDL.
+**What changed:** Column projected by a generated query boundary was removed or renamed in DDL.
 
-**Steps:** `ztd ztd-config` → `rowMapping` references a column that no longer exists → runtime mapping error → update `columnMap` → re-run tests.
+**Steps:** `ztd ztd-config` → update the SQL asset and boundary row type → run `ztd feature generated-mapper generate` → re-run tests.
 
-**Takeaway:** `rowMapping` column maps are not type-checked against DDL. Use `ztd lint` to catch column mismatches early.
+**Takeaway:** Generated mappers are machine-owned artifacts. Use generated mapper drift checks and `ztd lint` to catch mismatches early.
 
 ## 10. Switch validator backend (Zod ↔ ArkType)
 
@@ -84,7 +84,7 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 **Steps:** Update feature-local QuerySpec files, or legacy spec files in `src/catalog/specs/` when the project still uses that layout → update runtime files → update `package.json` dependencies → re-run tests.
 
-**Takeaway:** Validator-agnostic design means the switch is limited to spec/runtime files. The SQL layer and `rowMapping` are unaffected.
+**Takeaway:** Validator-agnostic design means the switch is limited to boundary/runtime validation files. The SQL layer and generated mapper are unaffected.
 
 ## Further reading
 

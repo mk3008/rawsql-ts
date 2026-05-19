@@ -415,7 +415,6 @@ function verifyPackedTarballInstall(packages) {
 
   const smokeImportTargets = [
     "@rawsql-ts/testkit-core",
-    "@rawsql-ts/sql-contract-zod",
   ].filter((packageName) => hasTarballDependency(tarballDependencies, packageName));
 
   if (smokeImportTargets.length > 0) {
@@ -487,15 +486,15 @@ function verifyNpmPrimaryPath(packages) {
   });
 
   runIn(appDir, NPM, ["install"]);
-  const dryRunPlan = runInitDryRunPlan(appDir, NPM, ["--workflow", "demo", "--validator", "zod"]);
+  const dryRunPlan = runInitDryRunPlan(appDir, NPM, ["--workflow", "demo"]);
   assertScaffoldPlanMetadata(dryRunPlan, {
     dryRun: true,
     schemaVersion: 1,
     workflow: "demo",
-    validator: "zod",
+    validator: "none",
     starter: false,
   }, "phase-a init-dry-run");
-  const initResult = runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "demo", "--validator", "zod"]);
+  const initResult = runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "demo"]);
 
   assertIncludes(initResult.stdout, "ztd-config", "phase-a packaging-npm-primary-path-gate");
   assertIncludes(initResult.stdout, "model-gen", "phase-a packaging-npm-primary-path-gate");
@@ -575,14 +574,12 @@ function verifyPnpmStarterPath(packages) {
     "--starter",
     "--workflow",
     "demo",
-    "--validator",
-    "zod",
   ]);
   assertScaffoldPlanMetadata(dryRunPlan, {
     dryRun: true,
     schemaVersion: 1,
     workflow: "demo",
-    validator: "zod",
+    validator: "none",
     starter: true,
   }, "phase-c init-dry-run");
   runInstalledZtdCli(appDir, [
@@ -767,7 +764,7 @@ function verifyOverwriteSafety(packages) {
 
   let overwriteFailed = false;
   try {
-    runInstalledZtdCli(appDir, ["init", "--yes", "--workflow", "demo", "--validator", "zod"]);
+    runInstalledZtdCli(appDir, ["init", "--yes", "--workflow", "demo"]);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (!message.includes("--force") && !message.includes("already exists")) {
@@ -784,7 +781,7 @@ function verifyOverwriteSafety(packages) {
     throw new Error("[scaffold safety] DDL changed even though init without --force failed.");
   }
 
-  runInstalledZtdCli(appDir, ["init", "--yes", "--force", "--workflow", "demo", "--validator", "zod"]);
+  runInstalledZtdCli(appDir, ["init", "--yes", "--force", "--workflow", "demo"]);
 
   const schemaContents = fs.readFileSync(ddlPath, "utf8");
   if (schemaContents === originalSchema) {

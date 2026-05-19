@@ -1,42 +1,45 @@
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { z } from 'zod';
 
 import type { FeatureQueryExecutor } from '#features/_shared/featureQueryExecutor.js';
 import { loadSqlResource } from '#features/_shared/loadSqlResource.js';
 
 const smokeSqlResource = loadSqlResource(dirname(fileURLToPath(import.meta.url)), 'smoke.sql');
 
-const QueryParamsSchema = z.object({
-  user_id: z.number().int().positive()
-}).strict();
+export interface SmokeQueryParams {
+  user_id: number;
+}
 
-export type SmokeQueryParams = z.infer<typeof QueryParamsSchema>;
+export interface SmokeQueryResult {
+  user_id: number;
+  email: string;
+}
 
-const RowSchema = z.object({
-  user_id: z.coerce.number().int(),
-  email: z.string()
-}).strict();
-
-const QueryResultSchema = z.object({
-  user_id: z.coerce.number().int(),
-  email: z.string()
-}).strict();
-
-export type SmokeQueryResult = z.infer<typeof QueryResultSchema>;
-
-type SmokeRow = z.infer<typeof RowSchema>;
+type SmokeRow = {
+  user_id: number | string;
+  email: string;
+};
 
 function parseQueryParams(raw: unknown): SmokeQueryParams {
-  return QueryParamsSchema.parse(raw);
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    throw new Error('SmokeQueryParams must be an object.');
+  }
+  const value = (raw as Record<string, unknown>).user_id;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+    throw new Error('SmokeQueryParams.user_id must be a positive integer.');
+  }
+  return { user_id: value };
 }
 
 function parseRow(raw: unknown): SmokeRow {
-  return RowSchema.parse(raw);
+  return raw as SmokeRow;
 }
 
 function mapRowToResult(row: SmokeRow): SmokeQueryResult {
-  return QueryResultSchema.parse(row);
+  return {
+    user_id: Number(row.user_id),
+    email: row.email
+  };
 }
 
 async function loadSingleRow(

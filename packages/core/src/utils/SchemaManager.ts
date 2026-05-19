@@ -1,6 +1,6 @@
 /**
  * Central schema management utility for rawsql-ts.
- * Converts user-defined table definitions into resolvers and JSON mappings consumed by collectors and builders.
+ * Converts user-defined table definitions into resolvers consumed by collectors and builders.
  *
  * @example
  * ```typescript
@@ -21,9 +21,6 @@
  * Related tests: packages/core/tests/transformers/SchemaCollector.test.ts
  */
 
-// Import JsonMapping interface for type safety
-import type { JsonMapping } from '../transformers/PostgresJsonQueryBuilder';
-
 // === Core Types for User-defined Schemas ===
 
 /**
@@ -39,8 +36,6 @@ export interface ColumnDefinition {
         table: string;
         column: string;
     };
-    /** Alias for JSON output (useful for avoiding conflicts) */
-    jsonAlias?: string;
 }
 
 /**
@@ -51,7 +46,7 @@ export interface RelationshipDefinition {
     type: 'object' | 'array';
     /** Target table name */
     table: string;
-    /** Property name in JSON output */
+    /** Caller-owned relationship property name */
     propertyName: string;
     /** Optional: Override target table's primary key */
     targetKey?: string;
@@ -82,7 +77,7 @@ export interface SchemaRegistry {
 
 /**
  * Central schema management utility for rawsql-ts
- * Converts user-defined schemas to various internal formats
+ * Converts user-defined schemas to resolvers consumed by schema-aware utilities
  */
 export class SchemaManager {
     private schemas: SchemaRegistry;
@@ -144,63 +139,6 @@ export class SchemaManager {
      */
     public createTableColumnResolver(): (tableName: string) => string[] {
         return (tableName: string) => this.getTableColumns(tableName);
-    }
-
-    /**
-     * Generate JSON mapping configuration for PostgresJsonQueryBuilder
-     * @param rootTableName Root table for the JSON structure
-     * @returns JSON mapping configuration
-     */
-    public createJsonMapping(rootTableName: string): JsonMapping {
-        const rootTable = this.schemas[rootTableName];
-        if (!rootTable) {
-            throw new Error(`Table '${rootTableName}' not found in schema registry`);
-        }
-
-        // Build root entity columns mapping
-        const rootColumns: Record<string, string> = {};
-        Object.entries(rootTable.columns).forEach(([columnName, column]) => {
-            rootColumns[columnName] = column.jsonAlias || column.name;
-        });
-
-        // Build nested entities from relationships
-        const nestedEntities: JsonMapping['nestedEntities'] = [];
-
-        rootTable.relationships?.forEach(rel => {
-            const relatedTable = this.schemas[rel.table];
-            if (!relatedTable) {
-                throw new Error(`Related table '${rel.table}' not found in schema registry`);
-            }
-
-            // Build columns mapping for related table
-            const relatedColumns: Record<string, string> = {};
-            Object.entries(relatedTable.columns).forEach(([columnName, column]) => {
-                relatedColumns[columnName] = column.jsonAlias || column.name;
-            });
-
-            // Determine relationship type for JSON builder
-            const relationshipType = rel.type;
-
-            nestedEntities.push({
-                id: rel.propertyName,
-                name: relatedTable.displayName || rel.table,
-                parentId: rootTableName,
-                propertyName: rel.propertyName,
-                relationshipType: relationshipType as 'object' | 'array',
-                columns: relatedColumns
-            });
-        });
-
-        return {
-            rootName: rootTableName,
-            rootEntity: {
-                id: rootTableName,
-                name: rootTable.displayName || rootTableName,
-                columns: rootColumns
-            },
-            nestedEntities,
-            resultFormat: "single" as const
-        };
     }
 
     /**
@@ -280,16 +218,5 @@ export function createSchemaManager(schemas: SchemaRegistry): SchemaManager {
 export function createTableColumnResolver(schemas: SchemaRegistry): (tableName: string) => string[] {
     const manager = new SchemaManager(schemas);
     return manager.createTableColumnResolver();
-}
-
-/**
- * Create JSON mapping from schema definitions
- * @param schemas Schema registry object
- * @param rootTableName Root table name
- * @returns JSON mapping for PostgresJsonQueryBuilder
- */
-export function createJsonMappingFromSchema(schemas: SchemaRegistry, rootTableName: string): JsonMapping {
-    const manager = new SchemaManager(schemas);
-    return manager.createJsonMapping(rootTableName);
 }
 

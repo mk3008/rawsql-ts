@@ -124,7 +124,13 @@ test('feature README and scaffold files center the sample feature and recursive 
     'loadSqlResource'
   );
   expect(readNormalizedFile('packages/ztd-cli/templates/src/libraries/sql/sql-client.ts')).toContain('SqlClient');
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/libraries/sql/sql-client.ts')).toContain(
+    '@rawsql-ts/driver-adapter-core'
+  );
   expect(readNormalizedFile('packages/ztd-cli/templates/src/adapters/pg/sql-client.ts')).toContain('fromPg');
+  expect(readNormalizedFile('packages/ztd-cli/templates/src/adapters/pg/sql-client.ts')).toContain(
+    'createRowsOnlySqlClient'
+  );
   expect(readNormalizedFile('packages/ztd-cli/templates/src/adapters/pg/sql-client.ts')).toContain(
     "from '#libraries/sql/sql-client.js'"
   );

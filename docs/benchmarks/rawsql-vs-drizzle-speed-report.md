@@ -67,7 +67,7 @@ Recommended first supported scope:
 |---|---|
 | root shape | One root object with a stable parent key. |
 | relation shape | One collection relation from flat joined rows. |
-| metadata source | Explicit sql-contract / queryspec metadata, not alias guessing alone. |
+| metadata source | Explicit generated query metadata, not alias guessing alone. |
 | parent identity | Parent key column or columns must be declared. |
 | child presence | Child key/nullability guard must be declared so outer joins can skip absent children. |
 | result order | Preserve SQL row order and child order unless metadata says otherwise. |
@@ -220,7 +220,7 @@ rawsql-ts intentionally does not use PostgreSQL JSON aggregation as the standard
 
 The goal is to keep SQL reviewable as ordinary row/column SQL so query behavior, joins, filtering, and cardinality remain visible during review and debugging.
 
-Response-shape construction is intentionally kept outside the SQL layer unless a feature explicitly requires DB-side JSON shaping.
+Response-shape construction is intentionally kept outside the SQL layer.
 
 ORM relational query paths may choose different result-shaping strategies, including DB-side shaping.
 Those are valid engineering trade-offs, but they change maintainability, reviewability, and debugging characteristics.
@@ -243,7 +243,7 @@ The trade-off is coverage cost: E2E tests can prove the important application pa
 
 With that strategy, rawsql-ts RFBA + AOT generated mapper remains in the same local Pure ORM performance range as handwritten mapping.
 
-The benchmark evidence suggests that maintainable row/column SQL plus generated direct-assignment mappers can stay competitive without requiring PostgreSQL JSON aggregation or runtime validation in the hot mapping path.
+The benchmark evidence suggests that maintainable row/column SQL plus generated direct-assignment mappers can stay competitive without PostgreSQL JSON aggregation or runtime validation in the hot mapping path.
 
 ## 7. Remaining Work
 

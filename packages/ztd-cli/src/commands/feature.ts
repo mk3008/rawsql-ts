@@ -1168,7 +1168,9 @@ function hashGeneratedMapperSource(source: string): string {
 }
 
 function extractQueryPascalName(source: string, rootDir: string, boundaryFile: string): string {
-  const match = /export type ([A-Za-z][A-Za-z0-9]*)Row = z\.infer<typeof RowSchema>;/.exec(source);
+  const match =
+    /export type ([A-Za-z][A-Za-z0-9]*)Row = z\.infer<typeof RowSchema>;/.exec(source) ??
+    /export interface ([A-Za-z][A-Za-z0-9]*)Row\s*\{/.exec(source);
   if (!match) {
     throw new Error(
       `Cannot generate row mapper for ${toProjectRelativePath(rootDir, boundaryFile)}: exported Row type was not found.`
@@ -1181,9 +1183,7 @@ function extractRowSchemaFieldNames(source: string, rootDir: string, boundaryFil
   const startToken = 'const RowSchema = z.object({';
   const start = source.indexOf(startToken);
   if (start === -1) {
-    throw new Error(
-      `Cannot generate row mapper for ${toProjectRelativePath(rootDir, boundaryFile)}: RowSchema was not found.`
-    );
+    return extractRowInterfaceFieldNames(source, rootDir, boundaryFile);
   }
   const bodyStart = start + startToken.length;
   const end = source.indexOf('\n})', bodyStart);
@@ -1204,11 +1204,30 @@ function extractRowSchemaFieldNames(source: string, rootDir: string, boundaryFil
   return fields;
 }
 
+function extractRowInterfaceFieldNames(source: string, rootDir: string, boundaryFile: string): string[] {
+  const match = /export interface [A-Za-z][A-Za-z0-9]*Row\s*\{([\s\S]*?)\n\}/.exec(source);
+  if (!match) {
+    throw new Error(
+      `Cannot generate row mapper for ${toProjectRelativePath(rootDir, boundaryFile)}: row shape was not found.`
+    );
+  }
+
+  const fields: string[] = [];
+  for (const line of match[1].split(/\r?\n/)) {
+    const field = /^\s*(?:(['"])(.*?)\1|([A-Za-z_$][A-Za-z0-9_$]*))\??\s*:/.exec(line);
+    if (!field) {
+      continue;
+    }
+    fields.push(field[2] ?? field[3]);
+  }
+  return fields;
+}
+
 function detectGeneratedMapperMode(source: string): GeneratedMapperMode {
   if (source.includes('RowsToResult')) {
     return 'list';
   }
-  if (source.includes('const QueryResultSchema = RowSchema.nullable();')) {
+  if (source.includes('const QueryResultSchema = RowSchema.nullable();') || /export type [A-Za-z][A-Za-z0-9]*QueryResult = [A-Za-z][A-Za-z0-9]*Row \| null;/.test(source)) {
     return 'optional';
   }
   return 'single';
@@ -1836,12 +1855,6 @@ function renderFeatureInputFile(params: {
   pascalName: string;
   requestFields: RenderField[];
 }): string {
-  const rawRequestSchema = renderZodObjectSchema('RequestSchema', params.requestFields, {
-    trimStrings: false,
-    rejectEmptyStrings: false,
-    exported: false,
-    strict: true
-  });
   const normalizeLines = params.requestFields.length === 0
     ? ['  return request;']
     : [
@@ -1873,16 +1886,19 @@ function renderFeatureInputFile(params: {
     });
 
   return [
-    "import { z } from 'zod';",
-    '',
-    rawRequestSchema,
-    '',
-    `export type ${params.pascalName}Request = z.infer<typeof RequestSchema>;`,
+    renderObjectType(`${params.pascalName}Request`, params.requestFields, {
+      exported: true,
+      property: 'name'
+    }),
     '',
     '/** Parses the raw feature request at the feature boundary. */',
-    `function parseRawRequest(raw: unknown): ${params.pascalName}Request {`,
-    '  return RequestSchema.parse(raw);',
-    '}',
+    ...renderStrictObjectParser({
+      functionName: 'parseRawRequest',
+      typeName: `${params.pascalName}Request`,
+      fields: params.requestFields,
+      label: `${params.pascalName}Request`,
+      property: 'name'
+    }),
     '',
     '/** Normalizes the parsed feature request for downstream feature logic. */',
     `function normalizeRequest(request: ${params.pascalName}Request): ${params.pascalName}Request {`,
@@ -1901,6 +1917,8 @@ function renderFeatureInputFile(params: {
     '  rejectRequest(request);',
     '  return request;',
     '}',
+    '',
+    ...renderStrictObjectParserSupport(),
     ''
   ].join('\n');
 }
@@ -2157,27 +2175,7 @@ function renderQuerySpecFile(params: {
     return renderListQuerySpecFile(params);
   }
 
-  const paramsSchema = renderZodObjectSchema('QueryParamsSchema', params.requestFields, {
-    trimStrings: false,
-    rejectEmptyStrings: true,
-    exported: false,
-    strict: true
-  });
-  const rowSchema = renderZodObjectSchema('RowSchema', [params.responseFields[0]], {
-    trimStrings: false,
-    rejectEmptyStrings: false,
-    exported: false,
-    strict: true
-  });
-  const resultSchema = renderZodObjectSchema('QueryResultSchema', [params.responseFields[0]], {
-    trimStrings: false,
-    rejectEmptyStrings: false,
-    exported: false,
-    strict: true
-  });
-
   return [
-    "import { z } from 'zod';",
     "import { dirname } from 'node:path';",
     "import { fileURLToPath } from 'node:url';",
     '',
@@ -2189,35 +2187,34 @@ function renderQuerySpecFile(params: {
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
     '',
     ...renderQuerySpecBoundaryComments(params.action, params.insertDefaultPolicy),
-    paramsSchema,
+    renderObjectType(`${params.queryPascalName}QueryParams`, params.requestFields, {
+      exported: true,
+      property: 'name'
+    }),
     '',
-    `export type ${params.queryPascalName}QueryParams = z.infer<typeof QueryParamsSchema>;`,
+    renderObjectType(`${params.queryPascalName}QueryResult`, [params.responseFields[0]], {
+      exported: true,
+      property: 'name'
+    }),
     '',
-    rowSchema,
-    '',
-    resultSchema,
-    '',
-    `export type ${params.queryPascalName}QueryResult = z.infer<typeof QueryResultSchema>;`,
-    '',
-    `export type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
+    renderTypeInterface(`${params.queryPascalName}Row`, [params.responseFields[0]], true),
     '',
     '/** Parses raw query params at the query boundary. */',
-    `function parseQueryParams(raw: unknown): ${params.queryPascalName}QueryParams {`,
-    '  return QueryParamsSchema.parse(raw);',
-    '}',
-    '',
-    '/** Parses a raw DB row at the query boundary. */',
-    `function parseRow(raw: unknown): ${params.queryPascalName}Row {`,
-    '  return RowSchema.parse(raw);',
-    '}',
+    ...renderStrictObjectParser({
+      functionName: 'parseQueryParams',
+      typeName: `${params.queryPascalName}QueryParams`,
+      fields: params.requestFields,
+      label: `${params.queryPascalName}QueryParams`,
+      property: 'name'
+    }),
     '',
     '/** Loads the single row for the write baseline. */',
     `async function loadSingleRow(executor: FeatureQueryExecutor, sql: string, params: Record<string, unknown>): Promise<${params.queryPascalName}Row> {`,
-    '  const rows = await executor.query<Record<string, unknown>>(sql, params);',
+    `  const rows = await executor.query<${params.queryPascalName}Row>(sql, params);`,
     '  if (rows.length !== 1) {',
     `    throw new Error('${params.queryPascalName}QuerySpec expected exactly one row.');`,
     '  }',
-    '  return parseRow(rows[0]);',
+    '  return rows[0];',
     '}',
     '',
     '/** Executes the query boundary flow for this query spec. */',
@@ -2229,6 +2226,8 @@ function renderQuerySpecFile(params: {
     `  const row = await loadSingleRow(executor, ${params.queryCamelName}SqlResource, params);`,
     `  return map${params.queryPascalName}RowToResult(row);`,
     '}',
+    '',
+    ...renderStrictObjectParserSupport(),
     ''
   ].join('\n');
 }
@@ -2307,7 +2306,7 @@ function renderReadmeFile(params: {
     '',
     '- `src/features/_shared/featureQueryExecutor.ts`',
     '- `src/features/_shared/loadSqlResource.ts`',
-    '- Catalog runtime primitives from `@rawsql-ts/sql-contract`',
+    '- Thin generated query execution helpers with no standard runtime catalog dependency',
     '',
     '## CLI-owned generated files',
     '',
@@ -2342,7 +2341,7 @@ function renderReadmeFile(params: {
     `- \`queries/${params.queryName}/boundary.ts\` keeps public flow thin while generated row mapping stays under \`queries/${params.queryName}/generated/\`.`,
     `- \`queries/${params.queryName}/boundary.ts\` and \`queries/${params.queryName}/${params.queryName}.sql\` stay co-located as one boundary/SQL pair.`,
     `- \`tests/${params.featureName}.boundary.test.ts\` is the thin Vitest entrypoint for the feature boundary lane.`,
-    '- Feature-boundary and workflow tests should mock query ports rather than classify child queries by SQL text; SQL may be transformed by rewrite or pipeline processing before execution.',
+    '- Feature-boundary and workflow tests should mock query ports rather than classify child queries by SQL text; advanced runtime SQL transformations must be explicit opt-in infrastructure.',
     '- Query-boundary tests own SQL behavior through ZTD or another SQL-specific lane.',
     '- Integration tests are opt-in and should be named as integration tests when they intentionally cross multiple live boundaries.',
     '- Use `src/libraries/` only for driver-neutral code reusable enough to stand as an external package; keep feature-specific validation and helpers inside the owning feature.',
@@ -2363,7 +2362,7 @@ function renderReadmeFile(params: {
     '## Shared helper note',
     '',
     '- `src/features/_shared/featureQueryExecutor.ts` is the shared runtime contract for DB execution injection.',
-    '- Cardinality and catalog execution should come from `@rawsql-ts/sql-contract` so the scaffold does not re-invent feature-local helpers.',
+    '- Cardinality checks should stay as thin generated query-local helpers in the standard scaffold.',
     '- Treat `exactly-one`, `zero-or-one`, `many`, and `scalar` as the long-term cardinality contract family for future CRUD and SELECT expansion.',
     '',
     '## Follow-up customization points',
@@ -2379,14 +2378,14 @@ function renderReadmeFile(params: {
 function renderReadmeEntryspecNotes(action: FeatureAction, parameterColumns: string[]): string[] {
   if (action === 'get-by-id') {
     return [
-      '- `input.ts` uses `zod` schemas for request DTOs and keeps the get-by-id baseline focused on key-only request parsing.',
+      '- `input.ts` uses local scaffolded request parsing and keeps the get-by-id baseline focused on key-only request parsing.',
       '- `input.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
       '- The get-by-id baseline keeps not-found handling explicit and non-throwing so follow-up work can decide whether to keep nullable output or move to an exactly-one contract.'
     ];
   }
   if (action === 'list') {
     return [
-      '- `input.ts` uses `zod` schemas for request DTOs, keeps the baseline request minimal, and `output.ts` returns a `{ items: [...] }` response contract.',
+      '- `input.ts` uses local scaffolded request parsing, keeps the baseline request minimal, and `output.ts` returns a `{ items: [...] }` response contract.',
       '- `input.ts` rejects unsupported request fields instead of silently ignoring them in the baseline scaffold.',
       '- `input.ts` does not expose explicit paging inputs in the baseline scaffold; follow-up work can add them once the use case is known.'
     ];
@@ -2394,19 +2393,19 @@ function renderReadmeEntryspecNotes(action: FeatureAction, parameterColumns: str
   const hasStringLikeInput = parameterColumns.length > 0;
   if (action === 'delete') {
     return [
-      '- `input.ts` uses `zod` schemas for request DTOs and keeps the delete baseline focused on key-only request parsing.',
+      '- `input.ts` uses local scaffolded request parsing and keeps the delete baseline focused on key-only request parsing.',
       '- The delete baseline does not assume string normalization; add transport-specific parsing or policy checks later only when the feature actually needs them.'
     ];
   }
 
   if (hasStringLikeInput) {
     return [
-      '- `input.ts` uses `zod` schemas for request DTOs, and the scaffold includes `trim()` plus empty-string rejection examples for current string inputs.'
+      '- `input.ts` uses local scaffolded request parsing, and the scaffold includes `trim()` plus empty-string rejection examples for current string inputs.'
     ];
   }
 
   return [
-    '- `input.ts` uses `zod` schemas for request DTOs and leaves string normalization examples for follow-up when string fields appear.'
+    '- `input.ts` uses local scaffolded request parsing and leaves string normalization examples for follow-up when string fields appear.'
   ];
 }
 
@@ -2565,21 +2564,7 @@ function renderGetByIdEntrySpecFile(params: {
   requestFields: RenderField[];
   responseFields: RenderField[];
 }): string {
-  const rawRequestSchema = renderZodObjectSchema('RequestSchema', params.requestFields, {
-    trimStrings: false,
-    rejectEmptyStrings: false,
-    exported: false,
-    strict: true
-  });
-  const responseRowSchema = renderZodObjectSchema('ResponseRowSchema', params.responseFields, {
-    trimStrings: false,
-    rejectEmptyStrings: false,
-    exported: false,
-    strict: true
-  });
-
   return [
-    "import { z } from 'zod';",
     "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor.js';",
     '',
     `import {`,
@@ -2590,20 +2575,23 @@ function renderGetByIdEntrySpecFile(params: {
     '',
     ...renderEntrySpecBoundaryComments(params.action),
     '',
-    rawRequestSchema,
+    renderObjectType(`${params.pascalName}Request`, params.requestFields, {
+      exported: true,
+      property: 'name'
+    }),
     '',
-    `export type ${params.pascalName}Request = z.infer<typeof RequestSchema>;`,
-    '',
-    responseRowSchema,
-    '',
-    'const ResponseSchema = ResponseRowSchema.nullable();',
-    '',
-    `export type ${params.pascalName}Response = z.infer<typeof ResponseSchema>;`,
+    `export type ${params.pascalName}Response = {`,
+    ...renderTypeObjectLines(params.responseFields, '  '),
+    '} | null;',
     '',
     '/** Parses the raw feature request at the feature boundary. */',
-    `function parseRequest(raw: unknown): ${params.pascalName}Request {`,
-    `  return RequestSchema.parse(raw);`,
-    '}',
+    ...renderStrictObjectParser({
+      functionName: 'parseRequest',
+      typeName: `${params.pascalName}Request`,
+      fields: params.requestFields,
+      label: `${params.pascalName}Request`,
+      property: 'name'
+    }),
     '',
     '/** Normalizes the parsed feature request for downstream feature logic. */',
     `function normalizeRequest(request: ${params.pascalName}Request): ${params.pascalName}Request {`,
@@ -2639,7 +2627,7 @@ function renderGetByIdEntrySpecFile(params: {
     '    return null;',
     '  }',
     '  // TODO: Review domain-specific response naming before exposing this feature boundary publicly.',
-    ...renderParsedObjectFromSource('result', params.responseFields, 'ResponseSchema'),
+    ...renderPlainObjectFromSource('result', params.responseFields),
     '}',
     '',
     '/** Executes the feature boundary flow for this feature. */',
@@ -2652,6 +2640,8 @@ function renderGetByIdEntrySpecFile(params: {
     `  const result = await execute${params.queryPascalName}QuerySpec(executor, toQueryParams(request));`,
     '  return fromQueryResult(result);',
     '}',
+    '',
+    ...renderStrictObjectParserSupport(),
     ''
   ].join('\n');
 }
@@ -2667,21 +2657,7 @@ function renderListEntrySpecFile(params: {
   requestFields: RenderField[];
   responseFields: RenderField[];
 }): string {
-  const rawRequestSchema = renderZodObjectSchema('RequestSchema', params.requestFields, {
-    trimStrings: false,
-    rejectEmptyStrings: false,
-    exported: false,
-    strict: true
-  });
-  const responseItemSchema = renderZodObjectSchema('ResponseItemSchema', params.responseFields, {
-    trimStrings: false,
-    rejectEmptyStrings: false,
-    exported: false,
-    strict: true
-  });
-
   return [
-    "import { z } from 'zod';",
     "import type { FeatureQueryExecutor } from '../_shared/featureQueryExecutor.js';",
     '',
     `import {`,
@@ -2692,22 +2668,25 @@ function renderListEntrySpecFile(params: {
     '',
     ...renderEntrySpecBoundaryComments(params.action),
     '',
-    rawRequestSchema,
+    renderObjectType(`${params.pascalName}Request`, params.requestFields, {
+      exported: true,
+      property: 'name'
+    }),
     '',
-    `export type ${params.pascalName}Request = z.infer<typeof RequestSchema>;`,
-    '',
-    responseItemSchema,
-    '',
-    'const ResponseSchema = z.object({',
-    '  items: z.array(ResponseItemSchema),',
-    '}).strict();',
-    '',
-    `export type ${params.pascalName}Response = z.infer<typeof ResponseSchema>;`,
+    `export type ${params.pascalName}Response = {`,
+    '  items: Array<{',
+    ...renderTypeObjectLines(params.responseFields, '    '),
+    '  }>;',
+    '};',
     '',
     '/** Parses the raw feature request at the feature boundary. */',
-    `function parseRequest(raw: unknown): ${params.pascalName}Request {`,
-    '  return RequestSchema.parse(raw);',
-    '}',
+    ...renderStrictObjectParser({
+      functionName: 'parseRequest',
+      typeName: `${params.pascalName}Request`,
+      fields: params.requestFields,
+      label: `${params.pascalName}Request`,
+      property: 'name'
+    }),
     '',
     '/** Normalizes the parsed feature request for downstream feature logic. */',
     `function normalizeRequest(request: ${params.pascalName}Request): ${params.pascalName}Request {`,
@@ -2727,11 +2706,11 @@ function renderListEntrySpecFile(params: {
     '/** Maps the query result into the feature response contract. */',
     `function fromQueryResult(result: ${params.queryPascalName}QueryResult): ${params.pascalName}Response {`,
     '  // TODO: Review domain-specific response naming before exposing this feature boundary publicly.',
-    '  return ResponseSchema.parse({',
+    '  return {',
     '    items: result.items.map((item) => ({',
     ...params.responseFields.map((field) => `      ${field.name}: item.${field.sourceName},`),
     '    })),',
-    '  });',
+    '  };',
     '}',
     '',
     '/** Executes the feature boundary flow for this feature. */',
@@ -2744,6 +2723,8 @@ function renderListEntrySpecFile(params: {
     `  const result = await execute${params.queryPascalName}QuerySpec(executor, toQueryParams(request));`,
     '  return fromQueryResult(result);',
     '}',
+    '',
+    ...renderStrictObjectParserSupport(),
     ''
   ].join('\n');
 }
@@ -2759,21 +2740,7 @@ function renderGetByIdQuerySpecFile(params: {
   sharedExecutorImportPath: string;
   sharedLoadSqlResourceImportPath: string;
 }): string {
-  const paramsSchema = renderZodObjectSchema('QueryParamsSchema', params.requestFields, {
-    trimStrings: false,
-    rejectEmptyStrings: true,
-    exported: false,
-    strict: true
-  });
-  const rowSchema = renderZodObjectSchema('RowSchema', params.responseFields, {
-    trimStrings: false,
-    rejectEmptyStrings: false,
-    exported: false,
-    strict: true
-  });
-
   return [
-    "import { z } from 'zod';",
     "import { dirname } from 'node:path';",
     "import { fileURLToPath } from 'node:url';",
     '',
@@ -2785,38 +2752,34 @@ function renderGetByIdQuerySpecFile(params: {
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
     '',
     ...renderQuerySpecBoundaryComments(params.action),
-    paramsSchema,
+    renderObjectType(`${params.queryPascalName}QueryParams`, params.requestFields, {
+      exported: true,
+      property: 'name'
+    }),
     '',
-    `export type ${params.queryPascalName}QueryParams = z.infer<typeof QueryParamsSchema>;`,
+    renderTypeInterface(`${params.queryPascalName}Row`, params.responseFields, true),
     '',
-    rowSchema,
-    '',
-    'const QueryResultSchema = RowSchema.nullable();',
-    '',
-    `export type ${params.queryPascalName}QueryResult = z.infer<typeof QueryResultSchema>;`,
-    '',
-    `export type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
+    `export type ${params.queryPascalName}QueryResult = ${params.queryPascalName}Row | null;`,
     '',
     '/** Parses raw query params at the query boundary. */',
-    `function parseQueryParams(raw: unknown): ${params.queryPascalName}QueryParams {`,
-    `  return QueryParamsSchema.parse(raw);`,
-    '}',
-    '',
-    '/** Parses a raw DB row at the query boundary. */',
-    `function parseRow(raw: unknown): ${params.queryPascalName}Row {`,
-    `  return RowSchema.parse(raw);`,
-    '}',
+    ...renderStrictObjectParser({
+      functionName: 'parseQueryParams',
+      typeName: `${params.queryPascalName}QueryParams`,
+      fields: params.requestFields,
+      label: `${params.queryPascalName}QueryParams`,
+      property: 'name'
+    }),
     '',
     '/** Loads the optional row for the get-by-id baseline. */',
     `async function loadOptionalRow(executor: FeatureQueryExecutor, sql: string, params: Record<string, unknown>): Promise<${params.queryPascalName}Row | undefined> {`,
-    '  const rows = await executor.query<Record<string, unknown>>(sql, params);',
+    `  const rows = await executor.query<${params.queryPascalName}Row>(sql, params);`,
     '  if (rows.length === 0) {',
     '    return undefined;',
     '  }',
     '  if (rows.length > 1) {',
     `    throw new Error('${params.queryPascalName}QuerySpec expected at most one row.');`,
     '  }',
-    '  return parseRow(rows[0]);',
+    '  return rows[0];',
     '}',
     '',
     '/** Executes the query boundary flow for this query spec. */',
@@ -2828,6 +2791,8 @@ function renderGetByIdQuerySpecFile(params: {
     `  const row = await loadOptionalRow(executor, ${params.queryCamelName}SqlResource, params);`,
     `  return map${params.queryPascalName}RowToResult(row);`,
     '}',
+    '',
+    ...renderStrictObjectParserSupport(),
     ''
   ].join('\n');
 }
@@ -2843,26 +2808,11 @@ function renderListQuerySpecFile(params: {
   sharedExecutorImportPath: string;
   sharedLoadSqlResourceImportPath: string;
 }): string {
-  const paramsSchema = renderZodObjectSchema('QueryParamsSchema', params.requestFields, {
-    trimStrings: false,
-    rejectEmptyStrings: false,
-    exported: false,
-    strict: true
-  });
-  const rowSchema = renderZodObjectSchema('RowSchema', params.responseFields, {
-    trimStrings: false,
-    rejectEmptyStrings: false,
-    exported: false,
-    strict: true
-  });
-
   return [
-    "import { z } from 'zod';",
     "import { dirname } from 'node:path';",
     "import { fileURLToPath } from 'node:url';",
     '',
     `import type { FeatureQueryExecutor } from '${params.sharedExecutorImportPath}';`,
-    "import { createCatalogExecutor, type QuerySpec } from '@rawsql-ts/sql-contract';",
     `import { loadSqlResource } from '${params.sharedLoadSqlResourceImportPath}';`,
     `import { map${params.queryPascalName}RowsToResult } from './generated/row-mapper.js';`,
     '',
@@ -2871,49 +2821,29 @@ function renderListQuerySpecFile(params: {
     `const ${params.queryCamelName}SqlResource = loadSqlResource(__dirname, '${params.queryName}.sql');`,
     '',
     ...renderQuerySpecBoundaryComments(params.action),
-    paramsSchema,
+    renderObjectType(`${params.queryPascalName}QueryParams`, params.requestFields, {
+      exported: true,
+      property: 'name'
+    }),
     '',
-    `export type ${params.queryPascalName}QueryParams = z.infer<typeof QueryParamsSchema>;`,
+    renderTypeInterface(`${params.queryPascalName}Row`, params.responseFields, true),
     '',
-    rowSchema,
+    `export interface ${params.queryPascalName}QueryResult {`,
+    `  items: ${params.queryPascalName}Row[];`,
+    '}',
     '',
-    'const QueryResultSchema = z.object({',
-    '  items: z.array(RowSchema),',
-    '}).strict();',
-    '',
-    `export type ${params.queryPascalName}QueryResult = z.infer<typeof QueryResultSchema>;`,
-    '',
-    `export type ${params.queryPascalName}Row = z.infer<typeof RowSchema>;`,
     `type ${params.queryPascalName}CatalogQueryParams = ${params.queryPascalName}QueryParams & {`,
     '  limit: number;',
     '};',
     '',
     '/** Parses raw query params at the query boundary. */',
-    `function parseQueryParams(raw: unknown): ${params.queryPascalName}QueryParams {`,
-    '  return QueryParamsSchema.parse(raw);',
-    '}',
-    '',
-    '/** Parses a raw DB row at the query boundary. */',
-    `function parseRow(raw: unknown): ${params.queryPascalName}Row {`,
-    '  return RowSchema.parse(raw);',
-    '}',
-    '',
-    `const ${params.queryCamelName}CatalogSpec: QuerySpec<${params.queryPascalName}CatalogQueryParams, ${params.queryPascalName}Row> = {`,
-    `  id: '${params.boundaryRelativeDir}/queries/${params.queryName}/spec',`,
-    `  sqlFile: '${params.boundaryRelativeDir}/queries/${params.queryName}/${params.queryName}.sql',`,
-    '  params: {',
-    "    shape: 'named',",
-    '    example: {',
-    '      limit: DEFAULT_PAGE_SIZE,',
-    `    } as ${params.queryPascalName}CatalogQueryParams,`,
-    '  },',
-    '  output: {',
-    '    validate: (row) => parseRow(row),',
-    '    example: RowSchema.parse({',
-    ...params.responseFields.map((field) => `      ${field.name}: ${renderExampleValue(field)},`),
-    '    }),',
-    '  },',
-    '};',
+    ...renderStrictObjectParser({
+      functionName: 'parseQueryParams',
+      typeName: `${params.queryPascalName}QueryParams`,
+      fields: params.requestFields,
+      label: `${params.queryPascalName}QueryParams`,
+      property: 'name'
+    }),
     '',
     '/** Maps the feature request into query params for the query spec. */',
     `function toQueryParams(params: ${params.queryPascalName}QueryParams): ${params.queryPascalName}CatalogQueryParams {`,
@@ -2929,16 +2859,11 @@ function renderListQuerySpecFile(params: {
     '  rawParams: unknown',
     `): Promise<${params.queryPascalName}QueryResult> {`,
     '  const params = parseQueryParams(rawParams);',
-    '  const catalog = createCatalogExecutor({',
-    '    loader: {',
-    `      load: async () => ${params.queryCamelName}SqlResource,`,
-    '    },',
-    '    executor: (sql, queryParams) => executor.query<Record<string, unknown>>(sql, queryParams as Record<string, unknown>),',
-    '    allowNamedParamsWithoutBinder: true,',
-    '  });',
-    `  const rows = await catalog.list(${params.queryCamelName}CatalogSpec, toQueryParams(params));`,
+    `  const rows = await executor.query<${params.queryPascalName}Row>(${params.queryCamelName}SqlResource, toQueryParams(params));`,
     `  return map${params.queryPascalName}RowsToResult(rows);`,
     '}',
+    '',
+    ...renderStrictObjectParserSupport(),
     ''
   ].join('\n');
 }
@@ -3168,6 +3093,150 @@ function renderZodField(
   return base;
 }
 
+function renderTypeInterface(name: string, fields: RenderField[], exported: boolean): string {
+  const lines = [`${exported ? 'export ' : ''}interface ${name} {`];
+  for (const field of fields) {
+    lines.push(`  ${field.sourceName}: ${field.typeScriptType};`);
+  }
+  lines.push('}');
+  return lines.join('\n');
+}
+
+function renderObjectType(
+  name: string,
+  fields: RenderField[],
+  options: { exported: boolean; property: 'name' | 'sourceName' }
+): string {
+  if (fields.length === 0) {
+    return `${options.exported ? 'export ' : ''}type ${name} = {};`;
+  }
+  const lines = [`${options.exported ? 'export ' : ''}interface ${name} {`];
+  for (const field of fields) {
+    lines.push(`  ${field[options.property]}: ${field.typeScriptType};`);
+  }
+  lines.push('}');
+  return lines.join('\n');
+}
+
+function renderStrictObjectParser(params: {
+  functionName: string;
+  typeName: string;
+  fields: RenderField[];
+  label: string;
+  property: 'name' | 'sourceName';
+}): string[] {
+  const allowedKeys = `[${params.fields.map((field) => JSON.stringify(field[params.property])).join(', ')}]`;
+  if (params.fields.length === 0) {
+    return [
+      `function ${params.functionName}(raw: unknown): ${params.typeName} {`,
+      `  parseStrictObject(raw, '${params.label}', ${allowedKeys});`,
+      `  return {} as ${params.typeName};`,
+      '}'
+    ];
+  }
+
+  return [
+    `function ${params.functionName}(raw: unknown): ${params.typeName} {`,
+    `  const record = parseStrictObject(raw, '${params.label}', ${allowedKeys});`,
+    '  return {',
+    ...params.fields.map((field) => `    ${field[params.property]}: ${renderReadFieldExpression(field, 'record', params.property, params.label)},`),
+    '  };',
+    '}'
+  ];
+}
+
+function renderReadFieldExpression(
+  field: RenderField,
+  recordName: string,
+  property: 'name' | 'sourceName',
+  label: string
+): string {
+  const key = field[property];
+  const value = `${recordName}[${JSON.stringify(key)}]`;
+  const fieldLabel = `${label}.${key}`;
+  if (field.parserKind === 'number') {
+    return field.nullable
+      ? `readNullableNumber(${value}, '${fieldLabel}')`
+      : `readNumber(${value}, '${fieldLabel}')`;
+  }
+  if (field.parserKind === 'boolean') {
+    return field.nullable
+      ? `readNullableBoolean(${value}, '${fieldLabel}')`
+      : `readBoolean(${value}, '${fieldLabel}')`;
+  }
+  if (field.parserKind === 'jsonObject') {
+    return field.nullable
+      ? `readNullableJsonObject(${value}, '${fieldLabel}')`
+      : `readJsonObject(${value}, '${fieldLabel}')`;
+  }
+  return field.nullable
+    ? `readNullableString(${value}, '${fieldLabel}')`
+    : `readString(${value}, '${fieldLabel}')`;
+}
+
+function renderStrictObjectParserSupport(): string[] {
+  return [
+    'type UnknownRecord = Record<string, unknown>;',
+    '',
+    'function parseStrictObject(raw: unknown, label: string, allowedKeys: readonly string[]): UnknownRecord {',
+    "  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {",
+    "    throw new Error(`${label} must be an object.`);",
+    '  }',
+    '  const record = raw as UnknownRecord;',
+    '  for (const key of Object.keys(record)) {',
+    '    if (!allowedKeys.includes(key)) {',
+    "      throw new Error(`${label}.${key} is not supported by this scaffolded boundary.`);",
+    '    }',
+    '  }',
+    '  return record;',
+    '}',
+    '',
+    'function readString(value: unknown, label: string): string {',
+    "  if (typeof value !== 'string') {",
+    "    throw new Error(`${label} must be a string.`);",
+    '  }',
+    '  return value;',
+    '}',
+    '',
+    'function readNullableString(value: unknown, label: string): string | null {',
+    '  return value === null ? null : readString(value, label);',
+    '}',
+    '',
+    'function readNumber(value: unknown, label: string): number {',
+    "  if (typeof value !== 'number' || !Number.isFinite(value)) {",
+    "    throw new Error(`${label} must be a finite number.`);",
+    '  }',
+    '  return value;',
+    '}',
+    '',
+    'function readNullableNumber(value: unknown, label: string): number | null {',
+    '  return value === null ? null : readNumber(value, label);',
+    '}',
+    '',
+    'function readBoolean(value: unknown, label: string): boolean {',
+    "  if (typeof value !== 'boolean') {",
+    "    throw new Error(`${label} must be a boolean.`);",
+    '  }',
+    '  return value;',
+    '}',
+    '',
+    'function readNullableBoolean(value: unknown, label: string): boolean | null {',
+    '  return value === null ? null : readBoolean(value, label);',
+    '}',
+    '',
+    'function readJsonObject(value: unknown, label: string): Record<string, unknown> {',
+    "  if (value === null || typeof value !== 'object' || Array.isArray(value)) {",
+    "    throw new Error(`${label} must be an object.`);",
+    '  }',
+    '  return value as Record<string, unknown>;',
+    '}',
+    '',
+    'function readNullableJsonObject(value: unknown, label: string): Record<string, unknown> | null {',
+    '  return value === null ? null : readJsonObject(value, label);',
+    '}'
+  ];
+}
+
 function renderTypedReturnObject(fields: RenderField[], typeName: string): string[] {
   if (fields.length === 0) {
     return [`  return {} as ${typeName};`];
@@ -3187,6 +3256,17 @@ function renderParsedObjectFromSource(sourceName: string, fields: RenderField[],
     `  return ${schemaName}.parse({`,
     ...fields.map((field) => `    ${field.name}: ${sourceName}.${field.sourceName},`),
     '  });'
+  ];
+}
+
+function renderPlainObjectFromSource(sourceName: string, fields: RenderField[]): string[] {
+  if (fields.length === 0) {
+    return ['  return {};'];
+  }
+  return [
+    '  return {',
+    ...fields.map((field) => `    ${field.name}: ${sourceName}.${field.sourceName},`),
+    '  };'
   ];
 }
 

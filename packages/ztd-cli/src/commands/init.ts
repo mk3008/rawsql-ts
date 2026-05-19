@@ -124,7 +124,6 @@ type FileKey =
   | 'localSourceGuardScript'
   | 'smokeValidationTest'
   | 'smokeEntrySpecTest'
-  | 'smokeTest'
   | 'smokeQuerySpecTest'
   | 'smokeQuerySpec'
   | 'smokeQuerySql'
@@ -215,7 +214,7 @@ export interface InitCommandOptions {
   dryRun?: boolean;
 }
 
-type ValidatorBackend = 'zod' | 'arktype';
+type ValidatorBackend = 'none' | 'zod' | 'arktype';
 type InitDependencyProfile = 'registry' | 'local-source';
 type InitAppShape = 'default' | 'webapi';
 
@@ -250,8 +249,6 @@ interface InitScaffoldLayout {
   smokeValidationTestTemplate: string;
   smokeEntrySpecTestPath: string;
   smokeEntrySpecTestTemplate: string;
-  smokeTestPath: string;
-  smokeTestTemplate: string;
   smokeQuerySpecTestPath: string;
   smokeQuerySpecTestTemplate: string;
   smokeQuerySpecPath: string;
@@ -291,9 +288,11 @@ interface InitScaffoldLayout {
 }
 
 const STACK_DEV_DEPENDENCIES: Record<string, string> = {
-  '@rawsql-ts/sql-contract': '^0.3.1',
   '@rawsql-ts/testkit-core': '^0.16.1',
   '@rawsql-ts/ztd-cli': resolveCurrentCliVersion(),
+};
+const STACK_RUNTIME_DEPENDENCIES: Record<string, string> = {
+  '@rawsql-ts/driver-adapter-core': '^0.1.0'
 };
 const STARTER_DEV_DEPENDENCIES: Record<string, string> = {
   pg: '^8.13.1',
@@ -301,9 +300,11 @@ const STARTER_DEV_DEPENDENCIES: Record<string, string> = {
   '@rawsql-ts/testkit-postgres': '^0.15.4'
 };
 const LOCAL_SOURCE_STACK_PACKAGE_DIRS: Record<string, string> = {
-  '@rawsql-ts/sql-contract': path.join('packages', 'sql-contract'),
   '@rawsql-ts/testkit-core': path.join('packages', 'testkit-core'),
   '@rawsql-ts/ztd-cli': path.join('packages', 'ztd-cli')
+};
+const LOCAL_SOURCE_RUNTIME_PACKAGE_DIRS: Record<string, string> = {
+  '@rawsql-ts/driver-adapter-core': path.join('packages', 'drivers', 'driver-adapter-core')
 };
 const LOCAL_SOURCE_STACK_PACKAGE_DIRS_STARTER: Record<string, string> = {
   '@rawsql-ts/testkit-postgres': path.join('packages', 'testkit-postgres')
@@ -346,10 +347,10 @@ async function gatherOptionalFeatures(
     };
   }
   const validatorChoice = await prompter.selectChoice(
-    'Runtime DTO validation is required for ZTD tests. Which validator backend should we install?',
-    ['Zod (zod, recommended)', 'ArkType (arktype)']
+    'Standard ztd-cli scaffold is runtime-free. Install an optional runtime validator compatibility backend?',
+    ['None (runtime-free standard)', 'Zod (compatibility)', 'ArkType (compatibility)']
   );
-  const validator: ValidatorBackend = validatorChoice === 0 ? 'zod' : 'arktype';
+  const validator: ValidatorBackend = validatorChoice === 0 ? 'none' : validatorChoice === 1 ? 'zod' : 'arktype';
   return {
     validator
   };
@@ -367,7 +368,6 @@ const FEATURE_SMOKE_TESTS_README_TEMPLATE = 'src/features/smoke/tests/README.md'
 const FEATURE_SMOKE_SPEC_TEMPLATE = 'src/features/smoke/boundary.ts';
 const FEATURE_SMOKE_VALIDATION_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.validation.test.ts';
 const FEATURE_SMOKE_ENTRYSPEC_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.boundary.test.ts';
-const FEATURE_SMOKE_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.test.ts';
 const FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE = 'src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts';
 const FEATURE_SMOKE_QUERY_SPEC_TEMPLATE = 'src/features/smoke/queries/smoke/boundary.ts';
 const FEATURE_SMOKE_QUERY_SQL_TEMPLATE = 'src/features/smoke/queries/smoke/smoke.sql';
@@ -441,7 +441,7 @@ const STARTER_README_APPENDIX = (postgresImage: string, ztdCommand: string): str
     '## Starter Flow',
     '',
     '1. Start by reading `src/features/smoke/` as the starter-only sample feature.',
-    '2. Run the DB-free smoke tests first with `npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts`.',
+    '2. Run the DB-free smoke tests first with `npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.validation.test.ts`.',
     '3. Copy `.env.example` to `.env` and update `ZTD_DB_PORT` if 5432 is already in use.',
     '4. Start Postgres with `docker compose up -d` when you are ready for the DB-backed smoke path.',
     `5. ${STARTER_DB_READY_NOTE}`,
@@ -514,8 +514,6 @@ function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): In
     smokeValidationTestTemplate: FEATURE_SMOKE_VALIDATION_TEST_TEMPLATE,
     smokeEntrySpecTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.boundary.test.ts'),
     smokeEntrySpecTestTemplate: FEATURE_SMOKE_ENTRYSPEC_TEST_TEMPLATE,
-    smokeTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'),
-    smokeTestTemplate: FEATURE_SMOKE_TEST_TEMPLATE,
     smokeQuerySpecTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'),
     smokeQuerySpecTestTemplate: FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE,
     smokeQuerySpecPath: path.join(rootDir, 'src', 'features', 'smoke', 'queries', 'smoke', 'boundary.ts'),
@@ -702,7 +700,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     smokeSpec: scaffoldLayout.smokeSpecPath,
     smokeValidationTest: scaffoldLayout.smokeValidationTestPath,
     smokeEntrySpecTest: scaffoldLayout.smokeEntrySpecTestPath,
-    smokeTest: scaffoldLayout.smokeTestPath,
     smokeQuerySpecTest: scaffoldLayout.smokeQuerySpecTestPath,
     smokeQuerySpec: scaffoldLayout.smokeQuerySpecPath,
     smokeQuerySql: scaffoldLayout.smokeQuerySqlPath,
@@ -820,7 +817,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   summaries.config = configSummary;
 
-  const validatorOverride = options?.validator ?? (starter || overwritePolicy.nonInteractive ? 'zod' : undefined);
+  const validatorOverride = options?.validator ?? (starter || overwritePolicy.nonInteractive ? 'none' : undefined);
   const optionalFeatures = await gatherOptionalFeatures(
     prompter,
     dependencies,
@@ -929,19 +926,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     );
     if (smokeEntrySpecTestSummary) {
       summaries.smokeEntrySpecTest = smokeEntrySpecTestSummary;
-    }
-
-    const smokeTestSummary = await writeTemplateFile(
-      rootDir,
-      absolutePaths.smokeTest,
-      relativePath('smokeTest'),
-      scaffoldLayout.smokeTestTemplate,
-      dependencies,
-      prompter,
-      overwritePolicy
-    );
-    if (smokeTestSummary) {
-      summaries.smokeTest = smokeTestSummary;
     }
 
     const smokeQuerySpecTestSummary = await writeTemplateFile(
@@ -2036,6 +2020,7 @@ function ensurePackageJsonFormatting(
     changed = true;
   }
 
+  const dependenciesField = (parsed.dependencies as Record<string, string> | undefined) ?? {};
   const devDependencies = (parsed.devDependencies as Record<string, string> | undefined) ?? {};
   const formattingDeps: Record<string, string> = {
     eslint: '^9.22.0',
@@ -2065,6 +2050,12 @@ function ensurePackageJsonFormatting(
       : {
           ...STACK_DEV_DEPENDENCIES
         };
+  const runtimeDependencies: Record<string, string> =
+    scaffoldProfile.dependencyProfile === 'local-source'
+      ? buildLocalSourceRuntimeDependencies(rootDir, scaffoldProfile)
+      : {
+          ...STACK_RUNTIME_DEPENDENCIES
+        };
   if (starter) {
     for (const [dependencyName, version] of Object.entries(STARTER_DEV_DEPENDENCIES)) {
       if (!(dependencyName in stackDependencies)) {
@@ -2074,7 +2065,7 @@ function ensurePackageJsonFormatting(
   }
   if (optionalFeatures.validator === 'zod') {
     Object.assign(stackDependencies, ZOD_DEPENDENCY);
-  } else {
+  } else if (optionalFeatures.validator === 'arktype') {
     Object.assign(stackDependencies, ARKTYPE_DEPENDENCY);
   }
 
@@ -2095,10 +2086,19 @@ function ensurePackageJsonFormatting(
     changed = true;
   }
 
+  for (const [dep, version] of Object.entries(runtimeDependencies)) {
+    if (dep in dependenciesField) {
+      continue;
+    }
+    dependenciesField[dep] = version;
+    changed = true;
+  }
+
   if (!changed) {
     return null;
   }
 
+  parsed.dependencies = dependenciesField;
   parsed.devDependencies = devDependencies;
   dependencies.ensureDirectory(path.dirname(packagePath));
   // Persist the updated manifest so the new scripts and tools are available immediately.
@@ -2368,7 +2368,7 @@ function buildNextSteps(
   if (starter) {
     const starterNextSteps = [
       'Inspect src/features/smoke/ and treat it as a starter-only sample feature that can be deleted later',
-      `Run tests (${runScriptCommand('test')} or npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts) to confirm the DB-free smoke path is green`,
+      `Run tests (${runScriptCommand('test')} or npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.validation.test.ts) to confirm the DB-free smoke path is green`,
       'Read src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts to see the DB-backed query-boundary path that also checks connectivity',
       'Run docker compose up -d to start the bundled Postgres container before the DB-backed smoke path',
       STARTER_DB_READY_NOTE,
@@ -2424,8 +2424,8 @@ function buildNextSteps(
 
 function resolveLocalSourceStackPackageDirs(starter: boolean): Record<string, string> {
   return starter
-    ? { ...LOCAL_SOURCE_STACK_PACKAGE_DIRS, ...LOCAL_SOURCE_STACK_PACKAGE_DIRS_STARTER }
-    : LOCAL_SOURCE_STACK_PACKAGE_DIRS;
+    ? { ...LOCAL_SOURCE_RUNTIME_PACKAGE_DIRS, ...LOCAL_SOURCE_STACK_PACKAGE_DIRS, ...LOCAL_SOURCE_STACK_PACKAGE_DIRS_STARTER }
+    : { ...LOCAL_SOURCE_RUNTIME_PACKAGE_DIRS, ...LOCAL_SOURCE_STACK_PACKAGE_DIRS };
 }
 
 function resolveInitScaffoldProfile(rootDir: string, localSourceRoot?: string, starter = false): InitScaffoldProfile {
@@ -2484,7 +2484,31 @@ function buildLocalSourceStackDependencies(
   return {
     ...STACK_DEV_DEPENDENCIES,
     ...Object.fromEntries(
-      Object.entries(resolveLocalSourceStackPackageDirs(starter)).map(([packageName, packageDir]) => [
+      Object.entries(starter
+        ? { ...LOCAL_SOURCE_STACK_PACKAGE_DIRS, ...LOCAL_SOURCE_STACK_PACKAGE_DIRS_STARTER }
+        : LOCAL_SOURCE_STACK_PACKAGE_DIRS
+      ).map(([packageName, packageDir]) => [
+        packageName,
+        toFileDependencySpecifier(rootDir, path.join(scaffoldProfile.localSourceRoot!, packageDir))
+      ])
+    )
+  };
+}
+
+function buildLocalSourceRuntimeDependencies(
+  rootDir: string,
+  scaffoldProfile: InitScaffoldProfile
+): Record<string, string> {
+  if (scaffoldProfile.dependencyProfile !== 'local-source' || !scaffoldProfile.localSourceRoot) {
+    return {
+      ...STACK_RUNTIME_DEPENDENCIES
+    };
+  }
+
+  return {
+    ...STACK_RUNTIME_DEPENDENCIES,
+    ...Object.fromEntries(
+      Object.entries(LOCAL_SOURCE_RUNTIME_PACKAGE_DIRS).map(([packageName, packageDir]) => [
         packageName,
         toFileDependencySpecifier(rootDir, path.join(scaffoldProfile.localSourceRoot!, packageDir))
       ])
@@ -2523,7 +2547,6 @@ function buildSummaryLines(
     'localSourceGuardScript',
     'smokeValidationTest',
     'smokeEntrySpecTest',
-    'smokeTest',
     'smokeQuerySpecTest',
     'smokeQuerySpec',
     'smokeQuerySql',
@@ -2570,17 +2593,21 @@ function buildSummaryLines(
     }
   }
 
-  lines.push('', 'Validation configuration:');
+  lines.push('', 'Runtime configuration:');
   const stackLine =
     scaffoldProfile.dependencyProfile === 'local-source'
-      ? ' - SQL catalog/mapping support via @rawsql-ts/sql-contract backed by a local file dependency in developer mode (see docs/recipes/sql-contract.md)'
-      : ' - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)';
+      ? ' - Runtime-free query execution scaffold with local-source development tooling links only'
+      : ' - Runtime-free query execution scaffold; no @rawsql-ts/sql-contract runtime dependency is installed by default';
   lines.push(stackLine);
-  const validatorLabel =
-    optionalFeatures.validator === 'zod'
-      ? 'Zod (zod, docs/recipes/validation-zod.md)'
-      : 'ArkType (arktype, docs/recipes/validation-arktype.md)';
-  lines.push(` - Validator backend: ${validatorLabel}`);
+  if (optionalFeatures.validator === 'none') {
+    lines.push(' - Runtime row validator: none (standard)');
+  } else {
+    const validatorLabel =
+      optionalFeatures.validator === 'zod'
+        ? 'Zod (zod, compatibility only; see docs/recipes/validation-zod.md)'
+        : 'ArkType (arktype, compatibility only; see docs/recipes/validation-arktype.md)';
+    lines.push(` - Runtime validator compatibility backend: ${validatorLabel}`);
+  }
   if (starter) {
     lines.push('', 'Starter flow:');
     lines.push(` - Bundled Postgres compose image: ${postgresImage}`);
@@ -2609,7 +2636,7 @@ function extractErrorMessage(error: unknown): string {
 }
 
 const VALID_WORKFLOWS: readonly InitWorkflow[] = ['pg_dump', 'empty', 'demo'] as const;
-const VALID_VALIDATORS: readonly ValidatorBackend[] = ['zod', 'arktype'] as const;
+const VALID_VALIDATORS: readonly ValidatorBackend[] = ['none', 'zod', 'arktype'] as const;
 const VALID_APP_SHAPES: readonly InitAppShape[] = ['default', 'webapi'] as const;
 
 export interface InitDryRunPlan {
@@ -2661,7 +2688,6 @@ function buildInitPlanFiles(
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeSpecPath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeEntrySpecTestPath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeValidationTestPath);
-    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeTestPath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeQuerySpecTestPath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeQuerySpecPath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeQuerySqlPath);
@@ -2761,7 +2787,7 @@ export function registerInitCommand(program: Command): void {
     .option('--yes', 'Accept defaults without interactive prompts')
     .option('--force', 'Allow ztd init to overwrite files it owns')
     .option('--workflow <type>', 'Schema workflow: pg_dump, empty, or demo (default: demo)')
-    .option('--validator <type>', 'Validator backend: zod or arktype (default: zod)')
+    .option('--validator <type>', 'Optional compatibility validator backend: none, zod, or arktype (default: none)')
     .option('--dry-run', 'Validate init options and emit the planned scaffold without writing files')
     .option('--json <payload>', 'Pass init options as a JSON object')
     .option(
@@ -2814,7 +2840,7 @@ export function registerInitCommand(program: Command): void {
 
       // When --yes is used, apply defaults for unspecified flags.
       const workflow = (merged.workflow as InitWorkflow | undefined) ?? (isNonInteractive ? 'demo' : undefined);
-      const validator = (merged.validator as ValidatorBackend | undefined) ?? (isNonInteractive ? 'zod' : undefined);
+      const validator = (merged.validator as ValidatorBackend | undefined) ?? (isNonInteractive ? 'none' : undefined);
       const appShape = (merged.appShape as InitAppShape | undefined) ?? 'default';
       const starter = merged.starter === true;
       const postgresImage = (merged.postgresImage as string | undefined) ?? DEFAULT_POSTGRES_IMAGE;
@@ -2830,7 +2856,7 @@ export function registerInitCommand(program: Command): void {
           starter,
           postgresImage,
           workflow: workflow ?? 'demo',
-          validator: validator ?? 'zod',
+          validator: validator ?? 'none',
           localSourceRoot: merged.localSourceRoot
         });
         if (isJsonOutput()) {

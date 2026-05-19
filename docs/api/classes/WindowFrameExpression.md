@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: WindowFrameExpression
 
-Defined in: [packages/core/src/models/ValueComponent.ts:177](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/ValueComponent.ts#L177)
+Defined in: [packages/core/src/models/ValueComponent.ts:177](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/ValueComponent.ts#L177)
 
 ## Extends
 
@@ -13,21 +13,21 @@ Defined in: [packages/core/src/models/ValueComponent.ts:177](https://github.com/
 
 > **new WindowFrameExpression**(`partition`, `order`, `frameSpec`): `WindowFrameExpression`
 
-Defined in: [packages/core/src/models/ValueComponent.ts:182](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/ValueComponent.ts#L182)
+Defined in: [packages/core/src/models/ValueComponent.ts:182](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/ValueComponent.ts#L182)
 
 #### Parameters
 
 ##### partition
 
-`null` | [`PartitionByClause`](PartitionByClause.md)
+[`PartitionByClause`](PartitionByClause.md) | `null`
 
 ##### order
 
-`null` | [`OrderByClause`](OrderByClause.md)
+[`OrderByClause`](OrderByClause.md) | `null`
 
 ##### frameSpec
 
-`null` | [`WindowFrameSpec`](WindowFrameSpec.md)
+[`WindowFrameSpec`](WindowFrameSpec.md) | `null`
 
 #### Returns
 
@@ -41,9 +41,9 @@ Defined in: [packages/core/src/models/ValueComponent.ts:182](https://github.com/
 
 ### comments
 
-> **comments**: `null` \| `string`[] = `null`
+> **comments**: `string`[] \| `null` = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L29)
+Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L29)
 
 #### Inherited from
 
@@ -53,9 +53,9 @@ Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3
 
 ### positionedComments
 
-> **positionedComments**: `null` \| [`PositionedComment`](../interfaces/PositionedComment.md)[] = `null`
+> **positionedComments**: [`PositionedComment`](../interfaces/PositionedComment.md)[] \| `null` = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L32)
+Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L32)
 
 #### Inherited from
 
@@ -67,7 +67,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3
 
 > `static` **kind**: `symbol`
 
-Defined in: [packages/core/src/models/ValueComponent.ts:178](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/ValueComponent.ts#L178)
+Defined in: [packages/core/src/models/ValueComponent.ts:178](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/ValueComponent.ts#L178)
 
 #### Overrides
 
@@ -77,25 +77,25 @@ Defined in: [packages/core/src/models/ValueComponent.ts:178](https://github.com/
 
 ### partition
 
-> **partition**: `null` \| [`PartitionByClause`](PartitionByClause.md)
+> **partition**: [`PartitionByClause`](PartitionByClause.md) \| `null`
 
-Defined in: [packages/core/src/models/ValueComponent.ts:179](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/ValueComponent.ts#L179)
+Defined in: [packages/core/src/models/ValueComponent.ts:179](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/ValueComponent.ts#L179)
 
 ***
 
 ### order
 
-> **order**: `null` \| [`OrderByClause`](OrderByClause.md)
+> **order**: [`OrderByClause`](OrderByClause.md) \| `null`
 
-Defined in: [packages/core/src/models/ValueComponent.ts:180](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/ValueComponent.ts#L180)
+Defined in: [packages/core/src/models/ValueComponent.ts:180](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/ValueComponent.ts#L180)
 
 ***
 
 ### frameSpec
 
-> **frameSpec**: `null` \| [`WindowFrameSpec`](WindowFrameSpec.md)
+> **frameSpec**: [`WindowFrameSpec`](WindowFrameSpec.md) \| `null`
 
-Defined in: [packages/core/src/models/ValueComponent.ts:181](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/ValueComponent.ts#L181)
+Defined in: [packages/core/src/models/ValueComponent.ts:181](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/ValueComponent.ts#L181)
 
 ## Methods
 
@@ -103,7 +103,7 @@ Defined in: [packages/core/src/models/ValueComponent.ts:181](https://github.com/
 
 > **getKind**(): `symbol`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L15)
+Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L15)
 
 #### Returns
 
@@ -119,7 +119,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3
 
 > **accept**&lt;`T`\&gt;(`visitor`): `T`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L19)
+Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L19)
 
 #### Type Parameters
 
@@ -147,7 +147,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3
 
 > **toSqlString**(`formatter`): `string`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L23)
+Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L23)
 
 #### Parameters
 
@@ -169,7 +169,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3
 
 > **addPositionedComments**(`position`, `comments`): `void`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L37)
+Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L37)
 
 Add comments at a specific position
 
@@ -197,7 +197,7 @@ Add comments at a specific position
 
 > **getPositionedComments**(`position`): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L56)
+Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L56)
 
 Get comments for a specific position
 
@@ -221,7 +221,7 @@ Get comments for a specific position
 
 > **getAllPositionedComments**(): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/616a5caf97da56813ff73866117e77961930539a/packages/core/src/models/SqlComponent.ts#L66)
+Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/SqlComponent.ts#L66)
 
 Get all positioned comments as a flat array in order (before, after)
 

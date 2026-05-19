@@ -4,7 +4,6 @@ import {
   loadModelGenZtdFixtureState,
   normalizeCliPath,
   resolveModelGenInputs,
-  resolveSqlContractImportSpecifier,
   resolveModelGenZtdProbeOptions,
   resolveCliConnectionWithProbeGuidance,
   buildModelGenConnectionFailure,
@@ -78,7 +77,7 @@ test('toModelPropertyName converts SQL columns to camelCase names', () => {
   expect(toModelPropertyName('1st_column')).toBe('_1stColumn');
 });
 
-test('deriveModelGenNames builds stable sql-contract identifiers from sql-root relative paths', () => {
+test('deriveModelGenNames builds stable generated identifiers from sql-root relative paths', () => {
   expect(deriveModelGenNames('sales/get_sales_header.sql')).toEqual({
     interfaceName: 'GetSalesHeaderRow',
     mappingName: 'getSalesHeaderMapping',
@@ -138,7 +137,6 @@ test('renderModelGenFile emits names-first spec scaffolds', () => {
   const output = renderModelGenFile({
     command: 'ztd model-gen src/sql/sales/get_sales_header.sql',
     format: 'spec',
-    sqlContractImport: '@rawsql-ts/sql-contract',
     sqlFile: 'sales/get_sales_header.sql',
     specId: 'sales.getSalesHeader',
     interfaceName: 'GetSalesHeaderRow',
@@ -154,6 +152,9 @@ test('renderModelGenFile emits names-first spec scaffolds', () => {
   });
 
   expect(output).toContain('// names-first reminder');
+  expect(output).not.toContain('@rawsql-ts/sql-contract');
+  expect(output).not.toContain('rowMapping');
+  expect(output).not.toContain('QuerySpec');
   expect(output).toContain("params: { shape: 'named', example: { sales_id: null } }");
   expect(output).toContain("salesId: 'sales_id'");
   expect(output).toContain("createdAt: 'created_at'");
@@ -163,7 +164,6 @@ test('renderModelGenFile escapes single quotes and backslashes in generated stri
   const output = renderModelGenFile({
     command: 'ztd model-gen src/sql/demo.sql',
     format: 'spec',
-    sqlContractImport: '@rawsql-ts/sql-contract',
     sqlFile: "sales\\owner's_report.sql",
     specId: "sales.owner'sReport",
     interfaceName: 'OwnerReportRow',
@@ -184,7 +184,6 @@ test('renderModelGenFile marks positional scaffolds as legacy when explicitly al
   const output = renderModelGenFile({
     command: 'ztd model-gen legacy.sql --allow-positional',
     format: 'spec',
-    sqlContractImport: '@rawsql-ts/sql-contract',
     sqlFile: 'legacy.sql',
     specId: 'legacy',
     interfaceName: 'LegacyRow',
@@ -200,11 +199,10 @@ test('renderModelGenFile marks positional scaffolds as legacy when explicitly al
   expect(output).toContain("params: { shape: 'positional', example: [null, null] }");
 });
 
-test('renderModelGenFile uses the configured sql-contract import specifier', () => {
+test('renderModelGenFile emits row mapping metadata without runtime helper imports', () => {
   const output = renderModelGenFile({
-    command: 'ztd model-gen src/sql/demo.sql --import-from src/local/sql-contract.ts',
+    command: 'ztd model-gen src/sql/demo.sql --format row-mapping',
     format: 'row-mapping',
-    sqlContractImport: '../../local/sql-contract',
     sqlFile: 'demo.sql',
     specId: 'demo',
     interfaceName: 'DemoRow',
@@ -216,7 +214,10 @@ test('renderModelGenFile uses the configured sql-contract import specifier', () 
     columns: [{ columnName: 'value', propertyName: 'value', tsType: 'string' }]
   });
 
-  expect(output).toContain("import { rowMapping } from '../../local/sql-contract';");
+  expect(output).toContain('export const demoMapping = {');
+  expect(output).toContain("value: 'value'");
+  expect(output).not.toContain('rowMapping');
+  expect(output).not.toContain('@rawsql-ts/sql-contract');
 });
 
 test('normalizeCliPath converts windows-style paths to slash-separated paths', () => {
@@ -369,36 +370,6 @@ test('resolveModelGenZtdProbeOptions preserves defaultSchema and searchPath from
     defaultSchema: 'app',
     searchPath: ['app', 'public']
   });
-});
-
-test('resolveSqlContractImportSpecifier supports a relative style via src/local/sql-contract.ts', () => {
-  const workspace = mkdtempSync(path.join(os.tmpdir(), 'model-gen-import-style-'));
-  const localDir = path.join(workspace, 'src', 'local');
-  mkdirSync(localDir, { recursive: true });
-  writeFileSync(path.join(localDir, 'sql-contract.ts'), "export * from '@rawsql-ts/sql-contract';\n", 'utf8');
-
-  expect(
-    resolveSqlContractImportSpecifier({
-      out: 'src/catalog/specs/generated/example.spec.ts',
-      importStyle: 'relative',
-      rootDir: workspace,
-    })
-  ).toBe('../../../local/sql-contract');
-});
-
-test('resolveSqlContractImportSpecifier resolves filesystem overrides relative to --out', () => {
-  const workspace = mkdtempSync(path.join(os.tmpdir(), 'model-gen-import-from-'));
-  const localDir = path.join(workspace, 'src', 'local');
-  mkdirSync(localDir, { recursive: true });
-  writeFileSync(path.join(localDir, 'sql-contract.ts'), "export * from '@rawsql-ts/sql-contract';\n", 'utf8');
-
-  expect(
-    resolveSqlContractImportSpecifier({
-      out: 'src/catalog/specs/generated/example.spec.ts',
-      importFrom: 'src/local/sql-contract.ts',
-      rootDir: workspace,
-    })
-  ).toBe('../../../local/sql-contract');
 });
 
 test('loadModelGenZtdFixtureState creates empty fixtures for DDL-only tables', async () => {

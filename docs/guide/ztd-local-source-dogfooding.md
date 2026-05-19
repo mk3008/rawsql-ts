@@ -9,14 +9,16 @@ This guide describes the developer-mode happy path. Use it when you need to vali
 1. Create the throwaway app under `tmp/` so it stays outside normal git tracking.
 2. Scaffold with `ztd init --local-source-root <monorepo-root>` so the first install links local-source dependencies instead of waiting for npm publication.
 3. Keep your DDL under `db/ddl/*.sql` and prefer `ztd model-gen --probe-mode ztd` during the inner loop.
-4. For generated query boundaries, prefer `--import-style relative` or `--import-from src/local/sql-contract.ts` when you need a local shim.
+4. Generated query boundaries should not need local `sql-contract` shims on the runtime-free path.
 
 Example:
 
 ```bash
 mkdir tmp/my-ztd-dogfood && cd tmp/my-ztd-dogfood
-npx ztd init --workflow empty --validator zod --local-source-root ../../..
+npx ztd init --workflow empty --local-source-root ../../..
 pnpm install --ignore-workspace
+ztd model-gen src/features/users/queries/list-users/list-users.sql \
+  --probe-mode ztd
 pnpm typecheck
 pnpm test
 ```
@@ -37,26 +39,6 @@ pnpm install --ignore-workspace
 
 `ztd init` now adds the same flag automatically for its own install step when it detects a parent pnpm workspace.
 
-## Local-source imports for generated boundaries
-
-When `model-gen` output should import a local shim instead of `@rawsql-ts/sql-contract`, pass an explicit import target:
-
-```bash
-ztd model-gen src/features/users/queries/list-users/list-users.sql \
-  --probe-mode ztd \
-  --out src/features/users/queries/list-users/boundary.ts \
-  --import-from src/local/sql-contract.ts
-```
-
-If you prefer a relative import and your project keeps a shim at `src/local/sql-contract.ts`, you can also use:
-
-```bash
-ztd model-gen src/features/users/queries/list-users/list-users.sql \
-  --probe-mode ztd \
-  --out src/features/users/queries/list-users/boundary.ts \
-  --import-style relative
-```
-
 ## Common failure modes
 
 - The local-source flow succeeds, but the published-package flow is still blocked.
@@ -65,8 +47,6 @@ ztd model-gen src/features/users/queries/list-users/list-users.sql \
   - Re-run with `pnpm install --ignore-workspace`.
 - `model-gen --probe-mode ztd` says the DDL directory is missing.
   - Run the command from the project root that contains `ztd.config.json`, or pass `--ddl-dir`.
-- Generated query boundaries fail to typecheck because they import `@rawsql-ts/sql-contract` in a local-source dogfood app.
-  - Use `--import-from` or `--import-style relative`.
 - `model-gen --probe-mode live` succeeds but `--probe-mode ztd` fails.
   - Local DDL is not yet the source of truth for that query shape; either update `db/ddl/*.sql` or treat it as a live-schema concern.
 

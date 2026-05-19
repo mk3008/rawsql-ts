@@ -8,6 +8,8 @@
     "sourceMap": true,
     "composite": false,
     "paths": {
+      "rawsql-ts": ["packages/core/dist/src/index.d.ts"],
+      "rawsql-ts/*": ["packages/core/dist/src/*"],
       "@rawsql-ts/test-evidence-core": ["packages/test-evidence-core/dist/index.d.ts"],
       "@rawsql-ts/test-evidence-core/*": ["packages/test-evidence-core/dist/*"],
       "@rawsql-ts/test-evidence-renderer-md": ["packages/test-evidence-renderer-md/dist/index.d.ts"],

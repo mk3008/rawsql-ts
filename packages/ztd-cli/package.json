@@ -58,6 +58,7 @@
   },
   "devDependencies": {
     "@rawsql-ts/adapter-node-pg": "^0.15.8",
+    "@rawsql-ts/driver-adapter-core": "^0.1.0",
     "@rawsql-ts/testkit-core": "^0.16.5",
     "@rawsql-ts/testkit-postgres": "^0.15.7",
     "@testcontainers/postgresql": "^10.28.0",

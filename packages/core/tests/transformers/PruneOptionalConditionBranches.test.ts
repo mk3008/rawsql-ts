@@ -269,7 +269,7 @@ describe('pruneOptionalConditionBranches', () => {
 });
 
 describe('DynamicQueryBuilder optional condition pruning', () => {
-    it('integrates pruning into buildQuery cleanup without breaking serialized SQL output', () => {
+    it('integrates pruning into buildQuery cleanup without SQL-result JSON shaping', () => {
         const builder = new DynamicQueryBuilder();
         const sql = `
             SELECT p.product_id AS id, p.brand_name
@@ -279,21 +279,12 @@ describe('DynamicQueryBuilder optional condition pruning', () => {
         `;
 
         const query = builder.buildQuery(sql, {
-            optionalConditionParameters: { brand_name: null },
-            serialize: {
-                rootName: 'product',
-                rootEntity: {
-                    id: 'product',
-                    name: 'Product',
-                    columns: { id: 'id', brand_name: 'brand_name' }
-                },
-                nestedEntities: []
-            }
+            optionalConditionParameters: { brand_name: null }
         });
 
         const formattedSql = normalizeSql(new SqlFormatter().format(query).formattedSql);
 
-        expect(formattedSql).toContain('jsonb_agg');
+        expect(formattedSql).toContain('select "p"."product_id" as "id", "p"."brand_name"');
         expect(formattedSql).not.toContain(':brand_name');
         expect(formattedSql).not.toContain('where 1 = 1');
     });
