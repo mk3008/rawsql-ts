@@ -221,7 +221,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain(
     'derives `ZTD_DB_URL` from `ZTD_DB_PORT`'
   );
-  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.validation.test.ts');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd feature scaffold --table users --action insert');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm ztd ztd-config');
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('@rawsql-ts/testkit-postgres');
@@ -266,7 +266,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"ztdRootDir": ".ztd"');
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"defaultSchema": "public"');
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"searchPath": [');
-  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'))).toContain('executeSmokeEntrySpec');
+  expect(existsSync(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'))).toBe(false);
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.boundary.test.ts'))).toContain('executeSmokeEntrySpec');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'tests', 'smoke.validation.test.ts'))).toContain('Validation should reject before the query lane runs.');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'))).toContain('runQuerySpecZtdCases');
@@ -372,7 +372,6 @@ test('init dry-run plan matches starter outputs without AGENTS files', () => {
     'src/features/_shared/loadSqlResource.ts',
     'src/features/smoke/boundary.ts',
     'src/features/smoke/tests/smoke.boundary.test.ts',
-    'src/features/smoke/tests/smoke.test.ts',
     'src/libraries/sql/README.md',
     'src/adapters/README.md',
     'tests/support/ztd/README.md',

@@ -124,7 +124,6 @@ type FileKey =
   | 'localSourceGuardScript'
   | 'smokeValidationTest'
   | 'smokeEntrySpecTest'
-  | 'smokeTest'
   | 'smokeQuerySpecTest'
   | 'smokeQuerySpec'
   | 'smokeQuerySql'
@@ -250,8 +249,6 @@ interface InitScaffoldLayout {
   smokeValidationTestTemplate: string;
   smokeEntrySpecTestPath: string;
   smokeEntrySpecTestTemplate: string;
-  smokeTestPath: string;
-  smokeTestTemplate: string;
   smokeQuerySpecTestPath: string;
   smokeQuerySpecTestTemplate: string;
   smokeQuerySpecPath: string;
@@ -371,7 +368,6 @@ const FEATURE_SMOKE_TESTS_README_TEMPLATE = 'src/features/smoke/tests/README.md'
 const FEATURE_SMOKE_SPEC_TEMPLATE = 'src/features/smoke/boundary.ts';
 const FEATURE_SMOKE_VALIDATION_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.validation.test.ts';
 const FEATURE_SMOKE_ENTRYSPEC_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.boundary.test.ts';
-const FEATURE_SMOKE_TEST_TEMPLATE = 'src/features/smoke/tests/smoke.test.ts';
 const FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE = 'src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts';
 const FEATURE_SMOKE_QUERY_SPEC_TEMPLATE = 'src/features/smoke/queries/smoke/boundary.ts';
 const FEATURE_SMOKE_QUERY_SQL_TEMPLATE = 'src/features/smoke/queries/smoke/smoke.sql';
@@ -445,7 +441,7 @@ const STARTER_README_APPENDIX = (postgresImage: string, ztdCommand: string): str
     '## Starter Flow',
     '',
     '1. Start by reading `src/features/smoke/` as the starter-only sample feature.',
-    '2. Run the DB-free smoke tests first with `npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts`.',
+    '2. Run the DB-free smoke tests first with `npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.validation.test.ts`.',
     '3. Copy `.env.example` to `.env` and update `ZTD_DB_PORT` if 5432 is already in use.',
     '4. Start Postgres with `docker compose up -d` when you are ready for the DB-backed smoke path.',
     `5. ${STARTER_DB_READY_NOTE}`,
@@ -518,8 +514,6 @@ function resolveInitScaffoldLayout(rootDir: string, _appShape: InitAppShape): In
     smokeValidationTestTemplate: FEATURE_SMOKE_VALIDATION_TEST_TEMPLATE,
     smokeEntrySpecTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.boundary.test.ts'),
     smokeEntrySpecTestTemplate: FEATURE_SMOKE_ENTRYSPEC_TEST_TEMPLATE,
-    smokeTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'tests', 'smoke.test.ts'),
-    smokeTestTemplate: FEATURE_SMOKE_TEST_TEMPLATE,
     smokeQuerySpecTestPath: path.join(rootDir, 'src', 'features', 'smoke', 'queries', 'smoke', 'tests', 'smoke.boundary.ztd.test.ts'),
     smokeQuerySpecTestTemplate: FEATURE_SMOKE_QUERYSPEC_TEST_TEMPLATE,
     smokeQuerySpecPath: path.join(rootDir, 'src', 'features', 'smoke', 'queries', 'smoke', 'boundary.ts'),
@@ -706,7 +700,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     smokeSpec: scaffoldLayout.smokeSpecPath,
     smokeValidationTest: scaffoldLayout.smokeValidationTestPath,
     smokeEntrySpecTest: scaffoldLayout.smokeEntrySpecTestPath,
-    smokeTest: scaffoldLayout.smokeTestPath,
     smokeQuerySpecTest: scaffoldLayout.smokeQuerySpecTestPath,
     smokeQuerySpec: scaffoldLayout.smokeQuerySpecPath,
     smokeQuerySql: scaffoldLayout.smokeQuerySqlPath,
@@ -933,19 +926,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     );
     if (smokeEntrySpecTestSummary) {
       summaries.smokeEntrySpecTest = smokeEntrySpecTestSummary;
-    }
-
-    const smokeTestSummary = await writeTemplateFile(
-      rootDir,
-      absolutePaths.smokeTest,
-      relativePath('smokeTest'),
-      scaffoldLayout.smokeTestTemplate,
-      dependencies,
-      prompter,
-      overwritePolicy
-    );
-    if (smokeTestSummary) {
-      summaries.smokeTest = smokeTestSummary;
     }
 
     const smokeQuerySpecTestSummary = await writeTemplateFile(
@@ -2388,7 +2368,7 @@ function buildNextSteps(
   if (starter) {
     const starterNextSteps = [
       'Inspect src/features/smoke/ and treat it as a starter-only sample feature that can be deleted later',
-      `Run tests (${runScriptCommand('test')} or npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.test.ts src/features/smoke/tests/smoke.validation.test.ts) to confirm the DB-free smoke path is green`,
+      `Run tests (${runScriptCommand('test')} or npx vitest run src/features/smoke/tests/smoke.boundary.test.ts src/features/smoke/tests/smoke.validation.test.ts) to confirm the DB-free smoke path is green`,
       'Read src/features/smoke/queries/smoke/tests/smoke.boundary.ztd.test.ts to see the DB-backed query-boundary path that also checks connectivity',
       'Run docker compose up -d to start the bundled Postgres container before the DB-backed smoke path',
       STARTER_DB_READY_NOTE,
@@ -2567,7 +2547,6 @@ function buildSummaryLines(
     'localSourceGuardScript',
     'smokeValidationTest',
     'smokeEntrySpecTest',
-    'smokeTest',
     'smokeQuerySpecTest',
     'smokeQuerySpec',
     'smokeQuerySql',
@@ -2709,7 +2688,6 @@ function buildInitPlanFiles(
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeSpecPath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeEntrySpecTestPath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeValidationTestPath);
-    pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeTestPath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeQuerySpecTestPath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeQuerySpecPath);
     pushRelativePlanFile(files, rootDir, scaffoldLayout.smokeQuerySqlPath);
