@@ -124,7 +124,12 @@ The recommended split is:
 - `@rawsql-ts/ztd-cli`: development-time generator, analyzer, scaffold, and verifier;
 - an optional advanced SQL runtime package: explicit infrastructure for dynamic SQL behavior that cannot be represented as static generated DAO code;
 - an optional advanced SQL runtime package: temporary migration support for dynamic SQL behavior that cannot yet be generated statically.
-- thin driver adapter packages named by concrete driver implementation, such as `@rawsql-ts/driver-adapter-core`, `@rawsql-ts/driver-adapter-node-postgres`, `@rawsql-ts/driver-adapter-postgres-js`, or `@rawsql-ts/driver-adapter-mysql2`.
+- thin production driver adapter packages named by concrete driver implementation, such as `@rawsql-ts/driver-adapter-core`, `@rawsql-ts/driver-adapter-node-postgres`, `@rawsql-ts/driver-adapter-postgres-js`, or `@rawsql-ts/driver-adapter-mysql2`;
+- testkit adapter packages named separately from production driver adapters, such as a future `@rawsql-ts/testkit-adapter-node-postgres`.
+
+The existing `@rawsql-ts/adapter-node-pg` package is a testkit adapter for connecting node-postgres to `@rawsql-ts/testkit-postgres`.
+It should not be treated as the production node-postgres driver adapter.
+The non-breaking rename direction is to introduce a `testkit-adapter-*` alias first, keep the existing package for compatibility, and only then mark the legacy name as deprecated in docs or package metadata.
 
 The optional runtime package should be opt-in and visible.
 `ztd-cli` may provide commands that wire it into a generated project, but the default scaffold should not install it or import it.
