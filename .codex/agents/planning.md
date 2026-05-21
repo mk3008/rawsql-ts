@@ -28,6 +28,10 @@ Use this subagent to shape a rawsql-ts developer task into a plan that can be ex
 
 ## Planning Rules
 
+- Before implementation planning for business-bearing or domain-meaning work, run or apply the Issue Concept Grounding rule.
+- If the issue cannot be grounded in existing Concept Specs, DFDs, Process Maps, Package Scope, feature-local specs, or explicit technical-support classification, do not proceed directly to implementation planning.
+- Route ungrounded work to ConceptSpec, DFD, Process Map, feature-local spec, scope decision, or human decision instead of treating acceptance items as sufficient implementation grounding.
+- For ConceptSpec work, do not force all uncertainty into immediate decisions. Classify uncertainty as `decision-required-now`, `decision-can-wait`, or `acceptable-unknown`.
 - Define completion in terms of attainment, not only file creation or code modification.
 - Prefer one acceptance item per completion judgment.
 - Do not merge unrelated concerns into one acceptance item.

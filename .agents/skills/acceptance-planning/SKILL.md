@@ -37,3 +37,6 @@ Use this skill when a rawsql-ts developer task needs a decision-complete plan th
 - Do not add customer-oriented guidance.
 - Do not omit the source issue or why it matters.
 - Do not leave verification methods implicit.
+- For ConceptSpec-related work, do not treat unresolved concept questions as failure by default.
+- Upstream ConceptSpec tasks may finish with classified unresolved items when the intended business process is not blocked.
+- If work requires undefined business meaning, missing process definition, or unapproved scope expansion, route it to ConceptSpec or process work before implementation acceptance items are finalized.
