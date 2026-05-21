@@ -457,6 +457,9 @@ importers:
 
   packages/transfer:
     dependencies:
+      '@rawsql-ts/driver-adapter-core':
+        specifier: workspace:*
+        version: link:../drivers/driver-adapter-core
       zod:
         specifier: ^4.3.6
         version: 4.3.6

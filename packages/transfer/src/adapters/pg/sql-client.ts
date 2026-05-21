@@ -1,10 +1,11 @@
+import { createRowsOnlySqlClient } from '@rawsql-ts/driver-adapter-core';
 import type { SqlClient } from '#libraries/sql/sql-client.js';
 
 /**
- * Adapt a `pg`-style queryable (Client or Pool) into a SqlClient.
+ * Adapt a node-postgres `pg`-style queryable (Client or Pool) into a SqlClient.
  *
- * pg's `query()` returns `QueryResult<T>` with a `.rows` property.
- * This helper unwraps the result so it satisfies the shared `SqlClient` contract.
+ * SQL resources can keep `:name` parameters for readability. The adapter compiles
+ * them to node-postgres `$1`, `$2`, ... placeholders immediately before execution.
  *
  * Usage:
  *   // This runtime example uses DATABASE_URL for application code.
@@ -13,17 +14,8 @@ import type { SqlClient } from '#libraries/sql/sql-client.js';
  *   const client = fromPg(pool);
  *   const users = await client.query<{ id: number }>('SELECT id ...', []);
  */
-export function fromPg(
-  queryable: {
-    query(text: string, values?: readonly unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
-  }
-): SqlClient {
-  return {
-    query<T extends Record<string, unknown> = Record<string, unknown>>(
-      text: string,
-      values?: readonly unknown[]
-    ): Promise<T[]> {
-      return queryable.query(text, values).then((result) => result.rows as T[]);
-    }
-  };
+export function fromPg(queryable: {
+  query(text: string, values?: readonly unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+}): SqlClient {
+  return createRowsOnlySqlClient(queryable, { placeholderStyle: 'pg-indexed' });
 }
