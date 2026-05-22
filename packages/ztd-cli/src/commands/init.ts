@@ -292,7 +292,7 @@ const STACK_DEV_DEPENDENCIES: Record<string, string> = {
   '@rawsql-ts/ztd-cli': resolveCurrentCliVersion(),
 };
 const STACK_RUNTIME_DEPENDENCIES: Record<string, string> = {
-  '@rawsql-ts/driver-adapter-core': '^0.1.0'
+  '@rawsql-ts/driver-adapter-core': '^0.2.0'
 };
 const STARTER_DEV_DEPENDENCIES: Record<string, string> = {
   pg: '^8.13.1',

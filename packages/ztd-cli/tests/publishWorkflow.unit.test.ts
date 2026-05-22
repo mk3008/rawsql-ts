@@ -122,3 +122,9 @@ test('packed tarball install smoke only runs commands for tarballs included in t
   expect(publishedPackageModeScript).toContain('.filter((packageName) => hasTarballDependency(tarballDependencies, packageName));');
   expect(publishedPackageModeScript).toContain('if (smokeImportTargets.length > 0) {');
 });
+
+test('published-package smoke rebinds scaffold runtime dependencies to packed tarballs', () => {
+  expect(publishedPackageModeScript).toContain('for (const sectionName of ["dependencies", "optionalDependencies", "peerDependencies"])');
+  expect(publishedPackageModeScript).toContain('section[dependencyName] = tarballDependencies[dependencyName];');
+  expect(publishedPackageModeScript).toContain('restoreTarballDependencies(appDir, tarballDependencies);');
+});
