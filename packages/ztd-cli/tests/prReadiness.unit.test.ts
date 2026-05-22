@@ -57,6 +57,8 @@ const {
     baselineRationale?: string;
     selfReviewWorkflow?: string;
     selfReviewResult?: string;
+    conceptReviewWorkflow?: string;
+    conceptReviewResult?: string;
     cliMode?: 'no-packet' | 'packet' | null;
     cliNoMigrationRationale?: string;
     upgradeNote?: string;
@@ -104,6 +106,8 @@ function createBaseBody(): string {
     '',
     'Self-review workflow: self-review skill two-cycle pass completed.',
     'Self-review result: no unresolved blockers.',
+    'Concept-review workflow: concept boundary review checked the owning package concept.',
+    'Concept-review result: no concept or package-boundary violations remain.',
     '',
     '## CLI Surface Migration',
     '',
@@ -165,6 +169,8 @@ test('pr-readiness accepts a tracked baseline exception plus CLI migration packe
     '',
     'Self-review workflow: self-review skill two-cycle pass completed.',
     'Self-review result: no unresolved blockers.',
+    'Concept-review workflow: concept boundary review checked the owning package concept.',
+    'Concept-review result: no concept or package-boundary violations remain.',
     '',
     '## CLI Surface Migration',
     '',
@@ -212,7 +218,7 @@ test('pr-readiness rejects CLI changes without a migration packet or rationale',
 
 test('pr-readiness rejects PR bodies without self-review evidence', () => {
   const body = createBaseBody()
-    .replace('## Self Review\n\nSelf-review workflow: self-review skill two-cycle pass completed.\nSelf-review result: no unresolved blockers.\n\n', '');
+    .replace('## Self Review\n\nSelf-review workflow: self-review skill two-cycle pass completed.\nSelf-review result: no unresolved blockers.\nConcept-review workflow: concept boundary review checked the owning package concept.\nConcept-review result: no concept or package-boundary violations remain.\n\n', '');
 
   const validation = validatePrReadiness({
     body,
@@ -224,6 +230,25 @@ test('pr-readiness rejects PR bodies without self-review evidence', () => {
     'Missing "## Self Review" section from the PR body.',
     'Self Review must name the self-review workflow or skill that was run. is required: "Self-review workflow:" must be filled in.',
     'Self Review must state whether blockers remain. is required: "Self-review result:" must be filled in.',
+    'Self Review must name the concept review workflow, package concept, Concept Spec, or explicit no-concept-impact rationale that was checked. is required: "Concept-review workflow:" must be filled in.',
+    'Self Review must state whether concept or package-boundary violations remain. is required: "Concept-review result:" must be filled in.',
+  ]));
+});
+
+test('pr-readiness rejects PR bodies without concept review evidence', () => {
+  const body = createBaseBody()
+    .replace('Concept-review workflow: concept boundary review checked the owning package concept.\n', '')
+    .replace('Concept-review result: no concept or package-boundary violations remain.\n', '');
+
+  const validation = validatePrReadiness({
+    body,
+    classification: classifyPrReadiness(['packages/core/src/index.ts']),
+  });
+
+  expect(validation.ok).toBe(false);
+  expect(validation.errors).toEqual(expect.arrayContaining([
+    'Self Review must name the concept review workflow, package concept, Concept Spec, or explicit no-concept-impact rationale that was checked. is required: "Concept-review workflow:" must be filled in.',
+    'Self Review must state whether concept or package-boundary violations remain. is required: "Concept-review result:" must be filled in.',
   ]));
 });
 
@@ -250,6 +275,8 @@ test('pr-readiness rejects scaffold changes without the three proof classes', ()
     '',
     'Self-review workflow: self-review skill two-cycle pass completed.',
     'Self-review result: no unresolved blockers.',
+    'Concept-review workflow: concept boundary review checked the owning package concept.',
+    'Concept-review result: no concept or package-boundary violations remain.',
     '',
     '## CLI Surface Migration',
     '',
@@ -335,6 +362,7 @@ test('pr-readiness preparation renders a validator-compatible CLI packet body', 
   });
 
   expect(prepared.body).toContain('Tracking issue: not needed; no baseline exception requested.');
+  expect(prepared.body).toContain('Concept-review result: no unresolved concept or package-boundary violations.');
   expect(prepared.body).toContain('Upgrade note: Replace `--specs-dir` with `--scope-dir` in command examples.');
 
   const validation = validatePrReadiness({
