@@ -10,8 +10,15 @@ const releasePrWorkflowPath = path.resolve(__dirname, '../../../.github/workflow
 const releasePrWorkflow = fs.readFileSync(releasePrWorkflowPath, 'utf8');
 const publishedPackageModePath = path.resolve(__dirname, '../../../scripts/verify-published-package-mode.mjs');
 const publishedPackageModeScript = fs.readFileSync(publishedPackageModePath, 'utf8');
+const publishPlanPath = path.resolve(__dirname, '../../../scripts/publish-plan.mjs');
+const publishPlanScript = fs.readFileSync(publishPlanPath, 'utf8');
 const generatedProjectModePath = path.resolve(__dirname, '../../../scripts/verify-generated-project-mode.mjs');
 const generatedProjectModeScript = fs.readFileSync(generatedProjectModePath, 'utf8');
+const ztdCliPackageJsonPath = path.resolve(__dirname, '../package.json');
+const ztdCliPackageJson = JSON.parse(fs.readFileSync(ztdCliPackageJsonPath, 'utf8')) as {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+};
 
 test('publish workflow verifies built artifacts before actual publish', () => {
   expect(publishWorkflow).toContain('verify_publish_artifacts:');
@@ -127,4 +134,12 @@ test('published-package smoke rebinds scaffold runtime dependencies to packed ta
   expect(publishedPackageModeScript).toContain('for (const sectionName of ["dependencies", "optionalDependencies", "peerDependencies"])');
   expect(publishedPackageModeScript).toContain('section[dependencyName] = tarballDependencies[dependencyName];');
   expect(publishedPackageModeScript).toContain('restoreTarballDependencies(appDir, tarballDependencies);');
+});
+
+test('publish plan can include unpublished workspace dependencies required by published scaffolds', () => {
+  expect(ztdCliPackageJson.dependencies).toHaveProperty('@rawsql-ts/driver-adapter-core');
+  expect(ztdCliPackageJson.devDependencies).not.toHaveProperty('@rawsql-ts/driver-adapter-core');
+  expect(publishPlanScript).toContain('for (let index = 0; index < publishCandidates.length; index += 1)');
+  expect(publishPlanScript).toContain('for (const dependencyName of candidate.workspaceDependencies)');
+  expect(publishPlanScript).toContain('addPublishCandidate(dependencyPkg);');
 });

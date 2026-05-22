@@ -46,7 +46,8 @@
     "fast-glob": "^3.3.3",
     "rawsql-ts": "^0.21.0",
     "yaml": "^2.8.3",
-    "@rawsql-ts/sql-grep-core": "^0.1.10"
+    "@rawsql-ts/sql-grep-core": "^0.1.10",
+    "@rawsql-ts/driver-adapter-core": "^0.2.0"
   },
   "peerDependencies": {
     "@rawsql-ts/adapter-node-pg": "^0.15.9"
@@ -58,7 +59,6 @@
   },
   "devDependencies": {
     "@rawsql-ts/adapter-node-pg": "^0.15.9",
-    "@rawsql-ts/driver-adapter-core": "^0.2.0",
     "@rawsql-ts/testkit-core": "^0.17.0",
     "@rawsql-ts/testkit-postgres": "^0.16.0",
     "@testcontainers/postgresql": "^10.28.0",
