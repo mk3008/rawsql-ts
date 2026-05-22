@@ -237,6 +237,30 @@ function hasTarballDependency(tarballDependencies, packageName) {
   return typeof tarballDependencies[packageName] === "string";
 }
 
+function createPublishedDependencyRangeMap(packages) {
+  const dependencyRanges = new Map();
+
+  for (const pkg of packages) {
+    for (const sectionName of ["dependencies", "optionalDependencies", "peerDependencies", "devDependencies"]) {
+      const section = pkg.manifest[sectionName];
+      if (!section || typeof section !== "object" || Array.isArray(section)) {
+        continue;
+      }
+
+      for (const [dependencyName, dependencyRange] of Object.entries(section)) {
+        if (
+          typeof dependencyRange === "string"
+          && (dependencyName === "rawsql-ts" || dependencyName.startsWith("@rawsql-ts/"))
+        ) {
+          dependencyRanges.set(dependencyName, dependencyRange);
+        }
+      }
+    }
+  }
+
+  return dependencyRanges;
+}
+
 function setPackageTypeModule(directory) {
   const packageJsonPath = path.join(directory, "package.json");
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
@@ -248,25 +272,45 @@ function readPackageJson(directory) {
   return JSON.parse(fs.readFileSync(path.join(directory, "package.json"), "utf8"));
 }
 
-function restoreTarballDependencies(directory, tarballDependencies) {
+function restorePublishedDependencyRanges(directory, packages) {
   const packageJsonPath = path.join(directory, "package.json");
   const packageJson = readPackageJson(directory);
-  for (const sectionName of ["dependencies", "optionalDependencies", "peerDependencies"]) {
+  const tarballDependencies = createTarballDependencyMap(packages);
+  const publishedDependencyRanges = createPublishedDependencyRangeMap(packages);
+  let changed = false;
+
+  for (const sectionName of ["dependencies", "optionalDependencies", "peerDependencies", "devDependencies"]) {
     const section = packageJson[sectionName];
     if (!section || typeof section !== "object" || Array.isArray(section)) {
       continue;
     }
-    for (const dependencyName of Object.keys(section)) {
+
+    for (const [dependencyName, currentRange] of Object.entries(section)) {
       if (typeof tarballDependencies[dependencyName] === "string") {
-        section[dependencyName] = tarballDependencies[dependencyName];
+        if (section[dependencyName] !== tarballDependencies[dependencyName]) {
+          section[dependencyName] = tarballDependencies[dependencyName];
+          changed = true;
+        }
+        continue;
+      }
+
+      if (
+        typeof currentRange === "string"
+        && currentRange.startsWith("file:")
+        && publishedDependencyRanges.has(dependencyName)
+      ) {
+        section[dependencyName] = publishedDependencyRanges.get(dependencyName);
+        changed = true;
       }
     }
   }
-  packageJson.devDependencies = {
-    ...(packageJson.devDependencies ?? {}),
-    ...tarballDependencies,
-  };
+
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+
+  if (changed) {
+    fs.rmSync(path.join(directory, "package-lock.json"), { force: true });
+    fs.rmSync(path.join(directory, "node_modules"), { force: true, recursive: true });
+  }
 }
 
 function writeNode16Tsconfig(directory) {
@@ -443,6 +487,12 @@ function verifyPackedTarballInstall(packages) {
 
 function verifyCoreGettingStarted(packages) {
   const appDir = path.join(packageRoot, "rawsql-ts-getting-started");
+  const tarballDependencies = createTarballDependencyMap(packages);
+
+  if (!hasTarballDependency(tarballDependencies, "rawsql-ts")) {
+    return null;
+  }
+
   ensureCleanDir(appDir);
 
   writePackageJson(appDir, {
@@ -451,7 +501,7 @@ function verifyCoreGettingStarted(packages) {
     version: "0.0.0",
     type: "module",
     devDependencies: {
-      "rawsql-ts": createTarballDependencyMap(packages)["rawsql-ts"],
+      "rawsql-ts": tarballDependencies["rawsql-ts"],
     },
   });
 
@@ -525,7 +575,7 @@ function verifyNpmPrimaryPath(packages) {
   assertFileMissing(appDir, path.join("src", "features", "smoke", "queries", "smoke", "tests", "smoke.boundary.ztd.test.ts"), "phase-a default-scaffold-shape");
   assertFileMissing(appDir, path.join(".ztd", "agents", "manifest.json"), "phase-a default-scaffold-shape");
 
-  restoreTarballDependencies(appDir, tarballDependencies);
+  restorePublishedDependencyRanges(appDir, packages);
   runIn(appDir, NPM, ["install"]);
 
   return { appDir };
