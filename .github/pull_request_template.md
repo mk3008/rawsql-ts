@@ -22,6 +22,8 @@ Why full baseline is not required:
 <!-- Fill these fields after running the repo self-review workflow or available self-review skill. -->
 Self-review workflow:
 Self-review result:
+Concept-review workflow:
+Concept-review result:
 
 ## CLI Surface Migration
 

@@ -138,17 +138,24 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(readNormalizedFile(path.join(workspace, '.env.example'))).toContain('ZTD_DB_PORT=5432');
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
     type?: string;
+    scripts?: Record<string, string>;
     dependencies: Record<string, string>;
     devDependencies: Record<string, string>;
     imports?: Record<string, { types: string; default: string }>;
     'lint-staged'?: Record<string, string[]>;
     'simple-git-hooks'?: Record<string, string>;
   };
+  expect(packageJson.scripts?.test).toContain('--passWithNoTests');
+  expect(packageJson.scripts?.test).not.toContain('no test specified');
   expect(packageJson['lint-staged']?.['*.{ts,tsx,js,jsx,json,md,sql}']).toEqual(['prettier --write']);
   expect(packageJson['simple-git-hooks']?.['pre-commit']).toBe('pnpm lint-staged');
   expect(packageJson.devDependencies).toHaveProperty('dotenv');
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/sql-contract');
   expect(packageJson.dependencies).toHaveProperty('@rawsql-ts/driver-adapter-core');
+  expect(packageJson.dependencies).not.toHaveProperty('@rawsql-ts/ztd-cli');
+  expect(packageJson.dependencies).not.toHaveProperty('rawsql-ts');
+  expect(packageJson.dependencies).not.toHaveProperty('@rawsql-ts/testkit-core');
+  expect(packageJson.dependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/driver-adapter-core');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-core');
   expect(packageJson.imports?.['#features/*.js']).toEqual({
@@ -263,6 +270,10 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'postgres-testkit.ts'))).toContain('loadStarterPostgresDefaults');
   expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'postgres-testkit.ts'))).toContain('ZTD_DB_URL');
   expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'postgres-testkit.ts'))).toContain('throw new Error');
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'postgres-testkit.ts'))).toContain('Copy `.env.example` to `.env`');
+  expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'postgres-testkit.ts'))).toContain('docker compose up -d');
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'ztd', 'verifier.ts'))).toContain('Copy `.env.example` to `.env`');
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'support', 'ztd', 'verifier.ts'))).toContain('all predefined address pools have been fully subnetted');
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"ztdRootDir": ".ztd"');
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"defaultSchema": "public"');
   expect(readNormalizedFile(path.join(workspace, 'ztd.config.json'))).toContain('"searchPath": [');
@@ -313,13 +324,20 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'src', 'adapters', 'console', 'repositoryTelemetry.ts'))).not.toContain('sqlText');
   const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
     type?: string;
+    scripts?: Record<string, string>;
     dependencies: Record<string, string>;
     devDependencies: Record<string, string>;
     imports?: Record<string, { types: string; default: string }>;
   };
+  expect(packageJson.scripts?.test).toContain('--passWithNoTests');
+  expect(packageJson.scripts?.test).not.toContain('no test specified');
   expect(packageJson.devDependencies).toHaveProperty('dotenv');
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/sql-contract');
   expect(packageJson.dependencies).toHaveProperty('@rawsql-ts/driver-adapter-core');
+  expect(packageJson.dependencies).not.toHaveProperty('@rawsql-ts/ztd-cli');
+  expect(packageJson.dependencies).not.toHaveProperty('rawsql-ts');
+  expect(packageJson.dependencies).not.toHaveProperty('@rawsql-ts/testkit-core');
+  expect(packageJson.dependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/driver-adapter-core');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-core');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-postgres');
@@ -461,6 +479,43 @@ test('init derives generated lint-staged hook command from the package manager l
     'simple-git-hooks'?: Record<string, string>;
   };
   expect(packageJson['simple-git-hooks']?.['pre-commit']).toBe('npx lint-staged');
+});
+
+test('init replaces the default npm test placeholder with the runnable scaffold test script', async () => {
+  const workspace = createTempDir('cli-init-npm-test-placeholder');
+  const prompter = new TestPrompter([]);
+  writeFileSync(
+    path.join(workspace, 'package.json'),
+    `${JSON.stringify(
+      {
+        name: 'npm-placeholder-starter',
+        version: '1.0.0',
+        scripts: {
+          test: 'echo "Error: no test specified" && exit 1',
+          custom: 'node custom.js'
+        }
+      },
+      null,
+      2
+    )}\n`,
+    'utf8'
+  );
+
+  await runInitCommand(prompter, {
+    rootDir: workspace,
+    nonInteractive: true,
+    forceOverwrite: true,
+    workflow: 'empty',
+    validator: 'zod',
+    skipInstall: true
+  });
+
+  const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    scripts?: Record<string, string>;
+  };
+  expect(packageJson.scripts?.test).toContain('--passWithNoTests');
+  expect(packageJson.scripts?.test).not.toContain('no test specified');
+  expect(packageJson.scripts?.custom).toBe('node custom.js');
 });
 
 test('default scaffold omits AI control files', async () => {

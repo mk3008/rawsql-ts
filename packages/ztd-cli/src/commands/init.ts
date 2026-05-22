@@ -1993,7 +1993,7 @@ function ensurePackageJsonFormatting(
 
   // Ensure the canonical formatting and lint scripts exist without overwriting custom commands.
   for (const [name, value] of Object.entries(requiredScripts)) {
-    if (name in scripts) {
+    if (name in scripts && !shouldReplaceScaffoldScript(name, scripts[name])) {
       continue;
     }
     scripts[name] = value;
@@ -2104,6 +2104,18 @@ function ensurePackageJsonFormatting(
   // Persist the updated manifest so the new scripts and tools are available immediately.
   dependencies.writeFile(packagePath, `${JSON.stringify(parsed, null, 2)}\n`);
   return { relativePath: relative, outcome: packageExists ? 'overwritten' : 'created' };
+}
+
+function shouldReplaceScaffoldScript(name: string, currentValue: string | undefined): boolean {
+  if (name !== 'test' || currentValue === undefined) {
+    return false;
+  }
+
+  const normalized = currentValue.trim().replace(/\s+/g, ' ');
+  return (
+    normalized === 'echo "Error: no test specified" && exit 1' ||
+    normalized === "echo 'Error: no test specified' && exit 1"
+  );
 }
 
 function resolveLintStagedCommand(packageManager: PackageManager): string {

@@ -12,6 +12,7 @@ Use this subagent after verification and reporting but before human review. Its 
 - Run `consistency review` first.
 - Run `human acceptance review` second.
 - Check the pre-PR retro gate before declaring review readiness.
+- Run `concept boundary review` as part of the finishing review for changed package behavior, generated scaffold output, docs, and PR wording. Read the owning package concept, package scope, technology policy, or Concept Spec when one exists, and check whether the change violates durable boundaries such as runtime-free standard paths, SQL-first visibility, human-owned concept authority, or package responsibility limits.
 - Use `.agents/skills/package-spec-review/SKILL.md` when package-level Scope, Test Policy, Authority Model, Technology Policy, review-plan, or generated review views are part of the change.
 - Use `.agents/skills/structured-metadata-migration-review/SKILL.md` when structured Concept Specs, rule registries, AI review JSON, relationship metadata, or generated review views are added or migrated.
 - Use `.agents/skills/broad-generated-diff-review-packet/SKILL.md` when generated docs, API docs, mass removals, or broad derived artifacts make normal review coverage hard to judge.
@@ -33,6 +34,7 @@ Use this subagent after verification and reporting but before human review. Its 
 Check that:
 
 - required sections are present,
+- changed behavior and generated output are consistent with the owning package concept or Concept Spec when one exists,
 - per-item reporting keeps `acceptance item`, `status`, `evidence`, and `gap` visible,
 - unresolved PR-blocking retro items are either closed or explicitly surfaced,
 - failed required checks are not dismissed as out of scope solely because they occur outside touched files,
@@ -41,6 +43,17 @@ Check that:
 - `tests were updated` and `tests passed` are not conflated,
 - GitHub-facing text does not contain local filesystem paths, and
 - the report does not overclaim beyond the stated evidence.
+
+## Concept Boundary Review
+
+Check that:
+
+- package changes do not contradict the package concept, package scope, technology policy, or approved Concept Specs,
+- `@rawsql-ts/ztd-cli` standard generated runtime remains runtime-free: no dependency on `ztd-cli`, `rawsql-ts`, runtime mapper libraries, runtime validator libraries, SQL JSON result shaping, or hidden business SQL rewriting in the standard scaffold path,
+- driver adapter behavior stays limited to driver-facing mechanics such as named-parameter compilation and row-result normalization,
+- test support, examples, and DB-backed starter guidance are not mistaken for production runtime requirements,
+- any deliberate concept or scope change is explicitly human-approved in the issue or PR text, and
+- concept review findings are triaged as blockers when they contradict durable package boundaries without an approved concept/scope change.
 
 ## Review Cycle 2: Human Acceptance Review
 

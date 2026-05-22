@@ -130,6 +130,8 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 
 - Development has two completion stages: first prove the feature and regression tests, then run a separate finishing review pass before PR handoff.
 - The finishing review pass must use the available self-review workflow or repo-local review skill, and it must look for cross-mode regressions such as direct command versus PR/worktree command behavior.
+- The finishing review pass must include a concept boundary review when the change touches package behavior, generated scaffold output, generated runtime code, docs, or PR wording. Read the owning package concept, package scope, technology policy, or Concept Spec when one exists.
+- For `@rawsql-ts/ztd-cli`, the concept boundary review must check that the standard generated runtime path remains runtime-free: no dependency on `ztd-cli`, `rawsql-ts`, runtime mapper libraries, runtime validator libraries, SQL JSON result shaping, or hidden business SQL rewriting. Test support and driver adapters may exist only within their stated non-ORM, driver/test roles.
 - Final PR text and final implementation reports must pass self-review before human review.
 - Before creating or editing a PR, read `.github/pull_request_template.md` and use `.agents/skills/pr-readiness/SKILL.md` when present.
 - Before claiming a PR is ready, run the repository PR readiness script locally when `scripts/check-pr-readiness.js` exists, or explicitly state why it could not be run.

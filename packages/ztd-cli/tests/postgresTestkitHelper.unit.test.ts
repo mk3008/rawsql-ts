@@ -63,7 +63,7 @@ test('createStarterPostgresTestkitClient requires an explicit connectionString o
         tableDefinitions: [],
         tableRows: []
       })
-    ).toThrow('Set options.connectionString or ZTD_DB_URL before creating a starter Postgres testkit client.');
+    ).toThrow(/Copy `.env\.example` to `.env`/);
   } finally {
     if (previous === undefined) {
       delete process.env.ZTD_DB_URL;

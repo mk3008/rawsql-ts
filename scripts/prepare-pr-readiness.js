@@ -26,6 +26,8 @@ function parseArgs(argv) {
     baselineRationale: '',
     selfReviewWorkflow: 'repo self-review workflow completed before PR authoring.',
     selfReviewResult: 'no unresolved self-review blockers.',
+    conceptReviewWorkflow: 'concept boundary review completed against the owning package concept or Concept Spec.',
+    conceptReviewResult: 'no unresolved concept or package-boundary violations.',
     cliMode: null,
     cliNoMigrationRationale: '',
     upgradeNote: '',
@@ -95,6 +97,14 @@ function parseArgs(argv) {
         break;
       case '--self-review-result':
         options.selfReviewResult = requireOperand(arg);
+        index += 1;
+        break;
+      case '--concept-review-workflow':
+        options.conceptReviewWorkflow = requireOperand(arg);
+        index += 1;
+        break;
+      case '--concept-review-result':
+        options.conceptReviewResult = requireOperand(arg);
         index += 1;
         break;
       case '--cli-mode':
@@ -195,6 +205,10 @@ function requireOption(condition, value, message) {
 }
 
 function renderPrReadinessBody({ classification, options }) {
+  const selfReviewWorkflow = options.selfReviewWorkflow ?? 'repo self-review workflow completed before PR authoring.';
+  const selfReviewResult = options.selfReviewResult ?? 'no unresolved self-review blockers.';
+  const conceptReviewWorkflow = options.conceptReviewWorkflow ?? 'concept boundary review completed against the owning package concept or Concept Spec.';
+  const conceptReviewResult = options.conceptReviewResult ?? 'no unresolved concept or package-boundary violations.';
   const lines = [
     '## Summary',
     '',
@@ -215,8 +229,10 @@ function renderPrReadinessBody({ classification, options }) {
     '',
     '## Self Review',
     '',
-    `Self-review workflow: ${options.selfReviewWorkflow}`,
-    `Self-review result: ${options.selfReviewResult}`,
+    `Self-review workflow: ${selfReviewWorkflow}`,
+    `Self-review result: ${selfReviewResult}`,
+    `Concept-review workflow: ${conceptReviewWorkflow}`,
+    `Concept-review result: ${conceptReviewResult}`,
     '',
     '## CLI Surface Migration',
     '',

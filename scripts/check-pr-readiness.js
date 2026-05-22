@@ -222,6 +222,18 @@ function validatePrReadiness({ body, classification, pullRequestContext = null }
     'Self-review result',
     'Self Review must state whether blockers remain.',
   );
+  requireField(
+    errors,
+    normalizedBody,
+    'Concept-review workflow',
+    'Self Review must name the concept review workflow, package concept, Concept Spec, or explicit no-concept-impact rationale that was checked.',
+  );
+  requireField(
+    errors,
+    normalizedBody,
+    'Concept-review result',
+    'Self Review must state whether concept or package-boundary violations remain.',
+  );
 
   if (classification.requiresCliMigrationPacket) {
     if (!/##\s+CLI Surface Migration/iu.test(normalizedBody)) {

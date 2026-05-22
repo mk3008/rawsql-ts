@@ -68,7 +68,7 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
 ): Promise<QuerySpecExecutionEvidence> {
   const connectionString = process.env.ZTD_DB_URL;
   if (!connectionString) {
-    throw new Error('Set ZTD_DB_URL before running query-boundary ZTD cases.');
+    throw new Error(buildStarterDbSetupMessage('query-boundary ZTD cases'));
   }
 
   const tableRows = flattenFixtureTableRows(querySpecCase.beforeDb).map((tableFixture) => ({
@@ -142,7 +142,7 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
   }
 
   if (failure) {
-    throw failure;
+    throw wrapStarterDbFailureIfHelpful(failure, 'query-boundary ZTD cases', connectionString);
   }
 
   return evidence;
@@ -154,7 +154,7 @@ export async function verifyQuerySpecTraditionalCase<BeforeDb extends FixtureTre
 ): Promise<QuerySpecExecutionEvidence> {
   const connectionString = process.env.ZTD_DB_URL;
   if (!connectionString) {
-    throw new Error('Set ZTD_DB_URL before running query-boundary traditional cases.');
+    throw new Error(buildStarterDbSetupMessage('query-boundary traditional cases'));
   }
 
   const trace: QueryExecutionTrace[] = [];
@@ -198,10 +198,73 @@ export async function verifyQuerySpecTraditionalCase<BeforeDb extends FixtureTre
   }
 
   if (failure) {
-    throw failure;
+    throw wrapStarterDbFailureIfHelpful(failure, 'query-boundary traditional cases', connectionString);
   }
 
   return evidence;
+}
+
+function buildStarterDbSetupMessage(context: string): string {
+  return [
+    `ZTD_DB_URL is not set before running ${context}.`,
+    '',
+    'Next steps:',
+    '1. Copy `.env.example` to `.env`.',
+    '2. Set `ZTD_DB_PORT=5432`, or choose another free host port.',
+    '3. Start the starter Postgres database with `docker compose up -d`.',
+    '4. Rerun `npx vitest run`.',
+    '',
+    'The generated Vitest setup derives `ZTD_DB_URL` from `ZTD_DB_PORT`.',
+    'If Docker reports `all predefined address pools have been fully subnetted`, fix Docker networking first; changing `ZTD_DB_PORT` alone will not recover that error.'
+  ].join('\n');
+}
+
+function wrapStarterDbFailureIfHelpful(error: unknown, context: string, connectionString: string): unknown {
+  if (!isStarterDbConnectionFailure(error)) {
+    return error;
+  }
+
+  const originalMessage = error instanceof Error ? error.message : String(error);
+  const wrapped = new Error(
+    [
+      `The starter Postgres database was not reachable while running ${context}.`,
+      '',
+      `Connection target: ${describeConnectionTarget(connectionString)}`,
+      `Original error: ${originalMessage}`,
+      '',
+      'Next steps:',
+      '1. Start the bundled database with `docker compose up -d`.',
+      '2. If port 5432 is already in use, set another `ZTD_DB_PORT` in `.env` and rerun `docker compose up -d`.',
+      '3. Wait until Postgres is ready, then rerun `npx vitest run`.',
+      '',
+      'If Docker reports `all predefined address pools have been fully subnetted`, fix Docker networking first; changing `ZTD_DB_PORT` alone will not recover that error.'
+    ].join('\n')
+  );
+  (wrapped as Error & { cause?: unknown }).cause = error;
+  return wrapped;
+}
+
+function isStarterDbConnectionFailure(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+
+  const code = 'code' in error ? String((error as { code?: unknown }).code) : '';
+  if (['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'ECONNRESET', 'EAI_AGAIN', '28P01', '3D000'].includes(code)) {
+    return true;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  return /connection terminated|connection timeout|password authentication failed|getaddrinfo|connect econnrefused/i.test(message);
+}
+
+function describeConnectionTarget(connectionString: string): string {
+  try {
+    const url = new URL(connectionString);
+    return `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}/${url.pathname.replace(/^\/+/, '')}`;
+  } catch {
+    return 'configured ZTD_DB_URL';
+  }
 }
 
 function flattenFixtureTableRows(
