@@ -17,6 +17,8 @@
 ## Routing
 - Use `.codex/agents/planning.md`, `.codex/agents/verification.md`, `.codex/agents/review.md`, and `.codex/agents/reporting.md` for developer workflow support.
 - Use `.agents/skills/acceptance-planning/SKILL.md`, `.agents/skills/self-review/SKILL.md`, `.agents/skills/package-spec-review/SKILL.md`, and `.agents/skills/attainment-reporting/SKILL.md` for repeatable planning, package spec review, review, and reporting workflows.
+- Use `.agents/skills/structured-metadata-migration-review/SKILL.md` for structured metadata migrations and rule registry changes that need schema, enum, fixture, evidence, and generated-view review.
+- Use `.agents/skills/broad-generated-diff-review-packet/SKILL.md` when broad generated docs, API docs, or derived artifacts may exceed review-tool limits and need scoped review packets.
 - `AGENTS.md` MUST stay policy-oriented; starter walkthroughs, AI onboarding prompts, dogfooding playbooks, and investigation scripts belong in dedicated docs or skills.
 
 ## Responsibility Split
@@ -53,6 +55,8 @@
 - Interrupt implementation with a user question only when the remaining ambiguity is consequential enough that proceeding risks the wrong outcome, unsafe edits, or misleading verification.
 
 ## Reporting Format
+- Structured metadata sources, schema files, implementation allowlists, fixtures, and generated review views MUST remain aligned when they describe the same review harness.
+- Broad generated docs or API diffs SHOULD preserve source-to-generated traceability so reviewers can inspect the source decision separately from deterministic output.
 - Reports MUST state the `Source request` or `Source issue` and `Why it matters` before item-level status.
 - Reports MUST state `What changed` before file inventory or file lists.
 - Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.
