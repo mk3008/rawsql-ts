@@ -152,6 +152,10 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(packageJson.devDependencies).toHaveProperty('dotenv');
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/sql-contract');
   expect(packageJson.dependencies).toHaveProperty('@rawsql-ts/driver-adapter-core');
+  expect(packageJson.dependencies).not.toHaveProperty('@rawsql-ts/ztd-cli');
+  expect(packageJson.dependencies).not.toHaveProperty('rawsql-ts');
+  expect(packageJson.dependencies).not.toHaveProperty('@rawsql-ts/testkit-core');
+  expect(packageJson.dependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/driver-adapter-core');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-core');
   expect(packageJson.imports?.['#features/*.js']).toEqual({
@@ -330,6 +334,10 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(packageJson.devDependencies).toHaveProperty('dotenv');
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/sql-contract');
   expect(packageJson.dependencies).toHaveProperty('@rawsql-ts/driver-adapter-core');
+  expect(packageJson.dependencies).not.toHaveProperty('@rawsql-ts/ztd-cli');
+  expect(packageJson.dependencies).not.toHaveProperty('rawsql-ts');
+  expect(packageJson.dependencies).not.toHaveProperty('@rawsql-ts/testkit-core');
+  expect(packageJson.dependencies).not.toHaveProperty('@rawsql-ts/testkit-postgres');
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/driver-adapter-core');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-core');
   expect(packageJson.devDependencies).toHaveProperty('@rawsql-ts/testkit-postgres');
