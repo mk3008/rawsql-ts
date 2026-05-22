@@ -82,6 +82,18 @@ test('published-package mode includes the rawsql-ts getting-started smoke path',
   expect(publishedPackageModeScript).toContain('const formatter = new SqlFormatter();');
 });
 
+test('published-package mode only runs the rawsql-ts getting-started smoke when its tarball is present', () => {
+  const coreSection = publishedPackageModeScript.slice(
+    publishedPackageModeScript.indexOf('function verifyCoreGettingStarted(packages) {'),
+    publishedPackageModeScript.indexOf('function verifyNpmPrimaryPath(packages) {'),
+  );
+
+  expect(coreSection).toContain('const tarballDependencies = createTarballDependencyMap(packages);');
+  expect(coreSection).toContain('if (!hasTarballDependency(tarballDependencies, "rawsql-ts")) {');
+  expect(coreSection).toContain('return null;');
+  expect(coreSection).toContain('"rawsql-ts": tarballDependencies["rawsql-ts"],');
+});
+
 test('published-package mode expects local-source guard scripts from npm consumer scaffolds', () => {
   const npmSection = publishedPackageModeScript.slice(
     publishedPackageModeScript.indexOf('function verifyNpmPrimaryPath(packages) {'),
@@ -131,9 +143,15 @@ test('packed tarball install smoke only runs commands for tarballs included in t
 });
 
 test('published-package smoke rebinds scaffold runtime dependencies to packed tarballs', () => {
-  expect(publishedPackageModeScript).toContain('for (const sectionName of ["dependencies", "optionalDependencies", "peerDependencies"])');
+  expect(publishedPackageModeScript).toContain('function createPublishedDependencyRangeMap(packages) {');
+  expect(publishedPackageModeScript).toContain('dependencyName === "rawsql-ts" || dependencyName.startsWith("@rawsql-ts/")');
+  expect(publishedPackageModeScript).toContain('for (const sectionName of ["dependencies", "optionalDependencies", "peerDependencies", "devDependencies"])');
   expect(publishedPackageModeScript).toContain('section[dependencyName] = tarballDependencies[dependencyName];');
-  expect(publishedPackageModeScript).toContain('restoreTarballDependencies(appDir, tarballDependencies);');
+  expect(publishedPackageModeScript).toContain('currentRange.startsWith("file:")');
+  expect(publishedPackageModeScript).toContain('section[dependencyName] = publishedDependencyRanges.get(dependencyName);');
+  expect(publishedPackageModeScript).toContain('fs.rmSync(path.join(directory, "package-lock.json"), { force: true });');
+  expect(publishedPackageModeScript).toContain('fs.rmSync(path.join(directory, "node_modules"), { force: true, recursive: true });');
+  expect(publishedPackageModeScript).toContain('restorePublishedDependencyRanges(appDir, packages);');
 });
 
 test('publish plan can include unpublished workspace dependencies required by published scaffolds', () => {
