@@ -38,6 +38,9 @@ The review source order is:
 - Ground semantic findings in the owning Package Scope Spec, Concept Spec, DFD, Process Map, DDL relationship metadata, or Test Policy.
 - When a changed artifact is business-bearing and unmapped, report a reviewability gap before reviewing implementation details.
 - Keep meaning review separate from mechanical check results: cite mechanical failures, then add semantic findings only where human judgment is needed.
+- Do not convert every missing detail into a blocker.
+- Block only when the missing concept, relationship, process, or scope decision prevents safe implementation judgment or breaks the intended business process.
+- Report intentionally unresolved items as unresolved-but-acceptable when they do not block the reviewed process or implementation decision.
 
 ## If No Review Plan Exists
 
@@ -111,6 +114,13 @@ pass | needs-revision | needs-human-decision
 - location or quote:
 - why it matters:
 - suggested direction:
+
+## Unresolved But Acceptable
+
+- item:
+- why it can remain unresolved:
+- revisit trigger:
+- owner or expected decision source:
 
 ## Human Decisions Required
 
