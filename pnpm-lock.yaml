@@ -509,6 +509,9 @@ importers:
 
   packages/ztd-cli:
     dependencies:
+      '@rawsql-ts/driver-adapter-core':
+        specifier: ^0.2.0
+        version: link:../drivers/driver-adapter-core
       '@rawsql-ts/sql-grep-core':
         specifier: ^0.1.10
         version: link:../sql-grep-core
@@ -540,9 +543,6 @@ importers:
       '@rawsql-ts/adapter-node-pg':
         specifier: ^0.15.9
         version: link:../adapters/adapter-node-pg
-      '@rawsql-ts/driver-adapter-core':
-        specifier: ^0.2.0
-        version: link:../drivers/driver-adapter-core
       '@rawsql-ts/testkit-core':
         specifier: ^0.17.0
         version: link:../testkit-core

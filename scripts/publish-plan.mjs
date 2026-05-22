@@ -61,6 +61,39 @@ function main() {
   const blockers = [];
   const notices = [];
   const publishCandidates = [];
+  const candidateNames = new Set();
+  const packageRegistryState = new Map();
+
+  function getRegistryState(pkg) {
+    const cached = packageRegistryState.get(pkg.name);
+    if (cached) {
+      return cached;
+    }
+
+    const existsOnRegistry = npmPackageExists(pkg.name);
+    const versionPublished = existsOnRegistry ? npmPackageVersionExists(pkg.name, pkg.version) : false;
+    const state = {
+      existsOnRegistry,
+      versionPublished,
+    };
+    packageRegistryState.set(pkg.name, state);
+    return state;
+  }
+
+  function addPublishCandidate(pkg) {
+    if (candidateNames.has(pkg.name)) {
+      return;
+    }
+
+    candidateNames.add(pkg.name);
+    publishCandidates.push({
+      name: pkg.name,
+      version: pkg.version,
+      dir: pkg.dir,
+      changelogPath: pkg.changelogPath,
+      workspaceDependencies: collectWorkspaceDependencyNames(pkg, workspaceNames),
+    });
+  }
 
   if (pendingChangesets.length > 0) {
     blockers.push({
@@ -76,8 +109,38 @@ function main() {
       continue;
     }
 
-    const existsOnRegistry = npmPackageExists(pkg.name);
-    if (!existsOnRegistry) {
+    const registryState = getRegistryState(pkg);
+    if (!registryState.existsOnRegistry || registryState.versionPublished) {
+      continue;
+    }
+
+    addPublishCandidate(pkg);
+  }
+
+  for (let index = 0; index < publishCandidates.length; index += 1) {
+    const candidate = publishCandidates[index];
+    for (const dependencyName of candidate.workspaceDependencies) {
+      const dependencyPkg = workspacePackages.get(dependencyName);
+      if (!dependencyPkg || dependencyPkg.private || candidateNames.has(dependencyName)) {
+        continue;
+      }
+
+      const dependencyRegistryState = getRegistryState(dependencyPkg);
+      if (dependencyRegistryState.versionPublished) {
+        continue;
+      }
+
+      addPublishCandidate(dependencyPkg);
+    }
+  }
+
+  for (const pkg of Array.from(workspacePackages.values()).sort((left, right) => left.name.localeCompare(right.name))) {
+    if (pkg.private || candidateNames.has(pkg.name)) {
+      continue;
+    }
+
+    const registryState = getRegistryState(pkg);
+    if (!registryState.existsOnRegistry) {
       notices.push({
         classification: "quality-issue",
         code: "unregistered-package",
@@ -85,21 +148,7 @@ function main() {
         packageName: pkg.name,
         version: pkg.version,
       });
-      continue;
     }
-
-    const alreadyPublished = npmPackageVersionExists(pkg.name, pkg.version);
-    if (alreadyPublished) {
-      continue;
-    }
-
-    publishCandidates.push({
-      name: pkg.name,
-      version: pkg.version,
-      dir: pkg.dir,
-      changelogPath: pkg.changelogPath,
-      workspaceDependencies: collectWorkspaceDependencyNames(pkg, workspaceNames),
-    });
   }
 
   const buildOrder = topoSortWorkspaceDependencies(
