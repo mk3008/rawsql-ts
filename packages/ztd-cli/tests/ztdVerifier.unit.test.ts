@@ -69,6 +69,45 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+test('verifyQuerySpecZtdCase explains how to create ZTD_DB_URL when the starter DB env is missing', async () => {
+  delete process.env.ZTD_DB_URL;
+
+  const { verifyQuerySpecZtdCase } = await import('../templates/tests/support/ztd/verifier');
+
+  await expect(
+    verifyQuerySpecZtdCase(
+      {
+        name: 'missing-db-url',
+        beforeDb: {},
+        input: {},
+        output: { ok: true }
+      },
+      async () => ({ ok: true })
+    )
+  ).rejects.toThrow(/Copy `\.env\.example` to `\.env`/);
+});
+
+test('verifyQuerySpecTraditionalCase adds starter recovery steps when Postgres is unreachable', async () => {
+  process.env.ZTD_DB_URL = 'postgres://ztd:ztd@localhost:55433/ztd';
+  const connectionError = new Error('connect ECONNREFUSED 127.0.0.1:55433') as Error & { code?: string };
+  connectionError.code = 'ECONNREFUSED';
+  poolConnectMock.mockRejectedValue(connectionError);
+
+  const { verifyQuerySpecTraditionalCase } = await import('../templates/tests/support/ztd/verifier');
+
+  await expect(
+    verifyQuerySpecTraditionalCase(
+      {
+        name: 'db-down',
+        beforeDb: {},
+        input: {},
+        output: { ok: true }
+      },
+      async () => ({ ok: true })
+    )
+  ).rejects.toThrow(/localhost:55433[\s\S]*docker compose up -d/);
+});
+
 test('verifyQuerySpecTraditionalCase physically prepares fixtures and returns traditional evidence', async () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-verifier-project-'));
   tempDirs.push(rootDir);

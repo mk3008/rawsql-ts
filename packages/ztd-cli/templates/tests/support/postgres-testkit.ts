@@ -96,9 +96,7 @@ export function createStarterPostgresTestkitClient<RowType extends Record<string
 ): PostgresTestkitClient<RowType> {
   const connectionString = options.connectionString ?? process.env.ZTD_DB_URL;
   if (!connectionString) {
-    throw new Error(
-      'Set options.connectionString or ZTD_DB_URL before creating a starter Postgres testkit client.'
-    );
+    throw new Error(buildStarterPostgresSetupMessage());
   }
 
   const defaults = loadStarterPostgresDefaults(options.rootDir);
@@ -106,11 +104,15 @@ export function createStarterPostgresTestkitClient<RowType extends Record<string
 
   return createPostgresTestkitClient({
     queryExecutor: async (sql, params) => {
-      const result = await pool.query(sql, params as unknown[]);
-      return {
-        rows: result.rows,
-        rowCount: result.rowCount ?? undefined
-      };
+      try {
+        const result = await pool.query(sql, params as unknown[]);
+        return {
+          rows: result.rows,
+          rowCount: result.rowCount ?? undefined
+        };
+      } catch (error) {
+        throw wrapStarterPostgresFailureIfHelpful(error, connectionString);
+      }
     },
     defaultSchema: options.defaultSchema ?? defaults.defaultSchema,
     searchPath: options.searchPath ?? defaults.searchPath,
@@ -123,6 +125,69 @@ export function createStarterPostgresTestkitClient<RowType extends Record<string
       await pool.end();
     }
   });
+}
+
+function buildStarterPostgresSetupMessage(): string {
+  return [
+    'ZTD_DB_URL is not set before creating a starter Postgres testkit client.',
+    '',
+    'Next steps:',
+    '1. Copy `.env.example` to `.env`.',
+    '2. Set `ZTD_DB_PORT=5432`, or choose another free host port.',
+    '3. Start the starter Postgres database with `docker compose up -d`.',
+    '4. Rerun `npx vitest run`.',
+    '',
+    'The generated Vitest setup derives `ZTD_DB_URL` from `ZTD_DB_PORT`.',
+    'If Docker reports `all predefined address pools have been fully subnetted`, fix Docker networking first; changing `ZTD_DB_PORT` alone will not recover that error.'
+  ].join('\n');
+}
+
+function wrapStarterPostgresFailureIfHelpful(error: unknown, connectionString: string): unknown {
+  if (!isStarterPostgresConnectionFailure(error)) {
+    return error;
+  }
+
+  const originalMessage = error instanceof Error ? error.message : String(error);
+  const wrapped = new Error(
+    [
+      'The starter Postgres database was not reachable while running a starter Postgres testkit query.',
+      '',
+      `Connection target: ${describeConnectionTarget(connectionString)}`,
+      `Original error: ${originalMessage}`,
+      '',
+      'Next steps:',
+      '1. Start the bundled database with `docker compose up -d`.',
+      '2. If port 5432 is already in use, set another `ZTD_DB_PORT` in `.env` and rerun `docker compose up -d`.',
+      '3. Wait until Postgres is ready, then rerun `npx vitest run`.',
+      '',
+      'If Docker reports `all predefined address pools have been fully subnetted`, fix Docker networking first; changing `ZTD_DB_PORT` alone will not recover that error.'
+    ].join('\n')
+  );
+  (wrapped as Error & { cause?: unknown }).cause = error;
+  return wrapped;
+}
+
+function isStarterPostgresConnectionFailure(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+
+  const code = 'code' in error ? String((error as { code?: unknown }).code) : '';
+  if (['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'ECONNRESET', 'EAI_AGAIN', '28P01', '3D000'].includes(code)) {
+    return true;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  return /connection terminated|connection timeout|password authentication failed|getaddrinfo|connect econnrefused/i.test(message);
+}
+
+function describeConnectionTarget(connectionString: string): string {
+  try {
+    const url = new URL(connectionString);
+    return `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}/${url.pathname.replace(/^\/+/, '')}`;
+  } catch {
+    return 'configured ZTD_DB_URL';
+  }
 }
 
 function resolveStarterDdlOptions(ddlDirectories: string[]): DdlFixtureLoaderOptions | undefined {
