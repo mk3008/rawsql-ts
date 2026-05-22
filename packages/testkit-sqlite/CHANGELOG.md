@@ -1,5 +1,13 @@
 # @rawsql-ts/testkit-sqlite
 
+## 1.0.6
+
+### Patch Changes
+
+- Updated dependencies [[`913e0b2`](https://github.com/mk3008/rawsql-ts/commit/913e0b2ea5d11a82cc0d81db210ce9fe744db3f9), [`167a557`](https://github.com/mk3008/rawsql-ts/commit/167a55772977da9b4b0a7f75afca37d972aed779), [`21bce06`](https://github.com/mk3008/rawsql-ts/commit/21bce0606888748b9c584c2a597f520f4d25602a), [`8d82bdf`](https://github.com/mk3008/rawsql-ts/commit/8d82bdfb00d3c18c2b188ee17130879f6aabc63b)]:
+  - @rawsql-ts/testkit-core@0.17.0
+  - rawsql-ts@0.21.0
+
 ## 1.0.5
 
 ### Patch Changes

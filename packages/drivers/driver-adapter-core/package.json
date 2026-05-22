@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/driver-adapter-core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Thin SQL driver adapter primitives for SQL-first rawsql-ts projects.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

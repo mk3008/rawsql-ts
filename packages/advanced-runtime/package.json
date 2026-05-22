@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/advanced-runtime",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Opt-in advanced runtime SQL helpers for rawsql-ts compatibility and dynamic execution paths.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
