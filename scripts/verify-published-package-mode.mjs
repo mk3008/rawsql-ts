@@ -251,6 +251,17 @@ function readPackageJson(directory) {
 function restoreTarballDependencies(directory, tarballDependencies) {
   const packageJsonPath = path.join(directory, "package.json");
   const packageJson = readPackageJson(directory);
+  for (const sectionName of ["dependencies", "optionalDependencies", "peerDependencies"]) {
+    const section = packageJson[sectionName];
+    if (!section || typeof section !== "object" || Array.isArray(section)) {
+      continue;
+    }
+    for (const dependencyName of Object.keys(section)) {
+      if (typeof tarballDependencies[dependencyName] === "string") {
+        section[dependencyName] = tarballDependencies[dependencyName];
+      }
+    }
+  }
   packageJson.devDependencies = {
     ...(packageJson.devDependencies ?? {}),
     ...tarballDependencies,
