@@ -1,5 +1,23 @@
 # @rawsql-ts/testkit-postgres
 
+## 0.16.0
+
+### Minor Changes
+
+- [#794](https://github.com/mk3008/rawsql-ts/pull/794) [`913e0b2`](https://github.com/mk3008/rawsql-ts/commit/913e0b2ea5d11a82cc0d81db210ce9fe744db3f9) Thanks [@mk3008](https://github.com/mk3008)! - Add DDL-derived view support for fixture-backed SELECT rewriting.
+
+  Normal `CREATE VIEW` definitions discovered from configured DDL files can now be expanded into view-name CTE shadows, allowing queries against supported views to run against the same base table fixtures used by Zero Table Dependency tests. Materialized, recursive, malformed, and cyclic view definitions fail with explicit unsupported errors.
+
+### Patch Changes
+
+- [#836](https://github.com/mk3008/rawsql-ts/pull/836) [`8d82bdf`](https://github.com/mk3008/rawsql-ts/commit/8d82bdfb00d3c18c2b188ee17130879f6aabc63b) Thanks [@mk3008](https://github.com/mk3008)! - Remove the workspace `@rawsql-ts/sql-contract` package from the standard runtime path.
+
+  `ztd-cli` generated query paths now continue toward runtime-free execution with thin executor calls and AOT generated row mappers. `testkit-postgres` now owns its small query-result normalization shape directly, and the node-pg adapter build no longer depends on the removed package.
+
+- Updated dependencies [[`913e0b2`](https://github.com/mk3008/rawsql-ts/commit/913e0b2ea5d11a82cc0d81db210ce9fe744db3f9), [`167a557`](https://github.com/mk3008/rawsql-ts/commit/167a55772977da9b4b0a7f75afca37d972aed779), [`21bce06`](https://github.com/mk3008/rawsql-ts/commit/21bce0606888748b9c584c2a597f520f4d25602a), [`8d82bdf`](https://github.com/mk3008/rawsql-ts/commit/8d82bdfb00d3c18c2b188ee17130879f6aabc63b)]:
+  - @rawsql-ts/testkit-core@0.17.0
+  - rawsql-ts@0.21.0
+
 ## 0.15.7
 
 ### Patch Changes

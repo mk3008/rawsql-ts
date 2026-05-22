@@ -1,5 +1,80 @@
 # @rawsql-ts/ztd-cli
 
+## 0.27.0
+
+### Minor Changes
+
+- [#807](https://github.com/mk3008/rawsql-ts/pull/807) [`b70e2a1`](https://github.com/mk3008/rawsql-ts/commit/b70e2a10a4adf559dd1226b83aec1ef7402e4530) Thanks [@mk3008](https://github.com/mk3008)! - Make `ztd feature scaffold` generate camelCase feature-boundary DTOs by default while keeping query-boundary params DB-shaped.
+
+  Generated feature boundaries now map camelCase request fields to explicit snake_case query params, map DB-shaped query results back into camelCase responses, and scaffold JSON/JSONB columns as object inputs when they can be represented safely.
+
+- [#811](https://github.com/mk3008/rawsql-ts/pull/811) [`8b01f35`](https://github.com/mk3008/rawsql-ts/commit/8b01f3574e6b9c3c30e8e66022015f62e77fb4b7) Thanks [@mk3008](https://github.com/mk3008)! - Add generated row mapper support for RFBA scaffolds.
+
+  New RFBA query scaffolds now include a machine-owned `generated/row-mapper.ts` file and use it from the query boundary by default, keeping the public boundary thin while avoiding runtime mapper overhead for standard scaffold output. Generated mapper files include a machine-owned header and are synchronized by `ztd feature generated-mapper generate`; `ztd feature generated-mapper check` fails on drift and prints the regeneration command for CI/test workflows.
+
+  List query generated mappers now emit preallocated-loop direct assignment instead of `rows.map(...)` with a per-row helper, preserving the normal scaffold usage model while keeping the generated mapper hot path closer to handwritten row projection.
+
+  The repository drift check now includes a real scaffold fixture so `pnpm verify:generated-mapper-drift` exercises a non-skip target in CI. If a generated mapper is stale, the check fails and reports the `ztd feature generated-mapper generate ...` command needed to refresh the machine-owned artifact.
+
+  ztd-cli can generate a narrowly scoped one-root/one-collection RFBA row mapper from query boundary metadata. The generated aggregation preserves SQL row order, respects nullable child presence guards, uses direct assignment without object spread in the hot loop, and serializes composite root keys with typed length-prefixed segments so delimiter characters inside key values do not collide. ztd-cli also reports a clear metadata requirement when `*GeneratedMapperMetadata` cannot be parsed.
+
+  `ztd model-gen` now preserves PostgreSQL `$n` placeholders when building live metadata probe SQL after named or positional parameter binding.
+
+- [#809](https://github.com/mk3008/rawsql-ts/pull/809) [`a7f0078`](https://github.com/mk3008/rawsql-ts/commit/a7f00785405cc65878a3e4bb07942b8a32a4af5a) Thanks [@mk3008](https://github.com/mk3008)! - Add an `--insert-default-policy` option to feature scaffolding so INSERT templates can either copy DDL default expressions into SQL with `explicit-defaults` or omit DB-default columns with `omit-db-defaults`.
+
+- [#808](https://github.com/mk3008/rawsql-ts/pull/808) [`167a557`](https://github.com/mk3008/rawsql-ts/commit/167a55772977da9b4b0a7f75afca37d972aed779) Thanks [@mk3008](https://github.com/mk3008)! - Export rawsql-ts tokenizer metadata and add an opt-in `ztd query lint --rules leading-comma` SQL style rule that reports multiline trailing commas without rewriting SQL comments.
+
+- [#786](https://github.com/mk3008/rawsql-ts/pull/786) [`ccc334e`](https://github.com/mk3008/rawsql-ts/commit/ccc334ef02a6d03f1b76f1bdeb5059585c3a111e) Thanks [@mk3008](https://github.com/mk3008)! - Remove customer-facing AI control file distribution from `ztd-cli`.
+
+  This removes the `ztd agents` command group, removes the `ztd init` AI guidance flags, and stops starter/init scaffolds from distributing `AGENTS.md`, `.codex/**`, `CONTEXT.md`, `PROMPT_DOGFOOD.md`, or `.ztd/agents/**` artifacts.
+
+- [#792](https://github.com/mk3008/rawsql-ts/pull/792) [`77c206c`](https://github.com/mk3008/rawsql-ts/commit/77c206ccd757ab61ae3571a49c9388ee826ac11e) Thanks [@mk3008](https://github.com/mk3008)! - Add `ztd rfba inspect` as a read-only RFBA boundary inspection command.
+
+  The command reports starter root boundaries, feature boundaries, query sub-boundaries, likely public surface files, SQL assets, generated artifacts, local verification files, and structural warnings in text or deterministic JSON output.
+
+- [#814](https://github.com/mk3008/rawsql-ts/pull/814) [`087b6e8`](https://github.com/mk3008/rawsql-ts/commit/087b6e8882d1044c092f69e0e6cb0a87e6bea53e) Thanks [@mk3008](https://github.com/mk3008)! - Improve RFBA feature scaffolding so `ztd feature scaffold` now generates feature-local `input.ts`, `workflow.ts`, and `output.ts` alongside a thin `boundary.ts`.
+
+  The generated boundary now reads as an `input -> workflow -> output` review flow, while workflow code accepts query ports so tests do not need to infer query identity from SQL text that may be transformed before execution. Multi-query `feature tests scaffold` failures now include the discovered query names and concrete `--query` commands to run.
+
+- [#797](https://github.com/mk3008/rawsql-ts/pull/797) [`25d26c6`](https://github.com/mk3008/rawsql-ts/commit/25d26c6489ce80bb96c96bbcb77713a58e7a99d5) Thanks [@mk3008](https://github.com/mk3008)! - Add `ztd rfba review-data` to generate deterministic RFBA review packet JSON from Git diffs. The command classifies changed files, maps changes to RFBA boundaries, summarizes supported DDL and SQL changes, groups verification evidence, and writes CI-friendly JSON with review hints and warnings.
+
+- [#791](https://github.com/mk3008/rawsql-ts/pull/791) [`c6d9f6b`](https://github.com/mk3008/rawsql-ts/commit/c6d9f6b8a3d3ec4e94b0e8ead586432fa07217c4) Thanks [@mk3008](https://github.com/mk3008)! - Align `ztd check contract` and `ztd evidence` with RFBA feature-local QuerySpec discovery. Both commands now scan project QuerySpec-like assets by default, support `--scope-dir` for feature or subtree reviews, and keep `--specs-dir` as the legacy fixed catalog-spec override.
+
+- [#836](https://github.com/mk3008/rawsql-ts/pull/836) [`8d82bdf`](https://github.com/mk3008/rawsql-ts/commit/8d82bdfb00d3c18c2b188ee17130879f6aabc63b) Thanks [@mk3008](https://github.com/mk3008)! - Add a thin SQL driver adapter core package and update standard ztd-cli scaffolds so SQL files can keep readable named parameters while node-postgres receives positional placeholders at execution time.
+
+### Patch Changes
+
+- [#805](https://github.com/mk3008/rawsql-ts/pull/805) [`304252a`](https://github.com/mk3008/rawsql-ts/commit/304252a84a1bd4f38272dc33bb2732a69850182a) Thanks [@mk3008](https://github.com/mk3008)! - Improve generated starter templates for formatting hooks, SQL client adapter contracts, query-boundary test types, config normalization, and traditional queryspec schema rewriting.
+
+- [#806](https://github.com/mk3008/rawsql-ts/pull/806) [`eb01f7e`](https://github.com/mk3008/rawsql-ts/commit/eb01f7e815b9763399a011d06527cf52c718b7d9) Thanks [@mk3008](https://github.com/mk3008)! - Document the RFBA feature/query test lane split in the canonical guide and generated scaffold guidance.
+
+  The generated guidance now makes feature-boundary tests mock child query boundaries for validation, mapping, and orchestration, while query-boundary tests own SQL behavior through ZTD or another SQL-specific lane. It also clarifies that `src/libraries/` is only for driver-neutral code reusable enough to stand as an external package, not feature-specific validation or helpers.
+
+- [#836](https://github.com/mk3008/rawsql-ts/pull/836) [`8d82bdf`](https://github.com/mk3008/rawsql-ts/commit/8d82bdfb00d3c18c2b188ee17130879f6aabc63b) Thanks [@mk3008](https://github.com/mk3008)! - Remove the workspace `@rawsql-ts/sql-contract` package from the standard runtime path.
+
+  `ztd-cli` generated query paths now continue toward runtime-free execution with thin executor calls and AOT generated row mappers. `testkit-postgres` now owns its small query-result normalization shape directly, and the node-pg adapter build no longer depends on the removed package.
+
+- [#782](https://github.com/mk3008/rawsql-ts/pull/782) [`8d2af8f`](https://github.com/mk3008/rawsql-ts/commit/8d2af8f7fa1c9f72c32d19b3fb1319f1c4d27ce6) Thanks [@mk3008](https://github.com/mk3008)! - Rename the documented architecture guidance from BFA to RFBA (Review-First Backend Architecture), add a "What Is RFBA?" guide, and clarify the `root-boundary`, `feature-boundary`, and `sub-boundary` structural vocabulary in the `ztd-cli` docs and generated feature README guidance.
+
+  This update keeps `boundary.ts` as the default scaffold convention inside `src/features/*` while making it clear that RFBA is defined by review responsibility, DDL as the data-structure source of truth, visible SQL review boundaries, public surfaces, dependency direction, and boundary-local verification rather than by one universal filename.
+
+- [#793](https://github.com/mk3008/rawsql-ts/pull/793) [`eb89983`](https://github.com/mk3008/rawsql-ts/commit/eb89983c5276632e2039c995d6b3bc25aa2648a8) Thanks [@mk3008](https://github.com/mk3008)! - Wire the generated traditional QuerySpec test lane to an active physical runner.
+
+  The scaffold now generates traditional test cases that execute against isolated physical database setup, records mode-specific evidence, supports optional `afterDb` assertions, and keeps the starter setup environment dependency available during package tests.
+
+- [#790](https://github.com/mk3008/rawsql-ts/pull/790) [`1e2107a`](https://github.com/mk3008/rawsql-ts/commit/1e2107ac7f0254937da5863173658566d53d7a4b) Thanks [@mk3008](https://github.com/mk3008)! - Make `ztd feature tests scaffold` generate query-local ZTD case scaffolds as explicit TODO placeholders.
+
+  The generated ZTD Vitest entrypoint now starts skipped until the case values are filled, and the placeholder case includes CLI-discovered table, input, and output hints so users and AI agents can see what still needs to be completed before enabling the test.
+
+- [#810](https://github.com/mk3008/rawsql-ts/pull/810) [`e2896a9`](https://github.com/mk3008/rawsql-ts/commit/e2896a903eb80f293b398fa34934b53485be1458) Thanks [@mk3008](https://github.com/mk3008)! - Clarify ZTD constraint coverage in generated query-boundary scaffolds.
+
+  `ztd feature tests scaffold` now records constraint-boundary guidance in generated test plans, analysis JSON, and JSON command output. When DDL for the affected tables contains PostgreSQL constraints that the ZTD fixture/CTE lane does not fully enforce, the scaffold emits TODO guidance that points users to traditional physical DB coverage for DB-enforced failure behavior.
+
+- Updated dependencies [[`167a557`](https://github.com/mk3008/rawsql-ts/commit/167a55772977da9b4b0a7f75afca37d972aed779), [`21bce06`](https://github.com/mk3008/rawsql-ts/commit/21bce0606888748b9c584c2a597f520f4d25602a), [`8d82bdf`](https://github.com/mk3008/rawsql-ts/commit/8d82bdfb00d3c18c2b188ee17130879f6aabc63b), [`8d82bdf`](https://github.com/mk3008/rawsql-ts/commit/8d82bdfb00d3c18c2b188ee17130879f6aabc63b), [`927dc07`](https://github.com/mk3008/rawsql-ts/commit/927dc07efeb6188f286f030e9585f7651517d0fc)]:
+  - rawsql-ts@0.21.0
+  - @rawsql-ts/adapter-node-pg@0.15.9
+  - @rawsql-ts/sql-grep-core@0.1.10
+
 ## 0.26.0
 
 ### Minor Changes

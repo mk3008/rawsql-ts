@@ -1,5 +1,19 @@
 # rawsql-ts
 
+## 0.21.0
+
+### Minor Changes
+
+- [#808](https://github.com/mk3008/rawsql-ts/pull/808) [`167a557`](https://github.com/mk3008/rawsql-ts/commit/167a55772977da9b4b0a7f75afca37d972aed779) Thanks [@mk3008](https://github.com/mk3008)! - Export rawsql-ts tokenizer metadata and add an opt-in `ztd query lint --rules leading-comma` SQL style rule that reports multiline trailing commas without rewriting SQL comments.
+
+- [#836](https://github.com/mk3008/rawsql-ts/pull/836) [`8d82bdf`](https://github.com/mk3008/rawsql-ts/commit/8d82bdfb00d3c18c2b188ee17130879f6aabc63b) Thanks [@mk3008](https://github.com/mk3008)! - Remove SQL-result JSON shaping APIs from core.
+
+  `PostgresJsonQueryBuilder`, JSON mapping converters, JSON schema validation helpers, and `DynamicQueryBuilder` JSON serialization options have been removed. Keep executed SQL as ordinary row/column SQL and build response shape with generated AOT mappers so reviewed SQL and executed SQL remain debuggable.
+
+### Patch Changes
+
+- [#824](https://github.com/mk3008/rawsql-ts/pull/824) [`21bce06`](https://github.com/mk3008/rawsql-ts/commit/21bce0606888748b9c584c2a597f520f4d25602a) Thanks [@mk3008](https://github.com/mk3008)! - Avoid eager SQL formatter initialization when loading the package root so Node 20 CLI help paths can import rawsql-ts without triggering a circular initialization error.
+
 ## 0.20.0
 
 ### Minor Changes

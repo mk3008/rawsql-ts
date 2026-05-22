@@ -1,5 +1,20 @@
 # @rawsql-ts/adapter-node-pg
 
+## 0.15.9
+
+### Patch Changes
+
+- [#836](https://github.com/mk3008/rawsql-ts/pull/836) [`8d82bdf`](https://github.com/mk3008/rawsql-ts/commit/8d82bdfb00d3c18c2b188ee17130879f6aabc63b) Thanks [@mk3008](https://github.com/mk3008)! - Remove the workspace `@rawsql-ts/sql-contract` package from the standard runtime path.
+
+  `ztd-cli` generated query paths now continue toward runtime-free execution with thin executor calls and AOT generated row mappers. `testkit-postgres` now owns its small query-result normalization shape directly, and the node-pg adapter build no longer depends on the removed package.
+
+- [#837](https://github.com/mk3008/rawsql-ts/pull/837) [`927dc07`](https://github.com/mk3008/rawsql-ts/commit/927dc07efeb6188f286f030e9585f7651517d0fc) Thanks [@mk3008](https://github.com/mk3008)! - Clarify that `@rawsql-ts/adapter-node-pg` is the compatible legacy package name for the node-postgres testkit adapter, not the production driver adapter package space. The docs now separate production `driver-adapter-*` packages from future `testkit-adapter-*` packages and describe the non-breaking rename path toward an alias such as `@rawsql-ts/testkit-adapter-node-postgres`.
+
+- Updated dependencies [[`913e0b2`](https://github.com/mk3008/rawsql-ts/commit/913e0b2ea5d11a82cc0d81db210ce9fe744db3f9), [`167a557`](https://github.com/mk3008/rawsql-ts/commit/167a55772977da9b4b0a7f75afca37d972aed779), [`21bce06`](https://github.com/mk3008/rawsql-ts/commit/21bce0606888748b9c584c2a597f520f4d25602a), [`8d82bdf`](https://github.com/mk3008/rawsql-ts/commit/8d82bdfb00d3c18c2b188ee17130879f6aabc63b), [`8d82bdf`](https://github.com/mk3008/rawsql-ts/commit/8d82bdfb00d3c18c2b188ee17130879f6aabc63b)]:
+  - @rawsql-ts/testkit-core@0.17.0
+  - @rawsql-ts/testkit-postgres@0.16.0
+  - rawsql-ts@0.21.0
+
 ## 0.15.8
 
 ### Patch Changes
