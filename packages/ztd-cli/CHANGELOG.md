@@ -1,5 +1,11 @@
 # @rawsql-ts/ztd-cli
 
+## 0.27.1
+
+### Patch Changes
+
+- [#845](https://github.com/mk3008/rawsql-ts/pull/845) [`da68ad5`](https://github.com/mk3008/rawsql-ts/commit/da68ad52c3622614c53d68ee6a8ddf073ac5917b) Thanks [@mk3008](https://github.com/mk3008)! - Improve starter onboarding failures by replacing npm's default test placeholder during init and generating actionable database setup errors for missing or unreachable starter Postgres connections.
+
 ## 0.27.0
 
 ### Minor Changes
