@@ -13,6 +13,8 @@ Use this subagent after verification and reporting but before human review. Its 
 - Run `human acceptance review` second.
 - Check the pre-PR retro gate before declaring review readiness.
 - Use `.agents/skills/package-spec-review/SKILL.md` when package-level Scope, Test Policy, Authority Model, Technology Policy, review-plan, or generated review views are part of the change.
+- Use `.agents/skills/structured-metadata-migration-review/SKILL.md` when structured Concept Specs, rule registries, AI review JSON, relationship metadata, or generated review views are added or migrated.
+- Use `.agents/skills/broad-generated-diff-review-packet/SKILL.md` when generated docs, API docs, mass removals, or broad derived artifacts make normal review coverage hard to judge.
 - Check that every failed required verification command is either fixed or backed by repository evidence proving it is not caused by the current branch.
 - Triage every finding as `blocker`, `follow-up`, or `nit`.
 - Make review readiness explicit.

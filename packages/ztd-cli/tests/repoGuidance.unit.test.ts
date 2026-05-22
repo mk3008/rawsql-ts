@@ -18,6 +18,8 @@ test('repo-local Codex guidance files exist and point at developer workflows', (
   expect(existsSync(resolve(repoRoot, '.agents', 'skills', 'self-review', 'SKILL.md'))).toBe(true);
   expect(existsSync(resolve(repoRoot, '.agents', 'skills', 'package-spec-review', 'SKILL.md'))).toBe(true);
   expect(existsSync(resolve(repoRoot, '.agents', 'skills', 'attainment-reporting', 'SKILL.md'))).toBe(true);
+  expect(existsSync(resolve(repoRoot, '.agents', 'skills', 'structured-metadata-migration-review', 'SKILL.md'))).toBe(true);
+  expect(existsSync(resolve(repoRoot, '.agents', 'skills', 'broad-generated-diff-review-packet', 'SKILL.md'))).toBe(true);
 });
 
 test('planning guidance covers acceptance items and verification methods', () => {
@@ -44,6 +46,8 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   const reportingSkill = readText('.agents/skills/attainment-reporting/SKILL.md');
   const reviewSkill = readText('.agents/skills/self-review/SKILL.md');
   const packageSpecSkill = readText('.agents/skills/package-spec-review/SKILL.md');
+  const structuredMetadataSkill = readText('.agents/skills/structured-metadata-migration-review/SKILL.md');
+  const broadGeneratedDiffSkill = readText('.agents/skills/broad-generated-diff-review-packet/SKILL.md');
   const reportingAgent = readText('.codex/agents/reporting.md');
   const reviewAgent = readText('.codex/agents/review.md');
   const rootAgents = readText('AGENTS.md');
@@ -104,15 +108,28 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(packageSpecSkill).toContain('Package Technology Policy');
   expect(packageSpecSkill).toContain('technology-policy exception warnings');
   expect(packageSpecSkill).toContain('Web UI as a transfer package front-facing surface');
+  expect(structuredMetadataSkill).toContain('schemaVersion');
+  expect(structuredMetadataSkill).toContain('canonical enum');
+  expect(structuredMetadataSkill).toContain('real structured parser');
+  expect(structuredMetadataSkill).toContain('Evidence and display-label');
+  expect(broadGeneratedDiffSkill).toContain('Review Packet Shape');
+  expect(broadGeneratedDiffSkill).toContain('review-tool limits');
+  expect(broadGeneratedDiffSkill).toContain('source-to-generated traceability');
   expect(reviewAgent).toContain('Review Cycle 1: Consistency Review');
   expect(reviewAgent).toContain('Review Cycle 2: Human Acceptance Review');
   expect(reviewAgent).toContain('.agents/skills/package-spec-review/SKILL.md');
+  expect(reviewAgent).toContain('.agents/skills/structured-metadata-migration-review/SKILL.md');
+  expect(reviewAgent).toContain('.agents/skills/broad-generated-diff-review-packet/SKILL.md');
   expect(reviewAgent).toContain('Triage Rules');
   expect(reviewAgent).toContain('Unsupported `done` claims based mainly on supplementary evidence are blockers.');
   expect(reviewAgent).toContain('If a blocker remains, the result is not ready for human review.');
   expect(rootAgents).toContain('Keep assistant-user conversation in Japanese in this repository.');
   expect(rootAgents).toContain('Keep scaffold code, scaffold-facing docs, and published-package smoke checks aligned when they describe the same workflow.');
   expect(rootAgents).toContain('.agents/skills/package-spec-review/SKILL.md');
+  expect(rootAgents).toContain('.agents/skills/structured-metadata-migration-review/SKILL.md');
+  expect(rootAgents).toContain('.agents/skills/broad-generated-diff-review-packet/SKILL.md');
+  expect(rootAgents).toContain('Keep structured metadata sources, schema files, implementation allowlists, fixtures, and generated review views aligned');
+  expect(rootAgents).toContain('Broad generated docs or API diffs should preserve source-to-generated traceability');
   expect(rootAgents).toContain('Do not turn `AGENTS.md` into the storage location for starter walkthroughs, AI onboarding prompts, dogfooding playbooks, or investigation scripts; keep those in dedicated docs or skills.');
   expect(rootAgents).toContain('For local-source dogfooding or scaffold developer-mode flows, fail fast when dependencies or CLI entrypoints are missing and make the next recovery step explicit.');
   expect(rootAgents).toContain('Do not overwrite scaffold-owned or user-authored files without an explicit force path; failed initialization must not leave partial overwrites behind.');
@@ -125,6 +142,10 @@ test('reporting guidance covers reviewer-facing and operator-facing reporting sh
   expect(mirrorAgents).toContain('All assistant-user conversation in this repository must be in Japanese.');
   expect(mirrorAgents).toContain('Keep scaffold code, scaffold-facing docs, and published-package smoke checks aligned when they describe the same workflow.');
   expect(mirrorAgents).toContain('`AGENTS.md` MUST stay policy-oriented; starter walkthroughs, AI onboarding prompts, dogfooding playbooks, and investigation scripts belong in dedicated docs or skills.');
+  expect(mirrorAgents).toContain('structured-metadata-migration-review/SKILL.md');
+  expect(mirrorAgents).toContain('broad-generated-diff-review-packet/SKILL.md');
+  expect(mirrorAgents).toContain('Structured metadata sources, schema files, implementation allowlists, fixtures, and generated review views MUST remain aligned');
+  expect(mirrorAgents).toContain('Broad generated docs or API diffs SHOULD preserve source-to-generated traceability');
   expect(mirrorAgents).toContain('Local-source dogfooding and scaffold developer-mode flows MUST fail fast when dependencies or CLI entrypoints are missing, and the next recovery step MUST be explicit.');
   expect(mirrorAgents).toContain('Scaffold-owned or user-authored files MUST NOT be overwritten without an explicit force path, and failed initialization MUST NOT leave partial overwrites behind.');
   expect(mirrorAgents).toContain('Reports MUST use an itemized structure with `acceptance item`, `status`, `evidence`, and `gap`.');

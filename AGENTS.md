@@ -19,6 +19,8 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 - Root `AGENTS.md` defines repository-wide policy only; detailed output formats and workflows belong to subagent or skill guidance.
 - Before substantial multi-step work, read the relevant guidance under `.codex/agents/` or `.agents/skills/` instead of relying on root policy alone.
 - For package-level Scope, Test Policy, Authority Model, Technology Policy, review-plan, or generated review view changes, use `.agents/skills/package-spec-review/SKILL.md`.
+- For structured metadata migrations or rule registry changes, use `.agents/skills/structured-metadata-migration-review/SKILL.md` to check schema versioning, canonical enum parity, real fixture parsing, and evidence/display-label integrity.
+- For broad generated or derived diffs that may exceed review-tool limits, use `.agents/skills/broad-generated-diff-review-packet/SKILL.md` to prepare scoped review packets before PR handoff.
 - Do not turn `AGENTS.md` into the storage location for starter walkthroughs, AI onboarding prompts, dogfooding playbooks, or investigation scripts; keep those in dedicated docs or skills.
 
 ## Documentation Guardrails
@@ -27,6 +29,8 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 - Keep human-facing docs scannable: prefer short headings, short paragraphs, short sentences, and strong structure.
 - Prefer separation over deletion: if content is too detailed for README, move it to linked docs instead of silently dropping important information.
 - Keep repository facts, commands, contracts, and file layout accurate and easy to verify.
+- Keep structured metadata sources, schema files, implementation allowlists, fixtures, and generated review views aligned when they describe the same review harness.
+- Broad generated docs or API diffs should preserve source-to-generated traceability so reviewers can inspect the source decision separately from deterministic output.
 
 ### README Mode Rules
 
