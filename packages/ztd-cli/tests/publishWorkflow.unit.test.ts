@@ -57,7 +57,11 @@ test('standalone pnpm proof apps use the installed ztd bin helper instead of pnp
     publishedPackageModeScript.indexOf('function verifyPnpmAdapterInstall(packages) {'),
   );
   expect(starterSection).toContain('runInstalledZtdCli(appDir,');
-  expect(starterSection).not.toContain('"exec"');
+  expect(starterSection).not.toContain('"exec",\n    "ztd"');
+  expect(starterSection).toContain('"tsc", "--noEmit", "-p", "tsconfig.json"');
+  expect(starterSection).toContain('"src/features/smoke/tests/smoke.boundary.test.ts"');
+  expect(starterSection).toContain('"src/features/smoke/tests/smoke.validation.test.ts"');
+  expect(starterSection).toContain('runInstalledZtdCli(appDir, ["ztd-config"])');
 
   const adapterSection = publishedPackageModeScript.slice(
     publishedPackageModeScript.indexOf('function verifyPnpmAdapterInstall(packages) {'),
