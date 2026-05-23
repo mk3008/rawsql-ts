@@ -1,5 +1,11 @@
 # @rawsql-ts/ztd-cli
 
+## 0.27.2
+
+### Patch Changes
+
+- [#848](https://github.com/mk3008/rawsql-ts/pull/848) [`ab62ac5`](https://github.com/mk3008/rawsql-ts/commit/ab62ac5b26cb14a10cc8905fceabcf2590fe4a27) Thanks [@mk3008](https://github.com/mk3008)! - Tighten the starter first-run experience by keeping the generated smoke QuerySpec typecheckable, wrapping aggregate Postgres connection failures with concise recovery steps, and extending publish artifact verification to run starter typecheck, DB-free smoke tests, and ztd-config before release.
+
 ## 0.27.1
 
 ### Patch Changes
