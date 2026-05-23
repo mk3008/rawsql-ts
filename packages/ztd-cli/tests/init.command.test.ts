@@ -264,6 +264,9 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'smoke.sql'))).toContain('where user_id = :user_id::integer');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'boundary.ts'))).toContain('executeSmokeQuerySpec');
   expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'boundary.ts'))).toContain('loadSqlResource');
+  expect(readNormalizedFile(path.join(workspace, 'src', 'features', 'smoke', 'queries', 'smoke', 'boundary.ts'))).toContain(
+    'export interface SmokeQueryParams extends Record<string, unknown>'
+  );
   expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain('ZTD_DB_PORT');
   expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'setup-env.ts'))).toContain('ZTD_DB_URL');
   expect(readNormalizedFile(path.join(workspace, '.ztd', 'support', 'postgres-testkit.ts'))).toContain('createPostgresTestkitClient');

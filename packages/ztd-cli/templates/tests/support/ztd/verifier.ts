@@ -111,8 +111,8 @@ export async function verifyQuerySpecZtdCase<BeforeDb extends FixtureTree, Input
       }
     });
 
-    const result = execute(createQuerySpecExecutor(testkitClient, trace), querySpecCase.input);
-    await expect(result).resolves.toEqual(querySpecCase.output);
+    const result = await execute(createQuerySpecExecutor(testkitClient, trace), querySpecCase.input);
+    expect(result).toEqual(querySpecCase.output);
     if (trace.length === 0) {
       throw new Error(
         `ZTD verifier did not execute any SQL for case "${querySpecCase.name}". Check the query boundary and fixture setup before accepting the case.`
@@ -165,8 +165,8 @@ export async function verifyQuerySpecTraditionalCase<BeforeDb extends FixtureTre
 
   try {
     client = await createPhysicalQuerySpecExecutor(pool, defaults, querySpecCase.beforeDb, trace);
-    const result = execute(client, querySpecCase.input);
-    await expect(result).resolves.toEqual(querySpecCase.output);
+    const result = await execute(client, querySpecCase.input);
+    expect(result).toEqual(querySpecCase.output);
     if (querySpecCase.afterDb) {
       await client.assertAfterDb(querySpecCase.afterDb);
     }
@@ -224,7 +224,7 @@ function wrapStarterDbFailureIfHelpful(error: unknown, context: string, connecti
     return error;
   }
 
-  const originalMessage = error instanceof Error ? error.message : String(error);
+  const originalMessage = describeStarterDbOriginalError(error);
   const wrapped = new Error(
     [
       `The starter Postgres database was not reachable while running ${context}.`,
@@ -234,19 +234,53 @@ function wrapStarterDbFailureIfHelpful(error: unknown, context: string, connecti
       '',
       'Next steps:',
       '1. Start the bundled database with `docker compose up -d`.',
-      '2. If port 5432 is already in use, set another `ZTD_DB_PORT` in `.env` and rerun `docker compose up -d`.',
+      '2. If the configured host port is already in use, set another `ZTD_DB_PORT` in `.env` and rerun `docker compose up -d`.',
       '3. Wait until Postgres is ready, then rerun `npx vitest run`.',
       '',
       'If Docker reports `all predefined address pools have been fully subnetted`, fix Docker networking first; changing `ZTD_DB_PORT` alone will not recover that error.'
     ].join('\n')
   );
-  (wrapped as Error & { cause?: unknown }).cause = error;
   return wrapped;
+}
+
+function describeStarterDbOriginalError(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'errors' in error &&
+    Array.isArray((error as { errors?: unknown }).errors)
+  ) {
+    const messages = (error as { errors: unknown[] }).errors
+      .map((innerError) => (innerError instanceof Error ? innerError.message : String(innerError)))
+      .filter((message) => message.trim().length > 0);
+
+    if (messages.length > 0) {
+      return messages.join('; ');
+    }
+  }
+
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  return String(error);
 }
 
 function isStarterDbConnectionFailure(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) {
     return false;
+  }
+
+  if (
+    'errors' in error &&
+    Array.isArray((error as { errors?: unknown }).errors) &&
+    (error as { errors: unknown[] }).errors.some((innerError) => isStarterDbConnectionFailure(innerError))
+  ) {
+    return true;
+  }
+
+  if ('cause' in error && isStarterDbConnectionFailure((error as { cause?: unknown }).cause)) {
+    return true;
   }
 
   const code = 'code' in error ? String((error as { code?: unknown }).code) : '';

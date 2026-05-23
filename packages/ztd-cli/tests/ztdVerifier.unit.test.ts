@@ -108,6 +108,43 @@ test('verifyQuerySpecTraditionalCase adds starter recovery steps when Postgres i
   ).rejects.toThrow(/localhost:55433[\s\S]*docker compose up -d/);
 });
 
+test('verifyQuerySpecZtdCase wraps AggregateError connection failures with starter recovery steps', async () => {
+  process.env.ZTD_DB_URL = 'postgres://ztd:ztd@localhost:15432/ztd';
+  const aggregateError = new AggregateError(
+    [
+      Object.assign(new Error('connect ECONNREFUSED ::1:15432'), {
+        code: 'ECONNREFUSED',
+        address: '::1',
+        port: 15432
+      }),
+      Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:15432'), {
+        code: 'ECONNREFUSED',
+        address: '127.0.0.1',
+        port: 15432
+      })
+    ],
+    ''
+  );
+  createPostgresTestkitClientMock.mockReturnValue({
+    query: vi.fn().mockRejectedValue(aggregateError),
+    close: closeMock
+  });
+
+  const { verifyQuerySpecZtdCase } = await import('../templates/tests/support/ztd/verifier');
+
+  await expect(
+    verifyQuerySpecZtdCase(
+      {
+        name: 'aggregate-db-down',
+        beforeDb: {},
+        input: {},
+        output: { ok: true }
+      },
+      (client) => client.query('select 1', {})
+    )
+  ).rejects.toThrow(/localhost:15432[\s\S]*docker compose up -d[\s\S]*ZTD_DB_PORT/);
+});
+
 test('verifyQuerySpecTraditionalCase physically prepares fixtures and returns traditional evidence', async () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'ztd-verifier-project-'));
   tempDirs.push(rootDir);

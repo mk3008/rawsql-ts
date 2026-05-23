@@ -663,6 +663,15 @@ function verifyPnpmStarterPath(packages) {
   // Rebind workspace packages to the freshly packed tarballs so the scaffold install exercises the published manifests.
   fs.writeFileSync(path.join(appDir, "package.json"), `${JSON.stringify(scaffoldPackageJson, null, 2)}\n`, "utf8");
   runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
+  runIn(appDir, PNPM, ["exec", "tsc", "--noEmit", "-p", "tsconfig.json"]);
+  runIn(appDir, PNPM, [
+    "exec",
+    "vitest",
+    "run",
+    "src/features/smoke/tests/smoke.boundary.test.ts",
+    "src/features/smoke/tests/smoke.validation.test.ts",
+  ]);
+  runInstalledZtdCli(appDir, ["ztd-config"]);
 
   return appDir;
 }

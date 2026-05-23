@@ -6,7 +6,7 @@ import { loadSqlResource } from '#features/_shared/loadSqlResource.js';
 
 const smokeSqlResource = loadSqlResource(dirname(fileURLToPath(import.meta.url)), 'smoke.sql');
 
-export interface SmokeQueryParams {
+export interface SmokeQueryParams extends Record<string, unknown> {
   user_id: number;
 }
 
