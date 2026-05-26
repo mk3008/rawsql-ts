@@ -1,5 +1,11 @@
 # rawsql-ts
 
+## 0.21.1
+
+### Patch Changes
+
+- [#850](https://github.com/mk3008/rawsql-ts/pull/850) [`93d3359`](https://github.com/mk3008/rawsql-ts/commit/93d3359f40300c086c4883c33636c39a7c98a7d0) Thanks [@mk3008](https://github.com/mk3008)! - Expose source range metadata for supported optional condition branches so downstream tools can generate runtime pruning metadata without reparsing SQL.
+
 ## 0.21.0
 
 ### Minor Changes
