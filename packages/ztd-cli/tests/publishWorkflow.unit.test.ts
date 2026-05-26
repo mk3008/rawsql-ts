@@ -51,6 +51,7 @@ test('standalone pnpm proof apps use the installed ztd bin helper instead of pnp
   expect(publishedPackageModeScript).toContain('function getInstalledBinPath(directory, binName) {');
   expect(publishedPackageModeScript).toContain('function runInstalledZtdCli(directory, args) {');
   expect(publishedPackageModeScript).toContain('pnpm-workspace.yaml');
+  expect(publishedPackageModeScript).toContain('const result = runInstalledZtdCli(directory, ["init", "--dry-run", "--yes", ...args]);');
 
   const starterSection = publishedPackageModeScript.slice(
     publishedPackageModeScript.indexOf('function verifyPnpmStarterPath(packages) {'),
@@ -156,6 +157,55 @@ test('published-package smoke rebinds scaffold runtime dependencies to packed ta
   expect(publishedPackageModeScript).toContain('fs.rmSync(path.join(directory, "package-lock.json"), { force: true });');
   expect(publishedPackageModeScript).toContain('fs.rmSync(path.join(directory, "node_modules"), { force: true, recursive: true });');
   expect(publishedPackageModeScript).toContain('restorePublishedDependencyRanges(appDir, packages);');
+});
+
+test('published-package mode only runs ztd CLI smoke paths when its tarball is present', () => {
+  const npmSection = publishedPackageModeScript.slice(
+    publishedPackageModeScript.indexOf('function verifyNpmPrimaryPath(packages) {'),
+    publishedPackageModeScript.indexOf('function verifyNpmConsumerSmoke(phaseAResult) {'),
+  );
+  expect(npmSection).toContain('if (!hasTarballDependency(tarballDependencies, "@rawsql-ts/ztd-cli")) {');
+  expect(npmSection).toContain('return null;');
+  expect(npmSection).toContain('runInstalledZtdCli(appDir, ["init", "--yes", "--workflow", "demo"])');
+  expect(npmSection).not.toContain('NPM, ["exec", "--", "ztd"');
+
+  const smokeSection = publishedPackageModeScript.slice(
+    publishedPackageModeScript.indexOf('function verifyNpmConsumerSmoke(phaseAResult) {'),
+    publishedPackageModeScript.indexOf('function verifyPnpmStarterPath(packages) {'),
+  );
+  expect(smokeSection).toContain('if (phaseAResult == null) {');
+  expect(smokeSection).toContain('return null;');
+  expect(smokeSection).toContain('runInstalledZtdCli(appDir, ["ztd-config"])');
+  expect(smokeSection).toContain('runInstalledZtdCli(appDir, [');
+  expect(smokeSection).not.toContain('NPM, ["exec", "--", "ztd"');
+
+  const starterSection = publishedPackageModeScript.slice(
+    publishedPackageModeScript.indexOf('function verifyPnpmStarterPath(packages) {'),
+    publishedPackageModeScript.indexOf('function verifyPnpmAdapterInstall(packages) {'),
+  );
+  expect(starterSection).toContain('if (!hasTarballDependency(tarballDependencies, "@rawsql-ts/ztd-cli")) {');
+  expect(starterSection).toContain('return null;');
+
+  const adapterSection = publishedPackageModeScript.slice(
+    publishedPackageModeScript.indexOf('function verifyPnpmAdapterInstall(packages) {'),
+    publishedPackageModeScript.indexOf('function verifyPnpmTutorialModelGen(packages) {'),
+  );
+  expect(adapterSection).toContain('if (!hasTarballDependency(tarballDependencies, "@rawsql-ts/ztd-cli")) {');
+  expect(adapterSection).toContain('return null;');
+
+  const tutorialSection = publishedPackageModeScript.slice(
+    publishedPackageModeScript.indexOf('function verifyPnpmTutorialModelGen(packages) {'),
+    publishedPackageModeScript.indexOf('function verifyOverwriteSafety(packages) {'),
+  );
+  expect(tutorialSection).toContain('if (!hasTarballDependency(tarballDependencies, "@rawsql-ts/ztd-cli")) {');
+  expect(tutorialSection).toContain('return null;');
+
+  const overwriteSection = publishedPackageModeScript.slice(
+    publishedPackageModeScript.indexOf('function verifyOverwriteSafety(packages) {'),
+    publishedPackageModeScript.indexOf('function main() {'),
+  );
+  expect(overwriteSection).toContain('if (!hasTarballDependency(tarballDependencies, "@rawsql-ts/ztd-cli")) {');
+  expect(overwriteSection).toContain('return null;');
 });
 
 test('publish plan can include unpublished workspace dependencies required by published scaffolds', () => {

@@ -341,8 +341,8 @@ function readJsonFile(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-function runInitDryRunPlan(directory, packageManager, args) {
-  const result = runIn(directory, packageManager, ["exec", "--", "ztd", "init", "--dry-run", "--yes", ...args]);
+function runInitDryRunPlan(directory, args) {
+  const result = runInstalledZtdCli(directory, ["init", "--dry-run", "--yes", ...args]);
   const stdout = String(result.stdout ?? "");
   const start = stdout.indexOf("{");
   const end = stdout.lastIndexOf("}");
@@ -539,6 +539,10 @@ function verifyNpmPrimaryPath(packages) {
   ensureCleanDir(appDir);
   const tarballDependencies = createTarballDependencyMap(packages);
 
+  if (!hasTarballDependency(tarballDependencies, "@rawsql-ts/ztd-cli")) {
+    return null;
+  }
+
   writePackageJson(appDir, {
     name: "npm-consumer-smoke",
     private: true,
@@ -547,7 +551,7 @@ function verifyNpmPrimaryPath(packages) {
   });
 
   runIn(appDir, NPM, ["install"]);
-  const dryRunPlan = runInitDryRunPlan(appDir, NPM, ["--workflow", "demo"]);
+  const dryRunPlan = runInitDryRunPlan(appDir, ["--workflow", "demo"]);
   assertScaffoldPlanMetadata(dryRunPlan, {
     dryRun: true,
     schemaVersion: 1,
@@ -555,7 +559,7 @@ function verifyNpmPrimaryPath(packages) {
     validator: "none",
     starter: false,
   }, "phase-a init-dry-run");
-  const initResult = runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "demo"]);
+  const initResult = runInstalledZtdCli(appDir, ["init", "--yes", "--workflow", "demo"]);
 
   assertIncludes(initResult.stdout, "ztd-config", "phase-a packaging-npm-primary-path-gate");
   assertIncludes(initResult.stdout, "model-gen", "phase-a packaging-npm-primary-path-gate");
@@ -582,21 +586,22 @@ function verifyNpmPrimaryPath(packages) {
 }
 
 function verifyNpmConsumerSmoke(phaseAResult) {
+  if (phaseAResult == null) {
+    return null;
+  }
+
   const { appDir } = phaseAResult;
 
   // Phase B proves the first generated smoke test can pass on the npm-first consumer path.
-  runIn(appDir, NPM, ["exec", "--", "ztd", "ztd-config"]);
+  runInstalledZtdCli(appDir, ["ztd-config"]);
 
   // Keep the published command surface aligned with Further Reading docs by
   // exercising the opt-in join-direction flag from the packed CLI artifact.
   fs.mkdirSync(path.join(appDir, "tmp"), { recursive: true });
   fs.writeFileSync(path.join(appDir, "tmp", "join-direction-smoke.sql"), "select 1;\n", "utf8");
-  const lintHelp = runIn(appDir, NPM, ["exec", "--", "ztd", "query", "lint", "--help"]);
+  const lintHelp = runInstalledZtdCli(appDir, ["query", "lint", "--help"]);
   assertIncludes(lintHelp.stdout, "--rules <list>", "phase-b query-lint-help-surface");
-  runIn(appDir, NPM, [
-    "exec",
-    "--",
-    "ztd",
+  runInstalledZtdCli(appDir, [
     "query",
     "lint",
     "--rules",
@@ -620,6 +625,10 @@ function verifyPnpmStarterPath(packages) {
   ensureCleanDir(appDir);
 
   const tarballDependencies = createTarballDependencyMap(packages);
+  if (!hasTarballDependency(tarballDependencies, "@rawsql-ts/ztd-cli")) {
+    return null;
+  }
+
   syncStandaloneWorkspacePackageJson(tarballDependencies);
   writePackageJson(appDir, {
     name: "pnpm-starter-path-check",
@@ -631,7 +640,7 @@ function verifyPnpmStarterPath(packages) {
   });
 
   runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
-  const dryRunPlan = runInitDryRunPlan(appDir, PNPM, [
+  const dryRunPlan = runInitDryRunPlan(appDir, [
     "--starter",
     "--workflow",
     "demo",
@@ -682,6 +691,10 @@ function verifyPnpmAdapterInstall(packages) {
   ensureCleanDir(appDir);
 
   const tarballDependencies = createTarballDependencyMap(packages);
+  if (!hasTarballDependency(tarballDependencies, "@rawsql-ts/ztd-cli")) {
+    return null;
+  }
+
   syncStandaloneWorkspacePackageJson(tarballDependencies);
   writePackageJson(appDir, {
     name: "pnpm-adapter-path-check",
@@ -720,6 +733,10 @@ function verifyPnpmTutorialModelGen(packages) {
   ensureCleanDir(appDir);
 
   const tarballDependencies = createTarballDependencyMap(packages);
+  if (!hasTarballDependency(tarballDependencies, "@rawsql-ts/ztd-cli")) {
+    return null;
+  }
+
   syncStandaloneWorkspacePackageJson(tarballDependencies);
   writePackageJson(appDir, {
     name: "pnpm-tutorial-model-gen-check",
@@ -817,12 +834,17 @@ function verifyPnpmTutorialModelGen(packages) {
 function verifyOverwriteSafety(packages) {
   const appDir = path.join(packageRoot, "overwrite-safety");
   ensureCleanDir(appDir);
+  const tarballDependencies = createTarballDependencyMap(packages);
+
+  if (!hasTarballDependency(tarballDependencies, "@rawsql-ts/ztd-cli")) {
+    return null;
+  }
 
   writePackageJson(appDir, {
     name: "overwrite-safety-check",
     private: true,
     version: "0.0.0",
-    devDependencies: createTarballDependencyMap(packages),
+    devDependencies: tarballDependencies,
   });
 
   fs.mkdirSync(path.join(appDir, "db", "ddl"), { recursive: true });
@@ -889,7 +911,7 @@ function main() {
     verificationMode: options.publishManifestProvided ? "publish-manifest" : "workspace-pack",
     packedInstallApp,
     coreGettingStartedApp,
-    npmPrimaryPathApp: npmPrimaryPathApp.appDir,
+    npmPrimaryPathApp: npmPrimaryPathApp?.appDir ?? null,
     firstTestGateApp: npmSmokeApp,
     npmSmokeApp,
     pnpmStarterApp,
