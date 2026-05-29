@@ -13,6 +13,8 @@ import {
     type ValueComponent
 } from "../models/ValueComponent";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
+import { SqlTokenizer } from "../parsers/SqlTokenizer";
+import { Lexeme, TokenType } from "../models/Lexeme";
 import { UpstreamSelectQueryFinder } from "./UpstreamSelectQueryFinder";
 import { ColumnReferenceCollector } from "./ColumnReferenceCollector";
 import { SelectableColumnCollector, DuplicateDetectionMode } from "./SelectableColumnCollector";
@@ -33,6 +35,71 @@ export type SssqlBranchKind = "scalar" | "exists" | "not-exists" | "expression";
 
 export interface SssqlTransformResult {
     query: SelectQuery;
+}
+
+export type SssqlRewriteEditKind = "insert" | "replace" | "delete";
+
+export interface SssqlRewriteEdit {
+    start: number;
+    end: number;
+    before: string;
+    after: string;
+    kind: SssqlRewriteEditKind;
+    reason?: string;
+    target?: SssqlRewriteEditTarget;
+}
+
+export interface SssqlRewriteEditTarget {
+    branchKind: SssqlBranchKind;
+    parameterName: string;
+    column?: string;
+}
+
+export type SssqlRewriteChangedRegionKind =
+    | "target-branch"
+    | "where-keyword"
+    | "boolean-operator"
+    | "parentheses"
+    | "formatter-rewrite"
+    | "comment"
+    | "unknown";
+
+export interface SssqlRewriteChangedRegion {
+    kind: SssqlRewriteChangedRegionKind;
+    start: number;
+    end: number;
+    message?: string;
+}
+
+export interface SssqlRewritePlanWarning {
+    code: string;
+    message: string;
+    detail?: unknown;
+}
+
+export interface SssqlRewritePlanError {
+    code: string;
+    message: string;
+    detail?: unknown;
+}
+
+export interface SssqlRewriteSafety {
+    tokenCountBefore: number;
+    tokenCountAfter: number;
+    tokenSequencePreserved: boolean;
+    commentsPreserved: boolean;
+    changedOnlyTargetBranches: boolean;
+    changedRegions: readonly SssqlRewriteChangedRegion[];
+}
+
+export interface SssqlRewritePlan {
+    ok: boolean;
+    requiresFullReformat: boolean;
+    edits: readonly SssqlRewriteEdit[];
+    sql?: string;
+    safety: SssqlRewriteSafety;
+    warnings: readonly SssqlRewritePlanWarning[];
+    errors: readonly SssqlRewritePlanError[];
 }
 
 export interface SssqlBranchInfo {
@@ -100,6 +167,257 @@ let formatter: SqlFormatter | null = null;
 const normalizeIdentifier = (value: string): string => value.trim().toLowerCase();
 
 const normalizeSql = (value: string): string => value.replace(/\s+/g, " ").trim().toLowerCase();
+
+interface RewriteTokenSignature {
+    type: number;
+    value: string;
+}
+
+const normalizeRewriteTokenType = (lexeme: Lexeme): number => {
+    if ((lexeme.type & TokenType.Command) !== 0) {
+        return TokenType.Command;
+    }
+    if ((lexeme.type & TokenType.Identifier) !== 0) {
+        return TokenType.Identifier;
+    }
+    return lexeme.type;
+};
+
+const normalizeRewriteTokenValue = (lexeme: Lexeme): string => {
+    if ((lexeme.type & TokenType.Command) !== 0) {
+        return lexeme.value.toLowerCase();
+    }
+    return lexeme.value;
+};
+
+const tokenizeForRewritePlan = (sql: string): RewriteTokenSignature[] => {
+    return new SqlTokenizer(sql).tokenize().map(lexeme => ({
+        type: normalizeRewriteTokenType(lexeme),
+        value: normalizeRewriteTokenValue(lexeme)
+    }));
+};
+
+const tokenSequencesEqual = (left: RewriteTokenSignature[], right: RewriteTokenSignature[]): boolean => {
+    if (left.length !== right.length) {
+        return false;
+    }
+
+    return left.every((token, index) => {
+        const other = right[index];
+        return other !== undefined && token.type === other.type && token.value === other.value;
+    });
+};
+
+const collectCommentFragments = (sql: string): string[] => {
+    return new SqlTokenizer(sql).tokenize().flatMap(lexeme => {
+        if (lexeme.positionedComments) {
+            return lexeme.positionedComments.flatMap(positioned => positioned.comments);
+        }
+        return lexeme.comments ? [...lexeme.comments] : [];
+    });
+};
+
+const commentsPreservedInOrder = (before: string[], after: string[]): boolean => {
+    let cursor = 0;
+    for (const comment of before) {
+        const foundAt = after.indexOf(comment, cursor);
+        if (foundAt < 0) {
+            return false;
+        }
+        cursor = foundAt + 1;
+    }
+    return true;
+};
+
+const countCommandToken = (tokens: RewriteTokenSignature[], value: string): number => {
+    return tokens.filter(token => token.type === TokenType.Command && token.value === value).length;
+};
+
+const applyRewriteEdits = (sql: string, edits: readonly SssqlRewriteEdit[]): string => {
+    return [...edits]
+        .sort((left, right) => right.start - left.start)
+        .reduce((current, edit) => {
+            return current.slice(0, edit.start) + edit.after + current.slice(edit.end);
+        }, sql);
+};
+
+const getStatementEndPosition = (sql: string): number => {
+    let end = sql.length;
+    while (end > 0 && /\s/.test(sql[end - 1]!)) {
+        end--;
+    }
+    if (end > 0 && sql[end - 1] === ";") {
+        end--;
+        while (end > 0 && /\s/.test(sql[end - 1]!)) {
+            end--;
+        }
+    }
+    return end;
+};
+
+const clauseBoundaryCommands = new Set(["group by", "having", "order by", "limit", "offset", "fetch", "for"]);
+
+const isClauseBoundary = (lexeme: Lexeme): boolean => {
+    return (lexeme.type & TokenType.Command) !== 0
+        && clauseBoundaryCommands.has(lexeme.value.toLowerCase());
+};
+
+const findMinimalWhereInsertPosition = (sql: string): { position: number; hasWhere: boolean } => {
+    const lexemes = new SqlTokenizer(sql).tokenize();
+    const whereIndex = lexemes.findIndex(lexeme =>
+        (lexeme.type & TokenType.Command) !== 0 && lexeme.value.toLowerCase() === "where"
+    );
+    const statementEnd = getStatementEndPosition(sql);
+
+    if (whereIndex >= 0) {
+        const tail = lexemes.slice(whereIndex + 1).find(isClauseBoundary);
+        return {
+            position: tail?.position?.startPosition ?? statementEnd,
+            hasWhere: true
+        };
+    }
+
+    const tail = lexemes.find(isClauseBoundary);
+    return {
+        position: tail?.position?.startPosition ?? statementEnd,
+        hasWhere: false
+    };
+};
+
+const findMatchingParenEnd = (sql: string, start: number): number => {
+    let depth = 0;
+    let quote: string | null = null;
+
+    for (let index = start; index < sql.length; index++) {
+        const char = sql[index]!;
+        if (quote) {
+            if (char === quote) {
+                if (quote === "'" && sql[index + 1] === "'") {
+                    index++;
+                    continue;
+                }
+                quote = null;
+            }
+            continue;
+        }
+
+        if (char === "'" || char === "\"") {
+            quote = char;
+            continue;
+        }
+        if (char === "(") {
+            depth++;
+        }
+        if (char === ")") {
+            depth--;
+            if (depth === 0) {
+                return index + 1;
+            }
+        }
+    }
+
+    return -1;
+};
+
+// Fallback for #854: findOptionalBranchSpans, findBooleanOperatorBefore, and
+// findBooleanOperatorAfter recover minimal remove spans until the AST can expose
+// source positions for optional parenthesized OR/IS NULL branches reliably.
+// Keep regex-based rewriting limited to this fallback path.
+const findOptionalBranchSpans = (sql: string, parameterName: string): Array<{ start: number; end: number; text: string }> => {
+    const spans: Array<{ start: number; end: number; text: string }> = [];
+    const parameterNeedle = `:${parameterName.toLowerCase()}`;
+    const lowerSql = sql.toLowerCase();
+
+    for (let index = 0; index < sql.length; index++) {
+        if (sql[index] !== "(") {
+            continue;
+        }
+
+        const end = findMatchingParenEnd(sql, index);
+        if (end < 0) {
+            break;
+        }
+
+        const text = sql.slice(index, end);
+        const normalized = lowerSql.slice(index, end);
+        if (normalized.includes(parameterNeedle) && normalized.includes(" is null") && normalized.includes(" or ")) {
+            spans.push({ start: index, end, text });
+        }
+        index = end - 1;
+    }
+
+    return spans;
+};
+
+const findBooleanOperatorBefore = (sql: string, start: number): { start: number; end: number; value: string } | null => {
+    const prefix = sql.slice(0, start);
+    const match = /(\s+)(and|or)(\s*)$/i.exec(prefix);
+    if (!match || match.index === undefined) {
+        return null;
+    }
+    return {
+        start: match.index,
+        end: start,
+        value: match[2]!.toLowerCase()
+    };
+};
+
+const findBooleanOperatorAfter = (sql: string, end: number): { start: number; end: number; value: string } | null => {
+    const suffix = sql.slice(end);
+    const match = /^(\s*)(and|or)(\s+)/i.exec(suffix);
+    if (!match) {
+        return null;
+    }
+    return {
+        start: end,
+        end: end + match[0].length,
+        value: match[2]!.toLowerCase()
+    };
+};
+
+const findWhereBefore = (sql: string, position: number): { start: number; end: number } | null => {
+    const lexemes = new SqlTokenizer(sql).tokenize();
+    let found: Lexeme | null = null;
+    for (const lexeme of lexemes) {
+        if ((lexeme.position?.startPosition ?? 0) >= position) {
+            break;
+        }
+        if ((lexeme.type & TokenType.Command) !== 0 && lexeme.value.toLowerCase() === "where") {
+            found = lexeme;
+        }
+    }
+    if (!found?.position) {
+        return null;
+    }
+    return {
+        start: found.position.startPosition,
+        end: found.position.endPosition
+    };
+};
+
+const findSourceColumnReferenceText = (sql: string, reference: ColumnReference): string => {
+    const namespace = normalizeIdentifier(reference.getNamespace());
+    const column = normalizeIdentifier(reference.column.name);
+    const lexemes = new SqlTokenizer(sql).tokenize();
+
+    for (let index = 0; index < lexemes.length - 2; index++) {
+        const first = lexemes[index]!;
+        const dot = lexemes[index + 1]!;
+        const last = lexemes[index + 2]!;
+        if ((first.type & TokenType.Identifier) === 0 || dot.value !== "." || (last.type & TokenType.Identifier) === 0) {
+            continue;
+        }
+        if (normalizeIdentifier(first.value) !== namespace || normalizeIdentifier(last.value) !== column) {
+            continue;
+        }
+        if (!first.position || !last.position) {
+            continue;
+        }
+        return sql.slice(first.position.startPosition, last.position.endPosition);
+    }
+
+    return normalizeColumnReferenceText(reference);
+};
 
 const normalizeColumnReferenceKey = (reference: ColumnReference): string => {
     return `${normalizeIdentifier(reference.getNamespace())}.${normalizeIdentifier(reference.column.name)}`;
@@ -541,6 +859,84 @@ export class SSSQLFilterBuilder {
         return collectSupportedOptionalConditionBranches(parsed).map(getBranchInfo);
     }
 
+    planScaffold(query: SelectQuery | string, filters: SSSQLFilterInput): SssqlRewritePlan {
+        if (typeof query === "string") {
+            const entries = Object.entries(filters);
+            if (entries.length === 1) {
+                const [filterName, filterValue] = entries[0]!;
+                if (isExplicitEqualityScaffoldValue(filterValue)) {
+                    try {
+                        return this.planScalarInsert(query, {
+                            target: filterName,
+                            parameterName: makeParameterName(filterName),
+                            operator: "="
+                        });
+                    } catch {
+                        // Fall through to the conservative formatter-backed plan, which reports rewrite errors.
+                    }
+                }
+            }
+        }
+        return this.planRewrite(query, parsed => this.scaffold(parsed, filters));
+    }
+
+    dryRunScaffold(query: SelectQuery | string, filters: SSSQLFilterInput): SssqlRewritePlan {
+        return this.planScaffold(query, filters);
+    }
+
+    planScaffoldBranch(query: SelectQuery | string, spec: SssqlScaffoldSpec): SssqlRewritePlan {
+        if (typeof query === "string" && (spec.kind === "exists" || spec.kind === "not-exists")) {
+            try {
+                return this.planExistsInsert(query, spec as SssqlExistsScaffoldSpec);
+            } catch {
+                // Fall through to the conservative formatter-backed plan, which reports rewrite errors.
+            }
+        }
+        if (typeof query === "string" && spec.kind !== "exists" && spec.kind !== "not-exists") {
+            try {
+                return this.planScalarInsert(query, spec as SssqlScalarScaffoldSpec);
+            } catch {
+                // Fall through to the conservative formatter-backed plan, which reports rewrite errors.
+            }
+        }
+        return this.planRewrite(query, parsed => this.scaffoldBranch(parsed, spec));
+    }
+
+    dryRunScaffoldBranch(query: SelectQuery | string, spec: SssqlScaffoldSpec): SssqlRewritePlan {
+        return this.planScaffoldBranch(query, spec);
+    }
+
+    planRefresh(query: SelectQuery | string, filters: SSSQLFilterInput): SssqlRewritePlan {
+        return this.planRewrite(query, parsed => this.refresh(parsed, filters));
+    }
+
+    dryRunRefresh(query: SelectQuery | string, filters: SSSQLFilterInput): SssqlRewritePlan {
+        return this.planRefresh(query, filters);
+    }
+
+    planRemove(query: SelectQuery | string, spec: SssqlRemoveSpec): SssqlRewritePlan {
+        if (typeof query === "string") {
+            try {
+                return this.planBranchRemoval(query, spec);
+            } catch {
+                // Fall through to the conservative formatter-backed plan, which reports rewrite errors.
+            }
+        }
+        return this.planRewrite(query, parsed => this.remove(parsed, spec));
+    }
+
+    dryRunRemove(query: SelectQuery | string, spec: SssqlRemoveSpec): SssqlRewritePlan {
+        return this.planRemove(query, spec);
+    }
+
+    planRemoveAll(query: SelectQuery | string): SssqlRewritePlan {
+        return this.planRewrite(query, parsed => this.removeAll(parsed));
+    }
+
+    dryRunRemoveAll(query: SelectQuery | string): SssqlRewritePlan {
+        return this.planRemoveAll(query);
+    }
+
     scaffold(query: SelectQuery | string, filters: SSSQLFilterInput): SelectQuery {
         const parsed = this.parseQuery(query);
 
@@ -676,6 +1072,425 @@ export class SSSQLFilterBuilder {
 
     private parseQuery(query: SelectQuery | string): SelectQuery {
         return typeof query === "string" ? SelectQueryParser.parse(query) : query;
+    }
+
+    private planScalarInsert(sourceSql: string, spec: SssqlScalarScaffoldSpec): SssqlRewritePlan {
+        const parsed = SelectQueryParser.parse(sourceSql);
+        const target = this.resolveTarget(parsed, spec.target);
+        if (target.query !== parsed) {
+            return this.planRewrite(sourceSql, query => this.scaffoldBranch(query, spec));
+        }
+        const parameterName = spec.parameterName?.trim() || target.parameterName;
+        const operator = normalizeScalarOperator(spec.operator);
+        const targetColumnText = findSourceColumnReferenceText(sourceSql, target.column);
+        const branchSql = `(:${parameterName} is null or ${targetColumnText} ${operator} :${parameterName})`;
+        const normalizedBranch = normalizeSql(branchSql);
+        const duplicate = this.list(parsed).find(existing =>
+            existing.query === target.query && normalizeSql(existing.sql) === normalizedBranch
+        );
+
+        if (duplicate) {
+            return this.buildPlanFromEdits(sourceSql, [], [], []);
+        }
+
+        return this.buildMinimalInsertPlan(sourceSql, branchSql, {
+            branchKind: "scalar",
+            parameterName,
+            column: targetColumnText
+        });
+    }
+
+    private planExistsInsert(sourceSql: string, spec: SssqlExistsScaffoldSpec): SssqlRewritePlan {
+        const parameterName = spec.parameterName.trim();
+        if (!parameterName) {
+            throw new Error("SSSQL EXISTS/NOT EXISTS scaffold requires parameterName.");
+        }
+        if (spec.anchorColumns.length === 0) {
+            throw new Error("SSSQL EXISTS/NOT EXISTS scaffold requires at least one anchorColumn.");
+        }
+
+        const parsed = SelectQueryParser.parse(sourceSql);
+        const anchorTargets = spec.anchorColumns.map(anchorColumn => this.resolveTarget(parsed, anchorColumn));
+        const targetQueries = [...new Set(anchorTargets.map(target => target.query))];
+        if (targetQueries.length !== 1) {
+            throw new Error("SSSQL EXISTS/NOT EXISTS scaffold anchor columns must resolve within one query scope.");
+        }
+
+        const targetQuery = targetQueries[0]!;
+        if (targetQuery !== parsed) {
+            return this.planRewrite(sourceSql, query => this.scaffoldBranch(query, spec));
+        }
+        const sourceColumns = anchorTargets.map(target => findSourceColumnReferenceText(sourceSql, target.column));
+        const substitutedSql = substituteAnchorPlaceholders(spec.query, sourceColumns).trim();
+        enforceSubqueryConstraints(substitutedSql);
+
+        const subquery = SelectQueryParser.parse(substitutedSql);
+        const parameterNames = new Set(ParameterCollector.collect(subquery).map(parameter => parameter.name.value));
+        if (parameterNames.size !== 1 || !parameterNames.has(parameterName)) {
+            throw new Error(
+                `SSSQL ${spec.kind.toUpperCase()} scaffold query must reference only parameter ':${parameterName}'.`
+            );
+        }
+
+        const branchSql = `(:${parameterName} is null or ${spec.kind === "not-exists" ? "not exists" : "exists"} (${substitutedSql}))`;
+        const duplicate = this.list(parsed).find(existing =>
+            existing.query === targetQuery && normalizeSql(existing.sql) === normalizeSql(branchSql)
+        );
+        if (duplicate) {
+            return this.buildPlanFromEdits(sourceSql, [], [], []);
+        }
+
+        return this.buildMinimalInsertPlan(sourceSql, branchSql, {
+            branchKind: spec.kind,
+            parameterName,
+            column: sourceColumns.join(", ")
+        });
+    }
+
+    private buildMinimalInsertPlan(
+        sourceSql: string,
+        branchSql: string,
+        target: SssqlRewriteEditTarget
+    ): SssqlRewritePlan {
+        const insertPosition = findMinimalWhereInsertPosition(sourceSql);
+        const needsLeadingSpace = insertPosition.position === 0
+            || !/\s/.test(sourceSql[insertPosition.position - 1]!);
+        const prefix = `${needsLeadingSpace ? " " : ""}${insertPosition.hasWhere ? "and" : "where"} `;
+        const suffix = insertPosition.position < getStatementEndPosition(sourceSql) ? " " : "";
+        const branchLabel = target.branchKind === "scalar" ? "scalar" : target.branchKind;
+        const edit: SssqlRewriteEdit = {
+            start: insertPosition.position,
+            end: insertPosition.position,
+            before: "",
+            after: `${prefix}${branchSql}${suffix}`,
+            kind: "insert",
+            reason: insertPosition.hasWhere
+                ? `Append SSSQL ${branchLabel} branch to the existing WHERE clause.`
+                : `Create a WHERE clause for the SSSQL ${branchLabel} branch.`,
+            target
+        };
+        const changedRegions: SssqlRewriteChangedRegion[] = [{
+            kind: "target-branch",
+            start: edit.start + prefix.length,
+            end: edit.start + edit.after.length - suffix.length,
+            message: `Inserted SSSQL ${branchLabel} optional branch.`
+        }];
+        if (insertPosition.hasWhere) {
+            changedRegions.unshift({
+                kind: "boolean-operator",
+                start: edit.start,
+                end: edit.start + prefix.length,
+                message: `Inserted AND before the SSSQL ${branchLabel} branch.`
+            });
+        } else {
+            changedRegions.unshift({
+                kind: "where-keyword",
+                start: edit.start,
+                end: edit.start + prefix.length,
+                message: `Inserted WHERE before the SSSQL ${branchLabel} branch.`
+            });
+        }
+
+        return this.buildPlanFromEdits(sourceSql, [edit], changedRegions, []);
+    }
+
+    private planBranchRemoval(sourceSql: string, spec: SssqlRemoveSpec): SssqlRewritePlan {
+        const parsed = SelectQueryParser.parse(sourceSql);
+        const matches = this.findMatchingBranchInfos(parsed, spec);
+        if (matches.length > 1) {
+            return this.buildPlanFromEdits(sourceSql, [], [], [], [{
+                code: "REWRITE_FAILED",
+                message: "SSSQL remove planning found multiple matching branches.",
+                detail: `Multiple SSSQL branches matched parameter ':${spec.parameterName}'. Remove is ambiguous.`
+            }]);
+        }
+        if (matches.length === 0) {
+            return this.buildPlanFromEdits(sourceSql, [], [], []);
+        }
+
+        const branchSpans = findOptionalBranchSpans(sourceSql, spec.parameterName);
+        if (branchSpans.length > 1) {
+            return this.planRewrite(sourceSql, query => this.remove(query, spec));
+        }
+        const span = branchSpans[0];
+        if (!span) {
+            return this.planRewrite(sourceSql, query => this.remove(query, spec));
+        }
+
+        const beforeOperator = findBooleanOperatorBefore(sourceSql, span.start);
+        const afterOperator = findBooleanOperatorAfter(sourceSql, span.end);
+        const where = findWhereBefore(sourceSql, span.start);
+        let start = span.start;
+        let end = span.end;
+        const changedRegions: SssqlRewriteChangedRegion[] = [{
+            kind: "target-branch",
+            start: span.start,
+            end: span.end,
+            message: "Removed SSSQL optional branch."
+        }];
+
+        if (beforeOperator) {
+            start = beforeOperator.start;
+            changedRegions.unshift({
+                kind: "boolean-operator",
+                start: beforeOperator.start,
+                end: beforeOperator.end,
+                message: `Removed adjacent ${beforeOperator.value.toUpperCase()} before the SSSQL branch.`
+            });
+        } else if (afterOperator) {
+            end = afterOperator.end;
+            changedRegions.push({
+                kind: "boolean-operator",
+                start: afterOperator.start,
+                end: afterOperator.end,
+                message: `Removed adjacent ${afterOperator.value.toUpperCase()} after the SSSQL branch.`
+            });
+        } else if (where) {
+            start = where.start;
+            while (end < sourceSql.length && /\s/.test(sourceSql[end]!)) {
+                end++;
+            }
+            changedRegions.unshift({
+                kind: "where-keyword",
+                start: where.start,
+                end: where.end,
+                message: "Removed WHERE because the SSSQL branch was the only condition."
+            });
+        }
+
+        const edit: SssqlRewriteEdit = {
+            start,
+            end,
+            before: sourceSql.slice(start, end),
+            after: "",
+            kind: "delete",
+            reason: "Remove the targeted SSSQL optional branch from the source SQL.",
+            target: {
+                branchKind: matches[0]!.kind,
+                parameterName: matches[0]!.parameterName,
+                column: matches[0]!.target
+            }
+        };
+
+        return this.buildPlanFromEdits(sourceSql, [edit], changedRegions, []);
+    }
+
+    private buildPlanFromEdits(
+        sourceSql: string,
+        edits: readonly SssqlRewriteEdit[],
+        changedRegions: readonly SssqlRewriteChangedRegion[],
+        warnings: readonly SssqlRewritePlanWarning[],
+        errors: readonly SssqlRewritePlanError[] = []
+    ): SssqlRewritePlan {
+        const plannedSql = errors.length === 0 ? applyRewriteEdits(sourceSql, edits) : undefined;
+        const beforeTokens = tokenizeForRewritePlan(sourceSql);
+        const beforeComments = collectCommentFragments(sourceSql);
+        const afterTokens = plannedSql !== undefined ? tokenizeForRewritePlan(plannedSql) : [];
+        const afterComments = plannedSql !== undefined ? collectCommentFragments(plannedSql) : [];
+        const commentsPreserved = plannedSql !== undefined
+            ? commentsPreservedInOrder(beforeComments, afterComments)
+            : false;
+        const changedOnlyTargetBranches = errors.length === 0
+            && changedRegions.every(region =>
+                region.kind === "target-branch"
+                || region.kind === "where-keyword"
+                || region.kind === "boolean-operator"
+                || region.kind === "parentheses"
+            )
+            && commentsPreserved;
+        const planWarnings = [...warnings];
+
+        if (plannedSql !== undefined && applyRewriteEdits(sourceSql, edits) !== plannedSql) {
+            errors = [...errors, {
+                code: "APPLY_PLAN_MISMATCH",
+                message: "Applying SSSQL rewrite plan edits did not reproduce the planned SQL."
+            }];
+        }
+        if (plannedSql !== undefined) {
+            try {
+                SelectQueryParser.parse(plannedSql);
+            } catch (error) {
+                errors = [...errors, {
+                    code: "PARSE_AFTER_FAILED",
+                    message: "The SQL produced by SSSQL rewrite planning could not be parsed.",
+                    detail: error instanceof Error ? error.message : error
+                }];
+            }
+        }
+        if (plannedSql !== undefined && !commentsPreserved) {
+            planWarnings.push({
+                code: "COMMENTS_NOT_PRESERVED",
+                message: "One or more input SQL comments are missing or reordered after the SSSQL rewrite."
+            });
+        }
+
+        return {
+            ok: errors.length === 0,
+            requiresFullReformat: false,
+            edits,
+            sql: plannedSql,
+            safety: {
+                tokenCountBefore: beforeTokens.length,
+                tokenCountAfter: afterTokens.length,
+                tokenSequencePreserved: plannedSql !== undefined ? tokenSequencesEqual(beforeTokens, afterTokens) : false,
+                commentsPreserved,
+                changedOnlyTargetBranches,
+                changedRegions
+            },
+            warnings: planWarnings,
+            errors
+        };
+    }
+
+    private planRewrite(
+        query: SelectQuery | string,
+        rewrite: (query: SelectQuery) => SelectQuery
+    ): SssqlRewritePlan {
+        const warnings: SssqlRewritePlanWarning[] = [];
+        const errors: SssqlRewritePlanError[] = [];
+        const sourceSql = typeof query === "string"
+            ? query
+            : formatSqlComponent(query);
+
+        if (typeof query !== "string") {
+            warnings.push({
+                code: "SOURCE_SQL_UNAVAILABLE",
+                message: "SSSQL rewrite planning received an AST, so the source SQL had to be formatter-generated before analysis."
+            });
+        }
+
+        let beforeTokens: RewriteTokenSignature[] = [];
+        let beforeComments: string[] = [];
+        try {
+            beforeTokens = tokenizeForRewritePlan(sourceSql);
+            beforeComments = collectCommentFragments(sourceSql);
+        } catch (error) {
+            errors.push({
+                code: "TOKENIZE_BEFORE_FAILED",
+                message: "Could not tokenize the input SQL before SSSQL rewrite planning.",
+                detail: error instanceof Error ? error.message : error
+            });
+        }
+
+        let plannedSql: string | undefined;
+        let afterTokens: RewriteTokenSignature[] = [];
+        let afterComments: string[] = [];
+
+        if (errors.length === 0) {
+            try {
+                const parsed = SelectQueryParser.parse(sourceSql);
+                const rewritten = rewrite(parsed);
+                plannedSql = formatSqlComponent(rewritten);
+            } catch (error) {
+                errors.push({
+                    code: "REWRITE_FAILED",
+                    message: "SSSQL rewrite planning could not produce a rewritten query.",
+                    detail: error instanceof Error ? error.message : error
+                });
+            }
+        }
+
+        if (plannedSql !== undefined) {
+            try {
+                SelectQueryParser.parse(plannedSql);
+            } catch (error) {
+                errors.push({
+                    code: "PARSE_AFTER_FAILED",
+                    message: "The SQL produced by SSSQL rewrite planning could not be parsed.",
+                    detail: error instanceof Error ? error.message : error
+                });
+            }
+
+            try {
+                afterTokens = tokenizeForRewritePlan(plannedSql);
+                afterComments = collectCommentFragments(plannedSql);
+            } catch (error) {
+                errors.push({
+                    code: "TOKENIZE_AFTER_FAILED",
+                    message: "Could not tokenize the SQL produced by SSSQL rewrite planning.",
+                    detail: error instanceof Error ? error.message : error
+                });
+            }
+        }
+
+        const edits = plannedSql !== undefined && plannedSql !== sourceSql
+            ? [{
+                start: 0,
+                end: sourceSql.length,
+                before: sourceSql,
+                after: plannedSql,
+                kind: "replace" as const,
+                reason: "Current SSSQL rewrite planning is backed by AST rewrite plus formatter output."
+            }]
+            : [];
+        const changedRegions: SssqlRewriteChangedRegion[] = edits.length > 0
+            ? [{
+                kind: "formatter-rewrite",
+                start: 0,
+                end: sourceSql.length,
+                message: "The conservative SSSQL rewrite plan requires replacing formatter output for the full SQL text."
+            }]
+            : [];
+        const requiresFullReformat = edits.length > 0;
+        const tokenSequencePreserved = plannedSql !== undefined
+            ? tokenSequencesEqual(beforeTokens, afterTokens)
+            : false;
+        const commentsPreserved = plannedSql !== undefined
+            ? commentsPreservedInOrder(beforeComments, afterComments)
+            : false;
+        const changedOnlyTargetBranches = edits.length === 0;
+
+        if (requiresFullReformat) {
+            warnings.push({
+                code: "FULL_REFORMAT_REQUIRED",
+                message: "The current SSSQL rewrite plan can only represent the change as a full SQL replacement."
+            });
+        }
+        if (plannedSql !== undefined && !tokenSequencePreserved) {
+            warnings.push({
+                code: "TOKEN_SEQUENCE_CHANGED",
+                message: "The SQL token sequence changes after the SSSQL rewrite. The conservative planner cannot prove that only target branches changed.",
+                detail: {
+                    tokenCountBefore: beforeTokens.length,
+                    tokenCountAfter: afterTokens.length
+                }
+            });
+        }
+        if (plannedSql !== undefined && !commentsPreserved) {
+            warnings.push({
+                code: "COMMENTS_NOT_PRESERVED",
+                message: "One or more input SQL comments are missing or reordered after the SSSQL rewrite."
+            });
+        }
+        if (plannedSql !== undefined && countCommandToken(afterTokens, "as") > countCommandToken(beforeTokens, "as")) {
+            warnings.push({
+                code: "OPTIONAL_ALIAS_AS_ADDED",
+                message: "The rewrite output contains more AS tokens than the input, which may indicate formatter-added aliases."
+            });
+        }
+        if (plannedSql !== undefined && !sourceSql.includes("\"") && plannedSql.includes("\"")) {
+            warnings.push({
+                code: "IDENTIFIER_QUOTES_ADDED",
+                message: "The rewrite output contains double-quoted identifiers that were not present in the input SQL."
+            });
+        }
+
+        return {
+            ok: errors.length === 0,
+            requiresFullReformat,
+            edits,
+            sql: plannedSql,
+            safety: {
+                tokenCountBefore: beforeTokens.length,
+                tokenCountAfter: afterTokens.length,
+                tokenSequencePreserved,
+                commentsPreserved,
+                changedOnlyTargetBranches,
+                changedRegions
+            },
+            warnings,
+            errors
+        };
     }
 
     private findMatchingBranchInfos(root: SelectQuery, spec: SssqlRemoveSpec): SssqlBranchInfo[] {
