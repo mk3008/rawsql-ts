@@ -1,5 +1,11 @@
 # rawsql-ts
 
+## 0.22.0
+
+### Minor Changes
+
+- [#853](https://github.com/mk3008/rawsql-ts/pull/853) [`95cf764`](https://github.com/mk3008/rawsql-ts/commit/95cf764a6ed70ec158f594f023354bfc9bc81110) Thanks [@mk3008](https://github.com/mk3008)! - Add SSSQL rewrite plan APIs on `SSSQLFilterBuilder` so callers can inspect scaffold, refresh, and remove rewrites before applying them. Plans include rewritten SQL, edit spans, safety metadata, warnings, and errors. Scalar add and remove plans can now return minimal span-based edits when the change can be proven target-local, while unsupported cases fall back to conservative full-reformat warnings.
+
 ## 0.21.1
 
 ### Patch Changes

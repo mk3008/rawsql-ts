@@ -1,5 +1,14 @@
 # @rawsql-ts/adapter-node-pg
 
+## 0.15.10
+
+### Patch Changes
+
+- Updated dependencies [[`95cf764`](https://github.com/mk3008/rawsql-ts/commit/95cf764a6ed70ec158f594f023354bfc9bc81110)]:
+  - rawsql-ts@0.22.0
+  - @rawsql-ts/testkit-core@0.17.1
+  - @rawsql-ts/testkit-postgres@0.16.1
+
 ## 0.15.9
 
 ### Patch Changes
