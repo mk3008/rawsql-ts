@@ -319,6 +319,10 @@ const findMatchingParenEnd = (sql: string, start: number): number => {
     return -1;
 };
 
+// Fallback for #854: findOptionalBranchSpans, findBooleanOperatorBefore, and
+// findBooleanOperatorAfter recover minimal remove spans until the AST can expose
+// source positions for optional parenthesized OR/IS NULL branches reliably.
+// Keep regex-based rewriting limited to this fallback path.
 const findOptionalBranchSpans = (sql: string, parameterName: string): Array<{ start: number; end: number; text: string }> => {
     const spans: Array<{ start: number; end: number; text: string }> = [];
     const parameterNeedle = `:${parameterName.toLowerCase()}`;
@@ -1073,6 +1077,9 @@ export class SSSQLFilterBuilder {
     private planScalarInsert(sourceSql: string, spec: SssqlScalarScaffoldSpec): SssqlRewritePlan {
         const parsed = SelectQueryParser.parse(sourceSql);
         const target = this.resolveTarget(parsed, spec.target);
+        if (target.query !== parsed) {
+            return this.planRewrite(sourceSql, query => this.scaffoldBranch(query, spec));
+        }
         const parameterName = spec.parameterName?.trim() || target.parameterName;
         const operator = normalizeScalarOperator(spec.operator);
         const targetColumnText = findSourceColumnReferenceText(sourceSql, target.column);
@@ -1110,6 +1117,9 @@ export class SSSQLFilterBuilder {
         }
 
         const targetQuery = targetQueries[0]!;
+        if (targetQuery !== parsed) {
+            return this.planRewrite(sourceSql, query => this.scaffoldBranch(query, spec));
+        }
         const sourceColumns = anchorTargets.map(target => findSourceColumnReferenceText(sourceSql, target.column));
         const substitutedSql = substituteAnchorPlaceholders(spec.query, sourceColumns).trim();
         enforceSubqueryConstraints(substitutedSql);
@@ -1200,11 +1210,7 @@ export class SSSQLFilterBuilder {
 
         const branchSpans = findOptionalBranchSpans(sourceSql, spec.parameterName);
         if (branchSpans.length > 1) {
-            return this.buildPlanFromEdits(sourceSql, [], [], [], [{
-                code: "AMBIGUOUS_SOURCE_SPAN",
-                message: "SSSQL remove planning found multiple source spans for the target branch.",
-                detail: { parameterName: spec.parameterName, count: branchSpans.length }
-            }]);
+            return this.planRewrite(sourceSql, query => this.remove(query, spec));
         }
         const span = branchSpans[0];
         if (!span) {

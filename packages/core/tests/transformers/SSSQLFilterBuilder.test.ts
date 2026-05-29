@@ -79,6 +79,26 @@ describe('SSSQLFilterBuilder', () => {
         expect(plan.safety.changedOnlyTargetBranches).toBe(true);
     });
 
+    it('falls back to formatter-backed scaffold planning for nested query targets', () => {
+        const builder = new SSSQLFilterBuilder();
+        const sql = `
+            with base_users as (
+                select u.id, u.name
+                from users u
+            )
+            select b.id
+            from base_users b
+        `;
+
+        const plan = builder.planScaffold(sql, { 'users.name': 'Alice' });
+
+        expect(plan.ok).toBe(true);
+        expect(plan.requiresFullReformat).toBe(true);
+        expect(plan.safety.changedOnlyTargetBranches).toBe(false);
+        expect(normalizeSql(plan.sql ?? '')).toContain('from "users" as "u" where (:users_name is null or "u"."name" = :users_name)');
+        expect(normalizeSql(plan.sql ?? '')).toContain('select "b"."id" from "base_users" as "b"');
+    });
+
     it('plans exists and not-exists scaffold branches as minimal inserts', () => {
         const builder = new SSSQLFilterBuilder();
         const sql = 'select p.product_id, p.product_name from products p where p.active = true order by p.product_id';
@@ -250,6 +270,27 @@ describe('SSSQLFilterBuilder', () => {
             branchKind: 'not-exists',
             parameterName: 'archived_name'
         }));
+    });
+
+    it('falls back to formatter-backed remove planning for ambiguous source spans', () => {
+        const builder = new SSSQLFilterBuilder();
+        const sql = `
+            select p.product_id
+            from products p
+            where p.active = true
+              and (:product_name is null or p.product_name = :product_name)
+              /* archived example: (:product_name is null or old.product_name = :product_name) */
+        `;
+
+        const plan = builder.planRemove(sql, { parameterName: 'product_name', kind: 'scalar' });
+
+        expect(plan.ok).toBe(true);
+        expect(plan.requiresFullReformat).toBe(true);
+        expect(plan.errors).toEqual([]);
+        expect(plan.warnings).toEqual(expect.arrayContaining([
+            expect.objectContaining({ code: 'FULL_REFORMAT_REQUIRED' })
+        ]));
+        expect(normalizeSql(plan.sql ?? '')).toBe('select "p"."product_id" from "products" as "p" where "p"."active" = true');
     });
 
     it('reports rewrite failures as plan errors instead of throwing', () => {
