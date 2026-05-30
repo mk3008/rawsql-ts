@@ -12,6 +12,7 @@ import { FunctionExpressionParser } from "./FunctionExpressionParser";
 import { FullNameParser } from "./FullNameParser";
 import { ParseError } from "./ParseError";
 import { OperatorPrecedence } from "../utils/OperatorPrecedence";
+import { SQL_SPECIAL_VALUE_KEYWORD_SET } from "../utils/SqlSpecialValueKeywords";
 
 export class ValueParser {
     // Parse SQL string to AST (was: parse)
@@ -263,6 +264,11 @@ export class ValueParser {
             const value = new ColumnReference(namespaces, name);
             this.transferPositionedComments(current, value);
             return { value, newIndex };
+        } else if ((current.type & TokenType.Literal) && this.isQualifiedSpecialValueIdentifier(lexemes, idx)) {
+            const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, idx);
+            const value = new ColumnReference(namespaces, name);
+            this.transferPositionedComments(current, value);
+            return { value, newIndex };
         } else if (current.type & TokenType.Literal) {
             const result = LiteralParser.parseFromLexeme(lexemes, idx);
             this.transferPositionedComments(current, result.value);
@@ -322,6 +328,12 @@ export class ValueParser {
         }
 
         throw ParseError.fromUnparsedLexemes(lexemes, idx, `[ValueParser] Invalid lexeme.`);
+    }
+
+    private static isQualifiedSpecialValueIdentifier(lexemes: Lexeme[], index: number): boolean {
+        return SQL_SPECIAL_VALUE_KEYWORD_SET.has(lexemes[index].value.toLowerCase()) &&
+            index + 1 < lexemes.length &&
+            (lexemes[index + 1].type & TokenType.Dot) !== 0;
     }
 
     public static parseArgument(openToken: TokenType, closeToken: TokenType, lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {

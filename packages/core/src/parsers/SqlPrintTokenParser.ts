@@ -86,6 +86,7 @@ export interface FormatterConfig {
     identifierEscape?: {
         start: string;
         end: string;
+        target?: 'all' | 'minimal';
     };
     parameterSymbol?: string | { start: string; end: string };
     /**
@@ -257,7 +258,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     constructor(options?: {
         preset?: FormatterConfig,
-        identifierEscape?: { start: string; end: string },
+        identifierEscape?: { start: string; end: string; target?: 'all' | 'minimal' },
         parameterSymbol?: string | { start: string; end: string },
         parameterStyle?: 'anonymous' | 'indexed' | 'named',
         castStyle?: CastStyle,
@@ -277,7 +278,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         this.identifierDecorator = new IdentifierDecorator({
             start: options?.identifierEscape?.start ?? '"',
-            end: options?.identifierEscape?.end ?? '"'
+            end: options?.identifierEscape?.end ?? '"',
+            target: options?.identifierEscape?.target
         });
 
         this.castStyle = options?.castStyle ?? 'standard';
