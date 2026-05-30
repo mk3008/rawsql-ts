@@ -2,7 +2,7 @@ import { SqlPrintTokenParser, FormatterConfig, PRESETS, CastStyle, ConstraintSty
 import { SqlPrinter, CommaBreakStyle, AndBreakStyle, OrBreakStyle } from './SqlPrinter';
 import { CommentExportMode } from '../types/Formatting';
 import { IndentCharOption, NewlineOption } from './LinePrinter'; // Import types for compatibility
-import { IdentifierEscapeOption, resolveIdentifierEscapeOption } from './FormatOptionResolver';
+import { IdentifierEscapeOption, IdentifierEscapeTarget, resolveIdentifierEscapeOption } from './FormatOptionResolver';
 import { SelectQuery } from '../models/SelectQuery';
 import { SqlComponent } from '../models/SqlComponent';
 
@@ -99,6 +99,8 @@ export interface SqlFormatterOptions extends BaseFormattingOptions {
     preset?: PresetName;
     /** Identifier escape style (logical name like 'quote' or explicit delimiters) */
     identifierEscape?: IdentifierEscapeOption;
+    /** Identifier escape target: all identifiers or only identifiers that need escaping */
+    identifierEscapeTarget?: IdentifierEscapeTarget;
     /** Parameter symbol configuration for SQL parameters */
     parameterSymbol?: string | { start: string; end: string };
     /** Style for parameter formatting */
@@ -133,7 +135,10 @@ export class SqlFormatter {
         }
 
         // Normalize identifier escape names into actual delimiter pairs before configuring the parser.
-        const resolvedIdentifierEscape = resolveIdentifierEscapeOption(options.identifierEscape ?? presetConfig?.identifierEscape);
+        const resolvedIdentifierEscape = resolveIdentifierEscapeOption(
+            options.identifierEscape ?? presetConfig?.identifierEscape,
+            options.identifierEscapeTarget ?? 'all'
+        );
 
         const parserOptions = {
             ...presetConfig, // Apply preset configuration

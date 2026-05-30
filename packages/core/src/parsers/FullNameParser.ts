@@ -1,5 +1,6 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { IdentifierString } from "../models/ValueComponent";
+import { SQL_SPECIAL_VALUE_KEYWORD_SET } from "../utils/SqlSpecialValueKeywords";
 import { SqlTokenizer } from "./SqlTokenizer";
 
 /**
@@ -103,6 +104,9 @@ export class FullNameParser {
                 identifiers.push(lexemes[idx].value);
                 idx++;
             } else if (lexemes[idx].type & TokenType.Type) {
+                identifiers.push(lexemes[idx].value);
+                idx++;
+            } else if ((lexemes[idx].type & TokenType.Literal) && SQL_SPECIAL_VALUE_KEYWORD_SET.has(lexemes[idx].value.toLowerCase())) {
                 identifiers.push(lexemes[idx].value);
                 idx++;
             } else if (

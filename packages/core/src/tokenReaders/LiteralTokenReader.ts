@@ -4,6 +4,7 @@ import { CharLookupTable } from '../utils/charLookupTable';
 import { looksLikeSqlServerMoneyLiteral } from './SqlServerMoneyLiteralDetector';
 import { KeywordParser } from '../parsers/KeywordParser';
 import { KeywordTrie } from '../models/KeywordTrie';
+import { SQL_SPECIAL_VALUE_KEYWORDS } from '../utils/SqlSpecialValueKeywords';
 
 /**
  * Reads SQL literal tokens (numbers, strings)
@@ -13,11 +14,7 @@ const keywords = [
     ["null"],
     ["true"],
     ["false"],
-    ["current_date"],
-    ["current_time"],
-    ["current_timestamp"],
-    ["localtime"],
-    ["localtimestamp"],
+    ...SQL_SPECIAL_VALUE_KEYWORDS.map(keyword => [keyword]),
     ["unbounded"],
     ["normalized"],
     ["nfc", "normalized"],
