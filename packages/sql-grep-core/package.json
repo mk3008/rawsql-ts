@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/sql-grep-core",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Low-dependency SQL usage analysis engine for rawsql-ts workspaces.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -39,7 +39,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "rawsql-ts": "^0.22.0"
+    "rawsql-ts": "^0.23.0"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

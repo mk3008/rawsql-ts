@@ -1,5 +1,12 @@
 # @rawsql-ts/testkit-core
 
+## 0.17.2
+
+### Patch Changes
+
+- Updated dependencies [[`4698a87`](https://github.com/mk3008/rawsql-ts/commit/4698a87e9a73f8d6b87b0545cb0a740246f7d457)]:
+  - rawsql-ts@0.23.0
+
 ## 0.17.1
 
 ### Patch Changes

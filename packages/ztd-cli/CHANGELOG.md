@@ -1,5 +1,14 @@
 # @rawsql-ts/ztd-cli
 
+## 0.27.4
+
+### Patch Changes
+
+- Updated dependencies [[`4698a87`](https://github.com/mk3008/rawsql-ts/commit/4698a87e9a73f8d6b87b0545cb0a740246f7d457)]:
+  - rawsql-ts@0.23.0
+  - @rawsql-ts/adapter-node-pg@0.15.11
+  - @rawsql-ts/sql-grep-core@0.1.12
+
 ## 0.27.3
 
 ### Patch Changes

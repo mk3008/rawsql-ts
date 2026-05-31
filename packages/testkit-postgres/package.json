@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/testkit-postgres",
-  "version": "0.16.1",
+  "version": "0.16.2",
   "description": "Postgres-specific fixture/rewriter logic that stays driver-agnostic.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -40,8 +40,8 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/testkit-core": "^0.17.1",
-    "rawsql-ts": "^0.22.0"
+    "@rawsql-ts/testkit-core": "^0.17.2",
+    "rawsql-ts": "^0.23.0"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

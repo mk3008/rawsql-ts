@@ -1,5 +1,11 @@
 # rawsql-ts
 
+## 0.23.0
+
+### Minor Changes
+
+- [#856](https://github.com/mk3008/rawsql-ts/pull/856) [`4698a87`](https://github.com/mk3008/rawsql-ts/commit/4698a87e9a73f8d6b87b0545cb0a740246f7d457) Thanks [@mk3008](https://github.com/mk3008)! - Add `identifierEscapeTarget: "minimal"` to `SqlFormatter` so identifier quotes are removed only when the bare identifier is syntactically valid and semantically safe. The escape symbol remains controlled separately by `identifierEscape` (`quote`, `backtick`, `bracket`, or explicit delimiters). Reserved words, SQL special value expressions such as `current_user` and `current_timestamp`, mixed-case names, and identifiers containing spaces or punctuation remain escaped. Bare SQL special value expressions stay unquoted, while qualified references such as `table.current_user` can still be parsed as column references.
+
 ## 0.22.0
 
 ### Minor Changes
