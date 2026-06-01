@@ -68,7 +68,7 @@
     "pg": "^8.11.1",
     "testcontainers": "^10.28.0",
     "typescript": "^5.8.2",
-    "vitest": "^4.0.7"
+    "vitest": "^4.1.0"
   },
   "files": [
     "dist",
