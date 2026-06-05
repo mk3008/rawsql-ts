@@ -2031,7 +2031,7 @@ function ensurePackageJsonFormatting(
   };
   const testingDeps: Record<string, string> = {
     dotenv: '^16.6.1',
-    vitest: '^4.0.7',
+    vitest: '^4.1.8',
     typescript: '^5.8.2',
     '@types/node': '^22.13.10'
   };
