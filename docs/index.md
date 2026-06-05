@@ -15,9 +15,6 @@ hero:
       text: Transfer Docs
       link: /transfer-docs
     - theme: alt
-      text: ztd-cli Docs
-      link: /ztd-cli-docs
-    - theme: alt
       text: Open Playground
       link: /cud-demo/index.html
       target: _blank
@@ -29,8 +26,8 @@ features:
     details: 3-8x faster than major SQL libraries while supporting complex PostgreSQL queries.
   - title: Transform Existing SQL
     details: Parse raw SQL into AST, apply dynamic filters and structural transformations, then regenerate optimized queries.
-  - title: Runtime-free ztd-cli Scaffolds
-    details: Generate SQL-first boundaries with thin executors and AOT row mappers, without runtime mapper or validator libraries in the standard path.
+  - title: Runtime-free Testkits
+    details: Validate SQL with fixture-backed testkits while keeping production code free of test-time rewriting dependencies.
   - title: Browser & Playground Ready
     details: Run in the browser via CDN and experiment with live formatting and analysis tools.
 ---

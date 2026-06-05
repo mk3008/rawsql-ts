@@ -4,7 +4,7 @@ title: Query Uses Impact Checks
 
 # Query Uses Impact Checks
 
-Use `ztd query uses` when you need to answer a schema-change question before editing SQL or repositories:
+Use `ashiba query uses` when you need to answer a schema-change question before editing SQL or repositories:
 
 - "Does anything reference this table?"
 - "Which queries still use the old column name?"
@@ -12,7 +12,7 @@ Use `ztd query uses` when you need to answer a schema-change question before edi
 
 This page covers the `table` and `column` impact checks with examples based on a sample sales project.
 
-Implementation note: the CLI command is provided by `@rawsql-ts/ztd-cli`, while the reusable analysis engine now lives in `@rawsql-ts/sql-grep-core`.
+Implementation note: the CLI command is provided by `@ashiba-ts/cli`, while the reusable analysis engine now lives in `@rawsql-ts/sql-grep-core`.
 
 The active scan set is **project-wide by default**. `query uses` discovers QuerySpec entries under the current project root and follows each spec's `sqlFile`. Use `--scope-dir` only when you want to narrow the scan to one slice or sub-tree.
 
@@ -21,25 +21,25 @@ The active scan set is **project-wide by default**. `query uses` discovers Query
 The default view is `impact`, which is the fastest first pass for "used or not, and by which queries?".
 
 ```bash
-npx ztd query uses table public.sale_items
-npx ztd query uses column public.sale_items.quantity
+npx ashiba query uses table public.sale_items
+npx ashiba query uses column public.sale_items.quantity
 ```
 
 Use `--view detail` when you need edit-ready evidence:
 
 ```bash
-npx ztd query uses table public.sale_items --view detail
-npx ztd query uses column public.sale_items.quantity --view detail
+npx ashiba query uses table public.sale_items --view detail
+npx ashiba query uses column public.sale_items.quantity --view detail
 ```
 
 Use `--exclude-generated` when generated or probe specs would otherwise add noise to rename and type-change investigations:
 
 ```bash
-npx ztd query uses table public.sale_items --exclude-generated
-npx ztd query uses table public.sale_lines --exclude-generated
-npx ztd query uses column public.products.title --exclude-generated
-npx ztd query uses column public.sale_items.quantity --exclude-generated
-npx ztd query uses table public.sale_lines --view detail --exclude-generated
+npx ashiba query uses table public.sale_items --exclude-generated
+npx ashiba query uses table public.sale_lines --exclude-generated
+npx ashiba query uses column public.products.title --exclude-generated
+npx ashiba query uses column public.sale_items.quantity --exclude-generated
+npx ashiba query uses table public.sale_lines --view detail --exclude-generated
 ```
 
 `--exclude-generated` only excludes QuerySpec files under `generated` directories. The flag is optional, and the default scan set is unchanged.
@@ -51,8 +51,8 @@ npx ztd query uses table public.sale_lines --view detail --exclude-generated
 Use the default scan first. In the common "new object not referenced yet" case, the answer should be a clean no-hit.
 
 ```bash
-npx ztd query uses table public.sale_discounts
-npx ztd query uses column public.sales.discount_rate
+npx ashiba query uses table public.sale_discounts
+npx ashiba query uses column public.sales.discount_rate
 ```
 
 Typical output:
@@ -77,10 +77,10 @@ Affected queries:
 Prefer `--exclude-generated`. These scenarios are more likely to pick up review-only generated specs or probe scaffolds, and excluding them makes the impact list easier to act on.
 
 ```bash
-npx ztd query uses table public.sale_items --exclude-generated
-npx ztd query uses table public.sale_lines --exclude-generated
-npx ztd query uses column public.products.title --exclude-generated
-npx ztd query uses column public.sale_items.quantity --exclude-generated
+npx ashiba query uses table public.sale_items --exclude-generated
+npx ashiba query uses table public.sale_lines --exclude-generated
+npx ashiba query uses column public.products.title --exclude-generated
+npx ashiba query uses column public.sale_items.quantity --exclude-generated
 ```
 
 Example difference for a rename check:
@@ -188,9 +188,9 @@ Primary matches:
 Run the old name first, then the new name.
 
 ```bash
-npx ztd query uses table public.sale_items --exclude-generated
-npx ztd query uses table public.sale_lines --exclude-generated
-npx ztd query uses table public.sale_lines --view detail --exclude-generated
+npx ashiba query uses table public.sale_items --exclude-generated
+npx ashiba query uses table public.sale_lines --exclude-generated
+npx ashiba query uses table public.sale_lines --view detail --exclude-generated
 ```
 
 Expected pattern:
@@ -201,9 +201,9 @@ Expected pattern:
 ### 2. Rename a column
 
 ```bash
-npx ztd query uses column public.products.name --exclude-generated
-npx ztd query uses column public.products.title --exclude-generated
-npx ztd query uses column public.products.title --view detail --exclude-generated
+npx ashiba query uses column public.products.name --exclude-generated
+npx ashiba query uses column public.products.title --exclude-generated
+npx ashiba query uses column public.products.title --view detail --exclude-generated
 ```
 
 Expected pattern:
@@ -214,8 +214,8 @@ Expected pattern:
 ### 3. Change a column type
 
 ```bash
-npx ztd query uses column public.sale_items.quantity --exclude-generated
-npx ztd query uses column public.sale_items.quantity --view detail --exclude-generated
+npx ashiba query uses column public.sale_items.quantity --exclude-generated
+npx ashiba query uses column public.sale_items.quantity --view detail --exclude-generated
 ```
 
 Expected pattern:
@@ -232,13 +232,13 @@ Check that your `spec.sqlFile` values still resolve from the spec itself first. 
 If needed, be explicit:
 
 ```bash
-npx ztd query uses table public.users --sql-root src/sql
+npx ashiba query uses table public.users --sql-root src/sql
 ```
 
 For feature-local layouts, keep the spec and SQL together and let the default resolver work without `--sql-root`:
 
 ```bash
-npx ztd query uses column users.email --scope-dir src/features/users/persistence --any-schema --view detail
+npx ashiba query uses column users.email --scope-dir src/features/users/persistence --any-schema --view detail
 ```
 
 ### Matches look noisy
@@ -246,13 +246,13 @@ npx ztd query uses column users.email --scope-dir src/features/users/persistence
 Try `--exclude-generated` first.
 
 ```bash
-npx ztd query uses table public.sale_items --exclude-generated
+npx ashiba query uses table public.sale_items --exclude-generated
 ```
 
 If you still need proof for a specific hit, switch to `--view detail`.
 
 ```bash
-npx ztd query uses table public.sale_items --view detail --exclude-generated
+npx ashiba query uses table public.sale_items --view detail --exclude-generated
 ```
 
 ## Recommended workflow

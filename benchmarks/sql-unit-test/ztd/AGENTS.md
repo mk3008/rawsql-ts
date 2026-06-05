@@ -4,7 +4,7 @@
 
 # Policy
 ## REQUIRED
-- `tests/generated/` artifacts MUST be regenerated via `npx ztd ztd-config` when missing or stale.
+- `tests/generated/` artifacts MUST be regenerated via `Ashiba fixture generation` when missing or stale.
 - Files under `ztd/ddl` MUST preserve human-authored structure and statement ordering unless explicitly instructed.
 - DDL statements MUST remain semicolon-terminated valid PostgreSQL syntax.
 - Domain spec files MUST keep one executable top-level SELECT block per file.
@@ -19,7 +19,7 @@
 - Inventing enum values not defined in enum sources.
 
 # Mandatory Workflow
-- If generated modules are missing or stale, run: `npx ztd ztd-config`.
+- If generated modules are missing or stale, run: `Ashiba fixture generation`.
 
 # Hygiene
 - Keep generated artifacts out of commits unless explicitly required by repository policy.

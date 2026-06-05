@@ -1,6 +1,6 @@
 # @rawsql-ts/advanced-runtime
 
-Opt-in advanced runtime SQL helpers for projects that intentionally need dynamic SQL behavior outside the standard `ztd-cli` runtime-free generated path.
+Opt-in advanced runtime SQL helpers for projects that intentionally need dynamic SQL behavior outside the standard Ashiba runtime-free generated path.
 
 Initial extraction targets:
 
@@ -10,4 +10,4 @@ Initial extraction targets:
 - named parameter binding that cannot be resolved during generation
 - compatibility helpers for legacy runtime users
 
-Standard `ztd-cli` scaffolds should not import this package by default.
+Standard Ashiba scaffolds should not import this package by default.

@@ -49,7 +49,7 @@ This section aggregates the package-level review harness inputs used before sema
 - Mandatory scope rules: `db-centered-transfer`, `human-owned-logical-model`, `generated-docs-not-source`
 - Mandatory verification policies: `db-backed-contract-verification`, `no-hot-path-runtime-validation`
 - Mandatory authority rules: `human-owned-requirements`, `ai-owned-review-management`, `cli-owned-review-views`
-- Mandatory technology rules: `postgres-primary-db`, `sql-first-ztd-cli`, `no-standard-orm-path`, `cli-front-facing-surface`
+- Mandatory technology rules: `postgres-primary-db`, `sql-first-ashiba`, `no-standard-orm-path`, `cli-front-facing-surface`
 
 ### Review-plan Diagnostics
 

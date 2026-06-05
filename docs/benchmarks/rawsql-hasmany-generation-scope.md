@@ -120,7 +120,7 @@ Fallback should remain compatibility-oriented. The standard scaffold success pat
 Implemented in this pass:
 
 - JSON-compatible generated mapper metadata can describe one `hasMany` relation without a runtime package dependency.
-- ztd-cli generated mapper sync can detect one explicit `hasMany` relation from JSON-compatible query metadata.
+- Ashiba generated mapper sync can detect one explicit `hasMany` relation from JSON-compatible query metadata.
 - The first generator entrypoint reads a JSON-compatible `*GeneratedMapperMetadata` constant that can be assigned to queryspec `metadata`; arbitrary inline `metadata` object parsing is intentionally out of scope. Parse failures explain that the metadata object literal must stay JSON-compatible and show the regeneration/check failure before CI can pass.
 - The generated mapper uses root indexing, SQL row-order preservation, direct assignment, and no object spread in the hot loop.
 - Missing or unsafe metadata fails generation with a visible reason instead of guessing relations from aliases.

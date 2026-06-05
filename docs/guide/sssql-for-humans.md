@@ -111,5 +111,4 @@ If the answers are yes to 2-4 and no to 1, SSSQL is usually the right tool.
 
 - [What Is SSSQL?](./sssql-overview.md)
 - [Dynamic Filter Routing](./dynamic-filter-routing.md)
-- [ztd-cli SSSQL Authoring](./ztd-cli-sssql-authoring.md)
 - [SSSQL Optional Branch Pruning MVP](./sssql-optional-branch-pruning.md)

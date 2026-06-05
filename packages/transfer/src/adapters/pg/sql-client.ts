@@ -9,7 +9,7 @@ import type { SqlClient } from '#libraries/sql/sql-client.js';
  *
  * Usage:
  *   // This runtime example uses DATABASE_URL for application code.
- *   // ztd-cli itself does not read DATABASE_URL implicitly.
+ *   // Ashiba itself does not read DATABASE_URL implicitly.
  *   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
  *   const client = fromPg(pool);
  *   const users = await client.query<{ id: number }>('SELECT id ...', []);

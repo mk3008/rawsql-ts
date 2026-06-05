@@ -247,7 +247,7 @@ export class DynamicQueryBuilder {
             const hasLegacyDynamicFilters = Object.keys(dynamicFilters).length > 0;
             if (hasLegacyDynamicFilters) {
                 throw new Error(
-                    "DynamicQueryBuilder no longer injects runtime filter predicates. Use `ztd query sssql scaffold` to author optional filters, `ztd query sssql refresh` to refresh them, and `optionalConditionParameters` at runtime for pruning only."
+                    "DynamicQueryBuilder no longer injects runtime filter predicates. Use `ashiba query optional add` to author optional filters, `ashiba query optional refresh` to refresh them, and `optionalConditionParameters` at runtime for pruning only."
                 );
             }
         }

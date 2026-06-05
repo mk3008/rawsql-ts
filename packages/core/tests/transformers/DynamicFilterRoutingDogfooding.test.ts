@@ -19,7 +19,7 @@ describe('Dynamic filter routing dogfooding', () => {
       filter: {
         'profiles.name': 'Alice'
       }
-    })).toThrow(/ztd query sssql scaffold/i);
+    })).toThrow(/ashiba query optional add/i);
   });
 
   it('dogfood: SSSQL scaffold owns optional filter authoring before runtime pruning', () => {

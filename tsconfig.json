@@ -41,7 +41,6 @@
         "@rawsql-ts/test-evidence-renderer-md/*": ["packages/test-evidence-renderer-md/src/*"],
         "@rawsql-ts/sql-grep-core": ["packages/sql-grep-core/src"],
         "@rawsql-ts/sql-grep-core/*": ["packages/sql-grep-core/src/*"],
-        "@rawsql-ts/ztd-cli": ["packages/ztd-cli/src"],
         "@rawsql-ts/testkit-sqlite": ["packages/testkit-sqlite/src"],
         "@rawsql-ts/adapter-node-pg": ["packages/adapters/adapter-node-pg/src"],
         "@rawsql-ts/driver-adapter-core": ["packages/drivers/driver-adapter-core/src"],

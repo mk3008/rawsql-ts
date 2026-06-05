@@ -60,7 +60,7 @@ That means these two statements can both be true without contradiction:
 2. If the predicate already exists in SQL, bind its required placeholders only.
 3. Otherwise, author the missing optional branch in SQL with SSSQL.
 4. Keep hardcoded required predicates separate from removable optional branches.
-5. Use `ztd query sssql list` to inspect authored branches and `ztd query sssql remove --preview` when cleaning them up.
+5. Use `ashiba query optional list` to inspect authored branches and `ashiba query optional remove --preview` when cleaning them up.
 6. Add or update the focused unit test that proves the routing choice.
 
 ## Related guides

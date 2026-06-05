@@ -76,9 +76,9 @@ PostgreSQL uses `search_path` to resolve unqualified table names. ZTD's `ztd.con
 
 **Mitigation:**
 - Set `defaultSchema` and `searchPath` in `ztd.config.json` to match your database's `search_path`.
-- Use `ztd ztd-config --default-schema <name> --search-path <list>` to override.
+- Use `ashiba config --default-schema <name> --search-path <list>` to override.
 
 ## Further reading
 
 - [Mapping vs validation pipeline](../recipes/mapping-vs-validation.md) — how coercions and validators interact
-- [Happy Path Quickstart](https://github.com/mk3008/rawsql-ts/blob/main/packages/ztd-cli/README.md#happy-path-quickstart) — end-to-end setup guide
+- [Ashiba](https://github.com/mk3008/ashiba) — SQL-first CLI workflows and starter guidance

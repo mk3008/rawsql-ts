@@ -36,8 +36,7 @@
     "format": "prettier . --write",
     "lint": "node ./scripts/check-sql-leading-commas.mjs && eslint src tests --ext .ts",
     "lint:sql": "node ./scripts/check-sql-leading-commas.mjs",
-    "lint:fix": "eslint . --fix",
-    "ztd": "node ./scripts/local-source-guard.mjs ztd"
+    "lint:fix": "eslint . --fix"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,md,sql}": [
@@ -54,7 +53,6 @@
   "devDependencies": {
     "@rawsql-ts/testkit-core": "workspace:*",
     "@rawsql-ts/testkit-postgres": "workspace:*",
-    "@rawsql-ts/ztd-cli": "workspace:*",
     "@testcontainers/postgresql": "^12.0.1",
     "@types/node": "22.18.7",
     "dotenv": "^16.6.1",

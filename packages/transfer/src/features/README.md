@@ -31,7 +31,7 @@ boundary/
 Use `src/features/_shared/*` only for feature-facing shared seams such as `FeatureQueryExecutor`.
 Keep driver-neutral helpers in `src/libraries/*`, driver or sink bindings in `src/adapters/<tech>/*`, and keep `db/` reserved for DDL, migrations, and schema assets.
 
-Use `ztd feature tests scaffold --feature <feature-name>` after SQL and DTO edits to refresh `src/features/<feature>/queries/<query>/tests/generated/TEST_PLAN.md` and `analysis.json`, keep the thin `src/features/<feature>/queries/<query>/tests/<query>.boundary.ztd.test.ts` entrypoint in sync, and add persistent cases under `src/features/<feature>/queries/<query>/tests/cases/` with the fixed app-level ZTD runner.
+Use `ashiba feature tests scaffold --feature <feature-name>` after SQL and DTO edits to refresh `src/features/<feature>/queries/<query>/tests/generated/TEST_PLAN.md` and `analysis.json`, keep the thin `src/features/<feature>/queries/<query>/tests/<query>.boundary.ztd.test.ts` entrypoint in sync, and add persistent cases under `src/features/<feature>/queries/<query>/tests/cases/` with the fixed app-level ZTD runner.
 When you are on the boundary lane, treat it as query-local: `src/features/<feature>/queries/<query>/tests/<query>.boundary.ztd.test.ts`, `src/features/<feature>/queries/<query>/tests/generated/`, and `src/features/<feature>/queries/<query>/tests/cases/` move together, while the feature-root `src/features/<feature>/tests/<feature>.boundary.test.ts` stays on the mock-based lane.
 
 ## Import Paths
