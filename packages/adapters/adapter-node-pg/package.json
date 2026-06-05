@@ -33,9 +33,9 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/testkit-postgres": "^0.16.2",
-    "@rawsql-ts/testkit-core": "^0.17.2",
     "@rawsql-ts/shared-binder": "^0.0.1",
+    "@rawsql-ts/testkit-core": "^0.17.2",
+    "@rawsql-ts/testkit-postgres": "^0.16.2",
     "pg": "^8.13.1",
     "rawsql-ts": "^0.23.0"
   },
@@ -43,13 +43,13 @@
     "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
     "@prisma/client-runtime-utils": "^7.2.0",
+    "@testcontainers/postgresql": "^12.0.1",
     "@types/pg": "^8.15.6",
-    "@testcontainers/postgresql": "^11.11.0",
     "drizzle-orm": "^0.45.2",
     "prisma": "^7.2.0",
-    "testcontainers": "^11.11.0",
+    "testcontainers": "^12.0.1",
     "typescript": "^5.8.2",
-    "vitest": "^4.0.7"
+    "vitest": "^4.1.8"
   },
   "files": [
     "dist"

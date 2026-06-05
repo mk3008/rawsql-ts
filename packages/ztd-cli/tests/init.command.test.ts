@@ -150,6 +150,7 @@ test('init bootstraps a feature-first scaffold', { timeout: 60_000 }, async () =
   expect(packageJson['lint-staged']?.['*.{ts,tsx,js,jsx,json,md,sql}']).toEqual(['prettier --write']);
   expect(packageJson['simple-git-hooks']?.['pre-commit']).toBe('pnpm lint-staged');
   expect(packageJson.devDependencies).toHaveProperty('dotenv');
+  expect(packageJson.devDependencies.vitest).toBe('^4.1.8');
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/sql-contract');
   expect(packageJson.dependencies).toHaveProperty('@rawsql-ts/driver-adapter-core');
   expect(packageJson.dependencies).not.toHaveProperty('@rawsql-ts/ztd-cli');
@@ -335,6 +336,7 @@ test('init starter bootstraps compose, starter DDL, and smoke tests without visi
   expect(packageJson.scripts?.test).toContain('--passWithNoTests');
   expect(packageJson.scripts?.test).not.toContain('no test specified');
   expect(packageJson.devDependencies).toHaveProperty('dotenv');
+  expect(packageJson.devDependencies.vitest).toBe('^4.1.8');
   expect(packageJson.devDependencies).not.toHaveProperty('@rawsql-ts/sql-contract');
   expect(packageJson.dependencies).toHaveProperty('@rawsql-ts/driver-adapter-core');
   expect(packageJson.dependencies).not.toHaveProperty('@rawsql-ts/ztd-cli');
