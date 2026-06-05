@@ -1,20 +1,9 @@
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 
-const CLI_SURFACE_PATTERNS = [
-  /^packages\/ztd-cli\/src\/commands\//u,
-  /^packages\/ztd-cli\/src\/index\.ts$/u,
-  /^packages\/ztd-cli\/README\.md$/u,
-  /^docs\/guide\/(?:query-uses-impact-checks|query-uses-overview|sql-first-end-to-end-tutorial|sql-tool-happy-paths|ztd-cli-agent-interface)\.md$/u,
-];
+const CLI_SURFACE_PATTERNS = [];
 
-const SCAFFOLD_CONTRACT_PATTERNS = [
-  /^packages\/ztd-cli\/src\/commands\/(?:feature|init)\.ts$/u,
-  /^packages\/ztd-cli\/templates\//u,
-  /^packages\/ztd-cli\/tests\/(?:featureScaffold|featureTestsScaffold)\.unit\.test\.ts$/u,
-  /^packages\/ztd-cli\/README\.md$/u,
-  /^docs\/guide\/(?:generated-project-verification|sql-first-end-to-end-tutorial|ztd-local-source-dogfooding)\.md$/u,
-];
+const SCAFFOLD_CONTRACT_PATTERNS = [];
 
 const MERGE_NO_EXCEPTION_LABEL = 'No baseline exception requested.';
 const MERGE_EXCEPTION_LABEL = 'Baseline exception requested and linked below.';

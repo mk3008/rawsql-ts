@@ -88,9 +88,9 @@ RFBA is compatible with Vertical Slice Architecture.
 Like VSA, RFBA groups work by feature or use case instead of spreading one use case across technical layers.
 RFBA adds a review-first focus: inside a feature, expose the artifacts that humans should review most carefully, especially SQL and orchestration, while keeping supporting files close to the review boundary they serve.
 
-## ztd-cli Structural Vocabulary
+## Ashiba Structural Vocabulary
 
-`ztd-cli` applies RFBA with three structural terms:
+Ashiba applies RFBA with three structural terms:
 
 - `root-boundary`: the app-level boundary layer. In rawsql-ts starter layouts, the concrete root-boundaries are `src/features`, `src/adapters`, and `src/libraries`.
 - `feature-boundary`: a feature-owned boundary under `src/features/<feature>/`.
@@ -116,7 +116,7 @@ Keep feature-specific validation and helpers inside the owning feature boundary.
 
 RFBA is not a universal file naming rule.
 
-`boundary.ts` is the default `ztd-cli` feature scaffold convention because it makes generated feature and query entrypoints easy to find.
+`boundary.ts` is the default Ashiba feature scaffold convention because it makes generated feature and query entrypoints easy to find.
 That filename is useful, but it is not the definition of RFBA.
 Outside feature-scoped scaffold conventions, projects may choose different filenames when that better expresses the local public surface.
 

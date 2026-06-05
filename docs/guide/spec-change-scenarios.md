@@ -10,7 +10,7 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 **What changed:** A new `NOT NULL` column added to an existing table's DDL.
 
-**Steps:** `ztd ztd-config` → fix compile errors in fixtures (must include the new column) → update SQL, boundary types, and generated mapper output if needed → re-run tests.
+**Steps:** `ashiba check` → fix compile errors in fixtures (must include the new column) → update SQL, boundary types, and generated mapper output if needed → re-run tests.
 
 **Takeaway:** NOT NULL columns force fixture updates everywhere the table appears. Plan fixture changes before adding the column.
 
@@ -18,7 +18,7 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 **What changed:** Column renamed in DDL (e.g., `name` → `display_name`).
 
-**Steps:** `ztd ztd-config` → update SQL files, boundary types, generated mapper output, validator schemas when present, and fixtures → re-run tests.
+**Steps:** `ashiba check` → update SQL files, boundary types, generated mapper output, validator schemas when present, and fixtures → re-run tests.
 
 **Takeaway:** TypeScript compile errors are your guide — the generated `TestRowMap` reflects the new name immediately. Fix all references before running tests.
 
@@ -26,7 +26,7 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 **What changed:** Column type changed (e.g., `integer` → `bigint`, `text` → `jsonb`).
 
-**Steps:** `ztd ztd-config` → update runtime coercions if driver behavior differs (e.g., bigint returns strings) → update validator schemas → re-run tests.
+**Steps:** `ashiba check` → update runtime coercions if driver behavior differs (e.g., bigint returns strings) → update validator schemas → re-run tests.
 
 **Takeaway:** Type changes often require runtime coercion updates. Check the [Postgres pitfalls](./postgres-pitfalls.md) page for driver-specific quirks.
 
@@ -34,7 +34,7 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 **What changed:** New CREATE TABLE added to DDL.
 
-**Steps:** `ztd ztd-config` → new type appears in `TestRowMap` → write SQL queries, fixtures, and tests → run tests.
+**Steps:** `ashiba check` → new type appears in `TestRowMap` → write SQL queries, fixtures, and tests → run tests.
 
 **Takeaway:** The simplest scenario — no existing code is affected. Generated types are immediately available.
 
@@ -42,7 +42,7 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 **What changed:** Table removed from DDL.
 
-**Steps:** `ztd ztd-config` → type disappears from `TestRowMap` → compile errors show all affected code → remove SQL files, repository methods, fixtures, and tests.
+**Steps:** `ashiba check` → type disappears from `TestRowMap` → compile errors show all affected code → remove SQL files, repository methods, fixtures, and tests.
 
 **Takeaway:** Compile errors are exhaustive. Fix them all and you're done.
 
@@ -50,7 +50,7 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 **What changed:** Constraint or index added to DDL.
 
-**Steps:** `ztd ztd-config` → no type-level changes (indexes/FKs don't affect `TestRowMap`) → test behavior is unchanged.
+**Steps:** `ashiba check` → no type-level changes (indexes/FKs don't affect `TestRowMap`) → test behavior is unchanged.
 
 **Takeaway:** ZTD doesn't enforce FK constraints in test fixtures — it operates on data, not schema constraints. Runtime tests against a live DB will enforce them.
 
@@ -58,7 +58,7 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 **What changed:** `defaultSchema` or `searchPath` updated in `ztd.config.json`.
 
-**Steps:** `ztd ztd-config --default-schema <name> --search-path <list>` → regenerate types → SQL files may need schema-qualified names → re-run tests.
+**Steps:** `ashiba check` → regenerate types → SQL files may need schema-qualified names → re-run tests.
 
 **Takeaway:** Schema resolution is a common source of "table not found" errors. Always keep `ztd.config.json` in sync with the database's `search_path`.
 
@@ -68,15 +68,15 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 **Steps:** Tests pass (validator still matches old shape) → runtime fails on real data → update validator schema to match new `TestRowMap` shape → re-run tests.
 
-**Takeaway:** Validators are not auto-generated — they must be manually kept in sync with the mapped DTO. Run `ztd check-contract` to catch drift early.
+**Takeaway:** Validators are not auto-generated — they must be manually kept in sync with the mapped DTO. Run `ashiba check-contract` to catch drift early.
 
 ## 9. Add/remove a column used by a generated mapper
 
 **What changed:** Column projected by a generated query boundary was removed or renamed in DDL.
 
-**Steps:** `ztd ztd-config` → update the SQL asset and boundary row type → run `ztd feature generated-mapper generate` → re-run tests.
+**Steps:** `ashiba check` → update the SQL asset and boundary row type → run `ashiba feature query refresh` → re-run tests.
 
-**Takeaway:** Generated mappers are machine-owned artifacts. Use generated mapper drift checks and `ztd lint` to catch mismatches early.
+**Takeaway:** Generated mappers are machine-owned artifacts. Use generated mapper drift checks and `ashiba lint` to catch mismatches early.
 
 ## 10. Switch validator backend (Zod ↔ ArkType)
 
@@ -88,5 +88,5 @@ Condensed scenarios covering common specification and schema changes, what steps
 
 ## Further reading
 
-- [After DDL/Schema Changes](https://github.com/mk3008/rawsql-ts/blob/main/packages/ztd-cli/README.md#after-ddlschema-changes) — standard workflow steps
+- [Ashiba](https://github.com/mk3008/ashiba) — SQL-first CLI workflows and schema-change guidance
 - [ZTD Theory](./ztd-theory.md) — conceptual foundation

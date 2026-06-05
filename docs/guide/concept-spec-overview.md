@@ -169,7 +169,7 @@ Use the right artifact for the job:
 | code comment | local reason that is easiest to understand near the code |
 | test / ZTD | executable verification |
 | RFBA boundary | reviewable implementation surface |
-| ztd-cli | scaffold, report, and structural check support |
+| Ashiba | scaffold, report, and structural check support |
 
 ## Relationship To Issues
 
@@ -412,7 +412,7 @@ The intended layering is:
 | Package Review Authority Model | define which artifacts are human-owned requirements, AI-led review work, or CLI-owned review views |
 | Package Technology Policy | define package-level technology constraints and review-trigger exceptions |
 | RFBA | expose the implementation surfaces humans should review |
-| ztd-cli / ZTD / tests | provide scaffold, generated artifacts, drift checks, and executable verification |
+| Ashiba / ZTD / tests | provide scaffold, generated artifacts, drift checks, and executable verification |
 | review-plan | provide deterministic review inputs from changed files, relationship metadata, Package Scope, Test Policy, Authority Model, and Technology Policy |
 | agent workflow skills | guide planning, TDD, verification, review, branch work, and subagent execution |
 
@@ -893,7 +893,7 @@ Early CLI support should stay structural and mechanical:
 CLI tools must not reinterpret the spec body, move specs, split specs, merge specs, or reorganize the Concept Spec tree automatically.
 Those actions require human review.
 
-`ztd-cli` is not the primary author of Concept Specs.
+Ashiba is not the primary author of Concept Specs.
 It should support the relationship between Concept Specs, RFBA boundaries, query artifacts, tests, and generated files without inventing concept content.
 
 Useful CLI support should focus on scaffold, discovery, reports, and structural checks.

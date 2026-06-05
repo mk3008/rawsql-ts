@@ -49,51 +49,6 @@ jobs:
     - name: Run unit tests (core)
       run: pnpm --filter "./packages/core" run test
 
-    - name: Detect playground-impacting changes
-      id: playground_changes
-      shell: bash
-      run: |
-        base_sha="${{ github.event.pull_request.base.sha }}"
-        head_sha="${{ github.event.pull_request.head.sha }}"
-        changed_files=$(git diff --name-only "$base_sha...$head_sha")
-        printf '%s\n' "$changed_files"
-
-        if printf '%s\n' "$changed_files" | grep -Eq '^(packages/ztd-cli/|packages/test-evidence-core/|packages/test-evidence-renderer-md/|packages/testkit-core/|playgrounds/ztd-playground/|\.github/workflows/pr-check\.yml$)'; then
-          echo "run=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "run=false" >> "$GITHUB_OUTPUT"
-        fi
-
-    - name: Detect scaffold-layout changes
-      id: generated_project_changes
-      shell: bash
-      run: |
-        base_sha="${{ github.event.pull_request.base.sha }}"
-        head_sha="${{ github.event.pull_request.head.sha }}"
-        changed_files=$(git diff --name-only "$base_sha...$head_sha")
-        printf '%s\n' "$changed_files"
-
-        if printf '%s\n' "$changed_files" | grep -Eq '^(package\.json|scripts/verify-generated-project-mode\.mjs|packages/ztd-cli/package\.json|packages/ztd-cli/(README\.md|src/commands/(feature|init)\.ts|templates/|tests/(cliCommands|featureScaffold\.unit|init\.command)\.test\.ts)|docs/guide/(generated-project-verification|ztd-local-source-dogfooding|sql-first-end-to-end-tutorial)\.md|\.github/workflows/pr-check\.yml$)'; then
-          echo "run=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "run=false" >> "$GITHUB_OUTPUT"
-        fi
-
-    - name: Detect ztd-cli essential-gate changes
-      id: ztd_cli_gates
-      shell: bash
-      run: |
-        base_sha="${{ github.event.pull_request.base.sha }}"
-        head_sha="${{ github.event.pull_request.head.sha }}"
-        changed_files=$(git diff --name-only "$base_sha...$head_sha")
-        printf '%s\n' "$changed_files"
-
-        if printf '%s\n' "$changed_files" | grep -Eq '^(\.husky/pre-commit|\.github/pull_request_template\.md|\.github/workflows/pr-check\.yml|\.github/workflows/ztd-cli-soft-gates\.yml|scripts/(check-pr-readiness|run-ztd-cli-quality-gates|ztd-cli-quality-gates)\.js|docs/guide/(release-readiness|ztd-cli-quality-gates)\.md|packages/ztd-cli/|docs/guide/ztd-cli-)'; then
-          echo "run=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "run=false" >> "$GITHUB_OUTPUT"
-        fi
-
     - name: Detect transfer DDL metadata changes
       id: transfer_ddl_metadata
       shell: bash
@@ -108,53 +63,6 @@ jobs:
         else
           echo "run=false" >> "$GITHUB_OUTPUT"
         fi
-
-    - name: Build ZTD CLI dependencies
-      if: steps.playground_changes.outputs.run == 'true'
-      run: |
-        pnpm --filter rawsql-ts run build
-        pnpm --filter @rawsql-ts/test-evidence-core run build
-        pnpm --filter @rawsql-ts/test-evidence-renderer-md run build
-        pnpm --filter @rawsql-ts/testkit-core run build
-        pnpm --filter @rawsql-ts/ztd-cli run build
-
-    - name: Detect deprecated playground
-      id: playground
-      if: steps.playground_changes.outputs.run == 'true'
-      run: |
-        if [ -d "./playgrounds/ztd-playground" ]; then
-          echo "exists=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "exists=false" >> "$GITHUB_OUTPUT"
-          echo "playgrounds/ztd-playground is removed; skipping playground artifact generation."
-        fi
-
-    # Playground artifact generation stays in PR checks, but only when relevant packages or the workflow changed.
-    - name: Generate ZTD artifacts (playground)
-      if: steps.playground_changes.outputs.run == 'true' && steps.playground.outputs.exists == 'true'
-      working-directory: ./playgrounds/ztd-playground
-      run: node ../../packages/ztd-cli/dist/index.js ztd-config
-
-    - name: Verify working tree is clean after generation
-      if: steps.playground_changes.outputs.run == 'true' && steps.playground.outputs.exists == 'true'
-      run: git diff --exit-code
-
-    - name: Run generated-project verification lane
-      if: steps.generated_project_changes.outputs.run == 'true'
-      run: pnpm verify:generated-project-mode
-
-    - name: Build ztd-cli gate dependencies
-      if: steps.ztd_cli_gates.outputs.run == 'true'
-      run: |
-        pnpm --filter rawsql-ts run build
-        pnpm --filter @rawsql-ts/sql-grep-core run build
-        pnpm --filter @rawsql-ts/test-evidence-core run build
-        pnpm --filter @rawsql-ts/test-evidence-renderer-md run build
-        pnpm --filter @rawsql-ts/testkit-core run build
-
-    - name: Run ztd-cli essential gates
-      if: steps.ztd_cli_gates.outputs.run == 'true'
-      run: node scripts/run-ztd-cli-quality-gates.js pr
 
     - name: Check transfer docs and metadata drift
       if: steps.transfer_ddl_metadata.outputs.run == 'true'

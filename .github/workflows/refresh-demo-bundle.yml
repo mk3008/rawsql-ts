@@ -39,9 +39,6 @@ jobs:
       - name: Build testkit-core package
         run: pnpm --filter @rawsql-ts/testkit-core build
 
-      - name: Build ztd-cli package
-        run: pnpm --filter @rawsql-ts/ztd-cli build
-
       - name: Build rawsql-ts browser output
         run: pnpm --filter rawsql-ts build:browser
 

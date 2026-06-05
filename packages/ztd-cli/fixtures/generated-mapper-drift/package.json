@@ -1,8 +1,0 @@
-{
-  "name": "@rawsql-ts/fixture-generated-mapper-drift",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "ztd": "node ../../dist/index.js"
-  }
-}

@@ -241,8 +241,8 @@ const MANDATORY_TECHNOLOGY_RULES = [
     reason: 'Transfer implementation assumes PostgreSQL-compatible DDL, SQL, and database behavior.',
   },
   {
-    id: 'sql-first-ztd-cli',
-    reason: 'Transfer changes should preserve the SQL-first, ztd-cli/rawsql-ts standard implementation path.',
+    id: 'sql-first-ashiba',
+    reason: 'Transfer changes should preserve the SQL-first, Ashiba/rawsql-ts standard implementation path.',
   },
   {
     id: 'no-standard-orm-path',

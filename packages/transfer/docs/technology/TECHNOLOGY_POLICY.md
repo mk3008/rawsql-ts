@@ -8,7 +8,7 @@
 
 ## Purpose
 
-`@rawsql-ts/transfer` は、PostgreSQL、SQL-first、ztd-cli / rawsql-ts を標準経路にした転送制御 package である。
+`@rawsql-ts/transfer` は、PostgreSQL、SQL-first、Ashiba / rawsql-ts を標準経路にした転送制御 package である。
 
 コードから現在の実装技術を観測することはできるが、コードだけでは「その技術が意図した制約なのか、偶然の現状なのか」を判定しにくい。
 
@@ -18,7 +18,7 @@
 
 - Primary database: PostgreSQL
 - Data access style: SQL-first
-- Standard generation / verification path: ztd-cli and rawsql-ts
+- Standard generation / verification path: Ashiba and rawsql-ts
 - Standard transfer implementation path: reviewed SQL, DDL metadata, queryspec contracts, generated mapper checks, and DB-backed tests
 - Standard front-facing surface: CLI
 - Web UI is not a standard surface for this package. If a Web surface is needed, treat it as an owning application boundary outside `@rawsql-ts/transfer`.
@@ -39,7 +39,7 @@
 
 例外を採用する場合は、少なくとも次を明示する。
 
-- なぜ既存の PostgreSQL / SQL-first / ztd-cli / rawsql-ts 経路では不足するのか
+- なぜ既存の PostgreSQL / SQL-first / Ashiba / rawsql-ts 経路では不足するのか
 - 例外が一時的な adapter なのか、package の標準経路を変える scope expansion なのか
 - Concept Spec、Scope Spec、Test Policy、DDL metadata、generated docs への影響
 - 追加で必要になる検証方法

@@ -17,13 +17,13 @@
       ]
     },
     {
-      "id": "sql-first-ztd-cli",
+      "id": "sql-first-ashiba",
       "kind": "data-access",
-      "statement": "transfer の標準実装経路は SQL-first、ztd-cli、rawsql-ts である。",
+      "statement": "transfer の標準実装経路は SQL-first、Ashiba、rawsql-ts である。",
       "reviewRisk": "implementation-boundary",
       "probes": [
         "この変更はレビュー可能なSQLを標準経路として維持しているか。",
-        "ztd-cli / rawsql-ts の生成・検証経路を迂回していないか。"
+        "Ashiba / rawsql-ts の生成・検証経路を迂回していないか。"
       ]
     },
     {
@@ -33,7 +33,7 @@
       "reviewRisk": "architecture-boundary",
       "probes": [
         "ORM 導入が adapter-level の例外ではなく標準経路変更になっていないか。",
-        "ORM を使う場合、なぜ SQL-first / ztd-cli / rawsql-ts では不足するのかが明示されているか。"
+        "ORM を使う場合、なぜ SQL-first / Ashiba / rawsql-ts では不足するのかが明示されているか。"
       ]
     },
     {

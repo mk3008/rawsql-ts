@@ -34,7 +34,6 @@ export default defineConfig({
     nav: [
       { text: 'Guide', link: '/guide/overview' },
       { text: 'API', link: '/api/index' },
-      { text: 'ztd-cli Docs', link: '/ztd-cli-docs' },
       { text: 'Transfer Docs', link: '/transfer-docs' },
       { text: 'Playground', link: '/cud-demo/index.html', target: '_blank', rel: 'noopener' },
       { text: 'Migration Demo', link: '/migration-demo/index.html', target: '_blank', rel: 'noopener' }
@@ -45,7 +44,6 @@ export default defineConfig({
         { text: 'Getting Started', link: '/guide/getting-started' },
         { text: 'What Is RFBA?', link: '/guide/rfba-overview' },
         { text: 'What Is a Concept Spec?', link: '/guide/concept-spec-overview' },
-        { text: 'SQL-first End-to-End Tutorial', link: '/guide/sql-first-end-to-end-tutorial' },
         {
           text: 'Execution',
           items: [
@@ -61,21 +59,8 @@ export default defineConfig({
             { text: 'Impact Checks', link: '/guide/query-uses-impact-checks' },
           ]
         },
-        {
-          text: 'Query Lint',
-          items: [
-            { text: 'JOIN Direction', link: '/guide/join-direction-lint-spec' },
-            { text: 'SQL Style', link: '/guide/sql-style-lint-spec' },
-          ]
-        },
         { text: 'Testkit Concept', link: '/guide/testkit-concept' },
         { text: 'ZTD Benchmarking', link: '/guide/ztd-benchmarking' },
-        {
-          text: 'Dogfooding',
-          items: [
-            { text: 'SQL Debug Recovery', link: '/dogfooding/sql-debug-recovery' },
-          ]
-        },
         { text: 'SQLite Testkit How-To', link: '/guide/sqlite-testkit-howto' },
         {
           text: 'Conversion Guides',
@@ -100,13 +85,6 @@ export default defineConfig({
             { text: 'MERGE -> SELECT', link: '/guide/merge-result-select' },
           ]
         },
-      ],
-      '/ztd-cli/': [
-        { text: 'ztd-cli Docs', link: '/ztd-cli-docs' },
-        { text: 'Package Concept Draft', link: '/ztd-cli/package-concept' },
-        { text: 'Testing Policy Draft', link: '/ztd-cli/testing-policy' },
-        { text: 'Review Authority Model Draft', link: '/ztd-cli/review-authority-model' },
-        { text: 'Technology Policy Draft', link: '/ztd-cli/technology-policy' },
       ],
       '/api/': apiSidebarWithIndex
     },

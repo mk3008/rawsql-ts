@@ -79,4 +79,3 @@ Only leave SSSQL when one of these is true:
 - [SSSQL for Humans](./sssql-for-humans.md)
 - [SSSQL Optional Branch Pruning MVP](./sssql-optional-branch-pruning.md)
 - [Querybuilding Recipes](./querybuilding-recipes.md)
-- [SQL Tool Happy Paths](./sql-tool-happy-paths.md)

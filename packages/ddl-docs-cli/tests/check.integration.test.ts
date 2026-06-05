@@ -1865,7 +1865,7 @@ test('review-plan includes package technology policy as mandatory review input',
     },
     technologyRules: [
       { id: 'postgres-primary-db', kind: 'database-platform', statement: 'Use PostgreSQL.' },
-      { id: 'sql-first-ztd-cli', kind: 'data-access', statement: 'Use SQL-first ztd-cli.' },
+      { id: 'sql-first-ashiba', kind: 'data-access', statement: 'Use SQL-first Ashiba.' },
       { id: 'no-standard-orm-path', kind: 'data-access-boundary', statement: 'Do not introduce an ORM standard path.' },
       { id: 'cli-front-facing-surface', kind: 'front-facing-surface', statement: 'Use CLI as the package front-facing surface.' },
     ],
@@ -1882,7 +1882,7 @@ test('review-plan includes package technology policy as mandatory review input',
   expect(plan.mandatoryTechnology?.files).toEqual([technologyPolicyPath, technologyRulesPath]);
   expect(plan.mandatoryTechnology?.rules.map((entry) => entry.id)).toEqual([
     'postgres-primary-db',
-    'sql-first-ztd-cli',
+    'sql-first-ashiba',
     'no-standard-orm-path',
     'cli-front-facing-surface',
   ]);
@@ -1890,7 +1890,7 @@ test('review-plan includes package technology policy as mandatory review input',
   expect(plan.changedFiles[0]?.packageWideImpact).toBe(true);
   expect(plan.changedFiles[0]?.requiredReads.technologyRules).toEqual([
     'postgres-primary-db',
-    'sql-first-ztd-cli',
+    'sql-first-ashiba',
     'no-standard-orm-path',
     'cli-front-facing-surface',
   ]);

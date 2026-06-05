@@ -30,12 +30,12 @@ describe('DynamicQueryBuilder', () => {
                 builder.buildQuery('SELECT id, name FROM users WHERE active = true', {
                     filter: { name: 'Alice' }
                 })
-            ).toThrow(/ztd query sssql scaffold/i);
+            ).toThrow(/ashiba query optional add/i);
             expect(() =>
                 builder.buildQuery('SELECT id, name FROM users WHERE active = true', {
                     filter: { name: 'Alice' }
                 })
-            ).toThrow(/ztd query sssql refresh/i);
+            ).toThrow(/ashiba query optional refresh/i);
         });
 
         it('still binds existing named parameters through the filter option', () => {
@@ -74,7 +74,7 @@ describe('DynamicQueryBuilder', () => {
         it('uses buildFilteredQuery as the same fail-fast path', () => {
             expect(() =>
                 builder.buildFilteredQuery('SELECT id FROM users', { name: 'Alice' })
-            ).toThrow(/ztd query sssql scaffold/i);
+            ).toThrow(/ashiba query optional add/i);
         });
     });
 

@@ -94,15 +94,6 @@ pnpm exec tsx profiles/mapper-profile.ts
 
 The HTTP/k6 helpers are still materialized for compatibility with the official benchmark, but do not run them before Pure ORM has identified a rawsql-ts optimization target.
 
-Generated mapper drift check:
-
-```sh
-pnpm verify:generated-mapper-drift
-```
-
-Generated row mappers are machine-owned. If a scaffolded generated mapper drifts from its SQL, contract, or boundary source, the check should fail and print the `ztd feature generated-mapper generate ...` command needed to refresh the artifact.
-The repository includes `packages/ztd-cli/fixtures/generated-mapper-drift` so the standard drift check has a non-skip target in CI.
-
 ## Latest report: 2026-05-03
 
 ### Summary
@@ -196,7 +187,7 @@ Implemented / measured in this pass:
 - The Pure ORM RFBA runner no longer clones parameter arrays before `pg.Pool.query`, matching the benchmark executor more closely to the RFBA server executor.
 - Generated mappers for the hot nested DTOs now use direct assignment instead of helper calls plus object spread. This preserves the RFBA scaffold usage model while reducing mapper-only allocation/function-call overhead.
 - Breakdown phases show parameter construction is not a useful next target, minimized executor invocation is noisy, and generated aggregation shape is the meaningful accepted improvement.
-- ztd-cli list generated mappers now emit preallocated-loop direct assignment, so ordinary RFBA scaffold output follows the same direction without asking users to choose a special performance mode.
+- Ashiba generated mappers now emit preallocated-loop direct assignment, so ordinary RFBA scaffold output follows the same direction without asking users to choose a special performance mode.
 
 Next rawsql-ts optimization candidates:
 
