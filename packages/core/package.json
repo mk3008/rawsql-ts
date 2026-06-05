@@ -49,7 +49,7 @@
         "@types/node": "^22.13.10",
         "@typescript-eslint/eslint-plugin": "^8.26.1",
         "@typescript-eslint/parser": "^8.26.1",
-        "@vitest/coverage-v8": "^4.0.15",
+        "@vitest/coverage-v8": "^4.1.8",
         "benchmark": "^2.1.4",
         "esbuild": "^0.25.5",
         "eslint": "^9.22.0",
@@ -62,12 +62,12 @@
         "node-sql-parser": "^5.4.0",
         "pgsql-ast-parser": "^12.0.2",
         "sql-formatter": "^15.5.2",
-        "sqlite-parser": "^1.0.1",
         "sql-parser-cst": "^0.33.1",
+        "sqlite-parser": "^1.0.1",
         "sqlite3-parser": "^0.7.1",
         "ts-node": "^10.9.2",
         "typescript": "^5.8.2",
-        "vitest": "^4.0.15"
+        "vitest": "^4.1.8"
     },
     "files": [
         "dist"
