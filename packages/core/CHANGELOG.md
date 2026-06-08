@@ -1,5 +1,17 @@
 # rawsql-ts
 
+## 0.23.1
+
+### Patch Changes
+
+- [#861](https://github.com/mk3008/rawsql-ts/pull/861) [`426d96b`](https://github.com/mk3008/rawsql-ts/commit/426d96ba06177ad948e4ac3ad373faed3357341c) Thanks [@mk3008](https://github.com/mk3008)! - Fix SSSQL optional-condition planning for queries with CTE-local WHERE clauses and casted null guards.
+
+  The SSSQL planner now inserts new root-query optional filters into the root WHERE clause instead of the first WHERE found inside a CTE. Optional-condition recognition also supports null guards written as `:param::type IS NULL` and `CAST(:param AS type) IS NULL`, including multi-predicate branches that use the same parameter.
+
+- [#862](https://github.com/mk3008/rawsql-ts/pull/862) [`72aebc0`](https://github.com/mk3008/rawsql-ts/commit/72aebc0fc8739a7d9233efa08178c63161e7a215) Thanks [@mk3008](https://github.com/mk3008)! - Keep SSSQL refresh and scaffold planning idempotent when optional branches already use casted null guards.
+
+  The SSSQL planner no longer adds a duplicate scalar branch when an equivalent branch already exists with a casted null guard. Refresh planning also keeps existing parameter-named branches in place when the caller does not provide a resolvable physical target name.
+
 ## 0.23.0
 
 ### Minor Changes
