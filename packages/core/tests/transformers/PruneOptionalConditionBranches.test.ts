@@ -146,6 +146,21 @@ describe('pruneOptionalConditionBranches', () => {
         expect(spans[0].sourceRange.text).toBe('(:status IS NULL OR p.status = :status)');
     });
 
+    it('collects source ranges for casted null guards and multi-predicate branches', () => {
+        const sql = [
+            'SELECT u.id, u.email',
+            'FROM users u',
+            "WHERE (CAST(:keyword AS text) IS NULL OR u.email ILIKE '%' || :keyword || '%' OR u.name ILIKE '%' || :keyword || '%')",
+            '  AND (:status::text IS NULL OR u.status = :status)'
+        ].join('\n');
+
+        const spans = collectSupportedOptionalConditionBranchSpans(sql);
+
+        expect(spans.map(span => span.parameterName)).toEqual(['keyword', 'status']);
+        expect(spans[0].sourceRange.text).toBe("(CAST(:keyword AS text) IS NULL OR u.email ILIKE '%' || :keyword || '%' OR u.name ILIKE '%' || :keyword || '%')");
+        expect(spans[1].sourceRange.text).toBe('(:status::text IS NULL OR u.status = :status)');
+    });
+
     it('prunes a top-level optional scalar predicate when the targeted parameter is null', () => {
         const sql = `
             SELECT p.product_id
@@ -354,6 +369,25 @@ describe('pruneOptionalConditionBranches', () => {
         const formattedSql = formatSql(sql, { brand_name: null });
 
         expect(formattedSql).toBe('select "p"."product_id" from "products" as "p"');
+    });
+
+    it('prunes casted null guard branches with multiple meaningful predicates', () => {
+        const sql = `
+            SELECT u.id, u.email
+            FROM users u
+            WHERE (
+                cast(:keyword as text) is null
+                OR u.email ilike '%' || :keyword || '%'
+                OR u.name ilike '%' || :keyword || '%'
+            )
+              AND (:status::text is null OR u.status = :status)
+        `;
+
+        const formattedSql = formatSql(sql, { keyword: null });
+
+        expect(formattedSql).toBe(
+            'select "u"."id", "u"."email" from "users" as "u" where (cast(:status as text) is null or "u"."status" = :status)'
+        );
     });
 
     it('leaves non-top-level optional branches untouched', () => {
