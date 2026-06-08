@@ -66,6 +66,59 @@ describe('SSSQLFilterBuilder', () => {
         ]));
     });
 
+    it('plans scalar scaffold into the root query when earlier CTEs already contain WHERE clauses', () => {
+        const builder = new SSSQLFilterBuilder();
+        const sql = `
+            with latest_customer_reply as (
+                select tm.ticket_id, max(tm.created_at) as last_customer_reply_at
+                from ticket_messages tm
+                where tm.sender_role = 'customer'
+                group by tm.ticket_id
+            )
+            select t.ticket_id, t.status
+            from tickets t
+            left join latest_customer_reply lcr on lcr.ticket_id = t.ticket_id
+            order by t.ticket_id
+        `;
+
+        const plan = builder.planScaffoldBranch(sql, {
+            target: 'tickets.status',
+            parameterName: 'status',
+            operator: '='
+        });
+
+        expect(plan.ok).toBe(true);
+        expect(plan.requiresFullReformat).toBe(false);
+        expect(plan.sql).toBe(applyPlan(sql, plan.edits));
+        expect(normalizeSql(plan.sql ?? '')).toContain(
+            "where tm.sender_role = 'customer' group by tm.ticket_id"
+        );
+        expect(normalizeSql(plan.sql ?? '')).toContain(
+            'from tickets t left join latest_customer_reply lcr on lcr.ticket_id = t.ticket_id where (:status is null or t.status = :status) order by t.ticket_id'
+        );
+    });
+
+    it('does not add a duplicate scalar branch when an equivalent casted null guard already exists', () => {
+        const builder = new SSSQLFilterBuilder();
+        const sql = `
+            select t.ticket_id, t.status
+            from tickets t
+            where (cast(:status as text) is null or t.status = :status)
+            order by t.ticket_id
+        `;
+
+        const plan = builder.planScaffoldBranch(sql, {
+            target: 'tickets.status',
+            parameterName: 'status',
+            operator: '='
+        });
+
+        expect(plan.ok).toBe(true);
+        expect(plan.requiresFullReformat).toBe(false);
+        expect(plan.edits).toHaveLength(0);
+        expect(plan.sql).toBe(sql);
+    });
+
     it('plans scalar scaffold for AS aliases and quoted identifiers without full reformat', () => {
         const builder = new SSSQLFilterBuilder();
         const sql = 'select "u"."id", "u"."name" from "users" as "u" where "u"."active" = true';
@@ -606,6 +659,48 @@ describe('SSSQLFilterBuilder', () => {
 
         const removedAgain = builder.remove(removed, { parameterName: 'category_name', kind: 'exists' });
         expect(normalizeSql(new SqlFormatter().format(removedAgain).formattedSql)).toBe(normalized);
+    });
+
+    it('lists casted null-guard optional expression branches', () => {
+        const builder = new SSSQLFilterBuilder();
+        const sql = `
+            select u.id, u.email
+            from users u
+            where (cast(:keyword as text) is null
+                or u.email ilike '%' || :keyword || '%'
+                or u.name ilike '%' || :keyword || '%')
+              and (:status::text is null or u.status = :status)
+        `;
+
+        expect(builder.list(sql)).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                parameterName: 'keyword',
+                kind: 'expression'
+            }),
+            expect.objectContaining({
+                parameterName: 'status',
+                kind: 'scalar',
+                operator: '=',
+                target: 'u.status'
+            })
+        ]));
+    });
+
+    it('refresh keeps existing scalar branches when the parameter name is not a resolvable target name', () => {
+        const builder = new SSSQLFilterBuilder();
+        const sql = `
+            select t.ticket_id, c.tier as customer_tier
+            from tickets t
+            join customers c on c.customer_id = t.customer_id
+            where (cast(:customerTier as text) is null or c.tier = :customerTier)
+        `;
+
+        const plan = builder.planRefresh(sql, { customerTier: null });
+
+        expect(plan.ok).toBe(true);
+        expect(plan.sql).toContain('cast(:customerTier as text) is null');
+        expect(plan.sql).toContain('"c"."tier" = :customerTier');
+        expect(plan.errors).toEqual([]);
     });
 
     it('removes not-exists branches idempotently', () => {
