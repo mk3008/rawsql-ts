@@ -3,6 +3,8 @@ import { Lexeme, TokenType } from '../models/Lexeme';
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery } from '../models/SelectQuery';
 import {
     BinaryExpression,
+    CastExpression,
+    FunctionCall,
     LiteralValue,
     ParameterExpression,
     ParenExpression,
@@ -53,6 +55,25 @@ const unwrapSingleOuterParen = (expression: ValueComponent): ValueComponent => {
     }
 
     return candidate;
+};
+
+const unwrapOptionalGuardParameter = (expression: ValueComponent): ValueComponent => {
+    let candidate = unwrapSingleOuterParen(expression);
+    while (candidate instanceof CastExpression) {
+        candidate = unwrapSingleOuterParen(candidate.input);
+    }
+    if (candidate instanceof FunctionCall && getFunctionCallName(candidate) === 'cast' && candidate.argument) {
+        const argument = unwrapSingleOuterParen(candidate.argument);
+        if (isBinaryOperator(argument, 'as')) {
+            return unwrapOptionalGuardParameter(argument.left);
+        }
+    }
+    return candidate;
+};
+
+const getFunctionCallName = (expression: FunctionCall): string => {
+    const name = expression.qualifiedName.name;
+    return 'value' in name ? name.value.toLowerCase() : name.name.toLowerCase();
 };
 
 const collectTopLevelAndTerms = (expression: ValueComponent): ValueComponent[] => {
@@ -110,11 +131,12 @@ const getGuardedParameterName = (expression: ValueComponent): string | null => {
         return null;
     }
 
-    if (!(candidate.left instanceof ParameterExpression) || !isNullLiteral(candidate.right)) {
+    const left = unwrapOptionalGuardParameter(candidate.left);
+    if (!(left instanceof ParameterExpression) || !isNullLiteral(candidate.right)) {
         return null;
     }
 
-    return candidate.left.name.value;
+    return left.name.value;
 };
 
 const getUniqueParameterNames = (expression: ValueComponent): Set<string> => {
@@ -606,13 +628,30 @@ const splitTopLevelTermsByKeyword = (lexemes: Lexeme[], keyword: string): Lexeme
 
 const getGuardedParameterNameFromLexemes = (lexemes: Lexeme[]): string | null => {
     const compact = lexemes.filter(lexeme => !isWrappingParen(lexeme));
-    if (compact.length !== 3) {
-        return null;
+    const isIndexKeyword = (index: number, keyword: string): boolean => {
+        const lexeme = compact[index];
+        return lexeme !== undefined && isKeyword(lexeme, keyword);
+    };
+
+    if (compact.length === 3) {
+        if (!isParameter(compact[0]) || !isIndexKeyword(1, 'is') || !isIndexKeyword(2, 'null')) {
+            return null;
+        }
+        return normalizeParameterName(compact[0].value);
     }
-    if (!isParameter(compact[0]) || !isKeyword(compact[1], 'is') || !isKeyword(compact[2], 'null')) {
-        return null;
+
+    if (compact.length === 5 && isParameter(compact[0]) && compact[1]?.value === '::' && isIndexKeyword(3, 'is') && isIndexKeyword(4, 'null')) {
+        return normalizeParameterName(compact[0].value);
     }
-    return normalizeParameterName(compact[0].value);
+
+    if (compact.length >= 6 && isIndexKeyword(0, 'cast') && isParameter(compact[1]) && isIndexKeyword(2, 'as')) {
+        const isIndex = compact.findIndex((lexeme, index) => index > 2 && isKeyword(lexeme, 'is'));
+        if (isIndex >= 0 && isIndexKeyword(isIndex + 1, 'null')) {
+            return normalizeParameterName(compact[1]!.value);
+        }
+    }
+
+    return null;
 };
 
 const isSupportedMeaningfulBranchFromLexemes = (lexemes: Lexeme[], parameterName: string): boolean => {

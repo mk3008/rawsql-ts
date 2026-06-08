@@ -2,7 +2,9 @@ import { WhereClause, type SourceExpression, SubQuerySource, TableSource } from 
 import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import {
     BinaryExpression,
+    CastExpression,
     ColumnReference,
+    FunctionCall,
     IdentifierString,
     InlineQuery,
     LiteralValue,
@@ -264,20 +266,39 @@ const isClauseBoundary = (lexeme: Lexeme): boolean => {
 
 const findMinimalWhereInsertPosition = (sql: string): { position: number; hasWhere: boolean } => {
     const lexemes = new SqlTokenizer(sql).tokenize();
-    const whereIndex = lexemes.findIndex(lexeme =>
-        (lexeme.type & TokenType.Command) !== 0 && lexeme.value.toLowerCase() === "where"
-    );
     const statementEnd = getStatementEndPosition(sql);
+    const topLevelLexemes: Array<{ lexeme: Lexeme; index: number }> = [];
+    let depth = 0;
 
-    if (whereIndex >= 0) {
-        const tail = lexemes.slice(whereIndex + 1).find(isClauseBoundary);
+    for (let index = 0; index < lexemes.length; index += 1) {
+        const lexeme = lexemes[index]!;
+        if ((lexeme.type & TokenType.CloseParen) !== 0) {
+            depth = Math.max(0, depth - 1);
+        }
+        if (depth === 0) {
+            topLevelLexemes.push({ lexeme, index });
+        }
+        if ((lexeme.type & TokenType.OpenParen) !== 0) {
+            depth += 1;
+        }
+    }
+
+    const where = topLevelLexemes.find(entry =>
+        (entry.lexeme.type & TokenType.Command) !== 0 && entry.lexeme.value.toLowerCase() === "where"
+    );
+
+    if (where) {
+        const tail = topLevelLexemes
+            .filter(entry => entry.index > where.index)
+            .map(entry => entry.lexeme)
+            .find(isClauseBoundary);
         return {
             position: tail?.position?.startPosition ?? statementEnd,
             hasWhere: true
         };
     }
 
-    const tail = lexemes.find(isClauseBoundary);
+    const tail = topLevelLexemes.map(entry => entry.lexeme).find(isClauseBoundary);
     return {
         position: tail?.position?.startPosition ?? statementEnd,
         hasWhere: false
@@ -524,7 +545,9 @@ const getGuardedParameterName = (expression: ValueComponent): string | null => {
         return null;
     }
 
-    if (!(candidate.left instanceof ParameterExpression)) {
+    const left = unwrapOptionalGuardParameter(candidate.left);
+
+    if (!(left instanceof ParameterExpression)) {
         return null;
     }
 
@@ -535,7 +558,26 @@ const getGuardedParameterName = (expression: ValueComponent): string | null => {
         return null;
     }
 
-    return candidate.left.name.value;
+    return left.name.value;
+};
+
+const unwrapOptionalGuardParameter = (expression: ValueComponent): ValueComponent => {
+    let candidate = unwrapParens(expression);
+    while (candidate instanceof CastExpression) {
+        candidate = unwrapParens(candidate.input);
+    }
+    if (candidate instanceof FunctionCall && getFunctionCallName(candidate) === "cast" && candidate.argument) {
+        const argument = unwrapParens(candidate.argument);
+        if (isBinaryOperator(argument, "as")) {
+            return unwrapOptionalGuardParameter(argument.left);
+        }
+    }
+    return candidate;
+};
+
+const getFunctionCallName = (expression: FunctionCall): string => {
+    const name = expression.qualifiedName.name;
+    return "value" in name ? name.value.toLowerCase() : name.name.toLowerCase();
 };
 
 const buildOptionalScalarBranch = (
