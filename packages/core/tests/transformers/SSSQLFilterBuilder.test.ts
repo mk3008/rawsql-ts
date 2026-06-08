@@ -98,6 +98,58 @@ describe('SSSQLFilterBuilder', () => {
         );
     });
 
+    it('does not add a duplicate scalar branch when an equivalent casted null guard already exists', () => {
+        const builder = new SSSQLFilterBuilder();
+        const sql = `
+            select t.ticket_id, t.status
+            from tickets t
+            where (cast(:status as text) is null or t.status = :status)
+            order by t.ticket_id
+        `;
+
+        const plan = builder.planScaffoldBranch(sql, {
+            target: 'tickets.status',
+            parameterName: 'status',
+            operator: '='
+        });
+
+        expect(plan.ok).toBe(true);
+        expect(plan.requiresFullReformat).toBe(false);
+        expect(plan.edits).toHaveLength(0);
+        expect(plan.sql).toBe(sql);
+    });
+
+    it('plans refresh as a no-op when existing casted optional branches do not need moving', () => {
+        const builder = new SSSQLFilterBuilder();
+        const sql = `
+            select t.ticket_id, t.status, c.tier
+            from tickets t
+            join customers c on c.customer_id = t.customer_id
+            where (cast(:status as text) is null or t.status = :status)
+              and (cast(:customerTier as text) is null or c.tier = :customerTier)
+              and (
+                  :keyword is null
+                  or t.subject ilike '%' || :keyword || '%'
+                  or c.name ilike '%' || :keyword || '%'
+              )
+            order by t.ticket_id
+        `;
+
+        const plan = builder.planRefresh(sql, {
+            status: null,
+            customerTier: null,
+            keyword: null
+        });
+
+        expect(plan.ok).toBe(true);
+        expect(plan.requiresFullReformat).toBe(false);
+        expect(plan.edits).toHaveLength(0);
+        expect(plan.sql).toBe(sql);
+        expect(plan.safety.changedOnlyTargetBranches).toBe(true);
+        expect(plan.warnings).toEqual([]);
+        expect(plan.errors).toEqual([]);
+    });
+
     it('plans scalar scaffold for AS aliases and quoted identifiers without full reformat', () => {
         const builder = new SSSQLFilterBuilder();
         const sql = 'select "u"."id", "u"."name" from "users" as "u" where "u"."active" = true';
@@ -663,6 +715,26 @@ describe('SSSQLFilterBuilder', () => {
                 target: 'u.status'
             })
         ]));
+    });
+
+    it('refresh keeps existing scalar branches when the parameter name is not a resolvable target name', () => {
+        const builder = new SSSQLFilterBuilder();
+        const sql = `
+            select t.ticket_id, c.tier as customer_tier
+            from tickets t
+            join customers c on c.customer_id = t.customer_id
+            where (cast(:customerTier as text) is null or c.tier = :customerTier)
+        `;
+
+        const plan = builder.planRefresh(sql, { customerTier: null });
+
+        expect(plan.ok).toBe(true);
+        expect(plan.requiresFullReformat).toBe(false);
+        expect(plan.edits).toHaveLength(0);
+        expect(plan.sql).toBe(sql);
+        expect(plan.sql).toContain('cast(:customerTier as text) is null');
+        expect(plan.sql).toContain('c.tier = :customerTier');
+        expect(plan.errors).toEqual([]);
     });
 
     it('removes not-exists branches idempotently', () => {

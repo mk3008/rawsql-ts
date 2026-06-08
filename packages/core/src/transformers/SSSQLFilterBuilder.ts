@@ -885,6 +885,21 @@ const getBranchInfo = (branch: SupportedOptionalConditionBranch): SssqlBranchInf
     };
 };
 
+const isEquivalentScalarBranch = (
+    branch: SssqlBranchInfo,
+    query: SimpleSelectQuery,
+    parameterName: string,
+    operator: SssqlScalarOperator,
+    targetColumnText: string
+): boolean => {
+    return branch.query === query
+        && branch.kind === "scalar"
+        && branch.parameterName === parameterName
+        && branch.operator === operator
+        && branch.target !== undefined
+        && normalizeIdentifier(branch.target) === normalizeIdentifier(targetColumnText);
+};
+
 /**
  * Builds and refreshes truthful SSSQL optional filter branches.
  * Runtime callers should use pruning, not dynamic predicate injection.
@@ -949,6 +964,17 @@ export class SSSQLFilterBuilder {
     }
 
     planRefresh(query: SelectQuery | string, filters: SSSQLFilterInput): SssqlRewritePlan {
+        if (typeof query === "string") {
+            try {
+                const parsed = SelectQueryParser.parse(query);
+                const result = this.refreshParsed(parsed, filters);
+                if (!result.changed) {
+                    return this.buildPlanFromEdits(query, [], [], []);
+                }
+            } catch {
+                // Fall through to the conservative formatter-backed plan, which reports rewrite errors.
+            }
+        }
         return this.planRewrite(query, parsed => this.refresh(parsed, filters));
     }
 
@@ -1013,7 +1039,12 @@ export class SSSQLFilterBuilder {
 
     refresh(query: SelectQuery | string, filters: SSSQLFilterInput): SelectQuery {
         const parsed = this.parseQuery(query);
+        this.refreshParsed(parsed, filters);
+        return parsed;
+    }
 
+    private refreshParsed(parsed: SelectQuery, filters: SSSQLFilterInput): { query: SelectQuery; changed: boolean } {
+        let changed = false;
         for (const [filterName, filterValue] of Object.entries(filters)) {
             let parameterName = filterName;
             let target: ResolvedFilterTarget | null = null;
@@ -1043,6 +1074,7 @@ export class SSSQLFilterBuilder {
                     parameterName: target.parameterName,
                     operator: "="
                 });
+                changed = true;
                 continue;
             }
 
@@ -1064,20 +1096,25 @@ export class SSSQLFilterBuilder {
                 this.rebaseMovedBranchByAlias(match.expression, correlatedPlan.sourceAlias, correlatedPlan.target.column);
                 rebuildWhereWithoutTerm(match.query, match.expression);
                 correlatedPlan.target.query.appendWhere(match.expression);
+                changed = true;
                 continue;
             }
 
             if (!target) {
-                target = this.resolveTarget(parsed, filterName);
+                target = this.tryResolveTarget(parsed, filterName);
+                if (!target) {
+                    continue;
+                }
             }
             if (match.query !== target.query) {
                 this.rebaseMovedBranch(match.expression, match.query, target.column);
                 rebuildWhereWithoutTerm(match.query, match.expression);
                 target.query.appendWhere(match.expression);
+                changed = true;
             }
         }
 
-        return parsed;
+        return { query: parsed, changed };
     }
 
     remove(query: SelectQuery | string, spec: SssqlRemoveSpec): SelectQuery {
@@ -1128,7 +1165,8 @@ export class SSSQLFilterBuilder {
         const branchSql = `(:${parameterName} is null or ${targetColumnText} ${operator} :${parameterName})`;
         const normalizedBranch = normalizeSql(branchSql);
         const duplicate = this.list(parsed).find(existing =>
-            existing.query === target.query && normalizeSql(existing.sql) === normalizedBranch
+            (existing.query === target.query && normalizeSql(existing.sql) === normalizedBranch)
+            || isEquivalentScalarBranch(existing, target.query, parameterName, operator, targetColumnText)
         );
 
         if (duplicate) {
@@ -1704,6 +1742,14 @@ export class SSSQLFilterBuilder {
             column: matches[0]!.value,
             parameterName: makeParameterName(filterName)
         };
+    }
+
+    private tryResolveTarget(root: SelectQuery, filterName: string): ResolvedFilterTarget | null {
+        try {
+            return this.resolveTarget(root, filterName);
+        } catch {
+            return null;
+        }
     }
 
     private findAliasForTable(query: SimpleSelectQuery, tableName: string): string | null {
