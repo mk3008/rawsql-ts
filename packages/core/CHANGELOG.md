@@ -1,5 +1,19 @@
 # rawsql-ts
 
+## 0.24.0
+
+### Minor Changes
+
+- [#865](https://github.com/mk3008/rawsql-ts/pull/865) [`9015a07`](https://github.com/mk3008/rawsql-ts/commit/9015a07e1b0439b33acabf88ee70d7aabe232877) Thanks [@mk3008](https://github.com/mk3008)! - Add parser and formatter support for PostgreSQL 16 SQL/JSON predicates and constructor argument syntax.
+
+- [#865](https://github.com/mk3008/rawsql-ts/pull/865) [`2e96245`](https://github.com/mk3008/rawsql-ts/commit/2e96245225bb14e5bcec65ae142de877c2494814) Thanks [@mk3008](https://github.com/mk3008)! - Add parser and formatter support for PostgreSQL 18 `RETURNING WITH (OLD AS ..., NEW AS ...)` aliases.
+
+- [#865](https://github.com/mk3008/rawsql-ts/pull/865) [`acc43be`](https://github.com/mk3008/rawsql-ts/commit/acc43bef9c028094859daa1e7c330b128f071a5b) Thanks [@mk3008](https://github.com/mk3008)! - Add parser and formatter support for PostgreSQL 19 query syntax, including `INSERT ... ON CONFLICT DO SELECT`, `INSERT ... ON CONFLICT DO UPDATE`, `GROUP BY ALL`, and window function `IGNORE NULLS` / `RESPECT NULLS` clauses.
+
+### Patch Changes
+
+- [#865](https://github.com/mk3008/rawsql-ts/pull/865) [`bc7b439`](https://github.com/mk3008/rawsql-ts/commit/bc7b4398b1dc59cca12e6e5789dc3daa42ab4476) Thanks [@mk3008](https://github.com/mk3008)! - Add regression coverage for PostgreSQL 17 `MERGE` extensions, including `WHEN NOT MATCHED BY SOURCE` with `MERGE RETURNING merge_action()`.
+
 ## 0.23.1
 
 ### Patch Changes
