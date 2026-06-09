@@ -478,16 +478,31 @@ export class SourceAliasExpression extends SqlComponent {
     }
 }
 
+export type ReturningAliasKind = "old" | "new";
+
+export class ReturningAlias extends SqlComponent {
+    static kind = Symbol("ReturningAlias");
+    kind: ReturningAliasKind;
+    alias: IdentifierString;
+    constructor(kind: ReturningAliasKind, alias: string | IdentifierString) {
+        super();
+        this.kind = kind;
+        this.alias = typeof alias === "string" ? new IdentifierString(alias) : alias;
+    }
+}
+
 export class ReturningClause extends SqlComponent {
     static kind = Symbol("ReturningClause");
     items: SelectItem[];
+    aliases: ReturningAlias[];
     /**
      * Constructs a ReturningClause.
      * @param items Array of SelectItem.
      */
-    constructor(items: SelectItem[]) {
+    constructor(items: SelectItem[], aliases: ReturningAlias[] = []) {
         super();
         this.items = items;
+        this.aliases = aliases;
     }
 
     /**

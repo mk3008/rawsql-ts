@@ -1,8 +1,9 @@
 // Provides parsing for RETURNING clauses in SQL (used in UPDATE, INSERT, DELETE, etc.)
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ReturningClause, SelectItem } from "../models/Clause";
+import { ReturningAlias, ReturningAliasKind, ReturningClause, SelectItem } from "../models/Clause";
 import { extractLexemeComments } from "./utils/LexemeCommentUtils";
 import { SelectItemParser } from "./SelectClauseParser";
+import { FullNameParser } from "./FullNameParser";
 
 export class ReturningClauseParser {
     /**
@@ -18,6 +19,10 @@ export class ReturningClauseParser {
         const returningLexeme = lexemes[idx];
         const returningComments = extractLexemeComments(returningLexeme);
         idx++;
+
+        const aliasResult = this.parseReturningAliases(lexemes, idx);
+        const aliases = aliasResult.aliases;
+        idx = aliasResult.newIndex;
 
         const items: SelectItem[] = [];
 
@@ -48,7 +53,7 @@ export class ReturningClauseParser {
             throw new Error(`[ReturningClauseParser] Expected a column or '*' after RETURNING at position ${position}.`);
         }
 
-        const clause = new ReturningClause(items);
+        const clause = new ReturningClause(items, aliases);
         if (returningComments.before.length > 0) {
             clause.addPositionedComments("before", returningComments.before);
         }
@@ -64,5 +69,53 @@ export class ReturningClauseParser {
         }
 
         return { value: clause, newIndex: idx };
+    }
+
+    private static parseReturningAliases(lexemes: Lexeme[], index: number): { aliases: ReturningAlias[]; newIndex: number } {
+        let idx = index;
+        const aliases: ReturningAlias[] = [];
+        if (lexemes[idx]?.value !== "with") {
+            return { aliases, newIndex: idx };
+        }
+        idx++;
+
+        if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.OpenParen)) {
+            throw new Error(`[ReturningClauseParser] Expected '(' after RETURNING WITH at position ${idx}.`);
+        }
+        idx++;
+
+        while (idx < lexemes.length) {
+            const kind = lexemes[idx]?.value?.toLowerCase();
+            if (kind !== "old" && kind !== "new") {
+                throw new Error(`[ReturningClauseParser] Expected OLD or NEW in RETURNING WITH alias list at position ${idx}.`);
+            }
+            idx++;
+
+            if (lexemes[idx]?.value !== "as") {
+                throw new Error(`[ReturningClauseParser] Expected AS after ${kind.toUpperCase()} in RETURNING WITH alias list at position ${idx}.`);
+            }
+            idx++;
+
+            const aliasResult = FullNameParser.parseFromLexeme(lexemes, idx);
+            if (aliasResult.namespaces && aliasResult.namespaces.length > 0) {
+                throw new Error(`[ReturningClauseParser] RETURNING WITH alias must be an unqualified identifier at position ${idx}.`);
+            }
+            aliases.push(new ReturningAlias(kind as ReturningAliasKind, aliasResult.name));
+            idx = aliasResult.newIndex;
+
+            if (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
+                idx++;
+                continue;
+            }
+
+            if (idx < lexemes.length && (lexemes[idx].type & TokenType.CloseParen)) {
+                idx++;
+                return { aliases, newIndex: idx };
+            }
+
+            throw new Error(`[ReturningClauseParser] Expected ',' or ')' in RETURNING WITH alias list at position ${idx}.`);
+        }
+
+        throw new Error(`[ReturningClauseParser] Missing closing ')' in RETURNING WITH alias list.`);
     }
 }

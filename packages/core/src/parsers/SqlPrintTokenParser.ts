@@ -3231,6 +3231,23 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'returning', SqlPrintTokenContainerType.ReturningClause);
 
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        if (arg.aliases.length > 0) {
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'with'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+            for (let i = 0; i < arg.aliases.length; i++) {
+                if (i > 0) {
+                    token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                }
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.aliases[i].kind));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(this.visit(arg.aliases[i].alias));
+            }
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        }
         for (let i = 0; i < arg.items.length; i++) {
             if (i > 0) {
                 token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
