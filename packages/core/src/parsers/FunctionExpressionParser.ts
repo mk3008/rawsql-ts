@@ -9,6 +9,7 @@ import { SelectQueryParser } from "./SelectQueryParser";
 import { OrderByClauseParser } from "./OrderByClauseParser";
 import { ParseError } from "./ParseError";
 import { extractLexemeComments } from "./utils/LexemeCommentUtils";
+import { joinLexemeValues } from "../utils/ParserStringUtils";
 
 export class FunctionExpressionParser {
     /**
@@ -17,6 +18,13 @@ export class FunctionExpressionParser {
     private static readonly AGGREGATE_FUNCTIONS_WITH_ORDER_BY = new Set([
         'string_agg', 'array_agg', 'json_agg', 'jsonb_agg', 
         'json_object_agg', 'jsonb_object_agg', 'xmlagg'
+    ]);
+
+    private static readonly SQL_JSON_CONSTRUCTORS = new Set([
+        'json_array',
+        'json_object',
+        'json_scalar',
+        'json_serialize'
     ]);
 
     /**
@@ -162,7 +170,11 @@ export class FunctionExpressionParser {
             
             let internalOrderBy: OrderByClause | null = null;
             
-            if (this.AGGREGATE_FUNCTIONS_WITH_ORDER_BY.has(functionName)) {
+            if (this.SQL_JSON_CONSTRUCTORS.has(functionName)) {
+                const result = this.parseRawFunctionArguments(lexemes, idx);
+                arg = { value: result.argument, newIndex: result.newIndex };
+                closingComments = result.closingComments;
+            } else if (this.AGGREGATE_FUNCTIONS_WITH_ORDER_BY.has(functionName)) {
                 // Use special aggregate function argument parser with comment capture
                 const result = this.parseAggregateArguments(lexemes, idx);
                 arg = { value: result.arguments, newIndex: result.newIndex };
@@ -222,6 +234,39 @@ export class FunctionExpressionParser {
         } else {
             throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected opening parenthesis after function name '${name.name}'.`);
         }
+    }
+
+    private static parseRawFunctionArguments(lexemes: Lexeme[], index: number): { argument: RawString | ValueList; closingComments: string[] | null; newIndex: number } {
+        let idx = index;
+        if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.OpenParen)) {
+            throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected opening parenthesis.`);
+        }
+
+        const contentStart = idx + 1;
+        let depth = 1;
+        idx++;
+
+        while (idx < lexemes.length && depth > 0) {
+            if (lexemes[idx].type & TokenType.OpenParen) {
+                depth++;
+            } else if (lexemes[idx].type & TokenType.CloseParen) {
+                depth--;
+            }
+
+            if (depth === 0) {
+                const closingComments = this.getClosingComments(lexemes[idx]);
+                const rawText = joinLexemeValues(lexemes, contentStart, idx);
+                idx++;
+                return {
+                    argument: rawText.length > 0 ? new RawString(rawText) : new ValueList([]),
+                    closingComments,
+                    newIndex: idx
+                };
+            }
+            idx++;
+        }
+
+        throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected closing parenthesis.`);
     }
 
     private static parseKeywordFunction(

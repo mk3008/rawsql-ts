@@ -6,7 +6,7 @@ import { DeleteQuery } from "../models/DeleteQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
     ArrayExpression, ArrayQueryExpression, ArraySliceExpression, ArrayIndexExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
-    CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression,
+    CastExpression, ColumnReference, FunctionCall, InlineQuery, JsonPredicateExpression, ParenExpression,
     ParameterExpression, SwitchCaseArgument, TupleExpression, UnaryExpression, ValueComponent, ValueList,
     OverExpression, WindowFrameExpression, IdentifierString, RawString, StringSpecifierExpression,
     WindowFrameSpec,
@@ -76,6 +76,7 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
         // Value components that might contain subqueries
         this.handlers.set(ParenExpression.kind, (expr) => this.visitParenExpression(expr as ParenExpression));
         this.handlers.set(BinaryExpression.kind, (expr) => this.visitBinaryExpression(expr as BinaryExpression));
+        this.handlers.set(JsonPredicateExpression.kind, (expr) => this.visitJsonPredicateExpression(expr as JsonPredicateExpression));
         this.handlers.set(UnaryExpression.kind, (expr) => this.visitUnaryExpression(expr as UnaryExpression));
         this.handlers.set(CaseExpression.kind, (expr) => this.visitCaseExpression(expr as CaseExpression));
         this.handlers.set(CaseKeyValuePair.kind, (expr) => this.visitCaseKeyValuePair(expr as CaseKeyValuePair));
@@ -309,6 +310,11 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
         const newLeft = this.visit(expr.left) as ValueComponent;
         const newRight = this.visit(expr.right) as ValueComponent;
         return new BinaryExpression(newLeft, expr.operator.value, newRight);
+    }
+
+    visitJsonPredicateExpression(expr: JsonPredicateExpression): SqlComponent {
+        const expression = this.visit(expr.expression) as ValueComponent;
+        return new JsonPredicateExpression(expression, expr.negated, expr.jsonType, expr.uniqueKeys);
     }
 
     visitUnaryExpression(expr: UnaryExpression): SqlComponent {

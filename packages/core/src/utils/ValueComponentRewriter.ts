@@ -13,6 +13,7 @@ import {
     FrameBoundaryComponent,
     IdentifierString,
     InlineQuery,
+    JsonPredicateExpression,
     LiteralValue,
     OverExpression,
     ParameterExpression,
@@ -79,6 +80,11 @@ export function rewriteValueComponentWithColumnResolver(
         const left = rewriteValueComponentWithColumnResolver(value.left, resolver);
         const right = rewriteValueComponentWithColumnResolver(value.right, resolver);
         return new BinaryExpression(left, value.operator.value, right);
+    }
+
+    if (value instanceof JsonPredicateExpression) {
+        const expression = rewriteValueComponentWithColumnResolver(value.expression, resolver);
+        return new JsonPredicateExpression(expression, value.negated, value.jsonType, value.uniqueKeys);
     }
 
     if (value instanceof CaseExpression) {

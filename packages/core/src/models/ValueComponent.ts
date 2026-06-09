@@ -21,6 +21,7 @@ export type ValueComponent = ValueList |
     ArraySliceExpression |
     ArrayIndexExpression |
     BetweenExpression |
+    JsonPredicateExpression |
     InlineQuery |
     StringSpecifierExpression |
     TypeValue |
@@ -351,6 +352,29 @@ export class BetweenExpression extends SqlComponent {
         this.lower = lower;
         this.upper = upper;
         this.negated = negated;
+    }
+}
+
+export type JsonPredicateType = "value" | "scalar" | "array" | "object";
+export type JsonPredicateUniqueKeys = "with" | "without";
+
+export class JsonPredicateExpression extends SqlComponent {
+    static kind = Symbol("JsonPredicateExpression");
+    expression: ValueComponent;
+    negated: boolean;
+    jsonType: JsonPredicateType | null;
+    uniqueKeys: JsonPredicateUniqueKeys | null;
+    constructor(
+        expression: ValueComponent,
+        negated: boolean,
+        jsonType: JsonPredicateType | null = null,
+        uniqueKeys: JsonPredicateUniqueKeys | null = null
+    ) {
+        super();
+        this.expression = expression;
+        this.negated = negated;
+        this.jsonType = jsonType;
+        this.uniqueKeys = uniqueKeys;
     }
 }
 

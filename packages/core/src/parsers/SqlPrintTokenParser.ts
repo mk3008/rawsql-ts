@@ -25,6 +25,7 @@ import {
     ArraySliceExpression,
     ArrayIndexExpression,
     BetweenExpression,
+    JsonPredicateExpression,
     StringSpecifierExpression,
     TypeValue,
     TupleExpression,
@@ -306,6 +307,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(ArraySliceExpression.kind, (expr) => this.visitArraySliceExpression(expr as ArraySliceExpression));
         this.handlers.set(ArrayIndexExpression.kind, (expr) => this.visitArrayIndexExpression(expr as ArrayIndexExpression));
         this.handlers.set(BetweenExpression.kind, (expr) => this.visitBetweenExpression(expr as BetweenExpression));
+        this.handlers.set(JsonPredicateExpression.kind, (expr) => this.visitJsonPredicateExpression(expr as JsonPredicateExpression));
         this.handlers.set(StringSpecifierExpression.kind, (expr) => this.visitStringSpecifierExpression(expr as StringSpecifierExpression));
         this.handlers.set(TypeValue.kind, (expr) => this.visitTypeValue(expr as TypeValue));
         this.handlers.set(TupleExpression.kind, (expr) => this.visitTupleExpression(expr as TupleExpression));
@@ -2864,6 +2866,28 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (selectQuery && extractedWithClause) {
             SelectQueryWithClauseHelper.setWithClause(selectQuery, extractedWithClause);
         }
+        return token;
+    }
+
+    private visitJsonPredicateExpression(arg: JsonPredicateExpression): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.BinaryExpression);
+
+        token.innerTokens.push(this.visit(arg.expression));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.operator, arg.negated ? 'is not' : 'is'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'json'));
+
+        if (arg.jsonType) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.jsonType));
+        }
+
+        if (arg.uniqueKeys) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, `${arg.uniqueKeys} unique keys`));
+        }
+
         return token;
     }
 
