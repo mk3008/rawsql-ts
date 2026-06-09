@@ -199,17 +199,20 @@ export class FunctionExpressionParser {
                 idx++; // Skip single "with ordinality" token
             }
 
+            const nullsTreatment = this.parseNullsTreatment(lexemes, idx);
+            idx = nullsTreatment.newIndex;
+
             if (idx < lexemes.length && lexemes[idx].value === "over") {
                 const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                 idx = over.newIndex;
-                const value = new FunctionCall(namespaces, name.name, arg.value, over.value, withinGroup, withOrdinality, internalOrderBy, filterCondition);
+                const value = new FunctionCall(namespaces, name.name, arg.value, over.value, withinGroup, withOrdinality, internalOrderBy, filterCondition, nullsTreatment.value);
                 // Set closing comments if available
                 if (closingComments && closingComments.length > 0) {
                     value.addPositionedComments("after", closingComments);
                 }
                 return { value, newIndex: idx };
             } else {
-                const value = new FunctionCall(namespaces, name.name, arg.value, null, withinGroup, withOrdinality, internalOrderBy, filterCondition);
+                const value = new FunctionCall(namespaces, name.name, arg.value, null, withinGroup, withOrdinality, internalOrderBy, filterCondition, nullsTreatment.value);
                 // Set closing comments if available
                 if (closingComments && closingComments.length > 0) {
                     value.addPositionedComments("after", closingComments);
@@ -283,15 +286,18 @@ export class FunctionExpressionParser {
                     idx++; // Skip single "with ordinality" token
                 }
                 
+                const nullsTreatment = this.parseNullsTreatment(lexemes, idx);
+                idx = nullsTreatment.newIndex;
+
                 // Use the previously parsed namespaces and function name for consistency
                 if (idx < lexemes.length && lexemes[idx].value === "over") {
                     idx++;
                     const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                     idx = over.newIndex;
-                    const value = new FunctionCall(namespaces, name.name, arg, over.value, withinGroup, withOrdinality, null);
+                    const value = new FunctionCall(namespaces, name.name, arg, over.value, withinGroup, withOrdinality, null, null, nullsTreatment.value);
                     return { value, newIndex: idx };
                 } else {
-                    const value = new FunctionCall(namespaces, name.name, arg, null, withinGroup, withOrdinality, null);
+                    const value = new FunctionCall(namespaces, name.name, arg, null, withinGroup, withOrdinality, null, null, nullsTreatment.value);
                     return { value, newIndex: idx };
                 }
             } else {
@@ -300,6 +306,14 @@ export class FunctionExpressionParser {
         } else {
             throw ParseError.fromUnparsedLexemes(lexemes, idx, `Missing opening parenthesis for function '${name.name}'.`);
         }
+    }
+
+    private static parseNullsTreatment(lexemes: Lexeme[], index: number): { value: "ignore nulls" | "respect nulls" | null; newIndex: number } {
+        const value = lexemes[index]?.value;
+        if (value === "ignore nulls" || value === "respect nulls") {
+            return { value, newIndex: index + 1 };
+        }
+        return { value: null, newIndex: index };
     }
 
     public static parseTypeValue(lexemes: Lexeme[], index: number): { value: TypeValue; newIndex: number; } {

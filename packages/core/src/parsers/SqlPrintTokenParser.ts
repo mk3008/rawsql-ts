@@ -1,4 +1,4 @@
-import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression, InsertClause, UpdateClause, DeleteClause, UsingClause, SetClause, ReturningClause, SetClauseItem } from "../models/Clause";
+import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression, InsertClause, OnConflictClause, UpdateClause, DeleteClause, UsingClause, SetClause, ReturningClause, SetClauseItem } from "../models/Clause";
 import { HintClause } from "../models/HintClause";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor, PositionedComment } from "../models/SqlComponent";
@@ -364,6 +364,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         this.handlers.set(InsertQuery.kind, (expr) => this.visitInsertQuery(expr as InsertQuery));
         this.handlers.set(InsertClause.kind, (expr) => this.visitInsertClause(expr as InsertClause));
+        this.handlers.set(OnConflictClause.kind, (expr) => this.visitOnConflictClause(expr as OnConflictClause));
         this.handlers.set(UpdateQuery.kind, (expr) => this.visitUpdateQuery(expr as UpdateQuery));
         this.handlers.set(UpdateClause.kind, (expr) => this.visitUpdateClause(expr as UpdateClause));
         this.handlers.set(DeleteQuery.kind, (expr) => this.visitDeleteQuery(expr as DeleteQuery));
@@ -1145,6 +1146,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (arg.withOrdinality) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'with ordinality'));
+        }
+
+        if (arg.nullsTreatment) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.nullsTreatment));
         }
 
         if (arg.over) {
@@ -2490,6 +2496,15 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     public visitGroupByClause(arg: GroupByClause): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'group by', SqlPrintTokenContainerType.GroupByClause);
 
+        if (arg.mode) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.mode));
+        }
+
+        if (arg.grouping.length === 0) {
+            return token;
+        }
+
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         for (let i = 0; i < arg.grouping.length; i++) {
             if (i > 0) {
@@ -2837,6 +2852,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(this.visit(arg.selectQuery));
         }
 
+        if (arg.onConflictClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.onConflictClause.accept(this));
+        }
+
         if (arg.returningClause) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(arg.returningClause.accept(this));
@@ -2845,6 +2865,46 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             SelectQueryWithClauseHelper.setWithClause(selectQuery, extractedWithClause);
         }
         return token;
+    }
+
+    private visitOnConflictClause(arg: OnConflictClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'on conflict', SqlPrintTokenContainerType.OnConflictClause);
+
+        if (arg.target) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.target.accept(this));
+        }
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, this.formatOnConflictAction(arg)));
+
+        if (arg.setClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.setClause.accept(this));
+        }
+
+        if (arg.forClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.forClause.accept(this));
+        }
+
+        if (arg.whereClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.whereClause.accept(this));
+        }
+
+        return token;
+    }
+
+    private formatOnConflictAction(arg: OnConflictClause): string {
+        switch (arg.action) {
+            case "nothing":
+                return "do nothing";
+            case "select":
+                return "do select";
+            case "update":
+                return "do update";
+        }
     }
 
     private visitInsertClause(arg: InsertClause): SqlPrintToken {

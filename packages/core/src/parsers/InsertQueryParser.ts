@@ -5,7 +5,7 @@ import { Lexeme, TokenType } from "../models/Lexeme";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { SelectQuery } from "../models/SelectQuery";
 import { SelectQueryParser } from "./SelectQueryParser";
-import { InsertClause, ReturningClause, WithClause } from "../models/Clause";
+import { InsertClause, OnConflictClause, OnConflictTargetKind, ReturningClause, WithClause } from "../models/Clause";
 import { SelectQueryWithClauseHelper } from "../utils/SelectQueryWithClauseHelper";
 import { WithClauseParser } from "./WithClauseParser";
 import { SourceExpressionParser } from "./SourceExpressionParser";
@@ -13,6 +13,10 @@ import { ValuesQueryParser } from "./ValuesQueryParser";
 import { ReturningClauseParser } from "./ReturningClauseParser";
 import { IdentifierString } from "../models/ValueComponent";
 import { extractLexemeComments } from "./utils/LexemeCommentUtils";
+import { joinLexemeValues } from "../utils/ParserStringUtils";
+import { ForClauseParser } from "./ForClauseParser";
+import { WhereClauseParser } from "./WhereClauseParser";
+import { SetClauseParser } from "./SetClauseParser";
 
 export class InsertQueryParser {
     /**
@@ -152,11 +156,22 @@ export class InsertQueryParser {
             idx = selectResult.newIndex;
         }
 
+        let onConflictClause: OnConflictClause | null = null;
+        if (lexemes[idx]?.value === "on conflict") {
+            const onConflictResult = this.parseOnConflictClause(lexemes, idx);
+            onConflictClause = onConflictResult.value;
+            idx = onConflictResult.newIndex;
+        }
+
         let returningClause: ReturningClause | null = null;
         if (lexemes[idx]?.value === "returning") {
             const returningResult = ReturningClauseParser.parseFromLexeme(lexemes, idx);
             returningClause = returningResult.value;
             idx = returningResult.newIndex;
+        }
+
+        if (onConflictClause?.action === "select" && !returningClause) {
+            throw new Error(`Syntax error: ON CONFLICT DO SELECT requires a RETURNING clause.`);
         }
 
         const insertClause = new InsertClause(targetSource, columnIdentifiers ?? null);
@@ -175,10 +190,124 @@ export class InsertQueryParser {
             value: new InsertQuery({
                 insertClause,
                 selectQuery: dataQuery,
+                onConflict: onConflictClause,
                 returning: returningClause
             }),
             newIndex: idx
         };
+    }
+
+    private static parseOnConflictClause(lexemes: Lexeme[], index: number): { value: OnConflictClause; newIndex: number } {
+        let idx = index;
+
+        if (lexemes[idx]?.value !== "on conflict") {
+            throw new Error(`Syntax error at position ${idx}: Expected 'ON CONFLICT'.`);
+        }
+        idx++;
+
+        let target: string | null = null;
+        let targetKind: OnConflictTargetKind | null = null;
+
+        if (lexemes[idx]?.type === TokenType.OpenParen) {
+            const targetStart = idx;
+            idx = this.consumeBalancedParentheses(lexemes, idx);
+            target = joinLexemeValues(lexemes, targetStart, idx);
+            targetKind = "columns";
+        } else if (lexemes[idx]?.value === "on" && lexemes[idx + 1]?.value === "constraint") {
+            const targetStart = idx;
+            idx += 2;
+            if (idx >= lexemes.length || lexemes[idx].value === "do select" || lexemes[idx].value === "do update" || lexemes[idx].value === "do nothing") {
+                throw new Error(`Syntax error at position ${idx}: Expected constraint name after ON CONSTRAINT.`);
+            }
+            idx++;
+            target = joinLexemeValues(lexemes, targetStart, idx);
+            targetKind = "constraint";
+        }
+
+        const actionToken = lexemes[idx]?.value;
+        if (actionToken === "do nothing") {
+            idx++;
+            return {
+                value: new OnConflictClause({
+                    target,
+                    targetKind,
+                    action: "nothing",
+                }),
+                newIndex: idx
+            };
+        }
+
+        if (actionToken === "do update") {
+            idx++;
+            const setResult = SetClauseParser.parseFromLexeme(lexemes, idx);
+            idx = setResult.newIndex;
+
+            let whereClause = null;
+            if (lexemes[idx]?.value === "where") {
+                const whereResult = WhereClauseParser.parseFromLexeme(lexemes, idx);
+                whereClause = whereResult.value;
+                idx = whereResult.newIndex;
+            }
+
+            return {
+                value: new OnConflictClause({
+                    target,
+                    targetKind,
+                    action: "update",
+                    setClause: setResult.setClause,
+                    whereClause,
+                }),
+                newIndex: idx
+            };
+        }
+
+        if (actionToken !== "do select") {
+            const found = lexemes[idx]?.value ?? "end of input";
+            throw new Error(`Syntax error at position ${idx}: Expected 'DO SELECT', 'DO UPDATE', or 'DO NOTHING' after ON CONFLICT but found '${found}'.`);
+        }
+        idx++;
+
+        let forClause = null;
+        if (lexemes[idx]?.value === "for") {
+            const forResult = ForClauseParser.parseFromLexeme(lexemes, idx);
+            forClause = forResult.value;
+            idx = forResult.newIndex;
+        }
+
+        let whereClause = null;
+        if (lexemes[idx]?.value === "where") {
+            const whereResult = WhereClauseParser.parseFromLexeme(lexemes, idx);
+            whereClause = whereResult.value;
+            idx = whereResult.newIndex;
+        }
+
+        return {
+            value: new OnConflictClause({
+                target,
+                targetKind,
+                action: "select",
+                forClause,
+                whereClause,
+            }),
+            newIndex: idx
+        };
+    }
+
+    private static consumeBalancedParentheses(lexemes: Lexeme[], index: number): number {
+        let idx = index;
+        let depth = 0;
+        while (idx < lexemes.length) {
+            if (lexemes[idx].type === TokenType.OpenParen) {
+                depth++;
+            } else if (lexemes[idx].type === TokenType.CloseParen) {
+                depth--;
+                if (depth === 0) {
+                    return idx + 1;
+                }
+            }
+            idx++;
+        }
+        throw new Error(`Syntax error at position ${index}: Expected ')' after ON CONFLICT target.`);
     }
 }
 

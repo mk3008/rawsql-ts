@@ -30,28 +30,51 @@ export class GroupByClauseParser {
         }
         idx++;
 
+        let mode: "all" | "distinct" | null = null;
+        if (lexemes[idx]?.value === "all" || lexemes[idx]?.value === "distinct") {
+            mode = lexemes[idx].value as "all" | "distinct";
+            idx++;
+        }
+
         if (idx >= lexemes.length) {
+            if (mode === "all") {
+                return { value: new GroupByClause([], mode), newIndex: idx };
+            }
             throw new Error(`Syntax error: Unexpected end of input after 'GROUP BY' keyword. The GROUP BY clause requires at least one expression to group by.`);
         }
 
         const items: ValueComponent[] = [];
-        const item = this.parseItem(lexemes, idx);
-        items.push(item.value);
-        idx = item.newIndex;
-
-        while (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
-            idx++;
+        if (!this.isClauseBoundary(lexemes[idx])) {
             const item = this.parseItem(lexemes, idx);
             items.push(item.value);
             idx = item.newIndex;
+
+            while (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
+                idx++;
+                const item = this.parseItem(lexemes, idx);
+                items.push(item.value);
+                idx = item.newIndex;
+            }
         }
 
-        if (items.length === 0) {
+        if (items.length === 0 && mode !== "all") {
             throw new Error(`Syntax error at position ${index}: No grouping expressions found. The GROUP BY clause requires at least one expression to group by.`);
         } else {
-            const clause = new GroupByClause(items);
+            const clause = new GroupByClause(items, mode);
             return { value: clause, newIndex: idx };
         }
+    }
+
+    private static isClauseBoundary(lexeme: Lexeme): boolean {
+        return [
+            "having",
+            "window",
+            "order by",
+            "limit",
+            "offset",
+            "fetch",
+            "for",
+        ].includes(lexeme.value);
     }
 
     private static parseItem(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
