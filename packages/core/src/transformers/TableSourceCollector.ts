@@ -7,7 +7,7 @@ import { DeleteQuery } from "../models/DeleteQuery";
 import { MergeDeleteAction, MergeInsertAction, MergeQuery, MergeUpdateAction } from "../models/MergeQuery";
 import {
     ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
-    CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression,
+    CastExpression, ColumnReference, FunctionCall, InlineQuery, JsonPredicateExpression, ParenExpression,
     ParameterExpression, SwitchCaseArgument, TupleExpression, UnaryExpression, ValueComponent, ValueList,
     OverExpression, WindowFrameExpression, IdentifierString, RawString,
     WindowFrameSpec,
@@ -97,6 +97,7 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
             // Value components that might contain table references
             this.handlers.set(ParenExpression.kind, (expr) => this.visitParenExpression(expr as ParenExpression));
             this.handlers.set(BinaryExpression.kind, (expr) => this.visitBinaryExpression(expr as BinaryExpression));
+            this.handlers.set(JsonPredicateExpression.kind, (expr) => this.visitJsonPredicateExpression(expr as JsonPredicateExpression));
             this.handlers.set(UnaryExpression.kind, (expr) => this.visitUnaryExpression(expr as UnaryExpression));
             this.handlers.set(CaseExpression.kind, (expr) => this.visitCaseExpression(expr as CaseExpression));
             this.handlers.set(CaseKeyValuePair.kind, (expr) => this.visitCaseKeyValuePair(expr as CaseKeyValuePair));
@@ -575,6 +576,10 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
     private visitBinaryExpression(expr: BinaryExpression): void {
         expr.left.accept(this);
         expr.right.accept(this);
+    }
+
+    private visitJsonPredicateExpression(expr: JsonPredicateExpression): void {
+        expr.expression.accept(this);
     }
 
     private visitUnaryExpression(expr: UnaryExpression): void {

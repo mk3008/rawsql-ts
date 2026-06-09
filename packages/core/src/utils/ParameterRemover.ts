@@ -6,7 +6,7 @@ import { DeleteQuery } from "../models/DeleteQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
     ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
-    CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression,
+    CastExpression, ColumnReference, FunctionCall, InlineQuery, JsonPredicateExpression, ParenExpression,
     ParameterExpression, SwitchCaseArgument, TupleExpression, UnaryExpression, ValueComponent,
     OverExpression, WindowFrameExpression, IdentifierString, RawString,
     WindowFrameSpec,
@@ -30,6 +30,8 @@ class ParameterDetector implements SqlComponentVisitor<boolean> {
         // Binary expressions check both sides
         this.handlers.set(BinaryExpression.kind, (expr: BinaryExpression) =>
             this.visit(expr.left) || this.visit(expr.right));
+        this.handlers.set(JsonPredicateExpression.kind, (expr: JsonPredicateExpression) =>
+            this.visit(expr.expression));
 
         // Parenthesized expressions check inner expression
         this.handlers.set(ParenExpression.kind, (expr: ParenExpression) =>
@@ -165,6 +167,7 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
         // Value components that might contain subqueries or parameters
         this.handlers.set(ParenExpression.kind, (expr) => this.visitParenExpression(expr as ParenExpression));
         this.handlers.set(BinaryExpression.kind, (expr) => this.visitBinaryExpression(expr as BinaryExpression));
+        this.handlers.set(JsonPredicateExpression.kind, (expr) => this.visitJsonPredicateExpression(expr as JsonPredicateExpression));
         this.handlers.set(UnaryExpression.kind, (expr) => this.visitUnaryExpression(expr as UnaryExpression));
         this.handlers.set(CaseExpression.kind, (expr) => this.visitCaseExpression(expr as CaseExpression));
         this.handlers.set(CaseKeyValuePair.kind, (expr) => this.visitCaseKeyValuePair(expr as CaseKeyValuePair));
@@ -603,6 +606,14 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
         }
     }
 
+    private visitJsonPredicateExpression(expr: JsonPredicateExpression): ValueComponent | null {
+        const expression = this.visit(expr.expression) as ValueComponent | null;
+        if (!expression) {
+            return null;
+        }
+        return new JsonPredicateExpression(expression, expr.negated, expr.jsonType, expr.uniqueKeys);
+    }
+
     /**
      * Handle comparison expressions, accounting for right-associative parser structure
      */
@@ -859,6 +870,9 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
      */
     private visitGroupByClause(clause: GroupByClause): GroupByClause | null {
         if (!clause.grouping || clause.grouping.length === 0) {
+            if (clause.mode === "all") {
+                return new GroupByClause([], clause.mode);
+            }
             return null;
         }
 
@@ -870,7 +884,7 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
             return null;
         }
 
-        return new GroupByClause(grouping);
+        return new GroupByClause(grouping, clause.mode);
     }
 
     /**

@@ -78,6 +78,8 @@ const keywordTrie = new KeywordTrie([
     ["groups"],
     // aggregate functions with WITHIN GROUP
     ["within", "group"],
+    ["ignore", "nulls"],
+    ["respect", "nulls"],
     // table functions with WITH ORDINALITY  
     ["with", "ordinality"],
     // window frame
@@ -107,9 +109,12 @@ const keywordTrie = new KeywordTrie([
     ["not", "matched", "by", "source"],
     ["not", "matched", "by", "target"],
     ["update", "set"],
+    ["on", "conflict"],
     ["if", "not", "exists"],
     ["if", "exists"],
     ["do", "nothing"],
+    ["do", "select"],
+    ["do", "update"],
     ["insert", "default", "values"],
     ["values"],
     ["set"],

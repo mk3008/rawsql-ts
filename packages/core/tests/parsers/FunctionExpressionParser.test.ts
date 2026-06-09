@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { FunctionExpressionParser } from '../../src/parsers/FunctionExpressionParser';
 import { SqlTokenizer } from '../../src/parsers/SqlTokenizer';
 import { BinaryExpression, ColumnReference, FunctionCall, LiteralValue } from '../../src/models/ValueComponent';
+import { SqlFormatter } from '../../src/transformers/SqlFormatter';
 
 describe('FunctionExpressionParser', () => {
     describe('standard function calls', () => {
@@ -104,6 +105,39 @@ describe('FunctionExpressionParser', () => {
             const functionCall = result.value as FunctionCall;
             expect(functionCall.filterCondition).not.toBeNull();
             expect(functionCall.over).not.toBeNull();
+        });
+    });
+
+    describe('PostgreSQL 19 null treatment for window functions', () => {
+        test('parses IGNORE NULLS before OVER', () => {
+            const tokenizer = new SqlTokenizer('lead(value) IGNORE NULLS OVER (ORDER BY created_at)');
+            const lexemes = tokenizer.readLexmes();
+
+            const result = FunctionExpressionParser.parseFromLexeme(lexemes, 0);
+
+            expect(result.newIndex).toBe(lexemes.length);
+            expect(result.value).toBeInstanceOf(FunctionCall);
+
+            const functionCall = result.value as FunctionCall;
+            expect(functionCall.nullsTreatment).toBe('ignore nulls');
+            expect(functionCall.over).not.toBeNull();
+
+            const query = new SqlFormatter().format(functionCall).formattedSql;
+            expect(query).toBe('lead("value") ignore nulls over(order by "created_at")');
+        });
+
+        test('parses RESPECT NULLS before OVER', () => {
+            const tokenizer = new SqlTokenizer('first_value(value) RESPECT NULLS OVER (PARTITION BY account_id ORDER BY created_at)');
+            const lexemes = tokenizer.readLexmes();
+
+            const result = FunctionExpressionParser.parseFromLexeme(lexemes, 0);
+
+            expect(result.newIndex).toBe(lexemes.length);
+            const functionCall = result.value as FunctionCall;
+            expect(functionCall.nullsTreatment).toBe('respect nulls');
+
+            const query = new SqlFormatter().format(functionCall).formattedSql;
+            expect(query).toBe('first_value("value") respect nulls over(partition by "account_id" order by "created_at")');
         });
     });
 });

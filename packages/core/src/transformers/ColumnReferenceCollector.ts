@@ -5,7 +5,7 @@ import { UpdateQuery } from "../models/UpdateQuery";
 import { DeleteQuery } from "../models/DeleteQuery";
 import { MergeDeleteAction, MergeInsertAction, MergeQuery, MergeUpdateAction } from "../models/MergeQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
-import { ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression } from "../models/ValueComponent";
+import { ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, JsonPredicateExpression, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression } from "../models/ValueComponent";
 
 /**
  * A comprehensive collector for all ColumnReference instances in SQL query structures.
@@ -122,6 +122,7 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         // Value component handlers
         this.handlers.set(ColumnReference.kind, (ref) => this.visitColumnReference(ref as ColumnReference));
         this.handlers.set(BinaryExpression.kind, (expr) => this.visitBinaryExpression(expr as BinaryExpression));
+        this.handlers.set(JsonPredicateExpression.kind, (expr) => this.visitJsonPredicateExpression(expr as JsonPredicateExpression));
         this.handlers.set(UnaryExpression.kind, (expr) => this.visitUnaryExpression(expr as UnaryExpression));
         this.handlers.set(FunctionCall.kind, (func) => this.visitFunctionCall(func as FunctionCall));
         this.handlers.set(CaseExpression.kind, (expr) => this.visitCaseExpression(expr as CaseExpression));
@@ -262,6 +263,8 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
     private collectFromValueComponent(value: ValueComponent): void {
         if (value instanceof ColumnReference) {
             this.columnReferences.push(value);
+        } else if (value instanceof JsonPredicateExpression) {
+            this.collectFromValueComponent(value.expression);
         } else if (value instanceof BinaryExpression) {
             this.collectFromValueComponent(value.left);
             this.collectFromValueComponent(value.right);
@@ -530,6 +533,10 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
     private visitBinaryExpression(expr: BinaryExpression): void {
         expr.left.accept(this);
         expr.right.accept(this);
+    }
+
+    private visitJsonPredicateExpression(expr: JsonPredicateExpression): void {
+        expr.expression.accept(this);
     }
 
     private visitUnaryExpression(expr: UnaryExpression): void {

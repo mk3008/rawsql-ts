@@ -47,6 +47,10 @@ const selectFormatCases = [
         "select department, count(*) as employee_count from employees group by department",
         'select "department", count(*) as "employee_count" from "employees" group by "department"'],
 
+    ["SELECT with GROUP BY ALL",
+        "select department, count(*) as employee_count from employees group by all order by department",
+        'select "department", count(*) as "employee_count" from "employees" group by all order by "department"'],
+
     ["SELECT with GROUP BY and HAVING",
         "select department, count(*) as employee_count from employees group by department having count(*) > 5",
         'select "department", count(*) as "employee_count" from "employees" group by "department" having count(*) > 5'],

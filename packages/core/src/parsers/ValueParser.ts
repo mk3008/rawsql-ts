@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference, TypeValue, UnaryExpression, ValueComponent, ValueList, BinaryExpression, CastExpression, ArraySliceExpression, ArrayIndexExpression } from "../models/ValueComponent";
+import { ColumnReference, TypeValue, UnaryExpression, ValueComponent, ValueList, BinaryExpression, CastExpression, ArraySliceExpression, ArrayIndexExpression, JsonPredicateExpression, JsonPredicateType, JsonPredicateUniqueKeys } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { IdentifierParser } from "./IdentifierParser";
 import { LiteralParser } from "./LiteralParser";
@@ -90,6 +90,13 @@ export class ValueParser {
                 break;
             }
 
+            const jsonPredicate = this.tryParseJsonPredicate(lexemes, idx, result);
+            if (jsonPredicate) {
+                result = jsonPredicate.value;
+                idx = jsonPredicate.newIndex;
+                continue;
+            }
+
             // Get operator precedence
             const precedence = OperatorPrecedence.getPrecedence(operator);
 
@@ -138,6 +145,42 @@ export class ValueParser {
         }
 
         return { value: result, newIndex: idx };
+    }
+
+    private static tryParseJsonPredicate(lexemes: Lexeme[], index: number, expression: ValueComponent): { value: JsonPredicateExpression; newIndex: number } | null {
+        const operator = lexemes[index]?.value?.toLowerCase();
+        if (operator !== "is" && operator !== "is not") {
+            return null;
+        }
+
+        let idx = index + 1;
+        if (idx >= lexemes.length || lexemes[idx].value.toLowerCase() !== "json") {
+            return null;
+        }
+        idx++;
+
+        let jsonType: JsonPredicateType | null = null;
+        const typeCandidate = lexemes[idx]?.value?.toLowerCase();
+        if (typeCandidate === "value" || typeCandidate === "scalar" || typeCandidate === "array" || typeCandidate === "object") {
+            jsonType = typeCandidate;
+            idx++;
+        }
+
+        let uniqueKeys: JsonPredicateUniqueKeys | null = null;
+        const uniqueCandidate = lexemes[idx]?.value?.toLowerCase();
+        if (uniqueCandidate === "with" || uniqueCandidate === "without") {
+            const uniqueToken = lexemes[idx + 1]?.value?.toLowerCase();
+            const keysToken = lexemes[idx + 2]?.value?.toLowerCase();
+            if (uniqueToken === "unique" && keysToken === "keys") {
+                uniqueKeys = uniqueCandidate;
+                idx += 3;
+            }
+        }
+
+        return {
+            value: new JsonPredicateExpression(expression, operator === "is not", jsonType, uniqueKeys),
+            newIndex: idx,
+        };
     }
 
     /**

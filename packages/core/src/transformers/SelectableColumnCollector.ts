@@ -19,7 +19,7 @@ export enum DuplicateDetectionMode {
 import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WindowsClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression, SelectItem, PartitionByClause, FetchClause, OffsetClause, ParenSource } from "../models/Clause";
 import { SimpleSelectQuery, BinarySelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
-import { ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression, IdentifierString, ArraySliceExpression, ArrayIndexExpression } from "../models/ValueComponent";
+import { ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, JsonPredicateExpression, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression, IdentifierString, ArraySliceExpression, ArrayIndexExpression } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
 import { SelectValueCollector } from "./SelectValueCollector";
 import { TableColumnResolver } from "./TableColumnResolver";
@@ -166,6 +166,7 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private initializeValueComponentHandlers(): void {
         this.handlers.set(ColumnReference.kind, (expr) => this.visitColumnReference(expr as ColumnReference));
         this.handlers.set(BinaryExpression.kind, (expr) => this.visitBinaryExpression(expr as BinaryExpression));
+        this.handlers.set(JsonPredicateExpression.kind, (expr) => this.visitJsonPredicateExpression(expr as JsonPredicateExpression));
         this.handlers.set(UnaryExpression.kind, (expr) => this.visitUnaryExpression(expr as UnaryExpression));
         this.handlers.set(FunctionCall.kind, (expr) => this.visitFunctionCall(expr as FunctionCall));
         this.handlers.set(InlineQuery.kind, (expr) => this.visitInlineQuery(expr as InlineQuery));
@@ -520,6 +521,10 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         if (expr.right) {
             expr.right.accept(this);
         }
+    }
+
+    private visitJsonPredicateExpression(expr: JsonPredicateExpression): void {
+        expr.expression.accept(this);
     }
 
     private visitUnaryExpression(expr: UnaryExpression): void {
