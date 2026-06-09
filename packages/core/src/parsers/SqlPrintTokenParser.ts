@@ -2896,6 +2896,10 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         if (arg.target) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            if (arg.targetKind === "constraint") {
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'on constraint'));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            }
             token.innerTokens.push(arg.target.accept(this));
         }
 

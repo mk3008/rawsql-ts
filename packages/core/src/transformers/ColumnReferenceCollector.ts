@@ -263,6 +263,8 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
     private collectFromValueComponent(value: ValueComponent): void {
         if (value instanceof ColumnReference) {
             this.columnReferences.push(value);
+        } else if (value instanceof JsonPredicateExpression) {
+            this.collectFromValueComponent(value.expression);
         } else if (value instanceof BinaryExpression) {
             this.collectFromValueComponent(value.left);
             this.collectFromValueComponent(value.right);

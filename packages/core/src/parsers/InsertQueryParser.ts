@@ -214,11 +214,11 @@ export class InsertQueryParser {
             target = joinLexemeValues(lexemes, targetStart, idx);
             targetKind = "columns";
         } else if (lexemes[idx]?.value === "on" && lexemes[idx + 1]?.value === "constraint") {
-            const targetStart = idx;
             idx += 2;
             if (idx >= lexemes.length || lexemes[idx].value === "do select" || lexemes[idx].value === "do update" || lexemes[idx].value === "do nothing") {
                 throw new Error(`Syntax error at position ${idx}: Expected constraint name after ON CONSTRAINT.`);
             }
+            const targetStart = idx;
             idx++;
             target = joinLexemeValues(lexemes, targetStart, idx);
             targetKind = "constraint";

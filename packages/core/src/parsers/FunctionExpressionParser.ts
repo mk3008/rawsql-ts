@@ -171,6 +171,9 @@ export class FunctionExpressionParser {
             let internalOrderBy: OrderByClause | null = null;
             
             if (this.SQL_JSON_CONSTRUCTORS.has(functionName)) {
+                // SQL/JSON constructor arguments contain VALUE pairs and ON NULL/RETURNING
+                // clauses that do not fit the current function-argument AST. Preserve the
+                // source fragment until #866 adds structured SQL/JSON constructor nodes.
                 const result = this.parseRawFunctionArguments(lexemes, idx);
                 arg = { value: result.argument, newIndex: result.newIndex };
                 closingComments = result.closingComments;
@@ -236,6 +239,11 @@ export class FunctionExpressionParser {
         }
     }
 
+    /**
+     * Captures SQL/JSON constructor arguments as RawString while preserving closing
+     * comments via getClosingComments. Empty argument lists still use ValueList.
+     * Tracking structured AST support: https://github.com/mk3008/rawsql-ts/issues/866
+     */
     private static parseRawFunctionArguments(lexemes: Lexeme[], index: number): { argument: RawString | ValueList; closingComments: string[] | null; newIndex: number } {
         let idx = index;
         if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.OpenParen)) {

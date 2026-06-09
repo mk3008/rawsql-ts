@@ -202,6 +202,17 @@ describe('CTEDisabler', () => {
         expect(result).toBe('select "id", "name", count(*) as "total_count" from "filtered_data" group by "id", "name" having count(*) > 10 order by "total_count" desc limit 5');
     });
 
+    test('preserves GROUP BY ALL mode', () => {
+        const sql = `SELECT id, count(*) FROM users GROUP BY ALL`;
+        const query = SelectQueryParser.parse(sql);
+        const disabler = new CTEDisabler();
+
+        const disabledQuery = disabler.visit(query);
+        const result = formatter.format(disabledQuery);
+
+        expect(result).toBe('select "id", count(*) from "users" group by all');
+    });
+
     test('properly handles circular references', () => {
         // Arrange
         const sql = `

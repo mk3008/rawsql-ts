@@ -870,6 +870,9 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
      */
     private visitGroupByClause(clause: GroupByClause): GroupByClause | null {
         if (!clause.grouping || clause.grouping.length === 0) {
+            if (clause.mode === "all") {
+                return new GroupByClause([], clause.mode);
+            }
             return null;
         }
 
@@ -881,7 +884,7 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
             return null;
         }
 
-        return new GroupByClause(grouping);
+        return new GroupByClause(grouping, clause.mode);
     }
 
     /**

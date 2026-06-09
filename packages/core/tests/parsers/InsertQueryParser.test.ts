@@ -3,7 +3,7 @@ import { InsertQuery } from "../../src/models/InsertQuery";
 import { SelectQuery, SimpleSelectQuery, ValuesQuery } from "../../src/models/SelectQuery";
 import { describe, it, expect } from "vitest";
 import { SqlFormatter } from "../../src/transformers/SqlFormatter";
-import { TableSource, ParenSource, SourceExpression } from "../../src/models/Clause";
+import { OnConflictClause, TableSource, ParenSource, SourceExpression } from "../../src/models/Clause";
 
 describe("InsertQueryParser", () => {
     it("parses INSERT INTO table SELECT ...", () => {
@@ -94,6 +94,18 @@ describe("InsertQueryParser", () => {
 
         expect(query).toBe('insert into "tags"("name") values (\'backend\') on conflict on constraint tags_name_key do select for share returning *');
         expect(insert.onConflictClause?.targetKind).toBe("constraint");
+    });
+
+    it("formats programmatic ON CONFLICT ON CONSTRAINT targets", () => {
+        const clause = new OnConflictClause({
+            target: "tags_name_key",
+            targetKind: "constraint",
+            action: "nothing"
+        });
+
+        const query = new SqlFormatter().format(clause).formattedSql;
+
+        expect(query).toBe("on conflict on constraint tags_name_key do nothing");
     });
 
     it("rejects PostgreSQL 19 ON CONFLICT DO SELECT without RETURNING", () => {

@@ -274,7 +274,7 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
 
     visitGroupByClause(clause: GroupByClause): SqlComponent {
         const newGrouping = clause.grouping.map(item => this.visit(item) as ValueComponent);
-        return new GroupByClause(newGrouping);
+        return new GroupByClause(newGrouping, clause.mode);
     }
 
     visitHavingClause(clause: HavingClause): SqlComponent {

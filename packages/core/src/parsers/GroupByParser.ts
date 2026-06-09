@@ -31,8 +31,9 @@ export class GroupByClauseParser {
         idx++;
 
         let mode: "all" | "distinct" | null = null;
-        if (lexemes[idx]?.value === "all" || lexemes[idx]?.value === "distinct") {
-            mode = lexemes[idx].value as "all" | "distinct";
+        const modeCandidate = lexemes[idx]?.value.toLowerCase();
+        if (modeCandidate === "all" || modeCandidate === "distinct") {
+            mode = modeCandidate;
             idx++;
         }
 
