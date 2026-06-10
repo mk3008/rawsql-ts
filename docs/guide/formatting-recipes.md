@@ -39,6 +39,10 @@ const { formattedSql, params } = formatter.format(query);
 | `joinConditionOrderByDeclaration` | `true` / `false` | `false` | Normalizes `JOIN ... ON` column comparisons so the left operand matches table declaration order. |
 | `whenOneLine` | `true` / `false` | `false` | Forces each `MERGE WHEN` predicate to stay on a single line even if `andBreak` / `orBreak` would normally wrap it. |
 | `exportComment` | `'full'`, `'none'`, `'header-only'`, `'top-header-only'` (legacy `true` / `false` still accepted) | `'none'` | Controls which comments are emitted: `'full'` prints everything, `'none'` drops all comments, `'header-only'` keeps leading comments on every block, and `'top-header-only'` keeps only top-level headers. |
+| `identifierEscape` | `'none'`, `'quote'`, `'backtick'`, `'bracket'`, or `{ "start": string, "end": string }` | From preset or `'quote'` internally | Chooses the identifier delimiter symbol. `'none'` means no delimiter symbol, not "no identifiers targeted". |
+| `identifierEscapeTarget` | `'all'`, `'minimal'` | `'all'` | Chooses whether the formatter escapes every identifier or only identifiers that need escaping to stay valid and semantically safe. Pair it with `identifierEscape`, e.g. `{ "identifierEscape": "quote", "identifierEscapeTarget": "minimal" }`. |
+| `sourceAliasStyle` | `'as'`, `'implicit'` | From preset or `'as'` | Controls whether source aliases render as `from users as u` or `from users u`. |
+| `orderByDefaultDirectionStyle` | `'omit'`, `'explicit'` | From preset or `'omit'` | Controls whether default ascending sort direction is omitted or printed as `ASC`. |
 | `castStyle` | 'standard', 'postgres' | From preset or 'standard' | Chooses how CAST expressions are printed. 'standard' emits ANSI `CAST(expr AS type)` while 'postgres' emits `expr::type`. See "Controlling CAST style" below for usage notes and examples. |
 | `constraintStyle` | `'postgres'`, `'mysql'` | From preset or `'postgres'` | Shapes constraint output in DDL: `'postgres'` prints `constraint ... primary key(...)`, while `'mysql'` emits `unique key name(...)` / `foreign key name(...)`. |
 
@@ -151,6 +155,29 @@ new SqlFormatter({ castStyle: 'postgres' }).format(expr); // "price"::NUMERIC(10
 
 If you are migrating away from PostgreSQL-only syntax, enforce `castStyle: 'standard'` and phase out `::` usage gradually.
 
+### Minimal identifier escaping and alias style
+
+`identifierEscape` selects the delimiter symbol, while `identifierEscapeTarget` selects how many identifiers receive that symbol. They are independent settings:
+
+```json
+{
+  "identifierEscape": "quote",
+  "identifierEscapeTarget": "minimal"
+}
+```
+
+With `minimal`, quoted output is kept only where removing the delimiter would break SQL or change semantics, such as names with spaces, mixed-case identifiers, reserved words, or PostgreSQL special names. Safe lower-case identifiers can print without quotes.
+
+Use `sourceAliasStyle` when you want to preserve alias shorthand:
+
+```json
+{
+  "sourceAliasStyle": "implicit"
+}
+```
+
+This renders `from users u` instead of `from users as u`. Set it to `'as'` when your house style prefers explicit aliases.
+
 ### DDL constraint style
 
 `constraintStyle` controls how table- and column-level constraints appear when formatting `CREATE TABLE` statements.
@@ -172,6 +199,7 @@ Pair this option with your target engine: presets such as `'mysql'` enable it au
 ```json
 {
   "identifierEscape": "none",
+  "identifierEscapeTarget": "all",
   "parameterSymbol": ":",
   "parameterStyle": "named",
   "indentSize": 4,
@@ -194,6 +222,8 @@ Pair this option with your target engine: presets such as `'mysql'` enable it au
   "joinOneLine": true,
   "caseOneLine": true,
   "subqueryOneLine": true,
+  "sourceAliasStyle": "implicit",
+  "orderByDefaultDirectionStyle": "omit",
   "castStyle": "postgres",
   "constraintStyle": "postgres"
 }

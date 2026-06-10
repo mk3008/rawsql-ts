@@ -1,13 +1,22 @@
 // Default formatting options matching the main demo
 const defaultFormatOptions = {
     "identifierEscape": "none",
+    "identifierEscapeTarget": "all",
     "parameterSymbol": ":",
     "parameterStyle": "named",
     "indentSize": 4,
+    "indentChar": "space",
+    "newline": "lf",
     "keywordCase": "lower",
     "identifierCase": "preserve",
     "expressionWidth": 50,
-    "lineWrapping": false
+    "lineWrapping": false,
+    "sourceAliasStyle": "as",
+    "orderByDefaultDirectionStyle": "omit",
+    "castStyle": "standard",
+    "constraintStyle": "postgres",
+    "insertColumnsOneLine": true,
+    "whenOneLine": false
 };
 
 // Initialize CodeMirror editors immediately
