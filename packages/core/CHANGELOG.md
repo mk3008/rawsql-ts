@@ -1,5 +1,15 @@
 # rawsql-ts
 
+## 0.24.1
+
+### Patch Changes
+
+- [#868](https://github.com/mk3008/rawsql-ts/pull/868) [`7e5b487`](https://github.com/mk3008/rawsql-ts/commit/7e5b487716c64575df19706d04994085133ed944) Thanks [@mk3008](https://github.com/mk3008)! - Fix PostgreSQL empty array constructor parsing inside function arguments so `array[]::text[]` formats as an array cast instead of a quoted identifier cast.
+
+  Add `sourceAliasStyle: "implicit"` formatting support so callers can avoid inserting optional `AS` keywords for `FROM`/`JOIN` source aliases when they need token-stable formatting.
+
+  Add `orderByDefaultDirectionStyle: "explicit"` formatting support so callers can preserve explicit `ASC` directions during token-stable formatting.
+
 ## 0.24.0
 
 ### Minor Changes
