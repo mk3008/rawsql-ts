@@ -4,6 +4,179 @@
 const DEFAULT_STYLE_KEY = 'rawsql-formatter-styles-v2';
 let currentStyles = {};
 
+const DEFAULT_STYLE_BASE = {
+    "indentSize": 4,
+    "indentChar": "space",
+    "newline": "lf",
+    "keywordCase": "lower",
+    "commaBreak": "before",
+    "cteCommaBreak": "before",
+    "valuesCommaBreak": "before",
+    "andBreak": "before",
+    "orBreak": "before",
+    "exportComment": "full",
+    "commentStyle": "block",
+    "withClauseStyle": "standard",
+    "parenthesesOneLine": true,
+    "indentNestedParentheses": true,
+    "betweenOneLine": true,
+    "valuesOneLine": false,
+    "joinOneLine": true,
+    "caseOneLine": false,
+    "subqueryOneLine": false,
+    "insertColumnsOneLine": true,
+    "whenOneLine": false,
+    "joinConditionOrderByDeclaration": false,
+    "orderByDefaultDirectionStyle": "omit",
+    "constraintStyle": "postgres"
+};
+
+const DEFAULT_STYLES = {
+    "Default": {
+        ...DEFAULT_STYLE_BASE,
+        "identifierEscape": "none",
+        "identifierEscapeTarget": "all",
+        "parameterSymbol": ":",
+        "parameterStyle": "named",
+        "sourceAliasStyle": "as",
+        "castStyle": "standard"
+    },
+    "OneLiner": {
+        "identifierEscape": "none",
+        "identifierEscapeTarget": "all",
+        "parameterSymbol": ":",
+        "parameterStyle": "named",
+        "keywordCase": "lower",
+        "sourceAliasStyle": "as",
+        "castStyle": "standard",
+        "constraintStyle": "postgres",
+        "orderByDefaultDirectionStyle": "omit"
+    },
+    "Postgres": {
+        ...DEFAULT_STYLE_BASE,
+        "identifierEscape": "quote",
+        "identifierEscapeTarget": "all",
+        "parameterSymbol": "$",
+        "parameterStyle": "indexed",
+        "keywordCase": "upper",
+        "sourceAliasStyle": "as",
+        "castStyle": "postgres",
+        "constraintStyle": "postgres"
+    },
+    "Postgres Minimal": {
+        ...DEFAULT_STYLE_BASE,
+        "identifierEscape": "quote",
+        "identifierEscapeTarget": "minimal",
+        "parameterSymbol": "$",
+        "parameterStyle": "indexed",
+        "keywordCase": "lower",
+        "sourceAliasStyle": "implicit",
+        "castStyle": "postgres",
+        "constraintStyle": "postgres"
+    },
+    "MySQL": {
+        ...DEFAULT_STYLE_BASE,
+        "identifierEscape": "backtick",
+        "identifierEscapeTarget": "all",
+        "parameterSymbol": "?",
+        "parameterStyle": "anonymous",
+        "keywordCase": "upper",
+        "sourceAliasStyle": "as",
+        "castStyle": "standard",
+        "constraintStyle": "mysql"
+    },
+    "MySQL Minimal": {
+        ...DEFAULT_STYLE_BASE,
+        "identifierEscape": "backtick",
+        "identifierEscapeTarget": "minimal",
+        "parameterSymbol": "?",
+        "parameterStyle": "anonymous",
+        "keywordCase": "lower",
+        "sourceAliasStyle": "implicit",
+        "castStyle": "standard",
+        "constraintStyle": "mysql"
+    },
+    "SQLServer": {
+        ...DEFAULT_STYLE_BASE,
+        "identifierEscape": "bracket",
+        "identifierEscapeTarget": "all",
+        "parameterSymbol": "@",
+        "parameterStyle": "named",
+        "keywordCase": "upper",
+        "sourceAliasStyle": "as",
+        "castStyle": "standard",
+        "constraintStyle": "postgres"
+    },
+    "SQLServer Minimal": {
+        ...DEFAULT_STYLE_BASE,
+        "identifierEscape": "bracket",
+        "identifierEscapeTarget": "minimal",
+        "parameterSymbol": "@",
+        "parameterStyle": "named",
+        "keywordCase": "lower",
+        "sourceAliasStyle": "implicit",
+        "castStyle": "standard",
+        "constraintStyle": "postgres"
+    }
+};
+
+function cloneStyle(style) {
+    return JSON.parse(JSON.stringify(style));
+}
+
+function inferStyleDefaults(name, style) {
+    if (DEFAULT_STYLES[name]) {
+        return DEFAULT_STYLES[name];
+    }
+
+    const identifierEscape = style?.identifierEscape ?? "none";
+    const dialectDefaults =
+        identifierEscape === "backtick"
+            ? { constraintStyle: "mysql" }
+            : identifierEscape === "quote" && style?.parameterSymbol === "$"
+              ? { castStyle: "postgres", constraintStyle: "postgres" }
+              : {};
+
+    return {
+        "identifierEscapeTarget": "all",
+        "sourceAliasStyle": "as",
+        "castStyle": "standard",
+        "constraintStyle": "postgres",
+        "orderByDefaultDirectionStyle": "omit",
+        "insertColumnsOneLine": true,
+        "whenOneLine": false,
+        ...dialectDefaults
+    };
+}
+
+function normalizeStyle(name, style) {
+    return {
+        ...cloneStyle(inferStyleDefaults(name, style)),
+        ...style
+    };
+}
+
+function createDefaultStyles() {
+    return Object.fromEntries(
+        Object.entries(DEFAULT_STYLES).map(([name, style]) => [name, cloneStyle(style)])
+    );
+}
+
+function normalizeStyles(styles) {
+    const normalized = {};
+    for (const [name, style] of Object.entries(styles || {})) {
+        normalized[name] = normalizeStyle(name, style);
+    }
+
+    for (const [name, style] of Object.entries(DEFAULT_STYLES)) {
+        if (!normalized[name]) {
+            normalized[name] = cloneStyle(style);
+        }
+    }
+
+    return normalized;
+}
+
 // DOM elements and external functions - these will be initialized via initStyleConfig
 let styleSelect, styleNameInput, addNewStyleBtn, deleteStyleBtn, saveStyleBtn, resetAllSettingsBtn, revertStyleBtn;
 let styleJsonEditor;
@@ -46,112 +219,10 @@ function initStyleConfig(elements, editorInstance, formatterFunc, statusBarUpdat
 function loadStylesData() {
     const storedStyles = localStorage.getItem(DEFAULT_STYLE_KEY);
     if (storedStyles) {
-        currentStyles = JSON.parse(storedStyles);
+        currentStyles = normalizeStyles(JSON.parse(storedStyles));
+        localStorage.setItem(DEFAULT_STYLE_KEY, JSON.stringify(currentStyles));
     } else {
-        currentStyles = {
-            "Default": {
-                "identifierEscape": "none",
-                "parameterSymbol": ":",
-                "parameterStyle": "named",
-                "indentSize": 4,
-                "indentChar": "space",
-                "newline": "lf",
-                "keywordCase": "lower",
-                "commaBreak": "before",
-                "valuesCommaBreak": "before",
-                "andBreak": "before",
-                "orBreak": "before",
-                "exportComment": true,
-                "commentStyle": "block",
-                "withClauseStyle": "standard",
-                "parenthesesOneLine": true,
-                "indentNestedParentheses": true,
-                "betweenOneLine": true,
-                "valuesOneLine": false,
-                "joinOneLine": true,
-                "caseOneLine": false,
-                "subqueryOneLine": false,
-                "joinConditionOrderByDeclaration": false
-            },
-            "OneLiner": {
-                "identifierEscape": "none",
-                "parameterSymbol": ":",
-                "parameterStyle": "named",
-                "keywordCase": "lower"
-            },
-            "Postgres": {
-                "identifierEscape": "quote",
-                "parameterSymbol": "$",
-                "parameterStyle": "indexed",
-                "indentSize": 4,
-                "indentChar": "space",
-                "newline": "lf",
-                "keywordCase": "upper",
-                "commaBreak": "before",
-                "valuesCommaBreak": "before",
-                "andBreak": "before",
-                "orBreak": "before",
-                "exportComment": true,
-                "commentStyle": "block",
-                "withClauseStyle": "standard",
-                "parenthesesOneLine": true,
-                "indentNestedParentheses": true,
-                "betweenOneLine": true,
-                "valuesOneLine": false,
-                "joinOneLine": true,
-                "caseOneLine": false,
-                "subqueryOneLine": false,
-                "joinConditionOrderByDeclaration": false
-            },
-            "MySQL": {
-                "identifierEscape": "backtick",
-                "parameterSymbol": "?",
-                "parameterStyle": "anonymous",
-                "indentSize": 4,
-                "indentChar": "space",
-                "newline": "lf",
-                "keywordCase": "upper",
-                "commaBreak": "before",
-                "valuesCommaBreak": "before",
-                "andBreak": "before",
-                "orBreak": "before",
-                "exportComment": true,
-                "commentStyle": "block",
-                "withClauseStyle": "standard",
-                "parenthesesOneLine": true,
-                "indentNestedParentheses": true,
-                "betweenOneLine": true,
-                "valuesOneLine": false,
-                "joinOneLine": true,
-                "caseOneLine": false,
-                "subqueryOneLine": false,
-                "joinConditionOrderByDeclaration": false
-            },
-            "SQLServer": {
-                "identifierEscape": "bracket",
-                "parameterSymbol": "@",
-                "parameterStyle": "named",
-                "indentSize": 4,
-                "indentChar": "space",
-                "newline": "lf",
-                "keywordCase": "upper",
-                "commaBreak": "before",
-                "valuesCommaBreak": "before",
-                "andBreak": "before",
-                "orBreak": "before",
-                "exportComment": true,
-                "commentStyle": "block",
-                "withClauseStyle": "standard",
-                "parenthesesOneLine": true,
-                "indentNestedParentheses": true,
-                "betweenOneLine": true,
-                "valuesOneLine": false,
-                "joinOneLine": true,
-                "caseOneLine": false,
-                "subqueryOneLine": false,
-                "joinConditionOrderByDeclaration": false
-            }
-        };
+        currentStyles = createDefaultStyles();
         localStorage.setItem(DEFAULT_STYLE_KEY, JSON.stringify(currentStyles));
     }
 }
