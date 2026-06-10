@@ -2,6 +2,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadValidatedPublishManifestContract } from "./publish-workspace-utils.mjs";
 
 const IS_WINDOWS = process.platform === "win32";
@@ -403,20 +404,30 @@ function classifyNpmFailure(text) {
     e403: /\bE403\b/i.test(t) || /\b403\b.*\bForbidden\b/i.test(t),
     e404: /\bE404\b/i.test(t) || /\bnpm ERR!\s*404\b/i.test(t) || /\b404\b.*\bNot Found\b/i.test(t),
     tokenExpiredOrRevoked: /\bAccess token expired or revoked\b/i.test(t),
+    tlogDuplicate:
+      /\bTLOG_CREATE_ENTRY_ERROR\b/i.test(t)
+      || /\berror creating tlog entry\b/i.test(t)
+      || /\bequivalent entry already exists in the transparency log\b/i.test(t),
   };
   return code;
 }
 
-function logNpmViewDiagnostics(packageName) {
+function logNpmViewDiagnostics(packageName, packageVersion = "") {
   // Provide a small amount of read-only registry context to help distinguish:
   // - "package does not exist" vs
   // - "package exists but publish auth failed" (Trusted Publishing mismatch, missing permissions, etc).
   // Keep output small and avoid dumping any auth-related config.
   const latest = tryCaptureOutput(NPM, ["view", "--registry", NPM_PUBLIC_REGISTRY, packageName, "version"]);
   const distTags = tryCaptureOutput(NPM, ["view", "--registry", NPM_PUBLIC_REGISTRY, packageName, "dist-tags", "--json"]);
+  const targetVersion = packageVersion
+    ? tryCaptureOutput(NPM, ["view", "--registry", NPM_PUBLIC_REGISTRY, `${packageName}@${packageVersion}`, "version"])
+    : null;
 
   const latestLine = latest.ok ? latest.stdout.trim() : "(failed)";
   const distTagsLine = distTags.ok ? distTags.stdout.trim() : "(failed)";
+  const targetVersionLine = targetVersion
+    ? formatTargetVersionDiagnostic(targetVersion)
+    : "";
 
   const trimmedDistTags = distTagsLine.length > 2000 ? `${distTagsLine.slice(0, 2000)}…` : distTagsLine;
 
@@ -424,10 +435,63 @@ function logNpmViewDiagnostics(packageName) {
     [
       "[publish] npm view diagnostics:",
       `  package=${packageName}`,
+      packageVersion ? `  target=${packageName}@${packageVersion}` : "",
+      targetVersion ? `  targetVersion=${targetVersionLine || "(empty)"}` : "",
       `  latest=${latestLine || "(empty)"}`,
       `  dist-tags=${trimmedDistTags || "(empty)"}`,
-    ].join("\n"),
+    ].filter(Boolean).join("\n"),
   );
+}
+
+function formatTargetVersionDiagnostic(result) {
+  if (result.ok) return result.stdout.trim();
+  const combined = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  return classifyNpmFailure(combined).e404 ? "(not visible)" : "(failed)";
+}
+
+function getOidcPublishFailureReasonSignals(classification) {
+  const reasons = [];
+  if (classification.needAuth) reasons.push("ENEEDAUTH (npm thinks you are not logged in)");
+  if (classification.e401) reasons.push("E401 Unauthorized");
+  if (classification.e403) reasons.push("E403 Forbidden");
+  if (classification.e404) reasons.push("E404 Not Found (sometimes permission/auth is masked as 404)");
+  if (classification.tlogDuplicate) {
+    reasons.push("TLOG_CREATE_ENTRY_ERROR (npm provenance transparency log already has an equivalent entry)");
+  }
+  return reasons;
+}
+
+function buildOidcPublishFailureHint(classification, opts = {}) {
+  const reasons = getOidcPublishFailureReasonSignals(classification);
+  const checklist = [
+    "[publish] npm publish failed (OIDC mode).",
+    reasons.length ? `Reason signals: ${reasons.join(", ")}` : "Reason signals: (unknown)",
+    "Checklist (most likely first):",
+    "  0) see docs/oidc-publish-troubleshooting.md in this repo",
+  ];
+
+  if (classification.tlogDuplicate) {
+    checklist.push(
+      "  1) this is a provenance transparency-log duplicate, not a normal Trusted Publisher auth mismatch",
+      "  2) check whether the target package version became visible on npm; if it did, do not republish it",
+      "  3) if the version is still not visible, prefer bumping the package version and rerunning publish",
+      "  4) only use token/no-provenance emergency publish after an explicit human release decision",
+    );
+    return checklist.join("\n");
+  }
+
+  checklist.push(
+    "  1) npm Trusted Publisher is configured for THIS package and THIS workflow file in THIS repo",
+    "  2) workflow permissions include: id-token: write",
+    "  3) NODE_AUTH_TOKEN is NOT set anywhere (env, secrets, org vars)",
+    `  4) npm >= 11.5.1 and registry is ${NPM_PUBLIC_REGISTRY}`,
+    "  5) npm publish includes --provenance (this script adds it in oidc mode)",
+    opts?.allowTokenFallback === true
+      ? `  6) (fallback enabled) ensure a valid ${FALLBACK_TOKEN_ENV} or NODE_AUTH_TOKEN is available for token auth retry`
+      : `  6) (optional) enable RAWSQL_PUBLISH_OIDC_FALLBACK_TO_TOKEN=1 and provide ${FALLBACK_TOKEN_ENV} for token retry`,
+  );
+
+  return checklist.join("\n");
 }
 
 function ensureOidcPrereqs(publishAuth) {
@@ -678,19 +742,13 @@ function publishWithNpm(publishTarget, publishAuth, opts) {
     const c = classifyNpmFailure(message);
 
     if (publishAuth === "oidc") {
-      if (opts?.packageName && (c.needAuth || c.e401 || c.e403 || c.e404)) {
+      if (opts?.packageName && (c.needAuth || c.e401 || c.e403 || c.e404 || c.tlogDuplicate)) {
         // Add extra context that can be correlated with Trusted Publisher settings in npm.
-        logNpmViewDiagnostics(opts.packageName);
+        logNpmViewDiagnostics(opts.packageName, opts?.packageVersion);
       }
 
       const canFallback =
         opts?.allowTokenFallback === true && Boolean(opts?.preservedNodeAuthToken) && Boolean(opts?.workspaceRoot);
-
-      const reasons = [];
-      if (c.needAuth) reasons.push("ENEEDAUTH (npm thinks you are not logged in)");
-      if (c.e401) reasons.push("E401 Unauthorized");
-      if (c.e403) reasons.push("E403 Forbidden");
-      if (c.e404) reasons.push("E404 Not Found (sometimes permission/auth is masked as 404)");
 
       if (canFallback && (c.needAuth || c.e401 || c.e403 || c.e404)) {
         // OIDC can fail if Trusted Publishers isn't configured or the workflow context doesn't match.
@@ -724,20 +782,9 @@ function publishWithNpm(publishTarget, publishAuth, opts) {
         }
       }
 
-      const hint = [
-        "[publish] npm publish failed (OIDC mode).",
-        reasons.length ? `Reason signals: ${reasons.join(", ")}` : "Reason signals: (unknown)",
-        "Checklist (most likely first):",
-        "  0) see docs/oidc-publish-troubleshooting.md in this repo",
-        "  1) npm Trusted Publisher is configured for THIS package and THIS workflow file in THIS repo",
-        "  2) workflow permissions include: id-token: write",
-        "  3) NODE_AUTH_TOKEN is NOT set anywhere (env, secrets, org vars)",
-        `  4) npm >= 11.5.1 and registry is ${NPM_PUBLIC_REGISTRY}`,
-        "  5) npm publish includes --provenance (this script adds it in oidc mode)",
-        opts?.allowTokenFallback === true
-          ? `  6) (fallback enabled) ensure a valid ${FALLBACK_TOKEN_ENV} or NODE_AUTH_TOKEN is available for token auth retry`
-          : `  6) (optional) enable RAWSQL_PUBLISH_OIDC_FALLBACK_TO_TOKEN=1 and provide ${FALLBACK_TOKEN_ENV} for token retry`,
-      ].join("\n");
+      const hint = buildOidcPublishFailureHint(c, {
+        allowTokenFallback: opts?.allowTokenFallback === true,
+      });
 
       throw new Error([hint, `---\n${message}`].join("\n"));
     }
@@ -890,6 +937,7 @@ async function main() {
       allowTokenFallback,
       preservedNodeAuthToken,
       workspaceRoot,
+      packageVersion: pkg.version,
     });
     publishedNow.push(`${pkg.name}@${pkg.version}`);
   }
@@ -999,4 +1047,17 @@ async function main() {
   }
 }
 
-await main();
+function isDirectRun() {
+  if (!process.argv[1]) return false;
+  return fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+}
+
+export {
+  buildOidcPublishFailureHint,
+  classifyNpmFailure,
+  getOidcPublishFailureReasonSignals,
+};
+
+if (isDirectRun()) {
+  await main();
+}
