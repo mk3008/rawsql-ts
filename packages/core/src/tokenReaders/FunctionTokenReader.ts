@@ -23,6 +23,11 @@ export class FunctionTokenReader extends BaseTokenReader {
             return null;
         }
 
+        if (this.input.slice(this.position, this.position + 6).toLowerCase() === 'array[') {
+            this.position += 5;
+            return this.createLexeme(TokenType.Function, 'array');
+        }
+
         // Check for keyword identifiers
         const keyword = keywordParser.parse(this.input, this.position);
         if (keyword !== null) {
