@@ -26,6 +26,7 @@ const DEFAULT_STYLE_BASE = {
     "subqueryOneLine": false,
     "insertColumnsOneLine": true,
     "whenOneLine": false,
+    "oneLineMaxLength": 100,
     "joinConditionOrderByDeclaration": false,
     "orderByDefaultDirectionStyle": "omit",
     "constraintStyle": "postgres"
@@ -145,6 +146,7 @@ function inferStyleDefaults(name, style) {
         "orderByDefaultDirectionStyle": "omit",
         "insertColumnsOneLine": true,
         "whenOneLine": false,
+        "oneLineMaxLength": 100,
         ...dialectDefaults
     };
 }

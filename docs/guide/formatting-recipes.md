@@ -36,6 +36,7 @@ const { formattedSql, params } = formatter.format(query);
 | `commentStyle` | `'block'`, `'smart'` | `'block'` | Normalises how comments are emitted (see below). |
 | `withClauseStyle` | `'standard'`, `'cte-oneline'`, `'full-oneline'` | `'standard'` | Expands or collapses common table expressions. |
 | `parenthesesOneLine`, `betweenOneLine`, `valuesOneLine`, `joinOneLine`, `caseOneLine`, `subqueryOneLine` | `true` / `false` | `false` for each | Opt-in switches that keep the corresponding construct on a single line even if other break settings would expand it. |
+| `oneLineMaxLength` | Positive integer | Unlimited | Optional width guard for opt-in one-line constructs. When a one-line candidate would exceed this length, the formatter falls back to the normal multiline layout for that construct. |
 | `joinConditionOrderByDeclaration` | `true` / `false` | `false` | Normalizes `JOIN ... ON` column comparisons so the left operand matches table declaration order. |
 | `whenOneLine` | `true` / `false` | `false` | Forces each `MERGE WHEN` predicate to stay on a single line even if `andBreak` / `orBreak` would normally wrap it. |
 | `exportComment` | `'full'`, `'none'`, `'header-only'`, `'top-header-only'` (legacy `true` / `false` still accepted) | `'none'` | Controls which comments are emitted: `'full'` prints everything, `'none'` drops all comments, `'header-only'` keeps leading comments on every block, and `'top-header-only'` keeps only top-level headers. |
@@ -101,6 +102,39 @@ const formatter = new SqlFormatter({
 ```
 
 The switch leaves other logical groups untouched, so `WHERE` clauses continue to follow the global `andBreak` / `orBreak` style.
+
+### Keeping short one-line groups without flattening long predicates
+
+The `*OneLine` switches are useful for compact predicates such as SSSQL optional filters:
+
+```sql
+(cast(:status as text) is null or status = :status)
+```
+
+The same switch can become hard to read when the predicate grows into a long keyword search or a `CASE` expression. Set `oneLineMaxLength` to keep short candidates compact while allowing long candidates to fall back to the regular multiline formatter:
+
+```typescript
+const formatter = new SqlFormatter({
+    newline: 'lf',
+    parenthesesOneLine: true,
+    caseOneLine: true,
+    orBreak: 'before',
+    oneLineMaxLength: 100
+});
+```
+
+With the width guard enabled, a short optional predicate can stay on one line, while a longer group expands into the configured logical-operator layout:
+
+```sql
+(
+    :keyword is null
+    or subject ilike '%' || :keyword || '%'
+    or customer_name ilike '%' || :keyword || '%'
+    or latest_message_body ilike '%' || :keyword || '%'
+)
+```
+
+The limit applies to opt-in one-line containers such as parentheses, `BETWEEN`, `VALUES`, `JOIN ... ON`, `CASE`, subqueries, and individual CTE entries formatted by `withClauseStyle: 'cte-oneline'`. The width check includes the current indentation and any text already present on the line. It does not change `withClauseStyle: 'full-oneline'`, which intentionally treats the whole `WITH` block as a single-line mode.
 
 ### INSERT column list layouts
 
@@ -213,6 +247,7 @@ Pair this option with your target engine: presets such as `'mysql'` enable it au
   "orBreak": "before",
   "withClauseStyle": "cte-oneline",
   "insertColumnsOneLine": true,
+  "oneLineMaxLength": 100,
   "indentNestedParentheses": true,
   "exportComment": "full",
   "commentStyle": "smart",
