@@ -1,4 +1,4 @@
-import { SqlPrintTokenParser, FormatterConfig, PRESETS, CastStyle, ConstraintStyle } from '../parsers/SqlPrintTokenParser';
+import { SqlPrintTokenParser, FormatterConfig, PRESETS, CastStyle, ConstraintStyle, SourceAliasStyle, OrderByDefaultDirectionStyle } from '../parsers/SqlPrintTokenParser';
 import { SqlPrinter, CommaBreakStyle, AndBreakStyle, OrBreakStyle } from './SqlPrinter';
 import { CommentExportMode } from '../types/Formatting';
 import { IndentCharOption, NewlineOption } from './LinePrinter'; // Import types for compatibility
@@ -109,6 +109,10 @@ export interface SqlFormatterOptions extends BaseFormattingOptions {
     castStyle?: CastStyle;
     /** Constraint rendering style (affects CREATE TABLE constraint layout) */
     constraintStyle?: ConstraintStyle;
+    /** Source alias rendering style for FROM/JOIN sources */
+    sourceAliasStyle?: SourceAliasStyle;
+    /** Default ORDER BY direction rendering style */
+    orderByDefaultDirectionStyle?: OrderByDefaultDirectionStyle;
 }
 
 /**
@@ -146,6 +150,8 @@ export class SqlFormatter {
             parameterSymbol: options.parameterSymbol ?? presetConfig?.parameterSymbol,
             parameterStyle: options.parameterStyle ?? presetConfig?.parameterStyle,
             castStyle: options.castStyle ?? presetConfig?.castStyle,
+            sourceAliasStyle: options.sourceAliasStyle ?? presetConfig?.sourceAliasStyle,
+            orderByDefaultDirectionStyle: options.orderByDefaultDirectionStyle ?? presetConfig?.orderByDefaultDirectionStyle,
             joinConditionOrderByDeclaration: options.joinConditionOrderByDeclaration,
         };
 

@@ -83,6 +83,10 @@ export type CastStyle = 'postgres' | 'standard';
 
 export type ConstraintStyle = 'postgres' | 'mysql';
 
+export type SourceAliasStyle = 'as' | 'implicit';
+
+export type OrderByDefaultDirectionStyle = 'omit' | 'explicit';
+
 export interface FormatterConfig {
     identifierEscape?: {
         start: string;
@@ -98,6 +102,10 @@ export interface FormatterConfig {
     castStyle?: CastStyle;
     /** Controls how table/column constraints are rendered */
     constraintStyle?: ConstraintStyle;
+    /** Controls whether source aliases are rendered with an explicit AS keyword */
+    sourceAliasStyle?: SourceAliasStyle;
+    /** Controls whether the default ASC direction is omitted or rendered explicitly */
+    orderByDefaultDirectionStyle?: OrderByDefaultDirectionStyle;
 }
 
 export const PRESETS: Record<string, FormatterConfig> = {
@@ -254,6 +262,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     index: number = 1;
     private castStyle: CastStyle;
     private constraintStyle: ConstraintStyle;
+    private sourceAliasStyle: SourceAliasStyle;
+    private orderByDefaultDirectionStyle: OrderByDefaultDirectionStyle;
     private readonly normalizeJoinConditionOrder: boolean;
     private joinConditionContexts: Array<{ aliasOrder: Map<string, number> }> = [];
 
@@ -264,6 +274,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         parameterStyle?: 'anonymous' | 'indexed' | 'named',
         castStyle?: CastStyle,
         constraintStyle?: ConstraintStyle,
+        sourceAliasStyle?: SourceAliasStyle,
+        orderByDefaultDirectionStyle?: OrderByDefaultDirectionStyle,
         joinConditionOrderByDeclaration?: boolean,
     }) {
         if (options?.preset) {
@@ -285,6 +297,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         this.castStyle = options?.castStyle ?? 'standard';
         this.constraintStyle = options?.constraintStyle ?? 'postgres';
+        this.sourceAliasStyle = options?.sourceAliasStyle ?? 'as';
+        this.orderByDefaultDirectionStyle = options?.orderByDefaultDirectionStyle ?? 'omit';
         this.normalizeJoinConditionOrder = options?.joinConditionOrderByDeclaration ?? false;
 
         this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
@@ -543,6 +557,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (arg.sortDirection && arg.sortDirection !== SortDirection.Ascending) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'desc'));
+        } else if (this.orderByDefaultDirectionStyle === 'explicit') {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'asc'));
         }
 
         if (arg.nullsPosition) {
@@ -2182,20 +2199,26 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 return token;
             }
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
-            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            this.appendSourceAliasKeyword(token);
             // exclude column aliases
             token.innerTokens.push(arg.aliasExpression.accept(this));
             return token;
         } else {
             // For other source types, just print the alias
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
-            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            this.appendSourceAliasKeyword(token);
             // included column aliases
             token.innerTokens.push(arg.aliasExpression.accept(this));
             return token;
         }
+    }
+
+    private appendSourceAliasKeyword(token: SqlPrintToken): void {
+        if (this.sourceAliasStyle === 'implicit') {
+            return;
+        }
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
     }
 
     public visitFromClause(arg: FromClause): SqlPrintToken {
