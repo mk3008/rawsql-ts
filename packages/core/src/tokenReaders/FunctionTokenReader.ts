@@ -15,6 +15,10 @@ const keywordParser = new KeywordParser(trie);
  * Reads SQL identifier tokens
  */
 export class FunctionTokenReader extends BaseTokenReader {
+    protected tryReadDialectSpecificToken(_previous: Lexeme | null): Lexeme | null {
+        return null;
+    }
+
     /**
      * Try to read an identifier token
      */
@@ -23,9 +27,9 @@ export class FunctionTokenReader extends BaseTokenReader {
             return null;
         }
 
-        if (this.input.slice(this.position, this.position + 6).toLowerCase() === 'array[') {
-            this.position += 5;
-            return this.createLexeme(TokenType.Function, 'array');
+        const dialectToken = this.tryReadDialectSpecificToken(previous);
+        if (dialectToken) {
+            return dialectToken;
         }
 
         // Check for keyword identifiers
