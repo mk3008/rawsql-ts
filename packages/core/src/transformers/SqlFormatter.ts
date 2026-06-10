@@ -79,6 +79,8 @@ export interface BaseFormattingOptions {
     insertColumnsOneLine?: boolean;
     /** Keep MERGE WHEN clause predicates on one line regardless of AND break settings */
     whenOneLine?: boolean;
+    /** Maximum rendered width for opt-in one-line constructs. Omit to keep legacy unlimited one-line behavior. */
+    oneLineMaxLength?: number;
     /** Reorder JOIN ON column comparisons to follow table declaration order */
     joinConditionOrderByDeclaration?: boolean;
 }

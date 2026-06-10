@@ -125,10 +125,14 @@ export class SqlPrinter {
     private insertColumnsOneLine: boolean;
     /** Whether to keep MERGE WHEN predicates on a single line */
     private whenOneLine: boolean;
+    /** Optional maximum width for opt-in one-line constructs */
+    private oneLineMaxLength?: number;
     /** Tracks nesting depth while formatting MERGE WHEN predicate segments */
     private mergeWhenPredicateDepth = 0;
     /** Shared helper for oneline-specific formatting decisions */
     private onelineHelper: OnelineFormattingHelper;
+    /** Containers whose one-line rendering was rejected by oneLineMaxLength */
+    private expandedOneLineFallbackTokens = new WeakSet<SqlPrintToken>();
     /** Pending line comment that needs a forced newline before next token */
     private pendingLineCommentBreak: number | null = null;
     /** Accumulates lines when reconstructing multi-line block comments inside CommentBlocks */
@@ -167,6 +171,7 @@ export class SqlPrinter {
         this.indentNestedParentheses = options?.indentNestedParentheses ?? false;
         this.insertColumnsOneLine = options?.insertColumnsOneLine ?? false;
         this.whenOneLine = options?.whenOneLine ?? false;
+        this.oneLineMaxLength = this.normalizeOneLineMaxLength(options?.oneLineMaxLength);
         const onelineOptions: OnelineFormattingOptions = {
             parenthesesOneLine: this.parenthesesOneLine,
             betweenOneLine: this.betweenOneLine,
@@ -232,6 +237,7 @@ export class SqlPrinter {
         this.insideWithClause = false; // Reset WITH clause context
         this.pendingLineCommentBreak = null;
         this.smartCommentBlockBuilder = null;
+        this.expandedOneLineFallbackTokens = new WeakSet<SqlPrintToken>();
         if (this.linePrinter.lines.length > 0 && level !== this.linePrinter.lines[0].level) {
             this.linePrinter.lines[0].level = level;
         }
@@ -386,7 +392,7 @@ export class SqlPrinter {
         const current = this.linePrinter.getCurrentLine();
         const isCaseContext = this.isCaseContext(token.containerType);
         const nextCaseContextDepth = isCaseContext ? caseContextDepth + 1 : caseContextDepth;
-        const shouldIndentNested = this.shouldIndentNestedParentheses(token, previousSiblingWasOpenParen);
+        let shouldIndentNested = this.shouldIndentNestedParentheses(token, previousSiblingWasOpenParen);
 
         // Handle different token types
         if (token.type === SqlPrintTokenType.keyword) {
@@ -415,13 +421,17 @@ export class SqlPrinter {
             const commentLevel = this.getCommentBaseIndentLevel(level, parentContainerType);
             this.handleCommentNewlineToken(token, commentLevel);
         } else if (token.containerType === SqlPrintTokenContainerType.CommonTable && this.withClauseStyle === 'cte-oneline') {
-            this.handleCteOnelineToken(token, level);
-            return; // Return early to avoid processing innerTokens
-        } else if (this.shouldFormatContainerAsOneline(token, shouldIndentNested)) {
-            this.handleOnelineToken(token, level);
+            if (this.tryHandleCteOnelineToken(token, level)) {
+                return; // Return early to avoid processing innerTokens
+            }
+        } else if (this.shouldFormatContainerAsOneline(token, shouldIndentNested) && this.tryHandleOnelineToken(token, level)) {
             return; // Return early to avoid processing innerTokens
         } else if (!this.tryAppendInsertClauseTokenText(token.text, parentContainerType)) {
             this.linePrinter.appendText(token.text);
+        }
+
+        if (this.expandedOneLineFallbackTokens.has(token)) {
+            shouldIndentNested = true;
         }
 
         // append keyword tokens(not indented)
@@ -829,7 +839,11 @@ export class SqlPrinter {
             if (!this.isOnelineMode()) {
                 if (this.shouldBreakAfterOpeningParen(parentContainerType)) {
                     this.linePrinter.appendNewline(level + 1);
-                } else if (indentParentActive && !(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
+                } else if (
+                    indentParentActive &&
+                    parentContainerType === SqlPrintTokenContainerType.ParenExpression &&
+                    !(this.insideWithClause && this.withClauseStyle === 'full-oneline')
+                ) {
                     this.linePrinter.appendNewline(level);
                 }
             }
@@ -842,7 +856,11 @@ export class SqlPrinter {
                 this.linePrinter.appendText(token.text);
                 return;
             }
-            if (indentParentActive && !(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
+            if (
+                indentParentActive &&
+                parentContainerType === SqlPrintTokenContainerType.ParenExpression &&
+                !(this.insideWithClause && this.withClauseStyle === 'full-oneline')
+            ) {
                 const closingLevel = Math.max(level - 1, 0);
                 this.linePrinter.appendNewline(closingLevel);
             }
@@ -894,6 +912,9 @@ export class SqlPrinter {
         }
         if (token.containerType !== SqlPrintTokenContainerType.ParenExpression) {
             return false;
+        }
+        if (this.expandedOneLineFallbackTokens.has(token)) {
+            return true;
         }
 
         // Look for nested parentheses containers. If present, indent to highlight grouping.
@@ -1545,16 +1566,38 @@ export class SqlPrinter {
         return this.newline === ' ';
     }
 
+    private normalizeOneLineMaxLength(value?: number): number | undefined {
+        if (value === undefined || !Number.isFinite(value) || value <= 0) {
+            return undefined;
+        }
+        return Math.floor(value);
+    }
+
+    private fitsOneLineMaxLength(text: string): boolean {
+        if (this.oneLineMaxLength === undefined) {
+            return true;
+        }
+
+        const currentLine = this.linePrinter.getCurrentLine();
+        const indentWidth = currentLine.level * this.indentSize * String(this.indentChar).length;
+        return indentWidth + currentLine.text.length + text.length <= this.oneLineMaxLength;
+    }
+
     /**
      * Handles CTE tokens with one-liner formatting.
      * Creates a nested SqlPrinter instance for proper CTE oneline formatting.
      */
-    private handleCteOnelineToken(token: SqlPrintToken, level: number): void {
+    private tryHandleCteOnelineToken(token: SqlPrintToken, level: number): boolean {
         const onelinePrinter = this.createCteOnelinePrinter();
         const onelineResult = onelinePrinter.print(token, level);
         let cleanedResult = this.cleanDuplicateSpaces(onelineResult);
         cleanedResult = cleanedResult.replace(/\(\s+/g, '(').replace(/\s+\)/g, ' )');
-        this.linePrinter.appendText(cleanedResult.trim());
+        const trimmedResult = cleanedResult.trim();
+        if (!this.fitsOneLineMaxLength(trimmedResult)) {
+            return false;
+        }
+        this.linePrinter.appendText(trimmedResult);
+        return true;
     }
 
     /**
@@ -1582,11 +1625,35 @@ export class SqlPrinter {
      * Handles tokens with oneline formatting (parentheses, BETWEEN, VALUES, JOIN, CASE, subqueries).
      * Creates a unified oneline printer that formats everything as one line regardless of content type.
      */
-    private handleOnelineToken(token: SqlPrintToken, level: number): void {
+    private tryHandleOnelineToken(token: SqlPrintToken, level: number): boolean {
         const onelinePrinter = this.createOnelinePrinter();
         const onelineResult = onelinePrinter.print(token, level);
         const cleanedResult = this.cleanDuplicateSpaces(onelineResult);
+        if (!this.fitsOneLineMaxLength(cleanedResult)) {
+            if (this.isBooleanParenExpression(token)) {
+                this.expandedOneLineFallbackTokens.add(token);
+            }
+            return false;
+        }
         this.linePrinter.appendText(cleanedResult);
+        return true;
+    }
+
+    private isBooleanParenExpression(token: SqlPrintToken): boolean {
+        if (token.containerType !== SqlPrintTokenContainerType.ParenExpression) {
+            return false;
+        }
+        return this.containsLogicalOperator(token);
+    }
+
+    private containsLogicalOperator(token: SqlPrintToken): boolean {
+        if (
+            (token.type === SqlPrintTokenType.operator || token.type === SqlPrintTokenType.keyword) &&
+            ['and', 'or'].includes(token.text.toLowerCase())
+        ) {
+            return true;
+        }
+        return token.innerTokens.some((child) => this.containsLogicalOperator(child));
     }
 
     private getClauseBreakIndentLevel(parentType: SqlPrintTokenContainerType | undefined, level: number): number {
