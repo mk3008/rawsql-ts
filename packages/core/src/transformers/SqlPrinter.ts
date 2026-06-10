@@ -1570,7 +1570,8 @@ export class SqlPrinter {
         if (value === undefined || !Number.isFinite(value) || value <= 0) {
             return undefined;
         }
-        return Math.floor(value);
+        const normalized = Math.floor(value);
+        return normalized > 0 ? normalized : undefined;
     }
 
     private fitsOneLineMaxLength(text: string): boolean {

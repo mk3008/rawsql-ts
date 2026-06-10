@@ -125,4 +125,29 @@ describe('SqlFormatter - oneLineMaxLength option', () => {
         expect(formattedSql).toContain('\n        select');
         expect(formattedSql).toContain('\n        from\n            tickets');
     });
+
+    test('treats sub-unit fractional limits as unset instead of a zero-width guard', () => {
+        const formatter = new SqlFormatter({
+            newline: 'lf',
+            indentChar: 'space',
+            indentSize: 4,
+            keywordCase: 'lower',
+            identifierEscape: 'none',
+            parameterSymbol: ':',
+            parameterStyle: 'named',
+            parenthesesOneLine: true,
+            orBreak: 'before',
+            oneLineMaxLength: 0.5,
+        });
+
+        const query = SelectQueryParser.parse(`
+            select *
+            from tickets
+            where (cast(:status as text) is null or status = :status)
+        `);
+
+        const { formattedSql } = formatter.format(query);
+
+        expect(formattedSql).toContain('(cast(:status as text) is null or status = :status)');
+    });
 });
