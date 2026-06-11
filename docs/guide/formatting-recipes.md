@@ -31,6 +31,8 @@ const { formattedSql, params } = formatter.format(query);
 | `valuesCommaBreak` | Same as `commaBreak` | Mirrors `commaBreak` | Comma handling within `VALUES` tuples. |
 | `andBreak` | `'none'`, `'before'`, `'after'` | `'none'` | Controls whether logical `AND` operators move to their own lines. |
 | `orBreak` | `'none'`, `'before'`, `'after'` | `'none'` | Same idea for logical `OR` operators. |
+| `joinOnBreak` | `'none'`, `'before'` | `'none'` | Controls whether `JOIN ... ON` keeps `ON` inline or starts it on an indented continuation line. |
+| `joinConditionContinuationIndent` | `true` / `false` | `false` | Indents wrapped `AND` / `OR` predicates inside `JOIN ... ON` conditions so they read as join-condition continuations instead of sibling joins. |
 | `insertColumnsOneLine` | `true` / `false` | `false` | Keeps column lists inside `INSERT INTO` statements on a single line when `true`. |
 | `indentNestedParentheses` | `true` / `false` | `false` | Adds an extra indent when boolean groups introduce parentheses inside `WHERE` or `HAVING` clauses. |
 | `commentStyle` | `'block'`, `'smart'` | `'block'` | Normalises how comments are emitted (see below). |
@@ -86,6 +88,50 @@ const formatter = new SqlFormatter({
 - `'none'` leaves the logical operators inline.
 
 Choose `'before'` when you want to scan down logical branches quickly, or `'after'` to keep complex conditions aligned underneath their keywords.
+
+### JOIN condition layouts
+
+JOIN predicates can become hard to scan when a long `ON` condition wraps and the continuation `AND` / `OR` lines align with the JOIN itself:
+
+```sql
+left join last_customer_reply lcr on lcr.ticket_id = st.ticket_id
+and lcr.tenant_id = st.tenant_id
+```
+
+Use `joinConditionContinuationIndent: true` when you want to keep the first `ON` predicate inline but indent continuation predicates:
+
+```typescript
+const formatter = new SqlFormatter({
+    newline: 'lf',
+    andBreak: 'before',
+    joinConditionContinuationIndent: true
+});
+```
+
+```sql
+left join last_customer_reply lcr on lcr.ticket_id = st.ticket_id
+    and lcr.tenant_id = st.tenant_id
+    and lcr.source_id = st.source_id
+```
+
+Use `joinOnBreak: 'before'` when your style separates the JOIN target from the condition itself:
+
+```typescript
+const formatter = new SqlFormatter({
+    newline: 'lf',
+    andBreak: 'before',
+    joinOnBreak: 'before'
+});
+```
+
+```sql
+left join last_customer_reply lcr
+    on lcr.ticket_id = st.ticket_id
+    and lcr.tenant_id = st.tenant_id
+    and lcr.source_id = st.source_id
+```
+
+The JOIN-specific options only change predicates inside `JOIN ... ON`. `WHERE`, `HAVING`, and other boolean expressions continue to follow `andBreak` / `orBreak` directly.
 
 ### MERGE `WHEN` predicate layout
 
@@ -245,6 +291,8 @@ Pair this option with your target engine: presets such as `'mysql'` enable it au
   "valuesCommaBreak": "after",
   "andBreak": "before",
   "orBreak": "before",
+  "joinOnBreak": "none",
+  "joinConditionContinuationIndent": false,
   "withClauseStyle": "cte-oneline",
   "insertColumnsOneLine": true,
   "oneLineMaxLength": 100,

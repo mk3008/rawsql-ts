@@ -1,5 +1,5 @@
 import { SqlPrintTokenParser, FormatterConfig, PRESETS, CastStyle, ConstraintStyle, SourceAliasStyle, OrderByDefaultDirectionStyle } from '../parsers/SqlPrintTokenParser';
-import { SqlPrinter, CommaBreakStyle, AndBreakStyle, OrBreakStyle } from './SqlPrinter';
+import { SqlPrinter, CommaBreakStyle, AndBreakStyle, OrBreakStyle, JoinOnBreakStyle } from './SqlPrinter';
 import { CommentExportMode } from '../types/Formatting';
 import { IndentCharOption, NewlineOption } from './LinePrinter'; // Import types for compatibility
 import { IdentifierEscapeOption, IdentifierEscapeTarget, resolveIdentifierEscapeOption } from './FormatOptionResolver';
@@ -55,6 +55,8 @@ export interface BaseFormattingOptions {
     andBreak?: AndBreakStyle;
     /** Style for OR line breaks */
     orBreak?: OrBreakStyle;
+    /** Style for JOIN ON line breaks */
+    joinOnBreak?: JoinOnBreakStyle;
     /** Whether to export comments in formatted output */
     exportComment?: boolean | CommentExportMode;
     /** Comment formatting style */
@@ -81,6 +83,8 @@ export interface BaseFormattingOptions {
     whenOneLine?: boolean;
     /** Maximum rendered width for opt-in one-line constructs. Omit to keep legacy unlimited one-line behavior. */
     oneLineMaxLength?: number;
+    /** Indent AND/OR continuation lines inside JOIN ON predicates */
+    joinConditionContinuationIndent?: boolean;
     /** Reorder JOIN ON column comparisons to follow table declaration order */
     joinConditionOrderByDeclaration?: boolean;
 }

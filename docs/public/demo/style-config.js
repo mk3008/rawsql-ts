@@ -14,6 +14,8 @@ const DEFAULT_STYLE_BASE = {
     "valuesCommaBreak": "before",
     "andBreak": "before",
     "orBreak": "before",
+    "joinOnBreak": "none",
+    "joinConditionContinuationIndent": false,
     "exportComment": "full",
     "commentStyle": "block",
     "withClauseStyle": "standard",
@@ -147,6 +149,8 @@ function inferStyleDefaults(name, style) {
         "insertColumnsOneLine": true,
         "whenOneLine": false,
         "oneLineMaxLength": 100,
+        "joinOnBreak": "none",
+        "joinConditionContinuationIndent": false,
         ...dialectDefaults
     };
 }
