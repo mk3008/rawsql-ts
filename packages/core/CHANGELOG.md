@@ -1,5 +1,13 @@
 # rawsql-ts
 
+## 0.25.0
+
+### Minor Changes
+
+- [#875](https://github.com/mk3008/rawsql-ts/pull/875) [`a11cd0b`](https://github.com/mk3008/rawsql-ts/commit/a11cd0bc15e80c46ee789354e720da39c0c7dc2e) Thanks [@mk3008](https://github.com/mk3008)! - Add the `oneLineMaxLength` formatter option. When enabled, opt-in one-line constructs such as parentheses, CASE expressions, JOIN conditions, subqueries, and `cte-oneline` CTE entries stay compact only while their rendered candidate fits within the configured width; longer candidates fall back to the normal multiline formatter.
+
+  Also add JOIN condition layout controls: `joinOnBreak: "before"` can place `ON` on its own indented line, and `joinConditionContinuationIndent` can indent wrapped `AND` / `OR` predicates inside `JOIN ... ON` conditions.
+
 ## 0.24.1
 
 ### Patch Changes

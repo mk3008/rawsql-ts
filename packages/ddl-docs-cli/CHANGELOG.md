@@ -1,5 +1,12 @@
 # @rawsql-ts/ddl-docs-cli
 
+## 0.3.4
+
+### Patch Changes
+
+- Updated dependencies [[`a11cd0b`](https://github.com/mk3008/rawsql-ts/commit/a11cd0bc15e80c46ee789354e720da39c0c7dc2e)]:
+  - rawsql-ts@0.25.0
+
 ## 0.3.3
 
 ### Patch Changes
