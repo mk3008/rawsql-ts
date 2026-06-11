@@ -240,6 +240,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             this._selfHandlingComponentTypes = new Set([
                 SimpleSelectQuery.kind,
                 SelectItem.kind,
+                OrderByItem.kind,
                 CaseKeyValuePair.kind,
                 SwitchCaseArgument.kind,
                 ColumnReference.kind,
@@ -572,6 +573,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
                 token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'nulls last'));
             }
+        }
+
+        if (arg.comments && arg.comments.length > 0) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(...this.createInlineCommentSequence(arg.comments));
         }
         return token;
     }
@@ -2012,9 +2018,13 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         token.innerTokens.push(this.visit(arg.value));
 
-        if (afterComments.length > 0 && !isParenExpression) {
+        const visibleAfterComments = arg.value instanceof CaseExpression
+            ? this.filterCaseSelectItemDuplicateAfterComments(arg.value, afterComments)
+            : afterComments;
+
+        if (visibleAfterComments.length > 0 && !isParenExpression) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-            const commentTokens = this.createInlineCommentSequence(afterComments);
+            const commentTokens = this.createInlineCommentSequence(visibleAfterComments);
             token.innerTokens.push(...commentTokens);
         }
 
@@ -2100,6 +2110,17 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         return token;
+    }
+
+    private filterCaseSelectItemDuplicateAfterComments(value: CaseExpression, afterComments: string[]): string[] {
+        if (afterComments.length === 0) {
+            return afterComments;
+        }
+        if (!value.comments || value.comments.length === 0) {
+            return afterComments;
+        }
+        const promoted = new Set(value.comments);
+        return afterComments.filter(comment => !promoted.has(comment));
     }
 
     private visitSelectClause(arg: SelectClause): SqlPrintToken {
