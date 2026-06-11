@@ -37,6 +37,13 @@ export type AndBreakStyle = 'none' | 'before' | 'after';
  */
 export type OrBreakStyle = 'none' | 'before' | 'after';
 
+/**
+ * JoinOnBreakStyle determines whether JOIN ON starts on the JOIN line or its own indented line.
+ * - 'none': Keep ON inline with the JOIN target
+ * - 'before': Break before ON and indent the join condition
+ */
+export type JoinOnBreakStyle = 'none' | 'before';
+
 interface CommentRenderContext {
     position: 'leading' | 'inline';
     isTopLevelContainer: boolean;
@@ -88,6 +95,8 @@ export class SqlPrinter {
     andBreak: AndBreakStyle;
     /** OR break style: 'none', 'before', or 'after' */
     orBreak: OrBreakStyle;
+    /** JOIN ON break style: 'none' or 'before' */
+    joinOnBreak: JoinOnBreakStyle;
 
     /** Keyword case style: 'none', 'upper' | 'lower' */
     keywordCase: 'none' | 'upper' | 'lower';
@@ -127,8 +136,12 @@ export class SqlPrinter {
     private whenOneLine: boolean;
     /** Optional maximum width for opt-in one-line constructs */
     private oneLineMaxLength?: number;
+    /** Whether to indent AND/OR continuation lines inside JOIN ON predicates */
+    private joinConditionContinuationIndent: boolean;
     /** Tracks nesting depth while formatting MERGE WHEN predicate segments */
     private mergeWhenPredicateDepth = 0;
+    /** Tracks nesting depth while formatting JOIN ON condition segments */
+    private joinOnClauseDepth = 0;
     /** Shared helper for oneline-specific formatting decisions */
     private onelineHelper: OnelineFormattingHelper;
     /** Containers whose one-line rendering was rejected by oneLineMaxLength */
@@ -158,6 +171,7 @@ export class SqlPrinter {
         this.valuesCommaBreak = options?.valuesCommaBreak ?? this.commaBreak;
         this.andBreak = options?.andBreak ?? 'none';
         this.orBreak = options?.orBreak ?? 'none';
+        this.joinOnBreak = options?.joinOnBreak ?? 'none';
         this.keywordCase = options?.keywordCase ?? 'none';
         this.commentExportMode = this.resolveCommentExportMode(options?.exportComment);
         this.withClauseStyle = options?.withClauseStyle ?? 'standard';
@@ -172,6 +186,7 @@ export class SqlPrinter {
         this.insertColumnsOneLine = options?.insertColumnsOneLine ?? false;
         this.whenOneLine = options?.whenOneLine ?? false;
         this.oneLineMaxLength = this.normalizeOneLineMaxLength(options?.oneLineMaxLength);
+        this.joinConditionContinuationIndent = options?.joinConditionContinuationIndent ?? false;
         const onelineOptions: OnelineFormattingOptions = {
             parenthesesOneLine: this.parenthesesOneLine,
             betweenOneLine: this.betweenOneLine,
@@ -235,6 +250,7 @@ export class SqlPrinter {
         // initialize
         this.linePrinter = new LinePrinter(this.indentChar, this.indentSize, this.newline, this.commaBreak);
         this.insideWithClause = false; // Reset WITH clause context
+        this.joinOnClauseDepth = 0;
         this.pendingLineCommentBreak = null;
         this.smartCommentBlockBuilder = null;
         this.expandedOneLineFallbackTokens = new WeakSet<SqlPrintToken>();
@@ -430,6 +446,15 @@ export class SqlPrinter {
             this.linePrinter.appendText(token.text);
         }
 
+        if (
+            token.containerType === SqlPrintTokenContainerType.JoinOnClause &&
+            this.joinOnBreak === 'before' &&
+            !this.isOnelineMode() &&
+            this.linePrinter.getCurrentLine().text.trim().length > 0
+        ) {
+            this.linePrinter.appendNewline(level + 1);
+        }
+
         if (this.expandedOneLineFallbackTokens.has(token)) {
             shouldIndentNested = true;
         }
@@ -456,6 +481,9 @@ export class SqlPrinter {
         const delayIndentNewline = shouldIndentNested && token.containerType === SqlPrintTokenContainerType.ParenExpression;
         const isAlterTableStatement = token.containerType === SqlPrintTokenContainerType.AlterTableStatement;
         let deferAlterTableIndent = false;
+        if (token.containerType === SqlPrintTokenContainerType.JoinOnClause && this.joinOnBreak === 'before' && !this.isOnelineMode()) {
+            innerLevel = level + 1;
+        }
 
         const alignExplainChild = this.shouldAlignExplainStatementChild(parentContainerType, token.containerType);
 
@@ -507,6 +535,10 @@ export class SqlPrinter {
         let mergePredicateActive = isMergeWhenClause;
         let alterTableTableRendered = false;
         let alterTableIndentInserted = false;
+        const enteredJoinOnClause = token.containerType === SqlPrintTokenContainerType.JoinOnClause;
+        if (enteredJoinOnClause) {
+            this.joinOnClauseDepth++;
+        }
 
         for (let i = leadingCommentCount; i < token.innerTokens.length; i++) {
             const child = token.innerTokens[i];
@@ -580,6 +612,9 @@ export class SqlPrinter {
 
         if (this.smartCommentBlockBuilder && this.smartCommentBlockBuilder.mode === 'line') {
             this.flushSmartCommentBlockBuilder();
+        }
+        if (enteredJoinOnClause) {
+            this.joinOnClauseDepth--;
         }
 
         // Exit WITH clause context when we finish processing WithClause container
@@ -812,14 +847,14 @@ export class SqlPrinter {
         if (this.andBreak === 'before') {
             // Skip newline when inside WITH clause with full-oneline style
             if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
-                this.linePrinter.appendNewline(level);
+                this.linePrinter.appendNewline(this.getJoinConditionContinuationLevel(level));
             }
             this.linePrinter.appendText(text);
         } else if (this.andBreak === 'after') {
             this.linePrinter.appendText(text);
             // Skip newline when inside WITH clause with full-oneline style
             if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
-                this.linePrinter.appendNewline(level);
+                this.linePrinter.appendNewline(this.getJoinConditionContinuationLevel(level));
             }
         } else {
             this.linePrinter.appendText(text);
@@ -888,18 +923,28 @@ export class SqlPrinter {
         if (this.orBreak === 'before') {
             // Insert a newline before OR unless WITH full-oneline mode suppresses breaks.
             if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
-                this.linePrinter.appendNewline(level);
+                this.linePrinter.appendNewline(this.getJoinConditionContinuationLevel(level));
             }
             this.linePrinter.appendText(text);
         } else if (this.orBreak === 'after') {
             this.linePrinter.appendText(text);
             // Break after OR when multi-line formatting is active.
             if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
-                this.linePrinter.appendNewline(level);
+                this.linePrinter.appendNewline(this.getJoinConditionContinuationLevel(level));
             }
         } else {
             this.linePrinter.appendText(text);
         }
+    }
+
+    private getJoinConditionContinuationLevel(level: number): number {
+        if (this.joinOnClauseDepth === 0) {
+            return level;
+        }
+        if (this.joinOnBreak === 'before') {
+            return level;
+        }
+        return this.joinConditionContinuationIndent ? level + 1 : level;
     }
 
     /**
