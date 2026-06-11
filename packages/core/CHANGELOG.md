@@ -1,5 +1,11 @@
 # rawsql-ts
 
+## 0.24.3
+
+### Patch Changes
+
+- [#884](https://github.com/mk3008/rawsql-ts/pull/884) [`767e9be`](https://github.com/mk3008/rawsql-ts/commit/767e9beb2c0debcdd432b9fbb38db7259b8e54d3) Thanks [@mk3008](https://github.com/mk3008)! - Fix SQL formatter comment handling for comma-prefixed expressions, LIMIT/OFFSET values, function arguments, and parenthesized predicates. Comments are no longer duplicated around function arguments, ORDER BY/GROUP BY items, and parenthesized WHERE predicates, comments after HAVING/JOIN ON/LIMIT/OFFSET keywords are preserved, commented function arguments expand to a readable multiline layout, comments after AND/OR operators indent the following predicate, and comments after list commas now use readable before-comma and after-comma layouts for SELECT, ORDER BY, and GROUP BY items.
+
 ## 0.24.2
 
 ### Patch Changes
