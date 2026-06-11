@@ -8,13 +8,13 @@ const DEFAULT_STYLE_BASE = {
     "indentSize": 4,
     "indentChar": "space",
     "newline": "lf",
-    "keywordCase": "lower",
+    "keywordCase": "upper",
     "commaBreak": "before",
-    "cteCommaBreak": "before",
+    "cteCommaBreak": "after",
     "valuesCommaBreak": "before",
     "andBreak": "before",
     "orBreak": "before",
-    "joinOnBreak": "none",
+    "joinOnBreak": "before",
     "joinConditionContinuationIndent": false,
     "exportComment": "full",
     "commentStyle": "block",
@@ -34,6 +34,17 @@ const DEFAULT_STYLE_BASE = {
     "constraintStyle": "postgres"
 };
 
+const DEFAULT_POSTGRES_STYLE = {
+    ...DEFAULT_STYLE_BASE,
+    "constraintStyle": "postgres",
+    "identifierEscape": "quote",
+    "identifierEscapeTarget": "minimal",
+    "parameterSymbol": "$",
+    "parameterStyle": "indexed",
+    "sourceAliasStyle": "as",
+    "castStyle": "postgres"
+};
+
 const DEFAULT_STYLES = {
     "Default": {
         ...DEFAULT_STYLE_BASE,
@@ -49,41 +60,24 @@ const DEFAULT_STYLES = {
         "identifierEscapeTarget": "all",
         "parameterSymbol": ":",
         "parameterStyle": "named",
-        "keywordCase": "lower",
+        "keywordCase": "upper",
         "sourceAliasStyle": "as",
         "castStyle": "standard",
         "constraintStyle": "postgres",
         "orderByDefaultDirectionStyle": "omit"
     },
     "Postgres": {
-        ...DEFAULT_STYLE_BASE,
-        "identifierEscape": "quote",
-        "identifierEscapeTarget": "all",
-        "parameterSymbol": "$",
-        "parameterStyle": "indexed",
-        "keywordCase": "upper",
-        "sourceAliasStyle": "as",
-        "castStyle": "postgres",
-        "constraintStyle": "postgres"
+        ...DEFAULT_POSTGRES_STYLE
     },
     "Postgres Minimal": {
-        ...DEFAULT_STYLE_BASE,
-        "identifierEscape": "quote",
-        "identifierEscapeTarget": "minimal",
-        "parameterSymbol": "$",
-        "parameterStyle": "indexed",
-        "keywordCase": "lower",
-        "sourceAliasStyle": "implicit",
-        "castStyle": "postgres",
-        "constraintStyle": "postgres"
+        ...DEFAULT_POSTGRES_STYLE
     },
     "MySQL": {
         ...DEFAULT_STYLE_BASE,
         "identifierEscape": "backtick",
-        "identifierEscapeTarget": "all",
+        "identifierEscapeTarget": "minimal",
         "parameterSymbol": "?",
         "parameterStyle": "anonymous",
-        "keywordCase": "upper",
         "sourceAliasStyle": "as",
         "castStyle": "standard",
         "constraintStyle": "mysql"
@@ -94,18 +88,16 @@ const DEFAULT_STYLES = {
         "identifierEscapeTarget": "minimal",
         "parameterSymbol": "?",
         "parameterStyle": "anonymous",
-        "keywordCase": "lower",
-        "sourceAliasStyle": "implicit",
+        "sourceAliasStyle": "as",
         "castStyle": "standard",
         "constraintStyle": "mysql"
     },
     "SQLServer": {
         ...DEFAULT_STYLE_BASE,
         "identifierEscape": "bracket",
-        "identifierEscapeTarget": "all",
+        "identifierEscapeTarget": "minimal",
         "parameterSymbol": "@",
         "parameterStyle": "named",
-        "keywordCase": "upper",
         "sourceAliasStyle": "as",
         "castStyle": "standard",
         "constraintStyle": "postgres"
@@ -116,8 +108,7 @@ const DEFAULT_STYLES = {
         "identifierEscapeTarget": "minimal",
         "parameterSymbol": "@",
         "parameterStyle": "named",
-        "keywordCase": "lower",
-        "sourceAliasStyle": "implicit",
+        "sourceAliasStyle": "as",
         "castStyle": "standard",
         "constraintStyle": "postgres"
     }
@@ -149,7 +140,7 @@ function inferStyleDefaults(name, style) {
         "insertColumnsOneLine": true,
         "whenOneLine": false,
         "oneLineMaxLength": 100,
-        "joinOnBreak": "none",
+        "joinOnBreak": "before",
         "joinConditionContinuationIndent": false,
         ...dialectDefaults
     };
