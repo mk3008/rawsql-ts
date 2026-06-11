@@ -2,7 +2,14 @@
 
 // Global variables for style config, managed within this module
 const DEFAULT_STYLE_KEY = 'rawsql-formatter-styles-v2';
+const SELECTED_STYLE_KEY = 'rawsql-selected-style';
 let currentStyles = {};
+
+const REMOVED_STYLE_REPLACEMENTS = {
+    "Postgres Minimal": "Postgres",
+    "MySQL Minimal": "MySQL",
+    "SQLServer Minimal": "SQLServer"
+};
 
 const DEFAULT_STYLE_BASE = {
     "indentSize": 4,
@@ -69,9 +76,6 @@ const DEFAULT_STYLES = {
     "Postgres": {
         ...DEFAULT_POSTGRES_STYLE
     },
-    "Postgres Minimal": {
-        ...DEFAULT_POSTGRES_STYLE
-    },
     "MySQL": {
         ...DEFAULT_STYLE_BASE,
         "identifierEscape": "backtick",
@@ -82,27 +86,7 @@ const DEFAULT_STYLES = {
         "castStyle": "standard",
         "constraintStyle": "mysql"
     },
-    "MySQL Minimal": {
-        ...DEFAULT_STYLE_BASE,
-        "identifierEscape": "backtick",
-        "identifierEscapeTarget": "minimal",
-        "parameterSymbol": "?",
-        "parameterStyle": "anonymous",
-        "sourceAliasStyle": "as",
-        "castStyle": "standard",
-        "constraintStyle": "mysql"
-    },
     "SQLServer": {
-        ...DEFAULT_STYLE_BASE,
-        "identifierEscape": "bracket",
-        "identifierEscapeTarget": "minimal",
-        "parameterSymbol": "@",
-        "parameterStyle": "named",
-        "sourceAliasStyle": "as",
-        "castStyle": "standard",
-        "constraintStyle": "postgres"
-    },
-    "SQLServer Minimal": {
         ...DEFAULT_STYLE_BASE,
         "identifierEscape": "bracket",
         "identifierEscapeTarget": "minimal",
@@ -162,6 +146,10 @@ function createDefaultStyles() {
 function normalizeStyles(styles) {
     const normalized = {};
     for (const [name, style] of Object.entries(styles || {})) {
+        const replacementName = REMOVED_STYLE_REPLACEMENTS[name];
+        if (replacementName) {
+            continue;
+        }
         normalized[name] = normalizeStyle(name, style);
     }
 
@@ -172,6 +160,14 @@ function normalizeStyles(styles) {
     }
 
     return normalized;
+}
+
+function normalizeSelectedStyle() {
+    const selectedStyle = localStorage.getItem(SELECTED_STYLE_KEY);
+    const replacementName = REMOVED_STYLE_REPLACEMENTS[selectedStyle];
+    if (replacementName) {
+        localStorage.setItem(SELECTED_STYLE_KEY, replacementName);
+    }
 }
 
 // DOM elements and external functions - these will be initialized via initStyleConfig
@@ -222,6 +218,7 @@ function loadStylesData() {
         currentStyles = createDefaultStyles();
         localStorage.setItem(DEFAULT_STYLE_KEY, JSON.stringify(currentStyles));
     }
+    normalizeSelectedStyle();
 }
 
 function loadStyles() {
@@ -234,7 +231,7 @@ function loadStyles() {
 
     populateStyleSelect();
 
-    let lastStyle = localStorage.getItem('rawsql-selected-style');
+    let lastStyle = localStorage.getItem(SELECTED_STYLE_KEY);
     if (styleSelect && lastStyle && currentStyles[lastStyle]) {
         styleSelect.value = lastStyle;
     } else if (styleSelect && Object.keys(currentStyles).length > 0) {
@@ -307,7 +304,7 @@ function handleStyleSelectChange() {
     if (!styleSelect) return;
     const selectedStyleName = styleSelect.value;
     if (selectedStyleName) {
-        localStorage.setItem('rawsql-selected-style', selectedStyleName);
+        localStorage.setItem(SELECTED_STYLE_KEY, selectedStyleName);
         displayStyle(selectedStyleName);
         if (quickStyleSelectElementGlobal) quickStyleSelectElementGlobal.value = selectedStyleName;
         if (typeof formatSqlFunction === 'function') formatSqlFunction();
@@ -318,7 +315,7 @@ function handleQuickStyleSelectChange(event) {
     const selected = event.target.value;
     if (selected && currentStyles[selected]) {
         if (styleSelect) styleSelect.value = selected;
-        localStorage.setItem('rawsql-selected-style', selected);
+        localStorage.setItem(SELECTED_STYLE_KEY, selected);
         displayStyle(selected);
         if (typeof formatSqlFunction === 'function') formatSqlFunction();
     }
@@ -423,7 +420,7 @@ function handleRevertStyle() {
 function handleResetAllSettings() {
     if (confirm("Are you sure you want to reset all settings? Saved styles will be deleted.")) {
         localStorage.removeItem(DEFAULT_STYLE_KEY);
-        localStorage.removeItem('rawsql-selected-style');
+        localStorage.removeItem(SELECTED_STYLE_KEY);
         currentStyles = {};
         loadStyles();
         if (typeof updateStatusBarFunction === 'function') updateStatusBarFunction('All settings have been reset.', false);
