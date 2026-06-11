@@ -84,7 +84,7 @@ WHERE
     "status" = /* w2 */
     'active' /* w3 */
     AND /* a1 */
-    "created_at" > /* a2 */
+        "created_at" > /* a2 */
     '2023-01-01' /* a3 */`;
 
         const parsed = SelectQueryParser.parse(originalSql);
@@ -198,7 +198,8 @@ FROM users`;
 
         const expectedTransformed = `SELECT
     /* field1 comment */ "id" /* after id */,
-    /* field2 comment */ "name" /* after name */
+    /* field2 comment */
+    "name" /* after name */
 FROM
     "users"`;
 
@@ -332,7 +333,7 @@ WHERE
     /* w1 */
     "status" = 'active' /* w2 */
     AND /* a1 */
-    "created_at" > '2023-01-01' /* a2 */`;
+        "created_at" > '2023-01-01' /* a2 */`;
 
         console.log('\n=== COMPLEX SQL TRUE FULL TEXT COMPARISON ===');
         console.log('Original:');

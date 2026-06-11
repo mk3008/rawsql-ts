@@ -27,6 +27,7 @@ export class HavingClauseParser {
         if (lexemes[idx].value !== 'having') {
             throw new Error(`Syntax error at position ${idx}: Expected 'HAVING' keyword but found "${lexemes[idx].value}". HAVING clauses must start with the HAVING keyword.`);
         }
+        const havingKeywordComments = lexemes[idx].positionedComments;
         idx++;
 
         if (idx >= lexemes.length) {
@@ -34,6 +35,12 @@ export class HavingClauseParser {
         }
 
         const item = ValueParser.parseFromLexeme(lexemes, idx);
+        const afterKeywordComments = havingKeywordComments
+            ?.filter(comment => comment.position === 'after')
+            .flatMap(comment => comment.comments) ?? [];
+        if (afterKeywordComments.length > 0) {
+            item.value.addPositionedComments('before', afterKeywordComments);
+        }
         const clause = new HavingClause(item.value);
 
         return { value: clause, newIndex: item.newIndex };

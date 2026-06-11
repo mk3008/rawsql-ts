@@ -265,6 +265,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private sourceAliasStyle: SourceAliasStyle;
     private orderByDefaultDirectionStyle: OrderByDefaultDirectionStyle;
     private readonly normalizeJoinConditionOrder: boolean;
+    private readonly listContinuationCommentComponents = new WeakSet<SqlComponent>();
     private joinConditionContexts: Array<{ aliasOrder: Map<string, number> }> = [];
 
     constructor(options?: {
@@ -491,6 +492,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitQualifiedName(arg: QualifiedName): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.QualifiedName);
+        const hasOwnComments = this.hasPositionedComments(arg) || this.hasLegacyComments(arg);
 
         if (arg.namespaces) {
             for (let i = 0; i < arg.namespaces.length; i++) {
@@ -517,7 +519,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         arg.name.comments = originalNameLegacyComments;
 
         // Apply the name's comments to the qualified name token
-        if (this.hasPositionedComments(arg.name) || this.hasLegacyComments(arg.name)) {
+        if (!hasOwnComments && (this.hasPositionedComments(arg.name) || this.hasLegacyComments(arg.name))) {
             this.addComponentComments(token, arg.name);
         }
 
@@ -1120,7 +1122,21 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitColumnReference(arg: ColumnReference): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ColumnReference);
+        const hasOwnComments = this.hasPositionedComments(arg) || this.hasLegacyComments(arg);
+        const originalNamePositionedComments = arg.qualifiedName.name.positionedComments;
+        const originalNameComments = arg.qualifiedName.name.comments;
+
+        if (hasOwnComments) {
+            arg.qualifiedName.name.positionedComments = null;
+            arg.qualifiedName.name.comments = null;
+        }
+
         token.innerTokens.push(arg.qualifiedName.accept(this));
+
+        if (hasOwnComments) {
+            arg.qualifiedName.name.positionedComments = originalNamePositionedComments;
+            arg.qualifiedName.name.comments = originalNameComments;
+        }
 
         this.addComponentComments(token, arg);
 
@@ -1479,6 +1495,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             innerBeforeComments = arg.expression.getPositionedComments('before');
             innerAfterComments = arg.expression.getPositionedComments('after');
             arg.expression.positionedComments = null;
+        }
+        if (hasOwnComments && innerBeforeComments.length > 0) {
+            const innerBeforeSet = new Set(innerBeforeComments);
+            arg.positionedComments = arg.positionedComments
+                ?.map(comment => comment.position === 'after'
+                    ? { ...comment, comments: comment.comments.filter(value => !innerBeforeSet.has(value)) }
+                    : comment)
+                .filter(comment => comment.comments.length > 0) ?? null;
         }
 
         // Build basic structure first
@@ -1976,10 +2000,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const afterComments = arg.getPositionedComments('after');
 
         if (beforeComments.length > 0) {
-            if (arg.value instanceof CaseExpression) {
+            if (arg.value instanceof CaseExpression || this.listContinuationCommentComponents.has(arg)) {
                 const commentBlocks = this.createCommentBlocks(beforeComments);
                 token.innerTokens.push(...commentBlocks);
-                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.commentNewline, ''));
             } else {
                 const commentTokens = this.createInlineCommentSequence(beforeComments);
                 token.innerTokens.push(...commentTokens);
@@ -2119,6 +2142,13 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         for (let i = 0; i < arg.items.length; i++) {
             if (i > 0) {
                 token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                this.listContinuationCommentComponents.add(arg.items[i]);
+                try {
+                    token.innerTokens.push(this.visit(arg.items[i]));
+                } finally {
+                    this.listContinuationCommentComponents.delete(arg.items[i]);
+                }
+                continue;
             }
             token.innerTokens.push(this.visit(arg.items[i]));
         }

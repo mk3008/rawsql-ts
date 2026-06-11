@@ -124,7 +124,7 @@ WHERE
     \"status\" = /* w2 */
     'active' /* w3 */
     AND /* a1 */
-    \"created_at\" > /* a2 */
+        \"created_at\" > /* a2 */
     '2023-01-01' /* a3 */`;
 
         console.log('\n=== WHERE ORIGINAL ===');
