@@ -114,3 +114,110 @@ textarea {
     display: block;
     /* Show only the active tab content */
 }
+
+.style-config-tabs {
+    display: block;
+}
+
+.style-config-tab-list {
+    display: flex;
+    gap: 6px;
+    margin: 10px 0 12px;
+    border-bottom: 1px solid #d0d7de;
+}
+
+.style-config-tab-btn {
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    color: #57606a;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.style-config-tab-btn:hover {
+    background: #eef2f6;
+    color: #24292f;
+}
+
+.style-config-tab-btn.active {
+    border-bottom-color: #0969da;
+    color: #24292f;
+}
+
+.style-config-tab-pane {
+    display: none;
+}
+
+.style-config-tab-pane.active {
+    display: block;
+}
+
+.style-editor-form {
+    display: block;
+}
+
+.style-editor-form .CodeMirror {
+    height: 520px !important;
+    min-height: 320px;
+}
+
+.style-gui-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0 0 14px;
+    padding: 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    background: #f6f8fa;
+}
+
+.style-gui-panel.style-gui-invalid {
+    border-color: #d1242f;
+}
+
+.style-gui-section h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+}
+
+.style-gui-section-description {
+    max-width: 640px;
+    margin: -2px 0 10px;
+    color: #57606a;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.style-gui-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 520px);
+    gap: 8px;
+}
+
+.style-gui-field {
+    display: grid;
+    grid-template-columns: 220px minmax(120px, 200px);
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    min-width: 0;
+}
+
+.style-gui-field span {
+    overflow-wrap: anywhere;
+}
+
+.style-gui-field select,
+.style-gui-field input[type="number"] {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.style-gui-checkbox {
+    display: grid;
+}

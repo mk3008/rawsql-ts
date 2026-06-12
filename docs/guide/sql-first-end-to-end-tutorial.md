@@ -16,7 +16,7 @@ The tutorial uses one starter project, one `smoke` feature, and one `users` feat
 5. DTO change
 6. migration artifact creation
 
-README gives the first-run copy-paste path. This tutorial gives the scenario-level flow and the preferred CLI for each repair loop.
+The [ztd-cli README](../../packages/ztd-cli/README.md) gives the first-run copy-paste path. This tutorial gives the scenario-level flow and the preferred CLI for each repair loop.
 
 ## Scenario CLI at a glance
 
@@ -26,7 +26,7 @@ README gives the first-run copy-paste path. This tutorial gives the scenario-lev
 | SQL repair | `npx ztd model-gen --probe-mode ztd --sql-root src/features/users/persistence src/features/users/persistence/users.sql --out src/features/users/persistence/users.spec.ts` | Regenerate the spec from the feature-local SQL asset |
 | DTO repair | `npx vitest run` after the DTO change | Verify the feature-local runtime and tests after the shape change |
 | migration | `npx ztd ztd-config`, optionally `npx ztd ddl pull --url <target-db-url>` to inspect the target, then `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` to prepare review output plus apply SQL | Prepare a manually applied migration without asking ztd-cli to deploy it |
-| tuning | `npx ztd query plan <sql-file>` and the perf guide under `docs/guide/` | Keep perf work in the separate tuning path, not in the starter tutorial |
+| tuning | `npx ztd query plan <sql-file>` and the [Perf Tuning Decision Guide](./perf-tuning-decision-guide.md) | Perf investigation is a separate workflow from the starter repair loops |
 
 `ZTD_TEST_DATABASE_URL` is the only implicit database owned by ztd-cli. Use `--url` or a complete `--db-*` flag set for `ddl pull` and `ddl diff` when you want to inspect any other target.
 
@@ -83,7 +83,7 @@ Avoid mixing `npm install -D` into a pnpm-managed starter project because that c
 
 ## 3. Add the first real feature
 
-Use `src/features/smoke` as the teaching example and add `src/features/users` as the first real feature.
+Use `src/features/smoke` as a reference and add `src/features/users` as the first real feature.
 
 Keep the feature local:
 
@@ -96,9 +96,7 @@ The feature should own its SQL, spec, and tests instead of reaching for `src/cat
 
 ## 4. Run the CRUD scenario
 
-Use the prompt from `packages/ztd-cli/README.md` or `PROMPT_DOGFOOD.md`:
-
-This prompt is meant to be copied into another AI instance so we can observe whether the scaffold and AGENTS guidance are enough on their own.
+Copy the following prompt into your AI assistant:
 
 ```text
 Add a users feature to this feature-first project.
@@ -107,11 +105,13 @@ Keep handwritten SQL, specs, and tests inside src/features/users.
 Do not apply migrations automatically.
 ```
 
+The same prompt is also available in `packages/ztd-cli/README.md` and `PROMPT_DOGFOOD.md`.
+
 Expected result:
 
-- the agent edits the `users` feature only
-- the agent keeps SQL, spec, and tests feature-local
-- the next command is a normal project test run
+- the assistant edits the `users` feature only
+- SQL, spec, and tests stay feature-local
+- the next step is a normal `npx vitest run`
 
 ## 5. Run the DDL / SQL / DTO change scenarios
 
@@ -129,7 +129,19 @@ For SQL repair, keep the SQL assets under the feature folder, keep the query on 
 
 For migration work, use an explicit `--url <target-db-url>` with `ddl pull` or `ddl diff` so the target database is never inferred from the starter test database by accident.
 
-Read the review summary first:
+Tuning is covered separately in the [Perf Tuning Decision Guide](./perf-tuning-decision-guide.md).
+
+## 6. Run the migration loop
+
+When the schema change needs a deployable migration, keep the flow explicit:
+
+1. Edit the DDL in `ztd/ddl/demo.sql` or the relevant schema file.
+2. Run `npx ztd ztd-config` to refresh the ZTD-generated artifacts.
+3. Optionally run `npx ztd ddl pull --url <target-db-url>` to inspect the target, then run `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` when you need a migration plan.
+4. Read the text summary first, inspect the generated SQL second, and apply the SQL outside `ztd-cli`.
+5. Re-run `npx ztd ztd-config` and `npx vitest run` after the migration lands.
+
+When reviewing `ddl diff` output:
 
 - the summary tells you what changed logically
 - the risks section lists destructive and operational apply-plan risks separately
@@ -139,25 +151,9 @@ Read the review summary first:
 - if you hand-edit the generated migration SQL, run `npx ztd ddl risk --file tmp/users.diff.sql` so the final SQL is re-evaluated with the same structured risk contract
 - current `ztd ddl diff` CLI does not expose the lower-level drop-avoidance options from core, so treat drop-related risks as mandatory review points
 
-Tuning belongs to the separate performance guide and dogfooding set, not to the starter lifecycle in this tutorial. Keep the starter path focused on CRUD, DDL, SQL, DTO, and migration repair loops.
-
-## 6. Run the migration loop
-
-When the schema change needs a deployable migration, keep the flow explicit:
-
-Use a fresh AI prompt for this step so we can confirm the migration guidance works without human patching in the middle.
-
-1. Edit the DDL in `ztd/ddl/demo.sql` or the relevant schema file.
-2. Run `npx ztd ztd-config` to refresh the ZTD-generated artifacts.
-3. Optionally run `npx ztd ddl pull --url <target-db-url>` to inspect the target, then run `npx ztd ddl diff --url <target-db-url> --out tmp/users.diff.sql` when you need a migration plan.
-4. Read the text summary first, inspect the generated SQL second, and apply the SQL outside `ztd-cli`.
-5. Re-run `npx ztd ztd-config` and `npx vitest run` after the migration lands.
-
-This step belongs in the tutorial because the starter path should show not only how to add a feature, but also how to evolve the schema safely without asking `ztd-cli` to own deployment.
-
 ## 7. What good looks like
 
-After the starter flow is green, the user should be able to answer these questions without guessing:
+After the starter flow is green, you should be able to answer these questions without guessing:
 
 - Where does the next feature live?
 - Which files should the agent read first?
@@ -165,4 +161,4 @@ After the starter flow is green, the user should be able to answer these questio
 - Which files stay feature-local?
 - How do I prepare a migration without making `ztd-cli` deploy it for me?
 
-If the answer is unclear, fix the scaffold, the prompt, or the AGENTS guidance before adding more tutorial content.
+If any answer is unclear, revisit the scaffold, the prompt, or the AGENTS guidance.

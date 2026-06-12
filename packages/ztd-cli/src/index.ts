@@ -46,6 +46,7 @@ export function buildProgram(): Command {
   program.option('--telemetry-export <mode>', 'Telemetry export mode (console|debug|file|otlp)');
   program.option('--telemetry-file <path>', 'Write JSONL telemetry to a file when telemetry export mode is file');
   program.option('--telemetry-endpoint <url>', 'OTLP/HTTP traces endpoint when telemetry export mode is otlp');
+  program.option('--telemetry-include-bind-values', 'Include bind/parameter values in telemetry (default: redacted)');
   program.hook('preAction', (_rootCommand: Command, actionCommand: Command) => {
     const options = actionCommand.optsWithGlobals() as {
       output?: string;
@@ -53,6 +54,7 @@ export function buildProgram(): Command {
       telemetryExport?: string;
       telemetryFile?: string;
       telemetryEndpoint?: string;
+      telemetryIncludeBindValues?: boolean;
     };
     setAgentOutputFormat(options.output);
 
@@ -61,12 +63,14 @@ export function buildProgram(): Command {
     const telemetryExportSource = actionCommand.getOptionValueSource('telemetryExport');
     const telemetryFileSource = actionCommand.getOptionValueSource('telemetryFile');
     const telemetryEndpointSource = actionCommand.getOptionValueSource('telemetryEndpoint');
+    const telemetryIncludeBindValuesSource = actionCommand.getOptionValueSource('telemetryIncludeBindValues');
 
     configureTelemetry({
       enabled: telemetryOptionSource === 'default' ? undefined : options.telemetry,
       exportMode: telemetryExportSource === 'default' ? undefined : options.telemetryExport,
       filePath: telemetryFileSource === 'default' ? undefined : options.telemetryFile,
       otlpEndpoint: telemetryEndpointSource === 'default' ? undefined : options.telemetryEndpoint,
+      includeBindValues: telemetryIncludeBindValuesSource === 'default' ? undefined : options.telemetryIncludeBindValues,
     });
 
     const commandPath = getCommandPath(actionCommand);

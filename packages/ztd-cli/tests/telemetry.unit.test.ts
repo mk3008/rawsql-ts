@@ -13,12 +13,14 @@ import {
   setTelemetryEnabled,
   withSpan,
   withSpanSync,
+  resolveTelemetryIncludeBindValues,
 } from '../src/utils/telemetry';
 
 const originalTelemetry = process.env.ZTD_CLI_TELEMETRY;
 const originalTelemetryExport = process.env.ZTD_CLI_TELEMETRY_EXPORT;
 const originalTelemetryFile = process.env.ZTD_CLI_TELEMETRY_FILE;
 const originalTelemetryEndpoint = process.env.ZTD_CLI_TELEMETRY_OTLP_ENDPOINT;
+const originalTelemetryIncludeBindValues = process.env.ZTD_CLI_TELEMETRY_INCLUDE_BIND_VALUES;
 
 function createWorkspace(prefix: string): string {
   const tmpRoot = path.join(process.cwd(), 'tmp');
@@ -49,6 +51,12 @@ afterEach(async () => {
     delete process.env.ZTD_CLI_TELEMETRY_OTLP_ENDPOINT;
   } else {
     process.env.ZTD_CLI_TELEMETRY_OTLP_ENDPOINT = originalTelemetryEndpoint;
+  }
+
+  if (originalTelemetryIncludeBindValues === undefined) {
+    delete process.env.ZTD_CLI_TELEMETRY_INCLUDE_BIND_VALUES;
+  } else {
+    process.env.ZTD_CLI_TELEMETRY_INCLUDE_BIND_VALUES = originalTelemetryIncludeBindValues;
   }
 
   configureTelemetry({ enabled: false });
@@ -176,7 +184,7 @@ test('otlp export posts completed spans to an OTLP HTTP endpoint', async () => {
   expect(body.resourceSpans[0].scopeSpans[0].spans[0].events).toEqual([]);
 });
 
-test('decision events keep only schema-approved attributes and redact sensitive payloads', async () => {
+test('SQL text is visible by default, credentials and bind values are redacted', async () => {
   const lines: string[] = [];
   vi.spyOn(process.stderr, 'write').mockImplementation(((chunk: string | Uint8Array) => {
     lines.push(String(chunk).trim());
@@ -185,7 +193,7 @@ test('decision events keep only schema-approved attributes and redact sensitive 
 
   const dsn = 'postgres://demo:secret@localhost:5432/app';
   const libpqDsn = 'host=localhost port=5432 dbname=app user=demo password=secret';
-  const sql = 'SELECT email FROM public.users WHERE password = :password';
+  const sql = 'SELECT email FROM public.users WHERE id = $1';
   const filesystemDump = Array.from({ length: 20 }, (_, index) => `C:/tmp/file-${index}.sql`).join('\n');
 
   setTelemetryEnabled(true);
@@ -204,7 +212,7 @@ test('decision events keep only schema-approved attributes and redact sensitive 
     sqlText: sql,
     outFile: 'src/catalog/specs/generated/getSales.generated.ts',
   });
-  recordException(new Error(`Probe failed for ${libpqDsn} while running ${sql}`), {
+  recordException(new Error(`Probe failed for ${libpqDsn}`), {
     bindValues: '[1,"secret"]',
     filesystemDump,
   });
@@ -212,11 +220,13 @@ test('decision events keep only schema-approved attributes and redact sensitive 
   await flushTelemetry();
 
   const serialized = lines.join('\n');
+  // DSN and credentials are always redacted
   expect(serialized).not.toContain(dsn);
   expect(serialized).not.toContain(libpqDsn);
-  expect(serialized).not.toContain(sql);
   expect(serialized).not.toContain('secret');
   expect(serialized).not.toContain(filesystemDump);
+  // SQL text is now visible
+  expect(serialized).toContain(sql);
 
   const payloads = lines.filter(Boolean).map((line) => JSON.parse(line));
   expect(payloads).toEqual(
@@ -231,7 +241,7 @@ test('decision events keep only schema-approved attributes and redact sensitive 
         spanName: 'probe-client-connect',
         attributes: {
           databaseUrl: '[REDACTED]',
-          sqlText: '[REDACTED]',
+          sqlText: sql,
           outFile: 'src/catalog/specs/generated/getSales.generated.ts',
         },
       }),
@@ -384,4 +394,135 @@ test('withSpanSync emits synchronous child span lifecycle when enabled', async (
 test('telemetry export mode falls back to env configuration', () => {
   process.env.ZTD_CLI_TELEMETRY_EXPORT = 'debug';
   expect(resolveTelemetryExportMode(undefined)).toBe('debug');
+});
+
+test('bind values are visible when includeBindValues is enabled', async () => {
+  const lines: string[] = [];
+  vi.spyOn(process.stderr, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+    lines.push(String(chunk).trim());
+    return true;
+  }) as typeof process.stderr.write);
+
+  const bindJson = '[1,"test@example.com"]';
+
+  configureTelemetry({ enabled: true, includeBindValues: true });
+  beginCommandSpan('query plan');
+  await withSpan('execute-query', async () => undefined, {
+    sqlText: 'SELECT * FROM users WHERE id = $1',
+    bindValues: bindJson,
+    paramValue: 'hello',
+  });
+  finishCommandSpan('ok');
+  await flushTelemetry();
+
+  const payloads = lines.filter(Boolean).map((line) => JSON.parse(line));
+  expect(payloads).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        kind: 'span-start',
+        spanName: 'execute-query',
+        attributes: {
+          sqlText: 'SELECT * FROM users WHERE id = $1',
+          bindValues: bindJson,
+          paramValue: 'hello',
+        },
+      }),
+    ]),
+  );
+});
+
+test('bind values are redacted by default even when SQL text is visible', async () => {
+  const lines: string[] = [];
+  vi.spyOn(process.stderr, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+    lines.push(String(chunk).trim());
+    return true;
+  }) as typeof process.stderr.write);
+
+  configureTelemetry({ enabled: true, includeBindValues: false });
+  beginCommandSpan('query plan');
+  await withSpan('execute-query', async () => undefined, {
+    sqlText: 'SELECT * FROM users WHERE id = $1',
+    bindValues: '[42]',
+  });
+  finishCommandSpan('ok');
+  await flushTelemetry();
+
+  const payloads = lines.filter(Boolean).map((line) => JSON.parse(line));
+  expect(payloads).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        kind: 'span-start',
+        spanName: 'execute-query',
+        attributes: {
+          sqlText: 'SELECT * FROM users WHERE id = $1',
+          bindValues: '[REDACTED]',
+        },
+      }),
+    ]),
+  );
+});
+
+test('SQL text attributes are not truncated even when long or multiline', async () => {
+  const lines: string[] = [];
+  vi.spyOn(process.stderr, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+    lines.push(String(chunk).trim());
+    return true;
+  }) as typeof process.stderr.write);
+
+  const longSql = 'SELECT ' + Array.from({ length: 50 }, (_, i) => `col_${i}`).join(', ') + ' FROM public.wide_table WHERE id = $1';
+  const multilineSql = 'SELECT\n  id,\n  name,\n  email\nFROM public.users\nWHERE active = $1';
+
+  configureTelemetry({ enabled: true });
+  beginCommandSpan('query plan');
+  await withSpan('long-query', async () => undefined, { sqlText: longSql });
+  await withSpan('multiline-query', async () => undefined, { queryText: multilineSql });
+  finishCommandSpan('ok');
+  await flushTelemetry();
+
+  const payloads = lines.filter(Boolean).map((line) => JSON.parse(line));
+  expect(payloads).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        kind: 'span-start',
+        spanName: 'long-query',
+        attributes: { sqlText: longSql },
+      }),
+      expect.objectContaining({
+        kind: 'span-start',
+        spanName: 'multiline-query',
+        attributes: { queryText: multilineSql },
+      }),
+    ]),
+  );
+});
+
+test('credentials are always redacted even when includeBindValues is enabled', async () => {
+  const lines: string[] = [];
+  vi.spyOn(process.stderr, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+    lines.push(String(chunk).trim());
+    return true;
+  }) as typeof process.stderr.write);
+
+  const dsn = 'postgres://demo:secret@localhost:5432/app';
+
+  configureTelemetry({ enabled: true, includeBindValues: true });
+  beginCommandSpan('model-gen', {
+    connectionUrl: dsn,
+    password: 'hunter2',
+  });
+  finishCommandSpan('ok');
+  await flushTelemetry();
+
+  const serialized = lines.join('\n');
+  expect(serialized).not.toContain(dsn);
+  expect(serialized).not.toContain('hunter2');
+  expect(serialized).toContain('[REDACTED]');
+});
+
+test('includeBindValues falls back to env configuration', () => {
+  process.env.ZTD_CLI_TELEMETRY_INCLUDE_BIND_VALUES = '1';
+  expect(resolveTelemetryIncludeBindValues(undefined)).toBe(true);
+
+  process.env.ZTD_CLI_TELEMETRY_INCLUDE_BIND_VALUES = '0';
+  expect(resolveTelemetryIncludeBindValues(undefined)).toBe(false);
 });

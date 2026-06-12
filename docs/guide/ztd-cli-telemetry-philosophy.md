@@ -13,7 +13,7 @@ Telemetry is useful when you need to answer questions like these:
 - Which command phase is slow or unexpectedly failing?
 - Which fallback or output-selection path was taken?
 - How does a local dogfooding build behave compared with a published package?
-- Can we inspect command traces in a collector without adding a mandatory backend dependency?
+- Can command traces be inspected in a collector without adding a mandatory backend dependency?
 
 That is the scope. `ztd-cli` telemetry is for investigation and optimization, not for everyday usage requirements.
 
@@ -25,9 +25,45 @@ Enable telemetry when you are:
 - Dogfooding new CLI behavior before release
 - Capturing CI artifacts for command-level trace review
 - Pointing a local collector or Jaeger instance at OTLP output for short-lived inspection
-- Verifying SQL recovery and perf loops such as `perf run` plus `perf report diff` during tuning dogfooding
+- Verifying SQL recovery and perf loops such as `perf run` plus `perf report diff` during tuning work
 
 Leave it off for normal published-package usage, happy-path setup, and standard project scaffolding.
+
+## Usage examples
+
+### Investigating a slow command
+
+`query uses` が遅いとき、`debug` モードでフェーズごとの所要時間を確認する:
+
+```bash
+npx ztd --telemetry --telemetry-export debug query uses table public.users
+```
+
+`stderr` にフェーズ名と経過時間が表示されるので、ボトルネックを特定できる。
+
+### CI でトレースをアーティファクトとして保存する
+
+CI パイプライン内で `file` モードを使い、JSONL ファイルを成果物としてアップロードする:
+
+```bash
+npx ztd --telemetry --telemetry-export file \
+  --telemetry-file tmp/telemetry/lint.jsonl \
+  lint src/features/users/persistence
+```
+
+失敗時にアーティファクトを確認すれば、どのフェーズでエラーが起きたかを後から追跡できる。
+
+### ローカルの Jaeger でトレースを可視化する
+
+OTLP モードで Jaeger にスパンを送り、ウォーターフォールビューで確認する:
+
+```bash
+docker run -d --rm --name jaeger -p 16686:16686 -p 4318:4318 jaegertracing/all-in-one:latest
+npx ztd --telemetry --telemetry-export otlp perf run --query src/sql/reports/sales.sql
+# ブラウザで http://localhost:16686 を開く
+```
+
+フラグとエクスポートモードの詳細は [ztd-cli telemetry export modes](./ztd-cli-telemetry-export-modes.md) を参照。
 
 ## Why it is disabled by default
 

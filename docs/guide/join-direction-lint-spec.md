@@ -102,17 +102,9 @@ join public.order_items oi2 on oi2.order_id = o.order_id
 
 The first join may be acceptable, but a direction flip inside the same chain makes the path harder to read. v1 warns only when the FK evidence is clear enough to avoid false positives.
 
-### 3. Reverse inner join with explicit review attention
+### 3. Intentional reverse inner join
 
-Example:
-
-```sql
-select *
-from public.customers c
-join public.orders o on o.customer_id = c.customer_id
-```
-
-This is still a warning in v1, but the intent is more precise than "always non-preferred": the shape is acceptable when review should confirm that the reverse direction is truly intended.
+A `parent -> child` inner join is not always wrong. Some queries are intentionally written from the parent side for readability or business context. v1 still reports a warning so the reviewer can confirm the direction is deliberate. Use a [suppression comment](#suppression-cases) to mark it as intentional.
 
 ## Clean cases
 
@@ -247,12 +239,12 @@ WARN  join-direction: JOIN direction is reversed for public.orders -> public.cus
 
 The v1 heuristics are intentionally conservative:
 
-- if the join direction cannot be proven, skip it
-- if the query is bridge-shaped, skip it
-- if the query is outer-join-heavy or aggregate-shaped, skip it
-- if the author explicitly suppresses the rule, do not re-litigate the choice
+- if the join direction cannot be proven, the lint skips it
+- if the query is bridge-shaped, the lint skips it
+- if the query is outer-join-heavy or aggregate-shaped, the lint skips it
+- if the author explicitly suppresses the rule, the lint respects the suppression
 
-This is deliberate. The first release is trying to create a reliable guard, not to maximize recall.
+The first release prioritizes reliability over recall.
 
 ## Future expansion candidates
 

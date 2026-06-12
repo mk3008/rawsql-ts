@@ -3,6 +3,7 @@ import { SqlPrinter, CommaBreakStyle, AndBreakStyle, OrBreakStyle } from './SqlP
 import { CommentExportMode } from '../types/Formatting';
 import { IndentCharOption, NewlineOption } from './LinePrinter'; // Import types for compatibility
 import { IdentifierEscapeOption, resolveIdentifierEscapeOption } from './FormatOptionResolver';
+import { IdentifierEscapeMode } from '../parsers/IdentifierDecorator';
 import { SelectQuery } from '../models/SelectQuery';
 import { SqlComponent } from '../models/SqlComponent';
 
@@ -99,6 +100,8 @@ export interface SqlFormatterOptions extends BaseFormattingOptions {
     preset?: PresetName;
     /** Identifier escape style (logical name like 'quote' or explicit delimiters) */
     identifierEscape?: IdentifierEscapeOption;
+    /** Controls whether all identifiers are escaped or only identifiers that require escaping */
+    identifierEscapeMode?: IdentifierEscapeMode;
     /** Parameter symbol configuration for SQL parameters */
     parameterSymbol?: string | { start: string; end: string };
     /** Style for parameter formatting */
@@ -138,6 +141,7 @@ export class SqlFormatter {
         const parserOptions = {
             ...presetConfig, // Apply preset configuration
             identifierEscape: resolvedIdentifierEscape ?? presetConfig?.identifierEscape,
+            identifierEscapeMode: options.identifierEscapeMode,
             parameterSymbol: options.parameterSymbol ?? presetConfig?.parameterSymbol,
             parameterStyle: options.parameterStyle ?? presetConfig?.parameterStyle,
             castStyle: options.castStyle ?? presetConfig?.castStyle,

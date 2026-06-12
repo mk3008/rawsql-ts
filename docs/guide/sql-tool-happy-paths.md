@@ -14,9 +14,9 @@ Use it when the problem is not "how do I use every command?" but "which command 
 | I need timing, trace export, or machine-readable execution evidence | Telemetry mode for the command under investigation | The structural command that produced the suspicious result | Starting with telemetry before the SQL shape is known |
 | I need to inspect generated SQL or rewritten predicates | `ztd query plan <sql-file>` plus the focused SQL/debug workflow for the scenario | Integration or DB-backed verification | `query uses` |
 | I need to add optional search filters without falling back to SQL concatenation | SSSQL truthful branches plus `optionalConditionParameters` | Focused pruning verification in unit tests | Telemetry, `query uses` |
-| I need to decide whether an optional filter belongs in DynamicQueryBuilder or SSSQL | [Dynamic Filter Routing](./dynamic-filter-routing.md) | Add the focused routing dogfooding test | Guessing from prompt wording alone |
+| I need to decide whether an optional filter belongs in DynamicQueryBuilder or SSSQL | [Dynamic Filter Routing](./dynamic-filter-routing.md) | Add a focused routing test | Guessing from prompt wording alone |
 
-## Recommended dogfooding loop for SQL pipeline work
+## Recommended investigation loop for SQL pipeline work
 
 1. Run `ztd query plan <sql-file>` to inspect the proposed pipeline steps.
 2. Run `ztd perf run --dry-run ...` to see materialization and scalar-filter candidates.
@@ -37,7 +37,7 @@ Use `query plan` when you need to answer:
 - In what order will the stages run?
 - Which metadata choice changes the pipeline shape?
 
-This is the default entry point for SQL pipeline dogfooding.
+This is the default entry point for SQL pipeline investigation.
 
 ### `perf run --dry-run`
 
@@ -73,7 +73,7 @@ Use it when you need:
 - machine-readable traces for CI or automation
 - evidence that the command boundary or export path is wrong
 
-Telemetry is intentionally not the default happy path for normal SQL dogfooding.
+Telemetry is intentionally not the default happy path for normal SQL investigation.
 
 Saved telemetry regression scenarios live in [Telemetry Dogfooding Scenarios](../dogfooding/telemetry-dogfooding.md).
 
@@ -83,9 +83,9 @@ Saved SSSQL optional-condition scenarios live in [SSSQL Optional-Condition Dogfo
 
 Saved perf scale tuning scenarios live in [Perf Scale Tuning Dogfooding](../dogfooding/perf-scale-tuning.md).
 
-## Current saved dogfooding surfaces
+## Saved regression scenarios
 
-The current routing now has saved regression scenarios for the following previously weak areas:
+The following areas have saved regression scenarios for reference:
 
 | Tool area | Saved scenario | Why it matters |
 |-----------|----------------|----------------|
@@ -94,4 +94,4 @@ The current routing now has saved regression scenarios for the following previou
 | SSSQL authoring | Optional-condition request -> truthful SQL branch -> explicit pruning parameters | Keeps optional-filter requests on the SQL-first path instead of regressing to string-built WHERE assembly. |
 | Perf scale tuning | QuerySpec perf metadata -> DDL/index inventory -> index-vs-pipeline guidance | Keeps high-volume tuning loops explicit about whether the next step is DDL/index work or SQL decomposition. |
 
-When a tool keeps existing but does not become the natural first step in dogfooding, add a scenario that makes its happy path unavoidable.
+If a tool area is missing from this table, its happy-path scenario has not been captured yet.

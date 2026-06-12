@@ -119,7 +119,7 @@ Run `npx ztd describe command <name>` for per-command flags and options.
 - [SQL-first End-to-End Tutorial](../../docs/guide/sql-first-end-to-end-tutorial.md) - starter flow, repair loops, and scenario-specific CLI guidance
 - [SQL Tool Happy Paths](../../docs/guide/sql-tool-happy-paths.md) - choose between query plan, perf, query uses, and telemetry
 - [Perf Tuning Decision Guide](../../docs/guide/perf-tuning-decision-guide.md) - index tuning vs pipeline tuning
-- [JOIN Direction Lint Specification](../../docs/guide/join-direction-lint-spec.md) - readable FK-aware JOIN guidance
+- [JOIN Direction Lint Specification](../../docs/guide/join-direction-lint-spec.md) - FK-aware JOIN direction lint rules
 
 ### Advanced User Guides
 

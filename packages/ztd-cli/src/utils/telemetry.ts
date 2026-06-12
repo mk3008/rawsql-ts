@@ -12,6 +12,7 @@ const TELEMETRY_ENABLED_ENV = 'ZTD_CLI_TELEMETRY';
 const TELEMETRY_EXPORT_ENV = 'ZTD_CLI_TELEMETRY_EXPORT';
 const TELEMETRY_FILE_ENV = 'ZTD_CLI_TELEMETRY_FILE';
 const TELEMETRY_OTLP_ENDPOINT_ENV = 'ZTD_CLI_TELEMETRY_OTLP_ENDPOINT';
+const TELEMETRY_INCLUDE_BIND_VALUES_ENV = 'ZTD_CLI_TELEMETRY_INCLUDE_BIND_VALUES';
 const DEFAULT_SCHEMA_VERSION = 1;
 const DEFAULT_OTLP_HTTP_ENDPOINT = 'http://127.0.0.1:4318/v1/traces';
 const DEFAULT_FILE_EXPORT_PATH = 'tmp/telemetry/ztd-cli.telemetry.jsonl';
@@ -376,6 +377,7 @@ const NOOP_SINK = new NoopTelemetrySink();
 let telemetrySink: TelemetrySink = NOOP_SINK;
 let telemetryEnabled = false;
 let telemetryExportMode: TelemetryExportMode = 'console';
+let telemetryIncludeBindValues = false;
 const spanStack: TelemetrySpan[] = [];
 
 export function resolveTelemetryEnabled(explicit?: boolean | string | undefined): boolean {
@@ -402,6 +404,18 @@ export function resolveTelemetryOtlpEndpoint(explicit?: string | undefined): str
   return explicit ?? process.env[TELEMETRY_OTLP_ENDPOINT_ENV] ?? DEFAULT_OTLP_HTTP_ENDPOINT;
 }
 
+export function resolveTelemetryIncludeBindValues(explicit?: boolean | string | undefined): boolean {
+  if (typeof explicit === 'boolean') {
+    return explicit;
+  }
+
+  if (typeof explicit === 'string') {
+    return isTruthy(explicit);
+  }
+
+  return isTruthy(process.env[TELEMETRY_INCLUDE_BIND_VALUES_ENV]);
+}
+
 export function setTelemetryEnabled(enabled: boolean): void {
   process.env[TELEMETRY_ENABLED_ENV] = enabled ? '1' : '0';
 }
@@ -411,9 +425,11 @@ export function configureTelemetry(options: {
   exportMode?: TelemetryExportMode | string;
   filePath?: string;
   otlpEndpoint?: string;
+  includeBindValues?: boolean | string;
 } = {}): void {
   telemetryEnabled = resolveTelemetryEnabled(options.enabled);
   telemetryExportMode = resolveTelemetryExportMode(options.exportMode);
+  telemetryIncludeBindValues = resolveTelemetryIncludeBindValues(options.includeBindValues);
 
   if (!telemetryEnabled) {
     telemetrySink = NOOP_SINK;
@@ -435,6 +451,10 @@ export function isTelemetryEnabled(): boolean {
 
 export function getTelemetryExportMode(): TelemetryExportMode {
   return telemetryExportMode;
+}
+
+export function getTelemetryIncludeBindValues(): boolean {
+  return telemetryIncludeBindValues;
 }
 
 export async function flushTelemetry(): Promise<void> {
@@ -639,10 +659,17 @@ function sanitizeAttributeValue(key: string, value: TelemetryAttributeValue): Te
   return sanitizeStringValue(key, value);
 }
 
-// Telemetry safety policy intentionally distinguishes secrets from bulky but benign data. DSN detection covers both URL-style and libpq-style forms, while oversized or multiline values are truncated instead of redacted so exporters keep the boundary without leaking payload bodies.
+// Telemetry safety policy: credentials and DSNs are always redacted. SQL text is
+// shown by default (parameterised form only). Bind values are opt-in. Oversized or
+// multiline values are truncated unless the key is a recognised SQL-text key.
 function sanitizeStringValue(key: string, value: string): string {
   if (isSensitiveAttributeKey(key) || looksSensitive(value)) {
     return REDACTED_VALUE;
+  }
+
+  // SQL text keys are allowed to be long and multiline — do not truncate.
+  if (isSqlTextKey(key)) {
+    return value;
   }
 
   if (value.includes('\n') || value.length > MAX_ATTRIBUTE_STRING_LENGTH) {
@@ -652,14 +679,33 @@ function sanitizeStringValue(key: string, value: string): string {
   return value;
 }
 
-function isSensitiveAttributeKey(key: string): boolean {
+function isAlwaysRedactedKey(key: string): boolean {
   return [
-    /(?:^|\.)(?:sql|sqlText|query|queryText|statement)$/iu,
     /(?:dsn|databaseUrl|connectionUrl|url|uri)$/iu,
     /(?:password|secret|credential|authorization|api(?:_|-)?key|access(?:_|-)?key|(?:auth|bearer|access|refresh|session)?token)$/iu,
-    /(?:bindValue|bindValues|paramValue|paramValues)$/iu,
     /(?:stack|dump)$/iu,
   ].some((pattern) => pattern.test(key));
+}
+
+function isBindValueKey(key: string): boolean {
+  return /(?:bindValue|bindValues|paramValue|paramValues)$/iu.test(key);
+}
+
+function isSqlTextKey(key: string): boolean {
+  return /(?:^|\.)(?:sql|sqlText|query|queryText|statement)$/iu.test(key);
+}
+
+function isSensitiveAttributeKey(key: string): boolean {
+  if (isAlwaysRedactedKey(key)) {
+    return true;
+  }
+  if (isBindValueKey(key)) {
+    return !telemetryIncludeBindValues;
+  }
+  if (isSqlTextKey(key)) {
+    return false;
+  }
+  return false;
 }
 
 function looksSensitive(value: string): boolean {
@@ -673,7 +719,6 @@ function looksSensitive(value: string): boolean {
     /\b(?:host|hostaddr|port|dbname|db|user|password|passfile|service|sslmode|sslcert|sslkey|sslrootcert|target_session_attrs)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s]+)/iu,
     /\b(?:password|pwd|secret|token|api(?:key|_key)|access(?:key|_key)|authorization)\s*[=:]\s*\S+/iu,
     /\b(?:bearer|basic)\s+[A-Za-z0-9._~+\/=:-]{8,}\b/iu,
-    /\b(?:select|insert|update|delete|create|alter|drop|with)\b[\s\S]{0,120}\b(?:from|into|table|view|where|values|set)\b/iu,
   ].some((pattern) => pattern.test(normalized));
 }
 

@@ -36,7 +36,7 @@ import {
     WindowFrameBoundaryValue
 } from "../models/ValueComponent";
 import { ParameterCollector } from "../transformers/ParameterCollector";
-import { IdentifierDecorator } from "./IdentifierDecorator";
+import { IdentifierDecorator, IdentifierEscapeMode } from "./IdentifierDecorator";
 import { ParameterDecorator } from "./ParameterDecorator";
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
@@ -87,6 +87,8 @@ export interface FormatterConfig {
         start: string;
         end: string;
     };
+    /** Controls whether all identifiers are escaped or only identifiers that require escaping */
+    identifierEscapeMode?: IdentifierEscapeMode;
     parameterSymbol?: string | { start: string; end: string };
     /**
      * Parameter style: anonymous (?), indexed ($1), or named (:name)
@@ -258,6 +260,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     constructor(options?: {
         preset?: FormatterConfig,
         identifierEscape?: { start: string; end: string },
+        identifierEscapeMode?: IdentifierEscapeMode,
         parameterSymbol?: string | { start: string; end: string },
         parameterStyle?: 'anonymous' | 'indexed' | 'named',
         castStyle?: CastStyle,
@@ -278,7 +281,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.identifierDecorator = new IdentifierDecorator({
             start: options?.identifierEscape?.start ?? '"',
             end: options?.identifierEscape?.end ?? '"'
-        });
+        }, options?.identifierEscapeMode ?? 'all');
 
         this.castStyle = options?.castStyle ?? 'standard';
         this.constraintStyle = options?.constraintStyle ?? 'postgres';
