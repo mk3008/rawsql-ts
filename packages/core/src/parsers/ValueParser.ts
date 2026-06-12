@@ -61,10 +61,12 @@ export class ValueParser {
         const left = this.parseItem(lexemes, idx);
         
         // Transfer positioned comments if they exist and the component doesn't handle its own comments
-        if (positionedComments && positionedComments.length > 0 && !left.value.positionedComments) {
-            left.value.positionedComments = positionedComments;
+        if (positionedComments && positionedComments.length > 0) {
+            if (!left.value.positionedComments) {
+                left.value.positionedComments = positionedComments;
+            }
         }
-        // Fall back to legacy comments if positioned comments aren't available
+        // Fall back to legacy comments only when positioned comments aren't available.
         else if (left.value.comments === null && comment && comment.length > 0) {
             left.value.comments = comment;
         }

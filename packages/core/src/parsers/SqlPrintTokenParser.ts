@@ -240,6 +240,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             this._selfHandlingComponentTypes = new Set([
                 SimpleSelectQuery.kind,
                 SelectItem.kind,
+                OrderByItem.kind,
                 CaseKeyValuePair.kind,
                 SwitchCaseArgument.kind,
                 ColumnReference.kind,
@@ -572,6 +573,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
                 token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'nulls last'));
             }
+        }
+
+        if (arg.comments && arg.comments.length > 0) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(...this.createInlineCommentSequence(arg.comments));
         }
         return token;
     }
@@ -1584,7 +1590,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         const switchToken = this.visit(arg.switchCase);
-        promotedComments.push(...this.collectCaseLeadingCommentsFromSwitch(switchToken));
 
         if (promotedComments.length > 0) {
             token.innerTokens.push(...promotedComments);
@@ -1998,6 +2003,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Add positioned comments in recorded order
         const beforeComments = arg.getPositionedComments('before');
         const afterComments = arg.getPositionedComments('after');
+        const duplicateCaseAfterComments = arg.value instanceof CaseExpression
+            ? this.collectCaseSelectItemDuplicateAfterComments(arg.value)
+            : new Set<string>();
 
         if (beforeComments.length > 0) {
             if (arg.value instanceof CaseExpression || this.listContinuationCommentComponents.has(arg)) {
@@ -2012,9 +2020,13 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         token.innerTokens.push(this.visit(arg.value));
 
-        if (afterComments.length > 0 && !isParenExpression) {
+        const visibleAfterComments = arg.value instanceof CaseExpression
+            ? this.filterCaseSelectItemDuplicateAfterComments(afterComments, duplicateCaseAfterComments)
+            : afterComments;
+
+        if (visibleAfterComments.length > 0 && !isParenExpression) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-            const commentTokens = this.createInlineCommentSequence(afterComments);
+            const commentTokens = this.createInlineCommentSequence(visibleAfterComments);
             token.innerTokens.push(...commentTokens);
         }
 
@@ -2100,6 +2112,36 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         return token;
+    }
+
+    private collectCaseSelectItemDuplicateAfterComments(value: CaseExpression): Set<string> {
+        const promoted = new Set<string>();
+        if (value.comments) {
+            for (const comment of value.comments) {
+                promoted.add(comment);
+            }
+        }
+        const firstCase = value.switchCase.cases[0];
+        if (firstCase?.positionedComments) {
+            for (const positionedComment of firstCase.positionedComments) {
+                if (positionedComment.position === 'before') {
+                    for (const comment of positionedComment.comments) {
+                        promoted.add(comment);
+                    }
+                }
+            }
+        }
+        return promoted;
+    }
+
+    private filterCaseSelectItemDuplicateAfterComments(afterComments: string[], promoted: Set<string>): string[] {
+        if (afterComments.length === 0) {
+            return afterComments;
+        }
+        if (promoted.size === 0) {
+            return afterComments;
+        }
+        return afterComments.filter(comment => !promoted.has(comment));
     }
 
     private visitSelectClause(arg: SelectClause): SqlPrintToken {

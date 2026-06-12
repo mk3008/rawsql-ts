@@ -289,6 +289,71 @@ describe('CommentStyle - Comprehensive TDD Test', () => {
             expect(result.formattedSql).not.toContain('/* secondary sort item */ "b"');
         });
 
+        test('should keep ORDER BY direction comments adjacent to the ordered expression', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'before',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+            const sql = `
+                select *
+                from t
+                order by
+                    /* demo fixed order */
+                    customer_rank desc
+                    , last_ordered_at desc nulls last -- recent buyer first
+                    , created_at asc
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql.match(/recent buyer first/g)).toHaveLength(1);
+            expect(result.formattedSql.match(/demo fixed order/g)).toHaveLength(1);
+            expect(result.formattedSql).toContain('    /* demo fixed order */');
+            expect(result.formattedSql).toContain('    , "last_ordered_at" desc nulls last /* recent buyer first */');
+        });
+
+        test('should keep window ORDER BY direction comments consistent with PARTITION BY comments', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'before',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+            const sql = `
+                select
+                    row_number() over (
+                        partition by l.user_id -- user scope
+                        order by l.logged_in_at desc /* latest first */
+                    ) as rn
+                from login_logs l
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql.match(/latest first/g)).toHaveLength(1);
+            expect(result.formattedSql).toContain([
+                '        partition by',
+                '            "l"."user_id" /* user scope */',
+                '        order by',
+                '            "l"."logged_in_at" desc /* latest first */',
+            ].join('\n'));
+            expect(result.formattedSql).not.toContain([
+                '        order by',
+                '            /* latest first */',
+                '            "l"."logged_in_at" desc',
+            ].join('\n'));
+        });
+
         test('should not move or duplicate comments inside parenthesized WHERE predicates', () => {
             const formatter = new SqlFormatter({
                 exportComment: true,
@@ -437,6 +502,40 @@ describe('CommentStyle - Comprehensive TDD Test', () => {
                 '    or /* urgent */',
                 '        "priority" = \'high\'',
             ].join('\n'));
+        });
+
+        test('should not duplicate comments before CASE select items', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'before',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n',
+                caseOneLine: false
+            });
+            const sql = `
+                select
+                    case
+                        /* rank */
+                        when a = 1 then 'x'
+                        else 'y'
+                    end as rank
+                from t
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql.match(/rank/g)).toHaveLength(2);
+            expect(result.formattedSql).toContain([
+                '    case',
+                '        /* rank */',
+                '        when "a" = 1 then',
+            ].join('\n'));
+            expect(result.formattedSql).not.toContain('    /* rank */\n    case');
+            expect(result.formattedSql).not.toContain('end /* rank */ as "rank"');
         });
     });
 

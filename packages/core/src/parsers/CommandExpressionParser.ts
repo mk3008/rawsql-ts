@@ -3,6 +3,11 @@ import { ArrayExpression, CaseExpression, CaseKeyValuePair, SwitchCaseArgument, 
 import { ValueParser } from "./ValueParser";
 
 type KeywordCommentPayload = { legacy: string[] | null; positioned: LexemePositionedComment[] | undefined };
+type CaseWhenKeywordCommentPayload = {
+    caseExpressionPositioned: LexemePositionedComment[] | null;
+    firstWhenPositioned: LexemePositionedComment[] | null;
+    legacyCaseExpression: string[] | null;
+};
 
 export class CommandExpressionParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
@@ -61,10 +66,12 @@ export class CommandExpressionParser {
 
     private static parseCaseWhenExpression(lexemes: Lexeme[], index: number, caseWhenKeywordComments?: string[] | null, caseWhenKeywordPositionedComments?: any): { value: ValueComponent; newIndex: number; } {
         let idx = index;
+        const commentPayload = this.splitCaseWhenKeywordComments(caseWhenKeywordComments, caseWhenKeywordPositionedComments);
 
         // Parse the first WHEN clause
         const casewhenResult = this.parseCaseConditionValuePair(lexemes, idx);
         idx = casewhenResult.newIndex;
+        this.addPositionedComments(casewhenResult.value, commentPayload.firstWhenPositioned);
 
         // Add the initial WHEN-THEN pair to the list
         const caseWhenList = [casewhenResult.value];
@@ -77,14 +84,48 @@ export class CommandExpressionParser {
         const result = new CaseExpression(null, switchCaseResult.value);
         
         // Assign CASE WHEN keyword comments to the CaseExpression (positioned comments only for unified spec)
-        if (caseWhenKeywordPositionedComments && caseWhenKeywordPositionedComments.length > 0) {
-            result.positionedComments = caseWhenKeywordPositionedComments;
-        } else if (caseWhenKeywordComments && caseWhenKeywordComments.length > 0) {
+        if (commentPayload.caseExpressionPositioned && commentPayload.caseExpressionPositioned.length > 0) {
+            result.positionedComments = commentPayload.caseExpressionPositioned;
+        } else if (commentPayload.firstWhenPositioned && commentPayload.firstWhenPositioned.length > 0) {
+            result.positionedComments = [];
+        } else if (commentPayload.legacyCaseExpression && commentPayload.legacyCaseExpression.length > 0) {
             // Convert legacy comments to positioned comments for unified spec
-            result.positionedComments = [CommandExpressionParser.convertLegacyToPositioned(caseWhenKeywordComments, 'before')];
+            result.positionedComments = [CommandExpressionParser.convertLegacyToPositioned(commentPayload.legacyCaseExpression, 'before')];
         }
         
         return { value: result, newIndex: idx };
+    }
+
+    private static splitCaseWhenKeywordComments(caseWhenKeywordComments?: string[] | null, caseWhenKeywordPositionedComments?: LexemePositionedComment[]): CaseWhenKeywordCommentPayload {
+        if (!caseWhenKeywordPositionedComments || caseWhenKeywordPositionedComments.length === 0) {
+            return {
+                caseExpressionPositioned: null,
+                firstWhenPositioned: null,
+                legacyCaseExpression: caseWhenKeywordComments ?? null,
+            };
+        }
+
+        const caseExpressionPositioned: LexemePositionedComment[] = [];
+        const firstWhenPositioned: LexemePositionedComment[] = [];
+        for (const comment of caseWhenKeywordPositionedComments) {
+            if (comment.position === 'after') {
+                firstWhenPositioned.push({
+                    position: 'before',
+                    comments: [...comment.comments],
+                });
+            } else {
+                caseExpressionPositioned.push({
+                    position: comment.position,
+                    comments: [...comment.comments],
+                });
+            }
+        }
+
+        return {
+            caseExpressionPositioned: caseExpressionPositioned.length > 0 ? caseExpressionPositioned : null,
+            firstWhenPositioned: firstWhenPositioned.length > 0 ? firstWhenPositioned : null,
+            legacyCaseExpression: null,
+        };
     }
 
     // parseSwitchCaseArgument method processes the WHEN, ELSE, and END clauses of a CASE expression.
@@ -204,6 +245,16 @@ export class CommandExpressionParser {
     // Helper method: Check if a lexeme is a Command token with the specified value
     private static isCommandWithValue(lexeme: Lexeme, value: string): boolean {
         return ((lexeme.type & TokenType.Command) !== 0) && lexeme.value === value;
+    }
+
+    private static addPositionedComments(target: CaseKeyValuePair, comments: LexemePositionedComment[] | null): void {
+        if (!comments || comments.length === 0) {
+            return;
+        }
+        target.positionedComments = [
+            ...(target.positionedComments ?? []),
+            ...comments,
+        ];
     }
 
     private static parseCaseConditionValuePair(lexemes: Lexeme[], index: number): { value: CaseKeyValuePair; newIndex: number; } {
