@@ -58,4 +58,107 @@ describe('ResultSelectRewriter', () => {
     expect(normalized).not.toContain('public.category');
     expect(normalized).toContain('public_category');
   });
+
+  it('avoids alias collisions for schema-qualified fixtures', () => {
+    const resolver = new TableNameResolver({ defaultSchema: 'public' });
+    const fixtures = new DefaultFixtureProvider(
+      tableDefinitions,
+      baseRows,
+      resolver
+    );
+    const rewriter = new ResultSelectRewriter(
+      fixtures,
+      'error',
+      undefined,
+      resolver
+    );
+
+    const sql = `
+      WITH public_category AS (SELECT 1 AS category_id)
+      SELECT c.category_id
+      FROM public.category c
+    `;
+    const result = rewriter.rewrite(sql);
+
+    expect(result.sql.toLowerCase()).toContain('with "public__category" as');
+    expect(result.sql).toContain('from "public__category" as "c"');
+  });
+
+  it('rewrites unqualified queries against schema-qualified DDL fixtures', () => {
+    const resolver = new TableNameResolver({ defaultSchema: 'public' });
+    const fixtures = new DefaultFixtureProvider(
+      [
+        {
+          name: 'public.users',
+          columns: [
+            { name: 'id', typeName: 'INTEGER' },
+            { name: 'email', typeName: 'TEXT' },
+          ],
+        },
+      ],
+      [
+        {
+          tableName: 'public.users',
+          rows: [{ id: 1, email: 'alice@example.com' }],
+        },
+      ],
+      resolver
+    );
+    const rewriter = new ResultSelectRewriter(
+      fixtures,
+      'error',
+      undefined,
+      resolver
+    );
+
+    const result = rewriter.rewrite('select id, email from users where id = 1');
+
+    expect(result.sql.toLowerCase()).toContain('with "public_users" as');
+    expect(result.sql).toContain('from "public_users"');
+    expect(result.fixturesApplied).toEqual(['public.users']);
+  });
+
+  it('injects DDL-derived view CTE shadows for result SELECT rewrites', () => {
+    const resolver = new TableNameResolver({ defaultSchema: 'public' });
+    const fixtures = new DefaultFixtureProvider(
+      [
+        {
+          name: 'public.users',
+          columns: [
+            { name: 'id', typeName: 'INTEGER' },
+            { name: 'name', typeName: 'TEXT' },
+            { name: 'role', typeName: 'TEXT' },
+          ],
+        },
+      ],
+      [
+        {
+          tableName: 'public.users',
+          rows: [{ id: 1, name: 'Alice', role: 'admin' }],
+        },
+      ],
+      resolver
+    );
+    const rewriter = new ResultSelectRewriter(
+      fixtures,
+      'error',
+      undefined,
+      resolver,
+      [
+        {
+          name: 'public.active_users',
+          cteName: 'active_users',
+          sql: "SELECT id, name FROM public.users WHERE role = 'admin'",
+        },
+      ]
+    );
+
+    const result = rewriter.rewrite('select id, name from public.active_users');
+    const normalized = result.sql.toLowerCase();
+
+    expect(normalized).toContain('with "public_users" as');
+    expect(normalized).toContain('"active_users" as');
+    expect(normalized).toContain('from "public_users"');
+    expect(normalized).toContain('from "active_users"');
+  });
 });

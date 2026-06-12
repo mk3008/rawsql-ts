@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/ddl-docs-cli",
-  "version": "0.2.4",
+  "version": "0.3.3",
   "description": "CLI tool that generates Markdown table definition docs from DDL files using rawsql-ts",
   "main": "dist/src/index.js",
   "bin": {
@@ -33,12 +33,12 @@
     "node": ">=20"
   },
   "dependencies": {
-    "rawsql-ts": "^0.17.0"
+    "rawsql-ts": "^0.24.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
     "typescript": "^5.8.2",
-    "vitest": "^4.0.7"
+    "vitest": "^4.1.8"
   },
   "files": [
     "dist",

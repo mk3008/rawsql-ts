@@ -17,10 +17,24 @@ export default defineConfig({
   lastUpdated: true,
   appearance: true,
   srcDir: '.',
+  markdown: {
+    config(md) {
+      const defaultFence = md.renderer.rules.fence
+      md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+        const token = tokens[idx]
+        const info = token.info.trim().split(/\s+/)[0]
+        if (info === 'mermaid') {
+          return `<pre v-pre class="mermaid">${normalizeMermaid(token.content)}</pre>`
+        }
+        return defaultFence(tokens, idx, options, env, self)
+      }
+    }
+  },
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide/overview' },
       { text: 'API', link: '/api/index' },
+      { text: 'Transfer Docs', link: '/transfer-docs' },
       { text: 'Playground', link: '/cud-demo/index.html', target: '_blank', rel: 'noopener' },
       { text: 'Migration Demo', link: '/migration-demo/index.html', target: '_blank', rel: 'noopener' }
     ],
@@ -28,7 +42,8 @@ export default defineConfig({
       '/guide/': [
         { text: 'Overview', link: '/guide/overview' },
         { text: 'Getting Started', link: '/guide/getting-started' },
-        { text: 'SQL-first End-to-End Tutorial', link: '/guide/sql-first-end-to-end-tutorial' },
+        { text: 'What Is RFBA?', link: '/guide/rfba-overview' },
+        { text: 'What Is a Concept Spec?', link: '/guide/concept-spec-overview' },
         {
           text: 'Execution',
           items: [
@@ -46,22 +61,16 @@ export default defineConfig({
         },
         { text: 'Testkit Concept', link: '/guide/testkit-concept' },
         { text: 'ZTD Benchmarking', link: '/guide/ztd-benchmarking' },
-        {
-          text: 'Dogfooding',
-          items: [
-            { text: 'SQL Debug Recovery', link: '/dogfooding/sql-debug-recovery' },
-          ]
-        },
         { text: 'SQLite Testkit How-To', link: '/guide/sqlite-testkit-howto' },
         {
           text: 'Conversion Guides',
           items: [
             { text: 'Conversion Philosophy', link: '/guide/conversion-philosophy' },
-            { text: 'SELECT → INSERT', link: '/guide/insert-conversion' },
-            { text: 'SELECT → UPDATE', link: '/guide/update-conversion' },
-            { text: 'SELECT → DELETE', link: '/guide/delete-conversion' },
-            { text: 'SELECT → CREATE TABLE', link: '/guide/create-table-conversion' },
-            { text: 'SELECT → MERGE', link: '/guide/merge-conversion' },
+            { text: 'SELECT -> INSERT', link: '/guide/insert-conversion' },
+            { text: 'SELECT -> UPDATE', link: '/guide/update-conversion' },
+            { text: 'SELECT -> DELETE', link: '/guide/delete-conversion' },
+            { text: 'SELECT -> CREATE TABLE', link: '/guide/create-table-conversion' },
+            { text: 'SELECT -> MERGE', link: '/guide/merge-conversion' },
           ]
         },
 
@@ -69,11 +78,11 @@ export default defineConfig({
           text: 'Result-to-SELECT Guides',
           items: [
             { text: 'Select-Centered Philosophy', link: '/guide/select-centered-philosophy' },
-            { text: 'SELECT → SELECT(table-independent)', link: '/guide/select-to-select' },
-            { text: 'INSERT → SELECT', link: '/guide/insert-result-select' },
-            { text: 'UPDATE → SELECT', link: '/guide/update-result-select' },
-            { text: 'DELETE → SELECT', link: '/guide/delete-result-select' },
-            { text: 'MERGE → SELECT', link: '/guide/merge-result-select' },
+            { text: 'SELECT -> SELECT(table-independent)', link: '/guide/select-to-select' },
+            { text: 'INSERT -> SELECT', link: '/guide/insert-result-select' },
+            { text: 'UPDATE -> SELECT', link: '/guide/update-result-select' },
+            { text: 'DELETE -> SELECT', link: '/guide/delete-result-select' },
+            { text: 'MERGE -> SELECT', link: '/guide/merge-result-select' },
           ]
         },
       ],
@@ -96,3 +105,15 @@ export default defineConfig({
   }
 })
 
+function normalizeMermaid(value: string): string {
+  return value
+    .replace(/\{\{\s*"([^"]+)"\s*\}\}/g, (_, label) => `{{${normalizeMermaidLabel(label)}}}`)
+    .replace(/\[\/\s*"([^"]+)"\s*"?\/\]/g, (_, label) => `[/${normalizeMermaidLabel(label)}/]`)
+    .replace(/\|\s*"([^"]+)"\s*\|/g, (_, label) => `|${normalizeMermaidLabel(label)}|`)
+    .replace(/\|\s*([^|\n]+)\s*\|/g, (_, label) => `|${normalizeMermaidLabel(label)}|`)
+    .replace(/([-.=]+)\s+"([^"]+)"\s+([-.=]+>)/g, (_, left, label, right) => `${left} ${normalizeMermaidLabel(label)} ${right}`)
+}
+
+function normalizeMermaidLabel(value: string): string {
+  return value.replace(/[<>\-]/g, ' ').replace(/\s+/g, ' ').trim()
+}

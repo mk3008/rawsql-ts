@@ -1,6 +1,8 @@
 import { describe, test, expect } from 'vitest';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
+import { SqlPrintToken, SqlPrintTokenContainerType, SqlPrintTokenType } from '../../src/models/SqlPrintToken';
 import { SqlFormatter } from '../../src/transformers/SqlFormatter';
+import { SqlPrinter } from '../../src/transformers/SqlPrinter';
 
 /**
  * CommentStyle - Comprehensive TDD Test
@@ -41,6 +43,499 @@ describe('CommentStyle - Comprehensive TDD Test', () => {
             expect(result.formattedSql).toContain('/* Header comment */');
             expect(result.formattedSql).toContain('/* Field comment */');
             expect(result.formattedSql).toContain('/* Table comment */');
+        });
+
+        test('should keep comma-prefixed CASE select item comments aligned with the select item', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'before',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+            const sql = `
+                select a
+                , /* explains case */
+                case when b is null then 0 else 1 end as b_flag
+                from t
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql).toContain([
+                '    , /* explains case */',
+                '    case'
+            ].join('\n'));
+            expect(result.formattedSql).not.toContain([
+                '    ,',
+                '        /* explains case */',
+                '    case'
+            ].join('\n'));
+        });
+
+        test('should keep comma-prefixed select item comments on the comma line', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'before',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+            const sql = `
+                select a
+                , /* explains count */
+                count(*) as n
+                , /* explains b */
+                b
+                from t
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql).toContain([
+                '    , /* explains count */',
+                '    count(*) as "n"',
+            ].join('\n'));
+            expect(result.formattedSql).toContain([
+                '    , /* explains b */',
+                '    "b"',
+            ].join('\n'));
+            expect(result.formattedSql).not.toContain([
+                '    ,',
+                '    /* explains count */',
+            ].join('\n'));
+            expect(result.formattedSql).not.toContain([
+                '    ,',
+                '    /* explains b */',
+            ].join('\n'));
+        });
+
+        test('should keep comma-suffixed select item comments on a dedicated line', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'after',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+            const sql = `
+                select a,
+                /* explains count */
+                count(*) as n,
+                /* explains b */
+                b
+                from t
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql).toContain([
+                '    "a",',
+                '    /* explains count */',
+                '    count(*) as "n",',
+                '    /* explains b */',
+                '    "b"',
+            ].join('\n'));
+            expect(result.formattedSql).not.toContain('/* explains count */ count(*)');
+            expect(result.formattedSql).not.toContain('/* explains b */ "b"');
+        });
+
+        test('should not duplicate comma-prefixed comments in function arguments', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'before',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+            const sql = `
+                select concat(a
+                , /* second arg */
+                b
+                , /* third arg */
+                c) as label
+                from t
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql.match(/second arg/g)).toHaveLength(1);
+            expect(result.formattedSql.match(/third arg/g)).toHaveLength(1);
+        });
+
+        test('should not duplicate comma-prefixed comments in ORDER BY and GROUP BY lists', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'before',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+            const sql = `
+                select a, b, count(*) as n
+                from t
+                group by a
+                , /* second grouping item */
+                b
+                order by a
+                , /* secondary sort item */
+                b desc
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql.match(/second grouping item/g)).toHaveLength(1);
+            expect(result.formattedSql.match(/secondary sort item/g)).toHaveLength(1);
+        });
+
+        test('should keep comma-prefixed ORDER BY and GROUP BY comments on the comma line', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'before',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+            const sql = `
+                select a, b, count(*) as n
+                from t
+                group by a
+                , /* second grouping item */
+                b
+                order by a
+                , /* secondary sort item */
+                b desc
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql).toContain([
+                'group by',
+                '    "a"',
+                '    , /* second grouping item */',
+                '    "b"',
+            ].join('\n'));
+            expect(result.formattedSql).toContain([
+                'order by',
+                '    "a"',
+                '    , /* secondary sort item */',
+                '    "b" desc',
+            ].join('\n'));
+            expect(result.formattedSql).not.toContain([
+                '    ,',
+                '    /* second grouping item */',
+            ].join('\n'));
+            expect(result.formattedSql).not.toContain([
+                '    ,',
+                '    /* secondary sort item */',
+            ].join('\n'));
+        });
+
+        test('should keep comma-suffixed ORDER BY and GROUP BY comments on dedicated lines', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'after',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+            const sql = `
+                select a, b, count(*) as n
+                from t
+                group by a,
+                /* second grouping item */
+                b
+                order by a,
+                /* secondary sort item */
+                b desc
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql).toContain([
+                'group by',
+                '    "a",',
+                '    /* second grouping item */',
+                '    "b"',
+            ].join('\n'));
+            expect(result.formattedSql).toContain([
+                'order by',
+                '    "a",',
+                '    /* secondary sort item */',
+                '    "b" desc',
+            ].join('\n'));
+            expect(result.formattedSql).not.toContain('/* second grouping item */ "b"');
+            expect(result.formattedSql).not.toContain('/* secondary sort item */ "b"');
+        });
+
+        test('should keep ORDER BY direction comments adjacent to the ordered expression', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'before',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+            const sql = `
+                select *
+                from t
+                order by
+                    /* demo fixed order */
+                    customer_rank desc
+                    , last_ordered_at desc nulls last -- recent buyer first
+                    , created_at asc
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql.match(/recent buyer first/g)).toHaveLength(1);
+            expect(result.formattedSql.match(/demo fixed order/g)).toHaveLength(1);
+            expect(result.formattedSql).toContain('    /* demo fixed order */');
+            expect(result.formattedSql).toContain('    , "last_ordered_at" desc nulls last /* recent buyer first */');
+        });
+
+        test('should keep window ORDER BY direction comments consistent with PARTITION BY comments', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'before',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+            const sql = `
+                select
+                    row_number() over (
+                        partition by l.user_id -- user scope
+                        order by l.logged_in_at desc /* latest first */
+                    ) as rn
+                from login_logs l
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql.match(/latest first/g)).toHaveLength(1);
+            expect(result.formattedSql).toContain([
+                '        partition by',
+                '            "l"."user_id" /* user scope */',
+                '        order by',
+                '            "l"."logged_in_at" desc /* latest first */',
+            ].join('\n'));
+            expect(result.formattedSql).not.toContain([
+                '        order by',
+                '            /* latest first */',
+                '            "l"."logged_in_at" desc',
+            ].join('\n'));
+        });
+
+        test('should not move or duplicate comments inside parenthesized WHERE predicates', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'before',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+            const sql = `
+                select *
+                from t
+                where (
+                    /* email match */
+                    email = :keyword
+                    or /* name match */
+                    name = :keyword
+                )
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql.match(/email match/g)).toHaveLength(1);
+            expect(result.formattedSql.match(/name match/g)).toHaveLength(1);
+            expect(result.formattedSql).not.toContain(') /* email match */');
+        });
+
+        test('should preserve comments before LIMIT and OFFSET values', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'before',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+            const sql = `
+                select *
+                from t
+                order by id
+                limit /* page size */
+                :limit
+                offset /* page offset */
+                :offset
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql.match(/page size/g)).toHaveLength(1);
+            expect(result.formattedSql.match(/page offset/g)).toHaveLength(1);
+            expect(result.formattedSql).toMatch(/limit\s+\/\* page size \*\/\s+:limit/);
+            expect(result.formattedSql).toMatch(/offset\s+\/\* page offset \*\/\s+:offset/);
+        });
+
+        test('should preserve comments after HAVING and JOIN ON keywords', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'before',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n',
+                joinOneLine: false
+            });
+            const sql = `
+                select c.customer_id, count(*) as ticket_count
+                from customers c
+                join tickets t on /* join key */ t.customer_id = c.customer_id
+                group by c.customer_id
+                having /* minimum tickets */ count(*) > 0
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql).toContain('/* join key */');
+            expect(result.formattedSql).toContain('/* minimum tickets */');
+        });
+
+        test('should expand function arguments only when an argument has a comment', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'after',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+
+            const compactQuery = SelectQueryParser.parse(`
+                select concat(a, b, c) as label
+                from t
+            `).toSimpleQuery();
+            const commentedQuery = SelectQueryParser.parse(`
+                select concat(a, /* arg b */ b, c) as label
+                from t
+            `).toSimpleQuery();
+
+            const compactResult = formatter.format(compactQuery);
+            const commentedResult = formatter.format(commentedQuery);
+
+            expect(compactResult.formattedSql).toContain('concat("a", "b", "c") as "label"');
+            expect(commentedResult.formattedSql).toContain([
+                '    concat(',
+                '        "a",',
+                '        /* arg b */',
+                '        "b",',
+                '        "c"',
+                '    ) as "label"',
+            ].join('\n'));
+        });
+
+        test('should indent predicates after AND and OR comments', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                andBreak: 'before',
+                orBreak: 'before',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+            const sql = `
+                select *
+                from t
+                where status = 'open'
+                  and /* tenant */ tenant_id = 1
+                  or /* urgent */ priority = 'high'
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql).toContain([
+                'where',
+                '    "status" = \'open\'',
+                '    and /* tenant */',
+                '        "tenant_id" = 1',
+                '    or /* urgent */',
+                '        "priority" = \'high\'',
+            ].join('\n'));
+        });
+
+        test('should not duplicate comments before CASE select items', () => {
+            const formatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'block',
+                commaBreak: 'before',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n',
+                caseOneLine: false
+            });
+            const sql = `
+                select
+                    case
+                        /* rank */
+                        when a = 1 then 'x'
+                        else 'y'
+                    end as rank
+                from t
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            const result = formatter.format(query);
+
+            expect(result.formattedSql.match(/rank/g)).toHaveLength(2);
+            expect(result.formattedSql).toContain([
+                '    case',
+                '        /* rank */',
+                '        when "a" = 1 then',
+            ].join('\n'));
+            expect(result.formattedSql).not.toContain('    /* rank */\n    case');
+            expect(result.formattedSql).not.toContain('end /* rank */ as "rank"');
         });
     });
 
@@ -128,6 +623,29 @@ describe('CommentStyle - Comprehensive TDD Test', () => {
 
             // Assert - Line comment content should be preserved (even if converted to block format)
             expect(result.formattedSql).toContain('Line comment');
+        });
+
+        test('should preserve empty block comments without escaping delimiters', () => {
+            const commentBlock = new SqlPrintToken(
+                SqlPrintTokenType.container,
+                '',
+                SqlPrintTokenContainerType.CommentBlock
+            );
+            commentBlock.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.comment, '/**/'));
+
+            const printer = new SqlPrinter({
+                exportComment: true,
+                commentStyle: 'smart',
+                indentSize: 4,
+                indentChar: ' ',
+                keywordCase: 'lower',
+                newline: '\n'
+            });
+
+            const result = printer.print(commentBlock);
+
+            expect(result).toBe('/**/');
+            expect(result).not.toContain('\\/');
         });
     });
 

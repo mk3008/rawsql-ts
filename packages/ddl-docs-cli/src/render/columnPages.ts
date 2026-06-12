@@ -58,11 +58,13 @@ function renderGlobalColumnsIndex(concepts: ObservedColumnConcept[]): string {
   const lines: string[] = [];
   lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
   lines.push('');
-  lines.push('# Column Index (Alerts)');
+  lines.push('# Column Index');
   lines.push('');
   lines.push('[<- Table Index](../index.md)');
   lines.push('');
-  lines.push('| Concept | Usages | Type Keys |');
+  lines.push('This index lists column names that have mechanical review findings. See [Review Report](../review.md) for the complete generated review signal.');
+  lines.push('');
+  lines.push('| Column Name | Usages | Type Keys |');
   lines.push('| --- | --- | --- |');
   for (const concept of concepts) {
     const typeKeys = Object.keys(concept.typeDistribution).sort().join(', ');
@@ -83,7 +85,7 @@ function renderColumnsIndex(schemaSlug: string, concepts: ObservedColumnConcept[
   lines.push('');
   lines.push('[<- Schema Tables](../index.md)');
   lines.push('');
-  lines.push('| Concept | Usages | Type Keys | Comment | Alert |');
+  lines.push('| Column Name | Usages | Type Keys | Comment | Alert |');
   lines.push('| --- | --- | --- | --- | --- |');
   for (const concept of concepts) {
     const typeKeys = Object.keys(concept.typeDistribution).sort().join(', ');
@@ -113,7 +115,7 @@ function renderConceptPage(
   const schemaName = schemaSlug ? concept.usages.find((usage) => usage.schemaSlug === schemaSlug)?.schema ?? schemaSlug : null;
   lines.push(view === 'global' ? `# Global Column Concept (Alerts): ${concept.concept}` : `# ${schemaName} Column Concept: ${concept.concept}`);
   lines.push('');
-  lines.push(view === 'global' ? '[<- Alert Index](./index.md)' : '[<- Column Index](./index.md)');
+  lines.push(view === 'global' ? '[<- Column Index](./index.md)' : '[<- Column Index](./index.md)');
   lines.push('');
   lines.push(`- View: ${view === 'global' ? 'Global alert concept page' : 'Schema concept page'}`);
   lines.push('');

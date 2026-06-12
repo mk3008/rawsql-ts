@@ -9,6 +9,7 @@ import {
   PNPM,
   ensureCleanDir,
   getWorkspacePackages,
+  loadValidatedPublishManifestContract,
   runWithOutput,
   writeJson,
 } from "./publish-workspace-utils.mjs";
@@ -18,6 +19,28 @@ const tarCommand = "tar";
 const outputRoot = path.join(workspaceRoot, "tmp", "published-package-check");
 const tarballRoot = path.join(outputRoot, "tarballs");
 const packageRoot = path.join(outputRoot, "packages");
+
+function parseArgs(argv) {
+  const options = {
+    publishManifestPath: null,
+    publishManifestProvided: false,
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--publish-manifest") {
+      const nextArg = argv[index + 1];
+      options.publishManifestProvided = true;
+      if (typeof nextArg !== "string" || nextArg.trim().length === 0) {
+        throw new Error("[published-package-mode] --publish-manifest requires a non-empty path.");
+      }
+      options.publishManifestPath = nextArg;
+      index += 1;
+    }
+  }
+
+  return options;
+}
 
 function sanitizePackageName(packageName) {
   return packageName.replace(/[^a-zA-Z0-9._-]+/g, "_");
@@ -181,49 +204,8 @@ function createTarballDependencyMap(packages) {
   );
 }
 
-function setPackageTypeModule(directory) {
-  const packageJsonPath = path.join(directory, "package.json");
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
-  packageJson.type = "module";
-  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
-}
-
-function readPackageJson(directory) {
-  return JSON.parse(fs.readFileSync(path.join(directory, "package.json"), "utf8"));
-}
-
-function restoreTarballDependencies(directory, tarballDependencies) {
-  const packageJsonPath = path.join(directory, "package.json");
-  const packageJson = readPackageJson(directory);
-  packageJson.devDependencies = {
-    ...(packageJson.devDependencies ?? {}),
-    ...tarballDependencies,
-  };
-  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
-}
-
-function writeNode16Tsconfig(directory) {
-  const tsconfigPath = path.join(directory, "tsconfig.node16.json");
-  writeJson(tsconfigPath, {
-    extends: "./tsconfig.json",
-    compilerOptions: {
-      module: "Node16",
-      moduleResolution: "Node16",
-      noEmit: true,
-    },
-  });
-}
-
-function assertIncludes(haystack, needle, label) {
-  if (!haystack.includes(needle)) {
-    throw new Error(`[${label}] Expected output to include: ${needle}`);
-  }
-}
-
-function assertExcludes(haystack, needle, label) {
-  if (haystack.includes(needle)) {
-    throw new Error(`[${label}] Unexpected output included: ${needle}`);
-  }
+function hasTarballDependency(tarballDependencies, packageName) {
+  return typeof tarballDependencies[packageName] === "string";
 }
 
 function packPublishedPackages() {
@@ -266,372 +248,132 @@ function packPublishedPackages() {
   return packed;
 }
 
+function loadPackedPackagesFromManifest(manifestPath) {
+  const resolvedManifestPath = path.isAbsolute(manifestPath)
+    ? manifestPath
+    : path.resolve(workspaceRoot, manifestPath);
+  const manifestContract = loadValidatedPublishManifestContract(resolvedManifestPath);
+
+  return manifestContract.packages.map((pkg) => {
+    const manifest = readPackedManifest(pkg.resolvedTarballPath);
+    const entries = listTarEntries(pkg.resolvedTarballPath);
+
+    assertTarballHasDist(entries, pkg.name);
+    assertNoWorkspaceProtocols(manifest, pkg.name);
+    assertManifestEntrypoints(manifest, entries, pkg.name);
+
+    return {
+      dir: pkg.dir,
+      manifest,
+      name: pkg.name,
+      tarballPath: pkg.resolvedTarballPath,
+    };
+  });
+}
+
 function verifyPackedTarballInstall(packages) {
   const appDir = path.join(packageRoot, "packed-install");
   ensureCleanDir(appDir);
+  const tarballDependencies = createTarballDependencyMap(packages);
 
   writePackageJson(appDir, {
     name: "packed-install-check",
     private: true,
     version: "0.0.0",
     type: "module",
-    devDependencies: createTarballDependencyMap(packages),
+    devDependencies: tarballDependencies,
   });
 
   runIn(appDir, NPM, ["install"]);
-  runIn(appDir, NPM, ["exec", "--", "ztd", "--help"]);
+
+  const smokeImportTargets = [
+    "@rawsql-ts/testkit-core",
+  ].filter((packageName) => hasTarballDependency(tarballDependencies, packageName));
+
+  if (smokeImportTargets.length > 0) {
+    runIn(appDir, process.execPath, [
+      "--input-type=module",
+      "-e",
+      smokeImportTargets
+        .map((packageName) => `await import(${JSON.stringify(packageName)});`)
+        .join(" "),
+    ], { shell: false });
+  }
+
+  return appDir;
+}
+
+function verifyCoreGettingStarted(packages) {
+  const appDir = path.join(packageRoot, "rawsql-ts-getting-started");
+  const tarballDependencies = createTarballDependencyMap(packages);
+
+  if (!hasTarballDependency(tarballDependencies, "rawsql-ts")) {
+    return null;
+  }
+
+  ensureCleanDir(appDir);
+
+  writePackageJson(appDir, {
+    name: "rawsql-ts-getting-started-check",
+    private: true,
+    version: "0.0.0",
+    type: "module",
+    devDependencies: {
+      "rawsql-ts": tarballDependencies["rawsql-ts"],
+    },
+  });
+
+  runIn(appDir, NPM, ["install"]);
   runIn(appDir, process.execPath, [
     "--input-type=module",
     "-e",
-    "await import('@rawsql-ts/testkit-core'); await import('@rawsql-ts/sql-contract-zod');",
+    [
+      "const { DynamicQueryBuilder, SqlFormatter } = await import('rawsql-ts');",
+      "const baseSql = `",
+      "  SELECT id, name, email, status, created_at",
+      "  FROM users",
+      "  WHERE active = true",
+      "    AND (:status IS NULL OR status = :status)",
+      "`;",
+      "const builder = new DynamicQueryBuilder();",
+      "const query = builder.buildQuery(baseSql, {",
+      "  filter: { status: 'premium' },",
+      "  sort: { created_at: { desc: true }, name: { asc: true } },",
+      "  paging: { page: 2, pageSize: 10 },",
+      "  optionalConditionParameters: { status: 'premium' },",
+      "});",
+      "const formatter = new SqlFormatter();",
+      "const { formattedSql, params } = formatter.format(query);",
+      "if (!String(formattedSql).includes('users')) throw new Error('formatted SQL did not include the expected table reference');",
+      "if (params == null) throw new Error('formatter did not return params');",
+    ].join(" "),
   ], { shell: false });
 
   return appDir;
 }
 
-function verifyNpmPrimaryPath(packages) {
-  const appDir = path.join(packageRoot, "npm-primary-path");
-  ensureCleanDir(appDir);
-  const tarballDependencies = createTarballDependencyMap(packages);
-
-  writePackageJson(appDir, {
-    name: "npm-consumer-smoke",
-    private: true,
-    version: "0.0.0",
-    devDependencies: tarballDependencies,
-  });
-
-  runIn(appDir, NPM, ["install"]);
-  const initResult = runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "demo", "--validator", "zod"]);
-
-  assertIncludes(initResult.stdout, "npx ztd ztd-config", "phase-a packaging-npm-primary-path-gate");
-  assertIncludes(initResult.stdout, "npx ztd model-gen", "phase-a packaging-npm-primary-path-gate");
-  assertIncludes(initResult.stdout, "npm run test", "phase-a packaging-npm-primary-path-gate");
-  assertExcludes(initResult.stdout, "pnpm exec ztd", "phase-a packaging-npm-primary-path-gate");
-  assertExcludes(initResult.stdout, "pnpm test", "phase-a packaging-npm-primary-path-gate");
-
-  const readme = fs.readFileSync(path.join(appDir, "README.md"), "utf8");
-  assertIncludes(readme, "This scaffold starts from `ztd init --starter`.", "phase-a scaffold-readme");
-  assertIncludes(readme, "The starter keeps the first run simple:", "phase-a scaffold-readme");
-  assertIncludes(readme, "`src/features/smoke` for the first green path", "phase-a scaffold-readme");
-  assertIncludes(readme, "For DDL, SQL, DTO, and migration repair loops, read the tutorial and dogfooding docs under `docs/`.", "phase-a scaffold-readme");
-  assertIncludes(readme, "Use this short prompt:", "phase-a scaffold-readme");
-  assertIncludes(readme, "Start from src/features/smoke and add a users feature next.", "phase-a scaffold-readme");
-  assertIncludes(readme, "Add `--with-dogfooding` if you want `PROMPT_DOGFOOD.md` for prompt review.", "phase-a scaffold-readme");
-  assertIncludes(readme, "The starter path is successful when:", "phase-a scaffold-readme");
-  assertExcludes(readme, "pnpm exec ztd ztd-config", "phase-a scaffold-readme");
-
-  restoreTarballDependencies(appDir, tarballDependencies);
-  runIn(appDir, NPM, ["install"]);
-
-  return { appDir };
-}
-
-function verifyNpmConsumerSmoke(phaseAResult) {
-  const { appDir } = phaseAResult;
-
-  // Phase B proves the first generated smoke test can pass on the npm-first consumer path.
-  runIn(appDir, NPM, ["exec", "--", "ztd", "ztd-config"]);
-
-  // Keep the published command surface aligned with Further Reading docs by
-  // exercising the opt-in join-direction flag from the packed CLI artifact.
-  fs.mkdirSync(path.join(appDir, "tmp"), { recursive: true });
-  fs.writeFileSync(path.join(appDir, "tmp", "join-direction-smoke.sql"), "select 1;\n", "utf8");
-  const lintHelp = runIn(appDir, NPM, ["exec", "--", "ztd", "query", "lint", "--help"]);
-  assertIncludes(lintHelp.stdout, "--rules <list>", "phase-b query-lint-help-surface");
-  runIn(appDir, NPM, [
-    "exec",
-    "--",
-    "ztd",
-    "query",
-    "lint",
-    "--rules",
-    "join-direction",
-    "tmp/join-direction-smoke.sql",
-  ]);
-
-  setPackageTypeModule(appDir);
-  writeNode16Tsconfig(appDir);
-
-  runIn(appDir, NPM, ["test"]);
-  runIn(appDir, NPM, ["exec", "--", "tsc", "--noEmit", "-p", "tsconfig.json"]);
-  runIn(appDir, NPM, ["exec", "--", "tsc", "-p", "tsconfig.node16.json"]);
-
-  return appDir;
-}
-
-function verifyPnpmStarterPath(packages) {
-  const appDir = path.resolve(workspaceRoot, "..", "tmp", "published-package-check-standalone", "pnpm-starter-path");
-  ensureCleanDir(appDir);
-
-  const tarballDependencies = createTarballDependencyMap(packages);
-  writePackageJson(appDir, {
-    name: "pnpm-starter-path-check",
-    private: true,
-    version: "0.0.0",
-    devDependencies: {
-      "@rawsql-ts/ztd-cli": tarballDependencies["@rawsql-ts/ztd-cli"],
-    },
-    pnpm: {
-      overrides: tarballDependencies,
-    },
-  });
-
-  runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
-  runIn(appDir, PNPM, [
-    "exec",
-    "--",
-    "ztd",
-    "init",
-    "--starter",
-    "--with-ai-guidance",
-    "--with-dogfooding",
-    "--yes",
-    "--skip-install",
-  ]);
-
-  const scaffoldPackageJson = readPackageJson(appDir);
-  scaffoldPackageJson.devDependencies = Object.fromEntries(
-    Object.entries(scaffoldPackageJson.devDependencies ?? {}).map(([dependencyName, version]) => [
-      dependencyName,
-      tarballDependencies[dependencyName] ?? version,
-    ]),
-  );
-  scaffoldPackageJson.pnpm = {
-    ...(scaffoldPackageJson.pnpm ?? {}),
-    overrides: tarballDependencies,
-  };
-  assertNoWorkspaceProtocols(scaffoldPackageJson, "starter-scaffold");
-
-  // Rebind workspace packages to the freshly packed tarballs so the scaffold install exercises the published manifests.
-  fs.writeFileSync(path.join(appDir, "package.json"), `${JSON.stringify(scaffoldPackageJson, null, 2)}\n`, "utf8");
-  runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
-
-  return appDir;
-}
-
-function verifyPnpmAdapterInstall(packages) {
-  const appDir = path.resolve(workspaceRoot, "..", "tmp", "published-package-check-standalone", "pnpm-adapter-path");
-  ensureCleanDir(appDir);
-
-  const tarballDependencies = createTarballDependencyMap(packages);
-  writePackageJson(appDir, {
-    name: "pnpm-adapter-path-check",
-    private: true,
-    version: "0.0.0",
-    devDependencies: {
-      "@rawsql-ts/ztd-cli": tarballDependencies["@rawsql-ts/ztd-cli"],
-    },
-    pnpm: {
-      overrides: tarballDependencies,
-    },
-  });
-
-  runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
-  runIn(appDir, PNPM, [
-    "exec",
-    "--",
-    "ztd",
-    "init",
-    "--starter",
-    "--with-ai-guidance",
-    "--with-dogfooding",
-    "--yes",
-    "--skip-install",
-  ]);
-
-  const scaffoldPackageJson = readPackageJson(appDir);
-  scaffoldPackageJson.devDependencies = {
-    ...(scaffoldPackageJson.devDependencies ?? {}),
-    "@rawsql-ts/adapter-node-pg": tarballDependencies["@rawsql-ts/adapter-node-pg"],
-  };
-  scaffoldPackageJson.pnpm = {
-    ...(scaffoldPackageJson.pnpm ?? {}),
-    overrides: tarballDependencies,
-  };
-  assertNoWorkspaceProtocols(scaffoldPackageJson, "adapter-scaffold");
-
-  // Rebind the generated scaffold to packed tarballs so the adapter install exercises the published manifests.
-  fs.writeFileSync(path.join(appDir, "package.json"), `${JSON.stringify(scaffoldPackageJson, null, 2)}\n`, "utf8");
-  runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
-
-  return appDir;
-}
-
-function verifyPnpmTutorialModelGen(packages) {
-  const appDir = path.resolve(workspaceRoot, "..", "tmp", "published-package-check-standalone", "pnpm-tutorial-model-gen");
-  ensureCleanDir(appDir);
-
-  const tarballDependencies = createTarballDependencyMap(packages);
-  writePackageJson(appDir, {
-    name: "pnpm-tutorial-model-gen-check",
-    private: true,
-    version: "0.0.0",
-    devDependencies: {
-      "@rawsql-ts/ztd-cli": tarballDependencies["@rawsql-ts/ztd-cli"],
-    },
-    pnpm: {
-      overrides: tarballDependencies,
-    },
-  });
-
-  runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
-  runIn(appDir, PNPM, [
-    "exec",
-    "--",
-    "ztd",
-    "init",
-    "--starter",
-    "--with-ai-guidance",
-    "--with-dogfooding",
-    "--yes",
-    "--skip-install",
-  ]);
-
-  const scaffoldPackageJson = readPackageJson(appDir);
-  scaffoldPackageJson.devDependencies = {
-    ...(scaffoldPackageJson.devDependencies ?? {}),
-    "@rawsql-ts/adapter-node-pg": tarballDependencies["@rawsql-ts/adapter-node-pg"],
-  };
-  scaffoldPackageJson.pnpm = {
-    ...(scaffoldPackageJson.pnpm ?? {}),
-    overrides: tarballDependencies,
-  };
-  assertNoWorkspaceProtocols(scaffoldPackageJson, "tutorial-model-gen-scaffold");
-
-  // Rebind the generated scaffold to packed tarballs so the tutorial path exercises the published manifests.
-  fs.writeFileSync(path.join(appDir, "package.json"), `${JSON.stringify(scaffoldPackageJson, null, 2)}\n`, "utf8");
-  runIn(appDir, PNPM, ["install", "--no-frozen-lockfile"]);
-
-  const usersSqlPath = path.join(appDir, "src", "features", "users", "persistence", "users.sql");
-  fs.mkdirSync(path.dirname(usersSqlPath), { recursive: true });
-  fs.writeFileSync(
-    usersSqlPath,
-    [
-      "select",
-      "  user_id,",
-      "  email",
-      "from users",
-      "where user_id = :user_id",
-      "",
-    ].join("\n"),
-    "utf8",
-  );
-
-  runIn(appDir, PNPM, ["exec", "--", "ztd", "ztd-config"]);
-
-  const modelGenArgs = [
-    "exec",
-    "--",
-    "ztd",
-    "model-gen",
-    "--probe-mode",
-    "ztd",
-    "--sql-root",
-    "src/features/users/persistence",
-    "src/features/users/persistence/users.sql",
-    "--out",
-    "src/features/users/persistence/users.spec.ts",
-  ];
-
-  if (process.env.ZTD_TEST_DATABASE_URL) {
-    runIn(appDir, PNPM, modelGenArgs);
-    const generatedSpec = fs.readFileSync(
-      path.join(appDir, "src", "features", "users", "persistence", "users.spec.ts"),
-      "utf8",
-    );
-    if (!generatedSpec.includes("export interface")) {
-      throw new Error("[packaging contract] tutorial model-gen did not write the expected spec output.");
-    }
-  } else {
-    const describeOutput = runIn(appDir, PNPM, [...modelGenArgs, "--describe-output", "--output", "json"]);
-
-    const parsed = JSON.parse(describeOutput.stdout);
-    if (parsed?.data?.outputs?.spec !== "TypeScript QuerySpec scaffold") {
-      throw new Error(
-        `[packaging contract] tutorial model-gen describe output was unexpected: ${JSON.stringify(parsed)}`,
-      );
-    }
-  }
-
-  return appDir;
-}
-
-function verifyOverwriteSafety(packages) {
-  const appDir = path.join(packageRoot, "overwrite-safety");
-  ensureCleanDir(appDir);
-
-  writePackageJson(appDir, {
-    name: "overwrite-safety-check",
-    private: true,
-    version: "0.0.0",
-    devDependencies: createTarballDependencyMap(packages),
-  });
-
-  fs.mkdirSync(path.join(appDir, "ztd", "ddl"), { recursive: true });
-  fs.writeFileSync(path.join(appDir, "ztd", "ddl", "public.sql"), "-- existing\n", "utf8");
-
-  runIn(appDir, NPM, ["install"]);
-  const ddlPath = path.join(appDir, "ztd", "ddl", "public.sql");
-  const originalSchema = fs.readFileSync(ddlPath, "utf8");
-
-  let overwriteFailed = false;
-  try {
-    runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--workflow", "demo", "--validator", "zod"]);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (!message.includes("--force") && !message.includes("already exists")) {
-      throw error;
-    }
-    overwriteFailed = true;
-  }
-
-  if (!overwriteFailed) {
-    throw new Error("[scaffold safety] ztd init overwrote an existing DDL file without requiring --force.");
-  }
-  const afterFailedInit = fs.readFileSync(ddlPath, "utf8");
-  if (afterFailedInit !== originalSchema) {
-    throw new Error("[scaffold safety] DDL changed even though init without --force failed.");
-  }
-
-  runIn(appDir, NPM, ["exec", "--", "ztd", "init", "--yes", "--force", "--workflow", "demo", "--validator", "zod"]);
-
-  const schemaContents = fs.readFileSync(ddlPath, "utf8");
-  if (schemaContents === originalSchema) {
-    throw new Error("[scaffold safety] --force did not overwrite the existing DDL file as expected.");
-  }
-
-  return appDir;
-}
-
 function main() {
+  const options = parseArgs(process.argv.slice(2));
   ensureCleanDir(outputRoot);
   ensureCleanDir(tarballRoot);
   ensureCleanDir(packageRoot);
 
-  run(PNPM, ["build:publish"]);
-
-  const packedPackages = packPublishedPackages();
+  const packedPackages = options.publishManifestProvided
+    ? loadPackedPackagesFromManifest(options.publishManifestPath)
+    : (() => {
+        run(PNPM, ["build:publish"]);
+        return packPublishedPackages();
+      })();
   const packedInstallApp = verifyPackedTarballInstall(packedPackages);
-  const npmPrimaryPathApp = verifyNpmPrimaryPath(packedPackages);
-  const npmSmokeApp = verifyNpmConsumerSmoke(npmPrimaryPathApp);
-  const pnpmStarterApp = verifyPnpmStarterPath(packedPackages);
-  const pnpmAdapterApp = verifyPnpmAdapterInstall(packedPackages);
-  const pnpmTutorialModelGenApp = verifyPnpmTutorialModelGen(packedPackages);
-  const overwriteSafetyApp = verifyOverwriteSafety(packedPackages);
+  const coreGettingStartedApp = verifyCoreGettingStarted(packedPackages);
 
   writeJson(path.join(outputRoot, "summary.json"), {
     checkedAt: new Date().toISOString(),
     node: process.version,
     platform: os.platform(),
+    verificationMode: options.publishManifestProvided ? "publish-manifest" : "workspace-pack",
     packedInstallApp,
-    npmPrimaryPathApp: npmPrimaryPathApp.appDir,
-    firstTestGateApp: npmSmokeApp,
-    npmSmokeApp,
-    pnpmStarterApp,
-    pnpmAdapterApp,
-    pnpmTutorialModelGenApp,
-    overwriteSafetyApp,
+    coreGettingStartedApp,
     packages: packedPackages.map((pkg) => ({
       name: pkg.name,
       version: pkg.manifest.version,

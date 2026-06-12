@@ -1,138 +1,163 @@
-# Package Scope
-- Applies to the entire repository subtree rooted at `./`.
-- Defines repository-wide contract rules for SQL rewriting, ZTD testing, and contribution safety.
-- Serves as the fallback contract when no deeper `AGENTS.md` overrides a rule.
-- Serves as the canonical source for task routing and token-efficiency policy in this repository.
+# Repository Scope
 
-# Task Routing
+This file defines repository-wide rules for rawsql-ts developers.
+Deeper `AGENTS.md` files take precedence when they add stricter or narrower rules without weakening completion criteria.
 
-## Default entrypoint
-- Human requests SHOULD be handled through the `orchestrator` agent.
-- Specialist agents SHOULD NOT be invoked directly by humans unless debugging the orchestration itself.
-- The `orchestrator` agent MAY be invoked from either plan mode or normal prompt mode.
+## Global Guardrails
 
-## Routing policy
-- For code changes, bug fixes, refactors, parser behavior, SQL rewrite behavior, package behavior, or test failures:
-  1. `pr_explorer`
-  2. `implementer` if changes are needed
-  3. `reviewer`
-- For docs UX, first-run flows, self-usage, or ztd-cli workflow friction:
-  1. `dogfooder`
-  2. `reviewer` only if correctness or regression risk is involved
-- For simple read-only questions, answer directly without spawning specialists unless scope is unclear.
+- Keep generated artifacts, fixtures, and derived docs aligned with their source assets.
+- Keep scaffold code, scaffold-facing docs, and published-package smoke checks aligned when they describe the same workflow.
+- Do not weaken completion criteria or skip required verification.
+- Prefer `pnpm` and scoped commands when working in a package.
+- Keep repository artifacts in English unless a deeper rule says otherwise.
+- Keep assistant-user conversation in Japanese in this repository.
+- Do not mix customer-facing guidance into this repository policy.
 
-## Scope discipline
-- The first pass MUST identify the smallest affected package and nearest verification scope before broad repo reads.
-- Root-wide verification MUST NOT be the first step unless the task is explicitly repo-wide.
+## Guidance Routing
 
-# Token Efficiency
+- Use the repo-local guidance under `.codex/agents/` and `.agents/skills/` for planning, verification, review, and reporting details.
+- Root `AGENTS.md` defines repository-wide policy only; detailed output formats and workflows belong to subagent or skill guidance.
+- Before substantial multi-step work, read the relevant guidance under `.codex/agents/` or `.agents/skills/` instead of relying on root policy alone.
+- For package-level Scope, Test Policy, Authority Model, Technology Policy, review-plan, or generated review view changes, use `.agents/skills/package-spec-review/SKILL.md`.
+- For structured metadata migrations or rule registry changes, use `.agents/skills/structured-metadata-migration-review/SKILL.md` to check schema versioning, canonical enum parity, real fixture parsing, and evidence/display-label integrity.
+- For broad generated or derived diffs that may exceed review-tool limits, use `.agents/skills/broad-generated-diff-review-packet/SKILL.md` to prepare scoped review packets before PR handoff.
+- Do not turn `AGENTS.md` into the storage location for starter walkthroughs, AI onboarding prompts, dogfooding playbooks, or investigation scripts; keep those in dedicated docs or skills.
 
-## REQUIRED
-- Start from the smallest affected package, nearest tests, and nearest docs.
-- Prefer `pnpm --filter <package>` scoped commands before workspace-wide commands.
-- Summaries MUST name touched package(s), touched files, and chosen verification scope.
-- Do not restate repository architecture unless it is necessary for the current task.
-- Do not read broad docs sets when a package README or nearby test already answers the question.
+## Documentation Guardrails
 
-## ESCALATION
-- Escalate from scoped verification to root-wide verification only when:
-  - multiple packages are changed
-  - a shared package contract is changed
-  - release-readiness is being claimed
-  - scoped verification is insufficient to support the claim
+- Treat README and other human-facing repository docs as reader-facing entry documentation, not AI-facing operational notes.
+- Keep human-facing docs scannable: prefer short headings, short paragraphs, short sentences, and strong structure.
+- Prefer separation over deletion: if content is too detailed for README, move it to linked docs instead of silently dropping important information.
+- Keep repository facts, commands, contracts, and file layout accurate and easy to verify.
+- Keep structured metadata sources, schema files, implementation allowlists, fixtures, and generated review views aligned when they describe the same review harness.
+- Broad generated docs or API diffs should preserve source-to-generated traceability so reviewers can inspect the source decision separately from deterministic output.
 
-## OUTPUT SHAPE
-- Default reports SHOULD be concise and use:
-  - Summary
-  - Scope
-  - Actions
-  - Verification
-  - Risks or Assumptions
+### README Mode Rules
 
-# Plan Mode Guidance
+- Each substantial README section must have one primary mode:
+  - tutorial
+  - how-to
+  - reference
+  - explanation
+- Do not mix modes within the same section unless the boundary is explicit.
 
-- For non-trivial work, plan mode SHOULD use `orchestrator` as the entrypoint.
-- Plan mode SHOULD stay read-only and produce the smallest defensible plan before execution.
-- Specialist names SHOULD remain internal unless orchestration debugging is requested.
+### Mode Expectations
 
-# INTENT
-- Source assets stay human-owned so the repository keeps a clear edit surface.
-- Downstream artifacts exist to match the source assets, not to replace their intent.
-- These rules explain why the repository is arranged the way it is, not only what is forbidden.
+- tutorial
+  - learning-oriented
+  - optimize for first success
+  - use small steps
+  - minimize explanation
+  - avoid alternatives unless essential for success
+  - link out for deeper background
 
-# procedure
-- Follow `DDL -> SQL -> generate -> wire -> test` when moving from source assets to downstream artifacts.
-- Keep generated files and tests aligned with the source asset they were derived from.
-- Use the shortest path that preserves that causality.
+- how-to
+  - goal-oriented
+  - solve one concrete task or problem
+  - include only the steps and decisions needed for that goal
+  - avoid broad conceptual teaching
 
-# Policy
-## Interpretation
-- `MUST` and `REQUIRED` define completion criteria.
-- `ALLOWED` means permitted but not required.
-- `PROHIBITED` means disallowed unless a narrower rule explicitly allows it.
-- User requests can add context, but they do not relax a `MUST` or `REQUIRED` rule by default.
-- When this file and a deeper `AGENTS.md` both apply, the deeper file may narrow scope only if it does not weaken a completion criterion.
+- reference
+  - information-oriented
+  - describe facts, commands, options, file layout, contracts, and limits
+  - stay concise, structured, and neutral
+  - do not add persuasion, narrative, or long explanation
 
-## Completion Example
-- Repository implementation is only complete when the required verification and tests that the policy calls for are included in the same change.
-- A change that skips required tests is not complete, even if the implementation itself is otherwise correct.
+- explanation
+  - understanding-oriented
+  - describe why, tradeoffs, design intent, constraints, and alternatives
+  - do not turn explanation into a procedural guide
 
-## REQUIRED
-- Claims in task reports MUST be backed by direct observation.
-- Each reported observation MUST include the executed command, exit code, and key output excerpt.
-- A failing behavior MUST be reproduced before applying a fix.
-- Fix scope MUST follow one-hypothesis/one-fix.
-- Reports for troubleshooting and recovery MUST use: `Observations`, `Changes`, `Verification`, `Assumptions`.
-- SQL rewrites MUST use AST utilities (`SelectQueryParser`, `SelectAnalyzer`, `splitQueries`) when an AST path is available.
-- Regex fallback for SQL rewrite MUST include an inline limitation comment and a tracking issue reference.
-- Repository and application SQL MAY use CRUD statements when execution flows through the rewriter.
-- Library code MUST NOT bypass rewrite pipelines.
-- DDL files, fixtures, and row maps MUST stay consistent with `ztd.config.json` schema settings.
-- Changes to schema/search-path behavior MUST update `ztd.config.json`.
-- Contributions MUST use `pnpm` and `pnpm --filter <package>` for scoped commands.
-- Identifiers, code comments, and documentation content MUST be written in English.
-- Throwaway assets MUST be created under `./tmp`.
-- Release-worthy changes MUST include a changeset.
+### README Defaults for This Repository
 
-## ALLOWED
-- Test code MAY import deterministic, side-effect-free normalization/sanitization helpers from source modules.
-- Application SQL MAY omit schema qualifiers when schema resolution is configured in `ztd.config.json`.
+- README should lead with what the project is, why it exists, and how to start.
+- Quickstart sections should stay short and copyable.
+- Important concepts must remain available either in README or in clearly linked follow-up docs.
+- Do not remove conceptual sections, follow-up reading, or navigation aids merely to shorten the README.
+- When revising README, confirm that a new reader can understand the project and reach a successful first step from the first screen.
 
-## PROHIBITED
-- Guessing unobserved facts in analysis or reports.
-- Bundling unrelated fixes into a single hypothesis/fix step.
-- Executing physical schema mutations (`CREATE TABLE`, `ALTER TABLE`, seed `INSERT`) against pg-testkit connections.
-- Hand-constructing `QueryResult` objects or mocking `Client#query` to bypass rewrite flow.
-- Allowing demo helpers to accept non-array query params or drop named bindings silently.
-- Manual formatting edits that bypass configured format/lint scripts.
-- Editing package versions directly in `package.json`.
-- Leaving debug statements in committed code.
+## Plan and Reporting Minimums
 
-# Mandatory Workflow
-- Before opening or updating a PR, these commands MUST pass:
-  - `pnpm lint`
-  - `pnpm test` or `pnpm --filter <pkg> test`
-  - `pnpm build`
-- If SQL rewrite logic changes, benchmark commands MUST also run.
-- When parser/formatter behavior changes, browser and docs demo bundle update workflow MUST run.
+- When an issue, PR comment, or request includes a proposed solution, planning must still make the underlying objective explicit and check whether the proposed solution is only one tactic rather than the actual goal.
+- If there is meaningful uncertainty about the true objective, decision driver, or success condition, resolve that recognition gap during planning before implementation begins.
+- Plans must state the source issue or request, acceptance items, verification methods, and explicit out-of-scope items when scope is limited.
+- Multi-step tasks must keep a working ledger in `tmp/PLAN.md` unless a deeper `AGENTS.md` says otherwise.
+- `tmp/PLAN.md` should be updated when the plan changes, when a blocker is discovered, and when a verification or dogfooding result materially changes the current understanding.
+- `tmp/PLAN.md` is local task state, must not be committed, and exists separately from durable workflow rules in `AGENTS.md`.
+- Important recognition mismatches, false completion claims, or verification misses must also be captured in `tmp/RETRO.md` when they could plausibly recur within the same task or in a future task.
+- `tmp/RETRO.md` is a local-only reflection ledger for what went wrong, why it happened, whether the fix can be mechanized, whether a durable rule should be promoted, and whether a PR should be blocked until the item is resolved.
+- Keep durable workflow policy in `AGENTS.md`; keep task-specific reflection, examples, and unresolved retro items in `tmp/RETRO.md`.
+- If a retro item suggests a reusable mechanical guardrail, consider promoting it into repository guidance, tests, scripts, or a Codex skill instead of leaving it only as narrative reflection.
+- Record a retro item when the miss caused rework, weakened a completion claim, hid a verification gap, or would be hard to reconstruct reliably from the final diff alone.
+- Do not require retro entries for every small typo or harmless local correction; use it for mistakes that matter to task judgment, workflow safety, or future repeatability.
+- Reports must distinguish `done`, `partial`, and `not done`.
+- Reports must distinguish `tests were updated` from `tests passed`.
+- If any test or check fails, reports must name the failing test or check explicitly instead of summarizing it only as a generic verification failure.
+- If any test or check fails, reports must state whether the failure is newly introduced by the current change or reproducible on the base branch without the change.
+- If any test or check fails, reports must state the failure's decision weight explicitly: required merge gate, non-required PR check, local-only check, or another clearly named category.
+- If work proceeds despite a failing test or check, reports must explain why proceeding is acceptable for this change, based on the failure's category and whether it is pre-existing.
+- A failed required verification command is in scope for the current branch until proven otherwise. Do not classify it as unrelated merely because the stack trace points at a file outside the current diff.
+- Before calling a failed required check out-of-scope, provide one of these forms of repository evidence: the same command fails on the base branch in the same environment; repository guidance marks the check as non-blocking for this change; or the failure depends on an unavailable external prerequisite that is not required for the acceptance item.
+- If none of that evidence exists, fix the failure or keep PR readiness blocked. Reporting must not downgrade the failure to `partial` or `non-blocking` by assertion alone.
+- Before creating or editing a pull request, preserve the repository PR template requirements and run `scripts/check-pr-readiness.js` locally against the exact PR body using a temporary event payload. Do not create, edit, or report a PR as ready while that script fails.
+- For CLI-facing or scaffold-related changes, prefer generating the PR readiness sections with `pnpm pr:readiness:prepare` or copy the exact checkbox labels and same-line fields from `.github/pull_request_template.md`; free-form PR prose is not sufficient evidence for the readiness gate.
+- If a task changes GitHub branch protection or rulesets, reports must explicitly state which merge blockers were changed or verified, not just the intended required status checks.
+- Ruleset or branch protection reports must explicitly call out approval requirements, Code Owner review requirements, signed-commit requirements, and required status checks whenever those settings could affect mergeability.
+- Do not imply that bot review comments or `COMMENTED` review states satisfy an approval requirement; approval claims must name the actor and the approval-capable review state.
+- GitHub-facing reports must not use local filesystem paths.
+- Supplementary evidence alone must not justify a strong `done` claim.
+- Final user-facing progress and completion reports should use explicit sections rather than long narrative-only blocks when multiple concerns are being reported.
+- When reporting task status, show the current status label near the top and again at the end when the report is long enough that scrolling could hide it.
+- When reporting multiple concerns, separate at least `status`, `current situation`, and `remaining issues or decisions` so the reader can scan quickly.
 
-# Hygiene
-- Temporary files under `./tmp` MUST be removed before completion unless converted into tracked tests.
-- `CONTINUITY.md` MUST stay untracked, MUST be listed in `.gitignore`, and MUST NOT be staged or committed.
+## Implementation Decision Rules
 
-# AI SQL Tool Happy Paths
-- Start SQL pipeline investigations with pnpm --filter @rawsql-ts/ztd-cli exec node -r ts-node/register -r tsconfig-paths/register packages/ztd-cli/src/index.ts query plan <sql-file>.
-- If the question is optimizer-facing (materialization, scalar filter binding, stage ordering), run query plan before any telemetry or grep-style command.
-- Follow with pnpm --filter @rawsql-ts/ztd-cli exec node -r ts-node/register -r tsconfig-paths/register packages/ztd-cli/src/index.ts perf run --dry-run ... when you need candidate recommendations or before/after evidence.
-- Use query uses only for impact analysis and refactors. It is not the default path for runtime or optimizer debugging.
-- Use telemetry only after the structural path is known and you need timing, export, or trace evidence. Telemetry is opt-in investigation tooling, not the first command.
-- When dogfooding SQL pipeline behavior, prefer this order:
-  1. query plan
-  2. perf run --dry-run
-  3. focused SQL/debug or integration verification
-  4. query uses if the task expands into refactor impact
-- Add or update dogfooding scenarios when a tool remains underused even though it exists. Current priority targets are telemetry and SQL/debug flows; query uses should grow through refactor-impact scenarios rather than optimizer scenarios.
+- Treat fallback behavior as a last resort, not as a default convenience.
+- Before adding a fallback, first consider whether the problem should instead be fixed directly, rejected as unsupported, or made fail-fast with a clear error.
+- Prefer an explicit error over a silent degradation when silent recovery would hide a configuration problem, weaken guarantees, or make quality harder to judge.
+- If a fallback is still the best option, make the trigger condition and guarantee limits explicit in code, tests, and reporting.
+- For local-source dogfooding or scaffold developer-mode flows, fail fast when dependencies or CLI entrypoints are missing and make the next recovery step explicit.
+- Do not overwrite scaffold-owned or user-authored files without an explicit force path; failed initialization must not leave partial overwrites behind.
+- Scope decisions should be intentional: do not broaden a task automatically, but do not reject closely aligned follow-up work automatically either; decide based on fit, risk, and verification cost.
 
-# References
-- Rationale and architecture: [DESIGN.md](./DESIGN.md)
-- Operational procedures and troubleshooting: [DEV_NOTES.md](./DEV_NOTES.md)
+## Collaboration and Escalation
+
+- Ask clarification questions during planning when objective, scope, or decision criteria remain materially ambiguous.
+- During implementation, prefer autonomous resolution of local design and coding details whenever the repository evidence is sufficient.
+- Interrupt implementation with a user question only when the remaining ambiguity is consequential enough that proceeding would risk the wrong outcome, unsafe edits, or misleading verification.
+
+## Review Minimums
+
+- Development has two completion stages: first prove the feature and regression tests, then run a separate finishing review pass before PR handoff.
+- The finishing review pass must use the available self-review workflow or repo-local review skill, and it must look for cross-mode regressions such as direct command versus PR/worktree command behavior.
+- The finishing review pass must include a concept boundary review when the change touches package behavior, generated scaffold output, generated runtime code, docs, or PR wording. Read the owning package concept, package scope, technology policy, or Concept Spec when one exists.
+- Final PR text and final implementation reports must pass self-review before human review.
+- Before creating or editing a PR, read `.github/pull_request_template.md` and use `.agents/skills/pr-readiness/SKILL.md` when present.
+- Before claiming a PR is ready, run the repository PR readiness script locally when `scripts/check-pr-readiness.js` exists, or explicitly state why it could not be run.
+- Blockers must be resolved or explicitly called out before human review.
+- Before creating or presenting a PR, review `tmp/RETRO.md` and either resolve every PR-blocking retro item or explicitly surface the remaining item and why it is safe to defer.
+- A retro item with `PR gate status: open` blocks PR readiness.
+- `accepted defer` may be used only when the remaining risk, owner, and follow-up path are explicit in the final report or PR text.
+
+## QuerySpec Completion
+
+- A QuerySpec used for product behavior is incomplete unless it has a ZTD-backed test that executes the SQL through the rewriter.
+- A property-only validation test is not sufficient for product behavior.
+- If the ZTD-backed test cannot be written yet, do not write the product-behavior QuerySpec yet.
+- Example-only QuerySpec files may omit the ZTD-backed test only when explicitly labeled as examples and the limitation is stated in the same change.
+
+## Test Default
+
+- Unless the request explicitly says not to, behavior changes must add or update tests in the same change.
+- When ambiguous, prefer the strongest executable test for the changed behavior.
+- For QuerySpec work, default to a ZTD-backed test that executes the SQL through the rewriter and validates observed behavior.
+
+## SQL Shadowing Troubleshooting
+
+- When a SQL-backed test fails, first determine whether the query is shadowing the intended SQL path or touching a physical table directly.
+- If shadowing is wrong, check in this order:
+  1. DDL and fixture sync
+  2. Fixture selection or specification
+  3. Repository bug or rewriter bug
+- Do not use DDL execution as a repair path for ZTD validation failures.
+- Prefer repository evidence over manual database repair.

@@ -2,7 +2,173 @@
 
 // Global variables for style config, managed within this module
 const DEFAULT_STYLE_KEY = 'rawsql-formatter-styles-v2';
+const SELECTED_STYLE_KEY = 'rawsql-selected-style';
 let currentStyles = {};
+
+const REMOVED_STYLE_REPLACEMENTS = {
+    "Postgres Minimal": "Postgres",
+    "MySQL Minimal": "MySQL",
+    "SQLServer Minimal": "SQLServer"
+};
+
+const DEFAULT_STYLE_BASE = {
+    "indentSize": 4,
+    "indentChar": "space",
+    "newline": "lf",
+    "keywordCase": "upper",
+    "commaBreak": "before",
+    "cteCommaBreak": "after",
+    "valuesCommaBreak": "before",
+    "andBreak": "before",
+    "orBreak": "before",
+    "joinOnBreak": "before",
+    "joinConditionContinuationIndent": false,
+    "exportComment": "full",
+    "commentStyle": "block",
+    "withClauseStyle": "standard",
+    "parenthesesOneLine": true,
+    "indentNestedParentheses": true,
+    "betweenOneLine": true,
+    "valuesOneLine": false,
+    "joinOneLine": true,
+    "caseOneLine": false,
+    "subqueryOneLine": false,
+    "insertColumnsOneLine": true,
+    "whenOneLine": false,
+    "oneLineMaxLength": 100,
+    "joinConditionOrderByDeclaration": false,
+    "orderByDefaultDirectionStyle": "omit",
+    "constraintStyle": "postgres"
+};
+
+const DEFAULT_POSTGRES_STYLE = {
+    ...DEFAULT_STYLE_BASE,
+    "constraintStyle": "postgres",
+    "identifierEscape": "quote",
+    "identifierEscapeTarget": "minimal",
+    "parameterSymbol": "$",
+    "parameterStyle": "indexed",
+    "sourceAliasStyle": "as",
+    "castStyle": "postgres"
+};
+
+const DEFAULT_STYLES = {
+    "Default": {
+        ...DEFAULT_STYLE_BASE,
+        "identifierEscape": "none",
+        "identifierEscapeTarget": "all",
+        "parameterSymbol": ":",
+        "parameterStyle": "named",
+        "sourceAliasStyle": "as",
+        "castStyle": "standard"
+    },
+    "OneLiner": {
+        "identifierEscape": "none",
+        "identifierEscapeTarget": "all",
+        "parameterSymbol": ":",
+        "parameterStyle": "named",
+        "keywordCase": "upper",
+        "sourceAliasStyle": "as",
+        "castStyle": "standard",
+        "constraintStyle": "postgres",
+        "orderByDefaultDirectionStyle": "omit"
+    },
+    "Postgres": {
+        ...DEFAULT_POSTGRES_STYLE
+    },
+    "MySQL": {
+        ...DEFAULT_STYLE_BASE,
+        "identifierEscape": "backtick",
+        "identifierEscapeTarget": "minimal",
+        "parameterSymbol": "?",
+        "parameterStyle": "anonymous",
+        "sourceAliasStyle": "as",
+        "castStyle": "standard",
+        "constraintStyle": "mysql"
+    },
+    "SQLServer": {
+        ...DEFAULT_STYLE_BASE,
+        "identifierEscape": "bracket",
+        "identifierEscapeTarget": "minimal",
+        "parameterSymbol": "@",
+        "parameterStyle": "named",
+        "sourceAliasStyle": "as",
+        "castStyle": "standard",
+        "constraintStyle": "postgres"
+    }
+};
+
+function cloneStyle(style) {
+    return JSON.parse(JSON.stringify(style));
+}
+
+function inferStyleDefaults(name, style) {
+    if (DEFAULT_STYLES[name]) {
+        return DEFAULT_STYLES[name];
+    }
+
+    const identifierEscape = style?.identifierEscape ?? "none";
+    const dialectDefaults =
+        identifierEscape === "backtick"
+            ? { constraintStyle: "mysql" }
+            : identifierEscape === "quote" && style?.parameterSymbol === "$"
+              ? { castStyle: "postgres", constraintStyle: "postgres" }
+              : {};
+
+    return {
+        "identifierEscapeTarget": "all",
+        "sourceAliasStyle": "as",
+        "castStyle": "standard",
+        "constraintStyle": "postgres",
+        "orderByDefaultDirectionStyle": "omit",
+        "insertColumnsOneLine": true,
+        "whenOneLine": false,
+        "oneLineMaxLength": 100,
+        "joinOnBreak": "before",
+        "joinConditionContinuationIndent": false,
+        ...dialectDefaults
+    };
+}
+
+function normalizeStyle(name, style) {
+    return {
+        ...cloneStyle(inferStyleDefaults(name, style)),
+        ...style
+    };
+}
+
+function createDefaultStyles() {
+    return Object.fromEntries(
+        Object.entries(DEFAULT_STYLES).map(([name, style]) => [name, cloneStyle(style)])
+    );
+}
+
+function normalizeStyles(styles) {
+    const normalized = {};
+    for (const [name, style] of Object.entries(styles || {})) {
+        const replacementName = REMOVED_STYLE_REPLACEMENTS[name];
+        if (replacementName) {
+            continue;
+        }
+        normalized[name] = normalizeStyle(name, style);
+    }
+
+    for (const [name, style] of Object.entries(DEFAULT_STYLES)) {
+        if (!normalized[name]) {
+            normalized[name] = cloneStyle(style);
+        }
+    }
+
+    return normalized;
+}
+
+function normalizeSelectedStyle() {
+    const selectedStyle = localStorage.getItem(SELECTED_STYLE_KEY);
+    const replacementName = REMOVED_STYLE_REPLACEMENTS[selectedStyle];
+    if (replacementName) {
+        localStorage.setItem(SELECTED_STYLE_KEY, replacementName);
+    }
+}
 
 // DOM elements and external functions - these will be initialized via initStyleConfig
 let styleSelect, styleNameInput, addNewStyleBtn, deleteStyleBtn, saveStyleBtn, resetAllSettingsBtn, revertStyleBtn;
@@ -25,7 +191,7 @@ const STYLE_CONTROL_GROUPS = [
         controls: [
             { key: 'keywordCase', label: 'Keyword case', type: 'select', options: ['preserve', 'lower', 'upper'] },
             { key: 'identifierEscape', label: 'Identifier escape', type: 'select', options: ['none', 'quote', 'backtick', 'bracket'] },
-            { key: 'identifierEscapeMode', label: 'Identifier escape mode', type: 'select', options: ['all', 'minimal'] },
+            { key: 'identifierEscapeTarget', label: 'Identifier escape target', type: 'select', options: ['all', 'minimal'] },
             { key: 'parameterSymbol', label: 'Parameter symbol', type: 'select', options: [':', '$', '@', '?'] },
             { key: 'parameterStyle', label: 'Parameter style', type: 'select', options: ['named', 'indexed', 'anonymous'] },
             { key: 'indentSize', label: 'Indent size', type: 'number', min: 0, max: 12, step: 1 },
@@ -61,6 +227,7 @@ const STYLE_CONTROL_GROUPS = [
     {
         title: 'One-line Rules',
         controls: [
+            { key: 'oneLineMaxLength', label: 'Max line length', type: 'number', min: 0, max: 240, step: 1 },
             { key: 'parenthesesOneLine', label: 'Parentheses', type: 'checkbox' },
             { key: 'indentNestedParentheses', label: 'Indent nested parentheses', type: 'checkbox' },
             { key: 'betweenOneLine', label: 'BETWEEN', type: 'checkbox' },
@@ -112,119 +279,13 @@ function initStyleConfig(elements, editorInstance, formatterFunc, statusBarUpdat
 function loadStylesData() {
     const storedStyles = localStorage.getItem(DEFAULT_STYLE_KEY);
     if (storedStyles) {
-        currentStyles = JSON.parse(storedStyles);
+        currentStyles = normalizeStyles(JSON.parse(storedStyles));
+        localStorage.setItem(DEFAULT_STYLE_KEY, JSON.stringify(currentStyles));
     } else {
-        currentStyles = {
-            "Default": {
-                "identifierEscape": "none",
-                "identifierEscapeMode": "all",
-                "parameterSymbol": ":",
-                "parameterStyle": "named",
-                "indentSize": 4,
-                "indentChar": "space",
-                "newline": "lf",
-                "keywordCase": "lower",
-                "commaBreak": "before",
-                "valuesCommaBreak": "before",
-                "andBreak": "before",
-                "orBreak": "before",
-                "exportComment": true,
-                "commentStyle": "block",
-                "withClauseStyle": "standard",
-                "parenthesesOneLine": true,
-                "indentNestedParentheses": true,
-                "betweenOneLine": true,
-                "valuesOneLine": false,
-                "joinOneLine": true,
-                "caseOneLine": false,
-                "subqueryOneLine": false,
-                "joinConditionOrderByDeclaration": false
-            },
-            "OneLiner": {
-                "identifierEscape": "none",
-                "identifierEscapeMode": "all",
-                "parameterSymbol": ":",
-                "parameterStyle": "named",
-                "keywordCase": "lower"
-            },
-            "Postgres": {
-                "identifierEscape": "quote",
-                "identifierEscapeMode": "all",
-                "parameterSymbol": "$",
-                "parameterStyle": "indexed",
-                "indentSize": 4,
-                "indentChar": "space",
-                "newline": "lf",
-                "keywordCase": "upper",
-                "commaBreak": "before",
-                "valuesCommaBreak": "before",
-                "andBreak": "before",
-                "orBreak": "before",
-                "exportComment": true,
-                "commentStyle": "block",
-                "withClauseStyle": "standard",
-                "parenthesesOneLine": true,
-                "indentNestedParentheses": true,
-                "betweenOneLine": true,
-                "valuesOneLine": false,
-                "joinOneLine": true,
-                "caseOneLine": false,
-                "subqueryOneLine": false,
-                "joinConditionOrderByDeclaration": false
-            },
-            "MySQL": {
-                "identifierEscape": "backtick",
-                "identifierEscapeMode": "all",
-                "parameterSymbol": "?",
-                "parameterStyle": "anonymous",
-                "indentSize": 4,
-                "indentChar": "space",
-                "newline": "lf",
-                "keywordCase": "upper",
-                "commaBreak": "before",
-                "valuesCommaBreak": "before",
-                "andBreak": "before",
-                "orBreak": "before",
-                "exportComment": true,
-                "commentStyle": "block",
-                "withClauseStyle": "standard",
-                "parenthesesOneLine": true,
-                "indentNestedParentheses": true,
-                "betweenOneLine": true,
-                "valuesOneLine": false,
-                "joinOneLine": true,
-                "caseOneLine": false,
-                "subqueryOneLine": false,
-                "joinConditionOrderByDeclaration": false
-            },
-            "SQLServer": {
-                "identifierEscape": "bracket",
-                "identifierEscapeMode": "all",
-                "parameterSymbol": "@",
-                "parameterStyle": "named",
-                "indentSize": 4,
-                "indentChar": "space",
-                "newline": "lf",
-                "keywordCase": "upper",
-                "commaBreak": "before",
-                "valuesCommaBreak": "before",
-                "andBreak": "before",
-                "orBreak": "before",
-                "exportComment": true,
-                "commentStyle": "block",
-                "withClauseStyle": "standard",
-                "parenthesesOneLine": true,
-                "indentNestedParentheses": true,
-                "betweenOneLine": true,
-                "valuesOneLine": false,
-                "joinOneLine": true,
-                "caseOneLine": false,
-                "subqueryOneLine": false,
-                "joinConditionOrderByDeclaration": false
-            }
-        };
+        currentStyles = createDefaultStyles();
         localStorage.setItem(DEFAULT_STYLE_KEY, JSON.stringify(currentStyles));
     }
+    normalizeSelectedStyle();
 }
 
 function loadStyles() {
@@ -237,7 +298,7 @@ function loadStyles() {
 
     populateStyleSelect();
 
-    let lastStyle = localStorage.getItem('rawsql-selected-style');
+    let lastStyle = localStorage.getItem(SELECTED_STYLE_KEY);
     if (styleSelect && lastStyle && currentStyles[lastStyle]) {
         styleSelect.value = lastStyle;
     } else if (styleSelect && Object.keys(currentStyles).length > 0) {
@@ -568,7 +629,7 @@ function handleStyleSelectChange() {
     if (!styleSelect) return;
     const selectedStyleName = styleSelect.value;
     if (selectedStyleName) {
-        localStorage.setItem('rawsql-selected-style', selectedStyleName);
+        localStorage.setItem(SELECTED_STYLE_KEY, selectedStyleName);
         displayStyle(selectedStyleName);
         if (quickStyleSelectElementGlobal) quickStyleSelectElementGlobal.value = selectedStyleName;
         if (typeof formatSqlFunction === 'function') formatSqlFunction();
@@ -579,7 +640,7 @@ function handleQuickStyleSelectChange(event) {
     const selected = event.target.value;
     if (selected && currentStyles[selected]) {
         if (styleSelect) styleSelect.value = selected;
-        localStorage.setItem('rawsql-selected-style', selected);
+        localStorage.setItem(SELECTED_STYLE_KEY, selected);
         displayStyle(selected);
         if (typeof formatSqlFunction === 'function') formatSqlFunction();
     }
@@ -684,7 +745,7 @@ function handleRevertStyle() {
 function handleResetAllSettings() {
     if (confirm("Are you sure you want to reset all settings? Saved styles will be deleted.")) {
         localStorage.removeItem(DEFAULT_STYLE_KEY);
-        localStorage.removeItem('rawsql-selected-style');
+        localStorage.removeItem(SELECTED_STYLE_KEY);
         currentStyles = {};
         loadStyles();
         if (typeof updateStatusBarFunction === 'function') updateStatusBarFunction('All settings have been reset.', false);

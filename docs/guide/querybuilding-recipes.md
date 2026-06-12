@@ -165,7 +165,7 @@ Use this pass when you want the source SQL to stay truthful and readable while s
 ## Learn More
 
 - [`FilterConditions` API](../api/type-aliases/FilterConditions.md) documents every supported operator shape.
-- [`DynamicQueryBuilder` API](../api/classes/DynamicQueryBuilder.md) covers sorting, pagination, and JSON serialization helpers.
+- [`DynamicQueryBuilder` API](../api/classes/DynamicQueryBuilder.md) covers sorting, pagination, and optional-condition pruning.
 - Revisit the [`SqlFormatter` recipes](formatting-recipes.md) to prepare the query for transport or display.
 
 

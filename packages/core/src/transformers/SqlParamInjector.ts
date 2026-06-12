@@ -8,6 +8,7 @@ import { CTEQuery, SelectItem, SourceExpression, TableSource } from "../models/C
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
 import { DeleteQuery } from "../models/DeleteQuery";
+import { MergeQuery } from "../models/MergeQuery";
 
 /**
  * Options for SqlParamInjector
@@ -928,7 +929,7 @@ export class SqlParamInjector {
 
     private collectColumnsFromReturning(query: CTEQuery): { name: string; value: ValueComponent }[] {
         // Writable CTEs surface columns via RETURNING when available.
-        if (query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery) {
+        if (query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery || query instanceof MergeQuery) {
             if (!query.returningClause) {
                 return [];
             }

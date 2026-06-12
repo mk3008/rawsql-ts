@@ -1,9 +1,11 @@
-import type { DdlFixtureLoaderOptions, DdlProcessedFixture, TableRowsFixture } from '@rawsql-ts/testkit-core';
+import type { DdlFixtureLoaderOptions, DdlProcessedFixture, DdlViewDefinition, TableRowsFixture } from '@rawsql-ts/testkit-core';
 import { DdlFixtureLoader } from '@rawsql-ts/testkit-core';
 import type { TableDefinitionModel } from 'rawsql-ts';
 import type { TableNameResolver } from '@rawsql-ts/testkit-core';
+import type { GeneratedFixtureManifest } from '../types';
 
 export interface FixtureResolutionOptions {
+  generated?: GeneratedFixtureManifest;
   tableDefinitions?: TableDefinitionModel[];
   tableRows?: TableRowsFixture[];
   ddl?: DdlFixtureLoaderOptions;
@@ -11,6 +13,7 @@ export interface FixtureResolutionOptions {
 
 export interface ResolvedFixtureState {
   ddlFixtures: DdlProcessedFixture[];
+  viewDefinitions: DdlViewDefinition[];
   tableDefinitions: TableDefinitionModel[];
   tableRows: TableRowsFixture[];
 }
@@ -20,22 +23,27 @@ export function resolveFixtureState(
   options: FixtureResolutionOptions,
   tableNameResolver: TableNameResolver
 ): ResolvedFixtureState {
-  // Load DDL-derived fixtures when directories were supplied so every consumer shares the same resolver rules.
-  const loader = options.ddl?.directories?.length
+  // Prefer generated metadata so runtime does not need to rescan raw DDL on the normal path.
+  const hasGeneratedManifest = options.generated != null;
+
+  // Load DDL-derived fixtures only when no generated manifest was provided.
+  const loader = !hasGeneratedManifest && options.ddl?.directories?.length
     ? new DdlFixtureLoader({
         ...options.ddl,
         tableNameResolver,
       })
     : undefined;
   const ddlFixtures = loader?.getFixtures() ?? [];
+  const viewDefinitions = loader?.getViewDefinitions() ?? [];
 
   // Combine generated definitions with any explicit metadata the caller provided.
   const tableDefinitions = [
+    ...(options.generated?.tableDefinitions ?? []),
     ...ddlFixtures.map((fixture: DdlProcessedFixture) => fixture.tableDefinition),
     ...(options.tableDefinitions ?? []),
   ];
 
-  // Merge DDL-sourced rows ahead of caller-supplied fixtures so overrides take precedence.
+  // DDL-derived rows come first; caller-supplied fixtures follow and can override at consumption.
   const tableRows: TableRowsFixture[] = [
     ...ddlFixtures.flatMap((fixture: DdlProcessedFixture) =>
       fixture.rows && fixture.rows.length
@@ -47,6 +55,7 @@ export function resolveFixtureState(
 
   return {
     ddlFixtures,
+    viewDefinitions,
     tableDefinitions,
     tableRows,
   };

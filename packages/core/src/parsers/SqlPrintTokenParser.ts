@@ -1,4 +1,4 @@
-import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression, InsertClause, UpdateClause, DeleteClause, UsingClause, SetClause, ReturningClause, SetClauseItem } from "../models/Clause";
+import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression, InsertClause, OnConflictClause, UpdateClause, DeleteClause, UsingClause, SetClause, ReturningClause, SetClauseItem } from "../models/Clause";
 import { HintClause } from "../models/HintClause";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor, PositionedComment } from "../models/SqlComponent";
@@ -25,6 +25,7 @@ import {
     ArraySliceExpression,
     ArrayIndexExpression,
     BetweenExpression,
+    JsonPredicateExpression,
     StringSpecifierExpression,
     TypeValue,
     TupleExpression,
@@ -36,7 +37,7 @@ import {
     WindowFrameBoundaryValue
 } from "../models/ValueComponent";
 import { ParameterCollector } from "../transformers/ParameterCollector";
-import { IdentifierDecorator, IdentifierEscapeMode } from "./IdentifierDecorator";
+import { IdentifierDecorator } from "./IdentifierDecorator";
 import { ParameterDecorator } from "./ParameterDecorator";
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
@@ -82,13 +83,16 @@ export type CastStyle = 'postgres' | 'standard';
 
 export type ConstraintStyle = 'postgres' | 'mysql';
 
+export type SourceAliasStyle = 'as' | 'implicit';
+
+export type OrderByDefaultDirectionStyle = 'omit' | 'explicit';
+
 export interface FormatterConfig {
     identifierEscape?: {
         start: string;
         end: string;
+        target?: 'all' | 'minimal';
     };
-    /** Controls whether all identifiers are escaped or only identifiers that require escaping */
-    identifierEscapeMode?: IdentifierEscapeMode;
     parameterSymbol?: string | { start: string; end: string };
     /**
      * Parameter style: anonymous (?), indexed ($1), or named (:name)
@@ -98,6 +102,10 @@ export interface FormatterConfig {
     castStyle?: CastStyle;
     /** Controls how table/column constraints are rendered */
     constraintStyle?: ConstraintStyle;
+    /** Controls whether source aliases are rendered with an explicit AS keyword */
+    sourceAliasStyle?: SourceAliasStyle;
+    /** Controls whether the default ASC direction is omitted or rendered explicitly */
+    orderByDefaultDirectionStyle?: OrderByDefaultDirectionStyle;
 }
 
 export const PRESETS: Record<string, FormatterConfig> = {
@@ -232,6 +240,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             this._selfHandlingComponentTypes = new Set([
                 SimpleSelectQuery.kind,
                 SelectItem.kind,
+                OrderByItem.kind,
                 CaseKeyValuePair.kind,
                 SwitchCaseArgument.kind,
                 ColumnReference.kind,
@@ -254,17 +263,21 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     index: number = 1;
     private castStyle: CastStyle;
     private constraintStyle: ConstraintStyle;
+    private sourceAliasStyle: SourceAliasStyle;
+    private orderByDefaultDirectionStyle: OrderByDefaultDirectionStyle;
     private readonly normalizeJoinConditionOrder: boolean;
+    private readonly listContinuationCommentComponents = new WeakSet<SqlComponent>();
     private joinConditionContexts: Array<{ aliasOrder: Map<string, number> }> = [];
 
     constructor(options?: {
         preset?: FormatterConfig,
-        identifierEscape?: { start: string; end: string },
-        identifierEscapeMode?: IdentifierEscapeMode,
+        identifierEscape?: { start: string; end: string; target?: 'all' | 'minimal' },
         parameterSymbol?: string | { start: string; end: string },
         parameterStyle?: 'anonymous' | 'indexed' | 'named',
         castStyle?: CastStyle,
         constraintStyle?: ConstraintStyle,
+        sourceAliasStyle?: SourceAliasStyle,
+        orderByDefaultDirectionStyle?: OrderByDefaultDirectionStyle,
         joinConditionOrderByDeclaration?: boolean,
     }) {
         if (options?.preset) {
@@ -280,11 +293,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         this.identifierDecorator = new IdentifierDecorator({
             start: options?.identifierEscape?.start ?? '"',
-            end: options?.identifierEscape?.end ?? '"'
-        }, options?.identifierEscapeMode ?? 'all');
+            end: options?.identifierEscape?.end ?? '"',
+            target: options?.identifierEscape?.target
+        });
 
         this.castStyle = options?.castStyle ?? 'standard';
         this.constraintStyle = options?.constraintStyle ?? 'postgres';
+        this.sourceAliasStyle = options?.sourceAliasStyle ?? 'as';
+        this.orderByDefaultDirectionStyle = options?.orderByDefaultDirectionStyle ?? 'omit';
         this.normalizeJoinConditionOrder = options?.joinConditionOrderByDeclaration ?? false;
 
         this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
@@ -307,6 +323,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(ArraySliceExpression.kind, (expr) => this.visitArraySliceExpression(expr as ArraySliceExpression));
         this.handlers.set(ArrayIndexExpression.kind, (expr) => this.visitArrayIndexExpression(expr as ArrayIndexExpression));
         this.handlers.set(BetweenExpression.kind, (expr) => this.visitBetweenExpression(expr as BetweenExpression));
+        this.handlers.set(JsonPredicateExpression.kind, (expr) => this.visitJsonPredicateExpression(expr as JsonPredicateExpression));
         this.handlers.set(StringSpecifierExpression.kind, (expr) => this.visitStringSpecifierExpression(expr as StringSpecifierExpression));
         this.handlers.set(TypeValue.kind, (expr) => this.visitTypeValue(expr as TypeValue));
         this.handlers.set(TupleExpression.kind, (expr) => this.visitTupleExpression(expr as TupleExpression));
@@ -365,6 +382,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         this.handlers.set(InsertQuery.kind, (expr) => this.visitInsertQuery(expr as InsertQuery));
         this.handlers.set(InsertClause.kind, (expr) => this.visitInsertClause(expr as InsertClause));
+        this.handlers.set(OnConflictClause.kind, (expr) => this.visitOnConflictClause(expr as OnConflictClause));
         this.handlers.set(UpdateQuery.kind, (expr) => this.visitUpdateQuery(expr as UpdateQuery));
         this.handlers.set(UpdateClause.kind, (expr) => this.visitUpdateClause(expr as UpdateClause));
         this.handlers.set(DeleteQuery.kind, (expr) => this.visitDeleteQuery(expr as DeleteQuery));
@@ -475,6 +493,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitQualifiedName(arg: QualifiedName): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.QualifiedName);
+        const hasOwnComments = this.hasPositionedComments(arg) || this.hasLegacyComments(arg);
 
         if (arg.namespaces) {
             for (let i = 0; i < arg.namespaces.length; i++) {
@@ -501,7 +520,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         arg.name.comments = originalNameLegacyComments;
 
         // Apply the name's comments to the qualified name token
-        if (this.hasPositionedComments(arg.name) || this.hasLegacyComments(arg.name)) {
+        if (!hasOwnComments && (this.hasPositionedComments(arg.name) || this.hasLegacyComments(arg.name))) {
             this.addComponentComments(token, arg.name);
         }
 
@@ -541,6 +560,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (arg.sortDirection && arg.sortDirection !== SortDirection.Ascending) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'desc'));
+        } else if (this.orderByDefaultDirectionStyle === 'explicit') {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'asc'));
         }
 
         if (arg.nullsPosition) {
@@ -551,6 +573,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
                 token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'nulls last'));
             }
+        }
+
+        if (arg.comments && arg.comments.length > 0) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(...this.createInlineCommentSequence(arg.comments));
         }
         return token;
     }
@@ -1101,7 +1128,21 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitColumnReference(arg: ColumnReference): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ColumnReference);
+        const hasOwnComments = this.hasPositionedComments(arg) || this.hasLegacyComments(arg);
+        const originalNamePositionedComments = arg.qualifiedName.name.positionedComments;
+        const originalNameComments = arg.qualifiedName.name.comments;
+
+        if (hasOwnComments) {
+            arg.qualifiedName.name.positionedComments = null;
+            arg.qualifiedName.name.comments = null;
+        }
+
         token.innerTokens.push(arg.qualifiedName.accept(this));
+
+        if (hasOwnComments) {
+            arg.qualifiedName.name.positionedComments = originalNamePositionedComments;
+            arg.qualifiedName.name.comments = originalNameComments;
+        }
 
         this.addComponentComments(token, arg);
 
@@ -1146,6 +1187,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (arg.withOrdinality) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'with ordinality'));
+        }
+
+        if (arg.nullsTreatment) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.nullsTreatment));
         }
 
         if (arg.over) {
@@ -1456,6 +1502,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             innerAfterComments = arg.expression.getPositionedComments('after');
             arg.expression.positionedComments = null;
         }
+        if (hasOwnComments && innerBeforeComments.length > 0) {
+            const innerBeforeSet = new Set(innerBeforeComments);
+            arg.positionedComments = arg.positionedComments
+                ?.map(comment => comment.position === 'after'
+                    ? { ...comment, comments: comment.comments.filter(value => !innerBeforeSet.has(value)) }
+                    : comment)
+                .filter(comment => comment.comments.length > 0) ?? null;
+        }
 
         // Build basic structure first
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
@@ -1536,7 +1590,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         const switchToken = this.visit(arg.switchCase);
-        promotedComments.push(...this.collectCaseLeadingCommentsFromSwitch(switchToken));
 
         if (promotedComments.length > 0) {
             token.innerTokens.push(...promotedComments);
@@ -1950,12 +2003,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Add positioned comments in recorded order
         const beforeComments = arg.getPositionedComments('before');
         const afterComments = arg.getPositionedComments('after');
+        const duplicateCaseAfterComments = arg.value instanceof CaseExpression
+            ? this.collectCaseSelectItemDuplicateAfterComments(arg.value)
+            : new Set<string>();
 
         if (beforeComments.length > 0) {
-            if (arg.value instanceof CaseExpression) {
+            if (arg.value instanceof CaseExpression || this.listContinuationCommentComponents.has(arg)) {
                 const commentBlocks = this.createCommentBlocks(beforeComments);
                 token.innerTokens.push(...commentBlocks);
-                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.commentNewline, ''));
             } else {
                 const commentTokens = this.createInlineCommentSequence(beforeComments);
                 token.innerTokens.push(...commentTokens);
@@ -1965,9 +2020,13 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         token.innerTokens.push(this.visit(arg.value));
 
-        if (afterComments.length > 0 && !isParenExpression) {
+        const visibleAfterComments = arg.value instanceof CaseExpression
+            ? this.filterCaseSelectItemDuplicateAfterComments(afterComments, duplicateCaseAfterComments)
+            : afterComments;
+
+        if (visibleAfterComments.length > 0 && !isParenExpression) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-            const commentTokens = this.createInlineCommentSequence(afterComments);
+            const commentTokens = this.createInlineCommentSequence(visibleAfterComments);
             token.innerTokens.push(...commentTokens);
         }
 
@@ -2055,6 +2114,36 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         return token;
     }
 
+    private collectCaseSelectItemDuplicateAfterComments(value: CaseExpression): Set<string> {
+        const promoted = new Set<string>();
+        if (value.comments) {
+            for (const comment of value.comments) {
+                promoted.add(comment);
+            }
+        }
+        const firstCase = value.switchCase.cases[0];
+        if (firstCase?.positionedComments) {
+            for (const positionedComment of firstCase.positionedComments) {
+                if (positionedComment.position === 'before') {
+                    for (const comment of positionedComment.comments) {
+                        promoted.add(comment);
+                    }
+                }
+            }
+        }
+        return promoted;
+    }
+
+    private filterCaseSelectItemDuplicateAfterComments(afterComments: string[], promoted: Set<string>): string[] {
+        if (afterComments.length === 0) {
+            return afterComments;
+        }
+        if (promoted.size === 0) {
+            return afterComments;
+        }
+        return afterComments.filter(comment => !promoted.has(comment));
+    }
+
     private visitSelectClause(arg: SelectClause): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'select', SqlPrintTokenContainerType.SelectClause);
 
@@ -2095,6 +2184,13 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         for (let i = 0; i < arg.items.length; i++) {
             if (i > 0) {
                 token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                this.listContinuationCommentComponents.add(arg.items[i]);
+                try {
+                    token.innerTokens.push(this.visit(arg.items[i]));
+                } finally {
+                    this.listContinuationCommentComponents.delete(arg.items[i]);
+                }
+                continue;
             }
             token.innerTokens.push(this.visit(arg.items[i]));
         }
@@ -2175,20 +2271,26 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 return token;
             }
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
-            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            this.appendSourceAliasKeyword(token);
             // exclude column aliases
             token.innerTokens.push(arg.aliasExpression.accept(this));
             return token;
         } else {
             // For other source types, just print the alias
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
-            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            this.appendSourceAliasKeyword(token);
             // included column aliases
             token.innerTokens.push(arg.aliasExpression.accept(this));
             return token;
         }
+    }
+
+    private appendSourceAliasKeyword(token: SqlPrintToken): void {
+        if (this.sourceAliasStyle === 'implicit') {
+            return;
+        }
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
     }
 
     public visitFromClause(arg: FromClause): SqlPrintToken {
@@ -2490,6 +2592,15 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     public visitGroupByClause(arg: GroupByClause): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'group by', SqlPrintTokenContainerType.GroupByClause);
+
+        if (arg.mode) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.mode));
+        }
+
+        if (arg.grouping.length === 0) {
+            return token;
+        }
 
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         for (let i = 0; i < arg.grouping.length; i++) {
@@ -2838,6 +2949,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(this.visit(arg.selectQuery));
         }
 
+        if (arg.onConflictClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.onConflictClause.accept(this));
+        }
+
         if (arg.returningClause) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(arg.returningClause.accept(this));
@@ -2846,6 +2962,72 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             SelectQueryWithClauseHelper.setWithClause(selectQuery, extractedWithClause);
         }
         return token;
+    }
+
+    private visitJsonPredicateExpression(arg: JsonPredicateExpression): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.BinaryExpression);
+
+        token.innerTokens.push(this.visit(arg.expression));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.operator, arg.negated ? 'is not' : 'is'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'json'));
+
+        if (arg.jsonType) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.jsonType));
+        }
+
+        if (arg.uniqueKeys) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, `${arg.uniqueKeys} unique keys`));
+        }
+
+        return token;
+    }
+
+    private visitOnConflictClause(arg: OnConflictClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'on conflict', SqlPrintTokenContainerType.OnConflictClause);
+
+        if (arg.target) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            if (arg.targetKind === "constraint") {
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'on constraint'));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            }
+            token.innerTokens.push(arg.target.accept(this));
+        }
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, this.formatOnConflictAction(arg)));
+
+        if (arg.setClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.setClause.accept(this));
+        }
+
+        if (arg.forClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.forClause.accept(this));
+        }
+
+        if (arg.whereClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.whereClause.accept(this));
+        }
+
+        return token;
+    }
+
+    private formatOnConflictAction(arg: OnConflictClause): string {
+        switch (arg.action) {
+            case "nothing":
+                return "do nothing";
+            case "select":
+                return "do select";
+            case "update":
+                return "do update";
+        }
     }
 
     private visitInsertClause(arg: InsertClause): SqlPrintToken {
@@ -2953,6 +3135,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         for (const clause of arg.whenClauses) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(clause.accept(this));
+        }
+
+        if (arg.returningClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.returningClause.accept(this));
         }
 
         return token;
@@ -3143,6 +3330,23 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'returning', SqlPrintTokenContainerType.ReturningClause);
 
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        if (arg.aliases.length > 0) {
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'with'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+            for (let i = 0; i < arg.aliases.length; i++) {
+                if (i > 0) {
+                    token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                }
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.aliases[i].kind));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(this.visit(arg.aliases[i].alias));
+            }
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        }
         for (let i = 0; i < arg.items.length; i++) {
             if (i > 0) {
                 token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());

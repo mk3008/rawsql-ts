@@ -4,10 +4,9 @@
 
 A monorepo for **rawsql-ts**: a SQL-first toolkit for parsing, testing, inspecting, and evolving database applications while keeping raw SQL as a first-class asset.
 
-By parsing SQL into abstract syntax trees, rawsql-ts enables type-safe query building, static validation, and transparent result mapping — all while preserving the expressiveness and control of handwritten SQL. AST-based rewriting also powers Zero Table Dependency (ZTD) testing, which transforms application queries to run against in-memory fixtures instead of physical tables, enabling deterministic unit tests without database setup overhead. The repo additionally covers AST-based impact analysis, deterministic test evidence, schema documentation, and `ztd-cli` workflows for inspection and SQL artifact generation.
+By parsing SQL into abstract syntax trees, rawsql-ts enables type-safe query building, static validation, fixture-backed testing, and transparent result mapping while preserving the expressiveness and control of handwritten SQL. AST-based rewriting also powers Zero Table Dependency (ZTD) testkits, which transform application queries to run against in-memory fixtures instead of physical tables.
 
-The `ztd init` scaffold now starts from a feature-first layout under `src/features/<feature>/` and includes `src/features/smoke/` as the removable teaching feature.
-`src/catalog` may still exist as internal support, but it is no longer the user-facing standard location.
+The former `@rawsql-ts/ztd-cli` package has moved to the Ashiba project as `@ashiba-ts/cli`. Use [mk3008/ashiba](https://github.com/mk3008/ashiba) for SQL-first scaffolding, command-line inspection, optional-condition maintenance, and project lifecycle workflows.
 
 > [!Note]
 > This project is currently in beta. APIs may change until the v1.0 release.
@@ -22,24 +21,23 @@ Use this section as the shortest repo-level map. It is intentionally brief: pack
 |------------|-----------------|------------|
 | SQL parsing and AST rewriting | `rawsql-ts` | [packages/core](./packages/core) |
 | SQL impact analysis / grep | `@rawsql-ts/sql-grep-core` | [packages/sql-grep-core](./packages/sql-grep-core) |
-| Type-safe result mapping | `@rawsql-ts/sql-contract` | [packages/sql-contract](./packages/sql-contract) |
 | Execution helpers | `@rawsql-ts/executor` | [packages/executor](./packages/executor) |
+| Production SQL driver adapter primitives | `@rawsql-ts/driver-adapter-core` | [packages/drivers/driver-adapter-core](./packages/drivers/driver-adapter-core) |
 | ZTD fixture rewriting and testkits | `@rawsql-ts/testkit-*` | [packages/testkit-core](./packages/testkit-core) |
 | Test evidence storage and rendering | `@rawsql-ts/test-evidence-*` | [packages/test-evidence-core](./packages/test-evidence-core) |
 | Schema documentation generation | `@rawsql-ts/ddl-docs-*` | [packages/ddl-docs-cli](./packages/ddl-docs-cli) |
-| ZTD project scaffolding and SQL lifecycle tooling | `@rawsql-ts/ztd-cli` | [packages/ztd-cli/README.md](./packages/ztd-cli/README.md) |
+| Ashiba CLI workflows | `@ashiba-ts/cli` | [mk3008/ashiba](https://github.com/mk3008/ashiba) |
 
 ### Workflow Surfaces
 
-These capabilities are important at the repo level even though they are mostly exposed through `ztd-cli` commands rather than standalone packages.
+These workflows are now owned by Ashiba. rawsql-ts keeps the reusable parser, formatter, testkit, binder, SQL grep, and documentation packages that Ashiba can consume.
 
 | Workflow | Entry point | Why it matters |
 |----------|-------------|----------------|
-| SQL pipeline planning and dry-run optimization analysis | `ztd query plan`, `ztd perf run --dry-run` | Explains how SQL may be decomposed into stages before execution. |
-| SQL impact analysis before schema changes | `ztd query uses` | Supports rename/type-change investigations using AST-based usage analysis. |
-| SQL debug and recovery for long CTE queries | `ztd query outline`, `ztd query lint`, `ztd query slice`, `ztd query patch apply` | Helps isolate and repair problematic query shapes; `ztd query lint --rules join-direction` adds a FK-aware JOIN readability guard. |
-| Explicit-target schema inspection and migration-prep workflow | `ztd ddl diff`, `ztd ddl pull` | Supports safe inspection against explicit target databases and generation of diff / patch SQL artifacts. Applying generated SQL is intentionally out of scope. |
-| Machine-readable CLI automation and telemetry | `ztd --output json`, `ztd describe`, telemetry export modes | Supports AI/tooling integration and timing investigation. |
+| SQL impact analysis before schema changes | `@rawsql-ts/sql-grep-core` / Ashiba query commands | Supports rename/type-change investigations using AST-based usage analysis. |
+| SQL-first optional filter authoring | `rawsql-ts` SSSQL APIs / Ashiba query commands | Keeps optional filters visible in SQL while runtime pruning stays explicit. Runtime no longer injects new filter predicates. |
+| Fixture-backed SQL unit testing | `@rawsql-ts/testkit-*` | Runs SQL against deterministic fixtures without a production database dependency. |
+| Schema documentation generation | `@rawsql-ts/ddl-docs-*` | Generates reviewable Markdown schema documentation from DDL assets. |
 
 ## Packages
 
@@ -50,11 +48,11 @@ These capabilities are important at the repo level even though they are mostly e
 | [rawsql-ts](./packages/core) | ![npm](https://img.shields.io/npm/v/rawsql-ts) | SQL parser and AST transformer. Zero dependencies, browser-ready. |
 | [@rawsql-ts/sql-grep-core](./packages/sql-grep-core) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/sql-grep-core) | Low-dependency SQL usage analysis engine for AST-based schema impact checks. |
 
-### Contract
+### Production Driver Adapters
 
 | Package | Version | Description |
 |---------|---------|-------------|
-| [@rawsql-ts/sql-contract](./packages/sql-contract) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/sql-contract) | Type-safe result mapping for raw SQL queries. Driver and validator agnostic. |
+| [@rawsql-ts/driver-adapter-core](./packages/drivers/driver-adapter-core) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/driver-adapter-core) | Driver-neutral SQL client contract and named-parameter compilation helpers. |
 
 ### Execution
 
@@ -68,8 +66,17 @@ These capabilities are important at the repo level even though they are mostly e
 |---------|---------|-------------|
 | [@rawsql-ts/testkit-core](./packages/testkit-core) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/testkit-core) | Fixture-backed CTE rewriting and schema validation engine. Driver-agnostic ZTD foundation. |
 | [@rawsql-ts/testkit-postgres](./packages/testkit-postgres) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/testkit-postgres) | Postgres-specific CTE rewriting and fixture validation. Works with any executor. |
-| [@rawsql-ts/adapter-node-pg](./packages/adapters/adapter-node-pg) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/adapter-node-pg) | Adapter connecting `pg` (node-postgres) to testkit-postgres. |
+| [@rawsql-ts/adapter-node-pg](./packages/adapters/adapter-node-pg) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/adapter-node-pg) | Testkit adapter connecting `pg` (node-postgres) to `@rawsql-ts/testkit-postgres`; retained under its legacy name until a non-breaking `testkit-adapter-*` alias exists. |
 | [@rawsql-ts/testkit-sqlite](./packages/testkit-sqlite) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/testkit-sqlite) | SQLite-specific CTE rewriting and fixture validation. In-memory testing with `better-sqlite3`. |
+
+### Adapter Package Spaces
+
+`driver-adapter-*` packages are production runtime driver adapters.
+They handle driver mechanics such as named-parameter compilation, placeholder conversion, and row-result normalization without owning ORM behavior or fixture rewriting.
+
+`testkit-adapter-*` packages are test-only adapters that connect concrete drivers to ZTD/testkit fixture rewriting.
+`@rawsql-ts/adapter-node-pg` currently belongs to that testkit adapter role despite its legacy name.
+The planned rename path is to add a non-breaking alias such as `@rawsql-ts/testkit-adapter-node-postgres`, then document `@rawsql-ts/adapter-node-pg` as the legacy compatibility surface.
 
 ### Evidence
 
@@ -85,29 +92,20 @@ These capabilities are important at the repo level even though they are mostly e
 | [@rawsql-ts/ddl-docs-cli](./packages/ddl-docs-cli) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/ddl-docs-cli) | CLI that generates Markdown table definition docs from DDL files. |
 | [@rawsql-ts/ddl-docs-vitepress](./packages/ddl-docs-vitepress) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/ddl-docs-vitepress) | Scaffold generator for VitePress-based database schema documentation sites. |
 
-### CLI
-
-| Package | Version | Description |
-|---------|---------|-------------|
-| [@rawsql-ts/ztd-cli](./packages/ztd-cli) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/ztd-cli) | SQL-first CLI for ZTD workflows, schema inspection, and migration SQL artifact generation. |
-
-For the machine-readable CLI surface, see [ztd-cli Agent Interface](./docs/guide/ztd-cli-agent-interface.md) and [ztd-cli Describe Schema](./docs/guide/ztd-cli-describe-schema.md).
-
 ## Architecture
 
 ```text
 rawsql-ts (core)
 ├─ @rawsql-ts/sql-grep-core
-├─ @rawsql-ts/sql-contract
 ├─ @rawsql-ts/executor
+├─ @rawsql-ts/driver-adapter-core
 ├─ @rawsql-ts/testkit-core
 │  ├─ @rawsql-ts/testkit-postgres
 │  │  └─ @rawsql-ts/adapter-node-pg
 │  └─ @rawsql-ts/testkit-sqlite
 ├─ @rawsql-ts/ddl-docs-cli
 │  └─ @rawsql-ts/ddl-docs-vitepress
-└─ @rawsql-ts/ztd-cli
-   └─ uses @rawsql-ts/sql-grep-core for `query uses`
+└─ consumed by Ashiba for CLI workflows
 ```
 
 ## Quick Start
@@ -116,18 +114,13 @@ rawsql-ts (core)
 npm install rawsql-ts
 ```
 
-See the [Core Package Documentation](./packages/core/README.md) for usage examples and API reference. For reusable AST-based impact analysis, see [@rawsql-ts/sql-grep-core](./packages/sql-grep-core). For repo-level SQL lifecycle workflows, inspection commands, and ZTD project guidance, see [@rawsql-ts/ztd-cli](./packages/ztd-cli/README.md). Deterministic dogfooding spec: [docs/dogfooding/DOGFOODING.md](./docs/dogfooding/DOGFOODING.md).
-
-## Tutorials
-
-- [SQL-first End-to-End Tutorial](./docs/guide/sql-first-end-to-end-tutorial.md) - Walk from DDL to `ztd-config`, `model-gen`, repository wiring, and the first passing smoke test in one focused path.
-- [Migration Repair Loop](./docs/dogfooding/ztd-migration-lifecycle.md) - Repair DDL, SQL, DTO, and migration artifacts with AI after the starter flow is green.
+See the [Core Package Documentation](./packages/core/README.md) for usage examples and API reference. For reusable AST-based impact analysis, see [@rawsql-ts/sql-grep-core](./packages/sql-grep-core). For CLI scaffolding and SQL lifecycle workflows, use [Ashiba](https://github.com/mk3008/ashiba).
 
 ## Intent and Procedure
 
 Treat each query as one unit: 1 SQL file / 1 QuerySpec / 1 repository entrypoint / 1 DTO.
 
-Keep handwritten SQL assets close to each feature in `src/features/<feature>/persistence/` so the SQL, specs, and tests stay in one place.
+Keep handwritten SQL assets close to each feature in `src/features/<feature>/queries/<query>/` so the SQL, boundary contract, and query-local tests stay in one place.
 
 Use this repo by treating DDL and SQL as source assets, and generated specs, repositories, and tests as downstream artifacts that must stay in sync.
 
@@ -160,26 +153,7 @@ volumes:
   ztd-postgres-data:
 ```
 
-Then run `docker compose up -d` and point `ZTD_TEST_DATABASE_URL` at that database for the fixture-backed rewrite path.
-
-## CLI Tool Routing Happy Paths
-
-- SQL pipeline / debug → `ztd query plan <sql-file>`
-- Impact analysis → `ztd query uses <target>`
-- Schema inspection → `ztd ddl diff --url <target>`
-
-For the full routing guide and decision table, see [SQL Tool Happy Paths](./docs/guide/sql-tool-happy-paths.md).
-
-## Database Boundary at a Glance
-
-For repo-level workflows, keep this boundary in mind:
-
-* `ZTD_TEST_DATABASE_URL` is the only implicit database input used by `ztd-cli`
-* `DATABASE_URL` is typically an application/runtime/deployment concern and is not read automatically by `ztd-cli`
-* any non-ZTD database target must be supplied explicitly via `--url` or `--db-*`
-* migration SQL artifacts may be generated by `ztd-cli`, but apply / deployment execution remains outside its ownership
-
-This boundary exists for both AI-driven and human-driven workflows. It keeps test, inspection, and deployment concerns from silently collapsing into a single default database model.
+Then run `docker compose up -d` and point `ZTD_DB_URL` at that database for the fixture-backed rewrite path.
 
 ## Online Demo
 

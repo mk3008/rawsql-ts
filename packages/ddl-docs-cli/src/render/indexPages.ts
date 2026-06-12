@@ -1,6 +1,6 @@
 import path from 'node:path';
-import type { FindingItem, TableDocModel } from '../types';
-import { formatTableCell } from '../utils/markdown';
+import type { FindingItem, TableDocModel, WarningItem } from '../types';
+import { formatCodeCell, formatTableCell } from '../utils/markdown';
 import type { RenderedPage } from './types';
 
 /**
@@ -10,7 +10,9 @@ export function renderIndexPages(
   outDir: string,
   tables: TableDocModel[],
   findings: FindingItem[],
-  tableSuggestSet: Set<string>
+  warnings: WarningItem[],
+  tableSuggestSet: Set<string>,
+  metadata: { getSchemaSummary?: (schema: string) => string } = {}
 ): RenderedPage[] {
   const pages: RenderedPage[] = [];
   const grouped = groupBySchema(tables);
@@ -19,12 +21,17 @@ export function renderIndexPages(
 
   pages.push({
     path: path.join(outDir, 'index.md'),
-    content: renderGlobalIndex(grouped, groupedByInstance),
+    content: renderGlobalIndex(grouped, groupedByInstance, metadata),
   });
 
   pages.push({
     path: path.join(outDir, 'instances.md'),
     content: renderInstanceIndex(groupedByInstance),
+  });
+
+  pages.push({
+    path: path.join(outDir, 'review.md'),
+    content: renderReviewReport(warnings, findings),
   });
 
   for (const [schema, schemaTables] of grouped.entries()) {
@@ -40,29 +47,90 @@ export function renderIndexPages(
 
 function renderGlobalIndex(
   grouped: Map<string, TableDocModel[]>,
-  groupedByInstance: Map<string, TableDocModel[]>
+  groupedByInstance: Map<string, TableDocModel[]>,
+  metadata: { getSchemaSummary?: (schema: string) => string }
 ): string {
   const lines: string[] = [];
   lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
   lines.push('');
   lines.push('# Schema Index');
   lines.push('');
+  lines.push('- [Review Report](./review.md)');
   lines.push('- [References](./references.md)');
-  lines.push('- [Column Index (Alerts)](./columns/index.md)');
+  lines.push('- [Column Index](./columns/index.md)');
   if (groupedByInstance.size > 1 || (groupedByInstance.size === 1 && !groupedByInstance.has(''))) {
     lines.push('- [Instance Index](./instances.md)');
   }
   lines.push('');
   lines.push('## Schemas');
   lines.push('');
-  lines.push('| Schema | Tables |');
-  lines.push('| --- | --- |');
+  lines.push('| Schema | Summary | Tables |');
+  lines.push('| --- | --- | --- |');
 
   for (const [schema, tables] of grouped.entries()) {
     const schemaSlug = tables[0]?.schemaSlug ?? schema;
-    lines.push(`| [${schema}](./${schemaSlug}/index.md) | ${tables.length} |`);
+    const summary = metadata.getSchemaSummary?.(schema) ?? '';
+    lines.push(`| [${schema}](./${schemaSlug}/index.md) | ${formatTableCell(summary) || '-'} | ${tables.length} |`);
   }
 
+  lines.push('');
+  return lines.join('\n');
+}
+
+function renderReviewReport(warnings: WarningItem[], findings: FindingItem[]): string {
+  const lines: string[] = [];
+  lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
+  lines.push('');
+  lines.push('# Review Report');
+  lines.push('');
+  lines.push('This page contains mechanical review signals generated from DDL parsing and column analysis.');
+  lines.push('It is the machine-check layer of review. Use it together with human / AI semantic review against Concept Specs, Process Maps, and DFDs.');
+  lines.push('');
+  lines.push('## Summary');
+  lines.push('');
+  lines.push(`- Parser warnings: ${warnings.length}`);
+  lines.push(`- Column findings: ${findings.length}`);
+  lines.push('');
+  lines.push('## Parser Warnings');
+  lines.push('');
+  if (warnings.length === 0) {
+    lines.push('- None');
+  } else {
+    lines.push('| Kind | Source | Message | Statement |');
+    lines.push('| --- | --- | --- | --- |');
+    for (const warning of warnings) {
+      const source = `${warning.source.filePath}${warning.source.statementIndex != null ? `#${warning.source.statementIndex}` : ''}`;
+      lines.push(
+        `| ${warning.kind} | ${formatCodeCell(source)} | ${formatTableCell(warning.message)} | ${formatCodeCell(warning.statementPreview)} |`
+      );
+    }
+  }
+  lines.push('');
+  lines.push('## Column Findings');
+  lines.push('');
+  if (findings.length === 0) {
+    lines.push('- None');
+  } else {
+    lines.push('| Severity | Kind | Scope | Message |');
+    lines.push('| --- | --- | --- | --- |');
+    for (const finding of findings) {
+      const scopeParts = [
+        finding.scope.schema,
+        finding.scope.table,
+        finding.scope.column,
+        finding.scope.concept ? `concept:${finding.scope.concept}` : undefined,
+      ].filter((item): item is string => Boolean(item));
+      lines.push(
+        `| ${finding.severity} | ${finding.kind} | ${formatCodeCell(scopeParts.join('.') || '-')} | ${formatTableCell(finding.message)} |`
+      );
+    }
+  }
+  lines.push('');
+  lines.push('## Semantic Review Layer');
+  lines.push('');
+  lines.push('Mechanical checks do not prove that the design is conceptually correct.');
+  lines.push('For semantic review, check whether each table, column, index, and constraint is justified by Concept Specs, DFDs, Process Maps, and use cases.');
+  lines.push('The DDL Concept / Process review skill should be used for that inference layer.');
   lines.push('');
   return lines.join('\n');
 }
@@ -73,7 +141,7 @@ function renderInstanceIndex(groupedByInstance: Map<string, TableDocModel[]>): s
   lines.push('');
   lines.push('# Instance Index');
   lines.push('');
-  lines.push('[<- All Schemas](./index.md)');
+  lines.push('[<- Schemas](./index.md)');
   lines.push('');
   lines.push('| Instance | Schemas | Tables |');
   lines.push('| --- | --- | --- |');
@@ -106,8 +174,7 @@ function renderSchemaIndex(
   lines.push('');
   lines.push(`# ${schema} Tables`);
   lines.push('');
-  lines.push('- [<- All Schemas](../index.md)');
-  lines.push('- [Column Index](./columns/index.md)');
+  lines.push('[<- Schemas](../index.md) | [Column Index](./columns/index.md)');
   lines.push('');
   lines.push('| Table | Columns | Comment | Alert | Suggest |');
   lines.push('| --- | --- | --- | --- | --- |');

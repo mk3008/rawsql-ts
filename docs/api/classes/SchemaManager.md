@@ -1,10 +1,10 @@
 <div v-pre>
 # Class: SchemaManager
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:87](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/SchemaManager.ts#L87)
+Defined in: [packages/core/src/utils/SchemaManager.ts:82](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/SchemaManager.ts#L82)
 
 Central schema management utility for rawsql-ts
-Converts user-defined schemas to various internal formats
+Converts user-defined schemas to resolvers consumed by schema-aware utilities
 
 ## Constructors
 
@@ -12,7 +12,7 @@ Converts user-defined schemas to various internal formats
 
 > **new SchemaManager**(`schemas`): `SchemaManager`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:90](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/SchemaManager.ts#L90)
+Defined in: [packages/core/src/utils/SchemaManager.ts:85](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/SchemaManager.ts#L85)
 
 #### Parameters
 
@@ -30,7 +30,7 @@ Defined in: [packages/core/src/utils/SchemaManager.ts:90](https://github.com/mk3
 
 > **getTableColumns**(`tableName`): `string`[]
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:133](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/SchemaManager.ts#L133)
+Defined in: [packages/core/src/utils/SchemaManager.ts:128](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/SchemaManager.ts#L128)
 
 Get table column names for SqlParamInjector TableColumnResolver
 
@@ -54,7 +54,7 @@ Array of column names
 
 > **createTableColumnResolver**(): (`tableName`) => `string`[]
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:145](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/SchemaManager.ts#L145)
+Defined in: [packages/core/src/utils/SchemaManager.ts:140](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/SchemaManager.ts#L140)
 
 Create TableColumnResolver function for SqlParamInjector
 
@@ -76,35 +76,11 @@ Function compatible with SqlParamInjector
 
 ***
 
-### createJsonMapping()
-
-> **createJsonMapping**(`rootTableName`): [`JsonMapping`](../interfaces/JsonMapping.md)
-
-Defined in: [packages/core/src/utils/SchemaManager.ts:154](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/SchemaManager.ts#L154)
-
-Generate JSON mapping configuration for PostgresJsonQueryBuilder
-
-#### Parameters
-
-##### rootTableName
-
-`string`
-
-Root table for the JSON structure
-
-#### Returns
-
-[`JsonMapping`](../interfaces/JsonMapping.md)
-
-JSON mapping configuration
-
-***
-
 ### getTableNames()
 
 > **getTableNames**(): `string`[]
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:210](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/SchemaManager.ts#L210)
+Defined in: [packages/core/src/utils/SchemaManager.ts:148](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/SchemaManager.ts#L148)
 
 Get all table names in the schema
 
@@ -118,9 +94,9 @@ Array of table names
 
 ### getTable()
 
-> **getTable**(`tableName`): `undefined` \| [`TableDefinition`](../interfaces/TableDefinition.md)
+> **getTable**(`tableName`): [`TableDefinition`](../interfaces/TableDefinition.md) \| `undefined`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:219](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/SchemaManager.ts#L219)
+Defined in: [packages/core/src/utils/SchemaManager.ts:157](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/SchemaManager.ts#L157)
 
 Get table definition by name
 
@@ -134,7 +110,7 @@ Name of the table
 
 #### Returns
 
-`undefined` \| [`TableDefinition`](../interfaces/TableDefinition.md)
+[`TableDefinition`](../interfaces/TableDefinition.md) \| `undefined`
 
 Table definition or undefined
 
@@ -142,9 +118,9 @@ Table definition or undefined
 
 ### getPrimaryKey()
 
-> **getPrimaryKey**(`tableName`): `undefined` \| `string`
+> **getPrimaryKey**(`tableName`): `string` \| `undefined`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:229](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/SchemaManager.ts#L229)
+Defined in: [packages/core/src/utils/SchemaManager.ts:167](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/SchemaManager.ts#L167)
 
 Get primary key column name for a table
 Used by QueryBuilder.buildUpdateQuery for WHERE clause conditions
@@ -159,7 +135,7 @@ Name of the table
 
 #### Returns
 
-`undefined` \| `string`
+`string` \| `undefined`
 
 Primary key column name or undefined
 
@@ -169,7 +145,7 @@ Primary key column name or undefined
 
 > **getForeignKeys**(`tableName`): `object`[]
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:244](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/SchemaManager.ts#L244)
+Defined in: [packages/core/src/utils/SchemaManager.ts:182](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/SchemaManager.ts#L182)
 
 Get foreign key relationships for a table
 

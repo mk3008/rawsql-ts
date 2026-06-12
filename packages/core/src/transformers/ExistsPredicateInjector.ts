@@ -10,6 +10,7 @@ import { CTEQuery, ReturningClause, SelectItem, SourceExpression, TableSource, F
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
 import { DeleteQuery } from "../models/DeleteQuery";
+import { MergeQuery } from "../models/MergeQuery";
 import { QueryBuilder } from "./QueryBuilder";
 import { SelectableColumnCollector, DuplicateDetectionMode } from "./SelectableColumnCollector";
 import { UpstreamSelectQueryFinder } from "./UpstreamSelectQueryFinder";
@@ -283,7 +284,7 @@ class ColumnReferenceResolver {
     }
 
     private collectColumnsFromReturning(query: CTEQuery): { name: string; value: ValueComponent }[] {
-        if (query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery) {
+        if (query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery || query instanceof MergeQuery) {
             return this.extractReturningColumns(query.returningClause);
         }
         return [];

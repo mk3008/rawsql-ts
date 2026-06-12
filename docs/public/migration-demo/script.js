@@ -1,13 +1,41 @@
 // Default formatting options
 const defaultFormatOptions = {
     "identifierEscape": "none",
+    "identifierEscapeTarget": "all",
     "parameterSymbol": ":",
     "parameterStyle": "named",
     "indentSize": 4,
-    "keywordCase": "lower",
+    "indentChar": "space",
+    "newline": "lf",
+    "keywordCase": "upper",
+    "commaBreak": "before",
+    "cteCommaBreak": "after",
+    "valuesCommaBreak": "before",
+    "andBreak": "before",
+    "orBreak": "before",
+    "joinOnBreak": "before",
+    "joinConditionContinuationIndent": false,
     "identifierCase": "preserve",
     "expressionWidth": 50,
-    "lineWrapping": false
+    "lineWrapping": false,
+    "exportComment": "full",
+    "commentStyle": "block",
+    "withClauseStyle": "standard",
+    "parenthesesOneLine": true,
+    "indentNestedParentheses": true,
+    "betweenOneLine": true,
+    "valuesOneLine": false,
+    "joinOneLine": true,
+    "caseOneLine": false,
+    "subqueryOneLine": false,
+    "sourceAliasStyle": "as",
+    "orderByDefaultDirectionStyle": "omit",
+    "castStyle": "standard",
+    "constraintStyle": "postgres",
+    "insertColumnsOneLine": true,
+    "whenOneLine": false,
+    "oneLineMaxLength": 100,
+    "joinConditionOrderByDeclaration": false
 };
 
 // Initialize Editors

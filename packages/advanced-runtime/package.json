@@ -1,0 +1,47 @@
+{
+  "name": "@rawsql-ts/advanced-runtime",
+  "version": "0.1.0",
+  "description": "Opt-in advanced runtime SQL helpers for rawsql-ts compatibility and dynamic execution paths.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "keywords": [
+    "rawsql-ts",
+    "sql",
+    "runtime",
+    "sssql",
+    "pipeline",
+    "binder"
+  ],
+  "license": "MIT",
+  "author": "msugiura",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mk3008/rawsql-ts.git",
+    "directory": "packages/advanced-runtime"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vitest": "^4.1.8"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}

@@ -1,0 +1,622 @@
+{
+  "schemaVersion": 1,
+  "metadataLanguagePolicy": "Human-facing summary, designNotes, decision, tradeoff, alternativesRejected, and review notes may use the language of the product documentation. For @rawsql-ts/transfer table review metadata, Japanese is allowed so generated review pages can be read by the product reviewers.",
+  "schemas": {
+    "rawsql_transfer": {
+      "language": "ja",
+      "summary": "Transfer package のマスタ、実行、作業状態、監査用テーブルをまとめるスキーマ。"
+    }
+  },
+  "tables": {
+    "rawsql_transfer.destination_definition": {
+      "designNotes": [
+        "destination_definition は転送先テーブル側の定義を保持するマスタである。",
+        "transfer_model、転送先キー、採番式、赤伝生成に必要な定義は Destination 側の責務として保持する。",
+        "計上下限制御は、transfer が締め管理テーブルや締め判定ロジックを所有するのではなく、アプリケーション側が用意した補正関数を転送SQLへ組み込むためのhookとして保持する。"
+      ],
+      "constraints": {
+        "chk_transfer_destination_transfer_model": {
+          "designNotes": [
+            "Destination の転送モデルは immutable または mutable のどちらかに限定する。転送モデルは後続の赤伝、黒伝更新、物理削除の判断前提になる。"
+          ]
+        },
+        "chk_transfer_destination_generated_red_transfer_sql_status": {
+          "designNotes": [
+            "赤伝転送SQLは Destination 側で生成状態を管理する。not_generated, success, failed に限定し、未生成と生成失敗を区別できるようにする。"
+          ]
+        },
+        "chk_transfer_immutable_sign_inversion_columns_required": {
+          "designNotes": [
+            "immutable transfer model では Red Transfer が成立するために少なくとも1つの符号反転列が必要であるため、DDLで必須条件を保証する。"
+          ]
+        },
+        "chk_transfer_date_lower_bound_adjustments_object": {
+          "designNotes": [
+            "日付下限制御の詳細shapeはアプリケーション固有の補正関数と引数列に依存するため、DDLではJSON objectであることだけを保証する。詳細validationは設定登録時のバリデーションで扱う。"
+          ]
+        }
+      },
+      "columns": {
+        "destination_definition_id": {
+          "sample": 1
+        },
+        "destination_definition_name": {
+          "sample": "journal"
+        },
+        "description": {
+          "sample": "Sales journal destination"
+        },
+        "destination_table_name": {
+          "sample": "public.journal"
+        },
+        "destination_columns": {
+          "sample": {
+            "columns": [
+              {
+                "name": "journal_id",
+                "type": "bigint"
+              },
+              {
+                "name": "amount",
+                "type": "numeric"
+              }
+            ]
+          }
+        },
+        "destination_key_columns": {
+          "sample": [
+            "journal_id"
+          ]
+        },
+        "sequence_expression_definition": {
+          "sample": {
+            "journal_id": "nextval('journal_seq')"
+          }
+        },
+        "transfer_model": {
+          "sample": "immutable"
+        },
+        "sign_inversion_columns": {
+          "sample": [
+            "amount"
+          ]
+        },
+        "date_lower_bound_adjustments": {
+          "sample": {
+            "adjustments": [
+              {
+                "destinationColumn": "journal_date",
+                "functionName": "fn_lower_limit_date",
+                "argumentColumns": [
+                  "shop_id",
+                  "journal_date"
+                ],
+                "adjustmentNotice": {
+                  "destinationColumn": "system_note",
+                  "value": "date lower bound adjusted"
+                }
+              }
+            ]
+          },
+          "designNotes": [
+            "functionName はアプリケーション側が提供する日付補正関数を指す。transfer は締め管理テーブルや締め判定ロジックを所有しない。",
+            "argumentColumns は補正対象となる転送先行の列名であり、黒伝ではmapping後の転送先行、赤伝では元黒から生成される赤伝行の列を参照する。"
+          ]
+        },
+        "generated_red_transfer_sql_body": {
+          "sample": ""
+        },
+        "generated_red_transfer_sql_status": {
+          "sample": "not_generated"
+        },
+        "generated_red_transfer_sql_error": {
+          "sample": null
+        },
+        "created_at": {
+          "sample": "2026-05-09T10:00:00+09:00"
+        },
+        "updated_at": {
+          "sample": "2026-05-09T10:00:00+09:00"
+        },
+        "note": {
+          "sample": "managed by transfer setup"
+        }
+      }
+    },
+    "rawsql_transfer.setting": {
+      "designNotes": [
+        "setting は転送元データソース定義であり、転送実行指示や処理結果ではない。",
+        "source_key_definition は転送元データソースの論理行を識別する正本キー定義として保持する。"
+      ],
+      "columns": {
+        "setting_id": {
+          "sample": 10
+        },
+        "setting_name": {
+          "sample": "sales_journal_source"
+        },
+        "description": {
+          "sample": "Sales source data for journal and balances"
+        },
+        "source_sql_body": {
+          "sample": "select\n  sales_id,\n  nextval('journal_seq') as journal_id,\n  nextval('account_balance_seq') as debit_balance_id,\n  nextval('account_balance_seq') as credit_balance_id,\n  amount\nfrom sales"
+        },
+        "source_sql_hash": {
+          "sample": "sha256:source-sql-body",
+          "designNotes": [
+            "基礎選択SQL本文の変更検知に使う補助値である。転送元データソースの正本は source_sql_body であり、このhashはSQL本文比較を効率化するために保持する。"
+          ]
+        },
+        "source_key_definition": {
+          "sample": {
+            "keys": [
+              {
+                "column": "sales_id",
+                "type": "bigint"
+              }
+            ]
+          }
+        },
+        "source_sql_analysis_result": {
+          "sample": null
+        },
+        "search_condition_analysis_result": {
+          "sample": null
+        },
+        "source_sql_analysis_status": {
+          "sample": "not_analyzed"
+        },
+        "source_sql_analysis_error": {
+          "sample": null
+        },
+        "is_enabled": {
+          "sample": true
+        },
+        "created_at": {
+          "sample": "2026-05-09T10:05:00+09:00"
+        },
+        "updated_at": {
+          "sample": "2026-05-09T10:05:00+09:00"
+        },
+        "note": {
+          "sample": "source SQL includes destination row keys explicitly"
+        }
+      },
+      "constraints": {
+        "chk_setting_source_sql_analysis_status": {
+          "designNotes": [
+            "SQL解析状態は not_analyzed, success, failed に限定する。解析していない状態を success と混同しないため、not_analyzed を明示的な状態として扱う。"
+          ]
+        }
+      }
+    },
+    "rawsql_transfer.destination_link": {
+      "designNotes": [
+        "destination_link は Transfer Setting と Destination の接続単位であり、同じ Destination に対して複数の役割を持つことを許可する。",
+        "destination_link_name は同一 setting 内の人間向け役割名であり、安定参照キーは destination_link_id である。",
+        "mapping と generated transfer SQL は Transfer Setting、Destination、Destination Link の組み合わせで決まるため、このテーブルに保持する。"
+      ],
+      "constraints": {
+        "uq_setting_destination_link_name": {
+          "designNotes": [
+            "同一 Transfer Setting 内で Destination Link の役割名を一意にするための制約である。安定参照キーではない。"
+          ]
+        },
+        "uq_setting_destination_execution_order": {
+          "designNotes": [
+            "同一 Transfer Setting 内の転送順序を一意にし、転送順の曖昧さを避ける。"
+          ]
+        },
+        "uq_destination_link_setting_identity": {
+          "designNotes": [
+            "runtime table から setting_id と destination_link_id の文脈一致を composite FK で検証するための参照先である。"
+          ]
+        },
+        "chk_setting_destination_generated_sql_status": {
+          "designNotes": [
+            "Destination Link が保持する生成済み転送SQLの状態を not_generated, success, failed に限定する。実行時に未生成SQLを成功扱いしないための状態境界である。"
+          ]
+        }
+      },
+      "columns": {
+        "destination_link_id": {
+          "sample": 100
+        },
+        "setting_id": {
+          "sample": 10
+        },
+        "destination_definition_id": {
+          "sample": 1
+        },
+        "destination_link_name": {
+          "sample": "journal"
+        },
+        "execution_order": {
+          "sample": 1
+        },
+        "destination_key_mapping": {
+          "sample": {
+            "sourceKey": [
+              "sales_id"
+            ],
+            "destinationKey": [
+              {
+                "name": "journal_id",
+                "sourceColumn": "journal_id"
+              }
+            ]
+          }
+        },
+        "mapping_definition": {
+          "sample": {
+            "columns": [
+              {
+                "destinationColumn": "journal_id",
+                "sourceColumn": "journal_id"
+              },
+              {
+                "destinationColumn": "amount",
+                "sourceColumn": "amount"
+              }
+            ]
+          }
+        },
+        "diff_compare_excluded_columns": {
+          "sample": {
+            "columns": [
+              "journal_id",
+              "created_at"
+            ]
+          }
+        },
+        "generated_insert_transfer_sql_body": {
+          "sample": ""
+        },
+        "generated_update_transfer_sql_body": {
+          "sample": ""
+        },
+        "generated_delete_transfer_sql_body": {
+          "sample": ""
+        },
+        "generated_sql_status": {
+          "sample": "not_generated"
+        },
+        "generated_sql_error": {
+          "sample": null
+        },
+        "is_enabled": {
+          "sample": true
+        },
+        "created_at": {
+          "sample": "2026-05-09T10:10:00+09:00"
+        },
+        "updated_at": {
+          "sample": "2026-05-09T10:10:00+09:00"
+        },
+        "note": {
+          "sample": "Destination Link role for journal rows"
+        }
+      }
+    },
+    "rawsql_transfer.active_black": {
+      "decision": "active_black は転送プロセス用の current-state table とし、履歴や転送先行からの逆引きは持たせない。",
+      "reviewRisk": "identity-boundary",
+      "conceptRefs": [
+        "active-black"
+      ],
+      "processRefs": [
+        "transfer-execution"
+      ],
+      "tradeoff": [
+        "Destination Link と source key から現在有効な黒伝を高速に見つけるため、source_key_hash をlookup補助値として保持する。",
+        "転送先行からの追跡は lineage に寄せ、active_black には destination_key_hash を持たせない。"
+      ],
+      "alternativesRejected": [
+        "source_key_hash を unique identity に含めない。正本は source_key_json である。",
+        "transfer_run_id や lineage_id を保持しない。active_black の想定ユースケースでは不要である。"
+      ],
+      "designNotes": [
+        "active_black は転送プロセスで使う現在状態テーブルであり、履歴テーブルや監査テーブルではない。",
+        "想定する検索は Destination Link と転送元キーから始まる。一意性は destination_link_id と正本である source_key_json で保証し、source_key_hash は検索前段の絞り込みにだけ使う。",
+        "destination_key_json は、転送元キーによる active_black 検索が成功した後に、Red Transfer、Black Update Transfer、Physical Delete Transfer が現在有効な転送先行を特定できるように保持する。",
+        "destination_key_hash は保持しない。active_black は転送先キーから逆引きするためのテーブルではないため。転送先行からの追跡検索は lineage の責務である。"
+      ],
+      "constraints": {
+        "idx_active_black_source_lookup": {
+          "designNotes": [
+            "転送プロセスの通常検索は destination_link_id と source_key_hash で候補を絞り込むため、このindexは必須の大規模lookup経路である。",
+            "source_key_hash は正本ではないため、このindexだけで同一性を保証しない。最終確認は source_key_json で行う。"
+          ]
+        },
+        "uq_active_black_source": {
+          "designNotes": [
+            "同一 Destination Link 内で、同じ source_key_json に対する有効黒伝は1つだけでなければならない。",
+            "source_key_hash は検索補助値なので、unique identity には含めない。hash値の違いで重複active blackを許さないためである。"
+          ]
+        },
+        "uq_active_black_link_identity": {
+          "designNotes": [
+            "Work Item が参照した active_black と Destination Link の文脈一致を composite FK で検証するための参照先である。"
+          ]
+        }
+      },
+      "columns": {
+        "active_black_id": {
+          "sample": 1001
+        },
+        "destination_link_id": {
+          "sample": 10
+        },
+        "source_key_json": {
+          "sample": {
+            "sales_id": 123
+          },
+          "designNotes": [
+            "この値は、Destination Link 文脈における転送元論理行の正本キーである。"
+          ]
+        },
+        "source_key_hash": {
+          "sample": "sha256:source-key-json",
+          "designNotes": [
+            "このハッシュは、大規模な現在状態検索を現実的にするための前段絞り込み用補助値である。ハッシュ衝突の可能性が理論上あるため、正本としては扱わない。"
+          ]
+        },
+        "destination_key_json": {
+          "sample": {
+            "journal_id": 456
+          },
+          "designNotes": [
+            "このキーは、source key から active_black を見つけた後に使う。既存の転送先行を赤伝、更新、または物理削除の対象として特定する。"
+          ]
+        },
+        "activated_at": {
+          "sample": "2026-05-09T10:30:00+09:00"
+        },
+        "note": {
+          "sample": "manual correction"
+        }
+      }
+    },
+    "rawsql_transfer.dirty_key": {
+      "designNotes": [
+        "dirty_key は外部から登録しやすい変更検知履歴であるため、source_key_hash は持たせない。",
+        "大規模検索が必要な runtime table では hash を持つが、Dirty Key 登録時点では手動登録容易性を優先する。"
+      ],
+      "constraints": {
+        "idx_dirty_key_source_created_at": {
+          "designNotes": [
+            "転送対象候補を発生元テーブルと登録順で読むための基本lookup経路である。"
+          ]
+        }
+      },
+      "columns": {
+        "source_key_json": {
+          "sample": {
+            "sales_id": 123
+          }
+        }
+      }
+    },
+    "rawsql_transfer.run": {
+      "designNotes": [
+        "run は転送実行の引数記録兼プロセスヘッダーであり、Work Item や Lineage の実行文脈になる。",
+        "setting_id は、この実行が対象にする Transfer Setting を固定する。"
+      ],
+      "constraints": {
+        "chk_run_status": {
+          "designNotes": [
+            "Transfer Run の状態は実行全体のライフサイクルを表す。個別Destination Linkや個別source keyの処理結果は Work Item / Dirty Key Processing 側で管理する。"
+          ]
+        },
+        "uq_run_setting_identity": {
+          "designNotes": [
+            "runtime table から run_id と setting_id の文脈一致を composite FK で検証するための参照先である。"
+          ]
+        },
+        "idx_run_setting_created_at": {
+          "designNotes": [
+            "Transfer Setting ごとの実行履歴を時系列に確認するためのlookup経路である。"
+          ]
+        }
+      },
+      "columns": {
+        "run_arguments": {
+          "sample": {
+            "businessDate": "2026-05-01",
+            "manualRun": true
+          }
+        }
+      }
+    },
+    "rawsql_transfer.work_item": {
+      "designNotes": [
+        "work_item は Dirty Key を Transfer Run と Destination Link の文脈で固定化した作業対象である。",
+        "source_key_hash は大規模な作業対象検索の補助値であり、source_key_json が正本である。",
+        "run_id、setting_id、destination_link_id、active_black_id は文脈不整合を避けるため composite FK で整合させる。"
+      ],
+      "constraints": {
+        "chk_work_item_transfer_model": {
+          "designNotes": [
+            "Work Item は評価時点の transfer model を固定化する。後続の転送処理はこの値を参照し、immutable route と mutable route を混同しない。"
+          ]
+        },
+        "chk_work_item_route_type": {
+          "designNotes": [
+            "route_type は Work Item がどの転送モデル側の経路に入るか、または転送不要としてskipされるかを表す。個別操作の有無は requires_* flags と skip_reason で表す。"
+          ]
+        },
+        "fk_work_item_run_setting": {
+          "designNotes": [
+            "Work Item の setting_id が Transfer Run の対象 setting と一致することをDBで保証する。"
+          ]
+        },
+        "fk_work_item_setting_destination_link": {
+          "designNotes": [
+            "Work Item の destination_link_id が同じ setting に属することをDBで保証する。"
+          ]
+        },
+        "fk_work_item_active_black_destination_link": {
+          "designNotes": [
+            "Work Item が参照する active_black が同じ Destination Link 文脈に属することをDBで保証する。"
+          ]
+        },
+        "uq_work_item_run_dirty_destination": {
+          "designNotes": [
+            "同一 Transfer Run 内で同じ Dirty Key と Destination Link の作業対象を重複作成しないための制約である。"
+          ]
+        },
+        "uq_work_item_context_identity": {
+          "designNotes": [
+            "Dirty Key Processing から Work Item 文脈を composite FK で検証するための参照先である。"
+          ]
+        },
+        "uq_work_item_link_context_identity": {
+          "designNotes": [
+            "Lineage から Work Item、Transfer Run、setting、Destination Link の文脈一致を composite FK で検証するための参照先である。"
+          ]
+        },
+        "idx_work_item_destination_source": {
+          "designNotes": [
+            "Destination Link と source_key_hash で作業対象を絞り込むための大規模lookup経路である。最終的な同一性は source_key_json で確認する。"
+          ]
+        }
+      }
+      ,
+      "columns": {
+        "source_key_json": {
+          "sample": {
+            "sales_id": 123
+          }
+        },
+        "source_key_hash": {
+          "sample": "sha256:source-key-json",
+          "designNotes": [
+            "Work Item 作成後の大規模検索を支える前段絞り込み用補助値である。source_key_json が正本であり、hashだけで同一性を確定しない。"
+          ]
+        }
+      }
+    },
+    "rawsql_transfer.lineage": {
+      "designNotes": [
+        "lineage は immutable transfer model の転送先行由来を追跡する監査・デバッグ用テーブルである。",
+        "destination_key_hash と source_key_hash はlookup補助値であり、destination_key_json と source_key_json が正本である。",
+        "転送先行から由来をたどる lookup と、source key から履歴をたどる lookup の両方を想定する。"
+      ],
+      "constraints": {
+        "chk_lineage_operation": {
+          "designNotes": [
+            "Lineage は転送先行を生成した操作を black_insert または red_insert に限定する。mutable update や physical delete はこのLineageの対象外である。"
+          ]
+        },
+        "uq_lineage_destination_row": {
+          "designNotes": [
+            "同じ転送先テーブル上の同じ destination_key_json に対する Lineage は1つだけにする。",
+            "destination_key_hash は検索補助値なので、unique identity には含めない。hash値の違いで重複 Lineage を許さないためである。"
+          ]
+        },
+        "idx_lineage_destination_lookup": {
+          "designNotes": [
+            "転送先行から Lineage を探すための大規模lookup経路である。destination_key_hash で候補を絞り、destination_key_json で最終確認する。"
+          ]
+        },
+        "idx_lineage_destination_source": {
+          "designNotes": [
+            "Destination Link と source_key_hash から関連する Lineage 履歴を探すためのlookup経路である。"
+          ]
+        },
+        "fk_lineage_run_setting": {
+          "designNotes": [
+            "Lineage の setting_id が Transfer Run の対象 setting と一致することをDBで保証する。"
+          ]
+        },
+        "fk_lineage_setting_destination_link": {
+          "designNotes": [
+            "Lineage の destination_link_id が同じ setting に属することをDBで保証する。"
+          ]
+        },
+        "fk_lineage_work_item_context": {
+          "designNotes": [
+            "Lineage が Work Item を参照する場合、Work Item、Transfer Run、setting、Destination Link の文脈が一致することをDBで保証する。"
+          ]
+        }
+      },
+      "columns": {
+        "source_key_json": {
+          "sample": {
+            "sales_id": 123
+          }
+        },
+        "source_key_hash": {
+          "sample": "sha256:source-key-json",
+          "designNotes": [
+            "source key から転送履歴を探すための前段絞り込み用補助値である。source_key_json が正本であり、hashだけで由来を確定しない。"
+          ]
+        },
+        "destination_key_json": {
+          "sample": {
+            "journal_id": 456
+          }
+        },
+        "destination_key_hash": {
+          "sample": "sha256:destination-key-json",
+          "designNotes": [
+            "転送先行からLineageを探すための前段絞り込み用補助値である。destination_key_json が正本であり、unique identity には含めない。"
+          ]
+        }
+      }
+    },
+    "rawsql_transfer.dirty_key_processing": {
+      "designNotes": [
+        "dirty_key_processing は Dirty Key を Destination Link 文脈で処理済みにする記録であり、二重転送防止の正本である。",
+        "source_key_hash は処理済み記録の検索補助値であり、source_key_json が正本である。",
+        "run_id、setting_id、destination_link_id、work_item_id は文脈不整合を避けるため composite FK で整合させる。"
+      ],
+      "constraints": {
+        "chk_dirty_key_processing_status": {
+          "designNotes": [
+            "Dirty Key Processing は処理済み記録であるため、状態は succeeded, failed, skipped に限定する。pending は処理済み記録ではないため含めない。"
+          ]
+        },
+        "uq_dirty_key_processing_final": {
+          "designNotes": [
+            "成功またはスキップとして確定した Dirty Key は、同じ Destination Link 文脈で再処理しないための制約である。",
+            "failed は再実行余地を残すため、この partial unique の対象外にする。pending は処理済み記録ではないため、このテーブルの状態値には含めない。"
+          ]
+        },
+        "idx_dirty_key_processing_destination_source": {
+          "designNotes": [
+            "Destination Link と source_key_hash から処理済み記録を探すための大規模lookup経路である。"
+          ]
+        },
+        "fk_dirty_key_processing_run_setting": {
+          "designNotes": [
+            "Dirty Key Processing の setting_id が Transfer Run の対象 setting と一致することをDBで保証する。"
+          ]
+        },
+        "fk_dirty_key_processing_setting_destination_link": {
+          "designNotes": [
+            "Dirty Key Processing の destination_link_id が同じ setting に属することをDBで保証する。"
+          ]
+        },
+        "fk_dirty_key_processing_work_item_context": {
+          "designNotes": [
+            "Dirty Key Processing が参照する Work Item と、run、Dirty Key、setting、Destination Link の文脈が一致することをDBで保証する。"
+          ]
+        }
+      },
+      "columns": {
+        "source_key_json": {
+          "sample": {
+            "sales_id": 123
+          }
+        },
+        "source_key_hash": {
+          "sample": "sha256:source-key-json",
+          "designNotes": [
+            "処理済み記録をsource keyで検索するための前段絞り込み用補助値である。source_key_json が正本であり、hashだけで処理済み判定を確定しない。"
+          ]
+        }
+      }
+    }
+  }
+}

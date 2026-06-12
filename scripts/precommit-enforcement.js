@@ -45,6 +45,10 @@ function isPerfEvidenceFile(filePath) {
   );
 }
 
+function isLocalTaskLedgerFile(filePath) {
+  return /(?:^|\/)tmp\/(?:.+\/)?PLAN\.md$/u.test(filePath);
+}
+
 function fileContainsTelemetryHook(filePath, readFile = defaultReadFile) {
   const contents = readFile(filePath);
   return /(resolveRepositoryTelemetry|RepositoryTelemetry|repositoryTelemetry)/u.test(contents);
@@ -64,6 +68,15 @@ function collectPolicyViolations(stagedFiles, options = {}) {
   const perfSensitiveFiles = normalizedFiles.filter(isPerfSensitiveSourceFile);
   const stagedTestFiles = normalizedFiles.filter(isTestFile);
   const perfEvidenceFiles = normalizedFiles.filter(isPerfEvidenceFile);
+  const localTaskLedgerFiles = normalizedFiles.filter(isLocalTaskLedgerFile);
+
+  if (localTaskLedgerFiles.length > 0) {
+    violations.push([
+      'Local task ledgers under tmp/ must not be committed.',
+      `Remove these staged ledger files: ${localTaskLedgerFiles.join(', ')}`,
+      'Keep task state in tmp/PLAN.md locally, but unstage it before committing.',
+    ].join(' '));
+  }
 
   // QuerySpec additions or edits must travel with executable tests in the same commit.
   if (querySpecFiles.length > 0 && stagedTestFiles.length === 0) {
@@ -132,6 +145,7 @@ module.exports = {
   getStagedFiles,
   isPerfEvidenceFile,
   isPerfSensitiveSourceFile,
+  isLocalTaskLedgerFile,
   isQuerySpecFile,
   isRepositorySourceFile,
   isTestFile,

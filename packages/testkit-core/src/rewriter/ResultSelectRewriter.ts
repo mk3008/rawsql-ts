@@ -57,11 +57,19 @@ import type {
 } from 'rawsql-ts';
 import type { FixtureResolver, TableRowsFixture } from '../types';
 import { TableNameResolver } from '../fixtures/TableNameResolver';
+import {
+  collectSelectReservationNames,
+  createCollisionAwareFixtureAliasMap,
+  rewriteSelectFixtureReferences,
+} from './fixtureAliasing';
+import { DdlViewCatalog } from '../fixtures/DdlViewCatalog';
+import type { DdlViewDefinition, ViewCteDefinition } from '../fixtures/DdlViewCatalog';
 
 interface RewriteInputs {
   fixtureTables: ReturnType<FixtureResolver['resolve']>['fixtureTables'];
   tableDefinitions: TableDefinitionRegistry;
   fixturesApplied: string[];
+  viewDefinitions: DdlViewDefinition[];
 }
 
 interface RewriteResult {
@@ -80,7 +88,8 @@ export class ResultSelectRewriter {
     private readonly fixtures: FixtureResolver,
     private readonly missingFixtureStrategy: MissingFixtureStrategy = 'error',
     formatterOptions?: SqlFormatterOptions,
-    private readonly tableNameResolver?: TableNameResolver
+    private readonly tableNameResolver?: TableNameResolver,
+    private readonly viewDefinitions: DdlViewDefinition[] = []
   ) {
     this.formatter = new SqlFormatter({
       preset: 'postgres',
@@ -129,6 +138,7 @@ export class ResultSelectRewriter {
       fixtureTables: snapshot.fixtureTables,
       tableDefinitions: snapshot.tableDefinitions,
       fixturesApplied: snapshot.fixturesApplied,
+      viewDefinitions: this.viewDefinitions,
     };
   }
 
@@ -146,7 +156,10 @@ export class ResultSelectRewriter {
       return { sql: null, sourceCommand: null, isCountWrapper: false };
     }
 
-    this.rewriteSchemaQualifiers(converted.sql, inputs.fixtureTables);
+    if (converted.sourceCommand !== 'select' && converted.sourceCommand !== 'create') {
+      const aliasMap = this.buildCollisionAwareAliasMap(converted.sql, inputs.fixtureTables);
+      this.rewriteSchemaQualifiers(converted.sql, aliasMap);
+    }
 
     const formattedSql = this.formatter.format(converted.sql).formattedSql.trim();
     return { sql: formattedSql, sourceCommand: converted.sourceCommand, isCountWrapper: converted.isCountWrapper };
@@ -196,7 +209,7 @@ export class ResultSelectRewriter {
 
     if (statement instanceof SimpleSelectQuery) {
       return {
-        sql: this.injectFixtures(statement, inputs.fixtureTables),
+        sql: this.injectFixtures(statement, inputs.fixtureTables, inputs.viewDefinitions),
         sourceCommand: 'select',
         isCountWrapper: false,
       };
@@ -206,7 +219,7 @@ export class ResultSelectRewriter {
       // Normalize complex select shapes into a simple query so fixture CTEs can be prefixed consistently.
       const simple = QueryBuilder.buildSimpleQuery(statement);
       return {
-        sql: this.injectFixtures(simple, inputs.fixtureTables),
+        sql: this.injectFixtures(simple, inputs.fixtureTables, inputs.viewDefinitions),
         sourceCommand: 'select',
         isCountWrapper: false,
       };
@@ -218,7 +231,7 @@ export class ResultSelectRewriter {
         const innerSimple = statement.asSelectQuery instanceof SimpleSelectQuery
           ? statement.asSelectQuery
           : QueryBuilder.buildSimpleQuery(statement.asSelectQuery);
-        statement.asSelectQuery = this.injectFixtures(innerSimple, inputs.fixtureTables);
+        statement.asSelectQuery = this.injectFixtures(innerSimple, inputs.fixtureTables, inputs.viewDefinitions);
         return { sql: statement, sourceCommand: 'create', isCountWrapper: false };
       }
       return { sql: null, sourceCommand: null, isCountWrapper: false };
@@ -227,25 +240,44 @@ export class ResultSelectRewriter {
     return { sql: null, sourceCommand: null, isCountWrapper: false };
   }
 
-  private injectFixtures(select: SimpleSelectQuery, fixtures: FixtureTableDefinition[]): SimpleSelectQuery {
-    const targetedFixtures = this.filterFixturesForQuery(select, fixtures);
-    if (targetedFixtures.length === 0) {
+  private injectFixtures(
+    select: SimpleSelectQuery,
+    fixtures: FixtureTableDefinition[],
+    viewDefinitions: DdlViewDefinition[]
+  ): SimpleSelectQuery {
+    const viewCatalog = new DdlViewCatalog(viewDefinitions, { tableNameResolver: this.tableNameResolver });
+    const referencedNames = this.collectReferencedTableNames(select);
+    const existingCteNames = new Set((select.withClause?.tables ?? []).map((cte) => normalizeTableName(cte.aliasExpression.table.name)));
+    const viewTargets = viewCatalog.expandReferencedViews(referencedNames, existingCteNames);
+    const viewReferencedNames = viewCatalog.collectReferencedTables(viewTargets);
+    const targetedFixtures = this.filterFixturesForQuery([...referencedNames, ...viewReferencedNames], fixtures, viewCatalog);
+    if (targetedFixtures.length === 0 && viewTargets.length === 0) {
       return select;
     }
 
+    const aliasMap = this.buildCollisionAwareAliasMap(select, targetedFixtures);
+    const viewAliasMap = viewCatalog.createAliasMap(viewTargets);
+    const rewriteAliasMap = new Map([...aliasMap, ...viewAliasMap]);
     const ctes = FixtureCteBuilder.buildFixtures(targetedFixtures);
-    this.applyFixtureAliases(ctes, targetedFixtures);
+    this.applyFixtureAliases(ctes, aliasMap);
+    const viewCtes = viewCatalog.toCteDefinitions(viewTargets);
+    this.rewriteViewCteReferences(viewCtes, rewriteAliasMap);
+    const viewCommonTables = viewCtes.map((cte) => new CommonTable(cte.query, cte.name, null));
+    const injectedCtes = [...ctes, ...viewCommonTables];
+    rewriteSelectFixtureReferences(select, rewriteAliasMap, this.tableNameResolver);
     if (!select.withClause) {
-      select.appendWith(ctes);
+      select.appendWith(injectedCtes);
       return select;
     }
 
-    select.withClause.tables = [...ctes, ...select.withClause.tables];
+    select.withClause.tables = [...injectedCtes, ...select.withClause.tables];
     return select;
   }
 
-  private applyFixtureAliases(ctes: CommonTable[], fixtures: FixtureTableDefinition[]): void {
-    const aliasMap = this.buildFixtureAliasMap(fixtures);
+  private applyFixtureAliases(ctes: CommonTable[], aliasMap: Map<string, string>): void {
+    if (aliasMap.size === 0) {
+      return;
+    }
 
     for (const cte of ctes) {
       const alias = aliasMap.get(this.getPrimaryKey(cte.aliasExpression.table.name));
@@ -258,41 +290,84 @@ export class ResultSelectRewriter {
     }
   }
 
-  private buildFixtureAliasMap(fixtures: FixtureTableDefinition[]): Map<string, string> {
-    const aliasMap = new Map<string, string>();
-    for (const fixture of fixtures) {
-      aliasMap.set(this.getPrimaryKey(fixture.tableName), this.buildFixtureAlias(fixture.tableName));
+  private buildCollisionAwareAliasMap(
+    component: SqlComponent,
+    fixtures: FixtureTableDefinition[]
+  ): Map<string, string> {
+    const selectQuery = this.toSimpleSelectQuery(component);
+    const reservedNames = selectQuery
+      ? collectSelectReservationNames(selectQuery)
+      : {
+          sourceNames: new Set<string>(),
+          sourceAliases: new Set<string>(),
+          cteNames: new Set<string>(),
+        };
+    return createCollisionAwareFixtureAliasMap(
+      fixtures.map((fixture) => fixture.tableName),
+      reservedNames,
+      this.tableNameResolver
+    );
+  }
+
+  private toSimpleSelectQuery(component: SqlComponent): SimpleSelectQuery | null {
+    if (component instanceof SimpleSelectQuery) {
+      return component;
     }
-    return aliasMap;
+
+    if (component instanceof BinarySelectQuery) {
+      return component.toSimpleQuery();
+    }
+
+    if (component instanceof ValuesQuery) {
+      return QueryBuilder.buildSimpleQuery(component);
+    }
+
+    if (component instanceof CreateTableQuery && component.asSelectQuery) {
+      return component.asSelectQuery instanceof SimpleSelectQuery
+        ? component.asSelectQuery
+        : QueryBuilder.buildSimpleQuery(component.asSelectQuery);
+    }
+
+    return null;
   }
 
-  private buildFixtureAlias(tableName: string): string {
-    // Use normalized names and replace dots with underscores so the alias remains a single identifier without schema separators.
-    return normalizeTableName(tableName).replace(/\./g, '_');
-  }
-
-  private filterFixturesForQuery(query: SelectQuery, fixtures: FixtureTableDefinition[]): FixtureTableDefinition[] {
+  private filterFixturesForQuery(
+    tableNames: string[],
+    fixtures: FixtureTableDefinition[],
+    viewCatalog: DdlViewCatalog
+  ): FixtureTableDefinition[] {
     if (fixtures.length === 0) {
       return [];
     }
 
-    const referenced = this.collectReferencedTableKeys(query);
+    const referenced = new Set<string>();
+    for (const tableName of tableNames) {
+      if (viewCatalog.hasView(tableName)) {
+        continue;
+      }
+      for (const candidate of this.getLookupCandidates(tableName)) {
+        referenced.add(candidate);
+      }
+    }
 
     return fixtures.filter((fixture) =>
       this.getLookupCandidates(fixture.tableName).some((variant) => referenced.has(variant))
     );
   }
 
-  // Capture every canonical key referenced by the query so fixtures can be matched even when schemas differ.
-  private collectReferencedTableKeys(query: SelectQuery): Set<string> {
+  private collectReferencedTableNames(query: SelectQuery): string[] {
     const collector = new TableSourceCollector(false);
     const referenced = new Set<string>();
     for (const source of collector.collect(query)) {
-      for (const candidate of this.getLookupCandidates(source.getSourceName())) {
-        referenced.add(candidate);
-      }
+      referenced.add(source.getSourceName().toLowerCase());
     }
-    return referenced;
+    return [...referenced];
+  }
+
+  private rewriteViewCteReferences(viewCtes: ViewCteDefinition[], aliasMap: Map<string, string>): void {
+    for (const cte of viewCtes) {
+      rewriteSelectFixtureReferences(cte.query, aliasMap, this.tableNameResolver);
+    }
   }
 
   // Provide all candidate keys to consult when looking up tables in maps or registries.
@@ -331,39 +406,8 @@ export class ResultSelectRewriter {
   }
 
 
-  private rewriteSchemaQualifiers(component: SqlComponent, fixtures: FixtureTableDefinition[]): void {
-    const fixtureAliasMap = this.buildFixtureAliasMap(fixtures);
-    if (fixtureAliasMap.size === 0) {
-      return;
-    }
-
-    // Collect every table occurrence so self-joins rewrite each source.
-    const collector = new TableSourceCollector(false, false);
-    for (const source of collector.collect(component)) {
-      const referencedName = this.getPrimaryKey(source.getSourceName());
-      const alias = fixtureAliasMap.get(referencedName);
-      if (!alias) {
-        continue;
-      }
-
-      // Update table references so the rewritten SQL always uses the fixture alias rather than the physical schema-qualified table.
-      source.qualifiedName.namespaces = null;
-      source.qualifiedName.name = new IdentifierString(alias);
-    }
-
-    const columnQuery =
-      component instanceof SimpleSelectQuery
-        ? component
-        : component instanceof BinarySelectQuery
-          ? component.toSimpleQuery()
-          : null;
-
-    if (!columnQuery) {
-      return;
-    }
-
-    // Traverse the query tree and reroute every column reference so it targets the fixture alias.
-    this.rewriteColumnReferencesInQuery(columnQuery, fixtureAliasMap);
+  private rewriteSchemaQualifiers(component: SqlComponent, aliasMap: Map<string, string>): void {
+    rewriteSelectFixtureReferences(component, aliasMap, this.tableNameResolver);
   }
 
   private rewriteColumnReferencesInQuery(query: SimpleSelectQuery, aliasMap: Map<string, string>): void {

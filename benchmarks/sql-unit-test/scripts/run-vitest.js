@@ -8,7 +8,7 @@ const generatedPath = join(benchRoot, 'tests', 'generated', 'ztd-row-map.generat
 if (!existsSync(generatedPath)) {
   console.log('Skipping benchmark tests because generated fixtures are missing.')
   console.log(
-    'Run `cd benchmarks/sql-unit-test`, then `npx ztd ztd-config`, and after generation rerun `pnpm bench:test`.'
+    'Generate the benchmark fixtures with Ashiba or restore tests/generated/ztd-row-map.generated.ts, then rerun `pnpm bench:test`.'
   )
   process.exit(0)
 }

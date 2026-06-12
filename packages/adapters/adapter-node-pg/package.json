@@ -1,12 +1,12 @@
 {
   "name": "@rawsql-ts/adapter-node-pg",
-  "version": "0.15.5",
-  "description": "Node pg adapter that connects PostgreSQL fixtures to @rawsql-ts/testkit-postgres.",
+  "version": "0.15.12",
+  "description": "Testkit adapter that connects node-postgres pg clients and pools to @rawsql-ts/testkit-postgres fixture rewriting.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const npm=process.platform==='win32'?'npm.cmd':'npm';if(!fs.existsSync('dist/index.js')){process.exit(cp.spawnSync(npm,['run','build'],{stdio:'inherit'}).status??1)}\"",
-    "build": "pnpm --filter rawsql-ts run build && pnpm --filter @rawsql-ts/sql-contract run build && pnpm --filter @rawsql-ts/testkit-core run build && pnpm --filter @rawsql-ts/testkit-postgres run build && pnpm --filter @rawsql-ts/shared-binder run build && tsc -p tsconfig.build.json",
+    "build": "pnpm --filter rawsql-ts run build && pnpm --filter @rawsql-ts/testkit-core run build && pnpm --filter @rawsql-ts/testkit-postgres run build && pnpm --filter @rawsql-ts/shared-binder run build && tsc -p tsconfig.build.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src tests --ext .ts",
@@ -14,6 +14,7 @@
   },
   "keywords": [
     "postgres",
+    "testkit-adapter",
     "adapter",
     "fixtures",
     "rawsql"
@@ -32,23 +33,23 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/testkit-postgres": "^0.15.4",
-    "@rawsql-ts/testkit-core": "^0.16.1",
     "@rawsql-ts/shared-binder": "^0.0.1",
+    "@rawsql-ts/testkit-core": "^0.17.3",
+    "@rawsql-ts/testkit-postgres": "^0.16.3",
     "pg": "^8.13.1",
-    "rawsql-ts": "^0.17.0"
+    "rawsql-ts": "^0.24.0"
   },
   "devDependencies": {
     "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
     "@prisma/client-runtime-utils": "^7.2.0",
+    "@testcontainers/postgresql": "^12.0.1",
     "@types/pg": "^8.15.6",
-    "@testcontainers/postgresql": "^11.11.0",
-    "drizzle-orm": "^0.31.2",
+    "drizzle-orm": "^0.45.2",
     "prisma": "^7.2.0",
-    "testcontainers": "^11.11.0",
+    "testcontainers": "^12.0.1",
     "typescript": "^5.8.2",
-    "vitest": "^4.0.7"
+    "vitest": "^4.1.8"
   },
   "files": [
     "dist"

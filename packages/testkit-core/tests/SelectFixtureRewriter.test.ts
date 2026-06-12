@@ -1,5 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SelectFixtureRewriter } from '../src/rewriter/SelectFixtureRewriter';
+import { SelectAnalyzer } from '../src/rewriter/SelectAnalyzer';
+import { TableNameResolver } from '../src/fixtures/TableNameResolver';
 import type { SchemaRegistry, TableSchemaDefinition } from '../src/types';
 
 const schema: Record<string, TableSchemaDefinition> = {
@@ -22,6 +24,10 @@ const registry: SchemaRegistry = {
 };
 
 describe('SelectFixtureRewriter', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('injects fixture CTE definitions for referenced tables', () => {
     const rewriter = new SelectFixtureRewriter({
       fixtures: [
@@ -346,6 +352,75 @@ SELECT id, name FROM users -- trailing`;
     expect(result.fixturesApplied).toEqual([]);
   });
 
+  it('injects DDL-derived view CTE shadows over fixture-backed base tables', () => {
+    const resolver = new TableNameResolver({ defaultSchema: 'public', searchPath: ['public'] });
+    const rewriter = new SelectFixtureRewriter({
+      tableNameResolver: resolver,
+      fixtures: [
+        {
+          tableName: 'public.users',
+          rows: [
+            { id: 1, name: 'Alice', role: 'admin' },
+            { id: 2, name: 'Bob', role: 'user' },
+          ],
+          schema: schema.users,
+        },
+      ],
+      views: [
+        {
+          name: 'public.active_users',
+          cteName: 'active_users',
+          sql: "SELECT id, name FROM public.users WHERE role = 'admin'",
+        },
+      ],
+    });
+
+    const result = rewriter.rewrite('SELECT id, name FROM public.active_users');
+    const normalized = result.sql.toLowerCase();
+
+    expect(normalized).toContain('with "public_users" as');
+    expect(normalized).toContain('"active_users" as');
+    expect(normalized).toContain('from "public_users"');
+    expect(normalized).toContain('select "id", "name" from "active_users"');
+    expect(result.fixturesApplied).toEqual(['public.users']);
+    expect(result.sql.indexOf('"public_users" as')).toBeLessThan(result.sql.indexOf('"active_users" as'));
+  });
+
+  it('rewrites multi-level DDL view dependencies in dependency order', () => {
+    const resolver = new TableNameResolver({ defaultSchema: 'public', searchPath: ['public'] });
+    const rewriter = new SelectFixtureRewriter({
+      tableNameResolver: resolver,
+      fixtures: [
+        {
+          tableName: 'public.users',
+          rows: [{ id: 1, name: 'Alice', role: 'admin' }],
+          schema: schema.users,
+        },
+      ],
+      views: [
+        {
+          name: 'public.active_users',
+          cteName: 'active_users',
+          sql: "SELECT id, name FROM public.users WHERE role = 'admin'",
+        },
+        {
+          name: 'public.active_user_names',
+          cteName: 'active_user_names',
+          sql: 'SELECT name FROM public.active_users',
+        },
+      ],
+    });
+
+    const result = rewriter.rewrite('SELECT name FROM public.active_user_names');
+    const normalized = result.sql.toLowerCase();
+
+    expect(normalized).toContain('"active_users" as');
+    expect(normalized).toContain('"active_user_names" as');
+    expect(normalized).toContain('from "active_users"');
+    expect(normalized).toContain('select "name" from "active_user_names"');
+    expect(result.sql.indexOf('"active_users" as')).toBeLessThan(result.sql.indexOf('"active_user_names" as'));
+  });
+
   it('injects all fixtures via regex when analyzer failure behavior is inject', () => {
     const rewriter = new SelectFixtureRewriter({
       fixtures: [
@@ -368,6 +443,36 @@ SELECT id, name FROM users -- trailing`;
     expect(result.sql).toContain('"orders" AS');
     expect(result.sql.toLowerCase()).toContain('insert into audit_log');
     expect(result.fixturesApplied).toEqual(['users', 'orders']);
+  });
+
+  it('fails fast for SELECT-style analyzer failures even when inject is enabled', () => {
+    vi.spyOn(SelectAnalyzer.prototype, 'analyze').mockImplementation(() => {
+      throw new Error('analyzer exploded');
+    });
+
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'app.users',
+          rows: [{ id: 1, name: 'Alice' }],
+          schema: {
+            columns: {
+              id: 'INTEGER',
+              name: 'TEXT',
+            },
+          },
+        },
+      ],
+      analyzerFailureBehavior: 'inject',
+    });
+
+    const sql = `
+      SELECT u.id, o.total
+      FROM app.users u
+      JOIN orders o ON u.id = o.user_id
+    `;
+
+    expect(() => rewriter.rewrite(sql)).toThrowError(/fail-fast/i);
   });
 
   it('bypasses DCL statements but still rewrites subsequent SELECT statements', () => {

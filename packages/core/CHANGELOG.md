@@ -1,5 +1,122 @@
 # rawsql-ts
 
+## 0.24.3
+
+### Patch Changes
+
+- [#884](https://github.com/mk3008/rawsql-ts/pull/884) [`767e9be`](https://github.com/mk3008/rawsql-ts/commit/767e9beb2c0debcdd432b9fbb38db7259b8e54d3) Thanks [@mk3008](https://github.com/mk3008)! - Fix SQL formatter comment handling for comma-prefixed expressions, LIMIT/OFFSET values, function arguments, and parenthesized predicates. Comments are no longer duplicated around function arguments, ORDER BY/GROUP BY items, and parenthesized WHERE predicates, comments after HAVING/JOIN ON/LIMIT/OFFSET keywords are preserved, commented function arguments expand to a readable multiline layout, comments after AND/OR operators indent the following predicate, and comments after list commas now use readable before-comma and after-comma layouts for SELECT, ORDER BY, and GROUP BY items.
+
+- [#887](https://github.com/mk3008/rawsql-ts/pull/887) [`53387e3`](https://github.com/mk3008/rawsql-ts/commit/53387e3603ae98ef8396c322ad8fe69913bd5775) Thanks [@mk3008](https://github.com/mk3008)! - Preserve comments attached to ORDER BY direction and NULLS modifiers next to the rendered order expression.
+  Keep comments between CASE and the first WHEN inside the CASE expression instead of moving them outside the CASE item.
+
+## 0.24.2
+
+### Patch Changes
+
+- [#875](https://github.com/mk3008/rawsql-ts/pull/875) [`a11cd0b`](https://github.com/mk3008/rawsql-ts/commit/a11cd0bc15e80c46ee789354e720da39c0c7dc2e) Thanks [@mk3008](https://github.com/mk3008)! - Add the `oneLineMaxLength` formatter option. When enabled, opt-in one-line constructs such as parentheses, CASE expressions, JOIN conditions, subqueries, and `cte-oneline` CTE entries stay compact only while their rendered candidate fits within the configured width; longer candidates fall back to the normal multiline formatter.
+
+  Also add JOIN condition layout controls: `joinOnBreak: "before"` can place `ON` on its own indented line, and `joinConditionContinuationIndent` can indent wrapped `AND` / `OR` predicates inside `JOIN ... ON` conditions.
+
+## 0.24.1
+
+### Patch Changes
+
+- [#868](https://github.com/mk3008/rawsql-ts/pull/868) [`7e5b487`](https://github.com/mk3008/rawsql-ts/commit/7e5b487716c64575df19706d04994085133ed944) Thanks [@mk3008](https://github.com/mk3008)! - Fix PostgreSQL empty array constructor parsing inside function arguments so `array[]::text[]` formats as an array cast instead of a quoted identifier cast.
+
+  Add `sourceAliasStyle: "implicit"` formatting support so callers can avoid inserting optional `AS` keywords for `FROM`/`JOIN` source aliases when they need token-stable formatting.
+
+  Add `orderByDefaultDirectionStyle: "explicit"` formatting support so callers can preserve explicit `ASC` directions during token-stable formatting.
+
+## 0.24.0
+
+### Minor Changes
+
+- [#865](https://github.com/mk3008/rawsql-ts/pull/865) [`9015a07`](https://github.com/mk3008/rawsql-ts/commit/9015a07e1b0439b33acabf88ee70d7aabe232877) Thanks [@mk3008](https://github.com/mk3008)! - Add parser and formatter support for PostgreSQL 16 SQL/JSON predicates and constructor argument syntax.
+
+- [#865](https://github.com/mk3008/rawsql-ts/pull/865) [`2e96245`](https://github.com/mk3008/rawsql-ts/commit/2e96245225bb14e5bcec65ae142de877c2494814) Thanks [@mk3008](https://github.com/mk3008)! - Add parser and formatter support for PostgreSQL 18 `RETURNING WITH (OLD AS ..., NEW AS ...)` aliases.
+
+- [#865](https://github.com/mk3008/rawsql-ts/pull/865) [`acc43be`](https://github.com/mk3008/rawsql-ts/commit/acc43bef9c028094859daa1e7c330b128f071a5b) Thanks [@mk3008](https://github.com/mk3008)! - Add parser and formatter support for PostgreSQL 19 query syntax, including `INSERT ... ON CONFLICT DO SELECT`, `INSERT ... ON CONFLICT DO UPDATE`, `GROUP BY ALL`, and window function `IGNORE NULLS` / `RESPECT NULLS` clauses.
+
+### Patch Changes
+
+- [#865](https://github.com/mk3008/rawsql-ts/pull/865) [`bc7b439`](https://github.com/mk3008/rawsql-ts/commit/bc7b4398b1dc59cca12e6e5789dc3daa42ab4476) Thanks [@mk3008](https://github.com/mk3008)! - Add regression coverage for PostgreSQL 17 `MERGE` extensions, including `WHEN NOT MATCHED BY SOURCE` with `MERGE RETURNING merge_action()`.
+
+## 0.23.1
+
+### Patch Changes
+
+- [#861](https://github.com/mk3008/rawsql-ts/pull/861) [`426d96b`](https://github.com/mk3008/rawsql-ts/commit/426d96ba06177ad948e4ac3ad373faed3357341c) Thanks [@mk3008](https://github.com/mk3008)! - Fix SSSQL optional-condition planning for queries with CTE-local WHERE clauses and casted null guards.
+
+  The SSSQL planner now inserts new root-query optional filters into the root WHERE clause instead of the first WHERE found inside a CTE. Optional-condition recognition also supports null guards written as `:param::type IS NULL` and `CAST(:param AS type) IS NULL`, including multi-predicate branches that use the same parameter.
+
+- [#862](https://github.com/mk3008/rawsql-ts/pull/862) [`72aebc0`](https://github.com/mk3008/rawsql-ts/commit/72aebc0fc8739a7d9233efa08178c63161e7a215) Thanks [@mk3008](https://github.com/mk3008)! - Keep SSSQL refresh and scaffold planning idempotent when optional branches already use casted null guards.
+
+  The SSSQL planner no longer adds a duplicate scalar branch when an equivalent branch already exists with a casted null guard. Refresh planning also keeps existing parameter-named branches in place when the caller does not provide a resolvable physical target name.
+
+## 0.23.0
+
+### Minor Changes
+
+- [#856](https://github.com/mk3008/rawsql-ts/pull/856) [`4698a87`](https://github.com/mk3008/rawsql-ts/commit/4698a87e9a73f8d6b87b0545cb0a740246f7d457) Thanks [@mk3008](https://github.com/mk3008)! - Add `identifierEscapeTarget: "minimal"` to `SqlFormatter` so identifier quotes are removed only when the bare identifier is syntactically valid and semantically safe. The escape symbol remains controlled separately by `identifierEscape` (`quote`, `backtick`, `bracket`, or explicit delimiters). Reserved words, SQL special value expressions such as `current_user` and `current_timestamp`, mixed-case names, and identifiers containing spaces or punctuation remain escaped. Bare SQL special value expressions stay unquoted, while qualified references such as `table.current_user` can still be parsed as column references.
+
+## 0.22.0
+
+### Minor Changes
+
+- [#853](https://github.com/mk3008/rawsql-ts/pull/853) [`95cf764`](https://github.com/mk3008/rawsql-ts/commit/95cf764a6ed70ec158f594f023354bfc9bc81110) Thanks [@mk3008](https://github.com/mk3008)! - Add SSSQL rewrite plan APIs on `SSSQLFilterBuilder` so callers can inspect scaffold, refresh, and remove rewrites before applying them. Plans include rewritten SQL, edit spans, safety metadata, warnings, and errors. Scalar add and remove plans can now return minimal span-based edits when the change can be proven target-local, while unsupported cases fall back to conservative full-reformat warnings.
+
+## 0.21.1
+
+### Patch Changes
+
+- [#850](https://github.com/mk3008/rawsql-ts/pull/850) [`93d3359`](https://github.com/mk3008/rawsql-ts/commit/93d3359f40300c086c4883c33636c39a7c98a7d0) Thanks [@mk3008](https://github.com/mk3008)! - Expose source range metadata for supported optional condition branches so downstream tools can generate runtime pruning metadata without reparsing SQL.
+
+## 0.21.0
+
+### Minor Changes
+
+- [#808](https://github.com/mk3008/rawsql-ts/pull/808) [`167a557`](https://github.com/mk3008/rawsql-ts/commit/167a55772977da9b4b0a7f75afca37d972aed779) Thanks [@mk3008](https://github.com/mk3008)! - Export rawsql-ts tokenizer metadata and add an opt-in `ztd query lint --rules leading-comma` SQL style rule that reports multiline trailing commas without rewriting SQL comments.
+
+- [#836](https://github.com/mk3008/rawsql-ts/pull/836) [`8d82bdf`](https://github.com/mk3008/rawsql-ts/commit/8d82bdfb00d3c18c2b188ee17130879f6aabc63b) Thanks [@mk3008](https://github.com/mk3008)! - Remove SQL-result JSON shaping APIs from core.
+
+  `PostgresJsonQueryBuilder`, JSON mapping converters, JSON schema validation helpers, and `DynamicQueryBuilder` JSON serialization options have been removed. Keep executed SQL as ordinary row/column SQL and build response shape with generated AOT mappers so reviewed SQL and executed SQL remain debuggable.
+
+### Patch Changes
+
+- [#824](https://github.com/mk3008/rawsql-ts/pull/824) [`21bce06`](https://github.com/mk3008/rawsql-ts/commit/21bce0606888748b9c584c2a597f520f4d25602a) Thanks [@mk3008](https://github.com/mk3008)! - Avoid eager SQL formatter initialization when loading the package root so Node 20 CLI help paths can import rawsql-ts without triggering a circular initialization error.
+
+## 0.20.0
+
+### Minor Changes
+
+- [#773](https://github.com/mk3008/rawsql-ts/pull/773) [`e9e425f`](https://github.com/mk3008/rawsql-ts/commit/e9e425f77b51402fcca03393305ac36bc99d7576) Thanks [@mk3008](https://github.com/mk3008)! - Improve SSSQL `refresh` so correlated `EXISTS` / `NOT EXISTS` branches can be safely re-anchored after query structure changes.
+
+  `rawsql-ts` now relocates correlated optional branches by inferring a single anchor from outer references, rebases aliases when moving branches across query scopes, and fails fast when anchor inference is missing or ambiguous.
+
+  `@rawsql-ts/ztd-cli` adds regression coverage for correlated `refresh` round-trips and `remove --all` interoperability so SQL-first optional branch maintenance stays deterministic after scaffolding.
+
+- [#765](https://github.com/mk3008/rawsql-ts/pull/765) [`6a1cb41`](https://github.com/mk3008/rawsql-ts/commit/6a1cb415366f3b8c0650f1caac67d9235ed1a130) Thanks [@mk3008](https://github.com/mk3008)! - Expand SSSQL authoring and inspection across the core library and `ztd-cli`.
+
+  `ztd query sssql` now supports `list`, `remove`, `remove --all`, richer scalar operators, and structured `EXISTS` / `NOT EXISTS` scaffold input with preview-friendly rewrite flows. The CLI also fails fast when a rewrite would drop existing SQL comments.
+
+  `rawsql-ts` now exposes the branch metadata and removal helpers needed to inspect, remove, and bulk-remove recognized SSSQL branches while keeping runtime pruning explicit through `optionalConditionParameters`.
+
+## 0.19.0
+
+### Minor Changes
+
+- [#752](https://github.com/mk3008/rawsql-ts/pull/752) [`6bf1fcc`](https://github.com/mk3008/rawsql-ts/commit/6bf1fccfcf3cdce4b74cc42ef3d086c54defb54b) Thanks [@mk3008](https://github.com/mk3008)! - Add `ztd feature query scaffold` for creating child query boundaries under an existing boundary without rewriting the parent boundary.
+
+  Promote `--scope-dir` as the primary `ztd query uses` narrowing flag while keeping `--specs-dir` as a deprecated compatibility alias.
+
+  Support `MERGE ... RETURNING` as a writable CTE output shape in `rawsql-ts` so downstream SELECT and CTE analysis can resolve returned columns consistently across supported DML forms.
+
+## 0.18.0
+
+### Minor Changes
+
+- [#679](https://github.com/mk3008/rawsql-ts/pull/679) [`be9b689`](https://github.com/mk3008/rawsql-ts/commit/be9b6893ff42f783f9cb52f1b8cd9cdc6c120e23) Thanks [@mk3008](https://github.com/mk3008)! - Add SSSQL scaffold and refresh commands, and change `DynamicQueryBuilder` so legacy runtime filter predicates fail fast instead of being injected at runtime. Runtime optional-condition pruning, sort, and paging remain supported.
+
 ## 0.17.0
 
 ### Minor Changes

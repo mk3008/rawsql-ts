@@ -1,9 +1,8 @@
-import { SqlPrintTokenParser, FormatterConfig, PRESETS, CastStyle, ConstraintStyle } from '../parsers/SqlPrintTokenParser';
-import { SqlPrinter, CommaBreakStyle, AndBreakStyle, OrBreakStyle } from './SqlPrinter';
+import { SqlPrintTokenParser, FormatterConfig, PRESETS, CastStyle, ConstraintStyle, SourceAliasStyle, OrderByDefaultDirectionStyle } from '../parsers/SqlPrintTokenParser';
+import { SqlPrinter, CommaBreakStyle, AndBreakStyle, OrBreakStyle, JoinOnBreakStyle } from './SqlPrinter';
 import { CommentExportMode } from '../types/Formatting';
 import { IndentCharOption, NewlineOption } from './LinePrinter'; // Import types for compatibility
-import { IdentifierEscapeOption, resolveIdentifierEscapeOption } from './FormatOptionResolver';
-import { IdentifierEscapeMode } from '../parsers/IdentifierDecorator';
+import { IdentifierEscapeOption, IdentifierEscapeTarget, resolveIdentifierEscapeOption } from './FormatOptionResolver';
 import { SelectQuery } from '../models/SelectQuery';
 import { SqlComponent } from '../models/SqlComponent';
 
@@ -56,6 +55,8 @@ export interface BaseFormattingOptions {
     andBreak?: AndBreakStyle;
     /** Style for OR line breaks */
     orBreak?: OrBreakStyle;
+    /** Style for JOIN ON line breaks */
+    joinOnBreak?: JoinOnBreakStyle;
     /** Whether to export comments in formatted output */
     exportComment?: boolean | CommentExportMode;
     /** Comment formatting style */
@@ -80,6 +81,10 @@ export interface BaseFormattingOptions {
     insertColumnsOneLine?: boolean;
     /** Keep MERGE WHEN clause predicates on one line regardless of AND break settings */
     whenOneLine?: boolean;
+    /** Maximum rendered width for opt-in one-line constructs. Omit to keep legacy unlimited one-line behavior. */
+    oneLineMaxLength?: number;
+    /** Indent AND/OR continuation lines inside JOIN ON predicates */
+    joinConditionContinuationIndent?: boolean;
     /** Reorder JOIN ON column comparisons to follow table declaration order */
     joinConditionOrderByDeclaration?: boolean;
 }
@@ -100,8 +105,8 @@ export interface SqlFormatterOptions extends BaseFormattingOptions {
     preset?: PresetName;
     /** Identifier escape style (logical name like 'quote' or explicit delimiters) */
     identifierEscape?: IdentifierEscapeOption;
-    /** Controls whether all identifiers are escaped or only identifiers that require escaping */
-    identifierEscapeMode?: IdentifierEscapeMode;
+    /** Identifier escape target: all identifiers or only identifiers that need escaping */
+    identifierEscapeTarget?: IdentifierEscapeTarget;
     /** Parameter symbol configuration for SQL parameters */
     parameterSymbol?: string | { start: string; end: string };
     /** Style for parameter formatting */
@@ -110,6 +115,10 @@ export interface SqlFormatterOptions extends BaseFormattingOptions {
     castStyle?: CastStyle;
     /** Constraint rendering style (affects CREATE TABLE constraint layout) */
     constraintStyle?: ConstraintStyle;
+    /** Source alias rendering style for FROM/JOIN sources */
+    sourceAliasStyle?: SourceAliasStyle;
+    /** Default ORDER BY direction rendering style */
+    orderByDefaultDirectionStyle?: OrderByDefaultDirectionStyle;
 }
 
 /**
@@ -136,15 +145,19 @@ export class SqlFormatter {
         }
 
         // Normalize identifier escape names into actual delimiter pairs before configuring the parser.
-        const resolvedIdentifierEscape = resolveIdentifierEscapeOption(options.identifierEscape ?? presetConfig?.identifierEscape);
+        const resolvedIdentifierEscape = resolveIdentifierEscapeOption(
+            options.identifierEscape ?? presetConfig?.identifierEscape,
+            options.identifierEscapeTarget ?? 'all'
+        );
 
         const parserOptions = {
             ...presetConfig, // Apply preset configuration
             identifierEscape: resolvedIdentifierEscape ?? presetConfig?.identifierEscape,
-            identifierEscapeMode: options.identifierEscapeMode,
             parameterSymbol: options.parameterSymbol ?? presetConfig?.parameterSymbol,
             parameterStyle: options.parameterStyle ?? presetConfig?.parameterStyle,
             castStyle: options.castStyle ?? presetConfig?.castStyle,
+            sourceAliasStyle: options.sourceAliasStyle ?? presetConfig?.sourceAliasStyle,
+            orderByDefaultDirectionStyle: options.orderByDefaultDirectionStyle ?? presetConfig?.orderByDefaultDirectionStyle,
             joinConditionOrderByDeclaration: options.joinConditionOrderByDeclaration,
         };
 

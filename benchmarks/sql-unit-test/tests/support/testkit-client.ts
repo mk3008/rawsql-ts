@@ -1,6 +1,6 @@
 // ZTD testkit helper - AUTO GENERATED
-// ztd-cli emits this file during project bootstrapping to wire @rawsql-ts/adapter-node-pg adapters.
-// Regenerate via npx ztd init (choose overwrite when prompted); avoid manual edits.
+// Ashiba emits this file during project bootstrapping to wire @rawsql-ts/adapter-node-pg adapters.
+// Regenerate with Ashiba when refreshing benchmark fixtures; avoid manual edits.
 
 import { existsSync, promises as fsPromises } from 'node:fs';
 import path from 'node:path';

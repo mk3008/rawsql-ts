@@ -22,10 +22,126 @@ export interface GenerateDocsOptions {
   labelSeparator?: string;
   locale?: string;
   dictionaryPath?: string;
+  tableDocsPath?: string;
+  relationshipPath?: string;
+  conceptRelationshipPath?: string;
+  dfdRelationshipPath?: string;
   configPath?: string;
   defaultSchema?: string;
   searchPath?: string[];
   filterPgDump?: boolean;
+}
+
+export interface CheckDocsOptions {
+  ddlDirectories: DdlInput[];
+  ddlFiles: DdlInput[];
+  ddlGlobs: DdlInput[];
+  extensions: string[];
+  tableDocsPath?: string;
+  relationshipPath?: string;
+  orderPath?: string;
+  conceptRelationshipPath?: string;
+  dfdRelationshipPath?: string;
+  scopeRulesPath?: string;
+  testRulesPath?: string;
+  authorityRulesPath?: string;
+  technologyRulesPath?: string;
+  processDirectories?: string[];
+  configPath?: string;
+  defaultSchema?: string;
+  searchPath?: string[];
+  filterPgDump?: boolean;
+}
+
+export interface ReviewPlanOptions {
+  changedFilesPath: string;
+  ddlDirectories: DdlInput[];
+  relationshipPath?: string;
+  tableDocsPath?: string;
+  conceptRelationshipPath?: string;
+  dfdRelationshipPath?: string;
+  processDirectories?: string[];
+  scopeRulesPath?: string;
+  scopeDocPath?: string;
+  testRulesPath?: string;
+  testPolicyPath?: string;
+  authorityRulesPath?: string;
+  authorityModelPath?: string;
+  technologyRulesPath?: string;
+  technologyPolicyPath?: string;
+  outPath?: string;
+  packageName?: string;
+}
+
+export interface GenerateConceptSiteOptions {
+  conceptRelationshipPath: string;
+  dfdRelationshipPath?: string;
+  outDir: string;
+}
+
+export interface ConceptDisplayNameOptions {
+  conceptRelationshipPath: string;
+  id: string;
+  displayName: string;
+  dryRun: boolean;
+}
+
+export interface StructuredConceptOptions {
+  conceptDirectories: string[];
+  conceptRelationshipPath?: string;
+  outDir?: string;
+  relationshipOutPath?: string;
+  reverseRelationshipOutPath?: string;
+  aiContextOutPath?: string;
+  reviewSummaryOutPath?: string;
+}
+
+export interface TableDocsColumnMetadata {
+  sample?: unknown;
+  designNotes?: string[];
+  decision?: string;
+  reviewRisk?: string;
+  conceptRefs?: string[];
+  processRefs?: string[];
+  ddlRefs?: string[];
+  tradeoff?: string[];
+  alternativesRejected?: string[];
+}
+
+export interface TableDocsConstraintMetadata {
+  designNotes?: string[];
+  decision?: string;
+  reviewRisk?: string;
+  conceptRefs?: string[];
+  processRefs?: string[];
+  ddlRefs?: string[];
+  tradeoff?: string[];
+  alternativesRejected?: string[];
+}
+
+export interface TableDocsSchemaMetadata {
+  summary?: string;
+  language?: string;
+}
+
+export interface TableDocsTableMetadata {
+  designNotes?: string[];
+  decision?: string;
+  reviewRisk?: string;
+  conceptRefs?: string[];
+  processRefs?: string[];
+  ddlRefs?: string[];
+  tradeoff?: string[];
+  alternativesRejected?: string[];
+  columns?: Record<string, TableDocsColumnMetadata>;
+  constraints?: Record<string, TableDocsConstraintMetadata>;
+}
+
+export interface TableDocsMetadata {
+  schemaVersion: 1;
+  metadataLanguagePolicy?: string;
+  schemas?: Record<string, TableDocsSchemaMetadata>;
+  tables?: Record<string, TableDocsTableMetadata>;
 }
 
 export interface PruneDocsOptions {
@@ -93,6 +209,7 @@ export interface DocsManifest {
   outputs: {
     tables: string[];
     columns: string[];
+    assets?: string[];
   };
 }
 

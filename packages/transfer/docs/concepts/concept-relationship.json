@@ -1,0 +1,687 @@
+{
+  "schemaVersion": 1,
+  "concepts": [
+    {
+      "id": "active-black",
+      "displayName": "有効黒伝",
+      "status": "defined",
+      "path": "active-black/concept.json",
+      "summary": "転送済みの黒伝のうち、まだ取り消されていない現在有効な黒伝"
+    },
+    {
+      "id": "black-insert-transfer",
+      "displayName": "Black Insert Transfer",
+      "status": "variant",
+      "path": null,
+      "summary": "Black Transfer のうち、新しい黒伝を追加する転送表現。",
+      "note": "`black-transfer/concept.json` 内で扱う。"
+    },
+    {
+      "id": "black-transfer",
+      "displayName": "黒伝転送",
+      "status": "defined",
+      "path": "black-transfer/concept.json",
+      "summary": "転送元の現在値を転送先へコピーし、黒伝を作る通常転送"
+    },
+    {
+      "id": "black-update-transfer",
+      "displayName": "Black Update Transfer",
+      "status": "variant",
+      "path": null,
+      "summary": "Black Transfer のうち、mutable transfer model で既存の黒伝を直接 UPDATE する転送表現。",
+      "note": "`black-transfer/concept.json` 内で扱う。"
+    },
+    {
+      "id": "destination",
+      "displayName": "転送先仕様",
+      "status": "defined",
+      "path": "destination/concept.json",
+      "summary": "転送先テーブルへ書き込むために必要な転送先側の仕様"
+    },
+    {
+      "id": "destination-link",
+      "displayName": "転送先リンク",
+      "status": "defined",
+      "path": "destination-link/concept.json",
+      "summary": "転送設定のデータソースを特定の転送先仕様へ接続する設定"
+    },
+    {
+      "id": "dirty-key",
+      "displayName": "変更キー",
+      "status": "defined",
+      "path": "dirty-key/concept.json",
+      "summary": "変更が起きた可能性のある発生元行を識別する変更検知履歴"
+    },
+    {
+      "id": "dirty-key-processing",
+      "displayName": "変更キー処理結果",
+      "status": "defined",
+      "path": "dirty-key-processing/concept.json",
+      "summary": "変更キーごとの処理結果を、転送実行記録と転送先リンクの文脈で記録する概念"
+    },
+    {
+      "id": "duplicate-control",
+      "displayName": "重複転送制御",
+      "status": "defined",
+      "path": "duplicate-control/concept.json",
+      "summary": "変更キーを転送作業対象にするか、重複転送として転送不要にするかを分ける判断境界。"
+    },
+    {
+      "id": "key-map",
+      "displayName": "Key Map",
+      "status": "alias",
+      "path": null,
+      "summary": "lineage の説明用語。キー変換で lineage 管理を説明するための別名。",
+      "note": "キー変換で `Lineage` 管理を説明するための別名として扱い、Concept Spec 候補からは格下げする。"
+    },
+    {
+      "id": "lineage",
+      "displayName": "由来追跡",
+      "status": "defined",
+      "path": "lineage/concept.json",
+      "summary": "Destination Link の文脈で転送先行の転送元を特定し、元ネタを追跡する概念"
+    },
+    {
+      "id": "physical-delete-transfer",
+      "displayName": "物理削除転送",
+      "status": "defined",
+      "path": "physical-delete-transfer/concept.json",
+      "summary": "mutable transfer model で既存の転送先行を物理削除する削除表現"
+    },
+    {
+      "id": "posting-date-lower-bound",
+      "displayName": "日付下限制御",
+      "status": "defined",
+      "path": "posting-date-lower-bound/concept.json",
+      "summary": "締め済み期間へ新しい転送先行を増やさないため、計上したい日付を計上可能な日付へ補正する概念。"
+    },
+    {
+      "id": "red-transfer",
+      "displayName": "赤伝転送",
+      "status": "defined",
+      "path": "red-transfer/concept.json",
+      "summary": "immutable transfer model で取消または訂正が必要な場合に、黒伝を反転した赤伝を追加する転送表現"
+    },
+    {
+      "id": "transfer-execution",
+      "displayName": "転送実行",
+      "status": "defined",
+      "path": "transfer-execution/concept.json",
+      "summary": "転送実行記録をプロセスヘッダーとして生成し、転送作業対象へ転送対象判定を適用して判定結果を実行するメインルーチン"
+    },
+    {
+      "id": "transfer-run",
+      "displayName": "転送実行記録",
+      "status": "defined",
+      "path": "transfer-run/concept.json",
+      "summary": "転送実行が生成する実行引数記録兼プロセスヘッダー"
+    },
+    {
+      "id": "transfer-setting",
+      "displayName": "転送設定",
+      "status": "defined",
+      "path": "transfer-setting/concept.json",
+      "summary": "転送元データソースを定義し、Destination への接続を管理する設定"
+    },
+    {
+      "id": "transfer-target-decision",
+      "displayName": "転送対象判定",
+      "status": "defined",
+      "path": "transfer-target-decision/concept.json",
+      "summary": "変更キーを候補として受け取り、転送元の現在値、有効黒伝、転送モデル、列の値評価をもとに転送対象かどうかを判定する概念"
+    },
+    {
+      "id": "work-item",
+      "displayName": "転送作業対象",
+      "status": "defined",
+      "path": "work-item/concept.json",
+      "summary": "変更キーを転送設定の文脈で固定化し、転送対象判定に必要な文脈と判定結果を運ぶ作業対象"
+    }
+  ],
+  "relationships": [
+    {
+      "from": "transfer-run",
+      "to": "transfer-setting",
+      "kind": "targets",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Run は必ず1つの Transfer Setting を対象にする。"
+    },
+    {
+      "from": "transfer-run",
+      "to": "transfer-setting",
+      "kind": "must-not-redefine",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Run は Transfer Setting の内容を再定義しない。"
+    },
+    {
+      "from": "transfer-run",
+      "to": "dirty-key",
+      "kind": "must-not-redefine",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Run は Dirty Key の意味を再定義しない。"
+    },
+    {
+      "from": "transfer-setting",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Setting は Destination Link を通じて Destination へ接続する。"
+    },
+    {
+      "from": "transfer-setting",
+      "to": "destination-link",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Setting は宛先別の接続を Destination Link として管理する。"
+    },
+    {
+      "from": "transfer-setting",
+      "to": "destination",
+      "kind": "must-not-redefine",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Setting は Destination の意味を再定義しない。"
+    },
+    {
+      "from": "transfer-setting",
+      "to": "dirty-key",
+      "kind": "must-not-redefine",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Setting は Dirty Key の意味を再定義しない。"
+    },
+    {
+      "from": "destination-link",
+      "to": "transfer-setting",
+      "kind": "depends-on",
+      "certainty": "from-defined-spec",
+      "reason": "Destination Link は必ず1つの Transfer Setting に属する。"
+    },
+    {
+      "from": "destination-link",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Destination Link は Transfer Setting のデータソースを1つの Destination へ接続する。"
+    },
+    {
+      "from": "destination-link",
+      "to": "destination",
+      "kind": "must-not-redefine",
+      "certainty": "from-defined-spec",
+      "reason": "Destination Link のマッピングは Destination の物理的な意味を再定義しない。"
+    },
+    {
+      "from": "destination",
+      "to": "transfer-setting",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "Destination は Transfer Setting の子ではなく、独立した転送先側の仕様である。"
+    },
+    {
+      "from": "destination",
+      "to": "transfer-setting",
+      "kind": "must-not-redefine",
+      "certainty": "from-defined-spec",
+      "reason": "Destination は Transfer Setting 固有の都合で転送先側の意味を変えない。"
+    },
+    {
+      "from": "dirty-key",
+      "to": "transfer-run",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "Dirty Key は転送指示、転送状態、処理結果ではない。"
+    },
+    {
+      "from": "lineage",
+      "to": "transfer-run",
+      "kind": "records",
+      "certainty": "from-defined-spec",
+      "reason": "Lineage は転送先行を生成した Transfer Run を記録する。"
+    },
+    {
+      "from": "lineage",
+      "to": "transfer-setting",
+      "kind": "records",
+      "certainty": "from-defined-spec",
+      "reason": "Lineage は転送先行がどの Transfer Setting のもとで生成されたかを記録する。"
+    },
+    {
+      "from": "lineage",
+      "to": "destination-link",
+      "kind": "records",
+      "certainty": "from-defined-spec",
+      "reason": "Lineage は転送先行を生成した Destination Link の文脈を記録する。"
+    },
+    {
+      "from": "active-black",
+      "to": "lineage",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Active Black は immutable transfer model で現在有効な黒伝を特定するときに Lineage と併用されることがある。"
+    },
+    {
+      "from": "active-black",
+      "to": "lineage",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "Lineage は転送先行の由来を記録し、Active Black は現在有効な黒伝を特定する。"
+    },
+    {
+      "from": "active-black",
+      "to": "destination-link",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Active Black は Destination Link の文脈で現在有効な黒伝を区別する。"
+    },
+    {
+      "from": "black-transfer",
+      "to": "active-black",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Black Transfer は二重転送を防ぐために Active Black を参照し、生成または更新した黒伝を Active Black にする。"
+    },
+    {
+      "from": "black-transfer",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Black Transfer は Destination 側に黒伝を作る。"
+    },
+    {
+      "from": "black-transfer",
+      "to": "lineage",
+      "kind": "records",
+      "certainty": "from-defined-spec",
+      "reason": "immutable transfer model では、成功した Black Transfer が転送元データ行と黒伝の対応を Lineage として記録する。"
+    },
+    {
+      "from": "black-transfer",
+      "to": "red-transfer",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "Black Transfer は現在の転送元値をコピーして黒伝を作り、Red Transfer は反転する赤伝を作る。"
+    },
+    {
+      "from": "red-transfer",
+      "to": "active-black",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Red Transfer は反転対象となる Active Black を必要とする。"
+    },
+    {
+      "from": "red-transfer",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Red Transfer は Destination の transfer model と赤伝列情報に依存する。"
+    },
+    {
+      "from": "red-transfer",
+      "to": "lineage",
+      "kind": "records",
+      "certainty": "from-defined-spec",
+      "reason": "成功した Red Transfer は、反転対象の既存転送先行と生成された赤伝の対応を Lineage として記録する。"
+    },
+    {
+      "from": "red-transfer",
+      "to": "active-black",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "Red Transfer は反転する赤伝を追加し、Active Black は反転対象となる現在有効な黒伝を特定する。"
+    },
+    {
+      "from": "transfer-execution",
+      "to": "transfer-run",
+      "kind": "produces",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution は実行引数記録兼プロセスヘッダーとして Transfer Run を生成する。"
+    },
+    {
+      "from": "transfer-execution",
+      "to": "transfer-setting",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution は Transfer Run が対象にする Transfer Setting に従う。"
+    },
+    {
+      "from": "transfer-execution",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution は Destination の transfer model と転送先側ルールを参照する。"
+    },
+    {
+      "from": "transfer-execution",
+      "to": "dirty-key",
+      "kind": "consumes",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution は Dirty Key Management の記録を転送候補として消費する。"
+    },
+    {
+      "from": "transfer-execution",
+      "to": "dirty-key-processing",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution は Work Item 作成前に Dirty Key Processing を参照して処理済み Dirty Key を除外し、処理後に Dirty Key Processing を記録する。"
+    },
+    {
+      "from": "transfer-execution",
+      "to": "work-item",
+      "kind": "produces",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution は Dirty Key を Work Item として固定化する。"
+    },
+    {
+      "from": "transfer-execution",
+      "to": "work-item",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution は Work Item に保持された転送対象判定の入力文脈と判定結果を使う。"
+    },
+    {
+      "from": "transfer-execution",
+      "to": "transfer-target-decision",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution は Work Item に Transfer Target Decision を適用し、転送要否と転送表現候補を得る。"
+    },
+    {
+      "from": "transfer-execution",
+      "to": "active-black",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution は Transfer Target Decision の結果に従って Active Black を前提にした転送処理を実行する。"
+    },
+    {
+      "from": "transfer-execution",
+      "to": "black-transfer",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution は現在の転送元値を転送先へコピーすべき場合に Black Transfer を実行する。"
+    },
+    {
+      "from": "transfer-execution",
+      "to": "red-transfer",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution は immutable transfer model で active black row を反転すべき場合に Red Transfer を実行する。"
+    },
+    {
+      "from": "work-item",
+      "to": "dirty-key",
+      "kind": "depends-on",
+      "certainty": "from-defined-spec",
+      "reason": "Work Item は Dirty Key を転送作業として固定化して作られる。"
+    },
+    {
+      "from": "work-item",
+      "to": "dirty-key-processing",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Work Item 作成では、同じ setting と destination-link の文脈で Dirty Key Processing 記録がある Dirty Key を除外する。"
+    },
+    {
+      "from": "work-item",
+      "to": "transfer-setting",
+      "kind": "depends-on",
+      "certainty": "from-defined-spec",
+      "reason": "Work Item は Transfer Setting の文脈で転送対象判定に渡される。"
+    },
+    {
+      "from": "work-item",
+      "to": "active-black",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Work Item は転送対象判定の入力文脈として Active Black の有無を持つ。"
+    },
+    {
+      "from": "work-item",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Work Item は転送対象判定の入力文脈として Destination の transfer model を持つ。"
+    },
+    {
+      "from": "work-item",
+      "to": "dirty-key",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "Dirty Key は変更検知履歴であり、Work Item は転送対象判定へ渡される固定化された作業対象である。"
+    },
+    {
+      "from": "work-item",
+      "to": "lineage",
+      "kind": "depends-on",
+      "certainty": "human-provided-candidate",
+      "reason": "Work Item は重複、再転送、削除相当の判断で Lineage の影響を受けることがある。"
+    },
+    {
+      "from": "duplicate-control",
+      "to": "transfer-target-decision",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "重複転送制御は、重複ではない変更キーを転送対象判定へ渡す。"
+    },
+    {
+      "from": "transfer-target-decision",
+      "to": "dirty-key",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "転送対象判定は Dirty Key を転送候補として受け取る。"
+    },
+    {
+      "from": "transfer-target-decision",
+      "to": "active-black",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "転送対象判定は Active Black の有無を追加、赤伝転送候補、更新転送候補の判断材料にする。"
+    },
+    {
+      "from": "transfer-target-decision",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "転送対象判定は Destination の transfer model によって判断を変える。"
+    },
+    {
+      "from": "transfer-target-decision",
+      "to": "destination-link",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "転送対象判定は Destination Link の差分比較除外列を参照し、列の値評価で転送要否を判断する。"
+    },
+    {
+      "from": "transfer-target-decision",
+      "to": "red-transfer",
+      "kind": "supports",
+      "certainty": "from-defined-spec",
+      "reason": "immutable transfer model で Active Black があり、列評価で変更ありの場合、赤伝転送候補になる。"
+    },
+    {
+      "from": "transfer-target-decision",
+      "to": "black-transfer",
+      "kind": "supports",
+      "certainty": "from-defined-spec",
+      "reason": "追加転送候補と mutable transfer model の更新転送候補は Black Transfer 側の表現につながる。"
+    },
+    {
+      "from": "transfer-target-decision",
+      "to": "work-item",
+      "kind": "supports",
+      "certainty": "from-defined-spec",
+      "reason": "転送対象判定は Work Item に転送要否と転送表現候補の判断材料を与える。"
+    },
+    {
+      "from": "dirty-key-processing",
+      "to": "dirty-key",
+      "kind": "depends-on",
+      "certainty": "from-defined-spec",
+      "reason": "Dirty Key Processing は処理済みの Dirty Key ID を記録する。"
+    },
+    {
+      "from": "dirty-key-processing",
+      "to": "transfer-run",
+      "kind": "records",
+      "certainty": "from-defined-spec",
+      "reason": "Dirty Key Processing はどの Transfer Run が Dirty Key を処理し、どの処理結果になったかを記録する。"
+    },
+    {
+      "from": "dirty-key-processing",
+      "to": "transfer-setting",
+      "kind": "depends-on",
+      "certainty": "from-defined-spec",
+      "reason": "Dirty Key Processing は Transfer Setting の文脈で管理される。"
+    },
+    {
+      "from": "dirty-key-processing",
+      "to": "destination-link",
+      "kind": "depends-on",
+      "certainty": "from-defined-spec",
+      "reason": "Dirty Key Processing は、1つの Transfer Run が複数の Destination Link を処理できるため Destination Link ID を記録する。"
+    },
+    {
+      "from": "dirty-key-processing",
+      "to": "dirty-key",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "Dirty Key はイミュータブルな変更検知履歴であり、Dirty Key Processing は処理済み状態の記録である。"
+    },
+    {
+      "from": "black-insert-transfer",
+      "to": "black-transfer",
+      "kind": "variant-of",
+      "certainty": "from-defined-spec",
+      "reason": "Black Insert Transfer は新しい黒伝を追加する Black Transfer のバリエーションである。"
+    },
+    {
+      "from": "black-update-transfer",
+      "to": "black-transfer",
+      "kind": "variant-of",
+      "certainty": "from-defined-spec",
+      "reason": "Black Update Transfer は mutable transfer model で既存の黒伝を直接更新する Black Transfer のバリエーションである。"
+    },
+    {
+      "from": "physical-delete-transfer",
+      "to": "active-black",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Physical Delete Transfer は物理削除対象となる Active Black を必要とする。"
+    },
+    {
+      "from": "physical-delete-transfer",
+      "to": "destination",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Physical Delete Transfer は既存の転送先行を物理削除する。"
+    },
+    {
+      "from": "physical-delete-transfer",
+      "to": "red-transfer",
+      "kind": "is-distinct-from",
+      "certainty": "from-defined-spec",
+      "reason": "mutable delete は Physical Delete Transfer であり、immutable delete は Red Transfer で表現する。"
+    },
+    {
+      "from": "transfer-execution",
+      "to": "physical-delete-transfer",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Transfer Execution は mutable transfer model の削除ケースで Physical Delete Transfer を使う。"
+    },
+    {
+      "from": "destination",
+      "to": "posting-date-lower-bound",
+      "kind": "uses",
+      "certainty": "from-defined-spec",
+      "reason": "Destination は締め済み期間に対する計上日補正が必要な場合に日付下限制御を持つことがある。"
+    },
+    {
+      "from": "posting-date-lower-bound",
+      "to": "destination",
+      "kind": "depends-on",
+      "certainty": "from-defined-spec",
+      "reason": "日付下限制御は Destination ごとに設定され、書き込み対象の destination row の列を使用する。"
+    }
+  ],
+  "glossaryTerms": [
+    {
+      "id": "black-row",
+      "displayTerm": "black row / 黒伝",
+      "definedIn": [
+        "black-transfer/concept.json"
+      ],
+      "meaning": "`Black Transfer` によって作られた転送先行。",
+      "note": "`Active Black` と `Red Transfer` の前提語。"
+    },
+    {
+      "id": "destination-row-key",
+      "displayTerm": "destination row key",
+      "definedIn": [
+        "destination/concept.json",
+        "destination-link/concept.json"
+      ],
+      "meaning": "転送先行を識別するキー。",
+      "note": "`Destination` は転送先キー仕様を持つ。`Destination Link` は `source key` から宛先別 `destination row key` への対応を扱う。"
+    },
+    {
+      "id": "destination-table",
+      "displayTerm": "destination table",
+      "definedIn": [
+        "destination/concept.json"
+      ],
+      "meaning": "転送によって実際に書き込まれる物理的な転送先テーブル。",
+      "note": "`Destination` は `destination table` そのものではなく、そこへ書き込むための転送先仕様である。"
+    },
+    {
+      "id": "immutable-transfer-model",
+      "displayTerm": "immutable transfer model",
+      "definedIn": [
+        "destination/concept.json"
+      ],
+      "meaning": "転送先行を直接更新または物理削除せず、履歴として積み増す転送モデル。",
+      "note": "`Destination` が持つ `transfer_model` の許可値。`Red Transfer`、`Lineage`、赤黒転送判断などの前提になる。"
+    },
+    {
+      "id": "mutable-transfer-model",
+      "displayTerm": "mutable transfer model",
+      "definedIn": [
+        "destination/concept.json"
+      ],
+      "meaning": "転送先行を直接更新または物理削除する転送モデル。",
+      "note": "`Destination` が持つ `transfer_model` の許可値。`Black Update Transfer`、`Physical Delete Transfer` などの前提になる。"
+    },
+    {
+      "id": "red-row",
+      "displayTerm": "red row / 赤伝",
+      "definedIn": [
+        "red-transfer/concept.json"
+      ],
+      "meaning": "黒伝を反転して訂正や取消を表現する転送先行。",
+      "note": "`immutable transfer model` でのみ発生する。"
+    },
+    {
+      "id": "source-key",
+      "displayTerm": "source key",
+      "definedIn": [
+        "transfer-setting/concept.json"
+      ],
+      "meaning": "転送元データソースの論理行または再評価単位を識別するキー。",
+      "note": "`Transfer Setting` が定義を持つ。`Lineage`、`Active Black`、`Work Item`、`Black Transfer` などが参照する。"
+    }
+  ],
+  "relatedProcessMaps": [
+    {
+      "id": "lineage-trace",
+      "displayName": "Lineage Trace",
+      "path": "../processes/lineage-trace-process.md",
+      "summary": "転送先行から由来や履歴を追跡する監査・デバッグ向けプロセス。",
+      "reason": "監査、デバッグ、転送先行からの由来追跡プロセスをレビューするときに参照する。"
+    },
+    {
+      "id": "transfer-execution",
+      "displayName": "Transfer Execution",
+      "path": "../processes/transfer-execution-process.md",
+      "summary": "Dirty Key と転送設定から Work Item を準備し、転送モデルに応じた転送処理を行うメインプロセス。",
+      "reason": "転送実行順序とプロセス単位の概念入出力をレビューするときに参照する。"
+    }
+  ]
+}

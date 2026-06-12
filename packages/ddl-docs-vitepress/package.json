@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/ddl-docs-vitepress",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Scaffold generator for VitePress-based DB schema docs powered by ddl-docs-cli",
   "main": "dist/index.js",
   "bin": {
@@ -41,11 +41,11 @@
     "README.md"
   ],
   "dependencies": {
-    "@rawsql-ts/ddl-docs-cli": "^0.2.4"
+    "@rawsql-ts/ddl-docs-cli": "^0.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
     "typescript": "^5.8.2",
-    "vitest": "^4.0.7"
+    "vitest": "^4.1.8"
   }
 }

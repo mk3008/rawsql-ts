@@ -7,6 +7,10 @@ on:
       - 'docs/**'
       - '!docs/api/**'
       - 'packages/core/src/**'
+      - 'packages/ddl-docs-cli/**'
+      - 'packages/transfer/db/ddl/**'
+      - 'packages/transfer/docs/**'
+      - 'scripts/generate-transfer-docs.mjs'
       - 'typedoc.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -50,7 +54,9 @@ jobs:
         run: |
           pnpm --filter rawsql-ts run build
           pnpm --filter @rawsql-ts/testkit-core run build
-          pnpm --filter @rawsql-ts/ztd-cli run build
+
+      - name: Verify transfer docs and metadata drift
+        run: pnpm run verify:transfer-docs
 
       - name: Build documentation
         run: pnpm run docs:build

@@ -8,7 +8,7 @@ Postgres-specific fixture and rewriter logic that stays driver-agnostic. Rewritt
 ## Features
 
 - Postgres-specific CTE rewriting without bundling a SQL driver
-- DDL-driven fixture loading with layered precedence
+- Generated fixture manifests first, with DDL-driven fallback for bootstrap or legacy layouts
 - Fixture validation against table definitions
 - Works with any executor (pg, pg-promise, Drizzle, Prisma, etc.)
 
@@ -21,8 +21,8 @@ npm install @rawsql-ts/testkit-postgres
 ## Quick Start
 
 ```ts
-import path from 'node:path';
 import { createPostgresTestkitClient, type QueryExecutor } from '@rawsql-ts/testkit-postgres';
+import { generatedFixtureManifest } from './tests/generated/ztd-fixture-manifest.generated.js';
 
 const executor: QueryExecutor = async (sql, params) => {
   return [{ id: 1, email: 'alice@example.com' }];
@@ -30,22 +30,38 @@ const executor: QueryExecutor = async (sql, params) => {
 
 const client = createPostgresTestkitClient({
   queryExecutor: executor,
-  tableDefinitions: [
-    {
-      name: 'users',
-      columns: [
-        { name: 'id', typeName: 'int', required: true },
-        { name: 'email', typeName: 'text', required: true },
-      ],
-    },
-  ],
-  ddl: { directories: [path.join('ztd', 'ddl')] },
+  generated: generatedFixtureManifest,
 });
 
 const result = await client.query('SELECT id, email FROM users WHERE id = $1', [1]);
 ```
 
-The package does not close connections or hold onto drivers — the executor you provide manages pooling and resources. For drop-in `pg` helpers (`createPgTestkitClient`, `createPgTestkitPool`, `wrapPgClient`), see `@rawsql-ts/adapter-node-pg`.
+## Schema Resolution
+
+`createPostgresTestkitClient` lets you pin a default schema and a search path so unqualified table names resolve the same way your starter project does.
+That keeps schema-qualified definitions readable while still letting tests query through the short table name.
+
+```ts
+const client = createPostgresTestkitClient({
+  queryExecutor: executor,
+  defaultSchema: 'public',
+  searchPath: ['public'],
+  tableDefinitions: [
+    {
+      name: 'public.users',
+      columns: [
+        { name: 'id', typeName: 'int', required: true },
+        { name: 'email', typeName: 'text', required: true }
+      ]
+    }
+  ],
+  tableRows: [
+    { tableName: 'public.users', rows: [{ id: 1, email: 'alice@example.com' }] }
+  ]
+});
+```
+
+The package does not close connections or hold onto drivers — the executor you provide manages pooling and resources. For drop-in node-postgres testkit adapter helpers (`createPgTestkitClient`, `createPgTestkitPool`, `wrapPgClient`), see `@rawsql-ts/adapter-node-pg`.
 
 > **Note:** Transaction commands (`BEGIN` / `COMMIT` / `ROLLBACK`) used within testkit are for **test isolation only**. In production code, transaction boundaries and connection lifecycle are the caller's responsibility — not a concern of the query catalog or fixture layer. See the [Execution Scope guide](../../docs/guide/execution-scope.md) for details.
 
@@ -53,11 +69,14 @@ The package does not close connections or hold onto drivers — the executor you
 
 Fixtures combine in deterministic layers:
 
-1. **DDL-driven fixtures** (`ddl.directories`) load first and populate schema metadata
-2. **`tableDefinitions` / `tableRows`** passed to `createPostgresTestkitClient` override or augment the DDL metadata
-3. **`client.withFixtures([...])`** layers scenario-specific rows on top before each query
+1. **Generated fixture manifests** from `ztd-config` populate schema metadata (`tableDefinitions`) first.
+2. **`tableDefinitions` / `tableRows`** passed to `createPostgresTestkitClient` override or augment the generated metadata when a test wants explicit fixtures.
+3. **`client.withFixtures([...])`** layers scenario-specific rows on top before each query.
+4. **`ddl.directories`** remains available as a legacy fallback when no generated manifest is supplied.
 
-DDL directories are read once at client creation, and every subsequent rewrite reuses that snapshot plus any in-memory overrides.
+DDL directories are only scanned when no generated manifest is supplied. In the normal path, `createPostgresTestkitClient` uses generated metadata directly and skips raw DDL scanning altogether.
+
+Representative benchmark after a workspace build: `pnpm bench:testkit-postgres-runtime-metadata` compares the generated-manifest cold start with the legacy `ddl.directories` path on a synthetic large schema.
 
 ## QueryExecutor Contract
 

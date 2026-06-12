@@ -10,6 +10,10 @@ inputs:
     description: "Whether this job needs pnpm on PATH"
     required: false
     default: "true"
+  use-pnpm-cache:
+    description: "Whether to enable pnpm cache"
+    required: false
+    default: "true"
   install-dependencies:
     description: "Whether to run pnpm install --frozen-lockfile"
     required: false
@@ -53,7 +57,7 @@ runs:
         run_install: false
 
     - name: Setup Node with pnpm cache
-      if: ${{ inputs.use-pnpm == 'true' }}
+      if: ${{ inputs.use-pnpm == 'true' && inputs.use-pnpm-cache == 'true' }}
       uses: actions/setup-node@v5
       with:
         node-version: ${{ inputs.node-version }}
@@ -61,7 +65,7 @@ runs:
         registry-url: ${{ inputs.registry-url }}
 
     - name: Setup Node without pnpm cache
-      if: ${{ inputs.use-pnpm != 'true' }}
+      if: ${{ inputs.use-pnpm != 'true' || inputs.use-pnpm-cache != 'true' }}
       uses: actions/setup-node@v5
       with:
         node-version: ${{ inputs.node-version }}

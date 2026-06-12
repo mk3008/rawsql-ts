@@ -31,14 +31,21 @@ const { formattedSql, params } = formatter.format(query);
 | `valuesCommaBreak` | Same as `commaBreak` | Mirrors `commaBreak` | Comma handling within `VALUES` tuples. |
 | `andBreak` | `'none'`, `'before'`, `'after'` | `'none'` | Controls whether logical `AND` operators move to their own lines. |
 | `orBreak` | `'none'`, `'before'`, `'after'` | `'none'` | Same idea for logical `OR` operators. |
+| `joinOnBreak` | `'none'`, `'before'` | `'none'` | Controls whether `JOIN ... ON` keeps `ON` inline or starts it on an indented continuation line. |
+| `joinConditionContinuationIndent` | `true` / `false` | `false` | Indents wrapped `AND` / `OR` predicates inside `JOIN ... ON` conditions so they read as join-condition continuations instead of sibling joins. |
 | `insertColumnsOneLine` | `true` / `false` | `false` | Keeps column lists inside `INSERT INTO` statements on a single line when `true`. |
 | `indentNestedParentheses` | `true` / `false` | `false` | Adds an extra indent when boolean groups introduce parentheses inside `WHERE` or `HAVING` clauses. |
 | `commentStyle` | `'block'`, `'smart'` | `'block'` | Normalises how comments are emitted (see below). |
 | `withClauseStyle` | `'standard'`, `'cte-oneline'`, `'full-oneline'` | `'standard'` | Expands or collapses common table expressions. |
 | `parenthesesOneLine`, `betweenOneLine`, `valuesOneLine`, `joinOneLine`, `caseOneLine`, `subqueryOneLine` | `true` / `false` | `false` for each | Opt-in switches that keep the corresponding construct on a single line even if other break settings would expand it. |
+| `oneLineMaxLength` | Positive integer | Unlimited | Optional width guard for opt-in one-line constructs. When a one-line candidate would exceed this length, the formatter falls back to the normal multiline layout for that construct. |
 | `joinConditionOrderByDeclaration` | `true` / `false` | `false` | Normalizes `JOIN ... ON` column comparisons so the left operand matches table declaration order. |
 | `whenOneLine` | `true` / `false` | `false` | Forces each `MERGE WHEN` predicate to stay on a single line even if `andBreak` / `orBreak` would normally wrap it. |
 | `exportComment` | `'full'`, `'none'`, `'header-only'`, `'top-header-only'` (legacy `true` / `false` still accepted) | `'none'` | Controls which comments are emitted: `'full'` prints everything, `'none'` drops all comments, `'header-only'` keeps leading comments on every block, and `'top-header-only'` keeps only top-level headers. |
+| `identifierEscape` | `'none'`, `'quote'`, `'backtick'`, `'bracket'`, or `{ "start": string, "end": string }` | From preset or `'quote'` internally | Chooses the identifier delimiter symbol. `'none'` means no delimiter symbol, not "no identifiers targeted". |
+| `identifierEscapeTarget` | `'all'`, `'minimal'` | `'all'` | Chooses whether the formatter escapes every identifier or only identifiers that need escaping to stay valid and semantically safe. Pair it with `identifierEscape`, e.g. `{ "identifierEscape": "quote", "identifierEscapeTarget": "minimal" }`. |
+| `sourceAliasStyle` | `'as'`, `'implicit'` | From preset or `'as'` | Controls whether source aliases render as `from users as u` or `from users u`. |
+| `orderByDefaultDirectionStyle` | `'omit'`, `'explicit'` | From preset or `'omit'` | Controls whether default ascending sort direction is omitted or printed as `ASC`. |
 | `castStyle` | 'standard', 'postgres' | From preset or 'standard' | Chooses how CAST expressions are printed. 'standard' emits ANSI `CAST(expr AS type)` while 'postgres' emits `expr::type`. See "Controlling CAST style" below for usage notes and examples. |
 | `constraintStyle` | `'postgres'`, `'mysql'` | From preset or `'postgres'` | Shapes constraint output in DDL: `'postgres'` prints `constraint ... primary key(...)`, while `'mysql'` emits `unique key name(...)` / `foreign key name(...)`. |
 
@@ -82,6 +89,50 @@ const formatter = new SqlFormatter({
 
 Choose `'before'` when you want to scan down logical branches quickly, or `'after'` to keep complex conditions aligned underneath their keywords.
 
+### JOIN condition layouts
+
+JOIN predicates can become hard to scan when a long `ON` condition wraps and the continuation `AND` / `OR` lines align with the JOIN itself:
+
+```sql
+left join last_customer_reply lcr on lcr.ticket_id = st.ticket_id
+and lcr.tenant_id = st.tenant_id
+```
+
+Use `joinConditionContinuationIndent: true` when you want to keep the first `ON` predicate inline but indent continuation predicates:
+
+```typescript
+const formatter = new SqlFormatter({
+    newline: 'lf',
+    andBreak: 'before',
+    joinConditionContinuationIndent: true
+});
+```
+
+```sql
+left join last_customer_reply lcr on lcr.ticket_id = st.ticket_id
+    and lcr.tenant_id = st.tenant_id
+    and lcr.source_id = st.source_id
+```
+
+Use `joinOnBreak: 'before'` when your style separates the JOIN target from the condition itself:
+
+```typescript
+const formatter = new SqlFormatter({
+    newline: 'lf',
+    andBreak: 'before',
+    joinOnBreak: 'before'
+});
+```
+
+```sql
+left join last_customer_reply lcr
+    on lcr.ticket_id = st.ticket_id
+    and lcr.tenant_id = st.tenant_id
+    and lcr.source_id = st.source_id
+```
+
+The JOIN-specific options only change predicates inside `JOIN ... ON`. `WHERE`, `HAVING`, and other boolean expressions continue to follow `andBreak` / `orBreak` directly.
+
 ### MERGE `WHEN` predicate layout
 
 `MERGE` statements reuse the same `andBreak` / `orBreak` logic as `WHERE` clauses, so enabling `'before'` or `'after'` normally splits predicates such as `WHEN MATCHED AND target.flag = 'Y'` across multiple lines. Set `whenOneLine: true` to keep each `WHEN` predicate compact while still honouring your preferred breaks elsewhere:
@@ -97,6 +148,39 @@ const formatter = new SqlFormatter({
 ```
 
 The switch leaves other logical groups untouched, so `WHERE` clauses continue to follow the global `andBreak` / `orBreak` style.
+
+### Keeping short one-line groups without flattening long predicates
+
+The `*OneLine` switches are useful for compact predicates such as SSSQL optional filters:
+
+```sql
+(cast(:status as text) is null or status = :status)
+```
+
+The same switch can become hard to read when the predicate grows into a long keyword search or a `CASE` expression. Set `oneLineMaxLength` to keep short candidates compact while allowing long candidates to fall back to the regular multiline formatter:
+
+```typescript
+const formatter = new SqlFormatter({
+    newline: 'lf',
+    parenthesesOneLine: true,
+    caseOneLine: true,
+    orBreak: 'before',
+    oneLineMaxLength: 100
+});
+```
+
+With the width guard enabled, a short optional predicate can stay on one line, while a longer group expands into the configured logical-operator layout:
+
+```sql
+(
+    :keyword is null
+    or subject ilike '%' || :keyword || '%'
+    or customer_name ilike '%' || :keyword || '%'
+    or latest_message_body ilike '%' || :keyword || '%'
+)
+```
+
+The limit applies to opt-in one-line containers such as parentheses, `BETWEEN`, `VALUES`, `JOIN ... ON`, `CASE`, subqueries, and individual CTE entries formatted by `withClauseStyle: 'cte-oneline'`. The width check includes the current indentation and any text already present on the line. It does not change `withClauseStyle: 'full-oneline'`, which intentionally treats the whole `WITH` block as a single-line mode.
 
 ### INSERT column list layouts
 
@@ -151,6 +235,29 @@ new SqlFormatter({ castStyle: 'postgres' }).format(expr); // "price"::NUMERIC(10
 
 If you are migrating away from PostgreSQL-only syntax, enforce `castStyle: 'standard'` and phase out `::` usage gradually.
 
+### Minimal identifier escaping and alias style
+
+`identifierEscape` selects the delimiter symbol, while `identifierEscapeTarget` selects how many identifiers receive that symbol. They are independent settings:
+
+```json
+{
+  "identifierEscape": "quote",
+  "identifierEscapeTarget": "minimal"
+}
+```
+
+With `minimal`, quoted output is kept only where removing the delimiter would break SQL or change semantics, such as names with spaces, mixed-case identifiers, reserved words, or PostgreSQL special names. Safe lower-case identifiers can print without quotes.
+
+Use `sourceAliasStyle` when you want to preserve alias shorthand:
+
+```json
+{
+  "sourceAliasStyle": "implicit"
+}
+```
+
+This renders `from users u` instead of `from users as u`. Set it to `'as'` when your house style prefers explicit aliases.
+
 ### DDL constraint style
 
 `constraintStyle` controls how table- and column-level constraints appear when formatting `CREATE TABLE` statements.
@@ -172,6 +279,7 @@ Pair this option with your target engine: presets such as `'mysql'` enable it au
 ```json
 {
   "identifierEscape": "none",
+  "identifierEscapeTarget": "all",
   "parameterSymbol": ":",
   "parameterStyle": "named",
   "indentSize": 4,
@@ -183,8 +291,11 @@ Pair this option with your target engine: presets such as `'mysql'` enable it au
   "valuesCommaBreak": "after",
   "andBreak": "before",
   "orBreak": "before",
+  "joinOnBreak": "none",
+  "joinConditionContinuationIndent": false,
   "withClauseStyle": "cte-oneline",
   "insertColumnsOneLine": true,
+  "oneLineMaxLength": 100,
   "indentNestedParentheses": true,
   "exportComment": "full",
   "commentStyle": "smart",
@@ -194,6 +305,8 @@ Pair this option with your target engine: presets such as `'mysql'` enable it au
   "joinOneLine": true,
   "caseOneLine": true,
   "subqueryOneLine": true,
+  "sourceAliasStyle": "implicit",
+  "orderByDefaultDirectionStyle": "omit",
   "castStyle": "postgres",
   "constraintStyle": "postgres"
 }

@@ -4,9 +4,6 @@ import { resolve } from 'path'
 
 const shouldExcludeBenchmarks = process.env.VITEST_INCLUDE_BENCHMARKS !== '1'
 const integrationTestPatterns = [
-    'packages/sql-contract/tests/readme/**/*.test.[jt]s',
-    'packages/sql-contract/tests/mapper/driver/pg-mapper.integration.test.ts',
-    'packages/sql-contract/tests/mapper/driver/mssql-mapper.integration.test.ts',
 ]
 
 const baseExcludes = ['**/dist/**', '**/node_modules/**']
@@ -32,12 +29,6 @@ export const integrationConfig = defineConfig({
         alias: {
             'rawsql-ts': resolve(__dirname, 'packages/core/src'),
             '@rawsql-ts/testkit-core': resolve(__dirname, 'packages/testkit-core/src'),
-            '@rawsql-ts/sql-contract-zod': resolve(__dirname, 'packages/sql-contract-zod/src'),
-            '@rawsql-ts/sql-contract/mapper': resolve(__dirname, 'packages/sql-contract/src/mapper'),
-            '@rawsql-ts/sql-contract/mapper/*': resolve(__dirname, 'packages/sql-contract/src/mapper/*'),
-            '@rawsql-ts/sql-contract/writer': resolve(__dirname, 'packages/sql-contract/src/writer'),
-            '@rawsql-ts/sql-contract/writer/*': resolve(__dirname, 'packages/sql-contract/src/writer/*'),
-            '@rawsql-ts/sql-contract': resolve(__dirname, 'packages/sql-contract/src'),
             '@rawsql-ts/test-evidence-core': resolve(__dirname, 'packages/test-evidence-core/src'),
             '@rawsql-ts/test-evidence-renderer-md': resolve(__dirname, 'packages/test-evidence-renderer-md/src'),
             '@rawsql-ts/sql-grep-core': resolve(__dirname, 'packages/sql-grep-core/src'),
@@ -63,12 +54,6 @@ export default defineConfig({
         alias: {
             'rawsql-ts': resolve(__dirname, 'packages/core/src'),
             '@rawsql-ts/testkit-core': resolve(__dirname, 'packages/testkit-core/src'),
-            '@rawsql-ts/sql-contract-zod': resolve(__dirname, 'packages/sql-contract-zod/src'),
-            '@rawsql-ts/sql-contract/mapper': resolve(__dirname, 'packages/sql-contract/src/mapper'),
-            '@rawsql-ts/sql-contract/mapper/*': resolve(__dirname, 'packages/sql-contract/src/mapper/*'),
-            '@rawsql-ts/sql-contract/writer': resolve(__dirname, 'packages/sql-contract/src/writer'),
-            '@rawsql-ts/sql-contract/writer/*': resolve(__dirname, 'packages/sql-contract/src/writer/*'),
-            '@rawsql-ts/sql-contract': resolve(__dirname, 'packages/sql-contract/src'),
             '@rawsql-ts/test-evidence-core': resolve(__dirname, 'packages/test-evidence-core/src'),
             '@rawsql-ts/test-evidence-renderer-md': resolve(__dirname, 'packages/test-evidence-renderer-md/src'),
             '@rawsql-ts/sql-grep-core': resolve(__dirname, 'packages/sql-grep-core/src'),

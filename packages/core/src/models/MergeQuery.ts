@@ -1,6 +1,6 @@
 import { SqlComponent } from "./SqlComponent";
 import { IdentifierString, ValueList, ValueComponent } from "./ValueComponent";
-import { SetClause, SetClauseItem, SourceExpression, WhereClause, WithClause } from "./Clause";
+import { ReturningClause, SetClause, SetClauseItem, SourceExpression, WhereClause, WithClause } from "./Clause";
 
 export type MergeMatchType = "matched" | "not_matched" | "not_matched_by_source" | "not_matched_by_target";
 
@@ -123,6 +123,7 @@ export class MergeQuery extends SqlComponent {
     source: SourceExpression;
     onCondition: ValueComponent;
     whenClauses: MergeWhenClause[];
+    returningClause: ReturningClause | null;
 
     constructor(params: {
         withClause?: WithClause | null;
@@ -130,6 +131,7 @@ export class MergeQuery extends SqlComponent {
         source: SourceExpression;
         onCondition: ValueComponent;
         whenClauses: MergeWhenClause[];
+        returningClause?: ReturningClause | null;
     }) {
         super();
         this.withClause = params.withClause ?? null;
@@ -137,5 +139,6 @@ export class MergeQuery extends SqlComponent {
         this.source = params.source;
         this.onCondition = params.onCondition;
         this.whenClauses = params.whenClauses;
+        this.returningClause = params.returningClause ?? null;
     }
 }

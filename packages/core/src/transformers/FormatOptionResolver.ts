@@ -1,6 +1,9 @@
 import { IndentCharLogicalName, IndentCharOption, NewlineLogicalName, NewlineOption } from './LinePrinter';
 
-export type IdentifierEscapeName = 'quote' | 'backtick' | 'bracket' | 'none';
+export type IdentifierEscapeSymbol = 'quote' | 'backtick' | 'bracket';
+export type IdentifierEscapeTarget = 'all' | 'minimal';
+export type IdentifierEscapeName = IdentifierEscapeSymbol | 'none';
+export type ResolvedIdentifierEscapeOption = { start: string; end: string; target: IdentifierEscapeTarget };
 export type IdentifierEscapeOption = IdentifierEscapeName | { start: string; end: string };
 
 const INDENT_CHAR_MAP = {
@@ -55,7 +58,10 @@ export function resolveNewlineOption(option?: NewlineOption): NewlineOption | un
     return option;
 }
 
-export function resolveIdentifierEscapeOption(option?: IdentifierEscapeOption): { start: string; end: string } | undefined {
+export function resolveIdentifierEscapeOption(
+    option?: IdentifierEscapeOption,
+    target: IdentifierEscapeTarget = 'all'
+): ResolvedIdentifierEscapeOption | undefined {
     if (option === undefined) {
         // Allow undefined so presets can supply defaults.
         return undefined;
@@ -70,12 +76,16 @@ export function resolveIdentifierEscapeOption(option?: IdentifierEscapeOption): 
 
         // Spread into a new object to avoid mutating shared map entries.
         const mapped = IDENTIFIER_ESCAPE_MAP[normalized];
-        return { start: mapped.start, end: mapped.end };
+        return {
+            start: mapped.start,
+            end: mapped.end,
+            target
+        };
     }
 
     const start = option.start ?? '';
     const end = option.end ?? '';
 
     // Return a copy so callers do not mutate the input reference.
-    return { start, end };
+    return { start, end, target };
 }

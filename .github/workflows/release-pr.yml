@@ -12,6 +12,7 @@ jobs:
     env:
       # Disable git hooks (e.g. husky) so the Changesets commit can't fail in CI.
       HUSKY: 0
+      CHANGESETS_TOKEN: ${{ secrets.CHANGESETS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -27,6 +28,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Require release PR token
+        shell: bash
+        run: |
+          if [ -z "${CHANGESETS_TOKEN}" ]; then
+            echo "Release PR requires the CHANGESETS_TOKEN secret."
+            echo "A workflow-created PR must use a PAT so pull_request checks can run on the release PR branch."
+            exit 1
+          fi
+
       - name: Create/Update Release PR
         uses: changesets/action@v1
         with:
@@ -36,5 +46,5 @@ jobs:
           # Use git commits to avoid GitHub Contents API limitations (e.g., executable file modes in the repo).
           commitMode: git-cli
         env:
-          # Use a PAT if provided, since the default GITHUB_TOKEN may be restricted from creating PRs by repo settings.
-          GITHUB_TOKEN: ${{ secrets.CHANGESETS_TOKEN || secrets.GITHUB_TOKEN }}
+          # Release PRs must use a PAT so downstream pull_request checks attach to the bot-created PR.
+          GITHUB_TOKEN: ${{ secrets.CHANGESETS_TOKEN }}

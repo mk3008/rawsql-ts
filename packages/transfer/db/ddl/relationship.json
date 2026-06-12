@@ -1,0 +1,210 @@
+{
+  "schemaVersion": 1,
+  "metadataLanguagePolicy": "Human-facing reason text may use the language of the referenced product documentation. For @rawsql-ts/transfer review metadata, Japanese is allowed so generated review pages can be read by the product reviewers.",
+  "relationships": [
+    {
+      "path": "schema.sql",
+      "kind": "ddl-control",
+      "reason": "Creates the rawsql_transfer schema explicitly so transfer package tables do not rely on the user public schema or a generic transfer schema name."
+    },
+    {
+      "path": "dirty_key.sql",
+      "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "dirty-key-intake-only",
+          "reason": "dirty_key は変更検知producerではなく、Dirty Key の受け口と永続化を担う。"
+        },
+        {
+          "id": "no-cdc-engine",
+          "reason": "Dirty Key は CDC から登録されてもよいが、CDC実装は transfer core の外側にある。"
+        }
+      ],
+      "concepts": [
+        {
+          "path": "../../docs/concepts/dirty-key/concept.json",
+          "reason": "dirty_key stores immutable change-detection history. It intentionally does not store a source key hash so manual registration remains simple."
+        }
+      ]
+    },
+    {
+      "path": "destination_definition.sql",
+      "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "db-centered-transfer",
+          "reason": "Destination は DB上の転送先定義としてSQL生成と転送実行に使われる。"
+        }
+      ],
+      "concepts": [
+        {
+          "path": "../../docs/concepts/destination/concept.json",
+          "reason": "destination_definition stores destination-side table, key, sequence, transfer model, red-transfer column definitions, and generated red-transfer SQL because Red Transfer is based on destination-side active black rows rather than Destination Link mapping."
+        },
+        {
+          "path": "../../docs/concepts/posting-date-lower-bound/concept.json",
+          "reason": "destination_definition stores the Date Lower Bound Control hook for destination rows. The transfer package does not own the closing-date master table or business-specific lower-bound logic; it stores the application-provided correction function and destination-row argument columns so generated transfer SQL can call that hook."
+        }
+      ]
+    },
+    {
+      "path": "setting.sql",
+      "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "db-centered-transfer",
+          "reason": "Transfer Setting は SQL-based source definition を保持する。"
+        }
+      ],
+      "concepts": [
+        {
+          "path": "../../docs/concepts/transfer-setting/concept.json",
+          "reason": "setting stores the source data definition and source key definition used by transfer execution."
+        }
+      ]
+    },
+    {
+      "path": "destination_link.sql",
+      "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "db-centered-transfer",
+          "reason": "Destination Link は generated transfer SQL metadata とDestination接続をDB上で保持する。"
+        }
+      ],
+      "concepts": [
+        {
+          "path": "../../docs/concepts/destination-link/concept.json",
+          "reason": "destination_link stores Destination Link. Stable references use destination_link_id. destination_link_name is a Transfer Setting-local human-facing role name. destination_key_mapping stores how the Transfer Setting source key maps to the Destination Link-specific destination row key; it does not redefine source identity. The DDL intentionally does not enforce unique (setting_id, destination_definition_id) because one Transfer Setting may connect to the same Destination multiple times with different roles or mappings. Mapping-dependent generated transfer SQL body columns are stored on Destination Link because those AOT SQL bodies are determined by the Transfer Setting, Destination, and Destination Link mapping together. Generated Red Transfer SQL is intentionally not stored here because Red Transfer is destination-side and belongs to destination_definition."
+        }
+      ]
+    },
+    {
+      "path": "order.json",
+      "kind": "ddl-control",
+      "reason": "DDL execution order is controlled by metadata instead of file names. File names should describe the DDL artifact, not encode dependency order."
+    },
+    {
+      "path": "run.sql",
+      "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "db-centered-transfer",
+          "reason": "Transfer Run はDB内の転送実行コンテキストとして管理する。"
+        },
+        {
+          "id": "no-runtime-hosting",
+          "reason": "Transfer Run は実行記録であり、schedulerやruntime hostそのものではない。"
+        }
+      ],
+      "concepts": [
+        {
+          "path": "../../docs/concepts/transfer-run/concept.json",
+          "reason": "run stores the execution argument record, process header, lifecycle state, and run context. It exposes a composite run/setting identity so runtime tables can mechanically verify that their setting context matches the Transfer Run."
+        }
+      ],
+      "processes": [
+        {
+          "path": "../../docs/processes/transfer-execution-process.md",
+          "reason": "Transfer Execution creates Transfer Run before preparing Work Items."
+        }
+      ]
+    },
+    {
+      "path": "active_black.sql",
+      "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "db-centered-transfer",
+          "reason": "Active Black は転送プロセス内で参照するcurrent-state tableである。"
+        }
+      ],
+      "concepts": [
+        {
+          "path": "../../docs/concepts/active-black/concept.json",
+          "reason": "active_black は Transfer Execution の中で参照する current-state table である。Destination Link と source key ごとに現在有効な黒伝を保持し、Prepare Work Item が存在確認を行い、転送処理が既存の転送先行を特定できるようにする。同一性は source_key_json を正本とし、source_key_hash は検索補助としてのみ保持する。Transfer Setting、Transfer Run、Lineage、destination table name、destination key hash は Active Black の転送プロセス内lookupには不要なため保持しない。"
+        }
+      ],
+      "processes": [
+        {
+          "path": "../../docs/processes/transfer-execution-process.md",
+          "reason": "Prepare Work Item は Destination Link と source key に対する Active Black の有無を使って転送経路の副作用を判断する。Red Transfer、Black Update Transfer、Physical Delete Transfer は、保存された destination key を使って現在有効な黒伝行を対象にする。"
+        }
+      ]
+    },
+    {
+      "path": "work_item.sql",
+      "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "db-centered-transfer",
+          "reason": "Work Item はDirty Keyを転送実行内で固定化したDB上の作業対象である。"
+        }
+      ],
+      "concepts": [
+        {
+          "path": "../../docs/concepts/work-item/concept.json",
+          "reason": "work_item persists fixed Dirty Key work with the decision materials needed by the transfer route. Composite foreign keys keep run, setting, Destination Link, and referenced Active Black contexts aligned."
+        }
+      ],
+      "processes": [
+        {
+          "path": "../../docs/processes/transfer-execution-process.md",
+          "reason": "Prepare Work Item produces Work Items before transfer route processing."
+        }
+      ]
+    },
+    {
+      "path": "lineage.sql",
+      "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "db-centered-transfer",
+          "reason": "Lineage はDB上の転送結果追跡情報として保持する。"
+        }
+      ],
+      "concepts": [
+        {
+          "path": "../../docs/concepts/lineage/concept.json",
+          "reason": "lineage records immutable transfer source-to-destination correspondence for audit and debugging. Its destination-row identity is destination_table_name plus destination_key_json; destination_key_hash is kept only as a lookup aid."
+        }
+      ],
+      "processes": [
+        {
+          "path": "../../docs/processes/transfer-execution-process.md",
+          "reason": "Black and Red transfer operations record Lineage when destination rows are written."
+        },
+        {
+          "path": "../../docs/processes/lineage-trace-process.md",
+          "reason": "Lineage trace processes start from destination rows and resolve Lineage records."
+        }
+      ]
+    },
+    {
+      "path": "dirty_key_processing.sql",
+      "kind": "table-ddl",
+      "scopeRules": [
+        {
+          "id": "dirty-key-intake-only",
+          "reason": "Dirty Key Processing はDirty Keyの処理済み記録であり、変更検知そのものではない。"
+        },
+        {
+          "id": "db-centered-transfer",
+          "reason": "Dirty Key Processing は転送実行内の重複処理防止をDB上で記録する。"
+        }
+      ],
+      "concepts": [
+        {
+          "path": "../../docs/concepts/dirty-key-processing/concept.json",
+          "reason": "dirty_key_processing records processed Dirty Keys, processing results, and duplicate-transfer prevention scope. Composite foreign keys keep the recorded run, setting, Destination Link, and Work Item contexts aligned."
+        }
+      ],
+      "processes": [
+        {
+          "path": "../../docs/processes/transfer-execution-process.md",
+          "reason": "Record Processing Result writes Dirty Key Processing after transfer route processing or skip decisions."
+        }
+      ]
+    }
+  ]
+}

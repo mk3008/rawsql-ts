@@ -1,5 +1,5 @@
 import { MergeQuery, MergeWhenClause, MergeMatchType, MergeUpdateAction, MergeDeleteAction, MergeInsertAction, MergeDoNothingAction } from "../models/MergeQuery";
-import { SetClause, SetClauseItem, SourceExpression, WhereClause, WithClause } from "../models/Clause";
+import { ReturningClause, SetClause, SetClauseItem, SourceExpression, WhereClause, WithClause } from "../models/Clause";
 import { IdentifierString, ValueComponent, ValueList } from "../models/ValueComponent";
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { SqlTokenizer } from "./SqlTokenizer";
@@ -8,6 +8,7 @@ import { SourceExpressionParser } from "./SourceExpressionParser";
 import { ValueParser } from "./ValueParser";
 import { WhereClauseParser } from "./WhereClauseParser";
 import { FullNameParser } from "./FullNameParser";
+import { ReturningClauseParser } from "./ReturningClauseParser";
 import { extractLexemeComments } from "./utils/LexemeCommentUtils";
 import { SqlComponent } from "../models/SqlComponent";
 
@@ -87,12 +88,21 @@ export class MergeQueryParser {
             throw new Error("[MergeQueryParser] MERGE statement must contain at least one WHEN clause.");
         }
 
+        let returningClause: ReturningClause | null = null;
+        let nextIndex = whenResult.newIndex;
+        if (lexemes[nextIndex]?.value === "returning") {
+            const returningResult = ReturningClauseParser.parseFromLexeme(lexemes, nextIndex);
+            returningClause = returningResult.value;
+            nextIndex = returningResult.newIndex;
+        }
+
         const mergeQuery = new MergeQuery({
             withClause,
             target,
             source,
             onCondition,
-            whenClauses: whenResult.clauses
+            whenClauses: whenResult.clauses,
+            returningClause
         });
 
         // Preserve leading comments that precede the MERGE keyword.
@@ -100,7 +110,7 @@ export class MergeQueryParser {
 
         return {
             value: mergeQuery,
-            newIndex: whenResult.newIndex
+            newIndex: nextIndex
         };
     }
 

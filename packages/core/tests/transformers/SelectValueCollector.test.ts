@@ -177,4 +177,107 @@ describe('SelectItemCollector', () => {
         expect(selectItems.length).toBe(1);
         expect(selectItems[0].name).toBe('total_tax');
     });
+
+    test('collects select items from MERGE RETURNING CTE output', () => {
+        // Arrange
+        const sql = `
+            WITH merged AS (
+                MERGE INTO users AS target
+                USING incoming_users AS source
+                ON target.user_id = source.user_id
+                WHEN MATCHED THEN UPDATE SET name = source.name
+                WHEN NOT MATCHED THEN INSERT (user_id, name) VALUES (source.user_id, source.name)
+                RETURNING target.user_id AS user_id, target.name AS name
+            )
+            SELECT * FROM merged
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SelectValueCollector();
+
+        // Act
+        const selectItems = collector.collect(query);
+
+        // Assert
+        expect(selectItems.map(item => item.name)).toEqual(['user_id', 'name']);
+    });
+
+    test('collects select items from INSERT RETURNING CTE output', () => {
+        // Arrange
+        const sql = `
+            WITH inserted AS (
+                INSERT INTO users (name)
+                VALUES ('Alice')
+                RETURNING id, name
+            )
+            SELECT * FROM inserted
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SelectValueCollector();
+
+        // Act
+        const selectItems = collector.collect(query);
+
+        // Assert
+        expect(selectItems.map(item => item.name)).toEqual(['id', 'name']);
+    });
+
+    test('collects select items from UPDATE RETURNING CTE output', () => {
+        // Arrange
+        const sql = `
+            WITH updated AS (
+                UPDATE users
+                SET name = 'Bob'
+                WHERE id = 1
+                RETURNING id, name
+            )
+            SELECT * FROM updated
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SelectValueCollector();
+
+        // Act
+        const selectItems = collector.collect(query);
+
+        // Assert
+        expect(selectItems.map(item => item.name)).toEqual(['id', 'name']);
+    });
+
+    test('collects select items from DELETE RETURNING CTE output', () => {
+        // Arrange
+        const sql = `
+            WITH deleted_rows AS (
+                DELETE FROM users
+                WHERE id = 1
+                RETURNING id, name
+            )
+            SELECT * FROM deleted_rows
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SelectValueCollector();
+
+        // Act
+        const selectItems = collector.collect(query);
+
+        // Assert
+        expect(selectItems.map(item => item.name)).toEqual(['id', 'name']);
+    });
+
+    test('returns no select items for writable CTE without RETURNING', () => {
+        // Arrange
+        const sql = `
+            WITH inserted_no_return AS (
+                INSERT INTO users (name)
+                VALUES ('Alice')
+            )
+            SELECT * FROM inserted_no_return
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SelectValueCollector();
+
+        // Act
+        const selectItems = collector.collect(query);
+
+        // Assert
+        expect(selectItems).toHaveLength(0);
+    });
 });

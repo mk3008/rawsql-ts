@@ -3,7 +3,7 @@ import { InsertQuery } from "../../src/models/InsertQuery";
 import { SelectQuery, SimpleSelectQuery, ValuesQuery } from "../../src/models/SelectQuery";
 import { describe, it, expect } from "vitest";
 import { SqlFormatter } from "../../src/transformers/SqlFormatter";
-import { TableSource, ParenSource, SourceExpression } from "../../src/models/Clause";
+import { OnConflictClause, TableSource, ParenSource, SourceExpression } from "../../src/models/Clause";
 
 describe("InsertQueryParser", () => {
     it("parses INSERT INTO table SELECT ...", () => {
@@ -63,6 +63,88 @@ describe("InsertQueryParser", () => {
 
         expect(query).toBe("insert into \"users\"(\"id\", \"name\") values (1, 'a') returning \"id\", \"name\"");
         expect(insert.returningClause).not.toBeNull();
+    });
+
+    it("parses PostgreSQL 19 INSERT ... ON CONFLICT DO SELECT ... RETURNING", () => {
+        const sql = "INSERT INTO tags (name) VALUES ('backend') ON CONFLICT (name) DO SELECT RETURNING id";
+
+        const insert = InsertQueryParser.parse(sql);
+        const query = new SqlFormatter().format(insert).formattedSql;
+
+        expect(query).toBe('insert into "tags"("name") values (\'backend\') on conflict (name) do select returning "id"');
+        expect(insert.onConflictClause?.action).toBe("select");
+    });
+
+    it("parses PostgreSQL 19 ON CONFLICT DO SELECT with row lock and WHERE condition", () => {
+        const sql = "INSERT INTO tags (name) VALUES ('backend') ON CONFLICT (name) DO SELECT FOR UPDATE WHERE tags.active RETURNING id, name";
+
+        const insert = InsertQueryParser.parse(sql);
+        const query = new SqlFormatter().format(insert).formattedSql;
+
+        expect(query).toBe('insert into "tags"("name") values (\'backend\') on conflict (name) do select for update where "tags"."active" returning "id", "name"');
+        expect(insert.onConflictClause?.forClause?.lockMode).toBe("update");
+        expect(insert.onConflictClause?.whereClause).not.toBeNull();
+    });
+
+    it("parses PostgreSQL 19 ON CONFLICT ON CONSTRAINT DO SELECT", () => {
+        const sql = "INSERT INTO tags (name) VALUES ('backend') ON CONFLICT ON CONSTRAINT tags_name_key DO SELECT FOR SHARE RETURNING *";
+
+        const insert = InsertQueryParser.parse(sql);
+        const query = new SqlFormatter().format(insert).formattedSql;
+
+        expect(query).toBe('insert into "tags"("name") values (\'backend\') on conflict on constraint tags_name_key do select for share returning *');
+        expect(insert.onConflictClause?.targetKind).toBe("constraint");
+    });
+
+    it("formats programmatic ON CONFLICT ON CONSTRAINT targets", () => {
+        const clause = new OnConflictClause({
+            target: "tags_name_key",
+            targetKind: "constraint",
+            action: "nothing"
+        });
+
+        const query = new SqlFormatter().format(clause).formattedSql;
+
+        expect(query).toBe("on conflict on constraint tags_name_key do nothing");
+    });
+
+    it("rejects PostgreSQL 19 ON CONFLICT DO SELECT without RETURNING", () => {
+        const sql = "INSERT INTO tags (name) VALUES ('backend') ON CONFLICT (name) DO SELECT";
+
+        expect(() => InsertQueryParser.parse(sql)).toThrow("ON CONFLICT DO SELECT requires a RETURNING clause");
+    });
+
+    it("parses INSERT ... ON CONFLICT DO UPDATE", () => {
+        const sql = "INSERT INTO users (id, name) VALUES (1, 'new') ON CONFLICT (id) DO UPDATE SET name = excluded.name";
+
+        const insert = InsertQueryParser.parse(sql);
+        const query = new SqlFormatter().format(insert).formattedSql;
+
+        expect(query).toBe('insert into "users"("id", "name") values (1, \'new\') on conflict (id) do update set "name" = "excluded"."name"');
+        expect(insert.onConflictClause?.action).toBe("update");
+        expect(insert.onConflictClause?.setClause?.items).toHaveLength(1);
+    });
+
+    it("parses INSERT ... ON CONFLICT DO UPDATE with WHERE and RETURNING", () => {
+        const sql = "INSERT INTO users (id, name, updated_at) VALUES (1, 'new', now()) ON CONFLICT (id) DO UPDATE SET name = excluded.name, updated_at = now() WHERE users.deleted_at IS NULL RETURNING id, name";
+
+        const insert = InsertQueryParser.parse(sql);
+        const query = new SqlFormatter().format(insert).formattedSql;
+
+        expect(query).toBe('insert into "users"("id", "name", "updated_at") values (1, \'new\', now()) on conflict (id) do update set "name" = "excluded"."name", "updated_at" = now() where "users"."deleted_at" is null returning "id", "name"');
+        expect(insert.onConflictClause?.whereClause).not.toBeNull();
+        expect(insert.returningClause?.items).toHaveLength(2);
+    });
+
+    it("parses INSERT ... ON CONFLICT ON CONSTRAINT DO UPDATE", () => {
+        const sql = "INSERT INTO users (email, name) VALUES ('a@example.com', 'new') ON CONFLICT ON CONSTRAINT users_email_key DO UPDATE SET name = excluded.name RETURNING id";
+
+        const insert = InsertQueryParser.parse(sql);
+        const query = new SqlFormatter().format(insert).formattedSql;
+
+        expect(query).toBe('insert into "users"("email", "name") values (\'a@example.com\', \'new\') on conflict on constraint users_email_key do update set "name" = "excluded"."name" returning "id"');
+        expect(insert.onConflictClause?.targetKind).toBe("constraint");
+        expect(insert.onConflictClause?.action).toBe("update");
     });
 
     it("parses INSERT ... RETURNING *", () => {

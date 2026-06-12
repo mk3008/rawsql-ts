@@ -9,6 +9,7 @@ import { SelectQueryParser } from "./SelectQueryParser";
 import { OrderByClauseParser } from "./OrderByClauseParser";
 import { ParseError } from "./ParseError";
 import { extractLexemeComments } from "./utils/LexemeCommentUtils";
+import { joinLexemeValues } from "../utils/ParserStringUtils";
 
 export class FunctionExpressionParser {
     /**
@@ -17,6 +18,13 @@ export class FunctionExpressionParser {
     private static readonly AGGREGATE_FUNCTIONS_WITH_ORDER_BY = new Set([
         'string_agg', 'array_agg', 'json_agg', 'jsonb_agg', 
         'json_object_agg', 'jsonb_object_agg', 'xmlagg'
+    ]);
+
+    private static readonly SQL_JSON_CONSTRUCTORS = new Set([
+        'json_array',
+        'json_object',
+        'json_scalar',
+        'json_serialize'
     ]);
 
     /**
@@ -162,7 +170,14 @@ export class FunctionExpressionParser {
             
             let internalOrderBy: OrderByClause | null = null;
             
-            if (this.AGGREGATE_FUNCTIONS_WITH_ORDER_BY.has(functionName)) {
+            if (this.SQL_JSON_CONSTRUCTORS.has(functionName)) {
+                // SQL/JSON constructor arguments contain VALUE pairs and ON NULL/RETURNING
+                // clauses that do not fit the current function-argument AST. Preserve the
+                // source fragment until #866 adds structured SQL/JSON constructor nodes.
+                const result = this.parseRawFunctionArguments(lexemes, idx);
+                arg = { value: result.argument, newIndex: result.newIndex };
+                closingComments = result.closingComments;
+            } else if (this.AGGREGATE_FUNCTIONS_WITH_ORDER_BY.has(functionName)) {
                 // Use special aggregate function argument parser with comment capture
                 const result = this.parseAggregateArguments(lexemes, idx);
                 arg = { value: result.arguments, newIndex: result.newIndex };
@@ -199,17 +214,20 @@ export class FunctionExpressionParser {
                 idx++; // Skip single "with ordinality" token
             }
 
+            const nullsTreatment = this.parseNullsTreatment(lexemes, idx);
+            idx = nullsTreatment.newIndex;
+
             if (idx < lexemes.length && lexemes[idx].value === "over") {
                 const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                 idx = over.newIndex;
-                const value = new FunctionCall(namespaces, name.name, arg.value, over.value, withinGroup, withOrdinality, internalOrderBy, filterCondition);
+                const value = new FunctionCall(namespaces, name.name, arg.value, over.value, withinGroup, withOrdinality, internalOrderBy, filterCondition, nullsTreatment.value);
                 // Set closing comments if available
                 if (closingComments && closingComments.length > 0) {
                     value.addPositionedComments("after", closingComments);
                 }
                 return { value, newIndex: idx };
             } else {
-                const value = new FunctionCall(namespaces, name.name, arg.value, null, withinGroup, withOrdinality, internalOrderBy, filterCondition);
+                const value = new FunctionCall(namespaces, name.name, arg.value, null, withinGroup, withOrdinality, internalOrderBy, filterCondition, nullsTreatment.value);
                 // Set closing comments if available
                 if (closingComments && closingComments.length > 0) {
                     value.addPositionedComments("after", closingComments);
@@ -219,6 +237,44 @@ export class FunctionExpressionParser {
         } else {
             throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected opening parenthesis after function name '${name.name}'.`);
         }
+    }
+
+    /**
+     * Captures SQL/JSON constructor arguments as RawString while preserving closing
+     * comments via getClosingComments. Empty argument lists still use ValueList.
+     * Tracking structured AST support: https://github.com/mk3008/rawsql-ts/issues/866
+     */
+    private static parseRawFunctionArguments(lexemes: Lexeme[], index: number): { argument: RawString | ValueList; closingComments: string[] | null; newIndex: number } {
+        let idx = index;
+        if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.OpenParen)) {
+            throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected opening parenthesis.`);
+        }
+
+        const contentStart = idx + 1;
+        let depth = 1;
+        idx++;
+
+        while (idx < lexemes.length && depth > 0) {
+            if (lexemes[idx].type & TokenType.OpenParen) {
+                depth++;
+            } else if (lexemes[idx].type & TokenType.CloseParen) {
+                depth--;
+            }
+
+            if (depth === 0) {
+                const closingComments = this.getClosingComments(lexemes[idx]);
+                const rawText = joinLexemeValues(lexemes, contentStart, idx);
+                idx++;
+                return {
+                    argument: rawText.length > 0 ? new RawString(rawText) : new ValueList([]),
+                    closingComments,
+                    newIndex: idx
+                };
+            }
+            idx++;
+        }
+
+        throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected closing parenthesis.`);
     }
 
     private static parseKeywordFunction(
@@ -283,15 +339,18 @@ export class FunctionExpressionParser {
                     idx++; // Skip single "with ordinality" token
                 }
                 
+                const nullsTreatment = this.parseNullsTreatment(lexemes, idx);
+                idx = nullsTreatment.newIndex;
+
                 // Use the previously parsed namespaces and function name for consistency
                 if (idx < lexemes.length && lexemes[idx].value === "over") {
                     idx++;
                     const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                     idx = over.newIndex;
-                    const value = new FunctionCall(namespaces, name.name, arg, over.value, withinGroup, withOrdinality, null);
+                    const value = new FunctionCall(namespaces, name.name, arg, over.value, withinGroup, withOrdinality, null, null, nullsTreatment.value);
                     return { value, newIndex: idx };
                 } else {
-                    const value = new FunctionCall(namespaces, name.name, arg, null, withinGroup, withOrdinality, null);
+                    const value = new FunctionCall(namespaces, name.name, arg, null, withinGroup, withOrdinality, null, null, nullsTreatment.value);
                     return { value, newIndex: idx };
                 }
             } else {
@@ -300,6 +359,14 @@ export class FunctionExpressionParser {
         } else {
             throw ParseError.fromUnparsedLexemes(lexemes, idx, `Missing opening parenthesis for function '${name.name}'.`);
         }
+    }
+
+    private static parseNullsTreatment(lexemes: Lexeme[], index: number): { value: "ignore nulls" | "respect nulls" | null; newIndex: number } {
+        const value = lexemes[index]?.value;
+        if (value === "ignore nulls" || value === "respect nulls") {
+            return { value, newIndex: index + 1 };
+        }
+        return { value: null, newIndex: index };
     }
 
     public static parseTypeValue(lexemes: Lexeme[], index: number): { value: TypeValue; newIndex: number; } {

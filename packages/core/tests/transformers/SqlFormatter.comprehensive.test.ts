@@ -220,7 +220,7 @@ describe('SqlFormatter - Comprehensive SQL Output Validation', () => {
             const formatter = new SqlFormatter({ exportComment: true });
             const result = formatter.format(query);
 
-            const expectedSql = 'select round("price" /* price value */ /* price value */ * 1.1, 2) as "rounded_price" from "products"';
+            const expectedSql = 'select round("price" /* price value */ * 1.1, 2) as "rounded_price" from "products"';
             validateCompleteSQL(result.formattedSql, expectedSql);
         });
 
@@ -236,7 +236,7 @@ describe('SqlFormatter - Comprehensive SQL Output Validation', () => {
             const formatter = new SqlFormatter({ exportComment: true });
             const result = formatter.format(query);
 
-            const expectedSql = 'select ("price" /* base price */ /* base price */ * 1.1 /* with tax */ + 500) /* plus fee */ as "final_price" from "products"';
+            const expectedSql = 'select ("price" /* base price */ * 1.1 /* with tax */ + 500) /* plus fee */ as "final_price" from "products"';
             validateCompleteSQL(result.formattedSql, expectedSql);
         });
 

@@ -9,6 +9,8 @@ lerna-debug.log*
 
 # ZTD generated artifacts (never commit)
 **/tests/generated/**
+!packages/ztd-cli/templates/**/tests/generated/
+!packages/ztd-cli/templates/**/tests/generated/**
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
@@ -139,6 +141,13 @@ docs/.vitepress/dist
 
 # Vite/VitePress cache
 docs/.vitepress/cache
+
+# Generated Transfer Docs review pages. Source of truth lives under packages/transfer.
+docs/concepts/
+docs/dfd/
+docs/processes/
+docs/rawsql-transfer/
+docs/roles/
 
 CONTINUITY.md
 # Local memo shortcuts for agent work; intentionally untracked.

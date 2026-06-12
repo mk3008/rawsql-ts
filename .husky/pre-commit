@@ -13,45 +13,19 @@ fi
 echo "[pre-commit] Enforcing staged-file policy..."
 node scripts/precommit-enforcement.js
 
-ZTD_ONLY=true
-for file in $STAGED_FILES
-do
-  case "$file" in
-    .husky/pre-commit|packages/ztd-cli/*|docs/guide/ztd-cli-*|.changeset/*|README.md)
-      ;;
-    *)
-      ZTD_ONLY=false
-      break
-      ;;
-  esac
-done
+# Do not let tests that create temporary Git repositories inherit the hook index.
+unset GIT_INDEX_FILE
 
-if [ "$ZTD_ONLY" = true ]; then
-  echo "[pre-commit] Detected ztd-cli scoped changes."
+echo "[pre-commit] Running workspace typecheck..."
+pnpm typecheck
 
-  echo "[pre-commit] Running ztd-cli typecheck..."
-  pnpm --filter @rawsql-ts/ztd-cli exec tsc --noEmit -p tsconfig.json
+echo "[pre-commit] Running workspace tests..."
+pnpm test
 
-  echo "[pre-commit] Running ztd-cli tests..."
-  pnpm --filter @rawsql-ts/ztd-cli test
+echo "[pre-commit] Building workspace..."
+pnpm build
 
-  echo "[pre-commit] Building ztd-cli..."
-  pnpm --filter @rawsql-ts/ztd-cli build
-
-  echo "[pre-commit] Running ztd-cli lint..."
-  pnpm --filter @rawsql-ts/ztd-cli lint
-else
-  echo "[pre-commit] Running workspace typecheck..."
-  pnpm typecheck
-
-  echo "[pre-commit] Running workspace tests..."
-  pnpm test
-
-  echo "[pre-commit] Building workspace..."
-  pnpm build
-
-  echo "[pre-commit] Running workspace lint..."
-  pnpm lint
-fi
+echo "[pre-commit] Running workspace lint..."
+pnpm lint
 
 echo "[pre-commit] All checks passed."

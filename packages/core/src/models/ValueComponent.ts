@@ -21,6 +21,7 @@ export type ValueComponent = ValueList |
     ArraySliceExpression |
     ArrayIndexExpression |
     BetweenExpression |
+    JsonPredicateExpression |
     InlineQuery |
     StringSpecifierExpression |
     TypeValue |
@@ -86,6 +87,7 @@ export class FunctionCall extends SqlComponent {
     qualifiedName: QualifiedName;
     argument: ValueComponent | null;
     over: OverExpression | null;
+    nullsTreatment: "ignore nulls" | "respect nulls" | null;
     withinGroup: OrderByClause | null;
     withOrdinality: boolean;
     internalOrderBy: OrderByClause | null;
@@ -99,12 +101,14 @@ export class FunctionCall extends SqlComponent {
         withinGroup: OrderByClause | null = null,
         withOrdinality: boolean = false,
         internalOrderBy: OrderByClause | null = null,
-        filterCondition: ValueComponent | null = null
+        filterCondition: ValueComponent | null = null,
+        nullsTreatment: "ignore nulls" | "respect nulls" | null = null
     ) {
         super();
         this.qualifiedName = new QualifiedName(namespaces, name);
         this.argument = argument;
         this.over = over;
+        this.nullsTreatment = nullsTreatment;
         this.withinGroup = withinGroup;
         this.withOrdinality = withOrdinality;
         this.internalOrderBy = internalOrderBy;
@@ -348,6 +352,29 @@ export class BetweenExpression extends SqlComponent {
         this.lower = lower;
         this.upper = upper;
         this.negated = negated;
+    }
+}
+
+export type JsonPredicateType = "value" | "scalar" | "array" | "object";
+export type JsonPredicateUniqueKeys = "with" | "without";
+
+export class JsonPredicateExpression extends SqlComponent {
+    static kind = Symbol("JsonPredicateExpression");
+    expression: ValueComponent;
+    negated: boolean;
+    jsonType: JsonPredicateType | null;
+    uniqueKeys: JsonPredicateUniqueKeys | null;
+    constructor(
+        expression: ValueComponent,
+        negated: boolean,
+        jsonType: JsonPredicateType | null = null,
+        uniqueKeys: JsonPredicateUniqueKeys | null = null
+    ) {
+        super();
+        this.expression = expression;
+        this.negated = negated;
+        this.jsonType = jsonType;
+        this.uniqueKeys = uniqueKeys;
     }
 }
 

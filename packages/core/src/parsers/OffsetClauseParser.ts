@@ -27,6 +27,7 @@ export class OffsetClauseParser {
         if (lexemes[idx].value !== 'offset') {
             throw new Error(`Syntax error at position ${idx}: Expected 'OFFSET' keyword but found "${lexemes[idx].value}". OFFSET clauses must start with the OFFSET keyword.`);
         }
+        const offsetKeywordComments = lexemes[idx].positionedComments;
         idx++;
 
         if (idx >= lexemes.length) {
@@ -35,6 +36,12 @@ export class OffsetClauseParser {
 
         // Parse OFFSET value
         const offsetItem = ValueParser.parseFromLexeme(lexemes, idx);
+        const afterKeywordComments = offsetKeywordComments
+            ?.filter(comment => comment.position === 'after')
+            .flatMap(comment => comment.comments) ?? [];
+        if (afterKeywordComments.length > 0) {
+            offsetItem.value.addPositionedComments('before', afterKeywordComments);
+        }
         idx = offsetItem.newIndex;
 
         // If there is a "row" or "rows" command, skip it

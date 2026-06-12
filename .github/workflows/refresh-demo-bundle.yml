@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HUSKY: 0
+      CHANGESETS_TOKEN: ${{ secrets.CHANGESETS_TOKEN }}
 
     steps:
       - name: Checkout
@@ -37,9 +38,6 @@ jobs:
 
       - name: Build testkit-core package
         run: pnpm --filter @rawsql-ts/testkit-core build
-
-      - name: Build ztd-cli package
-        run: pnpm --filter @rawsql-ts/ztd-cli build
 
       - name: Build rawsql-ts browser output
         run: pnpm --filter rawsql-ts build:browser
@@ -68,17 +66,76 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
+      - name: Require refresh PR token
+        shell: bash
+        run: |
+          if [ -z "${CHANGESETS_TOKEN}" ]; then
+            echo "Refresh demo browser bundle requires the CHANGESETS_TOKEN secret."
+            echo "A workflow-created PR must use a PAT so pull_request checks can run on the bot-created PR branch."
+            exit 1
+          fi
+        env:
+          CHANGESETS_TOKEN: ${{ env.CHANGESETS_TOKEN }}
+
       - name: Create PR with refreshed bundle
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CHANGESETS_TOKEN }}
           commit-message: 'chore: refresh demo browser bundle'
           branch: 'refresh-demo-bundle-${{ github.run_id }}'
           title: Refresh demo browser bundle
           body: |
             ## Summary
-            - rebuild the rawsql-ts browser output via `pnpm --filter rawsql-ts build:browser`
-            - regenerate `docs/public/demo/vendor/rawsql.browser.js` via esbuild
+
+            - Rebuild the rawsql-ts browser output via `pnpm --filter rawsql-ts build:browser`.
+            - Regenerate `docs/public/demo/vendor/rawsql.browser.js` via esbuild.
+
+            ## Verification
+
+            - Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            - `pnpm --filter rawsql-ts build`
+            - `pnpm --filter @rawsql-ts/testkit-core build`
+            - `pnpm --filter rawsql-ts build:browser`
+            - `pnpm run docs:build`
+
+            ## Merge Readiness
+
+            - [x] No baseline exception requested.
+            - [ ] Baseline exception requested and linked below.
+
+            Tracking issue: Automated demo browser bundle refresh workflow run ${{ github.run_id }}.
+            Scoped checks run: Refresh Demo Browser Bundle workflow build steps; PR quick-check, release-readiness, CI build-and-test, and customer-consumer-guard are expected to run after this PR is created.
+            Why full baseline is not required: No baseline exception is requested; this PR only refreshes the generated public demo browser bundle.
+
+            ## Self Review
+
+            Self-review workflow: Workflow-generated PR body follows `.github/pull_request_template.md` and is expected to be validated by `scripts/check-pr-readiness.js` in PR quick-check.
+            Self-review result: No blockers are expected for the generated PR body; any bundle diff remains visible in `docs/public/demo/vendor/rawsql.browser.js`.
+            Concept-review workflow: Explicit no-concept-impact review for a generated public demo browser bundle refresh.
+            Concept-review result: No concept or package-boundary impact is expected; the workflow changes only the generated browser demo asset.
+
+            ## CLI Surface Migration
+
+            - [x] No migration packet required for this CLI change.
+            - [ ] CLI/user-facing surface change and migration packet completed.
+
+            No-migration rationale: This workflow only refreshes the generated browser demo bundle and does not change CLI commands, flags, help, or examples.
+            Upgrade note: No user-facing CLI upgrade note is needed for this generated demo asset refresh.
+            Deprecation/removal plan or issue: No CLI deprecation or removal is introduced.
+            Docs/help/examples updated: No docs/help/example updates are needed because the public demo bundle output is the generated artifact being refreshed.
+            Release/changeset wording: No changeset is needed for a generated demo bundle refresh with no package API or behavior change.
+
+            ## Scaffold Contract Proof
+
+            - [x] No scaffold contract proof required for this PR.
+            - [ ] Scaffold contract proof completed.
+
+            No-proof rationale: This workflow does not change scaffold commands, templates, or generated project contracts.
+            Non-edit assertion: Not applicable; no scaffold output path is changed.
+            Fail-fast input-contract proof: Not applicable; no scaffold input contract is changed.
+            Generated-output viability proof: Not applicable; no scaffold generated-output path is changed.
+          add-paths: |
+            docs/public/demo/vendor/rawsql.browser.js
           labels: demo
           base: main
           delete-branch: true

@@ -1,19 +1,12 @@
 import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
-import { SqlParamInjector, StateParameterValue } from "./SqlParamInjector";
 import { SqlSortInjector, SortConditions } from "./SqlSortInjector";
 import { SqlPaginationInjector, PaginationOptions } from "./SqlPaginationInjector";
-import { PostgresJsonQueryBuilder, JsonMapping } from "./PostgresJsonQueryBuilder";
 import { QueryBuilder } from "./QueryBuilder";
 import { SqlParameterBinder } from "./SqlParameterBinder";
 import { ParameterDetector } from "../utils/ParameterDetector";
 import { ColumnReference, SqlParameterValue } from "../models/ValueComponent";
 import { SelectItem } from "../models/Clause";
-import {
-    ExistsInstruction,
-    injectExistsPredicates,
-    type ExistsSubqueryDefinition
-} from "./ExistsPredicateInjector";
 import {
     SchemaInfo,
     optimizeUnusedLeftJoinsToFixedPoint,
@@ -24,6 +17,7 @@ import {
     OptionalConditionPruningParameters,
     pruneOptionalConditionBranches
 } from "./PruneOptionalConditionBranches";
+import type { ExistsSubqueryDefinition } from "./ExistsPredicateInjector";
 
 export type { ExistsSubqueryDefinition };
 
@@ -111,7 +105,10 @@ export type FilterConditions = Record<string, FilterConditionValue>;
  * Options for dynamic query building
  */
 export interface QueryBuildOptions {
-    /** Filter conditions to inject into WHERE clause */
+    /**
+     * Legacy filter input for named-parameter binding only.
+     * Dynamic predicate injection is no longer supported and will fail fast.
+     */
     filter?: FilterConditions;
     /** Sort conditions to inject into ORDER BY clause */
     sort?: SortConditions;
@@ -127,18 +124,6 @@ export interface QueryBuildOptions {
      * Filters apply subtractively and only drop columns that exist in the original output.
      */
     excludeColumns?: string[];
-    /** JSON serialization mapping to transform results into hierarchical JSON
-     * - JsonMapping object: explicit mapping configuration
-     * - true: auto-load mapping from corresponding .json file
-     * - false/undefined: no serialization
-     */
-    serialize?: JsonMapping | boolean;
-    /**
-     * JSONB usage setting. Must be true (default) for PostgreSQL GROUP BY compatibility.
-     * Setting to false will throw an error as JSON type cannot be used in GROUP BY clauses.
-     * @default true
-     */
-    jsonb?: boolean;
     /**
      * Throw when column-anchored EXISTS filters fail to resolve.
      * Defaults to false so invalid definitions are skipped silently.
@@ -183,12 +168,12 @@ export interface DynamicQueryBuilderOptions {
 }
 
 /**
- * DynamicQueryBuilder combines SQL parsing with dynamic condition injection (filters, sorts, paging, JSON serialization).
+ * DynamicQueryBuilder combines SQL parsing with dynamic condition injection (filters, sorts, paging).
  *
  * Key behaviours verified in packages/core/tests/transformers/DynamicQueryBuilder.test.ts:
  * - Preserves the input SQL when no options are supplied.
  * - Applies filter, sort, and pagination in a deterministic order.
- * - Supports JSON serialization for hierarchical projections.
+ * - Fails fast for removed SQL-result JSON shaping.
  */
 export class DynamicQueryBuilder {
     private tableColumnResolver?: (tableName: string) => string[];
@@ -215,7 +200,7 @@ export class DynamicQueryBuilder {
      * Builds a SelectQuery from SQL content with dynamic conditions.
      * This is a pure function that does not perform any I/O operations.
      * @param sqlContent Raw SQL string to parse and modify
-     * @param options Dynamic conditions to apply (filter, sort, paging, serialize)
+     * @param options Dynamic conditions to apply (filter, sort, paging)
      * @returns Modified SelectQuery with all dynamic conditions applied
      * @example
      * ```typescript
@@ -225,13 +210,19 @@ export class DynamicQueryBuilder {
      *   {
      *     filter: { status: 'premium' },
      *     sort: { created_at: { desc: true } },
-     *     paging: { page: 2, pageSize: 10 },
-     *     serialize: { rootName: 'user', rootEntity: { id: 'user', name: 'User', columns: { id: 'id', name: 'name' } }, nestedEntities: [] }
+     *     paging: { page: 2, pageSize: 10 }
      *   }
      * );
      * ```
      */
     buildQuery(sqlContent: string, options: QueryBuildOptions = {}): SelectQuery {
+        const removedOptions = options as Record<string, unknown>;
+        if ('serialize' in removedOptions || 'jsonb' in removedOptions) {
+            throw new Error(
+                "DynamicQueryBuilder SQL-result JSON shaping has been removed. Keep SQL results as rows and use generated AOT mappers so the executed SQL remains debuggable."
+            );
+        }
+
         // Parse the base SQL
         let parsedQuery: SimpleSelectQuery;
         try {
@@ -243,7 +234,7 @@ export class DynamicQueryBuilder {
         // Apply dynamic modifications in the correct order
         let modifiedQuery: SelectQuery = parsedQuery;
 
-        // 1. Bind hardcoded parameters first (before any other transformations)
+        // 1. Bind existing named parameters, but fail fast for legacy runtime filter assembly.
         if (options.filter && Object.keys(options.filter).length > 0) {
             const { hardcodedParams, dynamicFilters } = ParameterDetector.separateFilters(modifiedQuery, options.filter);
 
@@ -253,21 +244,11 @@ export class DynamicQueryBuilder {
                 modifiedQuery = parameterBinder.bind(modifiedQuery, hardcodedParams);
             }
 
-            // Extract and remove any column-anchored EXISTS filters before injecting traditional ones.
-            const { filters: cleanedFilters, instructions: existsInstructions } = this.extractExistsInstructions(dynamicFilters);
-
-            if (Object.keys(cleanedFilters).length > 0) {
-                const paramInjector = new SqlParamInjector(this.tableColumnResolver);
-                // Ensure we have a SimpleSelectQuery for the injector
-                const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);
-                modifiedQuery = paramInjector.inject(simpleQuery, cleanedFilters);
-            }
-
-            if (existsInstructions.length > 0) {
-                modifiedQuery = injectExistsPredicates(modifiedQuery, existsInstructions, {
-                    tableColumnResolver: this.tableColumnResolver,
-                    strict: !!options.existsStrict
-                });
+            const hasLegacyDynamicFilters = Object.keys(dynamicFilters).length > 0;
+            if (hasLegacyDynamicFilters) {
+                throw new Error(
+                    "DynamicQueryBuilder no longer injects runtime filter predicates. Use `ashiba query optional add` to author optional filters, `ashiba query optional refresh` to refresh them, and `optionalConditionParameters` at runtime for pruning only."
+                );
             }
         }
 
@@ -297,24 +278,15 @@ export class DynamicQueryBuilder {
         if (Object.keys(optionalConditionParameters).length > 0) {
             modifiedQuery = pruneOptionalConditionBranches(modifiedQuery, optionalConditionParameters);
         }
-        // 6. Remove unused LEFT JOINs when asked before serialization.
+        // 6. Remove unused LEFT JOINs when asked.
         const effectiveSchemaInfo = options.schemaInfo ?? this.defaultSchemaInfo;
         if (options.removeUnusedLeftJoins && effectiveSchemaInfo?.length) {
             modifiedQuery = optimizeUnusedLeftJoinsToFixedPoint(modifiedQuery, effectiveSchemaInfo);
         }
-        // 7. Remove unused CTEs before serialization when requested.
+        // 7. Remove unused CTEs when requested.
         if (options.removeUnusedCtes) {
             modifiedQuery = optimizeUnusedCtesToFixedPoint(modifiedQuery);
         }
-        // Apply serialization last (transform the final query structure to JSON)
-        // Note: boolean values are handled at RawSqlClient level for auto-loading
-        if (options.serialize && typeof options.serialize === 'object') {
-            const jsonBuilder = new PostgresJsonQueryBuilder();
-            // Ensure we have a SimpleSelectQuery for the JSON builder
-            const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);
-            modifiedQuery = jsonBuilder.buildJsonQuery(simpleQuery, options.serialize);
-        }
-
         return modifiedQuery;
     }
 
@@ -338,112 +310,6 @@ export class DynamicQueryBuilder {
 
         return legacyParameters;
     }
-    private extractExistsInstructions(filters: Record<string, FilterConditionValue>) {
-        const cleanedFilters: Record<string, StateParameterValue> = {};
-        const instructions: ExistsInstruction[] = [];
-
-        for (const [key, value] of Object.entries(filters)) {
-            if (key === "$exists" || key === "$notExists") {
-                // Multi-anchor metadata arrives as arrays keyed by the special markers.
-                if (!this.isMultiColumnDefinitionArray(value)) {
-                    throw new Error(`'${key}' must be an array of EXISTS definitions.`);
-                }
-                this.handleMultiAnchorDefinitions(key, value, instructions);
-                continue;
-            }
-
-            if (this.isFilterConditionObject(value)) {
-                const { leftover, exists, notExists } = this.splitExistsProperties(value);
-
-                if (exists) {
-                    instructions.push(this.createExistsInstruction([key], exists, "exists"));
-                }
-                if (notExists) {
-                    instructions.push(this.createExistsInstruction([key], notExists, "notExists"));
-                }
-
-                if (leftover) {
-                    cleanedFilters[key] = leftover;
-                }
-                continue;
-            }
-
-            if (this.isMultiColumnDefinitionArray(value)) {
-                continue;
-            }
-            cleanedFilters[key] = value as StateParameterValue;
-        }
-
-        return { filters: cleanedFilters, instructions };
-    }
-
-    private handleMultiAnchorDefinitions(
-        key: "$exists" | "$notExists",
-        definitions: MultiColumnExistsDefinition[],
-        instructions: ExistsInstruction[]
-    ): void {
-        // Build instructions for each multi-anchor definition in the batch.
-        for (const definition of definitions) {
-            if (!definition.on || definition.on.length === 0) {
-                throw new Error(`Every ${key} instruction must specify an "on" array.`);
-            }
-            instructions.push(
-                this.createExistsInstruction(
-                    definition.on,
-                    definition,
-                    key === "$notExists" ? "notExists" : "exists"
-                )
-            );
-        }
-    }
-
-    private splitExistsProperties(value: FilterConditionObject) {
-        const { exists, notExists, ...rest } = value;
-        const hasRemaining = Object.keys(rest).length > 0;
-        return {
-            leftover: hasRemaining ? (rest as StateParameterValue) : undefined,
-            exists: exists as ExistsSubqueryDefinition | undefined,
-            notExists: notExists as ExistsSubqueryDefinition | undefined
-        };
-    }
-
-    private isFilterConditionObject(value: FilterConditionValue): value is FilterConditionObject {
-        return value !== null && typeof value === "object" && !Array.isArray(value);
-    }
-
-    private isMultiColumnDefinitionArray(value: FilterConditionValue): value is MultiColumnExistsDefinition[] {
-        return Array.isArray(value) && value.every(entry => this.isMultiColumnDefinition(entry));
-    }
-
-    private isMultiColumnDefinition(value: unknown): value is MultiColumnExistsDefinition {
-        if (!value || typeof value !== "object") {
-            return false;
-        }
-        const candidate = value as MultiColumnExistsDefinition;
-        return (
-            Array.isArray(candidate.on) &&
-            candidate.on.length > 0 &&
-            candidate.on.every(column => typeof column === "string") &&
-            typeof candidate.sql === "string"
-        );
-    }
-
-    private createExistsInstruction(
-        anchors: string[],
-        definition: ExistsSubqueryDefinition,
-        mode: "exists" | "notExists"
-    ): ExistsInstruction {
-        if (!definition.sql || typeof definition.sql !== "string") {
-            throw new Error("EXISTS definition must include a SQL string.");
-        }
-        return {
-            mode,
-            anchorColumns: anchors,
-            sql: definition.sql,
-            params: definition.params
-        };
-    }
-
     private applyColumnFilters(query: SelectQuery, options: QueryBuildOptions): SelectQuery {
         const hasIncludeFilters = Array.isArray(options.includeColumns) && options.includeColumns.length > 0;
         const hasExcludeFilters = Array.isArray(options.excludeColumns) && options.excludeColumns.length > 0;
@@ -553,12 +419,12 @@ export class DynamicQueryBuilder {
     }
 
     /**
-     * Builds a SelectQuery with only filtering applied.
-     * Convenience method for when you only need dynamic WHERE conditions.
+     * Legacy helper for binding existing named parameters without adding new runtime predicates.
+     * Dynamic WHERE-condition injection is no longer supported; use SSSQL scaffold/refresh instead.
      *
      * @param sqlContent Raw SQL string to parse and modify
-     * @param filter Filter conditions to apply
-     * @returns Modified SelectQuery with filter conditions applied
+     * @param filter Named parameters to bind when they already exist in the SQL
+     * @returns Modified SelectQuery after binding existing named parameters
      */
     buildFilteredQuery(sqlContent: string, filter: FilterConditions): SelectQuery {
         return this.buildQuery(sqlContent, { filter });
@@ -584,18 +450,6 @@ export class DynamicQueryBuilder {
      */
     buildPaginatedQuery(sqlContent: string, paging: PaginationOptions): SelectQuery {
         return this.buildQuery(sqlContent, { paging });
-    }
-
-    /**
-     * Builds a SelectQuery with only JSON serialization applied.
-     * Convenience method for when you only need hierarchical JSON transformation.
-     *
-     * @param sqlContent Raw SQL string to parse and modify
-     * @param serialize JSON mapping configuration to apply
-     * @returns Modified SelectQuery with JSON serialization applied
-     */
-    buildSerializedQuery(sqlContent: string, serialize: JsonMapping): SelectQuery {
-        return this.buildQuery(sqlContent, { serialize });
     }
 
     /**

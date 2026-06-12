@@ -28,6 +28,33 @@ test('group by multiple columns', () => {
     expect(sql).toEqual(`group by "department_id", "job_id"`);
 });
 
+test('group by all', () => {
+    // Arrange
+    const text = `group by all`;
+
+    // Act
+    const clause = GroupByClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`group by all`);
+    expect(clause.mode).toEqual('all');
+    expect(clause.grouping).toHaveLength(0);
+});
+
+test('group by distinct expression', () => {
+    // Arrange
+    const text = `group by distinct department_id`;
+
+    // Act
+    const clause = GroupByClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`group by distinct "department_id"`);
+    expect(clause.mode).toEqual('distinct');
+});
+
 test('group by with expression', () => {
     // Arrange
     const text = `group by extract(year from hire_date)`;

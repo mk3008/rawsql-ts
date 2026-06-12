@@ -7,6 +7,7 @@ import type {
 export type { TableDefinitionModel } from 'rawsql-ts';
 import type { TableNameResolver } from '../fixtures/TableNameResolver';
 import type { ColumnAffinity } from '../fixtures/ColumnAffinity';
+import type { DdlViewDefinition } from '../fixtures/DdlViewCatalog';
 
 /**
  * Declared column type tokens for schema metadata. Accepts raw DDL type names
@@ -60,6 +61,7 @@ export interface SelectRewriteResult {
 
 export interface SelectRewriterOptions {
   fixtures?: TableFixture[];
+  views?: DdlViewDefinition[];
   schema?: SchemaRegistry;
   missingFixtureStrategy?: MissingFixtureStrategy;
   passthroughTables?: string[];
@@ -72,6 +74,7 @@ export interface SelectRewriterOptions {
 
 export interface SelectRewriteContext {
   fixtures?: TableFixture[];
+  views?: DdlViewDefinition[];
   formatterOptions?: SqlFormatterOptions;
   analyzerFailureBehavior?: AnalyzerFailureBehavior;
 }

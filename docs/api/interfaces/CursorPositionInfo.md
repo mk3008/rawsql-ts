@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: CursorPositionInfo
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:42](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/CTERegionDetector.ts#L42)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:42](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/CTERegionDetector.ts#L42)
 
 Result of cursor position analysis for SQL editor integration.
 Contains information about what SQL should be executed based on cursor position.
@@ -22,7 +22,7 @@ const info: CursorPositionInfo = {
 
 > **isInCTE**: `boolean`
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:44](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/CTERegionDetector.ts#L44)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:44](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/CTERegionDetector.ts#L44)
 
 Whether the cursor is currently positioned inside a CTE region
 
@@ -30,9 +30,9 @@ Whether the cursor is currently positioned inside a CTE region
 
 ### cteRegion
 
-> **cteRegion**: `null` \| [`CTERegion`](CTERegion.md)
+> **cteRegion**: [`CTERegion`](CTERegion.md) \| `null`
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:46](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/CTERegionDetector.ts#L46)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:46](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/CTERegionDetector.ts#L46)
 
 The CTE region containing the cursor (null if cursor is not in a CTE)
 
@@ -40,9 +40,9 @@ The CTE region containing the cursor (null if cursor is not in a CTE)
 
 ### executableSQL
 
-> **executableSQL**: `null` \| `string`
+> **executableSQL**: `string` \| `null`
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:48](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/CTERegionDetector.ts#L48)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:48](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/CTERegionDetector.ts#L48)
 
 The SQL that should be executed based on cursor position (CTE content or main query)
 </div>

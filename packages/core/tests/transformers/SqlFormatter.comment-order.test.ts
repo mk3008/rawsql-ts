@@ -141,8 +141,10 @@ FROM
         // Expected formatted SQL - corrected to proper comment positions
         const expectedFormattedSql = `SELECT
     /* a1 */ a /* a2 */
-    , /* b1 */ b /* b2 */
-    , /* c1 */ c /* c2 */ AS /* c3 */ alias_c /* c4 */
+    , /* b1 */
+    b /* b2 */
+    , /* c1 */
+    c /* c2 */ AS /* c3 */ alias_c /* c4 */
 FROM
     users`;
 

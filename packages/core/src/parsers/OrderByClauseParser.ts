@@ -4,6 +4,31 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
 export class OrderByClauseParser {
+    private static appendUniqueComments(target: string[] | null, comments: string[] | null | undefined): string[] | null {
+        if (!comments || comments.length === 0) {
+            return target;
+        }
+
+        const merged = target ? [...target] : [];
+        for (const comment of comments) {
+            if (!merged.includes(comment)) {
+                merged.push(comment);
+            }
+        }
+        return merged;
+    }
+
+    private static collectLexemeComments(token: Lexeme): string[] | null {
+        let comments: string[] | null = null;
+        if (token.positionedComments && token.positionedComments.length > 0) {
+            for (const posComment of token.positionedComments) {
+                comments = this.appendUniqueComments(comments, posComment.comments);
+            }
+        }
+        comments = this.appendUniqueComments(comments, token.comments);
+        return comments;
+    }
+
     // Parse SQL string to AST (was: parse)
     public static parse(query: string): OrderByClause {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
@@ -58,8 +83,8 @@ export class OrderByClauseParser {
             return { value: value, newIndex: idx };
         }
 
-        // Capture comments from ASC/DESC tokens (both legacy comments and positioned comments)
-        let sortDirectionComments: string[] | null = null;
+        // Capture comments from ASC/DESC/NULLS tokens so they stay adjacent to the full ORDER BY item.
+        let orderByItemComments: string[] | null = null;
         let sortDirection: SortDirection | null = null;
 
         if (idx < lexemes.length) {
@@ -74,36 +99,24 @@ export class OrderByClauseParser {
 
             // Capture comments from the ASC/DESC token
             if (sortDirection !== null) {
-                if (token.positionedComments && token.positionedComments.length > 0) {
-                    sortDirectionComments = [];
-                    for (const posComment of token.positionedComments) {
-                        if (posComment.comments && posComment.comments.length > 0) {
-                            sortDirectionComments.push(...posComment.comments);
-                        }
-                    }
-                }
-                if (token.comments && token.comments.length > 0) {
-                    if (!sortDirectionComments) sortDirectionComments = [];
-                    sortDirectionComments.push(...token.comments);
-                }
+                orderByItemComments = this.appendUniqueComments(orderByItemComments, this.collectLexemeComments(token));
             }
         }
 
         // nulls first, nulls last
-        const nullsSortDirection = idx >= lexemes.length
-            ? null
-            : lexemes[idx].value === 'nulls first'
-                ? (idx++, NullsSortDirection.First)
-                : lexemes[idx].value === 'nulls last'
-                    ? (idx++, NullsSortDirection.Last)
-                    : null;
+        let nullsSortDirection: NullsSortDirection | null = null;
+        if (idx < lexemes.length) {
+            const token = lexemes[idx];
+            if (token.value === 'nulls first') {
+                nullsSortDirection = NullsSortDirection.First;
+                idx++;
+            } else if (token.value === 'nulls last') {
+                nullsSortDirection = NullsSortDirection.Last;
+                idx++;
+            }
 
-        // Apply sort direction comments to the value if captured
-        if (sortDirectionComments && sortDirectionComments.length > 0) {
-            if (value.comments) {
-                value.comments.push(...sortDirectionComments);
-            } else {
-                value.comments = sortDirectionComments;
+            if (nullsSortDirection !== null) {
+                orderByItemComments = this.appendUniqueComments(orderByItemComments, this.collectLexemeComments(token));
             }
         }
 
@@ -111,6 +124,10 @@ export class OrderByClauseParser {
             return { value: value, newIndex: idx };
         }
 
-        return { value: new OrderByItem(value, sortDirection, nullsSortDirection), newIndex: idx };
+        const item = new OrderByItem(value, sortDirection, nullsSortDirection);
+        if (orderByItemComments && orderByItemComments.length > 0) {
+            item.comments = orderByItemComments;
+        }
+        return { value: item, newIndex: idx };
     }
 }

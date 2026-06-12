@@ -145,4 +145,22 @@ describe("MergeQueryParser", () => {
         expect(action.getPositionedComments("before")).toContain("c_after_then");
         expect(action.getPositionedComments("before")).not.toContain("c_before_then");
     });
+
+    it("parses MERGE with RETURNING", () => {
+        const sql = `
+            MERGE INTO users AS target
+            USING incoming_users AS source
+            ON target.user_id = source.user_id
+            WHEN MATCHED THEN UPDATE SET name = source.name
+            WHEN NOT MATCHED THEN INSERT (user_id, name) VALUES (source.user_id, source.name)
+            RETURNING target.user_id AS user_id, target.name AS name
+        `;
+
+        const result = MergeQueryParser.parse(sql);
+
+        expect(result.returningClause).not.toBeNull();
+        expect(result.returningClause?.items).toHaveLength(2);
+        expect(result.returningClause?.items[0].identifier?.name).toBe("user_id");
+        expect(result.returningClause?.items[1].identifier?.name).toBe("name");
+    });
 });

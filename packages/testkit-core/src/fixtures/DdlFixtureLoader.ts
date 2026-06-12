@@ -13,6 +13,10 @@ import {
   type DdlLintMode,
   type DdlLintSource,
 } from './ddlLint';
+import {
+  collectDdlViewDefinitions,
+  type DdlViewDefinition,
+} from './DdlViewCatalog';
 import { DdlLintError } from '../errors';
 
 export interface DdlFixtureLoaderOptions {
@@ -27,6 +31,11 @@ export interface DdlProcessedFixture {
   rows?: FixtureRow[];
 }
 
+interface DdlLoadedDefinitions {
+  fixtures: DdlProcessedFixture[];
+  views: DdlViewDefinition[];
+}
+
 type RawFixtureDefinition = {
   columns?: Array<{ name: string; type?: string; default?: string | null }>;
   rows?: FixtureRow[];
@@ -37,12 +46,13 @@ type SqlDiagnostics = {
 };
 
 export class DdlFixtureLoader {
-  private static readonly cache = new Map<string, DdlProcessedFixture[]>();
+  private static readonly cache = new Map<string, DdlLoadedDefinitions>();
   private readonly resolvedDirectories: string[];
   private readonly extensions: string[];
   private readonly cacheKey: string;
   private fixtures: DdlProcessedFixture[] = [];
   private fixturesByName = new Map<string, DdlProcessedFixture>();
+  private views: DdlViewDefinition[] = [];
   private loaded = false;
   private readonly tableNameResolver?: TableNameResolver;
   private readonly ddlLintMode: DdlLintMode;
@@ -67,6 +77,11 @@ export class DdlFixtureLoader {
     return [...this.fixtures];
   }
 
+  public getViewDefinitions(): DdlViewDefinition[] {
+    this.ensureLoaded();
+    return [...this.views];
+  }
+
   public getFixture(tableName: string): DdlProcessedFixture | undefined {
     this.ensureLoaded();
     const normalized = normalizeTableName(tableName);
@@ -81,7 +96,7 @@ export class DdlFixtureLoader {
     // Reuse previously parsed fixtures when the same directories were processed before.
     const cached = DdlFixtureLoader.cache.get(this.cacheKey);
     if (cached) {
-      this.registerFixtures(cached);
+      this.registerLoadedDefinitions(cached);
       this.loaded = true;
       return;
     }
@@ -89,8 +104,13 @@ export class DdlFixtureLoader {
     // Load fixtures from disk and store them in the shared cache key.
     const collected = this.loadFromDirectories();
     DdlFixtureLoader.cache.set(this.cacheKey, collected);
-    this.registerFixtures(collected);
+    this.registerLoadedDefinitions(collected);
     this.loaded = true;
+  }
+
+  private registerLoadedDefinitions(definitions: DdlLoadedDefinitions): void {
+    this.registerFixtures(definitions.fixtures);
+    this.views = definitions.views;
   }
 
   private registerFixtures(fixtures: DdlProcessedFixture[]): void {
@@ -103,7 +123,7 @@ export class DdlFixtureLoader {
     }
   }
 
-  private loadFromDirectories(): DdlProcessedFixture[] {
+  private loadFromDirectories(): DdlLoadedDefinitions {
     // Verify every configured directory exists before scanning to provide fail-fast diagnostics.
     const missingDirectories = this.resolvedDirectories.filter((directory) => !existsSync(directory));
     if (missingDirectories.length) {
@@ -134,15 +154,19 @@ export class DdlFixtureLoader {
     // Run lint checks before enforcing CREATE TABLE presence so actionable diagnostics surface first.
     this.runDdlLint(sources);
 
-    if (fixtures.length === 0) {
+    const views = collectDdlViewDefinitions(sources, {
+      tableNameResolver: this.tableNameResolver,
+    });
+
+    if (fixtures.length === 0 && views.length === 0) {
       throw new Error(
         `SQL files were found under ${this.resolvedDirectories.join(
           ', '
-        )}, but no CREATE TABLE statements produced fixtures. Please verify the files contain valid DDL.`
+        )}, but no CREATE TABLE or CREATE VIEW statements produced fixtures. Please verify the files contain valid DDL.`
       );
     }
 
-    return fixtures;
+    return { fixtures, views };
   }
 
   private collectSqlFiles(

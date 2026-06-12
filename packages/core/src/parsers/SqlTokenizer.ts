@@ -2,11 +2,11 @@ import { FormattingLexeme } from '../models/FormattingLexeme';
 import { Lexeme, LexemePositionedComment, TokenType } from '../models/Lexeme';
 import { CommandTokenReader } from '../tokenReaders/CommandTokenReader';
 import { EscapedIdentifierTokenReader } from '../tokenReaders/EscapedIdentifierTokenReader';
-import { FunctionTokenReader } from '../tokenReaders/FunctionTokenReader';
 import { IdentifierTokenReader } from '../tokenReaders/IdentifierTokenReader';
 import { LiteralTokenReader } from '../tokenReaders/LiteralTokenReader';
 import { OperatorTokenReader } from '../tokenReaders/OperatorTokenReader';
 import { ParameterTokenReader } from '../tokenReaders/ParameterTokenReader';
+import { PostgresFunctionTokenReader } from '../tokenReaders/PostgresFunctionTokenReader';
 import { SpecialSymbolTokenReader } from '../tokenReaders/SymbolTokenReader';
 import { StringSpecifierTokenReader } from '../tokenReaders/StringSpecifierTokenReader';
 import { TokenReaderManager } from '../tokenReaders/TokenReaderManager';
@@ -83,7 +83,7 @@ export class SqlTokenizer {
             // Reason: To prevent types containing parentheses from being misrecognized as functions
             // e.g. `numeric(10, 2)` is a type, not a function
             .register(new TypeTokenReader(input))
-            .register(new FunctionTokenReader(input))
+            .register(new PostgresFunctionTokenReader(input))
             .register(new IdentifierTokenReader(input)) // IdentifierTokenReader should be registered last
             ;
     }

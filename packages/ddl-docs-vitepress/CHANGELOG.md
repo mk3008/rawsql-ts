@@ -1,5 +1,12 @@
 # @rawsql-ts/ddl-docs-vitepress
 
+## 0.2.4
+
+### Patch Changes
+
+- Updated dependencies [[`bb53286`](https://github.com/mk3008/rawsql-ts/commit/bb53286ccd4379b5676b790314616049357e0f51), [`a4ba2d9`](https://github.com/mk3008/rawsql-ts/commit/a4ba2d969133fecb031626aab88488cf052c5df7), [`4812f79`](https://github.com/mk3008/rawsql-ts/commit/4812f7944e49d61bcd68da8b423e668065e8f942), [`8d82bdf`](https://github.com/mk3008/rawsql-ts/commit/8d82bdfb00d3c18c2b188ee17130879f6aabc63b), [`a707e04`](https://github.com/mk3008/rawsql-ts/commit/a707e0496f9079a862b40cbbdd01ba115d8d448f), [`8cb8f26`](https://github.com/mk3008/rawsql-ts/commit/8cb8f260274840f0c382cacad07579d13adf1a73), [`eaa85f7`](https://github.com/mk3008/rawsql-ts/commit/eaa85f764d1f952560407c22dd2c91c18647d9c0), [`c1b5a92`](https://github.com/mk3008/rawsql-ts/commit/c1b5a924f03a0bb67c289a23779262730bc2ef99), [`042535b`](https://github.com/mk3008/rawsql-ts/commit/042535bdce0122a61bedcf56fa8dbfe4b4d4f6e6), [`83822ad`](https://github.com/mk3008/rawsql-ts/commit/83822ad65ee5f7bbfb46019876bd2a757c68e44e), [`40a941a`](https://github.com/mk3008/rawsql-ts/commit/40a941ae3cedeca75f84f7e1af2343dc99a12f78)]:
+  - @rawsql-ts/ddl-docs-cli@0.3.0
+
 ## 0.2.3
 
 ### Patch Changes

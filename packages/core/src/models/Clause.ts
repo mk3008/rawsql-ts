@@ -2,6 +2,7 @@ import { SelectQuery, SimpleSelectQuery } from "./SelectQuery";
 import type { InsertQuery } from "./InsertQuery";
 import type { UpdateQuery } from "./UpdateQuery";
 import type { DeleteQuery } from "./DeleteQuery";
+import type { MergeQuery } from "./MergeQuery";
 import { SqlComponent } from "./SqlComponent";
 import { IdentifierString, RawString, TupleExpression, ValueComponent, WindowFrameExpression, QualifiedName, ColumnReference } from "./ValueComponent";
 import { HintClause } from "./HintClause";
@@ -126,9 +127,11 @@ export class OrderByItem extends SqlComponent {
 
 export class GroupByClause extends SqlComponent {
     static kind = Symbol("GroupByClause");
+    mode: "all" | "distinct" | null;
     grouping: ValueComponent[];
-    constructor(expression: ValueComponent[]) {
+    constructor(expression: ValueComponent[], mode: "all" | "distinct" | null = null) {
         super();
+        this.mode = mode;
         this.grouping = expression;
     }
 }
@@ -360,7 +363,7 @@ export class UsingClause extends SqlComponent {
 /**
  * Query types permitted inside a CTE body.
  */
-export type CTEQuery = SelectQuery | InsertQuery | UpdateQuery | DeleteQuery;
+export type CTEQuery = SelectQuery | InsertQuery | UpdateQuery | DeleteQuery | MergeQuery;
 
 export class CommonTable extends SqlComponent {
     static kind = Symbol("CommonTable");
@@ -475,16 +478,31 @@ export class SourceAliasExpression extends SqlComponent {
     }
 }
 
+export type ReturningAliasKind = "old" | "new";
+
+export class ReturningAlias extends SqlComponent {
+    static kind = Symbol("ReturningAlias");
+    kind: ReturningAliasKind;
+    alias: IdentifierString;
+    constructor(kind: ReturningAliasKind, alias: string | IdentifierString) {
+        super();
+        this.kind = kind;
+        this.alias = typeof alias === "string" ? new IdentifierString(alias) : alias;
+    }
+}
+
 export class ReturningClause extends SqlComponent {
     static kind = Symbol("ReturningClause");
     items: SelectItem[];
+    aliases: ReturningAlias[];
     /**
      * Constructs a ReturningClause.
      * @param items Array of SelectItem.
      */
-    constructor(items: SelectItem[]) {
+    constructor(items: SelectItem[], aliases: ReturningAlias[] = []) {
         super();
         this.items = items;
+        this.aliases = aliases;
     }
 
     /**
@@ -498,6 +516,36 @@ export class ReturningClause extends SqlComponent {
             // Fallback for expressions: use alias if available, otherwise empty
             return new IdentifierString(item.identifier?.name ?? "");
         });
+    }
+}
+
+export type OnConflictAction = "nothing" | "select" | "update";
+export type OnConflictTargetKind = "columns" | "constraint";
+
+export class OnConflictClause extends SqlComponent {
+    static kind = Symbol("OnConflictClause");
+    target: RawString | null;
+    targetKind: OnConflictTargetKind | null;
+    action: OnConflictAction;
+    setClause: SetClause | null;
+    forClause: ForClause | null;
+    whereClause: WhereClause | null;
+
+    constructor(params: {
+        target?: RawString | string | null;
+        targetKind?: OnConflictTargetKind | null;
+        action: OnConflictAction;
+        setClause?: SetClause | null;
+        forClause?: ForClause | null;
+        whereClause?: WhereClause | null;
+    }) {
+        super();
+        this.target = typeof params.target === "string" ? new RawString(params.target) : params.target ?? null;
+        this.targetKind = params.targetKind ?? null;
+        this.action = params.action;
+        this.setClause = params.setClause ?? null;
+        this.forClause = params.forClause ?? null;
+        this.whereClause = params.whereClause ?? null;
     }
 }
 

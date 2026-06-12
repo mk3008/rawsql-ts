@@ -3,6 +3,7 @@ name: PR Check
 on:
   pull_request:
     branches: [ main, develop ]
+    types: [opened, reopened, synchronize, edited, ready_for_review]
 
 jobs:
   quick-check:
@@ -13,6 +14,16 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+
+    - name: Check retro gate
+      run: node scripts/check-retro-clean.js
+
+    - name: Check PR readiness contract
+      run: |
+        node scripts/check-pr-readiness.js \
+          --base-sha "${{ github.event.pull_request.base.sha }}" \
+          --head-sha "${{ github.event.pull_request.head.sha }}" \
+          --event-path "$GITHUB_EVENT_PATH"
 
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
@@ -38,8 +49,8 @@ jobs:
     - name: Run unit tests (core)
       run: pnpm --filter "./packages/core" run test
 
-    - name: Detect playground-impacting changes
-      id: playground_changes
+    - name: Detect transfer DDL metadata changes
+      id: transfer_ddl_metadata
       shell: bash
       run: |
         base_sha="${{ github.event.pull_request.base.sha }}"
@@ -47,41 +58,15 @@ jobs:
         changed_files=$(git diff --name-only "$base_sha...$head_sha")
         printf '%s\n' "$changed_files"
 
-        if printf '%s\n' "$changed_files" | grep -Eq '^(packages/ztd-cli/|packages/test-evidence-core/|packages/test-evidence-renderer-md/|packages/testkit-core/|playgrounds/ztd-playground/|\.github/workflows/pr-check\.yml$)'; then
+        if printf '%s\n' "$changed_files" | grep -Eq '^(package\.json|packages/ddl-docs-cli/|packages/transfer/db/ddl/|packages/transfer/docs/(concepts|dfd|processes|scope|testing|review|technology)/|docs/(transfer-docs|review)\.md|docs/(authority|concepts|dfd|processes|roles|scope|testing|technology|rawsql-transfer)/|scripts/(generate-transfer-docs|verify-transfer-docs-drift)\.mjs|\.github/workflows/pr-check\.yml$)'; then
           echo "run=true" >> "$GITHUB_OUTPUT"
         else
           echo "run=false" >> "$GITHUB_OUTPUT"
         fi
 
-    - name: Build ZTD CLI dependencies
-      if: steps.playground_changes.outputs.run == 'true'
-      run: |
-        pnpm --filter rawsql-ts run build
-        pnpm --filter @rawsql-ts/test-evidence-core run build
-        pnpm --filter @rawsql-ts/test-evidence-renderer-md run build
-        pnpm --filter @rawsql-ts/testkit-core run build
-        pnpm --filter @rawsql-ts/ztd-cli run build
-
-    - name: Detect deprecated playground
-      id: playground
-      if: steps.playground_changes.outputs.run == 'true'
-      run: |
-        if [ -d "./playgrounds/ztd-playground" ]; then
-          echo "exists=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "exists=false" >> "$GITHUB_OUTPUT"
-          echo "playgrounds/ztd-playground is removed; skipping playground artifact generation."
-        fi
-
-    # Playground artifact generation stays in PR checks, but only when relevant packages or the workflow changed.
-    - name: Generate ZTD artifacts (playground)
-      if: steps.playground_changes.outputs.run == 'true' && steps.playground.outputs.exists == 'true'
-      working-directory: ./playgrounds/ztd-playground
-      run: node ../../packages/ztd-cli/dist/index.js ztd-config
-
-    - name: Verify working tree is clean after generation
-      if: steps.playground_changes.outputs.run == 'true' && steps.playground.outputs.exists == 'true'
-      run: git diff --exit-code
+    - name: Check transfer docs and metadata drift
+      if: steps.transfer_ddl_metadata.outputs.run == 'true'
+      run: pnpm verify:transfer-docs
 
     - name: Run parser benchmark (PR lightweight)
       run: pnpm run benchmark:parser:pr

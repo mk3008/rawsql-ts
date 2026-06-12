@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: TableDefinition
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:63](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/SchemaManager.ts#L63)
+Defined in: [packages/core/src/utils/SchemaManager.ts:58](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/SchemaManager.ts#L58)
 
 Complete table schema definition that users write
 
@@ -11,7 +11,7 @@ Complete table schema definition that users write
 
 > **name**: `string`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:65](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/SchemaManager.ts#L65)
+Defined in: [packages/core/src/utils/SchemaManager.ts:60](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/SchemaManager.ts#L60)
 
 Table name in database
 
@@ -21,7 +21,7 @@ Table name in database
 
 > `optional` **displayName**: `string`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:67](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/SchemaManager.ts#L67)
+Defined in: [packages/core/src/utils/SchemaManager.ts:62](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/SchemaManager.ts#L62)
 
 Human-readable entity name
 
@@ -31,7 +31,7 @@ Human-readable entity name
 
 > **columns**: `Record`&lt;`string`, [`ColumnDefinition`](ColumnDefinition.md)\&gt;
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:69](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/SchemaManager.ts#L69)
+Defined in: [packages/core/src/utils/SchemaManager.ts:64](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/SchemaManager.ts#L64)
 
 Column definitions
 
@@ -41,7 +41,7 @@ Column definitions
 
 > `optional` **relationships**: [`RelationshipDefinition`](RelationshipDefinition.md)[]
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:71](https://github.com/mk3008/rawsql-ts/blob/2e456f8e124fc6747e4cf8a3a142ad51d0e30aee/packages/core/src/utils/SchemaManager.ts#L71)
+Defined in: [packages/core/src/utils/SchemaManager.ts:66](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/utils/SchemaManager.ts#L66)
 
 Relationships with other tables
 </div>

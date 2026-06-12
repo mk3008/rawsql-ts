@@ -27,6 +27,7 @@ export class LimitClauseParser {
         if (lexemes[idx].value !== 'limit') {
             throw new Error(`Syntax error at position ${idx}: Expected 'LIMIT' keyword but found "${lexemes[idx].value}". LIMIT clauses must start with the LIMIT keyword.`);
         }
+        const limitKeywordComments = lexemes[idx].positionedComments;
         idx++;
 
         if (idx >= lexemes.length) {
@@ -35,6 +36,12 @@ export class LimitClauseParser {
 
         // Parse LIMIT value
         const limitItem = ValueParser.parseFromLexeme(lexemes, idx);
+        const afterKeywordComments = limitKeywordComments
+            ?.filter(comment => comment.position === 'after')
+            .flatMap(comment => comment.comments) ?? [];
+        if (afterKeywordComments.length > 0) {
+            limitItem.value.addPositionedComments('before', afterKeywordComments);
+        }
         idx = limitItem.newIndex;
 
         const clause = new LimitClause(limitItem.value);

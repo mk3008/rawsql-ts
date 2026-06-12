@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference, TypeValue, UnaryExpression, ValueComponent, ValueList, BinaryExpression, CastExpression, ArraySliceExpression, ArrayIndexExpression } from "../models/ValueComponent";
+import { ColumnReference, TypeValue, UnaryExpression, ValueComponent, ValueList, BinaryExpression, CastExpression, ArraySliceExpression, ArrayIndexExpression, JsonPredicateExpression, JsonPredicateType, JsonPredicateUniqueKeys } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { IdentifierParser } from "./IdentifierParser";
 import { LiteralParser } from "./LiteralParser";
@@ -12,6 +12,7 @@ import { FunctionExpressionParser } from "./FunctionExpressionParser";
 import { FullNameParser } from "./FullNameParser";
 import { ParseError } from "./ParseError";
 import { OperatorPrecedence } from "../utils/OperatorPrecedence";
+import { SQL_SPECIAL_VALUE_KEYWORD_SET } from "../utils/SqlSpecialValueKeywords";
 
 export class ValueParser {
     // Parse SQL string to AST (was: parse)
@@ -60,10 +61,12 @@ export class ValueParser {
         const left = this.parseItem(lexemes, idx);
         
         // Transfer positioned comments if they exist and the component doesn't handle its own comments
-        if (positionedComments && positionedComments.length > 0 && !left.value.positionedComments) {
-            left.value.positionedComments = positionedComments;
+        if (positionedComments && positionedComments.length > 0) {
+            if (!left.value.positionedComments) {
+                left.value.positionedComments = positionedComments;
+            }
         }
-        // Fall back to legacy comments if positioned comments aren't available
+        // Fall back to legacy comments only when positioned comments aren't available.
         else if (left.value.comments === null && comment && comment.length > 0) {
             left.value.comments = comment;
         }
@@ -87,6 +90,13 @@ export class ValueParser {
             }
             if (!allowOrOperator && operator.toLowerCase() === "or") {
                 break;
+            }
+
+            const jsonPredicate = this.tryParseJsonPredicate(lexemes, idx, result);
+            if (jsonPredicate) {
+                result = jsonPredicate.value;
+                idx = jsonPredicate.newIndex;
+                continue;
             }
 
             // Get operator precedence
@@ -137,6 +147,42 @@ export class ValueParser {
         }
 
         return { value: result, newIndex: idx };
+    }
+
+    private static tryParseJsonPredicate(lexemes: Lexeme[], index: number, expression: ValueComponent): { value: JsonPredicateExpression; newIndex: number } | null {
+        const operator = lexemes[index]?.value?.toLowerCase();
+        if (operator !== "is" && operator !== "is not") {
+            return null;
+        }
+
+        let idx = index + 1;
+        if (idx >= lexemes.length || lexemes[idx].value.toLowerCase() !== "json") {
+            return null;
+        }
+        idx++;
+
+        let jsonType: JsonPredicateType | null = null;
+        const typeCandidate = lexemes[idx]?.value?.toLowerCase();
+        if (typeCandidate === "value" || typeCandidate === "scalar" || typeCandidate === "array" || typeCandidate === "object") {
+            jsonType = typeCandidate;
+            idx++;
+        }
+
+        let uniqueKeys: JsonPredicateUniqueKeys | null = null;
+        const uniqueCandidate = lexemes[idx]?.value?.toLowerCase();
+        if (uniqueCandidate === "with" || uniqueCandidate === "without") {
+            const uniqueToken = lexemes[idx + 1]?.value?.toLowerCase();
+            const keysToken = lexemes[idx + 2]?.value?.toLowerCase();
+            if (uniqueToken === "unique" && keysToken === "keys") {
+                uniqueKeys = uniqueCandidate;
+                idx += 3;
+            }
+        }
+
+        return {
+            value: new JsonPredicateExpression(expression, operator === "is not", jsonType, uniqueKeys),
+            newIndex: idx,
+        };
     }
 
     /**
@@ -263,6 +309,11 @@ export class ValueParser {
             const value = new ColumnReference(namespaces, name);
             this.transferPositionedComments(current, value);
             return { value, newIndex };
+        } else if ((current.type & TokenType.Literal) && this.isQualifiedSpecialValueIdentifier(lexemes, idx)) {
+            const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, idx);
+            const value = new ColumnReference(namespaces, name);
+            this.transferPositionedComments(current, value);
+            return { value, newIndex };
         } else if (current.type & TokenType.Literal) {
             const result = LiteralParser.parseFromLexeme(lexemes, idx);
             this.transferPositionedComments(current, result.value);
@@ -322,6 +373,12 @@ export class ValueParser {
         }
 
         throw ParseError.fromUnparsedLexemes(lexemes, idx, `[ValueParser] Invalid lexeme.`);
+    }
+
+    private static isQualifiedSpecialValueIdentifier(lexemes: Lexeme[], index: number): boolean {
+        return SQL_SPECIAL_VALUE_KEYWORD_SET.has(lexemes[index].value.toLowerCase()) &&
+            index + 1 < lexemes.length &&
+            (lexemes[index + 1].type & TokenType.Dot) !== 0;
     }
 
     public static parseArgument(openToken: TokenType, closeToken: TokenType, lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {

@@ -3,6 +3,7 @@ import { CommonTable, CTEQuery, ReturningClause, SelectItem } from "../models/Cl
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
 import { DeleteQuery } from "../models/DeleteQuery";
+import { MergeQuery } from "../models/MergeQuery";
 import { ColumnReference } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
 import { SelectableColumnCollector } from "./SelectableColumnCollector";
@@ -270,7 +271,7 @@ export class CTEDependencyTracer {
 
     private extractReturningColumns(query: CTEQuery): string[] {
         // Writable CTEs expose columns via RETURNING, if present.
-        if (query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery) {
+        if (query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery || query instanceof MergeQuery) {
             return this.extractColumnsFromItems(query.returningClause);
         }
         return [];

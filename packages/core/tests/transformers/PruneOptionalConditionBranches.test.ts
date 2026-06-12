@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DynamicQueryBuilder } from '../../src/transformers/DynamicQueryBuilder';
 import {
+    collectSupportedOptionalConditionBranchSpans,
     OptionalConditionPruningParameters,
     pruneOptionalConditionBranches
 } from '../../src/transformers/PruneOptionalConditionBranches';
@@ -16,6 +17,150 @@ const formatSql = (sql: string, pruningParameters?: OptionalConditionPruningPara
 };
 
 describe('pruneOptionalConditionBranches', () => {
+    it('collects source and removal ranges for supported optional branches', () => {
+        const sql = [
+            'SELECT p.product_id',
+            'FROM products p',
+            'WHERE p.deleted_at IS NULL',
+            '  AND (:brand_name IS NULL OR p.brand_name = :brand_name)',
+            '  AND (:status IS NULL OR p.status = :status)',
+            'ORDER BY p.product_id'
+        ].join('\n');
+
+        const spans = collectSupportedOptionalConditionBranchSpans(sql);
+
+        expect(spans).toHaveLength(2);
+        expect(spans.map(span => span.parameterName)).toEqual(['brand_name', 'status']);
+        expect(spans[0].sourceRange.text).toBe('(:brand_name IS NULL OR p.brand_name = :brand_name)');
+        expect(spans[0].removalRange.text).toBe('AND (:brand_name IS NULL OR p.brand_name = :brand_name)');
+        expect(sql.slice(spans[1].sourceRange.start, spans[1].sourceRange.end)).toBe(spans[1].sourceRange.text);
+        expect(sql.slice(spans[1].removalRange.start, spans[1].removalRange.end)).toBe(spans[1].removalRange.text);
+    });
+
+    it('collects a whole-WHERE removal range when the optional branch is the only predicate', () => {
+        const sql = [
+            'SELECT p.product_id',
+            'FROM products p',
+            'WHERE (:brand_name IS NULL OR p.brand_name = :brand_name)'
+        ].join('\n');
+
+        const [span] = collectSupportedOptionalConditionBranchSpans(sql);
+
+        expect(span.parameterName).toBe('brand_name');
+        expect(span.sourceRange.text).toBe('(:brand_name IS NULL OR p.brand_name = :brand_name)');
+        expect(span.removalRange.text).toBe('WHERE (:brand_name IS NULL OR p.brand_name = :brand_name)');
+    });
+
+    it('collects range metadata for nested supported optional branches', () => {
+        const sql = `
+            WITH filtered_products AS (
+                SELECT p.product_id
+                FROM products p
+                WHERE 1 = 1
+                  AND (:brand_name IS NULL OR p.brand_name = :brand_name)
+            )
+            SELECT * FROM filtered_products
+        `;
+
+        const [span] = collectSupportedOptionalConditionBranchSpans(sql);
+
+        expect(span.parameterName).toBe('brand_name');
+        expect(span.sourceRange.text).toBe('(:brand_name IS NULL OR p.brand_name = :brand_name)');
+        expect(span.removalRange.text).toBe('AND (:brand_name IS NULL OR p.brand_name = :brand_name)');
+    });
+
+    it('collects spans in source order when nested and outer queries both contain supported branches', () => {
+        const sql = [
+            'WITH filtered_products AS (',
+            '  SELECT p.product_id',
+            '  FROM products p',
+            '  WHERE 1 = 1',
+            '    AND (:brand_name IS NULL OR p.brand_name = :brand_name)',
+            ')',
+            'SELECT *',
+            'FROM filtered_products fp',
+            'WHERE 1 = 1',
+            '  AND (:status IS NULL OR fp.status = :status)'
+        ].join('\n');
+
+        const spans = collectSupportedOptionalConditionBranchSpans(sql);
+
+        expect(spans.map(span => span.parameterName)).toEqual(['brand_name', 'status']);
+        expect(spans[0].sourceRange.start).toBeLessThan(spans[1].sourceRange.start);
+    });
+
+    it('collects wrapper parentheses in removal ranges for supported optional branches', () => {
+        const sql = [
+            'SELECT p.product_id',
+            'FROM products p',
+            'WHERE p.deleted_at IS NULL',
+            '  AND ((:brand_name IS NULL OR p.brand_name = :brand_name))'
+        ].join('\n');
+
+        const [span] = collectSupportedOptionalConditionBranchSpans(sql);
+
+        expect(span.parameterName).toBe('brand_name');
+        expect(span.sourceRange.text).toBe('((:brand_name IS NULL OR p.brand_name = :brand_name))');
+        expect(span.removalRange.text).toBe('AND ((:brand_name IS NULL OR p.brand_name = :brand_name))');
+    });
+
+    it('does not expose source ranges for unsupported optional-looking branches', () => {
+        const sql = `
+            SELECT p.product_id
+            FROM products p
+            WHERE p.active = true
+               OR (:brand_name IS NULL OR p.brand_name = :brand_name)
+        `;
+
+        expect(collectSupportedOptionalConditionBranchSpans(sql)).toEqual([]);
+    });
+
+    it('rejects ambiguous same-parameter optional-looking ranges that are not all AST-supported pruning branches', () => {
+        const sql = [
+            'WITH filtered_products AS (',
+            '  SELECT p.product_id',
+            '  FROM products p',
+            '  WHERE 1 = 1',
+            '    AND (:brand_name IS NULL OR p.brand_name = :brand_name)',
+            ')',
+            'SELECT p.product_id',
+            'FROM products p',
+            'WHERE p.active = true',
+            '   OR (:brand_name IS NULL OR p.brand_name = :brand_name)'
+        ].join('\n');
+
+        expect(() => collectSupportedOptionalConditionBranchSpans(sql)).toThrow(/Ambiguous source ranges/);
+    });
+
+    it('does not treat a bare guarded parameter as a supported meaningful branch candidate', () => {
+        const sql = [
+            'SELECT p.product_id',
+            'FROM products p',
+            'WHERE (:brand_name IS NULL OR :brand_name)',
+            '  AND (:status IS NULL OR p.status = :status)'
+        ].join('\n');
+
+        const spans = collectSupportedOptionalConditionBranchSpans(sql);
+
+        expect(spans.map(span => span.parameterName)).toEqual(['status']);
+        expect(spans[0].sourceRange.text).toBe('(:status IS NULL OR p.status = :status)');
+    });
+
+    it('collects source ranges for casted null guards and multi-predicate branches', () => {
+        const sql = [
+            'SELECT u.id, u.email',
+            'FROM users u',
+            "WHERE (CAST(:keyword AS text) IS NULL OR u.email ILIKE '%' || :keyword || '%' OR u.name ILIKE '%' || :keyword || '%')",
+            '  AND (:status::text IS NULL OR u.status = :status)'
+        ].join('\n');
+
+        const spans = collectSupportedOptionalConditionBranchSpans(sql);
+
+        expect(spans.map(span => span.parameterName)).toEqual(['keyword', 'status']);
+        expect(spans[0].sourceRange.text).toBe("(CAST(:keyword AS text) IS NULL OR u.email ILIKE '%' || :keyword || '%' OR u.name ILIKE '%' || :keyword || '%')");
+        expect(spans[1].sourceRange.text).toBe('(:status::text IS NULL OR u.status = :status)');
+    });
+
     it('prunes a top-level optional scalar predicate when the targeted parameter is null', () => {
         const sql = `
             SELECT p.product_id
@@ -82,6 +227,28 @@ describe('pruneOptionalConditionBranches', () => {
         expect(formattedSql).not.toContain('exists');
         expect(formattedSql).not.toContain(':category_name');
         expect(formattedSql).not.toContain('where');
+    });
+
+    it('prunes a top-level optional not-exists branch when the targeted parameter is null', () => {
+        const sql = `
+            SELECT p.product_id
+            FROM products p
+            WHERE (
+                :archived_name IS NULL
+                OR NOT EXISTS (
+                    SELECT 1
+                    FROM archived_products ap
+                    WHERE ap.product_id = p.product_id
+                      AND ap.product_name = :archived_name
+                )
+            )
+        `;
+
+        const formattedSql = formatSql(sql, { archived_name: null });
+
+        expect(formattedSql).toBe('select "p"."product_id" from "products" as "p"');
+        expect(formattedSql).not.toContain('not exists');
+        expect(formattedSql).not.toContain(':archived_name');
     });
 
     it('prunes only the null-targeted branch when multiple optional branches are present', () => {
@@ -175,7 +342,7 @@ describe('pruneOptionalConditionBranches', () => {
         expect(afterSql).toBe(beforeSql);
     });
 
-    it('is exact no-op for unsupported patterns', () => {
+    it('prunes richer single-parameter branches without rewriting their inner predicate shape', () => {
         const sql = `
             SELECT p.product_id
             FROM products p
@@ -187,10 +354,40 @@ describe('pruneOptionalConditionBranches', () => {
               )
         `;
 
-        const beforeSql = formatSql(sql);
         const afterSql = formatSql(sql, { brand_name: null });
 
-        expect(afterSql).toBe(beforeSql);
+        expect(afterSql).toBe('select "p"."product_id" from "products" as "p"');
+    });
+
+    it('prunes LIKE-based optional branches that only depend on the targeted parameter', () => {
+        const sql = `
+            SELECT p.product_id
+            FROM products p
+            WHERE (:brand_name IS NULL OR lower(p.brand_name) LIKE lower(:brand_name))
+        `;
+
+        const formattedSql = formatSql(sql, { brand_name: null });
+
+        expect(formattedSql).toBe('select "p"."product_id" from "products" as "p"');
+    });
+
+    it('prunes casted null guard branches with multiple meaningful predicates', () => {
+        const sql = `
+            SELECT u.id, u.email
+            FROM users u
+            WHERE (
+                cast(:keyword as text) is null
+                OR u.email ilike '%' || :keyword || '%'
+                OR u.name ilike '%' || :keyword || '%'
+            )
+              AND (:status::text is null OR u.status = :status)
+        `;
+
+        const formattedSql = formatSql(sql, { keyword: null });
+
+        expect(formattedSql).toBe(
+            'select "u"."id", "u"."email" from "users" as "u" where (cast(:status as text) is null or "u"."status" = :status)'
+        );
     });
 
     it('leaves non-top-level optional branches untouched', () => {
@@ -236,7 +433,7 @@ describe('pruneOptionalConditionBranches', () => {
 });
 
 describe('DynamicQueryBuilder optional condition pruning', () => {
-    it('integrates pruning into buildQuery cleanup without breaking serialized SQL output', () => {
+    it('integrates pruning into buildQuery cleanup without SQL-result JSON shaping', () => {
         const builder = new DynamicQueryBuilder();
         const sql = `
             SELECT p.product_id AS id, p.brand_name
@@ -246,21 +443,12 @@ describe('DynamicQueryBuilder optional condition pruning', () => {
         `;
 
         const query = builder.buildQuery(sql, {
-            optionalConditionParameters: { brand_name: null },
-            serialize: {
-                rootName: 'product',
-                rootEntity: {
-                    id: 'product',
-                    name: 'Product',
-                    columns: { id: 'id', brand_name: 'brand_name' }
-                },
-                nestedEntities: []
-            }
+            optionalConditionParameters: { brand_name: null }
         });
 
         const formattedSql = normalizeSql(new SqlFormatter().format(query).formattedSql);
 
-        expect(formattedSql).toContain('jsonb_agg');
+        expect(formattedSql).toContain('select "p"."product_id" as "id", "p"."brand_name"');
         expect(formattedSql).not.toContain(':brand_name');
         expect(formattedSql).not.toContain('where 1 = 1');
     });

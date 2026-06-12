@@ -24,4 +24,14 @@ describe('ColumnReferenceCollector', () => {
         // Assert: The column mentioned only in the FILTER predicate should still be discovered.
         expect(columnNames).toContain('region');
     });
+
+    test('captures columns referenced inside SQL JSON predicates', () => {
+        const sql = `SELECT payload IS JSON FROM events`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new ColumnReferenceCollector();
+
+        const columnNames = collector.collect(query).map(getColumnName);
+
+        expect(columnNames).toContain('payload');
+    });
 });

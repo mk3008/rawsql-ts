@@ -106,3 +106,22 @@ test('common table with DELETE ... RETURNING', () => {
     // Assert
     expect(sql).toEqual(`"removed" as (delete from "users" where "id" = 1 returning "id")`);
 });
+
+test('common table with MERGE ... RETURNING', () => {
+    // Arrange
+    const text = `merged AS (
+        MERGE INTO users AS target
+        USING incoming_users AS source
+        ON target.user_id = source.user_id
+        WHEN MATCHED THEN UPDATE SET name = source.name
+        WHEN NOT MATCHED THEN INSERT (user_id, name) VALUES (source.user_id, source.name)
+        RETURNING target.user_id AS user_id, target.name AS name
+    )`;
+
+    // Act
+    const commonTable = CommonTableParser.parse(text);
+    const sql = formatter.format(commonTable);
+
+    // Assert
+    expect(sql).toEqual(`"merged" as (merge into "users" as "target" using "incoming_users" as "source" on "target"."user_id" = "source"."user_id" when matched then update set "name" = "source"."name" when not matched then insert("user_id", "name") values("source"."user_id", "source"."name") returning "target"."user_id", "target"."name")`);
+});

@@ -23,15 +23,18 @@ describe('FormatOptionResolver', () => {
     });
 
     it('maps identifier escape logical names to delimiter pairs', () => {
-        expect(resolveIdentifierEscapeOption('quote')).toEqual({ start: '"', end: '"' });
-        expect(resolveIdentifierEscapeOption('backtick')).toEqual({ start: '`', end: '`' });
-        expect(resolveIdentifierEscapeOption('bracket')).toEqual({ start: '[', end: ']' });
-        expect(resolveIdentifierEscapeOption('none')).toEqual({ start: '', end: '' });
+        expect(resolveIdentifierEscapeOption('quote')).toEqual({ start: '"', end: '"', target: 'all' });
+        expect(resolveIdentifierEscapeOption('backtick')).toEqual({ start: '`', end: '`', target: 'all' });
+        expect(resolveIdentifierEscapeOption('bracket')).toEqual({ start: '[', end: ']', target: 'all' });
+        expect(resolveIdentifierEscapeOption('none')).toEqual({ start: '', end: '', target: 'all' });
+        expect(resolveIdentifierEscapeOption('quote', 'minimal')).toEqual({ start: '"', end: '"', target: 'minimal' });
+        expect(resolveIdentifierEscapeOption('backtick', 'minimal')).toEqual({ start: '`', end: '`', target: 'minimal' });
+        expect(resolveIdentifierEscapeOption('none', 'minimal')).toEqual({ start: '', end: '', target: 'minimal' });
     });
 
     it('returns explicit identifier delimiters unchanged', () => {
         const custom = { start: '<<', end: '>>' };
-        expect(resolveIdentifierEscapeOption(custom)).toEqual(custom);
+        expect(resolveIdentifierEscapeOption(custom)).toEqual({ ...custom, target: 'all' });
     });
 
     it('throws on unknown identifier escape alias', () => {
@@ -69,7 +72,7 @@ describe('SqlFormatter option normalization', () => {
 
         const formatter = new SqlFormatter({
             identifierEscape: 'quote',
-            identifierEscapeMode: 'minimal',
+            identifierEscapeTarget: 'minimal',
             keywordCase: 'lower',
             commaBreak: 'before'
         });

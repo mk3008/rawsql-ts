@@ -6,9 +6,11 @@ import { SourceAliasExpressionParser } from "./SourceAliasExpressionParser";
 import { InsertQueryParser } from "./InsertQueryParser";
 import { UpdateQueryParser } from "./UpdateQueryParser";
 import { DeleteQueryParser } from "./DeleteQueryParser";
+import { MergeQueryParser } from "./MergeQueryParser";
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
 import { DeleteQuery } from "../models/DeleteQuery";
+import { MergeQuery } from "../models/MergeQuery";
 import { SelectQuery } from "../models/SelectQuery";
 import { SelectQueryWithClauseHelper } from "../utils/SelectQueryWithClauseHelper";
 import { WithClauseParser } from "./WithClauseParser";
@@ -204,6 +206,8 @@ export class CommonTableParser {
                 return UpdateQueryParser.parseFromLexeme(lexemes, index);
             case "delete from":
                 return DeleteQueryParser.parseFromLexeme(lexemes, index);
+            case "merge into":
+                return MergeQueryParser.parseFromLexeme(lexemes, index);
             case "with": {
                 // Determine statement type after WITH to route to the correct parser.
                 const commandAfterWith = this.getCommandAfterWith(lexemes, index);
@@ -214,12 +218,14 @@ export class CommonTableParser {
                         return UpdateQueryParser.parseFromLexeme(lexemes, index);
                     case "delete from":
                         return DeleteQueryParser.parseFromLexeme(lexemes, index);
+                    case "merge into":
+                        return MergeQueryParser.parseFromLexeme(lexemes, index);
                     default:
                         return SelectQueryParser.parseFromLexeme(lexemes, index);
                 }
             }
             default:
-                throw new Error(`Syntax error at position ${index}: Expected SELECT, INSERT, UPDATE, DELETE, or WITH in CTE query but found "${lexemes[index].value}".`);
+                throw new Error(`Syntax error at position ${index}: Expected SELECT, INSERT, UPDATE, DELETE, MERGE, or WITH in CTE query but found "${lexemes[index].value}".`);
         }
     }
 
@@ -252,6 +258,12 @@ export class CommonTableParser {
 
         if (query instanceof DeleteQuery) {
             const target = query.withClause ?? query.deleteClause;
+            target.addPositionedComments("before", headerComments);
+            return;
+        }
+
+        if (query instanceof MergeQuery) {
+            const target = query.withClause ?? query;
             target.addPositionedComments("before", headerComments);
         }
     }

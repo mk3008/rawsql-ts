@@ -41,6 +41,25 @@ What to do:
 - Rotate the token secret and ensure it has publish access to the package.
 - Prefer fixing OIDC Trusted Publishing instead of relying on long-lived tokens.
 
+### `TLOG_CREATE_ENTRY_ERROR` / "equivalent entry already exists in the transparency log"
+
+Symptoms:
+- `npm publish ... --provenance` fails with `TLOG_CREATE_ENTRY_ERROR`
+- npm reports `error creating tlog entry`
+- npm reports `(409) an equivalent entry already exists in the transparency log`
+
+Most likely causes:
+- npm provenance / Sigstore transparency-log state already contains an equivalent attestation for the attempted package artifact.
+- A previous publish attempt may have failed after creating provenance-related transparency-log state, leaving the package version absent from the registry while the transparency-log entry still blocks an identical retry.
+- This is not the same failure class as a missing npm Trusted Publisher configuration.
+
+What to do:
+- Check the workflow's `npm view diagnostics` for the target package version.
+- If the target package version is visible on npm, treat the publish as already completed and do not republish that version.
+- If the target package version is not visible on npm, prefer bumping the package version and rerunning the publish workflow.
+- Do not repeatedly retry the same version with the same provenance artifact; it can hit the same transparency-log duplicate.
+- Use token/no-provenance publish only as an explicit emergency release decision, because it changes the release's provenance guarantees.
+
 ## Notes
 
 - `publish.yml` is intended to run from the default branch (`main`). Running from feature branches can cause OIDC Trusted Publishing to fail depending on npm configuration.
