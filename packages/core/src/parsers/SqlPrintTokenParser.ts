@@ -1590,7 +1590,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         const switchToken = this.visit(arg.switchCase);
-        promotedComments.push(...this.collectCaseLeadingCommentsFromSwitch(switchToken));
 
         if (promotedComments.length > 0) {
             token.innerTokens.push(...promotedComments);
@@ -2004,6 +2003,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Add positioned comments in recorded order
         const beforeComments = arg.getPositionedComments('before');
         const afterComments = arg.getPositionedComments('after');
+        const duplicateCaseAfterComments = arg.value instanceof CaseExpression
+            ? this.collectCaseSelectItemDuplicateAfterComments(arg.value)
+            : new Set<string>();
 
         if (beforeComments.length > 0) {
             if (arg.value instanceof CaseExpression || this.listContinuationCommentComponents.has(arg)) {
@@ -2019,7 +2021,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(this.visit(arg.value));
 
         const visibleAfterComments = arg.value instanceof CaseExpression
-            ? this.filterCaseSelectItemDuplicateAfterComments(arg.value, afterComments)
+            ? this.filterCaseSelectItemDuplicateAfterComments(afterComments, duplicateCaseAfterComments)
             : afterComments;
 
         if (visibleAfterComments.length > 0 && !isParenExpression) {
@@ -2112,14 +2114,33 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         return token;
     }
 
-    private filterCaseSelectItemDuplicateAfterComments(value: CaseExpression, afterComments: string[]): string[] {
+    private collectCaseSelectItemDuplicateAfterComments(value: CaseExpression): Set<string> {
+        const promoted = new Set<string>();
+        if (value.comments) {
+            for (const comment of value.comments) {
+                promoted.add(comment);
+            }
+        }
+        const firstCase = value.switchCase.cases[0];
+        if (firstCase?.positionedComments) {
+            for (const positionedComment of firstCase.positionedComments) {
+                if (positionedComment.position === 'before') {
+                    for (const comment of positionedComment.comments) {
+                        promoted.add(comment);
+                    }
+                }
+            }
+        }
+        return promoted;
+    }
+
+    private filterCaseSelectItemDuplicateAfterComments(afterComments: string[], promoted: Set<string>): string[] {
         if (afterComments.length === 0) {
             return afterComments;
         }
-        if (!value.comments || value.comments.length === 0) {
+        if (promoted.size === 0) {
             return afterComments;
         }
-        const promoted = new Set(value.comments);
         return afterComments.filter(comment => !promoted.has(comment));
     }
 

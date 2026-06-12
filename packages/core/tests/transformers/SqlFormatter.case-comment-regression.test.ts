@@ -69,4 +69,27 @@ describe('SqlFormatter CASE comment positioning', () => {
 
         expect(result).toBe(expected);
     });
+
+    it('keeps comments between CASE and the first WHEN inside the CASE expression', () => {
+        const formatter = createFormatter();
+        const sql = `select
+    case
+        /* rank judgement */
+        when amount >= 100000 then 'vip'
+        else 'normal'
+    end as customer_rank`;
+        const parsed = SelectQueryParser.parse(sql);
+        const result = formatter.format(parsed).formattedSql;
+
+        const expected = `select
+    case
+        /* rank judgement */
+        when "amount" >= 100000 then
+            'vip'
+        else
+            'normal'
+    end as "customer_rank"`;
+
+        expect(result).toBe(expected);
+    });
 });

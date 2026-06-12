@@ -530,10 +530,11 @@ describe('CommentStyle - Comprehensive TDD Test', () => {
 
             expect(result.formattedSql.match(/rank/g)).toHaveLength(2);
             expect(result.formattedSql).toContain([
-                '    /* rank */',
                 '    case',
+                '        /* rank */',
                 '        when "a" = 1 then',
             ].join('\n'));
+            expect(result.formattedSql).not.toContain('    /* rank */\n    case');
             expect(result.formattedSql).not.toContain('end /* rank */ as "rank"');
         });
     });
