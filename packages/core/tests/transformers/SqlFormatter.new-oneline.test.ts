@@ -48,9 +48,44 @@ describe('SqlFormatter - New Oneline Options', () => {
         
         console.log('Formatted SQL with caseOneLine=true:', result.formattedSql);
         
-        // CASE should be on one line
-        expect(result.formattedSql).toContain('case');
-        expect(result.formattedSql).toContain('when');
+        expect(result.formattedSql).not.toContain('\n');
+        expect(result.formattedSql).toMatch(/case\s+"status"\s+when\s+'active'\s+then\s+'A'\s+when\s+'inactive'\s+then\s+'I'\s+else\s+'U'\s+end\s+as\s+"status_code"/i);
+    });
+
+    test('should keep smart comments executable when CASE is formatted on one line', () => {
+        const formatter = new SqlFormatter({
+            caseOneLine: true,
+            exportComment: true,
+            commentStyle: 'smart',
+            oneLineMaxLength: 0,
+            identifierEscape: { start: '', end: '' },
+            keywordCase: 'lower',
+            newline: '\n',
+            indentSize: 4,
+            indentChar: ' ',
+            commaBreak: 'before'
+        });
+
+        const sql = `
+            select
+                sum(case
+                    /* Refunds are operational noise for this score, but the row still proves the customer came back. */
+                    when ob.status = :refunded_status then 0
+                    /* Paid and shipped share the same business meaning here. */
+                    else ob.total_amount
+                end) as gross_amount
+            from order_base ob
+        `;
+
+        const query = SelectQueryParser.parse(sql);
+        const result = formatter.format(query);
+
+        expect(result.formattedSql).toContain('/* Refunds are operational noise for this score, but the row still proves the customer came back. */');
+        expect(result.formattedSql).toContain('/* Paid and shipped share the same business meaning here. */');
+        expect(result.formattedSql).not.toContain('-- Refunds');
+        expect(result.formattedSql).not.toContain('-- Paid');
+        expect(result.formattedSql).toContain('case /* Refunds are operational noise for this score, but the row still proves the customer came back. */ when');
+        expect(result.formattedSql.match(/Refunds are operational noise/g)).toHaveLength(1);
     });
 
     test('should format subquery on one line when enabled', () => {
@@ -74,9 +109,129 @@ describe('SqlFormatter - New Oneline Options', () => {
         
         console.log('Formatted SQL with subqueryOneLine=true:', result.formattedSql);
         
-        // Subquery should be on one line
-        expect(result.formattedSql).toContain('select');
-        expect(result.formattedSql).toContain('orders');
+        expect(result.formattedSql).not.toContain('\n');
+        expect(result.formattedSql).toMatch(/where\s+"id"\s+in\s+\(select\s+"user_id"\s+from\s+"orders"\s+where\s+"amount"\s*>\s*100\)/i);
+    });
+
+    test('should format short IN value lists on one line when enabled', () => {
+        const formatter = new SqlFormatter({
+            inOneLine: true,
+            newline: 'lf',
+            indentChar: 'space',
+            indentSize: 4,
+            keywordCase: 'lower',
+            identifierEscape: 'none',
+            commaBreak: 'before',
+            oneLineMaxLength: 100,
+            exportComment: false
+        });
+
+        const query = SelectQueryParser.parse(`
+            select *
+            from users
+            where id in (1, 2, 3)
+        `);
+
+        const result = formatter.format(query);
+
+        expect(result.formattedSql).toContain('where\n    id in (1, 2, 3)');
+    });
+
+    test('should expand long IN value lists when oneLineMaxLength is exceeded', () => {
+        const formatter = new SqlFormatter({
+            inOneLine: true,
+            newline: 'lf',
+            indentChar: 'space',
+            indentSize: 4,
+            keywordCase: 'lower',
+            identifierEscape: 'none',
+            commaBreak: 'before',
+            oneLineMaxLength: 24,
+            exportComment: false
+        });
+
+        const query = SelectQueryParser.parse(`
+            select *
+            from users
+            where id in (1001, 1002, 1003)
+        `);
+
+        const result = formatter.format(query);
+
+        expect(result.formattedSql).toContain([
+            'id in (',
+            '        1001',
+            '        , 1002',
+            '        , 1003',
+            '    )'
+        ].join('\n'));
+    });
+
+    test('should preserve comments by expanding IN value lists even without a width guard', () => {
+        const formatter = new SqlFormatter({
+            inOneLine: true,
+            oneLineMaxLength: 0,
+            newline: 'lf',
+            indentChar: 'space',
+            indentSize: 4,
+            keywordCase: 'upper',
+            identifierEscape: 'none',
+            parameterSymbol: ':',
+            parameterStyle: 'named',
+            commaBreak: 'before',
+            andBreak: 'before',
+            exportComment: 'full',
+            commentStyle: 'smart'
+        });
+
+        const query = SelectQueryParser.parse(`
+            select *
+            from orders o
+            where o.status in (
+                'paid' -- revenue
+                , 'refunded' -- refund
+                , 'pending' /* keep in report */
+            )
+        `);
+
+        const result = formatter.format(query);
+
+        expect(result.formattedSql).toContain([
+            'o.status IN (',
+            "        'paid' -- revenue",
+            "        , 'refunded' -- refund",
+            "        , 'pending' -- keep in report",
+            '    )'
+        ].join('\n'));
+    });
+
+    test('should convert original line comments to block comments inside oneline CASE expressions', () => {
+        const formatter = new SqlFormatter({
+            caseOneLine: true,
+            exportComment: true,
+            commentStyle: 'smart',
+            identifierEscape: { start: '', end: '' },
+            keywordCase: 'lower',
+            newline: '\n',
+            indentSize: 4,
+            indentChar: ' '
+        });
+
+        const sql = `
+            select
+                case
+                    -- active order
+                    when active = true then 'active'
+                    else 'inactive'
+                end as status_label
+            from orders
+        `;
+
+        const query = SelectQueryParser.parse(sql);
+        const result = formatter.format(query);
+
+        expect(result.formattedSql).toContain("case /* active order */ when active = true then 'active'");
+        expect(result.formattedSql).not.toContain('-- active order');
     });
 
     test('should format JOIN conditions on one line when enabled', () => {
@@ -107,19 +262,21 @@ describe('SqlFormatter - New Oneline Options', () => {
         const formatter = new SqlFormatter({ 
             parenthesesOneLine: true,
             betweenOneLine: true,
+            inOneLine: true,
             valuesOneLine: true,
             caseOneLine: true,
             exportComment: false 
         });
         
         const sql = `
-            select 
-                case 
+            select
+                case
                     when age between 18 and 65 then 'working_age'
                     else 'other'
                 end as age_group
             from (values (25), (45), (70)) as ages(age)
             where (age > 0 and age < 120)
+                and age in (25, 45, 70)
         `;
         
         const query = SelectQueryParser.parse(sql);
@@ -127,8 +284,11 @@ describe('SqlFormatter - New Oneline Options', () => {
         
         console.log('Formatted SQL with multiple oneline options:', result.formattedSql);
         
-        // Should handle all oneline options
-        expect(result.formattedSql).toBeDefined();
-        expect(result.formattedSql.length).toBeGreaterThan(0);
+        expect(result.formattedSql).toMatch(/case\s+when\s+"age"\s+between\s+18\s+and\s+65\s+then\s+'working_age'\s+else\s+'other'\s+end\s+as\s+"age_group"/i);
+        expect(result.formattedSql).toMatch(/"age"\s+between\s+18\s+and\s+65/i);
+        expect(result.formattedSql).toMatch(/values\s+\(25\),\s+\(45\),\s+\(70\)/i);
+        expect(result.formattedSql).toMatch(/\("age"\s*>\s*0\s+and\s+"age"\s*<\s*120\)/i);
+        expect(result.formattedSql).toMatch(/"age"\s+in\s+\(25,\s+45,\s+70\)/i);
+        expect(result.formattedSql).not.toMatch(/in\s*\([^)]*\n[^)]*\)/i);
     });
 });

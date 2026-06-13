@@ -1,4 +1,4 @@
-import { SqlPrintTokenParser, FormatterConfig, PRESETS, CastStyle, ConstraintStyle, SourceAliasStyle, OrderByDefaultDirectionStyle } from '../parsers/SqlPrintTokenParser';
+import { SqlPrintTokenParser, FormatterConfig, PRESETS, CastStyle, ConstraintStyle, SourceAliasStyle, ColumnAliasStyle, OrderByDefaultDirectionStyle } from '../parsers/SqlPrintTokenParser';
 import { SqlPrinter, CommaBreakStyle, AndBreakStyle, OrBreakStyle, JoinOnBreakStyle } from './SqlPrinter';
 import { CommentExportMode } from '../types/Formatting';
 import { IndentCharOption, NewlineOption } from './LinePrinter'; // Import types for compatibility
@@ -44,7 +44,7 @@ export interface BaseFormattingOptions {
     /** Newline character style (logical 'lf'/'crlf'/'cr' or literal newline string) */
     newline?: NewlineOption;
     /** Case transformation for SQL keywords */
-    keywordCase?: 'none' | 'upper' | 'lower';
+    keywordCase?: 'none' | 'upper' | 'lower' | 'preserve';
     /** Style for comma line breaks */
     commaBreak?: CommaBreakStyle;
     /** Style for comma line breaks inside WITH clause definitions */
@@ -69,6 +69,8 @@ export interface BaseFormattingOptions {
     betweenOneLine?: boolean;
     /** Keep VALUES clause on one line regardless of comma break settings */
     valuesOneLine?: boolean;
+    /** Keep IN value lists on one line until oneLineMaxLength forces expansion */
+    inOneLine?: boolean;
     /** Keep JOIN conditions on one line regardless of AND/OR break settings */
     joinOneLine?: boolean;
     /** Keep CASE expressions on one line regardless of formatting settings */
@@ -81,8 +83,8 @@ export interface BaseFormattingOptions {
     insertColumnsOneLine?: boolean;
     /** Keep MERGE WHEN clause predicates on one line regardless of AND break settings */
     whenOneLine?: boolean;
-    /** Maximum rendered width for opt-in one-line constructs. Omit to keep legacy unlimited one-line behavior. */
-    oneLineMaxLength?: number;
+    /** Maximum rendered width for opt-in one-line constructs. Use 0, null, or omit to disable the limit. */
+    oneLineMaxLength?: number | null;
     /** Indent AND/OR continuation lines inside JOIN ON predicates */
     joinConditionContinuationIndent?: boolean;
     /** Reorder JOIN ON column comparisons to follow table declaration order */
@@ -117,6 +119,8 @@ export interface SqlFormatterOptions extends BaseFormattingOptions {
     constraintStyle?: ConstraintStyle;
     /** Source alias rendering style for FROM/JOIN sources */
     sourceAliasStyle?: SourceAliasStyle;
+    /** Column alias rendering style for SELECT items */
+    columnAliasStyle?: ColumnAliasStyle;
     /** Default ORDER BY direction rendering style */
     orderByDefaultDirectionStyle?: OrderByDefaultDirectionStyle;
 }
@@ -157,6 +161,7 @@ export class SqlFormatter {
             parameterStyle: options.parameterStyle ?? presetConfig?.parameterStyle,
             castStyle: options.castStyle ?? presetConfig?.castStyle,
             sourceAliasStyle: options.sourceAliasStyle ?? presetConfig?.sourceAliasStyle,
+            columnAliasStyle: options.columnAliasStyle ?? presetConfig?.columnAliasStyle,
             orderByDefaultDirectionStyle: options.orderByDefaultDirectionStyle ?? presetConfig?.orderByDefaultDirectionStyle,
             joinConditionOrderByDeclaration: options.joinConditionOrderByDeclaration,
         };
@@ -189,6 +194,7 @@ export class SqlFormatter {
             parenthesesOneLine: options.parenthesesOneLine,
             betweenOneLine: options.betweenOneLine,
             valuesOneLine: options.valuesOneLine,
+            inOneLine: options.inOneLine,
             joinOneLine: options.joinOneLine,
             caseOneLine: options.caseOneLine,
             subqueryOneLine: options.subqueryOneLine,

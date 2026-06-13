@@ -83,7 +83,11 @@ export type CastStyle = 'postgres' | 'standard';
 
 export type ConstraintStyle = 'postgres' | 'mysql';
 
-export type SourceAliasStyle = 'as' | 'implicit';
+export type AliasKeywordStyle = 'explicit' | 'omit' | 'as' | 'implicit';
+
+export type SourceAliasStyle = AliasKeywordStyle;
+
+export type ColumnAliasStyle = AliasKeywordStyle;
 
 export type OrderByDefaultDirectionStyle = 'omit' | 'explicit';
 
@@ -104,6 +108,8 @@ export interface FormatterConfig {
     constraintStyle?: ConstraintStyle;
     /** Controls whether source aliases are rendered with an explicit AS keyword */
     sourceAliasStyle?: SourceAliasStyle;
+    /** Controls whether column aliases are rendered with an explicit AS keyword */
+    columnAliasStyle?: ColumnAliasStyle;
     /** Controls whether the default ASC direction is omitted or rendered explicitly */
     orderByDefaultDirectionStyle?: OrderByDefaultDirectionStyle;
 }
@@ -264,6 +270,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private castStyle: CastStyle;
     private constraintStyle: ConstraintStyle;
     private sourceAliasStyle: SourceAliasStyle;
+    private columnAliasStyle: ColumnAliasStyle;
     private orderByDefaultDirectionStyle: OrderByDefaultDirectionStyle;
     private readonly normalizeJoinConditionOrder: boolean;
     private readonly listContinuationCommentComponents = new WeakSet<SqlComponent>();
@@ -277,6 +284,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         castStyle?: CastStyle,
         constraintStyle?: ConstraintStyle,
         sourceAliasStyle?: SourceAliasStyle,
+        columnAliasStyle?: ColumnAliasStyle,
         orderByDefaultDirectionStyle?: OrderByDefaultDirectionStyle,
         joinConditionOrderByDeclaration?: boolean,
     }) {
@@ -299,7 +307,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         this.castStyle = options?.castStyle ?? 'standard';
         this.constraintStyle = options?.constraintStyle ?? 'postgres';
-        this.sourceAliasStyle = options?.sourceAliasStyle ?? 'as';
+        this.sourceAliasStyle = this.normalizeAliasKeywordStyle(options?.sourceAliasStyle);
+        this.columnAliasStyle = this.normalizeAliasKeywordStyle(options?.columnAliasStyle);
         this.orderByDefaultDirectionStyle = options?.orderByDefaultDirectionStyle ?? 'omit';
         this.normalizeJoinConditionOrder = options?.joinConditionOrderByDeclaration ?? false;
 
@@ -544,7 +553,15 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         for (let i = 0; i < arg.order.length; i++) {
             if (i > 0) token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
-            token.innerTokens.push(this.visit(arg.order[i]));
+            const item = arg.order[i];
+            token.innerTokens.push(this.visit(item));
+            if (
+                !(item instanceof OrderByItem) &&
+                this.orderByDefaultDirectionStyle === 'explicit'
+            ) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'asc'));
+            }
         }
         return token;
     }
@@ -1574,6 +1591,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         // Handle positioned comments for CaseExpression (unified spec: positioned comments only)
         if (arg.positionedComments && arg.positionedComments.length > 0) {
+            this.removeCaseAfterCommentsDuplicatedOnFirstWhen(arg);
             this.addPositionedCommentsToToken(token, arg);
             // Clear positioned comments to prevent duplicate processing
             arg.positionedComments = null;
@@ -1618,6 +1636,40 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         return token;
+    }
+
+    private removeCaseAfterCommentsDuplicatedOnFirstWhen(arg: CaseExpression): void {
+        if (!arg.positionedComments || arg.positionedComments.length === 0) {
+            return;
+        }
+
+        const firstWhenComments = new Set(
+            (arg.switchCase.cases[0]?.getPositionedComments('before') ?? [])
+                .map(comment => this.normalizeCommentSignature(comment))
+        );
+        if (firstWhenComments.size === 0) {
+            return;
+        }
+
+        const retained: PositionedComment[] = [];
+        for (const entry of arg.positionedComments) {
+            if (entry.position !== 'after') {
+                retained.push(entry);
+                continue;
+            }
+
+            const comments = entry.comments.filter(
+                comment => !firstWhenComments.has(this.normalizeCommentSignature(comment))
+            );
+            if (comments.length > 0) {
+                retained.push({ ...entry, comments });
+            }
+        }
+        arg.positionedComments = retained.length > 0 ? retained : null;
+    }
+
+    private normalizeCommentSignature(comment: string): string {
+        return comment.replace(/\s+/g, ' ').trim();
     }
 
     private extractSwitchAfterComments(arg: SwitchCaseArgument): string[] {
@@ -2051,6 +2103,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         // Handle AS keyword positioned comments (before AS)
         const asKeywordPositionedComments = 'asKeywordPositionedComments' in arg ? (arg as any).asKeywordPositionedComments : null;
+        const asKeywordComments = 'asKeywordComments' in arg ? (arg as any).asKeywordComments : null;
+        const shouldPrintAsKeyword = this.shouldPrintColumnAliasKeyword(asKeywordPositionedComments, asKeywordComments);
         if (asKeywordPositionedComments) {
             const beforeComments = asKeywordPositionedComments.filter((pc: any) => pc.position === 'before');
             if (beforeComments.length > 0) {
@@ -2062,10 +2116,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             }
         }
 
-        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
+        if (shouldPrintAsKeyword) {
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
+        }
 
         // Handle AS keyword positioned comments (after AS)
-        if (asKeywordPositionedComments) {
+        if (shouldPrintAsKeyword && asKeywordPositionedComments) {
             const afterComments = asKeywordPositionedComments.filter((pc: any) => pc.position === 'after');
             if (afterComments.length > 0) {
                 token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
@@ -2077,14 +2133,15 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         // Fallback: Add AS keyword legacy comments if present
-        const asKeywordComments = 'asKeywordComments' in arg ? (arg as any).asKeywordComments : null;
         if (asKeywordComments && asKeywordComments.length > 0) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             const commentTokens = this.createInlineCommentSequence(asKeywordComments);
             token.innerTokens.push(...commentTokens);
         }
 
-        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        if (shouldPrintAsKeyword) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        }
 
         // Visit identifier to get alias with proper spacing
         const identifierToken = this.visit(arg.identifier);
@@ -2286,11 +2343,25 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     private appendSourceAliasKeyword(token: SqlPrintToken): void {
-        if (this.sourceAliasStyle === 'implicit') {
+        if (this.sourceAliasStyle === 'omit') {
             return;
         }
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+    }
+
+    private shouldPrintColumnAliasKeyword(asKeywordPositionedComments: any, asKeywordComments: any): boolean {
+        if (this.columnAliasStyle === 'explicit') {
+            return true;
+        }
+
+        const hasPositionedComments = Array.isArray(asKeywordPositionedComments) && asKeywordPositionedComments.length > 0;
+        const hasLegacyComments = Array.isArray(asKeywordComments) && asKeywordComments.length > 0;
+        return hasPositionedComments || hasLegacyComments;
+    }
+
+    private normalizeAliasKeywordStyle(style?: AliasKeywordStyle): 'explicit' | 'omit' {
+        return style === 'implicit' || style === 'omit' ? 'omit' : 'explicit';
     }
 
     public visitFromClause(arg: FromClause): SqlPrintToken {

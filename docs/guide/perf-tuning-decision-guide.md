@@ -35,16 +35,16 @@ A useful perf loop needs all of the following:
 4. A captured plan or benchmark report from `ztd perf run` so the next tuning branch is based on runtime evidence.
 5. DDL-backed schema state under `ztd/ddl/*.sql`, including any indexes that should exist in the perf sandbox.
 
-## Information the prompt must provide
+## Information you need before choosing a branch
 
-When an AI agent or reviewer is asked to choose between index tuning and pipeline tuning, the request should include or quickly establish:
+Before deciding between index tuning and pipeline tuning, make sure you can answer:
 
-1. the QuerySpec perf declaration (`expectedScale`, and row expectations when known)
-2. whether the workload issue is "too many rows scanned" or "repeated expensive intermediate work"
-3. the current DDL/index state that the perf sandbox will replay
-4. whether a captured plan already exists, or whether the next step must be evidence capture first
+1. What is the QuerySpec perf declaration (`expectedScale`, and row expectations when known)?
+2. Is the workload issue "too many rows scanned" or "repeated expensive intermediate work"?
+3. What is the current DDL/index state that the perf sandbox will replay?
+4. Does a captured plan already exist, or is evidence capture the next step?
 
-Without those inputs, the correct first response is not "add an index" or "rewrite into PIPELINE". The correct first response is to capture the missing evidence in order: `ztd query plan <sql-file>`, `ztd perf db reset --dry-run`, `ztd perf run --dry-run` or `ztd perf run`, and the local QuerySpec metadata.
+If any of these are missing, do not jump to "add an index" or "rewrite into PIPELINE". Capture the missing evidence first: `ztd query plan <sql-file>`, `ztd perf db reset --dry-run`, `ztd perf run --dry-run` or `ztd perf run`, and the local QuerySpec metadata.
 
 ## Choose index tuning first when
 

@@ -210,10 +210,19 @@ from
             exportComment: true
         });
         
-        // Expected: Complete SQL with current positioning system limitations
-        // Note: CTE inner comments not captured by current positioned comments system
+        // Expected: Commented CTEs fall back to multiline formatting so comments are preserved.
         const expectedSql = `with
-  "user_summary" as (select "id", "name", count(*) from "users" where "active" = true group by "id", "name")
+  "user_summary" as (
+    /* Get active users */
+      select
+        "id", "name", count(*)
+      from
+        "users"
+      where
+        "active" = true
+      group by
+        "id", "name"
+  )
 select
   *
 from

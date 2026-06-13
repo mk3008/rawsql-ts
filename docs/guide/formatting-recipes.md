@@ -24,27 +24,28 @@ const { formattedSql, params } = formatter.format(query);
 | --- | --- | --- | --- |
 | `indentSize` | Any non‑negative integer | `0` | Number of `indentChar` repetitions per nesting level. Set `indentSize: 4` for four spaces per indent. |
 | `indentChar` | `'space'`, `'tab'`, or any literal string (e.g. `'  '` or `'\t'`) | `''` (no indent characters) | The unit inserted for each indent level. Pair with `indentSize` to get consistent spacing. |
-| `newline` | `'lf'`, `'crlf'`, `'cr'`, or a literal string such as `'\n'` | `' '` (single space) | Line separator used by the formatter. Set to `'lf'` or `'\n'` for multi-line output; the space default keeps everything on one line. |
-| `keywordCase` | `'none'`, `'upper'`, `'lower'` | `'none'` | Forces SQL keywords to a particular case without touching identifiers. |
+| `newline` | `'space'`, `'lf'`, `'crlf'`, `'cr'`, or a literal string such as `'\n'` | `' '` (single space) | Line separator used by the formatter. Set to `'lf'` or `'\n'` for multi-line output; use `'space'` for one-line output. |
+| `keywordCase` | `'none'`, `'upper'`, `'lower'` (legacy `'preserve'` still accepted as `'none'`) | `'none'` | Forces SQL keywords to a particular case without touching identifiers. |
 | `commaBreak` | `'none'`, `'before'`, `'after'` | `'none'` | Global comma placement for SELECT lists, INSERT columns, etc. |
 | `cteCommaBreak` | Same as `commaBreak` | Mirrors `commaBreak` | Specialised comma placement inside `WITH` definitions. |
 | `valuesCommaBreak` | Same as `commaBreak` | Mirrors `commaBreak` | Comma handling within `VALUES` tuples. |
 | `andBreak` | `'none'`, `'before'`, `'after'` | `'none'` | Controls whether logical `AND` operators move to their own lines. |
 | `orBreak` | `'none'`, `'before'`, `'after'` | `'none'` | Same idea for logical `OR` operators. |
-| `joinOnBreak` | `'none'`, `'before'` | `'none'` | Controls whether `JOIN ... ON` keeps `ON` inline or starts it on an indented continuation line. |
+| `joinOnBreak` | `'none'`, `'before'` (legacy `'after'` still accepted as `'none'`) | `'none'` | Controls whether `JOIN ... ON` keeps `ON` inline or starts it on an indented continuation line. |
 | `joinConditionContinuationIndent` | `true` / `false` | `false` | Indents wrapped `AND` / `OR` predicates inside `JOIN ... ON` conditions so they read as join-condition continuations instead of sibling joins. |
 | `insertColumnsOneLine` | `true` / `false` | `false` | Keeps column lists inside `INSERT INTO` statements on a single line when `true`. |
 | `indentNestedParentheses` | `true` / `false` | `false` | Adds an extra indent when boolean groups introduce parentheses inside `WHERE` or `HAVING` clauses. |
 | `commentStyle` | `'block'`, `'smart'` | `'block'` | Normalises how comments are emitted (see below). |
 | `withClauseStyle` | `'standard'`, `'cte-oneline'`, `'full-oneline'` | `'standard'` | Expands or collapses common table expressions. |
-| `parenthesesOneLine`, `betweenOneLine`, `valuesOneLine`, `joinOneLine`, `caseOneLine`, `subqueryOneLine` | `true` / `false` | `false` for each | Opt-in switches that keep the corresponding construct on a single line even if other break settings would expand it. |
-| `oneLineMaxLength` | Positive integer | Unlimited | Optional width guard for opt-in one-line constructs. When a one-line candidate would exceed this length, the formatter falls back to the normal multiline layout for that construct. |
+| `parenthesesOneLine`, `betweenOneLine`, `inOneLine`, `valuesOneLine`, `joinOneLine`, `caseOneLine`, `subqueryOneLine` | `true` / `false` | `false` for each | Opt-in switches that keep the corresponding construct on a single line even if other break settings would expand it. |
+| `oneLineMaxLength` | Positive integer, `0`, `null`, or omitted | Unlimited | Optional width guard for opt-in one-line constructs. `0`, `null`, or omitting the option disables the guard. When a one-line candidate would exceed a positive limit, the formatter falls back to the normal multiline layout for that construct. |
 | `joinConditionOrderByDeclaration` | `true` / `false` | `false` | Normalizes `JOIN ... ON` column comparisons so the left operand matches table declaration order. |
 | `whenOneLine` | `true` / `false` | `false` | Forces each `MERGE WHEN` predicate to stay on a single line even if `andBreak` / `orBreak` would normally wrap it. |
 | `exportComment` | `'full'`, `'none'`, `'header-only'`, `'top-header-only'` (legacy `true` / `false` still accepted) | `'none'` | Controls which comments are emitted: `'full'` prints everything, `'none'` drops all comments, `'header-only'` keeps leading comments on every block, and `'top-header-only'` keeps only top-level headers. |
 | `identifierEscape` | `'none'`, `'quote'`, `'backtick'`, `'bracket'`, or `{ "start": string, "end": string }` | From preset or `'quote'` internally | Chooses the identifier delimiter symbol. `'none'` means no delimiter symbol, not "no identifiers targeted". |
 | `identifierEscapeTarget` | `'all'`, `'minimal'` | `'all'` | Chooses whether the formatter escapes every identifier or only identifiers that need escaping to stay valid and semantically safe. Pair it with `identifierEscape`, e.g. `{ "identifierEscape": "quote", "identifierEscapeTarget": "minimal" }`. |
-| `sourceAliasStyle` | `'as'`, `'implicit'` | From preset or `'as'` | Controls whether source aliases render as `from users as u` or `from users u`. |
+| `sourceAliasStyle` | `'explicit'`, `'omit'` (legacy `'as'` / `'implicit'` still accepted) | From preset or `'explicit'` | Controls whether source aliases render as `from users as u` or `from users u`. |
+| `columnAliasStyle` | `'explicit'`, `'omit'` (legacy `'as'` / `'implicit'` still accepted) | `'explicit'` | Controls whether select-list column aliases render as `select id as user_id` or `select id user_id`. |
 | `orderByDefaultDirectionStyle` | `'omit'`, `'explicit'` | From preset or `'omit'` | Controls whether default ascending sort direction is omitted or printed as `ASC`. |
 | `castStyle` | 'standard', 'postgres' | From preset or 'standard' | Chooses how CAST expressions are printed. 'standard' emits ANSI `CAST(expr AS type)` while 'postgres' emits `expr::type`. See "Controlling CAST style" below for usage notes and examples. |
 | `constraintStyle` | `'postgres'`, `'mysql'` | From preset or `'postgres'` | Shapes constraint output in DDL: `'postgres'` prints `constraint ... primary key(...)`, while `'mysql'` emits `unique key name(...)` / `foreign key name(...)`. |
@@ -180,7 +181,7 @@ With the width guard enabled, a short optional predicate can stay on one line, w
 )
 ```
 
-The limit applies to opt-in one-line containers such as parentheses, `BETWEEN`, `VALUES`, `JOIN ... ON`, `CASE`, subqueries, and individual CTE entries formatted by `withClauseStyle: 'cte-oneline'`. The width check includes the current indentation and any text already present on the line. It does not change `withClauseStyle: 'full-oneline'`, which intentionally treats the whole `WITH` block as a single-line mode.
+The limit applies to opt-in one-line containers such as parentheses, `BETWEEN`, `IN` value lists, `VALUES`, `JOIN ... ON`, `CASE`, subqueries, and individual CTE entries formatted by `withClauseStyle: 'cte-oneline'`. The width check includes the current indentation and any text already present on the line. It does not change `withClauseStyle: 'full-oneline'`, which intentionally treats the whole `WITH` block as a single-line mode.
 
 ### INSERT column list layouts
 
@@ -248,15 +249,25 @@ If you are migrating away from PostgreSQL-only syntax, enforce `castStyle: 'stan
 
 With `minimal`, quoted output is kept only where removing the delimiter would break SQL or change semantics, such as names with spaces, mixed-case identifiers, reserved words, or PostgreSQL special names. Safe lower-case identifiers can print without quotes.
 
-Use `sourceAliasStyle` when you want to preserve alias shorthand:
+Use `sourceAliasStyle` when you want to omit the optional `AS` keyword for source aliases:
 
 ```json
 {
-  "sourceAliasStyle": "implicit"
+  "sourceAliasStyle": "omit"
 }
 ```
 
-This renders `from users u` instead of `from users as u`. Set it to `'as'` when your house style prefers explicit aliases.
+This renders `from users u` instead of `from users as u`. Set it to `'explicit'` when your house style prefers explicit aliases.
+
+Use `columnAliasStyle` separately when you want the same control for select-list aliases:
+
+```json
+{
+  "columnAliasStyle": "omit"
+}
+```
+
+This renders `select id user_id` instead of `select id as user_id`.
 
 ### DDL constraint style
 
@@ -301,11 +312,13 @@ Pair this option with your target engine: presets such as `'mysql'` enable it au
   "commentStyle": "smart",
   "parenthesesOneLine": true,
   "betweenOneLine": true,
+  "inOneLine": true,
   "valuesOneLine": true,
   "joinOneLine": true,
   "caseOneLine": true,
   "subqueryOneLine": true,
-  "sourceAliasStyle": "implicit",
+  "sourceAliasStyle": "omit",
+  "columnAliasStyle": "omit",
   "orderByDefaultDirectionStyle": "omit",
   "castStyle": "postgres",
   "constraintStyle": "postgres"

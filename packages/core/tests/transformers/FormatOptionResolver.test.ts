@@ -66,5 +66,27 @@ describe('SqlFormatter option normalization', () => {
         expect(formattedSql).toContain('`id`');
         expect(formattedSql).toContain('`users`');
     });
+
+    it('supports minimal identifier escaping', () => {
+        const query = SelectQueryParser.parse('SELECT id, "select", "user", "order-detail", "1st" FROM users');
+
+        const formatter = new SqlFormatter({
+            identifierEscape: 'quote',
+            identifierEscapeTarget: 'minimal',
+            keywordCase: 'lower',
+            commaBreak: 'before'
+        });
+
+        const { formattedSql } = formatter.format(query);
+
+        expect(formattedSql).toMatch(/\bid\b/);
+        expect(formattedSql).not.toContain('"id"');
+        expect(formattedSql).not.toContain('"users"');
+        expect(formattedSql).toContain('"select"');
+        expect(formattedSql).toContain('"user"');
+        expect(formattedSql).toContain('"order-detail"');
+        expect(formattedSql).toContain('"1st"');
+        expect(formattedSql).toContain(' from users');
+    });
 });
 

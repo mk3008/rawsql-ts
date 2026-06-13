@@ -1,5 +1,5 @@
 // Define the allowed newline options
-export type NewlineLogicalName = 'lf' | 'crlf' | 'cr';
+export type NewlineLogicalName = 'lf' | 'crlf' | 'cr' | 'space';
 export type NewlineOption = NewlineLogicalName | '\n' | '\r\n' | '\r' | ' ';
 
 // Define the allowed indent character options

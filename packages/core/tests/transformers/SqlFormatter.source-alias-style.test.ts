@@ -12,15 +12,67 @@ describe('SqlFormatter source alias style', () => {
 
     it('can render source aliases without inserting optional AS keywords', () => {
         const query = SelectQueryParser.parse('select u.id from users u join accounts a on a.user_id = u.id');
-        const sql = new SqlFormatter({ sourceAliasStyle: 'implicit' }).format(query).formattedSql;
+        const sql = new SqlFormatter({ sourceAliasStyle: 'omit' }).format(query).formattedSql;
 
         expect(sql).toBe('select "u"."id" from "users" "u" join "accounts" "a" on "a"."user_id" = "u"."id"');
     });
 
-    it('keeps column aliases explicit when source aliases are implicit', () => {
-        const query = SelectQueryParser.parse('select u.id as user_id from users u');
+    it('keeps the legacy implicit source alias style value working', () => {
+        const query = SelectQueryParser.parse('select u.id from users u');
         const sql = new SqlFormatter({ sourceAliasStyle: 'implicit' }).format(query).formattedSql;
 
+        expect(sql).toBe('select "u"."id" from "users" "u"');
+    });
+
+    it('keeps the legacy as source alias style value working', () => {
+        const query = SelectQueryParser.parse('select u.id from users u');
+        const sql = new SqlFormatter({ sourceAliasStyle: 'as' }).format(query).formattedSql;
+
+        expect(sql).toBe('select "u"."id" from "users" as "u"');
+    });
+
+    it('accepts explicit as the preferred source alias keyword value', () => {
+        const query = SelectQueryParser.parse('select u.id from users u');
+        const sql = new SqlFormatter({ sourceAliasStyle: 'explicit' }).format(query).formattedSql;
+
+        expect(sql).toBe('select "u"."id" from "users" as "u"');
+    });
+
+    it('keeps column aliases explicit when source aliases are implicit', () => {
+        const query = SelectQueryParser.parse('select u.id as user_id from users u');
+        const sql = new SqlFormatter({ sourceAliasStyle: 'omit' }).format(query).formattedSql;
+
         expect(sql).toBe('select "u"."id" as "user_id" from "users" "u"');
+    });
+
+    it('can render column aliases without inserting optional AS keywords', () => {
+        const query = SelectQueryParser.parse('select u.id as user_id from users u');
+        const sql = new SqlFormatter({ columnAliasStyle: 'omit' }).format(query).formattedSql;
+
+        expect(sql).toBe('select "u"."id" "user_id" from "users" as "u"');
+    });
+
+    it('can omit source and column alias keywords independently', () => {
+        const query = SelectQueryParser.parse('select u.id as user_id from users u');
+        const sql = new SqlFormatter({
+            sourceAliasStyle: 'omit',
+            columnAliasStyle: 'omit'
+        }).format(query).formattedSql;
+
+        expect(sql).toBe('select "u"."id" "user_id" from "users" "u"');
+    });
+
+    it('keeps the legacy implicit column alias style value working', () => {
+        const query = SelectQueryParser.parse('select u.id as user_id from users u');
+        const sql = new SqlFormatter({ columnAliasStyle: 'implicit' }).format(query).formattedSql;
+
+        expect(sql).toBe('select "u"."id" "user_id" from "users" as "u"');
+    });
+
+    it('keeps the legacy as column alias style value working', () => {
+        const query = SelectQueryParser.parse('select u.id user_id from users u');
+        const sql = new SqlFormatter({ columnAliasStyle: 'as' }).format(query).formattedSql;
+
+        expect(sql).toBe('select "u"."id" as "user_id" from "users" as "u"');
     });
 });

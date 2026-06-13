@@ -1,41 +1,43 @@
 // Default formatting options matching the main demo
 const defaultFormatOptions = {
-    "identifierEscape": "none",
-    "identifierEscapeTarget": "all",
-    "parameterSymbol": ":",
-    "parameterStyle": "named",
     "indentSize": 4,
     "indentChar": "space",
     "newline": "lf",
-    "keywordCase": "upper",
+    "keywordCase": "lower",
     "commaBreak": "before",
     "cteCommaBreak": "after",
     "valuesCommaBreak": "before",
     "andBreak": "before",
     "orBreak": "before",
     "joinOnBreak": "before",
-    "joinConditionContinuationIndent": false,
+    "joinConditionContinuationIndent": true,
     "identifierCase": "preserve",
     "expressionWidth": 50,
     "lineWrapping": false,
     "exportComment": "full",
-    "commentStyle": "block",
+    "commentStyle": "smart",
     "withClauseStyle": "standard",
     "parenthesesOneLine": true,
     "indentNestedParentheses": true,
     "betweenOneLine": true,
-    "valuesOneLine": false,
+    "inOneLine": true,
+    "valuesOneLine": true,
     "joinOneLine": true,
-    "caseOneLine": false,
-    "subqueryOneLine": false,
-    "sourceAliasStyle": "as",
-    "orderByDefaultDirectionStyle": "omit",
-    "castStyle": "standard",
-    "constraintStyle": "postgres",
+    "caseOneLine": true,
+    "subqueryOneLine": true,
     "insertColumnsOneLine": true,
-    "whenOneLine": false,
+    "whenOneLine": true,
     "oneLineMaxLength": 100,
-    "joinConditionOrderByDeclaration": false
+    "joinConditionOrderByDeclaration": true,
+    "orderByDefaultDirectionStyle": "omit",
+    "columnAliasStyle": "explicit",
+    "constraintStyle": "postgres",
+    "identifierEscape": "none",
+    "identifierEscapeTarget": "all",
+    "parameterSymbol": ":",
+    "parameterStyle": "named",
+    "sourceAliasStyle": "explicit",
+    "castStyle": "standard"
 };
 
 // Initialize CodeMirror editors immediately
@@ -153,10 +155,10 @@ async function loadModule() {
         updateStatusBar('Loading modules...');
 
         // Load rawsql-ts
-        rawSqlModule = await import('../demo/vendor/rawsql.browser.js');
+        rawSqlModule = await import('../demo/vendor/rawsql.browser.js?v=oneliner-preset-20260613');
 
         // Load style-config
-        styleConfigModule = await import('../demo/style-config.js');
+        styleConfigModule = await import('../demo/style-config.js?v=oneliner-preset-20260613');
 
         // Initialize style config
         initStyleConfig();
@@ -200,6 +202,144 @@ function initStyleConfig() {
 
 // Sample data
 const samples = {
+    heavy: {
+        sql: `/* Monthly customer health report.
+   Top-level header comment for comment export mode comparison. */
+with order_base as (
+/* Pull only order rows that affect monthly customer health.
+   This CTE was originally copied from the billing report and has grown a few extra filters. */
+select o.id,o.customer_id,o.status,o.total_amount,o.created_at
+   from orders o
+where o.created_at >= :report_from
+      and o.status in (:paid_status,:shipped_status,:refunded_status)
+),
+customer_order_summary as(
+    /* Keep the lifetime-ish rollup separate because several downstream dashboards still compare these names. */
+  select c.id customer_id,c.name,c.email,c.tier,
+       count(ob.id) order_count,
+sum( case
+        /* Refunds are operational noise for this score, but the row still proves the customer came back. */
+          when ob.status = :refunded_status then 0
+        /* Paid and shipped share the same business meaning here. */
+      else ob.total_amount
+    end) gross_amount,
+       max(ob.created_at) last_order_at
+from customers c
+      left join order_base ob on ob.customer_id = c.id
+ where c.deleted_at is null
+group by c.id,c.name,
+         c.email,c.tier
+),
+support_pressure as (
+/* Old support model:
+   any non-closed ticket should keep the account visible even when revenue is low. */
+    select st.customer_id,
+ count(st.id) open_ticket_count
+from support_tickets st
+   where st.status <> 'closed'
+group by st.customer_id
+),
+ranked_customers as(
+ select cos.customer_id,cos.name,cos.email,cos.tier,cos.order_count,cos.gross_amount,cos.last_order_at,
+coalesce(sp.open_ticket_count,0) open_ticket_count,
+       row_number() over(partition by cos.tier order by cos.gross_amount desc,cos.customer_id) tier_rank
+from customer_order_summary cos
+       left join support_pressure sp on sp.customer_id = cos.customer_id
+  where cos.order_count > 0
+)
+select rc.customer_id,rc.name,rc.email,rc.tier,
+case
+ /* Enterprise names asked for this bucket in 2023; do not merge with repeat yet. */
+    when rc.tier = :enterprise_tier and rc.gross_amount >= :strategic_amount then :strategic_label
+ /* Support wants open-ticket customers to stay visible even below revenue threshold. */
+ when rc.open_ticket_count > :open_ticket_threshold then :attention_label
+ /* Three or more orders is the old retention definition. Still used by exports. */
+      when rc.order_count >= :repeat_order_count then :repeat_label
+   else :standard_label
+end customer_segment,
+rc.order_count,rc.gross_amount,rc.open_ticket_count,rc.last_order_at,
+(
+  /* Kept as a subquery because the old export compared this value before joins were added. */
+select count(*)
+     from orders o2
+ where o2.customer_id = rc.customer_id
+       and o2.created_at >= :recent_order_from
+       and o2.status <> :refunded_status
+) recent_order_count,
+p.name favorite_product
+from ranked_customers rc
+       left join customer_favorites cf on cf.customer_id = rc.customer_id and cf.is_active = true
+left join products p on p.id = cf.product_id
+where rc.tier_rank <= :tier_rank_limit and
+   (rc.gross_amount >= :minimum_amount or rc.open_ticket_count > :open_ticket_threshold)
+   and exists(
+       /* Product team only wants customers with at least one active favorite in this screen. */
+       select 1 from customer_favorites cf2
+          where cf2.customer_id = rc.customer_id and cf2.is_active = true
+   )
+order by rc.tier asc, rc.gross_amount desc, rc.customer_id;`,
+        fixture: `{
+  "customers": {
+    "columns": [
+      { "name": "id", "type": "integer", "primaryKey": true },
+      { "name": "name", "type": "text" },
+      { "name": "email", "type": "text" },
+      { "name": "tier", "type": "text" },
+      { "name": "deleted_at", "type": "timestamp" }
+    ],
+    "rows": [
+      { "id": 1, "name": "Alice Morgan", "email": "alice@example.com", "tier": "enterprise", "deleted_at": null },
+      { "id": 2, "name": "Bob Stone", "email": "bob@example.com", "tier": "growth", "deleted_at": null }
+    ]
+  },
+  "orders": {
+    "columns": [
+      { "name": "id", "type": "integer", "primaryKey": true },
+      { "name": "customer_id", "type": "integer" },
+      { "name": "status", "type": "text" },
+      { "name": "total_amount", "type": "numeric" },
+      { "name": "created_at", "type": "timestamp" }
+    ],
+    "rows": [
+      { "id": 101, "customer_id": 1, "status": "paid", "total_amount": 1200, "created_at": "2026-01-10 09:00:00" },
+      { "id": 102, "customer_id": 1, "status": "shipped", "total_amount": 300, "created_at": "2026-01-15 11:30:00" },
+      { "id": 201, "customer_id": 2, "status": "refunded", "total_amount": 80, "created_at": "2026-01-20 16:45:00" }
+    ]
+  },
+  "customer_favorites": {
+    "columns": [
+      { "name": "customer_id", "type": "integer" },
+      { "name": "product_id", "type": "integer" },
+      { "name": "is_active", "type": "boolean" }
+    ],
+    "rows": [
+      { "customer_id": 1, "product_id": 10, "is_active": true },
+      { "customer_id": 2, "product_id": 20, "is_active": true }
+    ]
+  },
+  "products": {
+    "columns": [
+      { "name": "id", "type": "integer", "primaryKey": true },
+      { "name": "name", "type": "text" }
+    ],
+    "rows": [
+      { "id": 10, "name": "Analytics Suite" },
+      { "id": 20, "name": "Workflow Kit" }
+    ]
+  },
+  "support_tickets": {
+    "columns": [
+      { "name": "id", "type": "integer", "primaryKey": true },
+      { "name": "customer_id", "type": "integer" },
+      { "name": "status", "type": "text" }
+    ],
+    "rows": [
+      { "id": 9001, "customer_id": 1, "status": "open" },
+      { "id": 9002, "customer_id": 2, "status": "closed" }
+    ]
+  }
+}`
+    },
     single: {
         sql: `CREATE TABLE users (
   id INTEGER PRIMARY KEY DEFAULT nextval('users_id_seq'),
@@ -337,6 +477,13 @@ const sampleLoader = document.getElementById('sample-loader');
 sampleLoader.addEventListener('change', (e) => {
     const value = e.target.value;
     if (value && samples[value]) {
+        if (value === 'heavy') {
+            const outputModeSelector = document.getElementById('output-mode-selector');
+            if (outputModeSelector) {
+                outputModeSelector.value = 'format';
+                localStorage.setItem('cud-demo-output-mode', 'format');
+            }
+        }
         sqlInputEditor.setValue(samples[value].sql);
         fixtureEditor.setValue(samples[value].fixture);
         // Trigger conversion

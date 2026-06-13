@@ -150,4 +150,38 @@ describe('SqlFormatter - oneLineMaxLength option', () => {
 
         expect(formattedSql).toContain('(cast(:status as text) is null or status = :status)');
     });
+
+    test.each([
+        ['zero', 0],
+        ['null', null],
+        ['undefined', undefined],
+    ] as const)('disables the width guard when oneLineMaxLength is %s', (_label, oneLineMaxLength) => {
+        const formatter = new SqlFormatter({
+            newline: 'lf',
+            indentChar: 'space',
+            indentSize: 4,
+            keywordCase: 'lower',
+            identifierEscape: 'none',
+            parameterSymbol: ':',
+            parameterStyle: 'named',
+            withClauseStyle: 'cte-oneline',
+            oneLineMaxLength,
+        });
+
+        const query = SelectQueryParser.parse(`
+            with long_filtered_tickets as (
+                select ticket_id, subject, customer_name
+                from tickets
+                where subject is not null
+            )
+            select *
+            from long_filtered_tickets
+        `);
+
+        const { formattedSql } = formatter.format(query);
+
+        expect(formattedSql).toContain(
+            'long_filtered_tickets as (select ticket_id, subject, customer_name from tickets where subject is not null)',
+        );
+    });
 });

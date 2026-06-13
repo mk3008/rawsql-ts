@@ -7,6 +7,7 @@ export interface OnelineFormattingOptions {
     parenthesesOneLine: boolean;
     betweenOneLine: boolean;
     valuesOneLine: boolean;
+    inOneLine: boolean;
     joinOneLine: boolean;
     caseOneLine: boolean;
     subqueryOneLine: boolean;
