@@ -227,11 +227,17 @@ a:hover {
 }
 
 .style-gui-section h4 {
-    margin: 0 0 8px;
-    color: #c4c4d8;
-    font-size: 0.8rem;
-    font-weight: 600;
+    margin: 0 0 12px;
+    padding: 0 0 7px;
+    border-bottom: 1px solid rgba(96, 165, 250, .38);
+    color: #e5e7eb;
+    font-size: 0.86rem;
+    font-weight: 700;
     letter-spacing: 0;
+}
+
+.style-gui-section + .style-gui-section {
+    margin-top: 6px;
 }
 
 .style-gui-section-description {

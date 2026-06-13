@@ -180,8 +180,17 @@ textarea {
 }
 
 .style-gui-section h4 {
-    margin: 0 0 8px;
-    font-size: 13px;
+    margin: 0 0 12px;
+    padding: 0 0 7px;
+    border-bottom: 1px solid #8c959f;
+    color: #24292f;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.style-gui-section + .style-gui-section {
+    margin-top: 6px;
 }
 
 .style-gui-section-description {

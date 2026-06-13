@@ -250,12 +250,12 @@ const STYLE_CONTROL_GROUPS = [
     {
         title: 'One-line Rules',
         controls: [
-            { key: 'withClauseStyle', label: 'WITH style', type: 'select', options: ['standard', 'cte-oneline', 'full-oneline'] },
             { key: 'oneLineMaxLength', label: 'Max line length (0 off)', type: 'number', min: 0, max: 240, step: 1 },
+            { key: 'withClauseStyle', label: 'WITH style', type: 'select', options: ['standard', 'cte-oneline', 'full-oneline'] },
             { key: 'parenthesesOneLine', label: 'Parentheses', type: 'checkbox' },
             { key: 'indentNestedParentheses', label: 'Indent nested parentheses', type: 'checkbox' },
             { key: 'betweenOneLine', label: 'BETWEEN', type: 'checkbox' },
-            { key: 'valuesOneLine', label: 'VALUES', type: 'checkbox' },
+            { key: 'valuesOneLine', label: 'VALUES tuples', type: 'checkbox' },
             { key: 'joinOneLine', label: 'JOIN', type: 'checkbox' },
             { key: 'caseOneLine', label: 'CASE', type: 'checkbox' },
             { key: 'subqueryOneLine', label: 'Subquery', type: 'checkbox' },
