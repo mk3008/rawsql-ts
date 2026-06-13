@@ -48,7 +48,7 @@ const DEFAULT_POSTGRES_STYLE = {
     "identifierEscapeTarget": "minimal",
     "parameterSymbol": "$",
     "parameterStyle": "indexed",
-    "sourceAliasStyle": "as",
+    "sourceAliasStyle": "explicit",
     "castStyle": "postgres"
 };
 
@@ -59,7 +59,7 @@ const DEFAULT_STYLES = {
         "identifierEscapeTarget": "all",
         "parameterSymbol": ":",
         "parameterStyle": "named",
-        "sourceAliasStyle": "as",
+        "sourceAliasStyle": "explicit",
         "castStyle": "standard"
     },
     "OneLiner": {
@@ -68,7 +68,7 @@ const DEFAULT_STYLES = {
         "parameterSymbol": ":",
         "parameterStyle": "named",
         "keywordCase": "upper",
-        "sourceAliasStyle": "as",
+        "sourceAliasStyle": "explicit",
         "castStyle": "standard",
         "constraintStyle": "postgres",
         "orderByDefaultDirectionStyle": "omit"
@@ -82,7 +82,7 @@ const DEFAULT_STYLES = {
         "identifierEscapeTarget": "minimal",
         "parameterSymbol": "?",
         "parameterStyle": "anonymous",
-        "sourceAliasStyle": "as",
+        "sourceAliasStyle": "explicit",
         "castStyle": "standard",
         "constraintStyle": "mysql"
     },
@@ -92,7 +92,7 @@ const DEFAULT_STYLES = {
         "identifierEscapeTarget": "minimal",
         "parameterSymbol": "@",
         "parameterStyle": "named",
-        "sourceAliasStyle": "as",
+        "sourceAliasStyle": "explicit",
         "castStyle": "standard",
         "constraintStyle": "postgres"
     }
@@ -117,7 +117,7 @@ function inferStyleDefaults(name, style) {
 
     return {
         "identifierEscapeTarget": "all",
-        "sourceAliasStyle": "as",
+        "sourceAliasStyle": "explicit",
         "castStyle": "standard",
         "constraintStyle": "postgres",
         "orderByDefaultDirectionStyle": "omit",
@@ -131,9 +131,29 @@ function inferStyleDefaults(name, style) {
 }
 
 function normalizeStyle(name, style) {
+    const normalizedStyle = { ...style };
+    if (normalizedStyle.commentStyle === 'line') {
+        normalizedStyle.commentStyle = 'smart';
+    }
+    if (normalizedStyle.exportComment === true) {
+        normalizedStyle.exportComment = 'full';
+    } else if (normalizedStyle.exportComment === false) {
+        normalizedStyle.exportComment = 'none';
+    }
+    if (normalizedStyle.keywordCase === 'preserve') {
+        normalizedStyle.keywordCase = 'none';
+    }
+    if (normalizedStyle.joinOnBreak === 'after') {
+        normalizedStyle.joinOnBreak = 'none';
+    }
+    if (normalizedStyle.sourceAliasStyle === 'as') {
+        normalizedStyle.sourceAliasStyle = 'explicit';
+    } else if (normalizedStyle.sourceAliasStyle === 'implicit') {
+        normalizedStyle.sourceAliasStyle = 'omit';
+    }
     return {
         ...cloneStyle(inferStyleDefaults(name, style)),
-        ...style
+        ...normalizedStyle
     };
 }
 
@@ -189,13 +209,23 @@ const STYLE_CONTROL_GROUPS = [
     {
         title: 'Basics',
         controls: [
-            { key: 'keywordCase', label: 'Keyword case', type: 'select', options: ['preserve', 'lower', 'upper'] },
+            { key: 'keywordCase', label: 'Keyword case', type: 'select', options: ['none', 'lower', 'upper'] },
             { key: 'identifierEscape', label: 'Identifier escape', type: 'select', options: ['none', 'quote', 'backtick', 'bracket'] },
             { key: 'identifierEscapeTarget', label: 'Identifier escape target', type: 'select', options: ['all', 'minimal'] },
             { key: 'parameterSymbol', label: 'Parameter symbol', type: 'select', options: [':', '$', '@', '?'] },
             { key: 'parameterStyle', label: 'Parameter style', type: 'select', options: ['named', 'indexed', 'anonymous'] },
             { key: 'indentSize', label: 'Indent size', type: 'number', min: 0, max: 12, step: 1 },
-            { key: 'newline', label: 'Newline', type: 'select', options: ['lf', 'crlf'] }
+            { key: 'newline', label: 'Newline', type: 'select', options: ['lf', 'crlf'] },
+            { key: 'sourceAliasStyle', label: 'Source alias keyword', type: 'select', options: ['omit', 'explicit'] },
+            { key: 'orderByDefaultDirectionStyle', label: 'ORDER BY direction', type: 'select', options: ['omit', 'explicit'] },
+            { key: 'castStyle', label: 'CAST style', type: 'select', options: ['standard', 'postgres'] },
+            { key: 'joinConditionOrderByDeclaration', label: 'JOIN condition declaration order', type: 'checkbox' }
+        ]
+    },
+    {
+        title: 'DDL',
+        controls: [
+            { key: 'constraintStyle', label: 'CREATE TABLE constraint syntax', type: 'select', options: ['postgres', 'mysql'] }
         ]
     },
     {
@@ -206,28 +236,22 @@ const STYLE_CONTROL_GROUPS = [
             { key: 'valuesCommaBreak', label: 'VALUES comma', type: 'select', options: ['none', 'before', 'after'] },
             { key: 'andBreak', label: 'AND break', type: 'select', options: ['none', 'before', 'after'] },
             { key: 'orBreak', label: 'OR break', type: 'select', options: ['none', 'before', 'after'] },
-            { key: 'joinOnBreak', label: 'JOIN ON break', type: 'select', options: ['none', 'before', 'after'] },
-            { key: 'joinConditionContinuationIndent', label: 'Indent JOIN conditions', type: 'checkbox' },
-            { key: 'joinConditionOrderByDeclaration', label: 'JOIN condition declaration order', type: 'checkbox' }
+            { key: 'joinOnBreak', label: 'JOIN ON break', type: 'select', options: ['none', 'before'] },
+            { key: 'joinConditionContinuationIndent', label: 'Indent JOIN conditions', type: 'checkbox' }
         ]
     },
     {
         title: 'Comments',
         controls: [
-            { key: 'exportComment', label: 'Export comments', type: 'select', options: ['none', 'full', 'true', 'false'] },
-            { key: 'commentStyle', label: 'Comment style', type: 'select', options: ['block', 'line'] }
-        ]
-    },
-    {
-        title: 'Other',
-        controls: [
-            { key: 'withClauseStyle', label: 'WITH style', type: 'select', options: ['standard', 'cte-oneline', 'full-oneline'] }
+            { key: 'exportComment', label: 'Export comments', type: 'select', options: ['none', 'full', 'header-only', 'top-header-only'] },
+            { key: 'commentStyle', label: 'Comment style', type: 'select', options: ['block', 'smart'] }
         ]
     },
     {
         title: 'One-line Rules',
         controls: [
-            { key: 'oneLineMaxLength', label: 'Max line length', type: 'number', min: 0, max: 240, step: 1 },
+            { key: 'withClauseStyle', label: 'WITH style', type: 'select', options: ['standard', 'cte-oneline', 'full-oneline'] },
+            { key: 'oneLineMaxLength', label: 'Max line length (0 off)', type: 'number', min: 0, max: 240, step: 1 },
             { key: 'parenthesesOneLine', label: 'Parentheses', type: 'checkbox' },
             { key: 'indentNestedParentheses', label: 'Indent nested parentheses', type: 'checkbox' },
             { key: 'betweenOneLine', label: 'BETWEEN', type: 'checkbox' },
@@ -469,10 +493,12 @@ function createStyleControl(control) {
     let input;
     if (control.type === 'select') {
         input = document.createElement('select');
-        for (const optionValue of control.options) {
+        for (const optionConfig of control.options) {
+            const optionValue = typeof optionConfig === 'object' ? optionConfig.value : optionConfig;
+            const optionLabel = typeof optionConfig === 'object' ? optionConfig.label : optionConfig;
             const option = document.createElement('option');
             option.value = optionValue;
-            option.textContent = optionValue;
+            option.textContent = optionLabel;
             input.appendChild(option);
         }
     } else {
@@ -492,6 +518,13 @@ function createStyleControl(control) {
         input.addEventListener('input', handleStyleGuiInputChange);
     }
     wrapper.appendChild(input);
+
+    if (control.note) {
+        const note = document.createElement('small');
+        note.className = 'style-gui-field-note';
+        note.textContent = control.note;
+        wrapper.appendChild(note);
+    }
 
     return wrapper;
 }

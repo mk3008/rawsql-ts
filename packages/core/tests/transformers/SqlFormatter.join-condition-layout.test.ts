@@ -16,7 +16,7 @@ const baseOptions = {
     indentSize: 4,
     keywordCase: 'lower',
     identifierEscape: 'none',
-    sourceAliasStyle: 'implicit',
+    sourceAliasStyle: 'omit',
     andBreak: 'before',
 } as const;
 
@@ -32,6 +32,34 @@ describe('SqlFormatter - JOIN condition layout options', () => {
                 '    and lcr.source_id = st.source_id',
             ].join('\n'),
         );
+    });
+
+    test('treats legacy joinOnBreak after as none', () => {
+        const formatter = new SqlFormatter({
+            ...baseOptions,
+            joinOnBreak: 'after',
+        });
+        const { formattedSql } = formatter.format(SelectQueryParser.parse(sql));
+
+        expect(formattedSql).toContain(
+            [
+                '    left join last_customer_reply lcr on lcr.ticket_id = st.ticket_id',
+                '    and lcr.tenant_id = st.tenant_id',
+                '    and lcr.source_id = st.source_id',
+            ].join('\n'),
+        );
+    });
+
+    test('treats legacy keywordCase preserve as none', () => {
+        const formatter = new SqlFormatter({
+            ...baseOptions,
+            keywordCase: 'preserve',
+        });
+        const { formattedSql } = formatter.format(SelectQueryParser.parse(sql));
+
+        expect(formattedSql).toContain('select');
+        expect(formattedSql).not.toContain('SELECT');
+        expect(formattedSql).toContain('left join last_customer_reply lcr on');
     });
 
     test('breaks before ON and indents the JOIN condition when joinOnBreak is before', () => {

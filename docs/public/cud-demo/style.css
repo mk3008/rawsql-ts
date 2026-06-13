@@ -282,6 +282,13 @@ a:hover {
     box-shadow: 0 0 0 2px rgba(96, 165, 250, .18);
 }
 
+.style-gui-field-note {
+    grid-column: 2;
+    color: #9ca3af;
+    font-size: 0.7rem;
+    line-height: 1.35;
+}
+
 .style-gui-checkbox {
     display: grid;
     min-height: 26px;

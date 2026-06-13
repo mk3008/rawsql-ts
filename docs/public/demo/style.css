@@ -218,6 +218,13 @@ textarea {
     box-sizing: border-box;
 }
 
+.style-gui-field-note {
+    grid-column: 2;
+    color: #57606a;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
 .style-gui-checkbox {
     display: grid;
 }

@@ -83,7 +83,7 @@ export type CastStyle = 'postgres' | 'standard';
 
 export type ConstraintStyle = 'postgres' | 'mysql';
 
-export type SourceAliasStyle = 'as' | 'implicit';
+export type SourceAliasStyle = 'explicit' | 'omit' | 'as' | 'implicit';
 
 export type OrderByDefaultDirectionStyle = 'omit' | 'explicit';
 
@@ -299,7 +299,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         this.castStyle = options?.castStyle ?? 'standard';
         this.constraintStyle = options?.constraintStyle ?? 'postgres';
-        this.sourceAliasStyle = options?.sourceAliasStyle ?? 'as';
+        this.sourceAliasStyle = this.normalizeSourceAliasStyle(options?.sourceAliasStyle);
         this.orderByDefaultDirectionStyle = options?.orderByDefaultDirectionStyle ?? 'omit';
         this.normalizeJoinConditionOrder = options?.joinConditionOrderByDeclaration ?? false;
 
@@ -544,7 +544,15 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         for (let i = 0; i < arg.order.length; i++) {
             if (i > 0) token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
-            token.innerTokens.push(this.visit(arg.order[i]));
+            const item = arg.order[i];
+            token.innerTokens.push(this.visit(item));
+            if (
+                !(item instanceof OrderByItem) &&
+                this.orderByDefaultDirectionStyle === 'explicit'
+            ) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'asc'));
+            }
         }
         return token;
     }
@@ -1574,6 +1582,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         // Handle positioned comments for CaseExpression (unified spec: positioned comments only)
         if (arg.positionedComments && arg.positionedComments.length > 0) {
+            this.removeCaseAfterCommentsDuplicatedOnFirstWhen(arg);
             this.addPositionedCommentsToToken(token, arg);
             // Clear positioned comments to prevent duplicate processing
             arg.positionedComments = null;
@@ -1618,6 +1627,40 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         return token;
+    }
+
+    private removeCaseAfterCommentsDuplicatedOnFirstWhen(arg: CaseExpression): void {
+        if (!arg.positionedComments || arg.positionedComments.length === 0) {
+            return;
+        }
+
+        const firstWhenComments = new Set(
+            (arg.switchCase.cases[0]?.getPositionedComments('before') ?? [])
+                .map(comment => this.normalizeCommentSignature(comment))
+        );
+        if (firstWhenComments.size === 0) {
+            return;
+        }
+
+        const retained: PositionedComment[] = [];
+        for (const entry of arg.positionedComments) {
+            if (entry.position !== 'after') {
+                retained.push(entry);
+                continue;
+            }
+
+            const comments = entry.comments.filter(
+                comment => !firstWhenComments.has(this.normalizeCommentSignature(comment))
+            );
+            if (comments.length > 0) {
+                retained.push({ ...entry, comments });
+            }
+        }
+        arg.positionedComments = retained.length > 0 ? retained : null;
+    }
+
+    private normalizeCommentSignature(comment: string): string {
+        return comment.replace(/\s+/g, ' ').trim();
     }
 
     private extractSwitchAfterComments(arg: SwitchCaseArgument): string[] {
@@ -2286,11 +2329,15 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     private appendSourceAliasKeyword(token: SqlPrintToken): void {
-        if (this.sourceAliasStyle === 'implicit') {
+        if (this.sourceAliasStyle === 'omit') {
             return;
         }
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+    }
+
+    private normalizeSourceAliasStyle(style?: SourceAliasStyle): 'explicit' | 'omit' {
+        return style === 'implicit' || style === 'omit' ? 'omit' : 'explicit';
     }
 
     public visitFromClause(arg: FromClause): SqlPrintToken {

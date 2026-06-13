@@ -53,6 +53,42 @@ describe('SqlFormatter - New Oneline Options', () => {
         expect(result.formattedSql).toContain('when');
     });
 
+    test('should keep smart comments executable when CASE is formatted on one line', () => {
+        const formatter = new SqlFormatter({
+            caseOneLine: true,
+            exportComment: true,
+            commentStyle: 'smart',
+            oneLineMaxLength: 0,
+            identifierEscape: { start: '', end: '' },
+            keywordCase: 'lower',
+            newline: '\n',
+            indentSize: 4,
+            indentChar: ' ',
+            commaBreak: 'before'
+        });
+
+        const sql = `
+            select
+                sum(case
+                    /* Refunds are operational noise for this score, but the row still proves the customer came back. */
+                    when ob.status = :refunded_status then 0
+                    /* Paid and shipped share the same business meaning here. */
+                    else ob.total_amount
+                end) as gross_amount
+            from order_base ob
+        `;
+
+        const query = SelectQueryParser.parse(sql);
+        const result = formatter.format(query);
+
+        expect(result.formattedSql).toContain('/* Refunds are operational noise for this score, but the row still proves the customer came back. */');
+        expect(result.formattedSql).toContain('/* Paid and shipped share the same business meaning here. */');
+        expect(result.formattedSql).not.toContain('-- Refunds');
+        expect(result.formattedSql).not.toContain('-- Paid');
+        expect(result.formattedSql).toContain('case /* Refunds are operational noise for this score, but the row still proves the customer came back. */ when');
+        expect(result.formattedSql.match(/Refunds are operational noise/g)).toHaveLength(1);
+    });
+
     test('should format subquery on one line when enabled', () => {
         const formatter = new SqlFormatter({ 
             subqueryOneLine: true,
@@ -77,6 +113,35 @@ describe('SqlFormatter - New Oneline Options', () => {
         // Subquery should be on one line
         expect(result.formattedSql).toContain('select');
         expect(result.formattedSql).toContain('orders');
+    });
+
+    test('should convert original line comments to block comments inside oneline CASE expressions', () => {
+        const formatter = new SqlFormatter({
+            caseOneLine: true,
+            exportComment: true,
+            commentStyle: 'smart',
+            identifierEscape: { start: '', end: '' },
+            keywordCase: 'lower',
+            newline: '\n',
+            indentSize: 4,
+            indentChar: ' '
+        });
+
+        const sql = `
+            select
+                case
+                    -- active order
+                    when active = true then 'active'
+                    else 'inactive'
+                end as status_label
+            from orders
+        `;
+
+        const query = SelectQueryParser.parse(sql);
+        const result = formatter.format(query);
+
+        expect(result.formattedSql).toContain("case /* active order */ when active = true then 'active'");
+        expect(result.formattedSql).not.toContain('-- active order');
     });
 
     test('should format JOIN conditions on one line when enabled', () => {

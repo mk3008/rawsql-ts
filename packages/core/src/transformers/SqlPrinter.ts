@@ -41,8 +41,9 @@ export type OrBreakStyle = 'none' | 'before' | 'after';
  * JoinOnBreakStyle determines whether JOIN ON starts on the JOIN line or its own indented line.
  * - 'none': Keep ON inline with the JOIN target
  * - 'before': Break before ON and indent the join condition
+ * - 'after': Legacy alias accepted as 'none'
  */
-export type JoinOnBreakStyle = 'none' | 'before';
+export type JoinOnBreakStyle = 'none' | 'before' | 'after';
 
 interface CommentRenderContext {
     position: 'leading' | 'inline';
@@ -95,7 +96,7 @@ export class SqlPrinter {
     andBreak: AndBreakStyle;
     /** OR break style: 'none', 'before', or 'after' */
     orBreak: OrBreakStyle;
-    /** JOIN ON break style: 'none' or 'before' */
+    /** JOIN ON break style: 'none' or 'before' (legacy 'after' is treated as 'none') */
     joinOnBreak: JoinOnBreakStyle;
 
     /** Keyword case style: 'none', 'upper' | 'lower' */
@@ -173,8 +174,8 @@ export class SqlPrinter {
         this.valuesCommaBreak = options?.valuesCommaBreak ?? this.commaBreak;
         this.andBreak = options?.andBreak ?? 'none';
         this.orBreak = options?.orBreak ?? 'none';
-        this.joinOnBreak = options?.joinOnBreak ?? 'none';
-        this.keywordCase = options?.keywordCase ?? 'none';
+        this.joinOnBreak = this.normalizeJoinOnBreak(options?.joinOnBreak);
+        this.keywordCase = this.normalizeKeywordCase(options?.keywordCase);
         this.commentExportMode = this.resolveCommentExportMode(options?.exportComment);
         this.withClauseStyle = options?.withClauseStyle ?? 'standard';
         this.commentStyle = options?.commentStyle ?? 'block';
@@ -389,6 +390,22 @@ export class SqlPrinter {
             ) {
                 this.flushSmartCommentBlockBuilder();
             }
+            if (
+                containerIsTopLevel &&
+                !this.isOnelineMode() &&
+                this.linePrinter.getCurrentLine().text.trim() !== ''
+            ) {
+                this.linePrinter.appendNewline(level);
+            }
+        }
+
+        if (
+            hasRenderableLeadingComment &&
+            containerIsTopLevel &&
+            !this.isOnelineMode() &&
+            this.linePrinter.getCurrentLine().text.trim() !== ''
+        ) {
+            this.linePrinter.appendNewline(level);
         }
 
         if (
@@ -1300,7 +1317,12 @@ export class SqlPrinter {
                 this.linePrinter.appendText(blockText);
             } else {
                 const content = normalized.lines[0];
-                const lineText = content ? `-- ${content}` : '--';
+                if (this.shouldFallbackSmartLineCommentToBlock()) {
+                    this.linePrinter.appendText(this.buildBlockComment([content], level));
+                    this.ensureTrailingSpace();
+                    return;
+                }
+                const lineText = this.buildSmartLineComment(content);
                 if (parentContainerType === SqlPrintTokenContainerType.CommentBlock) {
                     this.linePrinter.appendText(lineText);
                     this.pendingLineCommentBreak = this.resolveCommentIndentLevel(level, parentContainerType);
@@ -1380,9 +1402,24 @@ export class SqlPrinter {
         if (this.commentStyle !== 'smart') {
             const rawLines = this.extractRawCommentBlockLines(token);
             if (rawLines.length > 0) {
+                if (context.position === 'leading' && context.isTopLevelContainer && !this.isOnelineMode()) {
+                    for (const line of rawLines) {
+                        this.linePrinter.appendText(`/* ${line} */`);
+                        this.linePrinter.appendNewline(level);
+                    }
+                    return;
+                }
                 const normalizedBlocks = rawLines.map(line => `/* ${line} */`).join(' ');
                 const hasTrailingSpace = token.innerTokens?.some(child => child.type === SqlPrintTokenType.space && child.text.includes(' '));
                 this.linePrinter.appendText(hasTrailingSpace ? `${normalizedBlocks} ` : normalizedBlocks);
+                return;
+            }
+            const directBlockComments = this.extractDirectBlockCommentTexts(token);
+            if (directBlockComments.length > 1 && context.position === 'leading' && context.isTopLevelContainer && !this.isOnelineMode()) {
+                for (const comment of directBlockComments) {
+                    this.linePrinter.appendText(comment);
+                    this.linePrinter.appendNewline(level);
+                }
                 return;
             }
             for (const child of token.innerTokens) {
@@ -1478,13 +1515,15 @@ export class SqlPrinter {
 
         if (mode === 'line') {
             const meaningfulLineCount = lines.filter(line => line.trim() !== '').length;
-            if (meaningfulLineCount > 1) {
+            if (meaningfulLineCount > 1 || this.shouldFallbackSmartLineCommentToBlock()) {
                 const blockText = this.buildBlockComment(lines, level);
                 this.linePrinter.appendText(blockText);
+                if (this.shouldFallbackSmartLineCommentToBlock()) {
+                    this.ensureTrailingSpace();
+                }
             } else {
                 const content = lines[0] ?? '';
-                const lineText = content ? `-- ${content}` : '--';
-                this.linePrinter.appendText(lineText);
+                this.linePrinter.appendText(this.buildSmartLineComment(content));
             }
             if (!this.isOnelineMode()) {
                 this.linePrinter.appendNewline(level);
@@ -1493,6 +1532,14 @@ export class SqlPrinter {
         }
 
         this.smartCommentBlockBuilder = null;
+    }
+
+    private shouldFallbackSmartLineCommentToBlock(): boolean {
+        return this.isOnelineMode();
+    }
+
+    private buildSmartLineComment(content: string): string {
+        return content ? `-- ${content}` : '--';
     }
 
     private collectCommentBlockLines(token: SqlPrintToken): string[] {
@@ -1550,6 +1597,20 @@ export class SqlPrinter {
             }
         }
         return lines;
+    }
+
+    private extractDirectBlockCommentTexts(token: SqlPrintToken): string[] {
+        const comments: string[] = [];
+        for (const child of token.innerTokens ?? []) {
+            if (child.type !== SqlPrintTokenType.comment) {
+                continue;
+            }
+            const trimmed = child.text.trim();
+            if (trimmed.startsWith('/*') && trimmed.endsWith('*/')) {
+                comments.push(trimmed);
+            }
+        }
+        return comments;
     }
 
     private normalizeCommentForSmart(text: string): { lines: string[]; forceBlock: boolean } {
@@ -1777,12 +1838,20 @@ export class SqlPrinter {
         return this.newline === ' ';
     }
 
-    private normalizeOneLineMaxLength(value?: number): number | undefined {
-        if (value === undefined || !Number.isFinite(value) || value <= 0) {
+    private normalizeOneLineMaxLength(value?: number | null): number | undefined {
+        if (value == null || !Number.isFinite(value) || value <= 0) {
             return undefined;
         }
         const normalized = Math.floor(value);
         return normalized > 0 ? normalized : undefined;
+    }
+
+    private normalizeKeywordCase(value?: 'none' | 'upper' | 'lower' | 'preserve'): 'none' | 'upper' | 'lower' {
+        return value === 'preserve' ? 'none' : value ?? 'none';
+    }
+
+    private normalizeJoinOnBreak(value?: JoinOnBreakStyle): 'none' | 'before' {
+        return value === 'before' ? 'before' : 'none';
     }
 
     private fitsOneLineMaxLength(text: string): boolean {
@@ -1800,6 +1869,9 @@ export class SqlPrinter {
      * Creates a nested SqlPrinter instance for proper CTE oneline formatting.
      */
     private tryHandleCteOnelineToken(token: SqlPrintToken, level: number): boolean {
+        if (this.shouldPreserveCteComments(token)) {
+            return false;
+        }
         const onelinePrinter = this.createCteOnelinePrinter();
         const onelineResult = onelinePrinter.print(token, level);
         let cleanedResult = this.cleanDuplicateSpaces(onelineResult);
@@ -1810,6 +1882,11 @@ export class SqlPrinter {
         }
         this.linePrinter.appendText(trimmedResult);
         return true;
+    }
+
+    private shouldPreserveCteComments(token: SqlPrintToken): boolean {
+        return (this.commentExportMode === 'full' || this.commentExportMode === 'header-only') &&
+            this.containsCommentBlock(token);
     }
 
     /**

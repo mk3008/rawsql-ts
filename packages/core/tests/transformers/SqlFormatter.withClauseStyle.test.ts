@@ -275,4 +275,39 @@ order by
         // Assert: Verify the result
         expect(result.formattedSql).toBe(expectedSql);
     });
+
+    test('should keep top-level header comments on separate lines before cte-oneline WITH', () => {
+        const sql = `
+            /* Monthly customer health report. */
+            /* Top-level header comment for comment export mode comparison. */
+            WITH order_base AS (
+                SELECT id, customer_id
+                FROM orders
+                WHERE created_at >= :report_from
+            )
+            SELECT *
+            FROM order_base;
+        `;
+
+        const query = SelectQueryParser.parse(sql);
+        const formatter = new SqlFormatter({
+            newline: '\n',
+            indentSize: 4,
+            indentChar: ' ',
+            keywordCase: 'lower',
+            withClauseStyle: 'cte-oneline',
+            exportComment: 'top-header-only',
+            commentStyle: 'block',
+            oneLineMaxLength: 0
+        });
+
+        const result = formatter.format(query);
+
+        expect(result.formattedSql).toContain(`/* Monthly customer health report. */
+/* Top-level header comment for comment export mode comparison. */
+with`);
+        expect(result.formattedSql).not.toContain('*/ /*');
+        expect(result.formattedSql).not.toContain('\n    with');
+        expect(result.formattedSql).not.toContain('\n    select');
+    });
 });

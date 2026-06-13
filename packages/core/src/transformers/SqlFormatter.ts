@@ -44,7 +44,7 @@ export interface BaseFormattingOptions {
     /** Newline character style (logical 'lf'/'crlf'/'cr' or literal newline string) */
     newline?: NewlineOption;
     /** Case transformation for SQL keywords */
-    keywordCase?: 'none' | 'upper' | 'lower';
+    keywordCase?: 'none' | 'upper' | 'lower' | 'preserve';
     /** Style for comma line breaks */
     commaBreak?: CommaBreakStyle;
     /** Style for comma line breaks inside WITH clause definitions */
@@ -81,8 +81,8 @@ export interface BaseFormattingOptions {
     insertColumnsOneLine?: boolean;
     /** Keep MERGE WHEN clause predicates on one line regardless of AND break settings */
     whenOneLine?: boolean;
-    /** Maximum rendered width for opt-in one-line constructs. Omit to keep legacy unlimited one-line behavior. */
-    oneLineMaxLength?: number;
+    /** Maximum rendered width for opt-in one-line constructs. Use 0, null, or omit to disable the limit. */
+    oneLineMaxLength?: number | null;
     /** Indent AND/OR continuation lines inside JOIN ON predicates */
     joinConditionContinuationIndent?: boolean;
     /** Reorder JOIN ON column comparisons to follow table declaration order */

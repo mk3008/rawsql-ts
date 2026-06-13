@@ -28,7 +28,7 @@ const defaultFormatOptions = {
     "joinOneLine": true,
     "caseOneLine": false,
     "subqueryOneLine": false,
-    "sourceAliasStyle": "as",
+    "sourceAliasStyle": "explicit",
     "orderByDefaultDirectionStyle": "omit",
     "castStyle": "standard",
     "constraintStyle": "postgres",
@@ -153,10 +153,10 @@ async function loadModule() {
         updateStatusBar('Loading modules...');
 
         // Load rawsql-ts
-        rawSqlModule = await import('../demo/vendor/rawsql.browser.js?v=minimal-user-escape-20260612');
+        rawSqlModule = await import('../demo/vendor/rawsql.browser.js?v=canonical-style-options-20260613');
 
         // Load style-config
-        styleConfigModule = await import('../demo/style-config.js?v=with-style-options-20260612');
+        styleConfigModule = await import('../demo/style-config.js?v=canonical-style-options-20260613');
 
         // Initialize style config
         initStyleConfig();
@@ -201,7 +201,9 @@ function initStyleConfig() {
 // Sample data
 const samples = {
     heavy: {
-        sql: `with order_base as (
+        sql: `/* Monthly customer health report.
+   Top-level header comment for comment export mode comparison. */
+with order_base as (
 /* Pull only order rows that affect monthly customer health.
    This CTE was originally copied from the billing report and has grown a few extra filters. */
 select o.id,o.customer_id,o.status,o.total_amount,o.created_at
@@ -254,12 +256,25 @@ case
    else :standard_label
 end customer_segment,
 rc.order_count,rc.gross_amount,rc.open_ticket_count,rc.last_order_at,
+(
+  /* Kept as a subquery because the old export compared this value before joins were added. */
+select count(*)
+     from orders o2
+ where o2.customer_id = rc.customer_id
+       and o2.created_at >= :recent_order_from
+       and o2.status <> :refunded_status
+) recent_order_count,
 p.name favorite_product
 from ranked_customers rc
        left join customer_favorites cf on cf.customer_id = rc.customer_id and cf.is_active = true
 left join products p on p.id = cf.product_id
 where rc.tier_rank <= :tier_rank_limit and
    (rc.gross_amount >= :minimum_amount or rc.open_ticket_count > :open_ticket_threshold)
+   and exists(
+       /* Product team only wants customers with at least one active favorite in this screen. */
+       select 1 from customer_favorites cf2
+          where cf2.customer_id = rc.customer_id and cf2.is_active = true
+   )
 order by rc.tier asc, rc.gross_amount desc, rc.customer_id;`,
         fixture: `{
   "customers": {
