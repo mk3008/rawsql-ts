@@ -20,9 +20,18 @@ A high-performance SQL parser and AST transformer written in TypeScript. Parse r
 
 ## Installation
 
+Install from npm:
+
 ```bash
 npm install rawsql-ts
-````
+```
+
+Other package managers:
+
+```bash
+pnpm add rawsql-ts
+yarn add rawsql-ts
+```
 
 Or use directly in the browser via CDN:
 
