@@ -1,41 +1,43 @@
 // Default formatting options matching the main demo
 const defaultFormatOptions = {
-    "identifierEscape": "none",
-    "identifierEscapeTarget": "all",
-    "parameterSymbol": ":",
-    "parameterStyle": "named",
     "indentSize": 4,
     "indentChar": "space",
     "newline": "lf",
-    "keywordCase": "upper",
+    "keywordCase": "lower",
     "commaBreak": "before",
     "cteCommaBreak": "after",
     "valuesCommaBreak": "before",
     "andBreak": "before",
     "orBreak": "before",
     "joinOnBreak": "before",
-    "joinConditionContinuationIndent": false,
+    "joinConditionContinuationIndent": true,
     "identifierCase": "preserve",
     "expressionWidth": 50,
     "lineWrapping": false,
     "exportComment": "full",
-    "commentStyle": "block",
+    "commentStyle": "smart",
     "withClauseStyle": "standard",
     "parenthesesOneLine": true,
     "indentNestedParentheses": true,
     "betweenOneLine": true,
-    "valuesOneLine": false,
+    "inOneLine": true,
+    "valuesOneLine": true,
     "joinOneLine": true,
-    "caseOneLine": false,
-    "subqueryOneLine": false,
-    "sourceAliasStyle": "explicit",
-    "orderByDefaultDirectionStyle": "omit",
-    "castStyle": "standard",
-    "constraintStyle": "postgres",
+    "caseOneLine": true,
+    "subqueryOneLine": true,
     "insertColumnsOneLine": true,
-    "whenOneLine": false,
+    "whenOneLine": true,
     "oneLineMaxLength": 100,
-    "joinConditionOrderByDeclaration": false
+    "joinConditionOrderByDeclaration": true,
+    "orderByDefaultDirectionStyle": "omit",
+    "columnAliasStyle": "explicit",
+    "constraintStyle": "postgres",
+    "identifierEscape": "none",
+    "identifierEscapeTarget": "all",
+    "parameterSymbol": ":",
+    "parameterStyle": "named",
+    "sourceAliasStyle": "explicit",
+    "castStyle": "standard"
 };
 
 // Initialize CodeMirror editors immediately
@@ -153,10 +155,10 @@ async function loadModule() {
         updateStatusBar('Loading modules...');
 
         // Load rawsql-ts
-        rawSqlModule = await import('../demo/vendor/rawsql.browser.js?v=canonical-style-options-20260613');
+        rawSqlModule = await import('../demo/vendor/rawsql.browser.js?v=oneliner-preset-20260613');
 
         // Load style-config
-        styleConfigModule = await import('../demo/style-config.js?v=canonical-style-options-20260613');
+        styleConfigModule = await import('../demo/style-config.js?v=oneliner-preset-20260613');
 
         // Initialize style config
         initStyleConfig();

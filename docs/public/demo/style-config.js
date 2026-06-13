@@ -1,7 +1,7 @@
 'use strict';
 
 // Global variables for style config, managed within this module
-const DEFAULT_STYLE_KEY = 'rawsql-formatter-styles-v2';
+const DEFAULT_STYLE_KEY = 'rawsql-formatter-styles-v4';
 const SELECTED_STYLE_KEY = 'rawsql-selected-style';
 let currentStyles = {};
 
@@ -15,30 +15,38 @@ const DEFAULT_STYLE_BASE = {
     "indentSize": 4,
     "indentChar": "space",
     "newline": "lf",
-    "keywordCase": "upper",
+    "keywordCase": "lower",
     "commaBreak": "before",
     "cteCommaBreak": "after",
     "valuesCommaBreak": "before",
     "andBreak": "before",
     "orBreak": "before",
     "joinOnBreak": "before",
-    "joinConditionContinuationIndent": false,
+    "joinConditionContinuationIndent": true,
     "exportComment": "full",
-    "commentStyle": "block",
+    "commentStyle": "smart",
     "withClauseStyle": "standard",
     "parenthesesOneLine": true,
     "indentNestedParentheses": true,
     "betweenOneLine": true,
-    "valuesOneLine": false,
+    "inOneLine": true,
+    "valuesOneLine": true,
     "joinOneLine": true,
-    "caseOneLine": false,
-    "subqueryOneLine": false,
+    "caseOneLine": true,
+    "subqueryOneLine": true,
     "insertColumnsOneLine": true,
-    "whenOneLine": false,
+    "whenOneLine": true,
     "oneLineMaxLength": 100,
-    "joinConditionOrderByDeclaration": false,
+    "joinConditionOrderByDeclaration": true,
     "orderByDefaultDirectionStyle": "omit",
-    "constraintStyle": "postgres"
+    "columnAliasStyle": "explicit",
+    "constraintStyle": "postgres",
+    "identifierEscape": "none",
+    "identifierEscapeTarget": "all",
+    "parameterSymbol": ":",
+    "parameterStyle": "named",
+    "sourceAliasStyle": "explicit",
+    "castStyle": "standard"
 };
 
 const DEFAULT_POSTGRES_STYLE = {
@@ -49,26 +57,37 @@ const DEFAULT_POSTGRES_STYLE = {
     "parameterSymbol": "$",
     "parameterStyle": "indexed",
     "sourceAliasStyle": "explicit",
+    "columnAliasStyle": "explicit",
     "castStyle": "postgres"
 };
 
 const DEFAULT_STYLES = {
     "Default": {
-        ...DEFAULT_STYLE_BASE,
-        "identifierEscape": "none",
-        "identifierEscapeTarget": "all",
-        "parameterSymbol": ":",
-        "parameterStyle": "named",
-        "sourceAliasStyle": "explicit",
-        "castStyle": "standard"
+        ...DEFAULT_STYLE_BASE
     },
     "OneLiner": {
+        ...DEFAULT_STYLE_BASE,
+        "newline": "space",
+        "commaBreak": "none",
+        "cteCommaBreak": "none",
+        "valuesCommaBreak": "none",
+        "andBreak": "none",
+        "orBreak": "none",
+        "joinOnBreak": "none",
+        "joinConditionContinuationIndent": false,
+        "exportComment": "none",
+        "commentStyle": "block",
+        "withClauseStyle": "full-oneline",
+        "indentNestedParentheses": false,
+        "oneLineMaxLength": 0,
+        "joinConditionOrderByDeclaration": false,
         "identifierEscape": "none",
         "identifierEscapeTarget": "all",
         "parameterSymbol": ":",
         "parameterStyle": "named",
         "keywordCase": "upper",
         "sourceAliasStyle": "explicit",
+        "columnAliasStyle": "explicit",
         "castStyle": "standard",
         "constraintStyle": "postgres",
         "orderByDefaultDirectionStyle": "omit"
@@ -83,6 +102,7 @@ const DEFAULT_STYLES = {
         "parameterSymbol": "?",
         "parameterStyle": "anonymous",
         "sourceAliasStyle": "explicit",
+        "columnAliasStyle": "explicit",
         "castStyle": "standard",
         "constraintStyle": "mysql"
     },
@@ -93,6 +113,7 @@ const DEFAULT_STYLES = {
         "parameterSymbol": "@",
         "parameterStyle": "named",
         "sourceAliasStyle": "explicit",
+        "columnAliasStyle": "explicit",
         "castStyle": "standard",
         "constraintStyle": "postgres"
     }
@@ -116,16 +137,7 @@ function inferStyleDefaults(name, style) {
               : {};
 
     return {
-        "identifierEscapeTarget": "all",
-        "sourceAliasStyle": "explicit",
-        "castStyle": "standard",
-        "constraintStyle": "postgres",
-        "orderByDefaultDirectionStyle": "omit",
-        "insertColumnsOneLine": true,
-        "whenOneLine": false,
-        "oneLineMaxLength": 100,
-        "joinOnBreak": "before",
-        "joinConditionContinuationIndent": false,
+        ...DEFAULT_STYLE_BASE,
         ...dialectDefaults
     };
 }
@@ -150,6 +162,11 @@ function normalizeStyle(name, style) {
         normalizedStyle.sourceAliasStyle = 'explicit';
     } else if (normalizedStyle.sourceAliasStyle === 'implicit') {
         normalizedStyle.sourceAliasStyle = 'omit';
+    }
+    if (normalizedStyle.columnAliasStyle === 'as') {
+        normalizedStyle.columnAliasStyle = 'explicit';
+    } else if (normalizedStyle.columnAliasStyle === 'implicit') {
+        normalizedStyle.columnAliasStyle = 'omit';
     }
     return {
         ...cloneStyle(inferStyleDefaults(name, style)),
@@ -215,8 +232,9 @@ const STYLE_CONTROL_GROUPS = [
             { key: 'parameterSymbol', label: 'Parameter symbol', type: 'select', options: [':', '$', '@', '?'] },
             { key: 'parameterStyle', label: 'Parameter style', type: 'select', options: ['named', 'indexed', 'anonymous'] },
             { key: 'indentSize', label: 'Indent size', type: 'number', min: 0, max: 12, step: 1 },
-            { key: 'newline', label: 'Newline', type: 'select', options: ['lf', 'crlf'] },
+            { key: 'newline', label: 'Newline', type: 'select', options: ['space', 'lf', 'crlf'] },
             { key: 'sourceAliasStyle', label: 'Source alias keyword', type: 'select', options: ['omit', 'explicit'] },
+            { key: 'columnAliasStyle', label: 'Column alias keyword', type: 'select', options: ['omit', 'explicit'] },
             { key: 'orderByDefaultDirectionStyle', label: 'ORDER BY direction', type: 'select', options: ['omit', 'explicit'] },
             { key: 'castStyle', label: 'CAST style', type: 'select', options: ['standard', 'postgres'] },
             { key: 'joinConditionOrderByDeclaration', label: 'JOIN condition declaration order', type: 'checkbox' }
@@ -255,6 +273,7 @@ const STYLE_CONTROL_GROUPS = [
             { key: 'parenthesesOneLine', label: 'Parentheses', type: 'checkbox' },
             { key: 'indentNestedParentheses', label: 'Indent nested parentheses', type: 'checkbox' },
             { key: 'betweenOneLine', label: 'BETWEEN', type: 'checkbox' },
+            { key: 'inOneLine', label: 'IN', type: 'checkbox' },
             { key: 'valuesOneLine', label: 'VALUES tuples', type: 'checkbox' },
             { key: 'joinOneLine', label: 'JOIN', type: 'checkbox' },
             { key: 'caseOneLine', label: 'CASE', type: 'checkbox' },
@@ -357,7 +376,8 @@ function getCurrentStyles() {
 function getPreviewStyleFromEditor() {
     if (!styleJsonEditor) return null;
     try {
-        return JSON.parse(styleJsonEditor.getValue() || '{}');
+        const parsed = JSON.parse(styleJsonEditor.getValue() || '{}');
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
     } catch {
         return null;
     }

@@ -83,7 +83,11 @@ export type CastStyle = 'postgres' | 'standard';
 
 export type ConstraintStyle = 'postgres' | 'mysql';
 
-export type SourceAliasStyle = 'explicit' | 'omit' | 'as' | 'implicit';
+export type AliasKeywordStyle = 'explicit' | 'omit' | 'as' | 'implicit';
+
+export type SourceAliasStyle = AliasKeywordStyle;
+
+export type ColumnAliasStyle = AliasKeywordStyle;
 
 export type OrderByDefaultDirectionStyle = 'omit' | 'explicit';
 
@@ -104,6 +108,8 @@ export interface FormatterConfig {
     constraintStyle?: ConstraintStyle;
     /** Controls whether source aliases are rendered with an explicit AS keyword */
     sourceAliasStyle?: SourceAliasStyle;
+    /** Controls whether column aliases are rendered with an explicit AS keyword */
+    columnAliasStyle?: ColumnAliasStyle;
     /** Controls whether the default ASC direction is omitted or rendered explicitly */
     orderByDefaultDirectionStyle?: OrderByDefaultDirectionStyle;
 }
@@ -264,6 +270,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private castStyle: CastStyle;
     private constraintStyle: ConstraintStyle;
     private sourceAliasStyle: SourceAliasStyle;
+    private columnAliasStyle: ColumnAliasStyle;
     private orderByDefaultDirectionStyle: OrderByDefaultDirectionStyle;
     private readonly normalizeJoinConditionOrder: boolean;
     private readonly listContinuationCommentComponents = new WeakSet<SqlComponent>();
@@ -277,6 +284,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         castStyle?: CastStyle,
         constraintStyle?: ConstraintStyle,
         sourceAliasStyle?: SourceAliasStyle,
+        columnAliasStyle?: ColumnAliasStyle,
         orderByDefaultDirectionStyle?: OrderByDefaultDirectionStyle,
         joinConditionOrderByDeclaration?: boolean,
     }) {
@@ -299,7 +307,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         this.castStyle = options?.castStyle ?? 'standard';
         this.constraintStyle = options?.constraintStyle ?? 'postgres';
-        this.sourceAliasStyle = this.normalizeSourceAliasStyle(options?.sourceAliasStyle);
+        this.sourceAliasStyle = this.normalizeAliasKeywordStyle(options?.sourceAliasStyle);
+        this.columnAliasStyle = this.normalizeAliasKeywordStyle(options?.columnAliasStyle);
         this.orderByDefaultDirectionStyle = options?.orderByDefaultDirectionStyle ?? 'omit';
         this.normalizeJoinConditionOrder = options?.joinConditionOrderByDeclaration ?? false;
 
@@ -2094,6 +2103,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         // Handle AS keyword positioned comments (before AS)
         const asKeywordPositionedComments = 'asKeywordPositionedComments' in arg ? (arg as any).asKeywordPositionedComments : null;
+        const asKeywordComments = 'asKeywordComments' in arg ? (arg as any).asKeywordComments : null;
+        const shouldPrintAsKeyword = this.shouldPrintColumnAliasKeyword(asKeywordPositionedComments, asKeywordComments);
         if (asKeywordPositionedComments) {
             const beforeComments = asKeywordPositionedComments.filter((pc: any) => pc.position === 'before');
             if (beforeComments.length > 0) {
@@ -2105,10 +2116,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             }
         }
 
-        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
+        if (shouldPrintAsKeyword) {
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
+        }
 
         // Handle AS keyword positioned comments (after AS)
-        if (asKeywordPositionedComments) {
+        if (shouldPrintAsKeyword && asKeywordPositionedComments) {
             const afterComments = asKeywordPositionedComments.filter((pc: any) => pc.position === 'after');
             if (afterComments.length > 0) {
                 token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
@@ -2120,14 +2133,15 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         // Fallback: Add AS keyword legacy comments if present
-        const asKeywordComments = 'asKeywordComments' in arg ? (arg as any).asKeywordComments : null;
         if (asKeywordComments && asKeywordComments.length > 0) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             const commentTokens = this.createInlineCommentSequence(asKeywordComments);
             token.innerTokens.push(...commentTokens);
         }
 
-        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        if (shouldPrintAsKeyword) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        }
 
         // Visit identifier to get alias with proper spacing
         const identifierToken = this.visit(arg.identifier);
@@ -2336,7 +2350,17 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
     }
 
-    private normalizeSourceAliasStyle(style?: SourceAliasStyle): 'explicit' | 'omit' {
+    private shouldPrintColumnAliasKeyword(asKeywordPositionedComments: any, asKeywordComments: any): boolean {
+        if (this.columnAliasStyle === 'explicit') {
+            return true;
+        }
+
+        const hasPositionedComments = Array.isArray(asKeywordPositionedComments) && asKeywordPositionedComments.length > 0;
+        const hasLegacyComments = Array.isArray(asKeywordComments) && asKeywordComments.length > 0;
+        return hasPositionedComments || hasLegacyComments;
+    }
+
+    private normalizeAliasKeywordStyle(style?: AliasKeywordStyle): 'explicit' | 'omit' {
         return style === 'implicit' || style === 'omit' ? 'omit' : 'explicit';
     }
 

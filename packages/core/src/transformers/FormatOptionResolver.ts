@@ -15,7 +15,8 @@ const NEWLINE_MAP = {
     lf: '\n',
     crlf: '\r\n',
     cr: '\r',
-} as const satisfies Record<NewlineLogicalName, '\n' | '\r\n' | '\r'>;
+    space: ' ',
+} as const satisfies Record<NewlineLogicalName, '\n' | '\r\n' | '\r' | ' '>;
 
 const IDENTIFIER_ESCAPE_MAP = {
     quote: { start: '"', end: '"' },

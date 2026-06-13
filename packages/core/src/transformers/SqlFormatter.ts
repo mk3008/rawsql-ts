@@ -1,4 +1,4 @@
-import { SqlPrintTokenParser, FormatterConfig, PRESETS, CastStyle, ConstraintStyle, SourceAliasStyle, OrderByDefaultDirectionStyle } from '../parsers/SqlPrintTokenParser';
+import { SqlPrintTokenParser, FormatterConfig, PRESETS, CastStyle, ConstraintStyle, SourceAliasStyle, ColumnAliasStyle, OrderByDefaultDirectionStyle } from '../parsers/SqlPrintTokenParser';
 import { SqlPrinter, CommaBreakStyle, AndBreakStyle, OrBreakStyle, JoinOnBreakStyle } from './SqlPrinter';
 import { CommentExportMode } from '../types/Formatting';
 import { IndentCharOption, NewlineOption } from './LinePrinter'; // Import types for compatibility
@@ -69,6 +69,8 @@ export interface BaseFormattingOptions {
     betweenOneLine?: boolean;
     /** Keep VALUES clause on one line regardless of comma break settings */
     valuesOneLine?: boolean;
+    /** Keep IN value lists on one line until oneLineMaxLength forces expansion */
+    inOneLine?: boolean;
     /** Keep JOIN conditions on one line regardless of AND/OR break settings */
     joinOneLine?: boolean;
     /** Keep CASE expressions on one line regardless of formatting settings */
@@ -117,6 +119,8 @@ export interface SqlFormatterOptions extends BaseFormattingOptions {
     constraintStyle?: ConstraintStyle;
     /** Source alias rendering style for FROM/JOIN sources */
     sourceAliasStyle?: SourceAliasStyle;
+    /** Column alias rendering style for SELECT items */
+    columnAliasStyle?: ColumnAliasStyle;
     /** Default ORDER BY direction rendering style */
     orderByDefaultDirectionStyle?: OrderByDefaultDirectionStyle;
 }
@@ -157,6 +161,7 @@ export class SqlFormatter {
             parameterStyle: options.parameterStyle ?? presetConfig?.parameterStyle,
             castStyle: options.castStyle ?? presetConfig?.castStyle,
             sourceAliasStyle: options.sourceAliasStyle ?? presetConfig?.sourceAliasStyle,
+            columnAliasStyle: options.columnAliasStyle ?? presetConfig?.columnAliasStyle,
             orderByDefaultDirectionStyle: options.orderByDefaultDirectionStyle ?? presetConfig?.orderByDefaultDirectionStyle,
             joinConditionOrderByDeclaration: options.joinConditionOrderByDeclaration,
         };
@@ -189,6 +194,7 @@ export class SqlFormatter {
             parenthesesOneLine: options.parenthesesOneLine,
             betweenOneLine: options.betweenOneLine,
             valuesOneLine: options.valuesOneLine,
+            inOneLine: options.inOneLine,
             joinOneLine: options.joinOneLine,
             caseOneLine: options.caseOneLine,
             subqueryOneLine: options.subqueryOneLine,

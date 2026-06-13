@@ -51,15 +51,25 @@ describe('SqlFormatter - JOIN condition layout options', () => {
     });
 
     test('treats legacy keywordCase preserve as none', () => {
+        const preserveCaseSql = `
+            SeLeCt *
+            FrOm searchable_tickets st
+            LeFt JoIn last_customer_reply lcr On lcr.ticket_id = st.ticket_id
+                AnD lcr.tenant_id = st.tenant_id
+                AnD lcr.source_id = st.source_id
+        `;
         const formatter = new SqlFormatter({
             ...baseOptions,
             keywordCase: 'preserve',
         });
-        const { formattedSql } = formatter.format(SelectQueryParser.parse(sql));
+        const { formattedSql } = formatter.format(SelectQueryParser.parse(preserveCaseSql));
 
         expect(formattedSql).toContain('select');
-        expect(formattedSql).not.toContain('SELECT');
+        expect(formattedSql).toContain('from\n    searchable_tickets st');
         expect(formattedSql).toContain('left join last_customer_reply lcr on');
+        expect(formattedSql).toContain('and lcr.tenant_id = st.tenant_id');
+        expect(formattedSql).not.toContain('SELECT');
+        expect(formattedSql).not.toContain('LeFt JoIn');
     });
 
     test('breaks before ON and indents the JOIN condition when joinOnBreak is before', () => {

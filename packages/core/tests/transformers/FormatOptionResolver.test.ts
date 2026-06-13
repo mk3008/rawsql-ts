@@ -79,7 +79,9 @@ describe('SqlFormatter option normalization', () => {
 
         const { formattedSql } = formatter.format(query);
 
-        expect(formattedSql).toContain('id');
+        expect(formattedSql).toMatch(/\bid\b/);
+        expect(formattedSql).not.toContain('"id"');
+        expect(formattedSql).not.toContain('"users"');
         expect(formattedSql).toContain('"select"');
         expect(formattedSql).toContain('"user"');
         expect(formattedSql).toContain('"order-detail"');

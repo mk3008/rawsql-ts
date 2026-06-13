@@ -123,6 +123,8 @@ export class SqlPrinter {
     private betweenOneLine: boolean;
     /** Whether to keep VALUES clause on one line */
     private valuesOneLine: boolean;
+    /** Whether to keep IN value lists on one line */
+    private inOneLine: boolean;
     /** Whether to keep JOIN conditions on one line */
     private joinOneLine: boolean;
     /** Whether to keep CASE expressions on one line */
@@ -182,6 +184,7 @@ export class SqlPrinter {
         this.parenthesesOneLine = options?.parenthesesOneLine ?? false;
         this.betweenOneLine = options?.betweenOneLine ?? false;
         this.valuesOneLine = options?.valuesOneLine ?? false;
+        this.inOneLine = options?.inOneLine ?? false;
         this.joinOneLine = options?.joinOneLine ?? false;
         this.caseOneLine = options?.caseOneLine ?? false;
         this.subqueryOneLine = options?.subqueryOneLine ?? false;
@@ -194,6 +197,7 @@ export class SqlPrinter {
             parenthesesOneLine: this.parenthesesOneLine,
             betweenOneLine: this.betweenOneLine,
             valuesOneLine: this.valuesOneLine,
+            inOneLine: this.inOneLine,
             joinOneLine: this.joinOneLine,
             caseOneLine: this.caseOneLine,
             subqueryOneLine: this.subqueryOneLine,
@@ -393,6 +397,7 @@ export class SqlPrinter {
             if (
                 containerIsTopLevel &&
                 !this.isOnelineMode() &&
+                this.pendingLineCommentBreak === null &&
                 this.linePrinter.getCurrentLine().text.trim() !== ''
             ) {
                 this.linePrinter.appendNewline(level);
@@ -497,6 +502,8 @@ export class SqlPrinter {
             if (this.tryHandleCteOnelineToken(token, level)) {
                 return; // Return early to avoid processing innerTokens
             }
+        } else if (this.inOneLine && this.isInValueListExpression(token) && this.tryHandleInOneLineToken(token, level)) {
+            return; // Return early to avoid processing innerTokens
         } else if (this.shouldFormatContainerAsOneline(token, shouldIndentNested) && this.tryHandleOnelineToken(token, level)) {
             return; // Return early to avoid processing innerTokens
         } else if (!this.tryAppendInsertClauseTokenText(token.text, parentContainerType)) {
@@ -738,6 +745,13 @@ export class SqlPrinter {
             return true;
         }
         return token.innerTokens.some(child => this.containsCommentBlock(child));
+    }
+
+    private containsRenderableCommentBlock(token: SqlPrintToken, context: CommentRenderContext): boolean {
+        if (token.containerType === SqlPrintTokenContainerType.CommentBlock) {
+            return this.shouldRenderComment(token, context);
+        }
+        return token.innerTokens.some(child => this.containsRenderableCommentBlock(child, context));
     }
 
     private isLogicalOperatorWithComment(token: SqlPrintToken): boolean {
@@ -1127,6 +1141,43 @@ export class SqlPrinter {
      */
     private shouldFormatContainerAsOneline(token: SqlPrintToken, shouldIndentNested: boolean): boolean {
         return this.onelineHelper.shouldFormatContainer(token, shouldIndentNested);
+    }
+
+    private isInValueListExpression(token: SqlPrintToken): boolean {
+        const parts = this.getInValueListParts(token);
+        return parts !== null;
+    }
+
+    private getInValueListParts(token: SqlPrintToken): {
+        left: SqlPrintToken;
+        operator: SqlPrintToken;
+        valueList: SqlPrintToken;
+    } | null {
+        if (token.containerType !== SqlPrintTokenContainerType.BinaryExpression) {
+            return null;
+        }
+
+        const significant = token.innerTokens.filter(child => child.type !== SqlPrintTokenType.space);
+        if (significant.length !== 3) {
+            return null;
+        }
+
+        const [left, operator, right] = significant;
+        const operatorText = operator.text.trim().toLowerCase();
+        if (operatorText !== 'in' && operatorText !== 'not in') {
+            return null;
+        }
+
+        if (right.containerType !== SqlPrintTokenContainerType.ParenExpression) {
+            return null;
+        }
+
+        const valueList = right.innerTokens.find(child => child.containerType === SqlPrintTokenContainerType.ValueList);
+        if (!valueList) {
+            return null;
+        }
+
+        return { left, operator, valueList };
     }
 
     /**
@@ -1875,6 +1926,7 @@ export class SqlPrinter {
         const onelinePrinter = this.createCteOnelinePrinter();
         const onelineResult = onelinePrinter.print(token, level);
         let cleanedResult = this.cleanDuplicateSpaces(onelineResult);
+        // TODO(rawsql-ts#890): replace this CTE-oneline whitespace fallback with a token-level rewrite.
         cleanedResult = cleanedResult.replace(/\(\s+/g, '(').replace(/\s+\)/g, ' )');
         const trimmedResult = cleanedResult.trim();
         if (!this.fitsOneLineMaxLength(trimmedResult)) {
@@ -1885,8 +1937,10 @@ export class SqlPrinter {
     }
 
     private shouldPreserveCteComments(token: SqlPrintToken): boolean {
-        return (this.commentExportMode === 'full' || this.commentExportMode === 'header-only') &&
-            this.containsCommentBlock(token);
+        return this.containsRenderableCommentBlock(token, {
+            position: 'inline',
+            isTopLevelContainer: false,
+        });
     }
 
     /**
@@ -1926,6 +1980,75 @@ export class SqlPrinter {
         }
         this.linePrinter.appendText(cleanedResult);
         return true;
+    }
+
+    private tryHandleInOneLineToken(token: SqlPrintToken, level: number): boolean {
+        const parts = this.getInValueListParts(token);
+        if (!parts) {
+            return false;
+        }
+
+        if (this.containsRenderableCommentBlock(parts.valueList, { position: 'inline', isTopLevelContainer: false })) {
+            this.appendExpandedInValueList(parts, token, level);
+            return true;
+        }
+
+        const onelinePrinter = this.createOnelinePrinter();
+        const onelineResult = onelinePrinter.print(token, level);
+        const cleanedResult = this.cleanDuplicateSpaces(onelineResult);
+        if (this.fitsOneLineMaxLength(cleanedResult)) {
+            this.linePrinter.appendText(cleanedResult);
+            return true;
+        }
+
+        this.appendExpandedInValueList(parts, token, level);
+        return true;
+    }
+
+    private appendExpandedInValueList(
+        parts: {
+            left: SqlPrintToken;
+            operator: SqlPrintToken;
+            valueList: SqlPrintToken;
+        },
+        token: SqlPrintToken,
+        level: number
+    ): void {
+        this.appendToken(parts.left, level, token.containerType);
+        this.ensureTrailingSpace();
+        this.linePrinter.appendText(this.applyKeywordCase(parts.operator.text));
+        this.ensureTrailingSpace();
+        this.linePrinter.appendText('(');
+
+        const valueGroups = this.splitValueListItems(parts.valueList);
+        for (let i = 0; i < valueGroups.length; i++) {
+            this.linePrinter.appendNewline(level + 1);
+            if (i > 0) {
+                this.linePrinter.appendText(',');
+                this.ensureTrailingSpace();
+            }
+            for (const valueToken of valueGroups[i]) {
+                this.appendToken(valueToken, level + 1, SqlPrintTokenContainerType.ValueList);
+            }
+        }
+
+        this.linePrinter.appendNewline(level);
+        this.linePrinter.appendText(')');
+    }
+
+    private splitValueListItems(valueList: SqlPrintToken): SqlPrintToken[][] {
+        const groups: SqlPrintToken[][] = [[]];
+        for (const child of valueList.innerTokens) {
+            if (child.type === SqlPrintTokenType.argumentSplitter) {
+                groups.push([]);
+                continue;
+            }
+            if (child.type === SqlPrintTokenType.space && groups[groups.length - 1].length === 0) {
+                continue;
+            }
+            groups[groups.length - 1].push(child);
+        }
+        return groups.filter(group => group.length > 0);
     }
 
     private isBooleanParenExpression(token: SqlPrintToken): boolean {
@@ -2100,6 +2223,7 @@ export class SqlPrinter {
             parenthesesOneLine: false, // Prevent recursive processing (avoid infinite loops)
             betweenOneLine: false,     // Prevent recursive processing (avoid infinite loops)
             valuesOneLine: false,      // Prevent recursive processing (avoid infinite loops)
+            inOneLine: false,          // Prevent recursive processing (avoid infinite loops)
             joinOneLine: false,        // Prevent recursive processing (avoid infinite loops)
             caseOneLine: false,        // Prevent recursive processing (avoid infinite loops)
             subqueryOneLine: false,    // Prevent recursive processing (avoid infinite loops)
