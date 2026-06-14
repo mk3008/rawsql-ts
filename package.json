@@ -110,7 +110,7 @@
     "overrides": {
       "@eslint/eslintrc>js-yaml": "4.1.1",
       "mdast-util-to-hast": "13.2.1",
-      "vite>esbuild": "0.25.10",
+      "vite>esbuild": "0.28.1",
       "vitepress>vite": "6.4.2",
       "vitest>vite": "7.3.2",
       "preact": "10.27.3",
