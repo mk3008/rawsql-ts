@@ -127,6 +127,18 @@ test('group by with grouping set', () => {
     expect(sql).toEqual(`group by grouping sets(("department_id"), ("job_id"), ("department_id", "job_id"))`);
 });
 
+test('group by with empty grouping set', () => {
+    // Arrange
+    const text = `group by grouping sets ((brand), (size), ())`;
+
+    // Act
+    const clause = GroupByClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`group by grouping sets(("brand"), ("size"), ())`);
+});
+
 test('group by with cube', () => {
     // Arrange
     const text = `group by cube (department_id, job_id)`;
@@ -139,6 +151,18 @@ test('group by with cube', () => {
     expect(sql).toEqual(`group by cube("department_id", "job_id")`);
 });
 
+test('group by with cube nested grouping elements', () => {
+    // Arrange
+    const text = `group by cube ((a, b), c)`;
+
+    // Act
+    const clause = GroupByClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`group by cube(("a", "b"), "c")`);
+});
+
 test('group by with rollup', () => {
     // Arrange
     const text = `group by rollup (department_id, job_id)`;
@@ -149,6 +173,18 @@ test('group by with rollup', () => {
 
     // Assert
     expect(sql).toEqual(`group by rollup("department_id", "job_id")`);
+});
+
+test('group by distinct rollup', () => {
+    // Arrange
+    const text = `group by distinct rollup (a, b), rollup (a, c)`;
+
+    // Act
+    const clause = GroupByClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`group by distinct rollup("a", "b"), rollup("a", "c")`);
 });
 
 test('group by with mix of columns and aggregations', () => {

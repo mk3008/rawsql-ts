@@ -51,6 +51,26 @@ const selectFormatCases = [
         "select department, count(*) as employee_count from employees group by all order by department",
         'select "department", count(*) as "employee_count" from "employees" group by all order by "department"'],
 
+    ["SELECT with GROUPING SETS empty set",
+        "select brand, size, sum(sales) from items_sold group by grouping sets ((brand), (size), ())",
+        'select "brand", "size", sum("sales") from "items_sold" group by grouping sets(("brand"), ("size"), ())'],
+
+    ["SELECT with GROUPING function and ROLLUP",
+        "select make, model, grouping(make, model), sum(sales) from items_sold group by rollup(make, model)",
+        'select "make", "model", grouping("make", "model"), sum("sales") from "items_sold" group by rollup("make", "model")'],
+
+    ["SELECT with nested CUBE grouping elements",
+        "select a, b, c, sum(v) from t group by cube ((a, b), c)",
+        'select "a", "b", "c", sum("v") from "t" group by cube(("a", "b"), "c")'],
+
+    ["SELECT with multiple grouping items",
+        "select a, b, c, d, e, sum(v) from t group by a, cube (b, c), grouping sets ((d), (e))",
+        'select "a", "b", "c", "d", "e", sum("v") from "t" group by "a", cube("b", "c"), grouping sets(("d"), ("e"))'],
+
+    ["SELECT with GROUP BY DISTINCT ROLLUP",
+        "select a, b, sum(v) from t group by distinct rollup (a, b), rollup (a, c)",
+        'select "a", "b", sum("v") from "t" group by distinct rollup("a", "b"), rollup("a", "c")'],
+
     ["SELECT with GROUP BY and HAVING",
         "select department, count(*) as employee_count from employees group by department having count(*) > 5",
         'select "department", count(*) as "employee_count" from "employees" group by "department" having count(*) > 5'],
