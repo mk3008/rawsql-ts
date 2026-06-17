@@ -17,6 +17,11 @@ export default defineConfig({
   lastUpdated: true,
   appearance: true,
   srcDir: '.',
+  vite: {
+    build: {
+      target: 'esnext'
+    }
+  },
   markdown: {
     config(md) {
       const defaultFence = md.renderer.rules.fence
