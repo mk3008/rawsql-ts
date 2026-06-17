@@ -44,7 +44,7 @@ const DEFAULT_STYLE_BASE = {
     "identifierEscape": "none",
     "identifierEscapeTarget": "all",
     "parameterSymbol": ":",
-    "parameterStyle": "named",
+    "parameterStyle": "original",
     "sourceAliasStyle": "explicit",
     "castStyle": "standard"
 };

@@ -35,7 +35,7 @@ const defaultFormatOptions = {
     "identifierEscape": "none",
     "identifierEscapeTarget": "all",
     "parameterSymbol": ":",
-    "parameterStyle": "named",
+    "parameterStyle": "original",
     "sourceAliasStyle": "explicit",
     "castStyle": "standard"
 };
