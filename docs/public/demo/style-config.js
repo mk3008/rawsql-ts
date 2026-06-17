@@ -230,7 +230,7 @@ const STYLE_CONTROL_GROUPS = [
             { key: 'identifierEscape', label: 'Identifier escape', type: 'select', options: ['none', 'quote', 'backtick', 'bracket'] },
             { key: 'identifierEscapeTarget', label: 'Identifier escape target', type: 'select', options: ['all', 'minimal'] },
             { key: 'parameterSymbol', label: 'Parameter symbol', type: 'select', options: [':', '$', '@', '?'] },
-            { key: 'parameterStyle', label: 'Parameter style', type: 'select', options: ['named', 'indexed', 'anonymous'] },
+            { key: 'parameterStyle', label: 'Parameter style', type: 'select', options: ['named', 'indexed', 'anonymous', 'original'] },
             { key: 'indentSize', label: 'Indent size', type: 'number', min: 0, max: 12, step: 1 },
             { key: 'newline', label: 'Newline', type: 'select', options: ['space', 'lf', 'crlf'] },
             { key: 'sourceAliasStyle', label: 'Source alias keyword', type: 'select', options: ['omit', 'explicit'] },

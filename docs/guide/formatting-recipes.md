@@ -45,7 +45,7 @@ const { formattedSql, params } = formatter.format(query);
 | `identifierEscape` | `'none'`, `'quote'`, `'backtick'`, `'bracket'`, or `{ "start": string, "end": string }` | From preset or `'quote'` internally | Chooses the identifier delimiter symbol. `'none'` means no delimiter symbol, not "no identifiers targeted". |
 | `identifierEscapeTarget` | `'all'`, `'minimal'` | `'all'` | Chooses whether the formatter escapes every identifier or only identifiers that need escaping to stay valid and semantically safe. Pair it with `identifierEscape`, e.g. `{ "identifierEscape": "quote", "identifierEscapeTarget": "minimal" }`. |
 | `parameterSymbol` | Any string or `{ "start": string, "end": string }` | From preset or `':'` internally | Chooses the parameter marker. Common values are `':'`, `'$'`, `'@'`, and `'?'`; object form supports paired delimiters. |
-| `parameterStyle` | `'named'`, `'indexed'`, `'anonymous'` | From preset or `'named'` internally | Controls whether parameters print as `:name`, `$1`, or `?` and whether `params` is returned as an object or an ordered array. |
+| `parameterStyle` | `'named'`, `'indexed'`, `'anonymous'`, `'original'` | From preset or `'named'` internally | Controls whether parameters print as `:name`, `$1`, `?`, or the placeholder spelling parsed from the input SQL. It also controls whether `params` is returned as an object or an ordered array. |
 | `sourceAliasStyle` | `'explicit'`, `'omit'` | From preset or `'explicit'` | Controls whether source aliases render as `from users as u` or `from users u`. |
 | `columnAliasStyle` | `'explicit'`, `'omit'` | `'explicit'` | Controls whether select-list column aliases render as `select id as user_id` or `select id user_id`. |
 | `orderByDefaultDirectionStyle` | `'omit'`, `'explicit'` | From preset or `'omit'` | Controls whether default ascending sort direction is omitted or printed as `ASC`. |
@@ -415,6 +415,19 @@ const { formattedSql, params } = formatter.format(query);
 ```
 
 Anonymous style prints bare symbols such as `?` or `%s`. `SqlFormatter` still returns an array so you can hand it to clients that expect positional parameters.
+
+### Original parsed parameters
+
+```typescript
+const query = SelectQueryParser.parse('select * from users where id = @userId and status = :status');
+const formatter = new SqlFormatter({ parameterStyle: 'original' });
+const { formattedSql, params } = formatter.format(query);
+
+// formattedSql keeps @userId and :status
+// params => { userId: null, status: null }
+```
+
+Original style keeps the exact placeholder spelling parsed from the input SQL, including prefixes such as `:`, `@`, `$`, `?`, and `${...}` wrappers. Parameters created programmatically do not have input spelling, so they fall back to the configured `parameterSymbol` as named parameters.
 
 > Tip: You can mix `parameterStyle` with presets like `{ preset: 'postgres' }`. Presets provide sensible defaults that you can override per option when integrating with legacy code.
 
