@@ -1,5 +1,19 @@
 # rawsql-ts
 
+## 0.24.4
+
+### Patch Changes
+
+- [#890](https://github.com/mk3008/rawsql-ts/pull/890) [`acc425a`](https://github.com/mk3008/rawsql-ts/commit/acc425a314fb35b5d82d3fa89aa249ff2ff514cf) Thanks [@mk3008](https://github.com/mk3008)! - Add `columnAliasStyle` to control whether select-list aliases print with an explicit `AS` keyword. The new option accepts `"explicit"` and `"omit"` while preserving compatibility with the legacy `"as"` and `"implicit"` values, and the formatter keeps `AS` when comments are attached to that keyword so comment output remains safe.
+
+- [#890](https://github.com/mk3008/rawsql-ts/pull/890) [`acc425a`](https://github.com/mk3008/rawsql-ts/commit/acc425a314fb35b5d82d3fa89aa249ff2ff514cf) Thanks [@mk3008](https://github.com/mk3008)! - Add `inOneLine` to keep `IN` value lists compact until `oneLineMaxLength` forces expansion. When the width guard is exceeded, the formatter now falls back to a vertical list layout with comma-prefixed continuation rows.
+
+- [#890](https://github.com/mk3008/rawsql-ts/pull/890) [`acc425a`](https://github.com/mk3008/rawsql-ts/commit/acc425a314fb35b5d82d3fa89aa249ff2ff514cf) Thanks [@mk3008](https://github.com/mk3008)! - Add `newline: "space"` as a named formatter option and restore the demo `OneLiner` style preset to produce fully single-line SQL by disabling structural breaks and comment export.
+
+- [#897](https://github.com/mk3008/rawsql-ts/pull/897) [`a15fc10`](https://github.com/mk3008/rawsql-ts/commit/a15fc10b141c3f1b1f5809a75b34200c815e3bb6) Thanks [@mk3008](https://github.com/mk3008)! - Add `parameterStyle: "original"` so formatting parsed SQL can preserve the input parameter placeholder spelling, including `:name`, `@name`, `$1`, `?`, and `${name}` forms.
+
+- [#890](https://github.com/mk3008/rawsql-ts/pull/890) [`6a378fc`](https://github.com/mk3008/rawsql-ts/commit/6a378fcd0b3d4a1a22e7b4223f421beb43101fb9) Thanks [@mk3008](https://github.com/mk3008)! - Improve SQL formatter safety for comments, explicit ordering, and optional keyword controls. Smart comments now fall back to block comments when one-line formatting cannot preserve a safe line break, commented CTEs no longer lose comments in `cte-oneline` mode, top-level header comments remain on separate lines before `WITH`, and `orderByDefaultDirectionStyle: "explicit"` now adds `ASC` to `ORDER BY` items that omit a direction. `sourceAliasStyle` now accepts the aligned values `"omit"` and `"explicit"` while preserving compatibility with the legacy `"implicit"` and `"as"` values. Demo style JSON now normalizes legacy `exportComment: true` / `false` to `"full"` / `"none"`, `keywordCase: "preserve"` to `"none"`, and `joinOnBreak: "after"` to `"none"` so existing saved styles continue to load while the GUI presents canonical choices.
+
 ## 0.24.3
 
 ### Patch Changes
