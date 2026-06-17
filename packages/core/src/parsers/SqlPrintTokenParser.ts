@@ -76,7 +76,8 @@ import {
 export enum ParameterStyle {
     Anonymous = 'anonymous',
     Indexed = 'indexed',
-    Named = 'named'
+    Named = 'named',
+    Original = 'original'
 }
 
 export type CastStyle = 'postgres' | 'standard';
@@ -99,7 +100,7 @@ export interface FormatterConfig {
     };
     parameterSymbol?: string | { start: string; end: string };
     /**
-     * Parameter style: anonymous (?), indexed ($1), or named (:name)
+     * Parameter style: anonymous (?), indexed ($1), named (:name), or original parsed spelling.
      */
     parameterStyle?: ParameterStyle;
     /** Controls how CAST expressions are rendered */
@@ -280,7 +281,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         preset?: FormatterConfig,
         identifierEscape?: { start: string; end: string; target?: 'all' | 'minimal' },
         parameterSymbol?: string | { start: string; end: string },
-        parameterStyle?: 'anonymous' | 'indexed' | 'named',
+        parameterStyle?: 'anonymous' | 'indexed' | 'named' | 'original',
         castStyle?: CastStyle,
         constraintStyle?: ConstraintStyle,
         sourceAliasStyle?: SourceAliasStyle,
@@ -608,7 +609,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const paramsRaw = ParameterCollector.collect(arg).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
 
         const style = this.parameterDecorator.style;
-        if (style === ParameterStyle.Named) {
+        if (style === ParameterStyle.Named || style === ParameterStyle.Original) {
             // Named: { name: value, ... }
             const paramsObj: Record<string, any> = {};
             for (const p of paramsRaw) {
@@ -1355,7 +1356,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitParameterExpression(arg: ParameterExpression): SqlPrintToken {
         // Create a parameter token and decorate it using the parameterDecorator
         arg.index = this.index;
-        const text = this.parameterDecorator.decorate(arg.name.value, arg.index)
+        const text = this.parameterDecorator.style === ParameterStyle.Original && arg.sourceText
+            ? arg.sourceText
+            : this.parameterDecorator.decorate(arg.name.value, arg.index);
         const token = new SqlPrintToken(SqlPrintTokenType.parameter, text);
 
         this.addComponentComments(token, arg);

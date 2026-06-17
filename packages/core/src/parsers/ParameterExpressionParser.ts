@@ -5,6 +5,7 @@ export class ParameterExpressionParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         let idx = index;
         let paramName = lexemes[idx].value;
+        const sourceText = paramName;
 
         // Normalize parameter: Remove the parameter symbol and extract the parameter name.
         if (paramName.startsWith('${') && paramName.endsWith('}')) {
@@ -15,7 +16,7 @@ export class ParameterExpressionParser {
             paramName = paramName.slice(1);
         }
 
-        const value = new ParameterExpression(paramName);
+        const value = new ParameterExpression(paramName, null, sourceText);
         idx++;
         return { value, newIndex: idx };
     }

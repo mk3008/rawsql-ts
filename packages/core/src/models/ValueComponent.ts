@@ -233,15 +233,17 @@ export class ParameterExpression extends SqlComponent {
     static kind = Symbol("ParameterExpression");
     name: RawString;
     value: SqlParameterValue; // Holds the parameter value; can be provided via second argument.
+    sourceText: string | null;
     /**
      * The index assigned by the formatter when generating parameterized queries.
      * Used for naming parameters like $1, $2, etc.
      */
     index: number | null;
-    constructor(name: string, value: SqlParameterValue = null) {
+    constructor(name: string, value: SqlParameterValue = null, sourceText: string | null = null) {
         super();
         this.name = new RawString(name);
         this.value = value; // Value is now accepted as a second argument (optional)
+        this.sourceText = sourceText;
         this.index = null;
     }
 }

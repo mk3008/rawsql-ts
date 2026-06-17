@@ -5,9 +5,9 @@
 export class ParameterDecorator {
     prefix: string;
     suffix: string;
-    style: 'named' | 'indexed' | 'anonymous';
+    style: 'named' | 'indexed' | 'anonymous' | 'original';
 
-    constructor(options?: { prefix?: string; suffix?: string; style?: 'named' | 'indexed' | 'anonymous' }) {
+    constructor(options?: { prefix?: string; suffix?: string; style?: 'named' | 'indexed' | 'anonymous' | 'original' }) {
         this.prefix = options?.prefix ?? ':';
         this.suffix = options?.suffix ?? '';
         this.style = options?.style ?? 'named';
@@ -26,7 +26,7 @@ export class ParameterDecorator {
         } else if (this.style === 'indexed') {
             // e.g. $1, ?1, :1
             paramText = this.prefix + index;
-        } else if (this.style === 'named') {
+        } else if (this.style === 'named' || this.style === 'original') {
             // e.g. :name, @name, ${name}
             paramText = this.prefix + text + this.suffix;
         }

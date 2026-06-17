@@ -112,7 +112,7 @@ export interface SqlFormatterOptions extends BaseFormattingOptions {
     /** Parameter symbol configuration for SQL parameters */
     parameterSymbol?: string | { start: string; end: string };
     /** Style for parameter formatting */
-    parameterStyle?: 'anonymous' | 'indexed' | 'named';
+    parameterStyle?: 'anonymous' | 'indexed' | 'named' | 'original';
     /** Preferred CAST rendering style */
     castStyle?: CastStyle;
     /** Constraint rendering style (affects CREATE TABLE constraint layout) */
