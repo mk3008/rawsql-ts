@@ -104,22 +104,49 @@ describe('SelectValueCollectorWildcard', () => {
         const expressions = items.map(item => formatter.format(item.value).formattedSql);
 
         // Assert
-        expect(items.length).toBe(5); // posts(2) + users(4) - duplicate id is excluded(1)
+        expect(items.length).toBe(6); // posts(2) + users(4), including duplicate output name id
 
         // Specific columns from posts table
         expect(columnNames).toContain('id');
         expect(columnNames).toContain('title');
 
-        // All columns from users table, however duplicate id is excluded.
-        // This differs from actual DB behavior, but due to the SQL processing library's characteristics, column name duplications are not allowed.
+        // All columns from users table are preserved. Duplicate output names are valid SELECT output positions.
+        expect(columnNames.filter(name => name === 'id')).toHaveLength(2);
         expect(columnNames).toContain('name');
         expect(columnNames).toContain('email');
-        expect(columnNames).toContain('created_at');        // Verify expression content
+        expect(columnNames).toContain('created_at');
+
+        // Verify expression content
         expect(expressions).toContain('"p"."id"');
         expect(expressions).toContain('"p"."title"');
+        expect(expressions).toContain('"u"."id"');
         expect(expressions).toContain('"u"."name"');
         expect(expressions).toContain('"u"."email"');
         expect(expressions).toContain('"u"."created_at"');
+    });
+
+    test('Full wildcard expansion preserves duplicate output names from joined tables', () => {
+        const sql = `SELECT * FROM users u INNER JOIN posts p ON p.user_id = u.id`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SelectValueCollector(mockTableResolver);
+
+        const items = collector.collect(query);
+        const namesAndExpressions = items.map(item => ({
+            name: item.name,
+            sql: formatter.format(item.value).formattedSql
+        }));
+
+        expect(namesAndExpressions).toEqual([
+            { name: 'id', sql: '"u"."id"' },
+            { name: 'name', sql: '"u"."name"' },
+            { name: 'email', sql: '"u"."email"' },
+            { name: 'created_at', sql: '"u"."created_at"' },
+            { name: 'id', sql: '"p"."id"' },
+            { name: 'title', sql: '"p"."title"' },
+            { name: 'content', sql: '"p"."content"' },
+            { name: 'user_id', sql: '"p"."user_id"' },
+            { name: 'created_at', sql: '"p"."created_at"' }
+        ]);
     });
 
     test('Wildcard expansion with column aliases', () => {
