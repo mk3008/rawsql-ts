@@ -95,6 +95,10 @@ const selectFormatCases = [
         "select id, name from users where id in (select user_id from premium_subscriptions)",
         'select "id", "name" from "users" where "id" in (select "user_id" from "premium_subscriptions")'],
 
+    ["SELECT with ANY subquery in WHERE",
+        "select o.id, o.customer_id, o.status, o.total_amount, o.created_at from orders o where o.status = any (select s.status from allowed_order_statuses s where s.tenant_id = :tenant_id) order by o.created_at desc",
+        'select "o"."id", "o"."customer_id", "o"."status", "o"."total_amount", "o"."created_at" from "orders" as "o" where "o"."status" = any(select "s"."status" from "allowed_order_statuses" as "s" where "s"."tenant_id" = :tenant_id) order by "o"."created_at" desc'],
+
     ["SELECT with DISTINCT",
         "select distinct category from products",
         'select distinct "category" from "products"'],

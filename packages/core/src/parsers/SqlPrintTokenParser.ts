@@ -1174,7 +1174,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
         if (arg.argument) {
             this.relocateGroupingSetComments(arg);
-            token.innerTokens.push(this.visit(arg.argument));
+            if (arg.argument instanceof InlineQuery && this.isQuantifiedComparisonFunction(arg)) {
+                token.innerTokens.push(arg.argument.selectQuery.accept(this));
+            } else {
+                token.innerTokens.push(this.visit(arg.argument));
+            }
         }
         if (arg.internalOrderBy) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
@@ -1230,6 +1234,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.addComponentComments(token, arg);
 
         return token;
+    }
+
+    private isQuantifiedComparisonFunction(arg: FunctionCall): boolean {
+        const nameComponent = arg.qualifiedName.name;
+        const rawName = (nameComponent instanceof RawString ? nameComponent.value : nameComponent.name).toLowerCase();
+        return rawName === 'all' || rawName === 'any' || rawName === 'some';
     }
 
     private relocateGroupingSetComments(arg: FunctionCall): void {

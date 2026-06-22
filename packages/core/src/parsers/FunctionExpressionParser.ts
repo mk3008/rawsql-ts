@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { FunctionCall, ValueComponent, BinaryExpression, TypeValue, CastExpression, BetweenExpression, RawString, ArrayExpression, ArrayQueryExpression, ValueList, ColumnReference } from "../models/ValueComponent";
+import { FunctionCall, ValueComponent, BinaryExpression, TypeValue, CastExpression, BetweenExpression, RawString, ArrayExpression, ArrayQueryExpression, ValueList, ColumnReference, InlineQuery } from "../models/ValueComponent";
 import { SelectQuery } from "../models/SelectQuery";
 import { OrderByClause } from "../models/Clause";
 import { OverExpressionParser } from "./OverExpressionParser";
@@ -25,6 +25,12 @@ export class FunctionExpressionParser {
         'json_object',
         'json_scalar',
         'json_serialize'
+    ]);
+
+    private static readonly QUANTIFIED_COMPARISON_FUNCTIONS = new Set([
+        'all',
+        'any',
+        'some'
     ]);
 
     /**
@@ -170,7 +176,11 @@ export class FunctionExpressionParser {
             
             let internalOrderBy: OrderByClause | null = null;
             
-            if (this.SQL_JSON_CONSTRUCTORS.has(functionName)) {
+            if (this.QUANTIFIED_COMPARISON_FUNCTIONS.has(functionName) && this.isSubqueryArgumentStart(lexemes, idx)) {
+                const result = this.parseSubqueryArgumentWithComments(lexemes, idx);
+                arg = { value: result.value, newIndex: result.newIndex };
+                closingComments = result.closingComments;
+            } else if (this.SQL_JSON_CONSTRUCTORS.has(functionName)) {
                 // SQL/JSON constructor arguments contain VALUE pairs and ON NULL/RETURNING
                 // clauses that do not fit the current function-argument AST. Preserve the
                 // source fragment until #866 adds structured SQL/JSON constructor nodes.
@@ -237,6 +247,60 @@ export class FunctionExpressionParser {
         } else {
             throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected opening parenthesis after function name '${name.name}'.`);
         }
+    }
+
+    private static isSubqueryArgumentStart(lexemes: Lexeme[], index: number): boolean {
+        return index + 1 < lexemes.length &&
+            (lexemes[index].type & TokenType.OpenParen) !== 0 &&
+            (
+                lexemes[index + 1].value === "select" ||
+                lexemes[index + 1].value === "values" ||
+                lexemes[index + 1].value === "with"
+            );
+    }
+
+    private static parseSubqueryArgumentWithComments(lexemes: Lexeme[], index: number): {
+        value: InlineQuery;
+        closingComments: string[] | null;
+        newIndex: number;
+    } {
+        let idx = index;
+
+        if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.OpenParen)) {
+            throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected opening parenthesis.`);
+        }
+
+        const openParenToken = lexemes[idx];
+        idx++;
+
+        const queryResult = SelectQueryParser.parseFromLexeme(lexemes, idx);
+        idx = queryResult.newIndex;
+
+        if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.CloseParen)) {
+            throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected closing parenthesis.`);
+        }
+
+        const closingComments = this.getClosingComments(lexemes[idx]);
+        idx++;
+
+        const value = new InlineQuery(queryResult.value);
+        const openingComments = openParenToken.positionedComments
+            ?.filter(comment => comment.position === 'after' && comment.comments.length > 0)
+            .map(comment => ({
+                position: 'before' as const,
+                comments: [...comment.comments],
+            })) ?? [];
+
+        if (openingComments.length > 0) {
+            value.positionedComments = openingComments;
+        } else if (openParenToken.comments && openParenToken.comments.length > 0) {
+            value.positionedComments = [{
+                position: 'before' as const,
+                comments: [...openParenToken.comments],
+            }];
+        }
+
+        return { value, closingComments, newIndex: idx };
     }
 
     /**
