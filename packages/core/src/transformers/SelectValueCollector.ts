@@ -189,13 +189,13 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
 
             const innerSelected = this.collectValuesFromCteQuery(commonTable.query, innerCommonTables);
             innerSelected.forEach(item => {
-                this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
+                this.addSelectValue(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
             });
         } else {
             const innerCollector = new SelectValueCollector(this.tableColumnResolver, this.commonTables);
             const innerSelected = innerCollector.collect(source);
             innerSelected.forEach(item => {
-                this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
+                this.addSelectValue(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
             });
         }
     }
@@ -268,6 +268,10 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
         if (!this.selectValues.some(item => item.name === name)) {
             this.selectValues.push({ name, value });
         }
+    }
+
+    private addSelectValue(name: string, value: ValueComponent): void {
+        this.selectValues.push({ name, value });
     }
 
     private collectValuesFromCteQuery(query: CTEQuery, commonTables: CommonTable[]): { name: string, value: ValueComponent }[] {
