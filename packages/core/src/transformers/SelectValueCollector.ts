@@ -23,12 +23,14 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
     private commonTableCollector: CTECollector;
     private commonTables: CommonTable[];
     public initialCommonTables: CommonTable[] | null;
+    private preserveDuplicateSelectItems: boolean;
 
-    constructor(tableColumnResolver: TableColumnResolver | null = null, initialCommonTables: CommonTable[] | null = null) {
+    constructor(tableColumnResolver: TableColumnResolver | null = null, initialCommonTables: CommonTable[] | null = null, preserveDuplicateSelectItems: boolean = false) {
         this.tableColumnResolver = tableColumnResolver ?? null;
         this.commonTableCollector = new CTECollector();
         this.commonTables = [];
         this.initialCommonTables = initialCommonTables;
+        this.preserveDuplicateSelectItems = preserveDuplicateSelectItems;
 
         this.handlers = new Map<symbol, (arg: any) => void>();
 
@@ -128,76 +130,104 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
             return;
         }
 
-        // full wildcard
-        if (this.selectValues.some(item => item.value instanceof ColumnReference && item.value.namespaces === null)) {
-            if (query.fromClause) {
-                this.processFromClause(query.fromClause, true);
+        const expandedValues: { name: string, value: ValueComponent }[] = [];
+        for (const item of this.selectValues) {
+            if (item.name !== '*' || !(item.value instanceof ColumnReference)) {
+                expandedValues.push(item);
+                continue;
             }
-            // remove wildcard
-            this.selectValues = this.selectValues.filter(item => item.name !== '*');
-            return;
-        };
 
-        // table wildcard
-        const wildSourceNames = wildcards.filter(item => item.value instanceof ColumnReference && item.value.namespaces)
-            .map(item => (item.value as ColumnReference).getNamespace());
-
-        if (query.fromClause) {
-            const fromSourceName = query.fromClause.getSourceAliasName();
-            if (fromSourceName && wildSourceNames.includes(fromSourceName)) {
-                this.processFromClause(query.fromClause, false);
-            }
-            if (query.fromClause.joins) {
-                for (const join of query.fromClause.joins) {
-                    const joinSourceName = join.getSourceAliasName();
-                    if (joinSourceName && wildSourceNames.includes(joinSourceName)) {
-                        this.processJoinClause(join);
-                    }
-                }
-            }
+            expandedValues.push(...this.expandWildcardValue(item.value, query.fromClause));
         }
-        // remove wildcard
-        this.selectValues = this.selectValues.filter(item => item.name !== '*');
-        return;
+
+        this.selectValues = expandedValues;
     }
 
     private processFromClause(clause: FromClause, joinCascade: boolean): void {
-        if (clause) {
-            const fromSourceName = clause.getSourceAliasName();
-            this.processSourceExpression(fromSourceName, clause.source);
-
-            if (clause.joins && joinCascade) {
-                for (const join of clause.joins) {
-                    this.processJoinClause(join);
-                }
-            }
+        for (const item of this.collectFromClauseValues(clause, joinCascade)) {
+            this.addSelectValue(item.name, item.value);
         }
         return;
     }
 
     private processJoinClause(clause: JoinClause): void {
-        const sourceName = clause.getSourceAliasName();
-        this.processSourceExpression(sourceName, clause.source);
+        for (const item of this.collectJoinClauseValues(clause)) {
+            this.addSelectValue(item.name, item.value);
+        }
     }
 
     private processSourceExpression(sourceName: string | null, source: SourceExpression) {
+        for (const item of this.collectSourceExpressionValues(sourceName, source)) {
+            this.addSelectValue(item.name, item.value);
+        }
+    }
+
+    private expandWildcardValue(value: ColumnReference, fromClause: FromClause | null): { name: string, value: ValueComponent }[] {
+        if (!fromClause) {
+            return [];
+        }
+
+        if (value.namespaces === null) {
+            return this.collectFromClauseValues(fromClause, true);
+        }
+
+        const sourceName = value.getNamespace();
+        if (fromClause.getSourceAliasName() === sourceName) {
+            return this.collectFromClauseValues(fromClause, false);
+        }
+
+        if (!fromClause.joins) {
+            return [];
+        }
+
+        const join = fromClause.joins.find(item => this.getJoinSourceName(item) === sourceName);
+        return join ? this.collectJoinClauseValues(join) : [];
+    }
+
+    private collectFromClauseValues(clause: FromClause, joinCascade: boolean): { name: string, value: ValueComponent }[] {
+        const values = this.collectSourceExpressionValues(clause.getSourceAliasName(), clause.source);
+
+        if (clause.joins && joinCascade) {
+            for (const join of clause.joins) {
+                values.push(...this.collectJoinClauseValues(join));
+            }
+        }
+
+        return values;
+    }
+
+    private collectJoinClauseValues(clause: JoinClause): { name: string, value: ValueComponent }[] {
+        return this.collectSourceExpressionValues(this.getJoinSourceName(clause), clause.source);
+    }
+
+    private getJoinSourceName(clause: JoinClause): string | null {
+        return clause.source.getAliasName();
+    }
+
+    private collectSourceExpressionValues(sourceName: string | null, source: SourceExpression): { name: string, value: ValueComponent }[] {
         // check common table
-        const commonTable = this.commonTables.find(item => item.aliasExpression.table.name === sourceName);
+        const tableSourceName = source.datasource instanceof TableSource ? source.datasource.getSourceName() : null;
+        const commonTable = tableSourceName
+            ? this.commonTables.find(item => item.aliasExpression.table.name === tableSourceName)
+            : null;
+
         if (commonTable) {
             // Exclude this CTE from consideration to prevent self-reference
-            const innerCommonTables = this.commonTables.filter(item => item.aliasExpression.table.name !== sourceName);
+            const innerCommonTables = this.commonTables.filter(item => item.aliasExpression.table.name !== commonTable.aliasExpression.table.name);
 
             const innerSelected = this.collectValuesFromCteQuery(commonTable.query, innerCommonTables);
-            innerSelected.forEach(item => {
-                this.addSelectValue(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
-            });
-        } else {
-            const innerCollector = new SelectValueCollector(this.tableColumnResolver, this.commonTables);
-            const innerSelected = innerCollector.collect(source);
-            innerSelected.forEach(item => {
-                this.addSelectValue(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
-            });
+            return innerSelected.map(item => ({
+                name: item.name,
+                value: new ColumnReference(sourceName ? [sourceName] : null, item.name)
+            }));
         }
+
+        const innerCollector = new SelectValueCollector(this.tableColumnResolver, this.commonTables, true);
+        const innerSelected = innerCollector.collect(source);
+        return innerSelected.map(item => ({
+            name: item.name,
+            value: new ColumnReference(sourceName ? [sourceName] : null, item.name)
+        }));
     }
 
     private visitSelectClause(clause: SelectClause): void {
@@ -208,7 +238,7 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
 
     private processSelectItem(item: SelectItem): void {
         if (item.identifier) {
-            this.addSelectValueAsUnique(item.identifier.name, item.value);
+            this.addSelectValueFromSelectItem(item.identifier.name, item.value);
         }
         else if (item.value instanceof ColumnReference) {            // Handle column reference
             // columnName can be '*'
@@ -219,7 +249,7 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
             }
             else {
                 // Add with duplicate checking
-                this.addSelectValueAsUnique(columnName, item.value);
+                this.addSelectValueFromSelectItem(columnName, item.value);
             }
         }
     }
@@ -233,23 +263,23 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
         if (source.aliasExpression && source.aliasExpression.columns) {
             const sourceName = source.getAliasName();
             source.aliasExpression.columns.forEach(column => {
-                this.addSelectValueAsUnique(column.name, new ColumnReference(sourceName ? [sourceName] : null, column.name));
+                this.addSelectValueFromSelectItem(column.name, new ColumnReference(sourceName ? [sourceName] : null, column.name));
             });
             return;
         } else if (source.datasource instanceof TableSource) {
             if (this.tableColumnResolver) {
                 const sourceName = source.datasource.getSourceName();
                 this.tableColumnResolver(sourceName).forEach(column => {
-                    this.addSelectValueAsUnique(column, new ColumnReference([sourceName], column));
+                    this.addSelectValueFromSelectItem(column, new ColumnReference([sourceName], column));
                 });
             }
             return;
         } else if (source.datasource instanceof SubQuerySource) {
             const sourceName = source.getAliasName();
-            const innerCollector = new SelectValueCollector(this.tableColumnResolver, this.commonTables);
+            const innerCollector = new SelectValueCollector(this.tableColumnResolver, this.commonTables, true);
             const innerSelected = innerCollector.collect(source.datasource.query);
             innerSelected.forEach(item => {
-                this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
+                this.addSelectValueFromSelectItem(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
             });
             return;
         } else if (source.datasource instanceof ParenSource) {
@@ -274,9 +304,18 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
         this.selectValues.push({ name, value });
     }
 
+    private addSelectValueFromSelectItem(name: string, value: ValueComponent): void {
+        if (this.preserveDuplicateSelectItems) {
+            this.addSelectValue(name, value);
+            return;
+        }
+
+        this.addSelectValueAsUnique(name, value);
+    }
+
     private collectValuesFromCteQuery(query: CTEQuery, commonTables: CommonTable[]): { name: string, value: ValueComponent }[] {
         if (this.isSelectQuery(query)) {
-            const innerCollector = new SelectValueCollector(this.tableColumnResolver, commonTables);
+            const innerCollector = new SelectValueCollector(this.tableColumnResolver, commonTables, true);
             return innerCollector.collect(query);
         }
 

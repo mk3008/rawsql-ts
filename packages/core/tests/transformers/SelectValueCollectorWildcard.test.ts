@@ -226,6 +226,114 @@ describe('SelectValueCollectorWildcard', () => {
         expect(expressions).toContain('"cte"."created_at"');
     });
 
+    test('Wildcard expansion from CTE output without resolver', () => {
+        const sql = `
+            WITH scored AS (
+                SELECT
+                    customer_id,
+                    amount,
+                    amount * 2 AS score
+                FROM orders
+            )
+            SELECT
+                s.*
+            FROM scored AS s
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SelectValueCollector();
+
+        const items = collector.collect(query);
+        const namesAndExpressions = items.map(item => ({
+            name: item.name,
+            sql: formatter.format(item.value).formattedSql
+        }));
+
+        expect(namesAndExpressions).toEqual([
+            { name: 'customer_id', sql: '"s"."customer_id"' },
+            { name: 'amount', sql: '"s"."amount"' },
+            { name: 'score', sql: '"s"."score"' }
+        ]);
+    });
+
+    test('Wildcard expansion from derived table output without resolver', () => {
+        const sql = `
+            SELECT
+                d.*
+            FROM (
+                SELECT
+                    a,
+                    b
+                FROM t
+            ) AS d
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SelectValueCollector();
+
+        const items = collector.collect(query);
+        const namesAndExpressions = items.map(item => ({
+            name: item.name,
+            sql: formatter.format(item.value).formattedSql
+        }));
+
+        expect(namesAndExpressions).toEqual([
+            { name: 'a', sql: '"d"."a"' },
+            { name: 'b', sql: '"d"."b"' }
+        ]);
+    });
+
+    test('Wildcard expansion keeps mixed SELECT output order', () => {
+        const sql = `
+            WITH scored AS (
+                SELECT
+                    customer_id,
+                    amount
+                FROM orders
+            )
+            SELECT
+                s.*,
+                s.amount * 2 AS score
+            FROM scored AS s
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SelectValueCollector();
+
+        const items = collector.collect(query);
+        const namesAndExpressions = items.map(item => ({
+            name: item.name,
+            sql: formatter.format(item.value).formattedSql
+        }));
+
+        expect(namesAndExpressions).toEqual([
+            { name: 'customer_id', sql: '"s"."customer_id"' },
+            { name: 'amount', sql: '"s"."amount"' },
+            { name: 'score', sql: '"s"."amount" * 2' }
+        ]);
+    });
+
+    test('Wildcard expansion preserves duplicate derived output names', () => {
+        const sql = `
+            SELECT
+                d.*
+            FROM (
+                SELECT
+                    c.id,
+                    o.id
+                FROM customers AS c
+                JOIN orders AS o ON o.customer_id = c.id
+            ) AS d
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SelectValueCollector();
+
+        const items = collector.collect(query);
+
+        expect(items.map(item => item.name)).toEqual(['id', 'id']);
+        expect(items.map(item => formatter.format(item.value).formattedSql)).toEqual([
+            '"d"."id"',
+            '"d"."id"'
+        ]);
+    });
+
     test('Wildcard expansion from nested CTEs', () => {
         // Arrange - * wildcard in nested CTEs
         const sql = `WITH cte1 AS (SELECT * FROM users), cte2 AS (SELECT * FROM cte1) SELECT * FROM cte2`;
