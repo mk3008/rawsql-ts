@@ -68,6 +68,7 @@ export * from './transformers/SimulatedSelectConverter';
 export * from './transformers/DDLToFixtureConverter';
 export * from './transformers/DDLGeneralizer';
 export * from './transformers/DDLDiffGenerator';
+export * from './transformers/SelectBodyExtractor';
 export * from './transformers/SelectOutputCollector';
 export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
