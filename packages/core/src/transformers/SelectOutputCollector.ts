@@ -13,6 +13,9 @@ export interface SelectOutputColumn {
     name: string;
     value: ValueComponent;
     outputIndex: number;
+    sourceAlias: string | null;
+    sourceName: string | null;
+    sourceColumnName: string | null;
 }
 
 type RawSelectOutputColumn = Omit<SelectOutputColumn, "outputIndex">;
@@ -77,7 +80,7 @@ export class SelectOutputCollector {
 
     private collectSelectItem(item: SelectItem, fromClause: FromClause | null): RawSelectOutputColumn[] {
         if (item.identifier) {
-            return [{ name: item.identifier.name, value: item.value }];
+            return [this.createExplicitOutput(item.identifier.name, item.value)];
         }
 
         if (!(item.value instanceof ColumnReference)) {
@@ -89,7 +92,7 @@ export class SelectOutputCollector {
             return this.expandWildcard(item.value, fromClause);
         }
 
-        return [{ name: columnName, value: item.value }];
+        return [this.createExplicitOutput(columnName, item.value)];
     }
 
     private expandWildcard(value: ColumnReference, fromClause: FromClause | null): RawSelectOutputColumn[] {
@@ -134,7 +137,10 @@ export class SelectOutputCollector {
         if (source.aliasExpression?.columns) {
             return source.aliasExpression.columns.map(column => ({
                 name: column.name,
-                value: new ColumnReference(sourceName ? [sourceName] : null, column.name)
+                value: new ColumnReference(sourceName ? [sourceName] : null, column.name),
+                sourceAlias: sourceName,
+                sourceName: null,
+                sourceColumnName: column.name
             }));
         }
 
@@ -142,7 +148,7 @@ export class SelectOutputCollector {
         if (cte) {
             const innerCommonTables = this.commonTables.filter(item => item.getSourceAliasName() !== cte.getSourceAliasName());
             const innerOutputs = this.collectCteQuery(cte.query, innerCommonTables);
-            return this.qualifyOutputs(innerOutputs, sourceName);
+            return this.qualifyOutputs(innerOutputs, sourceName, cte.getSourceAliasName());
         }
 
         if (source.datasource instanceof TableSource) {
@@ -151,7 +157,7 @@ export class SelectOutputCollector {
 
         if (source.datasource instanceof SubQuerySource) {
             const innerOutputs = this.collectNestedSelectQuery(source.datasource.query);
-            return this.qualifyOutputs(innerOutputs, sourceName);
+            return this.qualifyOutputs(innerOutputs, sourceName, null);
         }
 
         if (source.datasource instanceof ParenSource) {
@@ -179,19 +185,34 @@ export class SelectOutputCollector {
         const qualifier = sourceName ?? tableName;
         return this.tableColumnResolver(tableName).map(column => ({
             name: column,
-            value: new ColumnReference([qualifier], column)
+            value: new ColumnReference([qualifier], column),
+            sourceAlias: sourceName,
+            sourceName: tableName,
+            sourceColumnName: column
         }));
     }
 
     private collectNestedSelectQuery(query: SelectQuery): RawSelectOutputColumn[] {
         const collector = new SelectOutputCollector(this.tableColumnResolver, this.commonTables);
-        return collector.collect(query).map(({ name, value }) => ({ name, value }));
+        return collector.collect(query).map(({ name, value, sourceAlias, sourceName, sourceColumnName }) => ({
+            name,
+            value,
+            sourceAlias,
+            sourceName,
+            sourceColumnName
+        }));
     }
 
     private collectCteQuery(query: CTEQuery, commonTables: CommonTable[]): RawSelectOutputColumn[] {
         if (this.isSelectQuery(query)) {
             const collector = new SelectOutputCollector(this.tableColumnResolver, commonTables);
-            return collector.collect(query).map(({ name, value }) => ({ name, value }));
+            return collector.collect(query).map(({ name, value, sourceAlias, sourceName, sourceColumnName }) => ({
+                name,
+                value,
+                sourceAlias,
+                sourceName,
+                sourceColumnName
+            }));
         }
 
         return this.collectReturningOutputs(query);
@@ -214,7 +235,7 @@ export class SelectOutputCollector {
         for (const item of clause.items) {
             const name = item.identifier?.name ?? this.extractSelectItemName(item);
             if (name) {
-                outputs.push({ name, value: item.value });
+                outputs.push(this.createExplicitOutput(name, item.value));
             }
         }
         return outputs;
@@ -230,11 +251,24 @@ export class SelectOutputCollector {
         return null;
     }
 
-    private qualifyOutputs(outputs: RawSelectOutputColumn[], sourceName: string | null): RawSelectOutputColumn[] {
+    private qualifyOutputs(outputs: RawSelectOutputColumn[], sourceAlias: string | null, sourceName: string | null): RawSelectOutputColumn[] {
         return outputs.map(item => ({
             name: item.name,
-            value: new ColumnReference(sourceName ? [sourceName] : null, item.name)
+            value: new ColumnReference(sourceAlias ? [sourceAlias] : null, item.name),
+            sourceAlias,
+            sourceName,
+            sourceColumnName: item.name
         }));
+    }
+
+    private createExplicitOutput(name: string, value: ValueComponent): RawSelectOutputColumn {
+        return {
+            name,
+            value,
+            sourceAlias: null,
+            sourceName: null,
+            sourceColumnName: null
+        };
     }
 
     private isSelectQuery(query: CTEQuery): query is SelectQuery {
