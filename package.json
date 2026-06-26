@@ -38,15 +38,12 @@
     "verify:publish-readiness": "node scripts/publish-plan.mjs",
     "verify:publish-contract": "node scripts/verify-publish-contract.mjs",
     "verify:runtime-prereqs": "node scripts/verify-runtime-prereqs.mjs",
-    "docs:dev": "pnpm docs:transfer && vitepress dev docs",
-    "docs:build": "pnpm docs:api && pnpm docs:transfer && vitepress build docs",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "pnpm docs:api && vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "docs:api": "typedoc && node scripts/postprocess-docs.mjs",
-    "docs:transfer": "pnpm --filter @rawsql-ts/ddl-docs-cli run build && node scripts/generate-transfer-docs.mjs",
     "verify:customer-consumers": "node scripts/verify-published-package-mode.mjs",
-    "verify:published-package-mode": "node scripts/verify-published-package-mode.mjs",
-    "verify:transfer-ddl-metadata": "pnpm --filter @rawsql-ts/ddl-docs-cli run build && node packages/ddl-docs-cli/dist/src/index.js check --ddl-dir packages/transfer/db/ddl --table-docs packages/transfer/db/ddl/table-docs.json --relationship packages/transfer/db/ddl/relationship.json --order packages/transfer/db/ddl/order.json --concept-relationship packages/transfer/docs/concepts/concept-relationship.json --dfd-relationship packages/transfer/docs/dfd/relationship.json --scope-rules packages/transfer/docs/scope/scope-rules.json --test-rules packages/transfer/docs/testing/test-rules.json --authority-rules packages/transfer/docs/review/authority-rules.json --technology-rules packages/transfer/docs/technology/tech-rules.json --process-dir packages/transfer/docs/processes --default-schema rawsql_transfer",
-    "verify:transfer-docs": "pnpm verify:transfer-ddl-metadata && pnpm docs:transfer && pnpm verify:transfer-ddl-metadata && node scripts/verify-transfer-docs-drift.mjs"
+    "verify:published-package-mode": "node scripts/verify-published-package-mode.mjs"
   },
   "keywords": [
     "sql",

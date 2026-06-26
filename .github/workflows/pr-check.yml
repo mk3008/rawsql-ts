@@ -49,25 +49,6 @@ jobs:
     - name: Run unit tests (core)
       run: pnpm --filter "./packages/core" run test
 
-    - name: Detect transfer DDL metadata changes
-      id: transfer_ddl_metadata
-      shell: bash
-      run: |
-        base_sha="${{ github.event.pull_request.base.sha }}"
-        head_sha="${{ github.event.pull_request.head.sha }}"
-        changed_files=$(git diff --name-only "$base_sha...$head_sha")
-        printf '%s\n' "$changed_files"
-
-        if printf '%s\n' "$changed_files" | grep -Eq '^(package\.json|packages/ddl-docs-cli/|packages/transfer/db/ddl/|packages/transfer/docs/(concepts|dfd|processes|scope|testing|review|technology)/|docs/(transfer-docs|review)\.md|docs/(authority|concepts|dfd|processes|roles|scope|testing|technology|rawsql-transfer)/|scripts/(generate-transfer-docs|verify-transfer-docs-drift)\.mjs|\.github/workflows/pr-check\.yml$)'; then
-          echo "run=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "run=false" >> "$GITHUB_OUTPUT"
-        fi
-
-    - name: Check transfer docs and metadata drift
-      if: steps.transfer_ddl_metadata.outputs.run == 'true'
-      run: pnpm verify:transfer-docs
-
     - name: Run parser benchmark (PR lightweight)
       run: pnpm run benchmark:parser:pr
 

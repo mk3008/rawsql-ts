@@ -12,9 +12,6 @@ hero:
       text: View API Docs
       link: /api/index
     - theme: alt
-      text: Transfer Docs
-      link: /transfer-docs
-    - theme: alt
       text: Open Playground
       link: /cud-demo/index.html
       target: _blank

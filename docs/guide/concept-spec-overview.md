@@ -413,20 +413,15 @@ The intended layering is:
 | Package Technology Policy | define package-level technology constraints and review-trigger exceptions |
 | RFBA | expose the implementation surfaces humans should review |
 | Ashiba / ZTD / tests | provide scaffold, generated artifacts, drift checks, and executable verification |
-| review-plan | provide deterministic review inputs from changed files, relationship metadata, Package Scope, Test Policy, Authority Model, and Technology Policy |
 | agent workflow skills | guide planning, TDD, verification, review, branch work, and subagent execution |
 
 Agent workflow skills are useful after the concept and process context is known.
 For example, they may enforce verification before completion, help split implementation tasks, or structure review checkpoints.
 
-When a `review-plan` is available, review skills should treat it as the read-order harness instead of rediscovering related context by inference.
-The review should load Package Scope, Package Test Policy, Package Review Authority Model, Package Technology Policy, changed-file required reads, relationship metadata, and then the changed artifact itself.
-If `review-plan` reports unresolved links or unmapped business-bearing artifacts, the review should surface those metadata gaps rather than guessing the missing relationships.
-
 Package Review Authority Model controls who may treat each review input as authoritative.
 Requirement-like Concept Specs, DFDs, Process Maps, Scope Specs, and human-stated issue requirements are human-owned.
 Review skills are AI-led review management and must keep their conclusions approval-oriented.
-Generated Review Reports, VitePress pages, metadata checks, and review-plan snapshots are CLI-owned review inputs, not source documents.
+Generated Review Reports, VitePress pages, and metadata checks are CLI-owned review inputs, not source documents.
 
 Package Technology Policy is not a Concept Spec.
 It records implementation constraints such as database platform, SQL-first path, standard CLI surface, and review-trigger exceptions.
@@ -464,7 +459,7 @@ It lists available Concept Specs and can describe package-specific reading order
 Individual concepts own their durable specification in their own directory:
 
 ```text
-packages/transfer/docs/concepts/dirty-key/concept.json
+packages/<package-name>/docs/concepts/<concept-id>/concept.json
 ```
 
 Concept folders are stable anchors.
@@ -472,7 +467,7 @@ When a concept is still under discussion, keep the same concept directory and st
 Use `DRAFT.md` only as supplemental notes, meeting material, or unresolved draft prose:
 
 ```text
-packages/transfer/docs/concepts/<concept-id>/
+packages/<package-name>/docs/concepts/<concept-id>/
   concept.json
   DRAFT.md
 ```
@@ -863,9 +858,9 @@ It may tell agents which Concept Specs to read before working on a domain area:
 ```md
 ## Concept Specs
 
-Before implementing dirty-key handling, work items, transfer requests, key maps, active black, lineage, generated transfer SQL, or transfer execution features, read:
+Before implementing domain behavior owned by this package, read:
 
-- `packages/transfer/docs/concepts/README.md`
+- `packages/<package-name>/docs/concepts/README.md`
 ```
 
 Do not redefine the Concept Spec's detailed meaning inside `AGENTS.md`.
