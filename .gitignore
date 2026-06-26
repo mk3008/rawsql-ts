@@ -142,13 +142,6 @@ docs/.vitepress/dist
 # Vite/VitePress cache
 docs/.vitepress/cache
 
-# Generated Transfer Docs review pages. Source of truth lives under packages/transfer.
-docs/concepts/
-docs/dfd/
-docs/processes/
-docs/rawsql-transfer/
-docs/roles/
-
 CONTINUITY.md
 # Local memo shortcuts for agent work; intentionally untracked.
 prompts/

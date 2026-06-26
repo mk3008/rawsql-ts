@@ -25,19 +25,17 @@ Use this section as the shortest repo-level map. It is intentionally brief: pack
 | Production SQL driver adapter primitives | `@rawsql-ts/driver-adapter-core` | [packages/drivers/driver-adapter-core](./packages/drivers/driver-adapter-core) |
 | ZTD fixture rewriting and testkits | `@rawsql-ts/testkit-*` | [packages/testkit-core](./packages/testkit-core) |
 | Test evidence storage and rendering | `@rawsql-ts/test-evidence-*` | [packages/test-evidence-core](./packages/test-evidence-core) |
-| Schema documentation generation | `@rawsql-ts/ddl-docs-*` | [packages/ddl-docs-cli](./packages/ddl-docs-cli) |
 | Ashiba CLI workflows | `@ashiba-ts/cli` | [mk3008/ashiba](https://github.com/mk3008/ashiba) |
 
 ### Workflow Surfaces
 
-These workflows are now owned by Ashiba. rawsql-ts keeps the reusable parser, formatter, testkit, binder, SQL grep, and documentation packages that Ashiba can consume.
+These workflows are now owned by Ashiba. rawsql-ts keeps the reusable parser, formatter, testkit, binder, and SQL grep packages that Ashiba can consume.
 
 | Workflow | Entry point | Why it matters |
 |----------|-------------|----------------|
 | SQL impact analysis before schema changes | `@rawsql-ts/sql-grep-core` / Ashiba query commands | Supports rename/type-change investigations using AST-based usage analysis. |
 | SQL-first optional filter authoring | `rawsql-ts` SSSQL APIs / Ashiba query commands | Keeps optional filters visible in SQL while runtime pruning stays explicit. Runtime no longer injects new filter predicates. |
 | Fixture-backed SQL unit testing | `@rawsql-ts/testkit-*` | Runs SQL against deterministic fixtures without a production database dependency. |
-| Schema documentation generation | `@rawsql-ts/ddl-docs-*` | Generates reviewable Markdown schema documentation from DDL assets. |
 
 ## Packages
 
@@ -85,13 +83,6 @@ The planned rename path is to add a non-breaking alias such as `@rawsql-ts/testk
 | [@rawsql-ts/test-evidence-core](./packages/test-evidence-core) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/test-evidence-core) | Core schema and storage model for deterministic test evidence. |
 | [@rawsql-ts/test-evidence-renderer-md](./packages/test-evidence-renderer-md) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/test-evidence-renderer-md) | Markdown renderer for saved test evidence reports. |
 
-### Documentation
-
-| Package | Version | Description |
-|---------|---------|-------------|
-| [@rawsql-ts/ddl-docs-cli](./packages/ddl-docs-cli) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/ddl-docs-cli) | CLI that generates Markdown table definition docs from DDL files. |
-| [@rawsql-ts/ddl-docs-vitepress](./packages/ddl-docs-vitepress) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/ddl-docs-vitepress) | Scaffold generator for VitePress-based database schema documentation sites. |
-
 ## Architecture
 
 ```text
@@ -103,8 +94,6 @@ rawsql-ts (core)
 │  ├─ @rawsql-ts/testkit-postgres
 │  │  └─ @rawsql-ts/adapter-node-pg
 │  └─ @rawsql-ts/testkit-sqlite
-├─ @rawsql-ts/ddl-docs-cli
-│  └─ @rawsql-ts/ddl-docs-vitepress
 └─ consumed by Ashiba for CLI workflows
 ```
 
