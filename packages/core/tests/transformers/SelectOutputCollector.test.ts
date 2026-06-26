@@ -22,10 +22,161 @@ describe('SelectOutputCollector', () => {
         expect(outputs.map(item => ({
             name: item.name,
             outputIndex: item.outputIndex,
+            sourceAlias: item.sourceAlias,
+            sourceName: item.sourceName,
+            sourceColumnName: item.sourceColumnName,
             sql: formatter.format(item.value).formattedSql
         }))).toEqual([
-            { name: 'id', outputIndex: 0, sql: '"c"."id"' },
-            { name: 'id', outputIndex: 1, sql: '"o"."id"' }
+            { name: 'id', outputIndex: 0, sourceAlias: 'c', sourceName: 'customers', sourceColumnName: 'id', sql: '"c"."id"' },
+            { name: 'id', outputIndex: 1, sourceAlias: 'o', sourceName: 'orders', sourceColumnName: 'id', sql: '"o"."id"' }
+        ]);
+    });
+
+    test('resolves qualified explicit source metadata from source aliases', () => {
+        const sql = `
+            SELECT
+                c.id AS customer_id,
+                o.id
+            FROM customers AS c
+            JOIN orders AS o ON o.customer_id = c.id
+        `;
+        const query = SelectQueryParser.parse(sql);
+
+        const outputs = new SelectOutputCollector().collect(query);
+
+        expect(outputs.map(item => ({
+            name: item.name,
+            outputIndex: item.outputIndex,
+            sourceAlias: item.sourceAlias,
+            sourceName: item.sourceName,
+            sourceColumnName: item.sourceColumnName,
+            sql: formatter.format(item.value).formattedSql
+        }))).toEqual([
+            { name: 'customer_id', outputIndex: 0, sourceAlias: 'c', sourceName: 'customers', sourceColumnName: 'id', sql: '"c"."id"' },
+            { name: 'id', outputIndex: 1, sourceAlias: 'o', sourceName: 'orders', sourceColumnName: 'id', sql: '"o"."id"' }
+        ]);
+    });
+
+    test('leaves unqualified explicit source metadata null', () => {
+        const sql = `
+            SELECT
+                id,
+                amount
+            FROM orders
+        `;
+        const query = SelectQueryParser.parse(sql);
+
+        const outputs = new SelectOutputCollector().collect(query);
+
+        expect(outputs.map(item => ({
+            name: item.name,
+            outputIndex: item.outputIndex,
+            sourceAlias: item.sourceAlias,
+            sourceName: item.sourceName,
+            sourceColumnName: item.sourceColumnName,
+            sql: formatter.format(item.value).formattedSql
+        }))).toEqual([
+            { name: 'id', outputIndex: 0, sourceAlias: null, sourceName: null, sourceColumnName: null, sql: '"id"' },
+            { name: 'amount', outputIndex: 1, sourceAlias: null, sourceName: null, sourceColumnName: null, sql: '"amount"' }
+        ]);
+    });
+
+    test('leaves non-alias qualified metadata null when source alias exists', () => {
+        const sql = `
+            SELECT
+                customers.id
+            FROM customers AS c
+        `;
+        const query = SelectQueryParser.parse(sql);
+
+        const outputs = new SelectOutputCollector().collect(query);
+
+        expect(outputs.map(item => ({
+            name: item.name,
+            outputIndex: item.outputIndex,
+            sourceAlias: item.sourceAlias,
+            sourceName: item.sourceName,
+            sourceColumnName: item.sourceColumnName,
+            sql: formatter.format(item.value).formattedSql
+        }))).toEqual([
+            { name: 'id', outputIndex: 0, sourceAlias: null, sourceName: null, sourceColumnName: null, sql: '"customers"."id"' }
+        ]);
+    });
+
+    test('resolves qualified explicit CTE source metadata', () => {
+        const sql = `
+            WITH scored AS (
+                SELECT
+                    customer_id,
+                    amount
+                FROM orders
+            )
+            SELECT
+                s.customer_id
+            FROM scored AS s
+        `;
+        const query = SelectQueryParser.parse(sql);
+
+        const outputs = new SelectOutputCollector().collect(query);
+
+        expect(outputs.map(item => ({
+            name: item.name,
+            outputIndex: item.outputIndex,
+            sourceAlias: item.sourceAlias,
+            sourceName: item.sourceName,
+            sourceColumnName: item.sourceColumnName,
+            sql: formatter.format(item.value).formattedSql
+        }))).toEqual([
+            { name: 'customer_id', outputIndex: 0, sourceAlias: 's', sourceName: 'scored', sourceColumnName: 'customer_id', sql: '"s"."customer_id"' }
+        ]);
+    });
+
+    test('resolves qualified explicit derived-table source metadata', () => {
+        const sql = `
+            SELECT
+                d.a
+            FROM (
+                SELECT
+                    a
+                FROM t
+            ) AS d
+        `;
+        const query = SelectQueryParser.parse(sql);
+
+        const outputs = new SelectOutputCollector().collect(query);
+
+        expect(outputs.map(item => ({
+            name: item.name,
+            outputIndex: item.outputIndex,
+            sourceAlias: item.sourceAlias,
+            sourceName: item.sourceName,
+            sourceColumnName: item.sourceColumnName,
+            sql: formatter.format(item.value).formattedSql
+        }))).toEqual([
+            { name: 'a', outputIndex: 0, sourceAlias: 'd', sourceName: null, sourceColumnName: 'a', sql: '"d"."a"' }
+        ]);
+    });
+
+    test('leaves ambiguous qualified source metadata null', () => {
+        const sql = `
+            SELECT
+                users.id
+            FROM public.users
+            JOIN archive.users ON archive.users.id = public.users.id
+        `;
+        const query = SelectQueryParser.parse(sql);
+
+        const outputs = new SelectOutputCollector().collect(query);
+
+        expect(outputs.map(item => ({
+            name: item.name,
+            outputIndex: item.outputIndex,
+            sourceAlias: item.sourceAlias,
+            sourceName: item.sourceName,
+            sourceColumnName: item.sourceColumnName,
+            sql: formatter.format(item.value).formattedSql
+        }))).toEqual([
+            { name: 'id', outputIndex: 0, sourceAlias: null, sourceName: null, sourceColumnName: null, sql: '"users"."id"' }
         ]);
     });
 
@@ -49,11 +200,14 @@ describe('SelectOutputCollector', () => {
         expect(outputs.map(item => ({
             name: item.name,
             outputIndex: item.outputIndex,
+            sourceAlias: item.sourceAlias,
+            sourceName: item.sourceName,
+            sourceColumnName: item.sourceColumnName,
             sql: formatter.format(item.value).formattedSql
         }))).toEqual([
-            { name: 'customer_id', outputIndex: 0, sql: '"s"."customer_id"' },
-            { name: 'amount', outputIndex: 1, sql: '"s"."amount"' },
-            { name: 'score', outputIndex: 2, sql: '"s"."amount" * 2' }
+            { name: 'customer_id', outputIndex: 0, sourceAlias: 's', sourceName: 'scored', sourceColumnName: 'customer_id', sql: '"s"."customer_id"' },
+            { name: 'amount', outputIndex: 1, sourceAlias: 's', sourceName: 'scored', sourceColumnName: 'amount', sql: '"s"."amount"' },
+            { name: 'score', outputIndex: 2, sourceAlias: null, sourceName: null, sourceColumnName: null, sql: '"s"."amount" * 2' }
         ]);
     });
 
