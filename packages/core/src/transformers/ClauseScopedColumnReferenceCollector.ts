@@ -11,6 +11,7 @@ import {
     OrderByItem,
     SelectClause,
     WhereClause,
+    WindowsClause,
 } from "../models/Clause";
 import { SimpleSelectQuery } from "../models/SimpleSelectQuery";
 import {
@@ -45,6 +46,7 @@ export type ClauseScopedColumnReferenceClause =
     | "groupBy"
     | "having"
     | "orderBy"
+    | "window"
     | "limitOffset";
 
 export interface ClauseScopedColumnReferenceInfo {
@@ -64,6 +66,7 @@ export interface ClauseScopedColumnReferences {
     groupBy: ClauseScopedColumnReferenceInfo[];
     having: ClauseScopedColumnReferenceInfo[];
     orderBy: ClauseScopedColumnReferenceInfo[];
+    window: ClauseScopedColumnReferenceInfo[];
     limitOffset: ClauseScopedColumnReferenceInfo[];
 }
 
@@ -96,6 +99,9 @@ export class ClauseScopedColumnReferenceCollector {
         if (query.orderByClause) {
             this.collectFromOrderByClause(query.orderByClause, "orderBy", result);
         }
+        if (query.windowClause) {
+            this.collectFromWindowsClause(query.windowClause, result);
+        }
         if (query.limitClause) {
             this.collectFromLimitClause(query.limitClause, result);
         }
@@ -117,6 +123,7 @@ export class ClauseScopedColumnReferenceCollector {
             groupBy: [],
             having: [],
             orderBy: [],
+            window: [],
             limitOffset: [],
         };
     }
@@ -181,6 +188,12 @@ export class ClauseScopedColumnReferenceCollector {
 
     private collectFromFetchClause(clause: FetchClause, result: ClauseScopedColumnReferences): void {
         this.collectFromValueComponent(clause.expression.count, "limitOffset", result);
+    }
+
+    private collectFromWindowsClause(clause: WindowsClause, result: ClauseScopedColumnReferences): void {
+        for (const window of clause.windows) {
+            this.collectFromWindowFrameExpression(window.expression, "window", result);
+        }
     }
 
     private collectFromValueComponent(

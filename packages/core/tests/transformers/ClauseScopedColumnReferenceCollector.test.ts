@@ -66,6 +66,17 @@ describe('ClauseScopedColumnReferenceCollector', () => {
         expect(names(refs.orderBy)).toEqual(['u.region', 'o.id']);
     });
 
+    test('groups top-level WINDOW clause references separately from SELECT references', () => {
+        const refs = collect(`
+            SELECT SUM(o.amount) OVER w
+            FROM orders o
+            WINDOW w AS (PARTITION BY o.customer_id ORDER BY o.created_at)
+        `);
+
+        expect(names(refs.select)).toEqual(['o.amount']);
+        expect(names(refs.window)).toEqual(['o.customer_id', 'o.created_at']);
+    });
+
     test('groups row-limiting clause references under limitOffset', () => {
         const refs = collect(`
             SELECT p.id
