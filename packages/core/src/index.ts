@@ -47,6 +47,7 @@ export * from './transformers/CTETableReferenceCollector';
 export * from './transformers/CTEQueryDecomposer';
 export type { CTERestorationResult } from './transformers/CTEQueryDecomposer';
 export * from './transformers/NamedQueryDefinitionExtractor';
+export * from './transformers/AstCommentAttachmentExtractor';
 export * from './transformers/CTEComposer';
 export * from './transformers/CTERenamer';
 export * from './transformers/AliasRenamer';
