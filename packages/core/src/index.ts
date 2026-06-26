@@ -73,6 +73,7 @@ export * from './transformers/DDLGeneralizer';
 export * from './transformers/DDLDiffGenerator';
 export * from './transformers/SelectBodyExtractor';
 export * from './transformers/SelectOutputCollector';
+export * from './transformers/WildcardColumnInferenceCollector';
 export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
 export { DuplicateDetectionMode } from './transformers/SelectableColumnCollector';
