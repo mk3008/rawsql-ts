@@ -80,7 +80,7 @@ export class SelectOutputCollector {
 
     private collectSelectItem(item: SelectItem, fromClause: FromClause | null): RawSelectOutputColumn[] {
         if (item.identifier) {
-            return [this.createExplicitOutput(item.identifier.name, item.value)];
+            return [this.createExplicitOutput(item.identifier.name, item.value, fromClause)];
         }
 
         if (!(item.value instanceof ColumnReference)) {
@@ -92,7 +92,7 @@ export class SelectOutputCollector {
             return this.expandWildcard(item.value, fromClause);
         }
 
-        return [this.createExplicitOutput(columnName, item.value)];
+        return [this.createExplicitOutput(columnName, item.value, fromClause)];
     }
 
     private expandWildcard(value: ColumnReference, fromClause: FromClause | null): RawSelectOutputColumn[] {
@@ -261,7 +261,18 @@ export class SelectOutputCollector {
         }));
     }
 
-    private createExplicitOutput(name: string, value: ValueComponent): RawSelectOutputColumn {
+    private createExplicitOutput(name: string, value: ValueComponent, fromClause: FromClause | null = null): RawSelectOutputColumn {
+        if (value instanceof ColumnReference && value.column.name !== "*") {
+            const sourceMetadata = this.resolveColumnSourceMetadata(value, fromClause);
+            if (sourceMetadata) {
+                return {
+                    name,
+                    value,
+                    ...sourceMetadata
+                };
+            }
+        }
+
         return {
             name,
             value,
@@ -269,6 +280,71 @@ export class SelectOutputCollector {
             sourceName: null,
             sourceColumnName: null
         };
+    }
+
+    private resolveColumnSourceMetadata(value: ColumnReference, fromClause: FromClause | null): Pick<RawSelectOutputColumn, "sourceAlias" | "sourceName" | "sourceColumnName"> | null {
+        if (!fromClause || value.namespaces === null) {
+            return null;
+        }
+
+        const namespace = value.getNamespace();
+        const matches = fromClause.getSources().filter(source => this.getSourceMatchNames(source).includes(namespace));
+        if (matches.length !== 1) {
+            return null;
+        }
+
+        const source = matches[0];
+        const sourceAlias = this.getColumnReferenceSourceAlias(source, namespace);
+        return {
+            sourceAlias,
+            sourceName: this.getColumnReferenceSourceName(source),
+            sourceColumnName: value.column.name
+        };
+    }
+
+    private getSourceMatchNames(source: SourceExpression): string[] {
+        const names = new Set<string>();
+        if (source.aliasExpression) {
+            names.add(source.aliasExpression.table.name);
+            return [...names];
+        }
+
+        const aliasName = source.getAliasName();
+        if (aliasName) {
+            names.add(aliasName);
+        }
+
+        if (source.datasource instanceof TableSource) {
+            names.add(source.datasource.table.name);
+            names.add(source.datasource.getSourceName());
+        }
+
+        return [...names];
+    }
+
+    private getColumnReferenceSourceAlias(source: SourceExpression, namespace: string): string | null {
+        if (source.aliasExpression) {
+            return source.aliasExpression.table.name;
+        }
+
+        return namespace;
+    }
+
+    private getColumnReferenceSourceName(source: SourceExpression): string | null {
+        const cte = this.findCommonTable(source);
+        if (cte) {
+            return cte.getSourceAliasName();
+        }
+
+        if (source.aliasExpression?.columns) {
+            return null;
+        }
+
+        if (source.datasource instanceof TableSource) {
+            return source.datasource.getSourceName();
+        }
+
+        return null;
     }
 
     private isSelectQuery(query: CTEQuery): query is SelectQuery {
