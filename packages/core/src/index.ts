@@ -54,6 +54,7 @@ export * from './formatters/OriginalFormatRestorer';
 export * from './transformers/SqlIdentifierRenamer';
 export type { ScopeRange } from './transformers/SqlIdentifierRenamer';
 export * from './transformers/ColumnReferenceCollector';
+export * from './transformers/ClauseScopedColumnReferenceCollector';
 export * from './transformers/Formatter';
 export * from './transformers/SqlFormatter';
 export * from './transformers/QueryBuilder'; // old name:QueryConverter
