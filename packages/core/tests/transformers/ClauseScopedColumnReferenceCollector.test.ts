@@ -3,6 +3,8 @@ import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { SimpleSelectQuery } from '../../src/models/SimpleSelectQuery';
 import { ClauseScopedColumnReferenceCollector } from '../../src/transformers/ClauseScopedColumnReferenceCollector';
 import { ColumnReferenceCollector } from '../../src/transformers/ColumnReferenceCollector';
+import { SelectClause, SelectItem } from '../../src/models/Clause';
+import { ColumnReference, TypeValue } from '../../src/models/ValueComponent';
 
 const collect = (sql: string) => {
     const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
@@ -37,6 +39,18 @@ describe('ClauseScopedColumnReferenceCollector', () => {
         expect(refs.where).toEqual([]);
     });
 
+    test('groups JOIN USING references separately from SELECT and WHERE references', () => {
+        const refs = collect(`
+            SELECT u.name
+            FROM users u
+            JOIN orders o USING (user_id)
+        `);
+
+        expect(names(refs.select)).toEqual(['u.name']);
+        expect(names(refs.joinOn)).toEqual(['user_id']);
+        expect(refs.where).toEqual([]);
+    });
+
     test('groups GROUP BY, HAVING, and ORDER BY references by clause', () => {
         const refs = collect(`
             SELECT u.region, COUNT(o.id) AS order_count
@@ -61,6 +75,28 @@ describe('ClauseScopedColumnReferenceCollector', () => {
         `);
 
         expect(names(refs.limitOffset)).toEqual(['p.max_rows', 'p.skip_rows']);
+    });
+
+    test('groups FETCH clause references under limitOffset', () => {
+        const refs = collect(`
+            SELECT p.id
+            FROM products p
+            FETCH FIRST p.fetch_rows ROWS ONLY
+        `);
+
+        expect(names(refs.limitOffset)).toEqual(['p.fetch_rows']);
+    });
+
+    test('keeps TypeValue as expression metadata owner for nested references', () => {
+        const typeValue = new TypeValue(null, 'numeric', new ColumnReference(null, 'amount'));
+        const query = new SimpleSelectQuery({
+            selectClause: new SelectClause([new SelectItem(typeValue)]),
+        });
+
+        const refs = new ClauseScopedColumnReferenceCollector().collect(query);
+
+        expect(names(refs.select)).toEqual(['amount']);
+        expect(refs.select[0].expression).toBe(typeValue);
     });
 
     test('does not traverse subquery bodies as root clause references', () => {

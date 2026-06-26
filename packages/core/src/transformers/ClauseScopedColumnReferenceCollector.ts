@@ -244,7 +244,7 @@ export class ClauseScopedColumnReferenceCollector {
                 this.collectFromValueComponent(item, target, result, value);
             }
         } else if (value instanceof TypeValue && value.argument) {
-            this.collectFromValueComponent(value.argument, target, result, value.argument);
+            this.collectFromValueComponent(value.argument, target, result, value);
         } else if (value instanceof InlineQuery || value instanceof ArrayQueryExpression) {
             return;
         }
