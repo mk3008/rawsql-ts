@@ -11,6 +11,7 @@ Use this skill before creating or editing a rawsql-ts pull request.
 - Creating a PR body.
 - Editing an existing PR body after CI or reviewer feedback.
 - Any PR that changes CLI-facing files, scaffold behavior, release readiness, or documentation used by those gates.
+- Deciding whether a PR is ready to request external AI review after the body is validated.
 
 ## Workflow
 1. Read `.github/pull_request_template.md`.
@@ -24,7 +25,8 @@ Use this skill before creating or editing a rawsql-ts pull request.
 6. Fill required same-line fields exactly as labels appear in the template, including `Self-review workflow:`, `Self-review result:`, `Concept-review workflow:`, and `Concept-review result:`.
 7. After implementation verification, run the repo self-review workflow as the finishing review pass before PR authoring.
 8. Before `gh pr create` / `gh pr edit`, validate the prepared PR body by running the readiness script locally.
-9. Do not present the PR as ready while self-review has unresolved blockers or the readiness script fails.
+9. If requesting CodeRabbit or similar external AI review, use `review-tool-volume-management` after the body passes readiness validation.
+10. Do not present the PR as ready while self-review has unresolved blockers or the readiness script fails.
 
 ## Local Validation
 When validating a PR body locally, create a temporary event payload containing the PR body, then run:
@@ -52,6 +54,7 @@ Use the actual base and head SHAs from the PR or from `git merge-base` / `git re
 - Local readiness command
 - Readiness result
 - Remaining blockers
+- External review request timing, when relevant
 
 ## Constraints
 - Do not replace the repository template with a free-form PR body.

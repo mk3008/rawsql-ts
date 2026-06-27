@@ -21,6 +21,9 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 - For package-level Scope, Test Policy, Authority Model, Technology Policy, review-plan, or generated review view changes, use `.agents/skills/package-spec-review/SKILL.md`.
 - For structured metadata migrations or rule registry changes, use `.agents/skills/structured-metadata-migration-review/SKILL.md` to check schema versioning, canonical enum parity, real fixture parsing, and evidence/display-label integrity.
 - For broad generated or derived diffs that may exceed review-tool limits, use `.agents/skills/broad-generated-diff-review-packet/SKILL.md` to prepare scoped review packets before PR handoff.
+- For `packages/core` parser, analyzer, formatter, AST, wildcard/select-output, or syntax-derived metadata changes, use `.agents/skills/core-parser-analyzer-change/SKILL.md` instead of re-deriving package-boundary and verification rules from memory.
+- For changeset additions, removals, stale-entry cleanup, or reviewer questions about patch/minor/major classification, use `.agents/skills/changeset-classification/SKILL.md`.
+- For CodeRabbit or similar external AI review requests, rate-limit comments, stacked PRs, generated diffs, or review-tool quota concerns, use `.agents/skills/review-tool-volume-management/SKILL.md`.
 - Do not turn `AGENTS.md` into the storage location for starter walkthroughs, AI onboarding prompts, dogfooding playbooks, or investigation scripts; keep those in dedicated docs or skills.
 
 ## Documentation Guardrails
@@ -133,6 +136,7 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 - The finishing review pass must include a concept boundary review when the change touches package behavior, generated scaffold output, generated runtime code, docs, or PR wording. Read the owning package concept, package scope, technology policy, or Concept Spec when one exists.
 - Final PR text and final implementation reports must pass self-review before human review.
 - Before creating or editing a PR, read `.github/pull_request_template.md` and use `.agents/skills/pr-readiness/SKILL.md` when present.
+- Before manually requesting external AI review on a PR, use `.agents/skills/review-tool-volume-management/SKILL.md` when rate limits, stacked PRs, generated diffs, or repeated WIP pushes could affect review coverage.
 - Before claiming a PR is ready, run the repository PR readiness script locally when `scripts/check-pr-readiness.js` exists, or explicitly state why it could not be run.
 - Blockers must be resolved or explicitly called out before human review.
 - Before creating or presenting a PR, review `tmp/RETRO.md` and either resolve every PR-blocking retro item or explicitly surface the remaining item and why it is safe to defer.
