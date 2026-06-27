@@ -1,5 +1,31 @@
 # rawsql-ts
 
+## 0.25.0
+
+### Minor Changes
+
+- [#923](https://github.com/mk3008/rawsql-ts/pull/923) [`255d949`](https://github.com/mk3008/rawsql-ts/commit/255d949c9c998a565e36f1f4147e105179736a74) Thanks [@mk3008](https://github.com/mk3008)! - Add a generic AST comment attachment extraction API for comment text, source order, conservative placement, and optional target nodes.
+
+- [#919](https://github.com/mk3008/rawsql-ts/pull/919) [`60af5e2`](https://github.com/mk3008/rawsql-ts/commit/60af5e22d022a365c85b829a1a8e5ad95d1aa58a) Thanks [@mk3008](https://github.com/mk3008)! - Add `ClauseScopedColumnReferenceCollector` for collecting column references grouped by root `SimpleSelectQuery` clause, including SELECT, WHERE, JOIN conditions, GROUP BY, HAVING, ORDER BY, WINDOW, and row-limiting clauses.
+
+- [#921](https://github.com/mk3008/rawsql-ts/pull/921) [`befec3f`](https://github.com/mk3008/rawsql-ts/commit/befec3f40ef2d11b2cb4b25ad908431b59475410) Thanks [@mk3008](https://github.com/mk3008)! - Add `NamedQueryDefinitionExtractor` for stable DTO-style extraction of CTE definitions from `WITH` clauses.
+
+- [#922](https://github.com/mk3008/rawsql-ts/pull/922) [`7773bf5`](https://github.com/mk3008/rawsql-ts/commit/7773bf5bee8a956be4d137f77e0b8b040b496cd3) Thanks [@mk3008](https://github.com/mk3008)! - Add `WildcardColumnInferenceCollector` for metadata-only inference of required wildcard output columns from downstream CTE and derived-table references, including clause-scoped requirement details and conservative unresolved states for ambiguous ownership.
+
+### Patch Changes
+
+- [#903](https://github.com/mk3008/rawsql-ts/pull/903) [`138b849`](https://github.com/mk3008/rawsql-ts/commit/138b849abd0fb7de4818dc35dd4b9eb29be8336f) Thanks [@mk3008](https://github.com/mk3008)! - Parse PostgreSQL quantified comparisons such as `= ANY (SELECT ...)`, `= SOME (SELECT ...)`, and `<> ALL (SELECT ...)` while preserving existing array-style forms like `= ANY (:ids)`.
+
+- [#904](https://github.com/mk3008/rawsql-ts/pull/904) [`11dc24f`](https://github.com/mk3008/rawsql-ts/commit/11dc24f3c43c1d79463aa22b56f163942e2c329e) Thanks [@mk3008](https://github.com/mk3008)! - Preserve duplicate output column names when `SelectValueCollector` expands wildcard select items across sources.
+
+- [#912](https://github.com/mk3008/rawsql-ts/pull/912) [`25ef1ef`](https://github.com/mk3008/rawsql-ts/commit/25ef1ef9f55992357654ca4ac489198dcbd5e67f) Thanks [@mk3008](https://github.com/mk3008)! - Add `SelectBodyExtractor` for wrapper statements that contain an embedded SELECT body. It supports CREATE TABLE AS SELECT, CREATE VIEW AS SELECT, CREATE MATERIALIZED VIEW AS SELECT, and INSERT SELECT, and returns explicit unsupported results when no SELECT body is available.
+
+- [#910](https://github.com/mk3008/rawsql-ts/pull/910) [`df99afb`](https://github.com/mk3008/rawsql-ts/commit/df99afb2ef8c3200a84cbc2d469b5d8d36444ee0) Thanks [@mk3008](https://github.com/mk3008)! - Add `SelectOutputCollector` for SELECT output analysis that preserves duplicate output names and exposes a stable `outputIndex` for each returned output position after supported wildcard expansion.
+
+- [#911](https://github.com/mk3008/rawsql-ts/pull/911) [`44bb110`](https://github.com/mk3008/rawsql-ts/commit/44bb110d2021ecad340fc3e39b584b69587f7edc) Thanks [@mk3008](https://github.com/mk3008)! - Include source metadata on `SelectOutputCollector` entries when SQL structure can safely identify the selected source. Wildcard expansion and uniquely matched qualified column references now report `sourceAlias`, `sourceName`, and `sourceColumnName`, while unavailable or unsafe-to-infer metadata is represented as `null`.
+
+- [#909](https://github.com/mk3008/rawsql-ts/pull/909) [`f0f10bb`](https://github.com/mk3008/rawsql-ts/commit/f0f10bbe9acda937a4aca7bdc8cc29720e07bdb0) Thanks [@mk3008](https://github.com/mk3008)! - Expand CTE and derived-table wildcard SELECT outputs from SQL syntax when the selected source exposes explicit columns. This preserves wildcard output order, keeps duplicate output names as separate SELECT positions, and avoids requiring a table resolver for syntax-derived CTE or subquery columns.
+
 ## 0.24.4
 
 ### Patch Changes
