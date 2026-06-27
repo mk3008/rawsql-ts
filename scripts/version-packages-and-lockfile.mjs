@@ -27,6 +27,10 @@ function run(command, args) {
   }
 }
 
+function resetTrackedFiles() {
+  run("git", ["reset", "--hard", "HEAD"]);
+}
+
 async function runWithRetry(command, args, attempts) {
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     const result = spawnSync(command, args, {
@@ -44,13 +48,15 @@ async function runWithRetry(command, args, attempts) {
     }
 
     if (attempt === attempts) {
+      resetTrackedFiles();
       process.exit(result.status ?? 1);
     }
 
     console.warn(
       `[release-version] ${command} ${args.join(" ")} failed with exit code ${result.status ?? 1}; retrying ` +
-        `(${attempt + 1}/${attempts}) in ${releaseVersionRetryDelayMs / 1000}s...`,
+        `(${attempt + 1}/${attempts}) from a clean checkout in ${releaseVersionRetryDelayMs / 1000}s...`,
     );
+    resetTrackedFiles();
     await wait(releaseVersionRetryDelayMs);
   }
 }
