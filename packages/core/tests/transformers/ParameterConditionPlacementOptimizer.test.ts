@@ -68,6 +68,37 @@ describe('ParameterConditionPlacementOptimizer', () => {
         expect(normalized).not.toContain('from "orders_base" as "ob" where "ob"."customer_id" = :customer_id');
     });
 
+    it('preserves existing comments when moving a parameter predicate', () => {
+        const sql = `
+            with
+            -- orders scope comment
+            orders_base as (
+                select
+                    o.order_id,
+                    o.customer_id -- customer id projection comment
+                from orders o
+            )
+            select ob.order_id
+            from orders_base ob
+            where ob.customer_id = :customer_id
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.sql).toContain('orders scope comment');
+        expect(result.sql).toContain('customer id projection comment');
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with orders_base as (
+                select o.order_id, o.customer_id
+                from orders o
+                where o.customer_id = :customer_id
+            )
+            select ob.order_id
+            from orders_base ob
+        `));
+    });
+
     it('moves simple IN parameter predicates when the target column resolves safely', () => {
         const sql = `
             with orders_base as (

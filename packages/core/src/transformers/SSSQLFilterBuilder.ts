@@ -1,4 +1,4 @@
-import { WhereClause, type SourceExpression, SubQuerySource, TableSource } from "../models/Clause";
+import { WhereClause, type JoinClause, type SourceExpression, SubQuerySource, TableSource } from "../models/Clause";
 import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import {
     BinaryExpression,
@@ -161,6 +161,12 @@ interface CorrelatedAnchorReference {
 interface CorrelatedRefreshPlan {
     target: ResolvedFilterTarget;
     sourceAlias: string;
+}
+
+interface ScalarBranchDetails {
+    operator: SssqlScalarOperator;
+    target: string;
+    column: ColumnReference;
 }
 
 const SUPPORTED_SCALAR_OPERATORS = new Set<SssqlScalarOperator>(["=", "<>", "<", "<=", ">", ">=", "like", "ilike"]);
@@ -674,7 +680,7 @@ const substituteAnchorPlaceholders = (sql: string, formattedColumns: string[]): 
 const getScalarBranchDetails = (
     expression: ValueComponent,
     parameterName: string
-): { operator: SssqlScalarOperator; target: string } | null => {
+): ScalarBranchDetails | null => {
     const meaningfulTerms = collectTopLevelOrTerms(expression)
         .filter(term => getGuardedParameterName(term) !== parameterName);
 
@@ -694,7 +700,8 @@ const getScalarBranchDetails = (
         try {
             return {
                 operator: normalizeScalarOperator(predicate.operator.value as SssqlScalarOperatorInput),
-                target: normalizeColumnReferenceText(left)
+                target: normalizeColumnReferenceText(left),
+                column: left
             };
         } catch {
             return null;
@@ -705,7 +712,8 @@ const getScalarBranchDetails = (
         try {
             return {
                 operator: normalizeScalarOperator(predicate.operator.value as SssqlScalarOperatorInput),
-                target: normalizeColumnReferenceText(right)
+                target: normalizeColumnReferenceText(right),
+                column: right
             };
         } catch {
             return null;
@@ -1087,6 +1095,11 @@ export class SSSQLFilterBuilder {
                 continue;
             }
 
+            const scalarDetails = getScalarBranchDetails(match.expression, match.parameterName);
+            if (scalarDetails && this.isNullableBranchColumn(match.query, scalarDetails.column)) {
+                continue;
+            }
+
             const correlatedPlan = this.buildCorrelatedRefreshPlan(parsed, match);
             if (correlatedPlan) {
                 if (correlatedPlan.target.query === match.query) {
@@ -1096,6 +1109,21 @@ export class SSSQLFilterBuilder {
                 this.rebaseMovedBranchByAlias(match.expression, correlatedPlan.sourceAlias, correlatedPlan.target.column);
                 rebuildWhereWithoutTerm(match.query, match.expression);
                 correlatedPlan.target.query.appendWhere(match.expression);
+                changed = true;
+                continue;
+            }
+
+            const scalarPlan = scalarDetails
+                ? this.buildScalarRefreshPlan(parsed, match, scalarDetails)
+                : null;
+            if (scalarPlan) {
+                if (scalarPlan.query === match.query) {
+                    continue;
+                }
+
+                this.rebaseMovedBranch(match.expression, match.query, scalarPlan.column);
+                rebuildWhereWithoutTerm(match.query, match.expression);
+                scalarPlan.query.appendWhere(match.expression);
                 changed = true;
                 continue;
             }
@@ -1979,6 +2007,86 @@ export class SSSQLFilterBuilder {
         }
 
         return null;
+    }
+
+    private buildScalarRefreshPlan(
+        root: SelectQuery,
+        branch: SupportedOptionalConditionBranch,
+        details: ScalarBranchDetails
+    ): ResolvedFilterTarget | null {
+        const sourceAlias = normalizeIdentifier(details.column.getNamespace());
+        if (!sourceAlias) {
+            return null;
+        }
+
+        const sourceExpression = this.findSourceExpressionByAlias(branch.query, sourceAlias, branch.parameterName);
+        const upstreamQuery = this.resolveSourceExpressionToUpstreamQuery(root, sourceExpression, branch.parameterName);
+        if (!upstreamQuery) {
+            return null;
+        }
+
+        return this.resolveScalarTargetInQuery(upstreamQuery, details.column, branch.parameterName);
+    }
+
+    private resolveScalarTargetInQuery(
+        query: SimpleSelectQuery,
+        sourceColumn: ColumnReference,
+        parameterName: string
+    ): ResolvedFilterTarget {
+        const outputColumnName = normalizeIdentifier(sourceColumn.column.name);
+        const collector = new SelectableColumnCollector(
+            this.tableColumnResolver,
+            false,
+            DuplicateDetectionMode.FullName,
+            { upstream: true }
+        );
+
+        const matches = collector.collect(query)
+            .filter((entry): entry is { name: string; value: ColumnReference } => entry.value instanceof ColumnReference)
+            .filter(entry => normalizeIdentifier(entry.name) === outputColumnName);
+
+        if (matches.length === 0) {
+            throw new Error(
+                `SSSQL refresh could not resolve scalar branch column '${sourceColumn.column.name}' for ':${parameterName}'.`
+            );
+        }
+        if (matches.length > 1) {
+            throw new Error(
+                `SSSQL refresh found multiple scalar branch columns '${sourceColumn.column.name}' for ':${parameterName}'.`
+            );
+        }
+
+        return {
+            query,
+            column: matches[0]!.value,
+            parameterName
+        };
+    }
+
+    private isNullableBranchColumn(query: SimpleSelectQuery, column: ColumnReference): boolean {
+        const alias = normalizeIdentifier(column.getNamespace());
+        if (!alias || !query.fromClause) {
+            return false;
+        }
+
+        const primaryAlias = this.getSourceAlias(query.fromClause.source);
+        if (primaryAlias === alias) {
+            return (query.fromClause.joins ?? []).some(join => this.isPrimarySourceNullableJoin(join));
+        }
+
+        return (query.fromClause.joins ?? []).some(join =>
+            this.getSourceAlias(join.source) === alias && this.isJoinedSourceNullable(join)
+        );
+    }
+
+    private isPrimarySourceNullableJoin(join: JoinClause): boolean {
+        const joinType = join.joinType.value.toLowerCase();
+        return joinType.includes("right") || joinType.includes("full");
+    }
+
+    private isJoinedSourceNullable(join: JoinClause): boolean {
+        const joinType = join.joinType.value.toLowerCase();
+        return joinType.includes("left") || joinType.includes("full");
     }
 
     private rebaseMovedBranch(

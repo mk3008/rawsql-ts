@@ -134,7 +134,7 @@ const VOLATILE_OR_UNSUPPORTED_FUNCTION_REASON = "Condition contains a function c
 const normalizeIdentifier = (value: string): string => value.trim().toLowerCase();
 
 const formatSqlComponent = (component: SelectQuery | ValueComponent): string => {
-    return new SqlFormatter().format(component).formattedSql;
+    return new SqlFormatter({ exportComment: true }).format(component).formattedSql;
 };
 
 const unwrapParens = (expression: ValueComponent): ValueComponent => {

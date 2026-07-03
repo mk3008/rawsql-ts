@@ -107,7 +107,7 @@ interface SssqlPhaseResult {
 }
 
 const formatSqlComponent = (component: SelectQuery | SimpleSelectQuery | ValueComponent): string => {
-    return new SqlFormatter().format(component).formattedSql;
+    return new SqlFormatter({ exportComment: true }).format(component).formattedSql;
 };
 
 const hasOwnParameter = (
