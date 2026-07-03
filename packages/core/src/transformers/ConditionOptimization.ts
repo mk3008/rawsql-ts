@@ -11,6 +11,14 @@ import {
     planParameterConditionOptimization
 } from "./ParameterConditionPlacementOptimizer";
 import {
+    optimizeStaticPredicatePlacement,
+    planStaticPredicatePlacement,
+    StaticPredicateMove,
+    StaticPredicatePlacementError,
+    StaticPredicatePlacementWarning,
+    StaticPredicateSkipped
+} from "./StaticPredicatePlacementOptimizer";
+import {
     collectSupportedOptionalConditionBranches,
     OptionalConditionPruningParameters,
     pruneOptionalConditionBranches,
@@ -20,7 +28,10 @@ import { SSSQLFilterBuilder } from "./SSSQLFilterBuilder";
 import { formatSqlComponent } from "./SqlComponentFormatter";
 
 export type ConditionOptimizationInput = string | SelectQuery | SimpleSelectQuery;
-export type ConditionOptimizationPhaseKind = "sssql_optional_condition" | "parameter_condition_placement";
+export type ConditionOptimizationPhaseKind =
+    | "sssql_optional_condition"
+    | "parameter_condition_placement"
+    | "static_predicate_placement";
 
 export interface ConditionOptimizationOptions extends ParameterConditionOptimizationOptions {
     /**
@@ -59,17 +70,21 @@ export interface SssqlOptionalConditionSkipped {
 
 export type ConditionOptimizationApplied =
     | SssqlOptionalConditionApplied
-    | (ParameterConditionMove & { phaseKind: "parameter_condition_placement" });
+    | (ParameterConditionMove & { phaseKind: "parameter_condition_placement" })
+    | (StaticPredicateMove & { phaseKind: "static_predicate_placement" });
 
 export type ConditionOptimizationSkipped =
     | SssqlOptionalConditionSkipped
-    | (ParameterConditionSkipped & { phaseKind: "parameter_condition_placement" });
+    | (ParameterConditionSkipped & { phaseKind: "parameter_condition_placement" })
+    | (StaticPredicateSkipped & { phaseKind: "static_predicate_placement" });
 
 export type ConditionOptimizationWarning =
-    | (ParameterConditionOptimizationWarning & { phaseKind: ConditionOptimizationPhaseKind });
+    | (ParameterConditionOptimizationWarning & { phaseKind: ConditionOptimizationPhaseKind })
+    | (StaticPredicatePlacementWarning & { phaseKind: ConditionOptimizationPhaseKind });
 
 export type ConditionOptimizationError =
-    | (ParameterConditionOptimizationError & { phaseKind: ConditionOptimizationPhaseKind });
+    | (ParameterConditionOptimizationError & { phaseKind: ConditionOptimizationPhaseKind })
+    | (StaticPredicatePlacementError & { phaseKind: ConditionOptimizationPhaseKind });
 
 export interface ConditionOptimizationSafety {
     mode: "safe_only";
@@ -421,6 +436,34 @@ const mapParameterSkipped = (
     ...item
 }));
 
+const mapStaticWarnings = (
+    warnings: readonly StaticPredicatePlacementWarning[]
+): ConditionOptimizationWarning[] => warnings.map(warning => ({
+    phaseKind: "static_predicate_placement",
+    ...warning
+}));
+
+const mapStaticErrors = (
+    errors: readonly StaticPredicatePlacementError[]
+): ConditionOptimizationError[] => errors.map(error => ({
+    phaseKind: "static_predicate_placement",
+    ...error
+}));
+
+const mapStaticApplied = (
+    applied: readonly StaticPredicateMove[]
+): ConditionOptimizationApplied[] => applied.map(item => ({
+    phaseKind: "static_predicate_placement",
+    ...item
+}));
+
+const mapStaticSkipped = (
+    skipped: readonly StaticPredicateSkipped[]
+): ConditionOptimizationSkipped[] => skipped.map(item => ({
+    phaseKind: "static_predicate_placement",
+    ...item
+}));
+
 const makePhaseSummary = (
     kind: ConditionOptimizationPhaseKind,
     counts: {
@@ -444,9 +487,8 @@ const runConditionOptimization = (
 ): ConditionOptimizationResult => {
     const dryRun = options.dryRun ?? defaultDryRun;
 
-    // Run the semantic SSSQL phase before the generic placement phase so
-    // optional branches remain owned by SSSQL even if parameter placement grows
-    // broader OR-predicate support later.
+    // Run semantic SSSQL handling before generic placement phases so optional
+    // branches remain owned by SSSQL even if later phases grow broader support.
     const sssqlPhase = runSssqlOptionalConditionPhase(input, { ...options, dryRun });
     const parameterPhase = dryRun
         ? planParameterConditionOptimization(sssqlPhase.sql, { dryRun })
@@ -455,12 +497,19 @@ const runConditionOptimization = (
     const parameterErrors = mapParameterErrors(parameterPhase.errors);
     const parameterApplied = mapParameterApplied(parameterPhase.applied);
     const parameterSkipped = mapParameterSkipped(parameterPhase.skipped);
-    const warnings = [...sssqlPhase.warnings, ...parameterWarnings];
-    const errors = [...sssqlPhase.errors, ...parameterErrors];
+    const staticPhase = dryRun
+        ? planStaticPredicatePlacement(parameterPhase.sql, { dryRun })
+        : optimizeStaticPredicatePlacement(parameterPhase.sql, { dryRun });
+    const staticWarnings = mapStaticWarnings(staticPhase.warnings);
+    const staticErrors = mapStaticErrors(staticPhase.errors);
+    const staticApplied = mapStaticApplied(staticPhase.applied);
+    const staticSkipped = mapStaticSkipped(staticPhase.skipped);
+    const warnings = [...sssqlPhase.warnings, ...parameterWarnings, ...staticWarnings];
+    const errors = [...sssqlPhase.errors, ...parameterErrors, ...staticErrors];
 
     return {
         ok: errors.length === 0,
-        sql: parameterPhase.sql,
+        sql: staticPhase.sql,
         phases: [
             makePhaseSummary("sssql_optional_condition", {
                 appliedCount: sssqlPhase.applied.length,
@@ -473,17 +522,25 @@ const runConditionOptimization = (
                 skippedCount: parameterSkipped.length,
                 warningCount: parameterWarnings.length,
                 errorCount: parameterErrors.length
+            }),
+            makePhaseSummary("static_predicate_placement", {
+                appliedCount: staticApplied.length,
+                skippedCount: staticSkipped.length,
+                warningCount: staticWarnings.length,
+                errorCount: staticErrors.length
             })
         ],
-        applied: [...sssqlPhase.applied, ...parameterApplied],
-        skipped: [...sssqlPhase.skipped, ...parameterSkipped],
+        applied: [...sssqlPhase.applied, ...parameterApplied, ...staticApplied],
+        skipped: [...sssqlPhase.skipped, ...parameterSkipped, ...staticSkipped],
         warnings,
         errors,
         safety: {
             mode: "safe_only",
             unsafeRewriteApplied: false,
             dryRun,
-            formatterGeneratedSource: sssqlPhase.formatterGeneratedSource || parameterPhase.safety.formatterGeneratedSource
+            formatterGeneratedSource: sssqlPhase.formatterGeneratedSource
+                || parameterPhase.safety.formatterGeneratedSource
+                || staticPhase.safety.formatterGeneratedSource
         }
     };
 };

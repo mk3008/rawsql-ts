@@ -33,6 +33,10 @@ describe('ConditionOptimization', () => {
             expect.objectContaining({
                 kind: 'parameter_condition_placement',
                 appliedCount: 0
+            }),
+            expect.objectContaining({
+                kind: 'static_predicate_placement',
+                appliedCount: 0
             })
         ]);
         expect(result.applied).toEqual([
@@ -71,6 +75,11 @@ describe('ConditionOptimization', () => {
             expect.objectContaining({
                 kind: 'parameter_condition_placement',
                 appliedCount: 1,
+                skippedCount: 0
+            }),
+            expect.objectContaining({
+                kind: 'static_predicate_placement',
+                appliedCount: 0,
                 skippedCount: 0
             })
         ]);
@@ -121,6 +130,10 @@ describe('ConditionOptimization', () => {
             'sssql_optional_condition',
             'parameter_condition_placement'
         ]);
+        expect(result.phases[2]).toEqual(expect.objectContaining({
+            kind: 'static_predicate_placement',
+            appliedCount: 0
+        }));
         expect(normalizeSql(result.sql)).toBe(normalizeSql(`
             with orders_base as (
                 select o.order_id, o.customer_id, o.status
@@ -155,6 +168,11 @@ describe('ConditionOptimization', () => {
         }));
         expect(result.phases[1]).toEqual(expect.objectContaining({
             kind: 'parameter_condition_placement',
+            appliedCount: 0,
+            skippedCount: 0
+        }));
+        expect(result.phases[2]).toEqual(expect.objectContaining({
+            kind: 'static_predicate_placement',
             appliedCount: 0,
             skippedCount: 0
         }));
@@ -222,6 +240,10 @@ describe('ConditionOptimization', () => {
                 conditionSql: expect.stringContaining(':customer_tier')
             })
         ]));
+        expect(result.phases[2]).toEqual(expect.objectContaining({
+            kind: 'static_predicate_placement',
+            appliedCount: 0
+        }));
         expect(normalizeSql(result.sql)).toBe(normalizeSql(`
             with customer_scope as (
                 select c.id, c.customer_tier, c.region
@@ -237,6 +259,132 @@ describe('ConditionOptimization', () => {
             select cs.id
             from customer_scope cs
             left join order_totals ot on ot.customer_id = cs.id
+        `));
+    });
+
+    it('runs SSSQL, parameter, and static predicate placement in order for mixed conditions', () => {
+        const sql = `
+            with customer_scope as (
+                select c.id, c.customer_tier, c.region
+                from customers c
+            )
+            select cs.id
+            from customer_scope cs
+            where (:customer_tier is null or cs.customer_tier = :customer_tier)
+              and cs.region = :region
+              and exists (
+                select 1
+                from customer_favorites cf
+                where cf.customer_id = cs.id
+                  and cf.is_active = true
+              )
+        `;
+
+        const result = optimizeConditions(sql, {
+            optionalConditionParameters: { customer_tier: 'gold' }
+        });
+
+        expect(result.ok).toBe(true);
+        expect(result.phases.map(phase => phase.kind)).toEqual([
+            'sssql_optional_condition',
+            'parameter_condition_placement',
+            'static_predicate_placement'
+        ]);
+        expect(result.phases).toEqual([
+            expect.objectContaining({ kind: 'sssql_optional_condition', appliedCount: 1 }),
+            expect.objectContaining({ kind: 'parameter_condition_placement', appliedCount: 1 }),
+            expect.objectContaining({ kind: 'static_predicate_placement', appliedCount: 1 })
+        ]);
+        expect(result.applied.map(item => item.phaseKind)).toEqual([
+            'sssql_optional_condition',
+            'parameter_condition_placement',
+            'static_predicate_placement'
+        ]);
+        expect(result.applied).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'static_predicate_placement',
+                kind: 'move_static_predicate',
+                predicateSql: expect.stringContaining('exists'),
+                columnReferences: ['cs.id']
+            })
+        ]));
+        expect(result.applied).not.toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'static_predicate_placement',
+                predicateSql: expect.stringContaining(':region')
+            }),
+            expect.objectContaining({
+                phaseKind: 'static_predicate_placement',
+                predicateSql: expect.stringContaining(':customer_tier')
+            })
+        ]));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with customer_scope as (
+                select c.id, c.customer_tier, c.region
+                from customers c
+                where (:customer_tier is null or c.customer_tier = :customer_tier)
+                  and c.region = :region
+                  and exists (
+                    select 1
+                    from customer_favorites cf
+                    where cf.customer_id = c.id
+                      and cf.is_active = true
+                  )
+            )
+            select cs.id
+            from customer_scope cs
+        `));
+    });
+
+    it('keeps unsafe static predicate skipped reasons in the unified result', () => {
+        const sql = `
+            with customer_scope as (
+                select c.id, c.region
+                from customers c
+            ),
+            payment_scope as (
+                select p.customer_id, p.is_successful
+                from payments p
+            )
+            select cs.id
+            from customer_scope cs
+            left join payment_scope ps on ps.customer_id = cs.id
+            where cs.region = :region
+              and ps.is_successful = true
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.phases[1]).toEqual(expect.objectContaining({
+            kind: 'parameter_condition_placement',
+            appliedCount: 1
+        }));
+        expect(result.phases[2]).toEqual(expect.objectContaining({
+            kind: 'static_predicate_placement',
+            appliedCount: 0,
+            skippedCount: 1
+        }));
+        expect(result.skipped).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'static_predicate_placement',
+                code: 'OUTER_JOIN_NULLABLE_SIDE'
+            })
+        ]));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with customer_scope as (
+                select c.id, c.region
+                from customers c
+                where c.region = :region
+            ),
+            payment_scope as (
+                select p.customer_id, p.is_successful
+                from payments p
+            )
+            select cs.id
+            from customer_scope cs
+            left join payment_scope ps on ps.customer_id = cs.id
+            where ps.is_successful = true
         `));
     });
 
@@ -309,6 +457,11 @@ describe('ConditionOptimization', () => {
             appliedCount: 0,
             skippedCount: 1
         }));
+        expect(result.phases[2]).toEqual(expect.objectContaining({
+            kind: 'static_predicate_placement',
+            appliedCount: 0,
+            skippedCount: 0
+        }));
         expect(result.skipped).toEqual([
             expect.objectContaining({
                 phaseKind: 'parameter_condition_placement',
@@ -341,6 +494,10 @@ describe('ConditionOptimization', () => {
             kind: 'parameter_condition_placement',
             appliedCount: 1
         }));
+        expect(result.phases[2]).toEqual(expect.objectContaining({
+            kind: 'static_predicate_placement',
+            appliedCount: 0
+        }));
         expect(normalizeSql(result.sql)).toContain('where "c"."tier" = :tier');
     });
 
@@ -367,6 +524,9 @@ describe('ConditionOptimization', () => {
         expect(warningResult.phases[0]).toEqual(expect.objectContaining({
             warningCount: 1,
             errorCount: 0
+        }));
+        expect(warningResult.phases[2]).toEqual(expect.objectContaining({
+            kind: 'static_predicate_placement'
         }));
 
         const errorResult = planConditionOptimization('select from');
