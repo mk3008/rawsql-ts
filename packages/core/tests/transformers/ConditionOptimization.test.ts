@@ -182,6 +182,112 @@ describe('ConditionOptimization', () => {
         `));
     });
 
+    it('refreshes scalar SSSQL branches before ordinary placement when the root has a LEFT JOIN', () => {
+        const sql = `
+            with customer_scope as (
+                select c.id, c.customer_tier, c.region
+                from customers c
+            ),
+            order_totals as (
+                select o.customer_id, count(*) as order_count
+                from orders o
+                group by o.customer_id
+            )
+            select cs.id
+            from customer_scope cs
+            left join order_totals ot on ot.customer_id = cs.id
+            where (:customer_tier is null or cs.customer_tier = :customer_tier)
+              and cs.region = :region
+        `;
+
+        const result = optimizeConditions(sql, {
+            optionalConditionParameters: { customer_tier: 'gold' }
+        });
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'sssql_optional_condition',
+                kind: 'refresh_optional_branch',
+                parameterName: 'customer_tier'
+            }),
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                parameterNames: ['region']
+            })
+        ]));
+        expect(result.applied).not.toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                conditionSql: expect.stringContaining(':customer_tier')
+            })
+        ]));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with customer_scope as (
+                select c.id, c.customer_tier, c.region
+                from customers c
+                where (:customer_tier is null or c.customer_tier = :customer_tier)
+                  and c.region = :region
+            ),
+            order_totals as (
+                select o.customer_id, count(*) as order_count
+                from orders o
+                group by o.customer_id
+            )
+            select cs.id
+            from customer_scope cs
+            left join order_totals ot on ot.customer_id = cs.id
+        `));
+    });
+
+    it('preserves existing SQL comments across the integrated optimization phases', () => {
+        const sql = `
+            with
+            -- Customer scope comment
+            customer_scope as (
+                select
+                    c.id,
+                    c.customer_tier, -- Tier projection comment
+                    c.region
+                from customers c
+            ),
+            order_totals as (
+                select o.customer_id, count(*) as order_count
+                from orders o
+                group by o.customer_id
+            )
+            select cs.id
+            from customer_scope cs
+            left join order_totals ot on ot.customer_id = cs.id
+            where (:customer_tier is null or cs.customer_tier = :customer_tier)
+              and cs.region = :region
+        `;
+
+        const result = optimizeConditions(sql, {
+            optionalConditionParameters: { customer_tier: 'gold' }
+        });
+
+        expect(result.ok).toBe(true);
+        expect(result.sql).toContain('Customer scope comment');
+        expect(result.sql).toContain('Tier projection comment');
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with customer_scope as (
+                select c.id, c.customer_tier, c.region
+                from customers c
+                where (:customer_tier is null or c.customer_tier = :customer_tier)
+                  and c.region = :region
+            ),
+            order_totals as (
+                select o.customer_id, count(*) as order_count
+                from orders o
+                group by o.customer_id
+            )
+            select cs.id
+            from customer_scope cs
+            left join order_totals ot on ot.customer_id = cs.id
+        `));
+    });
+
     it('keeps unsafe, ambiguous, and unsupported placement skips in the unified result', () => {
         const sql = `
             with order_totals as (

@@ -459,6 +459,92 @@ describe('SSSQLFilterBuilder', () => {
         expect(normalized).toContain('select "b"."order_id" from "base_orders" as "b"');
     });
 
+    it('refresh moves a scalar optional branch from the primary source across a LEFT JOIN', () => {
+        const builder = new SSSQLFilterBuilder();
+        const refreshed = builder.refresh(
+            `
+                WITH base_orders AS (
+                    SELECT o.order_id, o.status
+                    FROM orders o
+                ),
+                order_notes AS (
+                    SELECT n.order_id, count(*) AS note_count
+                    FROM notes n
+                    GROUP BY n.order_id
+                )
+                SELECT b.order_id, COALESCE(n.note_count, 0) AS note_count
+                FROM base_orders b
+                LEFT JOIN order_notes n ON n.order_id = b.order_id
+                WHERE (:status IS NULL OR b.status = :status)
+            `,
+            { status: 'paid' }
+        );
+
+        const normalized = normalizeSql(new SqlFormatter().format(refreshed).formattedSql);
+        expect(normalized).toContain('with "base_orders" as (select "o"."order_id", "o"."status" from "orders" as "o" where (:status is null or "o"."status" = :status))');
+        expect(normalized).toContain('left join "order_notes" as "n" on "n"."order_id" = "b"."order_id"');
+        expect(normalized).not.toContain('where (:status is null or "b"."status" = :status)');
+    });
+
+    it('refresh leaves scalar optional branches on the nullable side of a LEFT JOIN unchanged', () => {
+        const builder = new SSSQLFilterBuilder();
+        const refreshed = builder.refresh(
+            `
+                WITH base_orders AS (
+                    SELECT o.order_id
+                    FROM orders o
+                ),
+                payment_scope AS (
+                    SELECT p.order_id, p.status
+                    FROM payments p
+                )
+                SELECT b.order_id
+                FROM base_orders b
+                LEFT JOIN payment_scope p ON p.order_id = b.order_id
+                WHERE (:status IS NULL OR p.status = :status)
+            `,
+            { status: 'paid' }
+        );
+
+        const normalized = normalizeSql(new SqlFormatter().format(refreshed).formattedSql);
+        expect(normalized).toContain('from "base_orders" as "b" left join "payment_scope" as "p" on "p"."order_id" = "b"."order_id" where (:status is null or "p"."status" = :status)');
+        expect(normalized).not.toContain('from "payments" as "p" where (:status is null or "p"."status" = :status)');
+    });
+
+    it('refresh leaves scalar optional branches unchanged when a later RIGHT or FULL JOIN can null the joined source', () => {
+        const builder = new SSSQLFilterBuilder();
+
+        for (const joinType of ['RIGHT JOIN', 'FULL JOIN']) {
+            const refreshed = builder.refresh(
+                `
+                    WITH base_orders AS (
+                        SELECT o.order_id, o.customer_id
+                        FROM orders o
+                    ),
+                    order_notes AS (
+                        SELECT n.order_id, n.status
+                        FROM notes n
+                    ),
+                    customer_scope AS (
+                        SELECT c.customer_id
+                        FROM customers c
+                    )
+                    SELECT b.order_id, n.status
+                    FROM base_orders b
+                    JOIN order_notes n ON n.order_id = b.order_id
+                    ${joinType} customer_scope c ON c.customer_id = b.customer_id
+                    WHERE (:status IS NULL OR n.status = :status)
+                `,
+                { status: 'paid' }
+            );
+
+            const normalized = normalizeSql(new SqlFormatter().format(refreshed).formattedSql);
+            expect(normalized).toContain(`join "order_notes" as "n" on "n"."order_id" = "b"."order_id" ${joinType.toLowerCase()} "customer_scope" as "c"`);
+            expect(normalized).toContain('where (:status is null or "n"."status" = :status)');
+            expect(normalized).not.toContain('from "notes" as "n" where (:status is null or "n"."status" = :status)');
+        }
+    });
+
     it('scaffolds a new branch during refresh when none exists yet', () => {
         const builder = new SSSQLFilterBuilder();
         const refreshed = builder.refresh(

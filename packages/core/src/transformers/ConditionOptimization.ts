@@ -17,7 +17,7 @@ import {
     SupportedOptionalConditionBranch
 } from "./PruneOptionalConditionBranches";
 import { SSSQLFilterBuilder } from "./SSSQLFilterBuilder";
-import { SqlFormatter } from "./SqlFormatter";
+import { formatSqlComponent } from "./SqlComponentFormatter";
 
 export type ConditionOptimizationInput = string | SelectQuery | SimpleSelectQuery;
 export type ConditionOptimizationPhaseKind = "sssql_optional_condition" | "parameter_condition_placement";
@@ -105,10 +105,6 @@ interface SssqlPhaseResult {
     errors: ConditionOptimizationError[];
     formatterGeneratedSource: boolean;
 }
-
-const formatSqlComponent = (component: SelectQuery | SimpleSelectQuery | ValueComponent): string => {
-    return new SqlFormatter().format(component).formattedSql;
-};
 
 const hasOwnParameter = (
     parameters: OptionalConditionPruningParameters,
