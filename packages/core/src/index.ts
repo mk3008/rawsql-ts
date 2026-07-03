@@ -83,6 +83,7 @@ export * from './transformers/DynamicQueryBuilder';
 export * from './transformers/SSSQLFilterBuilder';
 export * from './transformers/ConditionOptimization';
 export * from './transformers/ParameterConditionPlacementOptimizer';
+export * from './transformers/StaticPredicatePlacementOptimizer';
 export * from './transformers/PruneOptionalConditionBranches';
 export {
     SchemaInfo,
