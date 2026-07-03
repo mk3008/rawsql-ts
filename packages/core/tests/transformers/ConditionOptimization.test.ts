@@ -11,6 +11,34 @@ const normalizeSql = (sql: string): string => {
     return new SqlFormatter().format(query).formattedSql;
 };
 
+const normalizeForSearch = (sql: string): string => normalizeSql(sql).replace(/\s+/g, ' ').trim().toLowerCase();
+
+const collapseFragment = (sql: string): string => sql.replace(/\s+/g, ' ').trim().toLowerCase();
+
+const expectNoUnsafeConditionMove = (params: {
+    sql: string;
+    retainedFragments: readonly string[];
+    forbiddenFragments: readonly string[];
+    expectedSkippedCodes?: readonly string[];
+}): void => {
+    const result = optimizeConditions(params.sql);
+    const normalized = normalizeForSearch(result.sql);
+
+    expect(result.ok).toBe(true);
+    expect(result.applied).toEqual([]);
+    expect(normalizeSql(result.sql)).toBe(normalizeSql(params.sql));
+
+    for (const fragment of params.retainedFragments) {
+        expect(normalized).toContain(collapseFragment(fragment));
+    }
+    for (const fragment of params.forbiddenFragments) {
+        expect(normalized).not.toContain(collapseFragment(fragment));
+    }
+    for (const code of params.expectedSkippedCodes ?? []) {
+        expect(result.skipped.map(item => item.code)).toContain(code);
+    }
+};
+
 describe('ConditionOptimization', () => {
     it('runs the SSSQL optional condition phase for SQL that only contains optional branches', () => {
         const sql = `
@@ -563,5 +591,333 @@ describe('ConditionOptimization', () => {
         expect(result.applied).toHaveLength(2);
         expect(new SqlFormatter().format(query).formattedSql).toBe(before);
         expect(normalizeSql(result.sql)).not.toBe(before);
+    });
+
+    describe('unsafe condition movement boundaries', () => {
+        it('does not push a predicate through ORDER BY plus LIMIT', () => {
+            expectNoUnsafeConditionMove({
+                sql: `
+                    with recent_orders as (
+                        select
+                            id,
+                            customer_id,
+                            created_at
+                        from orders
+                        order by created_at desc
+                        limit 100
+                    )
+                    select *
+                    from recent_orders
+                    where customer_id = :customer_id
+                `,
+                retainedFragments: [
+                    'from "recent_orders" where "customer_id" = :customer_id'
+                ],
+                forbiddenFragments: [
+                    'from "orders" where "customer_id" = :customer_id'
+                ],
+                expectedSkippedCodes: ['ROW_LIMIT_BOUNDARY']
+            });
+        });
+
+        it('does not push a predicate through DISTINCT ON', () => {
+            expectNoUnsafeConditionMove({
+                sql: `
+                    with latest_order as (
+                        select distinct on (customer_id)
+                            customer_id,
+                            status,
+                            created_at
+                        from orders
+                        order by customer_id, created_at desc
+                    )
+                    select *
+                    from latest_order
+                    where status = 'paid'
+                `,
+                retainedFragments: [
+                    'from "latest_order" where "status" = \'paid\''
+                ],
+                forbiddenFragments: [
+                    'from "orders" where "status" = \'paid\''
+                ],
+                expectedSkippedCodes: ['DISTINCT_BOUNDARY']
+            });
+        });
+
+        it('does not push a predicate before window function calculation', () => {
+            expectNoUnsafeConditionMove({
+                sql: `
+                    with ranked_orders as (
+                        select
+                            id,
+                            customer_id,
+                            amount,
+                            created_at,
+                            row_number() over (
+                                partition by customer_id
+                                order by created_at desc
+                            ) as rn
+                        from orders
+                    )
+                    select *
+                    from ranked_orders
+                    where rn = 1
+                      and amount >= :min_amount
+                `,
+                retainedFragments: [
+                    'from "ranked_orders" where "rn" = 1 and "amount" >= :min_amount'
+                ],
+                forbiddenFragments: [
+                    'from "orders" where "amount" >= :min_amount',
+                    'from "orders" where "rn" = 1'
+                ],
+                expectedSkippedCodes: ['WINDOW_BOUNDARY']
+            });
+        });
+
+        it('does not push an aggregate alias predicate into pre-aggregation WHERE or HAVING', () => {
+            expectNoUnsafeConditionMove({
+                sql: `
+                    with customer_summary as (
+                        select
+                            c.id as customer_id,
+                            count(o.id) as order_count,
+                            sum(o.amount) as total_amount
+                        from customers c
+                        left join orders o on o.customer_id = c.id
+                        group by c.id
+                    )
+                    select *
+                    from customer_summary
+                    where order_count >= 3
+                `,
+                retainedFragments: [
+                    'from "customer_summary" where "order_count" >= 3'
+                ],
+                forbiddenFragments: [
+                    'where "order_count" >= 3 group by',
+                    'having count("o"."id") >= 3'
+                ],
+                expectedSkippedCodes: ['GROUP_BY_BOUNDARY']
+            });
+        });
+
+        it('does not move a LEFT JOIN nullable-side predicate into JOIN ON', () => {
+            expectNoUnsafeConditionMove({
+                sql: `
+                    with customer_orders as (
+                        select
+                            c.id as customer_id,
+                            o.id as order_id,
+                            o.status as order_status
+                        from customers c
+                        left join orders o on o.customer_id = c.id
+                    )
+                    select *
+                    from customer_orders
+                    where order_status = 'paid'
+                `,
+                retainedFragments: [
+                    'from "customer_orders" where "order_status" = \'paid\''
+                ],
+                forbiddenFragments: [
+                    'on "o"."customer_id" = "c"."id" and "o"."status" = \'paid\'',
+                    'from "customers" as "c" left join "orders" as "o" on "o"."customer_id" = "c"."id" where "o"."status" = \'paid\''
+                ],
+                expectedSkippedCodes: ['OUTER_JOIN_BOUNDARY']
+            });
+        });
+
+        it('does not move a LEFT JOIN anti-join NULL predicate into JOIN ON', () => {
+            expectNoUnsafeConditionMove({
+                sql: `
+                    with customer_orders as (
+                        select
+                            c.id as customer_id,
+                            o.id as order_id
+                        from customers c
+                        left join orders o on o.customer_id = c.id
+                    )
+                    select *
+                    from customer_orders
+                    where order_id is null
+                `,
+                retainedFragments: [
+                    'from "customer_orders" where "order_id" is null'
+                ],
+                forbiddenFragments: [
+                    'on "o"."customer_id" = "c"."id" and "o"."id" is null'
+                ],
+                expectedSkippedCodes: ['OUTER_JOIN_BOUNDARY']
+            });
+        });
+
+        it('does not split an OR predicate and push down only one branch', () => {
+            expectNoUnsafeConditionMove({
+                sql: `
+                    with customer_summary as (
+                        select
+                            customer_id,
+                            total_amount
+                        from some_summary
+                    )
+                    select *
+                    from customer_summary
+                    where customer_id = :customer_id
+                       or total_amount >= :min_total_amount
+                `,
+                retainedFragments: [
+                    'from "customer_summary" where "customer_id" = :customer_id or "total_amount" >= :min_total_amount'
+                ],
+                forbiddenFragments: [
+                    'from "some_summary" where "customer_id" = :customer_id',
+                    'from "some_summary" where "total_amount" >= :min_total_amount'
+                ],
+                expectedSkippedCodes: ['OR_PREDICATE_UNSUPPORTED']
+            });
+        });
+
+        it('does not reverse a CASE alias predicate into source predicates', () => {
+            expectNoUnsafeConditionMove({
+                sql: `
+                    with user_status as (
+                        select
+                            id,
+                            case
+                                when deleted_at is not null then 'inactive'
+                                when banned_at is not null then 'inactive'
+                                else 'active'
+                            end as status_label
+                        from users
+                    )
+                    select *
+                    from user_status
+                    where status_label = 'inactive'
+                `,
+                retainedFragments: [
+                    'from "user_status" where "status_label" = \'inactive\''
+                ],
+                forbiddenFragments: [
+                    'from "users" where'
+                ],
+                expectedSkippedCodes: ['EXPRESSION_OUTPUT_UNSUPPORTED']
+            });
+        });
+
+        it('does not inline a volatile expression alias predicate', () => {
+            expectNoUnsafeConditionMove({
+                sql: `
+                    with sampled_users as (
+                        select
+                            id,
+                            random() as r
+                        from users
+                    )
+                    select *
+                    from sampled_users
+                    where r < 0.1
+                `,
+                retainedFragments: [
+                    'from "sampled_users" where "r" < 0.1'
+                ],
+                forbiddenFragments: [
+                    'from "users" where random() < 0.1'
+                ],
+                expectedSkippedCodes: ['EXPRESSION_OUTPUT_UNSUPPORTED']
+            });
+        });
+
+        it('does not push predicates into UNION ALL branches', () => {
+            expectNoUnsafeConditionMove({
+                sql: `
+                    with activities as (
+                        select
+                            customer_id,
+                            created_at,
+                            'order' as activity_type
+                        from orders
+
+                        union all
+
+                        select
+                            recipient_id as customer_id,
+                            sent_at as created_at,
+                            'email' as activity_type
+                        from emails
+                    )
+                    select *
+                    from activities
+                    where customer_id = :customer_id
+                      and created_at >= :from_date
+                `,
+                retainedFragments: [
+                    'from "activities" where "customer_id" = :customer_id and "created_at" >= :from_date'
+                ],
+                forbiddenFragments: [
+                    'from "orders" where',
+                    'from "emails" where'
+                ],
+                expectedSkippedCodes: ['UNION_BOUNDARY']
+            });
+        });
+
+        it('does not push a predicate into recursive CTE anchor or recursive branches', () => {
+            expectNoUnsafeConditionMove({
+                sql: `
+                    with recursive category_tree as (
+                        select
+                            id,
+                            parent_id,
+                            name
+                        from categories
+                        where id = :root_id
+
+                        union all
+
+                        select
+                            c.id,
+                            c.parent_id,
+                            c.name
+                        from categories c
+                        join category_tree t on c.parent_id = t.id
+                    )
+                    select *
+                    from category_tree
+                    where id = :target_id
+                `,
+                retainedFragments: [
+                    'from "category_tree" where "id" = :target_id'
+                ],
+                forbiddenFragments: [
+                    'where "id" = :root_id and "id" = :target_id',
+                    'from "categories" as "c" where "c"."id" = :target_id'
+                ],
+                expectedSkippedCodes: ['UNION_BOUNDARY']
+            });
+        });
+
+        it('does not push a predicate into a data-modifying CTE with RETURNING', () => {
+            expectNoUnsafeConditionMove({
+                sql: `
+                    with updated_orders as (
+                        update orders
+                        set checked = true
+                        where status = 'pending'
+                        returning id, customer_id, status
+                    )
+                    select *
+                    from updated_orders
+                    where customer_id = :customer_id
+                `,
+                retainedFragments: [
+                    'from "updated_orders" where "customer_id" = :customer_id'
+                ],
+                forbiddenFragments: [
+                    'where "status" = \'pending\' and "customer_id" = :customer_id',
+                    'returning "id", "customer_id", "status" where'
+                ]
+            });
+        });
     });
 });
