@@ -21,12 +21,12 @@ import { UpstreamSelectQueryFinder } from "./UpstreamSelectQueryFinder";
 import { ColumnReferenceCollector } from "./ColumnReferenceCollector";
 import { SelectableColumnCollector, DuplicateDetectionMode } from "./SelectableColumnCollector";
 import { ParameterCollector } from "./ParameterCollector";
-import { SqlFormatter } from "./SqlFormatter";
 import { CTECollector } from "./CTECollector";
 import {
     collectSupportedOptionalConditionBranches,
     type SupportedOptionalConditionBranch
 } from "./PruneOptionalConditionBranches";
+import { formatSqlComponent } from "./SqlComponentFormatter";
 
 export type SSSQLFilterValue = unknown;
 export type SSSQLFilterInput = Record<string, SSSQLFilterValue>;
@@ -170,7 +170,6 @@ interface ScalarBranchDetails {
 }
 
 const SUPPORTED_SCALAR_OPERATORS = new Set<SssqlScalarOperator>(["=", "<>", "<", "<=", ">", ">=", "like", "ilike"]);
-let formatter: SqlFormatter | null = null;
 
 const normalizeIdentifier = (value: string): string => value.trim().toLowerCase();
 
@@ -631,11 +630,6 @@ const rebuildWhereWithoutTerm = (query: SimpleSelectQuery, termToRemove: ValueCo
     }
 
     query.whereClause = new WhereClause(rebuilt);
-};
-
-const formatSqlComponent = (component: ValueComponent | SelectQuery): string => {
-    formatter ??= new SqlFormatter();
-    return formatter.format(component).formattedSql;
 };
 
 const enforceSubqueryConstraints = (sql: string): void => {
@@ -2069,17 +2063,29 @@ export class SSSQLFilterBuilder {
             return false;
         }
 
+        const joins = query.fromClause.joins ?? [];
         const primaryAlias = this.getSourceAlias(query.fromClause.source);
         if (primaryAlias === alias) {
-            return (query.fromClause.joins ?? []).some(join => this.isPrimarySourceNullableJoin(join));
+            return this.hasLaterJoinThatNullsPriorSources(joins, -1);
         }
 
-        return (query.fromClause.joins ?? []).some(join =>
-            this.getSourceAlias(join.source) === alias && this.isJoinedSourceNullable(join)
-        );
+        const joinIndex = joins.findIndex(join => this.getSourceAlias(join.source) === alias);
+        if (joinIndex < 0) {
+            return false;
+        }
+
+        const introducingJoin = joins[joinIndex]!;
+        return this.isJoinedSourceNullable(introducingJoin)
+            || this.hasLaterJoinThatNullsPriorSources(joins, joinIndex);
     }
 
-    private isPrimarySourceNullableJoin(join: JoinClause): boolean {
+    private hasLaterJoinThatNullsPriorSources(joins: readonly JoinClause[], sourceJoinIndex: number): boolean {
+        return joins
+            .slice(sourceJoinIndex + 1)
+            .some(join => this.isPriorSourcesNullableJoin(join));
+    }
+
+    private isPriorSourcesNullableJoin(join: JoinClause): boolean {
         const joinType = join.joinType.value.toLowerCase();
         return joinType.includes("right") || joinType.includes("full");
     }

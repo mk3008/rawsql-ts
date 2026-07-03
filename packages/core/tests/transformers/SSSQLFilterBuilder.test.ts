@@ -511,6 +511,40 @@ describe('SSSQLFilterBuilder', () => {
         expect(normalized).not.toContain('from "payments" as "p" where (:status is null or "p"."status" = :status)');
     });
 
+    it('refresh leaves scalar optional branches unchanged when a later RIGHT or FULL JOIN can null the joined source', () => {
+        const builder = new SSSQLFilterBuilder();
+
+        for (const joinType of ['RIGHT JOIN', 'FULL JOIN']) {
+            const refreshed = builder.refresh(
+                `
+                    WITH base_orders AS (
+                        SELECT o.order_id, o.customer_id
+                        FROM orders o
+                    ),
+                    order_notes AS (
+                        SELECT n.order_id, n.status
+                        FROM notes n
+                    ),
+                    customer_scope AS (
+                        SELECT c.customer_id
+                        FROM customers c
+                    )
+                    SELECT b.order_id, n.status
+                    FROM base_orders b
+                    JOIN order_notes n ON n.order_id = b.order_id
+                    ${joinType} customer_scope c ON c.customer_id = b.customer_id
+                    WHERE (:status IS NULL OR n.status = :status)
+                `,
+                { status: 'paid' }
+            );
+
+            const normalized = normalizeSql(new SqlFormatter().format(refreshed).formattedSql);
+            expect(normalized).toContain(`join "order_notes" as "n" on "n"."order_id" = "b"."order_id" ${joinType.toLowerCase()} "customer_scope" as "c"`);
+            expect(normalized).toContain('where (:status is null or "n"."status" = :status)');
+            expect(normalized).not.toContain('from "notes" as "n" where (:status is null or "n"."status" = :status)');
+        }
+    });
+
     it('scaffolds a new branch during refresh when none exists yet', () => {
         const builder = new SSSQLFilterBuilder();
         const refreshed = builder.refresh(
