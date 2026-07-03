@@ -1,5 +1,13 @@
 # rawsql-ts
 
+## 0.26.0
+
+### Minor Changes
+
+- [#931](https://github.com/mk3008/rawsql-ts/pull/931) [`1ec9228`](https://github.com/mk3008/rawsql-ts/commit/1ec92287bc7f92f97f07c7fa26a427407ee0eeb5) Thanks [@mk3008](https://github.com/mk3008)! - Add `planConditionOptimization` and `optimizeConditions` as safe-only wrapper APIs that run SSSQL optional condition handling before ordinary parameter condition placement and return unified phase metadata.
+
+- [#930](https://github.com/mk3008/rawsql-ts/pull/930) [`15b1a65`](https://github.com/mk3008/rawsql-ts/commit/15b1a656f9cde6f88c55683b83280eff0ac31b3e) Thanks [@mk3008](https://github.com/mk3008)! - Add safe-only parameter condition placement planning for ordinary parameterized predicates, returning optimized SQL plus applied and skipped move metadata without filesystem or database access.
+
 ## 0.25.0
 
 ### Minor Changes

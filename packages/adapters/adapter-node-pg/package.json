@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/adapter-node-pg",
-  "version": "0.15.13",
+  "version": "0.15.14",
   "description": "Testkit adapter that connects node-postgres pg clients and pools to @rawsql-ts/testkit-postgres fixture rewriting.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -34,10 +34,10 @@
   },
   "dependencies": {
     "@rawsql-ts/shared-binder": "^0.0.1",
-    "@rawsql-ts/testkit-core": "^0.17.4",
-    "@rawsql-ts/testkit-postgres": "^0.16.4",
+    "@rawsql-ts/testkit-core": "^0.17.5",
+    "@rawsql-ts/testkit-postgres": "^0.16.5",
     "pg": "^8.13.1",
-    "rawsql-ts": "^0.25.0"
+    "rawsql-ts": "^0.26.0"
   },
   "devDependencies": {
     "@prisma/adapter-pg": "^7.2.0",

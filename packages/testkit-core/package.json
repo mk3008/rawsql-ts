@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/testkit-core",
-  "version": "0.17.4",
+  "version": "0.17.5",
   "description": "Core fixtures, schema validation, and SQL rewrite utilities for rawsql-ts SELECT query testing.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -38,7 +38,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "rawsql-ts": "^0.25.0"
+    "rawsql-ts": "^0.26.0"
   },
   "devDependencies": {
     "typescript": "^5.8.2",
