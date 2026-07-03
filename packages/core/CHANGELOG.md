@@ -1,5 +1,13 @@
 # rawsql-ts
 
+## 0.26.1
+
+### Patch Changes
+
+- [#933](https://github.com/mk3008/rawsql-ts/pull/933) [`687a45f`](https://github.com/mk3008/rawsql-ts/commit/687a45f24d77f6d56811368680158ac23c757be0) Thanks [@mk3008](https://github.com/mk3008)! - Fix SSSQL scalar optional condition refresh so primary-source filters can move safely through roots that contain left joins, sources made nullable by later RIGHT/FULL joins stay in place, and SQL comments are preserved in optimized output.
+
+- [#934](https://github.com/mk3008/rawsql-ts/pull/934) [`4294171`](https://github.com/mk3008/rawsql-ts/commit/4294171b01352524c6ea2289f17e5b072874157d) Thanks [@mk3008](https://github.com/mk3008)! - Add safe-only static predicate placement APIs and integrate static predicate movement as the third condition optimization phase after SSSQL optional branches and parameter condition placement.
+
 ## 0.26.0
 
 ### Minor Changes
