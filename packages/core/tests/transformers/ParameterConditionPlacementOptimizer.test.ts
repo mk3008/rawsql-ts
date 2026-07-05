@@ -145,6 +145,30 @@ describe('ParameterConditionPlacementOptimizer', () => {
         expect(normalizeSql(result.sql)).toContain('where "o"."customer_id" = :customer_id');
     });
 
+    it('returns the optimized query model and applies caller format options to SQL output', () => {
+        const sql = `
+            with orders_base as (
+                select o.order_id, o.customer_id
+                from orders o
+            )
+            select ob.order_id
+            from orders_base ob
+            where ob.customer_id = :customer_id
+        `;
+        const formatOptions = {
+            keywordCase: 'upper' as const,
+            identifierEscape: { start: '', end: '' }
+        };
+
+        const result = optimizeParameterConditionPlacement(sql, { formatOptions });
+
+        expect(result.ok).toBe(true);
+        expect(result.query).not.toBeNull();
+        expect(result.sql).toBe(new SqlFormatter(formatOptions).format(result.query!).formattedSql);
+        expect(result.sql).toContain('WITH orders_base AS');
+        expect(result.sql).toContain('WHERE o.customer_id = :customer_id');
+    });
+
     it('is a no-op when the parameter predicate is already inside the upstream CTE', () => {
         const sql = `
             with orders_base as (

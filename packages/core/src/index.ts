@@ -81,6 +81,11 @@ export * from './transformers/FilterableItemCollector';
 export { FixtureCteBuilder, FixtureTableDefinition, FixtureColumnDefinition } from './transformers/FixtureCteBuilder';
 export * from './transformers/DynamicQueryBuilder';
 export * from './transformers/SSSQLFilterBuilder';
+export type {
+    FormattableSqlComponent,
+    SqlComponentFormatter,
+    SqlComponentFormatOptions
+} from './transformers/SqlComponentFormatter';
 export * from './transformers/ConditionOptimization';
 export * from './transformers/ParameterConditionPlacementOptimizer';
 export * from './transformers/StaticPredicatePlacementOptimizer';

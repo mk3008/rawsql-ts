@@ -464,6 +464,33 @@ describe('ConditionOptimization', () => {
         `));
     });
 
+    it('keeps SQL comment compatibility when cloneInput is false for SQL input', () => {
+        const sql = `
+            with
+            -- Customer scope comment
+            customer_scope as (
+                select
+                    c.id,
+                    c.customer_tier, -- Tier projection comment
+                    c.region
+                from customers c
+            )
+            select cs.id
+            from customer_scope cs
+            where (:customer_tier is null or cs.customer_tier = :customer_tier)
+              and cs.region = :region
+        `;
+
+        const result = optimizeConditions(sql, {
+            cloneInput: false,
+            optionalConditionParameters: { customer_tier: 'gold' }
+        });
+
+        expect(result.ok).toBe(true);
+        expect(result.sql).toContain('Customer scope comment');
+        expect(result.sql).toContain('Tier projection comment');
+    });
+
     it('keeps unsafe, ambiguous, and unsupported placement skips in the unified result', () => {
         const sql = `
             with order_totals as (
@@ -591,6 +618,56 @@ describe('ConditionOptimization', () => {
         expect(result.applied).toHaveLength(2);
         expect(new SqlFormatter().format(query).formattedSql).toBe(before);
         expect(normalizeSql(result.sql)).not.toBe(before);
+    });
+
+    it('returns the final optimized query model and applies caller format options to SQL output', () => {
+        const sql = `
+            with orders_base as (
+                select o.order_id, o.customer_id
+                from orders o
+            )
+            select ob.order_id
+            from orders_base ob
+            where ob.customer_id = :customer_id
+        `;
+        const formatOptions = {
+            keywordCase: 'upper' as const,
+            identifierEscape: { start: '', end: '' }
+        };
+
+        const result = optimizeConditions(sql, { formatOptions });
+
+        expect(result.ok).toBe(true);
+        expect(result.query).not.toBeNull();
+        expect(result.sql).toBe(new SqlFormatter(formatOptions).format(result.query!).formattedSql);
+        expect(result.sql).toContain('WITH orders_base AS');
+        expect(result.sql).toContain('WHERE o.customer_id = :customer_id');
+    });
+
+    it('can reuse caller-owned AST input without formatter cloning when explicitly requested', () => {
+        const query = SelectQueryParser.parse(`
+            with orders_base as (
+                select o.order_id, o.customer_id, o.status
+                from orders o
+            )
+            select ob.order_id
+            from orders_base ob
+            where (:status is null or ob.status = :status)
+              and ob.customer_id = :customer_id
+        `);
+
+        const result = optimizeConditions(query, {
+            cloneInput: false,
+            optionalConditionParameters: { status: null }
+        });
+
+        expect(result.ok).toBe(true);
+        expect(result.query).toBe(query);
+        expect(result.safety.formatterGeneratedSource).toBe(false);
+        expect(result.warnings).not.toEqual(expect.arrayContaining([
+            expect.objectContaining({ code: 'AST_INPUT_FORMATTED' })
+        ]));
+        expect(normalizeSql(result.sql)).toContain('where "o"."customer_id" = :customer_id');
     });
 
     describe('unsafe condition movement boundaries', () => {

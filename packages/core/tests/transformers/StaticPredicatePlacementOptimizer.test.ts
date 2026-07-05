@@ -327,4 +327,28 @@ describe('StaticPredicatePlacementOptimizer', () => {
         expect(new SqlFormatter().format(query).formattedSql).toBe(before);
         expect(normalizeSql(result.sql)).toContain('where "c"."is_active" = true');
     });
+
+    it('returns the optimized query model and applies caller format options to SQL output', () => {
+        const sql = `
+            with customer_scope as (
+                select c.id, c.is_active
+                from customers c
+            )
+            select cs.id
+            from customer_scope cs
+            where cs.is_active = true
+        `;
+        const formatOptions = {
+            keywordCase: 'upper' as const,
+            identifierEscape: { start: '', end: '' }
+        };
+
+        const result = optimizeStaticPredicatePlacement(sql, { formatOptions });
+
+        expect(result.ok).toBe(true);
+        expect(result.query).not.toBeNull();
+        expect(result.sql).toBe(new SqlFormatter(formatOptions).format(result.query!).formattedSql);
+        expect(result.sql).toContain('WITH customer_scope AS');
+        expect(result.sql).toContain('WHERE c.is_active = true');
+    });
 });

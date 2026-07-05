@@ -29,7 +29,11 @@ import {
 } from "../models/ValueComponent";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 import { ValueParser } from "../parsers/ValueParser";
-import { formatSqlComponent } from "./SqlComponentFormatter";
+import {
+    formatSqlComponent,
+    hasSqlComponentFormatOverride,
+    SqlComponentFormatOptions
+} from "./SqlComponentFormatter";
 
 export type ParameterConditionOptimizationInput = string | SelectQuery | SimpleSelectQuery;
 
@@ -41,8 +45,14 @@ export type ParameterConditionOptimizationInput = string | SelectQuery | SimpleS
  * Unsupported boundaries such as OR, UNION, DISTINCT, GROUP BY, WINDOW, OUTER
  * JOIN, expression outputs, and function predicates are reported as skipped.
  */
-export interface ParameterConditionOptimizationOptions {
+export interface ParameterConditionOptimizationOptions extends SqlComponentFormatOptions {
     dryRun?: boolean;
+    /**
+     * Whether AST/model inputs should be cloned before optimization.
+     * Defaults to true for public-call safety. Internal pipelines can pass false
+     * when they own the model and want to avoid AST -> SQL -> AST round trips.
+     */
+    cloneInput?: boolean;
 }
 
 export interface ParameterConditionOptimizationWarning {
@@ -84,6 +94,7 @@ export interface ParameterConditionOptimizationSafety {
 export interface ParameterConditionOptimizationResult {
     ok: boolean;
     sql: string;
+    query: SelectQuery | null;
     applied: readonly ParameterConditionMove[];
     skipped: readonly ParameterConditionSkipped[];
     warnings: readonly ParameterConditionOptimizationWarning[];
@@ -179,8 +190,11 @@ const rebuildWhereWithoutTerms = (query: SimpleSelectQuery, termsToRemove: Reado
     query.whereClause = new WhereClause(rebuilt);
 };
 
-const cloneValueComponent = (expression: ValueComponent): ValueComponent => {
-    return ValueParser.parse(formatSqlComponent(expression));
+const cloneValueComponent = (
+    expression: ValueComponent,
+    options: SqlComponentFormatOptions
+): ValueComponent => {
+    return ValueParser.parse(formatSqlComponent(expression, options));
 };
 
 const cloneColumnReference = (reference: ColumnReference): ColumnReference => {
@@ -209,12 +223,13 @@ export class ParameterConditionPlacementOptimizer {
         input: ParameterConditionOptimizationInput,
         options: ParameterConditionOptimizationOptions = {}
     ): ParameterConditionOptimizationResult {
-        const parsed = this.parseInput(input);
+        const parsed = this.parseInput(input, options);
         const warnings = [...parsed.warnings];
         const errors = [...parsed.errors];
 
         if (!parsed.query) {
             return this.buildResult({
+                query: null,
                 sql: parsed.sql,
                 applied: [],
                 skipped: [],
@@ -231,6 +246,7 @@ export class ParameterConditionPlacementOptimizer {
                 message: "Parameter condition placement currently supports only SimpleSelectQuery roots."
             });
             return this.buildResult({
+                query: parsed.query,
                 sql: parsed.sql,
                 applied: [],
                 skipped: [],
@@ -247,29 +263,29 @@ export class ParameterConditionPlacementOptimizer {
         const movedTerms: ValueComponent[] = [];
 
         for (const term of query.whereClause ? collectTopLevelAndTerms(query.whereClause.condition) : []) {
-            const candidate = this.analyzeCandidate(term);
+            const candidate = this.analyzeCandidate(term, options);
             if (!candidate) {
                 continue;
             }
 
             if ("code" in candidate) {
-                skipped.push(this.makeSkipped(term, candidate));
+                skipped.push(this.makeSkipped(term, candidate, options));
                 continue;
             }
 
             const target = this.resolveTarget(query, candidate);
             if ("code" in target) {
-                skipped.push(this.makeSkipped(term, target));
+                skipped.push(this.makeSkipped(term, target, options));
                 continue;
             }
 
             const targetColumn = this.resolveTargetColumn(target.query, target.outputColumnName);
             if ("code" in targetColumn) {
-                skipped.push(this.makeSkipped(term, targetColumn));
+                skipped.push(this.makeSkipped(term, targetColumn, options));
                 continue;
             }
 
-            const movedCondition = this.rebaseCondition(candidate.expression, candidate.column, targetColumn.column);
+            const movedCondition = this.rebaseCondition(candidate.expression, candidate.column, targetColumn.column, options);
             target.query.appendWhere(movedCondition);
             movedTerms.push(term);
 
@@ -286,8 +302,11 @@ export class ParameterConditionPlacementOptimizer {
 
         rebuildWhereWithoutTerms(query, new Set(movedTerms));
 
-        const sql = applied.length > 0 ? formatSqlComponent(query) : parsed.sql;
+        const sql = applied.length > 0 || hasSqlComponentFormatOverride(options)
+            ? formatSqlComponent(query, options)
+            : parsed.sql;
         return this.buildResult({
+            query,
             sql,
             applied,
             skipped,
@@ -305,14 +324,27 @@ export class ParameterConditionPlacementOptimizer {
         return this.plan(input, { ...options, dryRun: options.dryRun ?? false });
     }
 
-    private parseInput(input: ParameterConditionOptimizationInput): ParsedOptimizationInput {
+    private parseInput(
+        input: ParameterConditionOptimizationInput,
+        options: ParameterConditionOptimizationOptions
+    ): ParsedOptimizationInput {
         const warnings: ParameterConditionOptimizationWarning[] = [];
         const errors: ParameterConditionOptimizationError[] = [];
 
         try {
             const sourceSql = typeof input === "string"
                 ? input
-                : formatSqlComponent(input);
+                : formatSqlComponent(input, options);
+
+            if (typeof input !== "string" && options.cloneInput === false) {
+                return {
+                    query: input,
+                    sql: sourceSql,
+                    formatterGeneratedSource: false,
+                    warnings,
+                    errors
+                };
+            }
 
             if (typeof input !== "string") {
                 warnings.push({
@@ -345,7 +377,10 @@ export class ParameterConditionPlacementOptimizer {
         }
     }
 
-    private analyzeCandidate(expression: ValueComponent): CandidateCondition | SkipDraft | null {
+    private analyzeCandidate(
+        expression: ValueComponent,
+        options: SqlComponentFormatOptions
+    ): CandidateCondition | SkipDraft | null {
         const parameterNames = this.collectParameterNames(expression);
         if (parameterNames.length === 0) {
             return null;
@@ -391,7 +426,7 @@ export class ParameterConditionPlacementOptimizer {
 
         return {
             expression,
-            conditionSql: formatSqlComponent(expression),
+            conditionSql: formatSqlComponent(expression, options),
             parameterNames,
             column: columnReferences[0]!
         };
@@ -790,9 +825,10 @@ export class ParameterConditionPlacementOptimizer {
     private rebaseCondition(
         expression: ValueComponent,
         sourceColumn: ColumnReference,
-        targetColumn: ColumnReference
+        targetColumn: ColumnReference,
+        options: SqlComponentFormatOptions
     ): ValueComponent {
-        const cloned = cloneValueComponent(expression);
+        const cloned = cloneValueComponent(expression, options);
         for (const reference of this.collectColumnReferences(cloned)) {
             if (!sameColumnReference(reference, sourceColumn)) {
                 continue;
@@ -1148,15 +1184,20 @@ export class ParameterConditionPlacementOptimizer {
         return names;
     }
 
-    private makeSkipped(expression: ValueComponent, draft: SkipDraft): ParameterConditionSkipped {
+    private makeSkipped(
+        expression: ValueComponent,
+        draft: SkipDraft,
+        options: SqlComponentFormatOptions
+    ): ParameterConditionSkipped {
         return {
-            conditionSql: formatSqlComponent(expression),
+            conditionSql: formatSqlComponent(expression, options),
             scopeId: "scope:root",
             ...draft
         };
     }
 
     private buildResult(params: {
+        query: SelectQuery | null;
         sql: string;
         applied: ParameterConditionMove[];
         skipped: ParameterConditionSkipped[];
@@ -1168,6 +1209,7 @@ export class ParameterConditionPlacementOptimizer {
         return {
             ok: params.errors.length === 0,
             sql: params.sql,
+            query: params.query,
             applied: params.applied,
             skipped: params.skipped,
             warnings: params.warnings,

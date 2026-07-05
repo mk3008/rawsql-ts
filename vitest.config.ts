@@ -43,7 +43,7 @@ export const integrationConfig = defineConfig({
 export default defineConfig({
     test: {
         environment: 'node',
-        include: ['packages/*/tests/**/*.test.[jt]s'],
+        include: ['packages/*/tests/**/*.test.[jt]s', 'scripts/**/*.test.[jt]s'],
         exclude: defaultTestExcludes,
         root: resolve(__dirname),
         testTimeout: 30000,

@@ -29,7 +29,11 @@ import {
 } from "../models/ValueComponent";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 import { ValueParser } from "../parsers/ValueParser";
-import { formatSqlComponent } from "./SqlComponentFormatter";
+import {
+    formatSqlComponent,
+    hasSqlComponentFormatOverride,
+    SqlComponentFormatOptions
+} from "./SqlComponentFormatter";
 
 export type StaticPredicatePlacementInput = string | SelectQuery | SimpleSelectQuery;
 
@@ -40,8 +44,14 @@ export type StaticPredicatePlacementInput = string | SelectQuery | SimpleSelectQ
  * be mechanically rebased to direct outputs of a single-use simple CTE or
  * derived table. Unsupported or ambiguous predicates stay in place.
  */
-export interface StaticPredicatePlacementOptions {
+export interface StaticPredicatePlacementOptions extends SqlComponentFormatOptions {
     dryRun?: boolean;
+    /**
+     * Whether AST/model inputs should be cloned before optimization.
+     * Defaults to true for public-call safety. Internal pipelines can pass false
+     * when they own the model and want to avoid AST -> SQL -> AST round trips.
+     */
+    cloneInput?: boolean;
 }
 
 export interface StaticPredicatePlacementWarning {
@@ -82,6 +92,7 @@ export interface StaticPredicatePlacementSafety {
 export interface StaticPredicatePlacementResult {
     ok: boolean;
     sql: string;
+    query: SelectQuery | null;
     applied: readonly StaticPredicateMove[];
     skipped: readonly StaticPredicateSkipped[];
     warnings: readonly StaticPredicatePlacementWarning[];
@@ -176,8 +187,11 @@ const rebuildWhereWithoutTerms = (query: SimpleSelectQuery, termsToRemove: Reado
     query.whereClause = new WhereClause(rebuilt);
 };
 
-const cloneValueComponent = (expression: ValueComponent): ValueComponent => {
-    return ValueParser.parse(formatSqlComponent(expression));
+const cloneValueComponent = (
+    expression: ValueComponent,
+    options: SqlComponentFormatOptions
+): ValueComponent => {
+    return ValueParser.parse(formatSqlComponent(expression, options));
 };
 
 const cloneColumnReference = (reference: ColumnReference): ColumnReference => {
@@ -206,12 +220,13 @@ export class StaticPredicatePlacementOptimizer {
         input: StaticPredicatePlacementInput,
         options: StaticPredicatePlacementOptions = {}
     ): StaticPredicatePlacementResult {
-        const parsed = this.parseInput(input);
+        const parsed = this.parseInput(input, options);
         const warnings = [...parsed.warnings];
         const errors = [...parsed.errors];
 
         if (!parsed.query) {
             return this.buildResult({
+                query: null,
                 sql: parsed.sql,
                 applied: [],
                 skipped: [],
@@ -228,6 +243,7 @@ export class StaticPredicatePlacementOptimizer {
                 message: "Static predicate placement currently supports only SimpleSelectQuery roots."
             });
             return this.buildResult({
+                query: parsed.query,
                 sql: parsed.sql,
                 applied: [],
                 skipped: [],
@@ -244,29 +260,29 @@ export class StaticPredicatePlacementOptimizer {
         const movedTerms: ValueComponent[] = [];
 
         for (const term of query.whereClause ? collectTopLevelAndTerms(query.whereClause.condition) : []) {
-            const candidate = this.analyzeCandidate(query, term);
+            const candidate = this.analyzeCandidate(query, term, options);
             if (!candidate) {
                 continue;
             }
 
             if ("code" in candidate) {
-                skipped.push(this.makeSkipped(term, candidate));
+                skipped.push(this.makeSkipped(term, candidate, options));
                 continue;
             }
 
             const target = this.resolveTarget(query, candidate);
             if ("code" in target) {
-                skipped.push(this.makeSkipped(term, target));
+                skipped.push(this.makeSkipped(term, target, options));
                 continue;
             }
 
             const targetColumns = this.resolveTargetColumns(target.query, candidate.references);
             if ("code" in targetColumns) {
-                skipped.push(this.makeSkipped(term, targetColumns));
+                skipped.push(this.makeSkipped(term, targetColumns, options));
                 continue;
             }
 
-            const movedPredicate = this.rebasePredicate(candidate.expression, targetColumns);
+            const movedPredicate = this.rebasePredicate(candidate.expression, targetColumns, options);
             target.query.appendWhere(movedPredicate);
             movedTerms.push(term);
 
@@ -282,8 +298,11 @@ export class StaticPredicatePlacementOptimizer {
 
         rebuildWhereWithoutTerms(query, new Set(movedTerms));
 
-        const sql = applied.length > 0 ? formatSqlComponent(query) : parsed.sql;
+        const sql = applied.length > 0 || hasSqlComponentFormatOverride(options)
+            ? formatSqlComponent(query, options)
+            : parsed.sql;
         return this.buildResult({
+            query,
             sql,
             applied,
             skipped,
@@ -301,14 +320,27 @@ export class StaticPredicatePlacementOptimizer {
         return this.plan(input, { ...options, dryRun: options.dryRun ?? false });
     }
 
-    private parseInput(input: StaticPredicatePlacementInput): ParsedStaticPredicateInput {
+    private parseInput(
+        input: StaticPredicatePlacementInput,
+        options: StaticPredicatePlacementOptions
+    ): ParsedStaticPredicateInput {
         const warnings: StaticPredicatePlacementWarning[] = [];
         const errors: StaticPredicatePlacementError[] = [];
 
         try {
             const sourceSql = typeof input === "string"
                 ? input
-                : formatSqlComponent(input);
+                : formatSqlComponent(input, options);
+
+            if (typeof input !== "string" && options.cloneInput === false) {
+                return {
+                    query: input,
+                    sql: sourceSql,
+                    formatterGeneratedSource: false,
+                    warnings,
+                    errors
+                };
+            }
 
             if (typeof input !== "string") {
                 warnings.push({
@@ -341,7 +373,11 @@ export class StaticPredicatePlacementOptimizer {
         }
     }
 
-    private analyzeCandidate(root: SimpleSelectQuery, expression: ValueComponent): StaticPredicateCandidate | SkipDraft | null {
+    private analyzeCandidate(
+        root: SimpleSelectQuery,
+        expression: ValueComponent,
+        options: SqlComponentFormatOptions
+    ): StaticPredicateCandidate | SkipDraft | null {
         if (this.collectParameterNames(expression).length > 0) {
             return null;
         }
@@ -361,7 +397,7 @@ export class StaticPredicatePlacementOptimizer {
 
         return {
             expression,
-            predicateSql: formatSqlComponent(expression),
+            predicateSql: formatSqlComponent(expression, options),
             references
         };
     }
@@ -822,9 +858,10 @@ export class StaticPredicatePlacementOptimizer {
 
     private rebasePredicate(
         expression: ValueComponent,
-        targetColumns: readonly TargetColumnResolution[]
+        targetColumns: readonly TargetColumnResolution[],
+        options: SqlComponentFormatOptions
     ): ValueComponent {
-        const cloned = cloneValueComponent(expression);
+        const cloned = cloneValueComponent(expression, options);
         const visitSelect = (query: SelectQuery, inheritedLocalAliases: ReadonlySet<string>): void => {
             if (!(query instanceof SimpleSelectQuery)) {
                 return;
@@ -1412,15 +1449,20 @@ export class StaticPredicatePlacementOptimizer {
         return names;
     }
 
-    private makeSkipped(expression: ValueComponent, draft: SkipDraft): StaticPredicateSkipped {
+    private makeSkipped(
+        expression: ValueComponent,
+        draft: SkipDraft,
+        options: SqlComponentFormatOptions
+    ): StaticPredicateSkipped {
         return {
-            predicateSql: formatSqlComponent(expression),
+            predicateSql: formatSqlComponent(expression, options),
             scopeId: "scope:root",
             ...draft
         };
     }
 
     private buildResult(params: {
+        query: SelectQuery | null;
         sql: string;
         applied: StaticPredicateMove[];
         skipped: StaticPredicateSkipped[];
@@ -1432,6 +1474,7 @@ export class StaticPredicatePlacementOptimizer {
         return {
             ok: params.errors.length === 0,
             sql: params.sql,
+            query: params.query,
             applied: params.applied,
             skipped: params.skipped,
             warnings: params.warnings,
