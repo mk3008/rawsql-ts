@@ -35,6 +35,7 @@
     "prepare": "husky",
     "pr:readiness:prepare": "node scripts/prepare-pr-readiness.js",
     "guard:branch-session": "node scripts/branch-session-guard.js",
+    "guard:api-output-shape-review": "node scripts/precommit-api-output-shape-review.js",
     "verify:publish-readiness": "node scripts/publish-plan.mjs",
     "verify:publish-contract": "node scripts/verify-publish-contract.mjs",
     "verify:runtime-prereqs": "node scripts/verify-runtime-prereqs.mjs",

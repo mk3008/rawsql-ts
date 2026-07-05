@@ -2,17 +2,15 @@ import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import { ValueComponent } from "../models/ValueComponent";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 import {
-    optimizeParameterConditionPlacement,
+    ParameterConditionPlacementOptimizer,
     ParameterConditionMove,
     ParameterConditionOptimizationError,
     ParameterConditionOptimizationOptions,
     ParameterConditionOptimizationWarning,
-    ParameterConditionSkipped,
-    planParameterConditionOptimization
+    ParameterConditionSkipped
 } from "./ParameterConditionPlacementOptimizer";
 import {
-    optimizeStaticPredicatePlacement,
-    planStaticPredicatePlacement,
+    StaticPredicatePlacementOptimizer,
     StaticPredicateMove,
     StaticPredicatePlacementError,
     StaticPredicatePlacementWarning,
@@ -25,7 +23,11 @@ import {
     SupportedOptionalConditionBranch
 } from "./PruneOptionalConditionBranches";
 import { SSSQLFilterBuilder } from "./SSSQLFilterBuilder";
-import { formatSqlComponent } from "./SqlComponentFormatter";
+import {
+    formatSqlComponent,
+    hasSqlComponentFormatOverride,
+    SqlComponentFormatOptions
+} from "./SqlComponentFormatter";
 
 export type ConditionOptimizationInput = string | SelectQuery | SimpleSelectQuery;
 export type ConditionOptimizationPhaseKind =
@@ -96,6 +98,7 @@ export interface ConditionOptimizationSafety {
 export interface ConditionOptimizationResult {
     ok: boolean;
     sql: string;
+    query: SelectQuery | null;
     phases: readonly ConditionOptimizationPhaseSummary[];
     applied: readonly ConditionOptimizationApplied[];
     skipped: readonly ConditionOptimizationSkipped[];
@@ -113,6 +116,7 @@ interface ParsedConditionOptimizationInput {
 }
 
 interface SssqlPhaseResult {
+    query: SelectQuery | null;
     sql: string;
     applied: SssqlOptionalConditionApplied[];
     skipped: SssqlOptionalConditionSkipped[];
@@ -132,12 +136,23 @@ const isAbsentOptionalValue = (
 ): boolean => parameters[parameterName] === null || parameters[parameterName] === undefined;
 
 const parseConditionOptimizationInput = (
-    input: ConditionOptimizationInput
+    input: ConditionOptimizationInput,
+    options: ConditionOptimizationOptions
 ): ParsedConditionOptimizationInput => {
     const warnings: ConditionOptimizationWarning[] = [];
     const errors: ConditionOptimizationError[] = [];
-    const sourceSql = typeof input === "string" ? input : formatSqlComponent(input);
+    const sourceSql = typeof input === "string" ? input : formatSqlComponent(input, options);
     const formatterGeneratedSource = typeof input !== "string";
+
+    if (typeof input !== "string" && options.cloneInput === false) {
+        return {
+            query: input,
+            sql: sourceSql,
+            formatterGeneratedSource: false,
+            warnings,
+            errors
+        };
+    }
 
     if (formatterGeneratedSource) {
         warnings.push({
@@ -174,12 +189,13 @@ const parseConditionOptimizationInput = (
 };
 
 const buildSssqlApplied = (
-    branch: SupportedOptionalConditionBranch
+    branch: SupportedOptionalConditionBranch,
+    options: SqlComponentFormatOptions
 ): SssqlOptionalConditionApplied => {
     return {
         phaseKind: "sssql_optional_condition",
         kind: "prune_optional_branch",
-        conditionSql: formatSqlComponent(branch.expression),
+        conditionSql: formatSqlComponent(branch.expression, options),
         parameterName: branch.parameterName,
         reason: "The optional branch parameter is explicitly absent, so the safe-only SSSQL phase pruned the branch."
     };
@@ -187,12 +203,13 @@ const buildSssqlApplied = (
 
 const buildSssqlRefreshApplied = (
     branch: SupportedOptionalConditionBranch,
-    previousConditionSql: string
+    previousConditionSql: string,
+    options: SqlComponentFormatOptions
 ): SssqlOptionalConditionApplied => {
     return {
         phaseKind: "sssql_optional_condition",
         kind: "refresh_optional_branch",
-        conditionSql: formatSqlComponent(branch.expression),
+        conditionSql: formatSqlComponent(branch.expression, options),
         previousConditionSql,
         parameterName: branch.parameterName,
         reason: "The safe-only SSSQL phase refreshed the optional branch placement before ordinary parameter placement."
@@ -201,13 +218,14 @@ const buildSssqlRefreshApplied = (
 
 const buildSssqlSkipped = (
     branch: SupportedOptionalConditionBranch,
-    parameters: OptionalConditionPruningParameters
+    parameters: OptionalConditionPruningParameters,
+    options: SqlComponentFormatOptions
 ): SssqlOptionalConditionSkipped => {
     const parameterProvided = hasOwnParameter(parameters, branch.parameterName);
     return {
         phaseKind: "sssql_optional_condition",
         kind: "optional_branch_skipped",
-        conditionSql: formatSqlComponent(branch.expression),
+        conditionSql: formatSqlComponent(branch.expression, options),
         parameterName: branch.parameterName,
         code: parameterProvided
             ? "SSSQL_OPTIONAL_PARAMETER_PRESENT"
@@ -221,12 +239,13 @@ const buildSssqlSkipped = (
 const buildSssqlRefreshSkipped = (
     branch: SupportedOptionalConditionBranch,
     code: string,
-    reason: string
+    reason: string,
+    options: SqlComponentFormatOptions
 ): SssqlOptionalConditionSkipped => {
     return {
         phaseKind: "sssql_optional_condition",
         kind: "optional_branch_skipped",
-        conditionSql: formatSqlComponent(branch.expression),
+        conditionSql: formatSqlComponent(branch.expression, options),
         parameterName: branch.parameterName,
         code,
         reason
@@ -247,62 +266,55 @@ const buildSssqlRefreshFilters = (
 };
 
 const refreshRemainingSssqlBranches = (
-    sql: string,
-    parameters: OptionalConditionPruningParameters
+    query: SelectQuery,
+    fallbackSql: string,
+    parameters: OptionalConditionPruningParameters,
+    options: SqlComponentFormatOptions
 ): SssqlPhaseResult => {
-    const parsed = parseConditionOptimizationInput(sql);
     const applied: SssqlOptionalConditionApplied[] = [];
     const skipped: SssqlOptionalConditionSkipped[] = [];
 
-    if (!parsed.query) {
-        return {
-            sql: parsed.sql,
-            applied,
-            skipped,
-            warnings: parsed.warnings,
-            errors: parsed.errors,
-            formatterGeneratedSource: parsed.formatterGeneratedSource
-        };
-    }
-
-    const beforeBranches = collectSupportedOptionalConditionBranches(parsed.query);
+    const beforeBranches = collectSupportedOptionalConditionBranches(query);
     if (beforeBranches.length === 0) {
         return {
-            sql: parsed.sql,
+            query,
+            sql: fallbackSql,
             applied,
             skipped,
-            warnings: parsed.warnings,
-            errors: parsed.errors,
-            formatterGeneratedSource: parsed.formatterGeneratedSource
+            warnings: [],
+            errors: [],
+            formatterGeneratedSource: false
         };
     }
 
     const beforeBranchSql = new WeakMap<ValueComponent, string>();
     const beforeBranchQuery = new WeakMap<ValueComponent, SimpleSelectQuery>();
     for (const branch of beforeBranches) {
-        beforeBranchSql.set(branch.expression, formatSqlComponent(branch.expression));
+        beforeBranchSql.set(branch.expression, formatSqlComponent(branch.expression, options));
         beforeBranchQuery.set(branch.expression, branch.query);
     }
 
     try {
-        new SSSQLFilterBuilder().refresh(parsed.query, buildSssqlRefreshFilters(beforeBranches, parameters));
+        new SSSQLFilterBuilder().refresh(query, buildSssqlRefreshFilters(beforeBranches, parameters));
     } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
         return {
-            sql,
+            query,
+            sql: fallbackSql,
             applied,
             skipped: beforeBranches.map(branch => buildSssqlRefreshSkipped(
                 branch,
                 "SSSQL_OPTIONAL_REFRESH_UNSUPPORTED",
-                `SSSQL optional branch refresh was skipped because safe refresh could not be proven: ${detail}`
+                `SSSQL optional branch refresh was skipped because safe refresh could not be proven: ${detail}`,
+                options
             )),
-            warnings: parsed.warnings,
-            errors: parsed.errors,
-            formatterGeneratedSource: parsed.formatterGeneratedSource
+            warnings: [],
+            errors: [],
+            formatterGeneratedSource: false
         };
     }
 
-    const afterBranches = collectSupportedOptionalConditionBranches(parsed.query);
+    const afterBranches = collectSupportedOptionalConditionBranches(query);
     for (const branch of afterBranches) {
         const previousSql = beforeBranchSql.get(branch.expression);
         const previousQuery = beforeBranchQuery.get(branch.expression);
@@ -310,31 +322,63 @@ const refreshRemainingSssqlBranches = (
             skipped.push(buildSssqlRefreshSkipped(
                 branch,
                 "SSSQL_OPTIONAL_REFRESH_UNSUPPORTED",
-                "SSSQL optional branch refresh left an untracked branch unchanged."
+                "SSSQL optional branch refresh left an untracked branch unchanged.",
+                options
             ));
             continue;
         }
 
-        const refreshedSql = formatSqlComponent(branch.expression);
+        const refreshedSql = formatSqlComponent(branch.expression, options);
         if (previousQuery !== branch.query || previousSql !== refreshedSql) {
-            applied.push(buildSssqlRefreshApplied(branch, previousSql));
+            applied.push(buildSssqlRefreshApplied(branch, previousSql, options));
             continue;
         }
 
         skipped.push(buildSssqlRefreshSkipped(
             branch,
             "SSSQL_OPTIONAL_REFRESH_NOOP",
-            "SSSQL optional branch refresh found no safe placement change to apply."
+            "SSSQL optional branch refresh found no safe placement change to apply.",
+            options
         ));
     }
 
     return {
-        sql: applied.length > 0 ? formatSqlComponent(parsed.query) : sql,
+        query,
+        sql: applied.length > 0 || hasSqlComponentFormatOverride(options)
+            ? formatSqlComponent(query, options)
+            : fallbackSql,
         applied,
         skipped,
-        warnings: parsed.warnings,
-        errors: parsed.errors,
-        formatterGeneratedSource: parsed.formatterGeneratedSource
+        warnings: [],
+        errors: [],
+        formatterGeneratedSource: false
+    };
+};
+
+const refreshRemainingSssqlBranchesFromSql = (
+    sql: string,
+    parameters: OptionalConditionPruningParameters,
+    options: ConditionOptimizationOptions
+): SssqlPhaseResult => {
+    const parsed = parseConditionOptimizationInput(sql, options);
+    if (!parsed.query) {
+        return {
+            query: null,
+            sql: parsed.sql,
+            applied: [],
+            skipped: [],
+            warnings: parsed.warnings,
+            errors: parsed.errors,
+            formatterGeneratedSource: parsed.formatterGeneratedSource
+        };
+    }
+
+    const refreshed = refreshRemainingSssqlBranches(parsed.query, sql, parameters, options);
+    return {
+        ...refreshed,
+        warnings: [...parsed.warnings, ...refreshed.warnings],
+        errors: [...parsed.errors, ...refreshed.errors],
+        formatterGeneratedSource: parsed.formatterGeneratedSource || refreshed.formatterGeneratedSource
     };
 };
 
@@ -342,7 +386,8 @@ const runSssqlOptionalConditionPhase = (
     input: ConditionOptimizationInput,
     options: ConditionOptimizationOptions
 ): SssqlPhaseResult => {
-    const parsed = parseConditionOptimizationInput(input);
+    const reuseOwnedModel = options.cloneInput === false && typeof input !== "string";
+    const parsed = parseConditionOptimizationInput(input, options);
     const warnings = [...parsed.warnings];
     let errors = [...parsed.errors];
     const applied: SssqlOptionalConditionApplied[] = [];
@@ -351,6 +396,7 @@ const runSssqlOptionalConditionPhase = (
 
     if (!parsed.query) {
         return {
+            query: null,
             sql: parsed.sql,
             applied,
             skipped,
@@ -361,6 +407,8 @@ const runSssqlOptionalConditionPhase = (
     }
 
     let currentSql = parsed.sql;
+    let currentQuery: SelectQuery | null = parsed.query;
+    let formatterGeneratedSource = parsed.formatterGeneratedSource;
     const branches = collectSupportedOptionalConditionBranches(parsed.query);
     const pruneBranches = branches.filter(branch =>
         hasOwnParameter(optionalConditionParameters, branch.parameterName)
@@ -370,8 +418,8 @@ const runSssqlOptionalConditionPhase = (
     if (pruneBranches.length > 0) {
         try {
             pruneOptionalConditionBranches(parsed.query, optionalConditionParameters);
-            currentSql = formatSqlComponent(parsed.query);
-            applied.push(...pruneBranches.map(buildSssqlApplied));
+            currentSql = formatSqlComponent(parsed.query, options);
+            applied.push(...pruneBranches.map(branch => buildSssqlApplied(branch, options)));
         } catch (error) {
             errors = [...errors, {
                 phaseKind: "sssql_optional_condition",
@@ -383,28 +431,33 @@ const runSssqlOptionalConditionPhase = (
     }
 
     if (errors.length === 0) {
-        const refreshPhase = refreshRemainingSssqlBranches(currentSql, optionalConditionParameters);
+        const refreshPhase = reuseOwnedModel
+            ? refreshRemainingSssqlBranches(parsed.query, currentSql, optionalConditionParameters, options)
+            : refreshRemainingSssqlBranchesFromSql(currentSql, optionalConditionParameters, options);
         applied.push(...refreshPhase.applied);
         skipped.push(...refreshPhase.skipped);
         warnings.push(...refreshPhase.warnings);
         errors.push(...refreshPhase.errors);
         currentSql = refreshPhase.sql;
+        currentQuery = refreshPhase.query;
+        formatterGeneratedSource = formatterGeneratedSource || refreshPhase.formatterGeneratedSource;
     } else {
         for (const branch of branches) {
             if (pruneBranches.includes(branch)) {
                 continue;
             }
-            skipped.push(buildSssqlSkipped(branch, optionalConditionParameters));
+            skipped.push(buildSssqlSkipped(branch, optionalConditionParameters, options));
         }
     }
 
     return {
+        query: errors.length === 0 ? currentQuery : null,
         sql: errors.length === 0 ? currentSql : parsed.sql,
         applied,
         skipped,
         warnings,
         errors,
-        formatterGeneratedSource: parsed.formatterGeneratedSource
+        formatterGeneratedSource
     };
 };
 
@@ -486,20 +539,39 @@ const runConditionOptimization = (
     defaultDryRun: boolean
 ): ConditionOptimizationResult => {
     const dryRun = options.dryRun ?? defaultDryRun;
+    const reuseOwnedModel = options.cloneInput === false && typeof input !== "string";
 
     // Run semantic SSSQL handling before generic placement phases so optional
     // branches remain owned by SSSQL even if later phases grow broader support.
     const sssqlPhase = runSssqlOptionalConditionPhase(input, { ...options, dryRun });
+    const parameterOptimizer = new ParameterConditionPlacementOptimizer();
+    const parameterInput = reuseOwnedModel
+        ? sssqlPhase.query ?? sssqlPhase.sql
+        : sssqlPhase.sql;
+    const parameterOptions = {
+        ...options,
+        dryRun,
+        cloneInput: reuseOwnedModel && sssqlPhase.query ? false : options.cloneInput
+    };
     const parameterPhase = dryRun
-        ? planParameterConditionOptimization(sssqlPhase.sql, { dryRun })
-        : optimizeParameterConditionPlacement(sssqlPhase.sql, { dryRun });
+        ? parameterOptimizer.plan(parameterInput, parameterOptions)
+        : parameterOptimizer.optimize(parameterInput, parameterOptions);
     const parameterWarnings = mapParameterWarnings(parameterPhase.warnings);
     const parameterErrors = mapParameterErrors(parameterPhase.errors);
     const parameterApplied = mapParameterApplied(parameterPhase.applied);
     const parameterSkipped = mapParameterSkipped(parameterPhase.skipped);
+    const staticOptimizer = new StaticPredicatePlacementOptimizer();
+    const staticInput = reuseOwnedModel
+        ? parameterPhase.query ?? parameterPhase.sql
+        : parameterPhase.sql;
+    const staticOptions = {
+        ...options,
+        dryRun,
+        cloneInput: reuseOwnedModel && parameterPhase.query ? false : options.cloneInput
+    };
     const staticPhase = dryRun
-        ? planStaticPredicatePlacement(parameterPhase.sql, { dryRun })
-        : optimizeStaticPredicatePlacement(parameterPhase.sql, { dryRun });
+        ? staticOptimizer.plan(staticInput, staticOptions)
+        : staticOptimizer.optimize(staticInput, staticOptions);
     const staticWarnings = mapStaticWarnings(staticPhase.warnings);
     const staticErrors = mapStaticErrors(staticPhase.errors);
     const staticApplied = mapStaticApplied(staticPhase.applied);
@@ -510,6 +582,7 @@ const runConditionOptimization = (
     return {
         ok: errors.length === 0,
         sql: staticPhase.sql,
+        query: staticPhase.query,
         phases: [
             makePhaseSummary("sssql_optional_condition", {
                 appliedCount: sssqlPhase.applied.length,

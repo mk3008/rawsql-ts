@@ -13,6 +13,9 @@ fi
 echo "[pre-commit] Enforcing staged-file policy..."
 node scripts/precommit-enforcement.js
 
+echo "[pre-commit] Checking API output shape review guard..."
+pnpm guard:api-output-shape-review
+
 # Do not let tests that create temporary Git repositories inherit the hook index.
 unset GIT_INDEX_FILE
 
