@@ -1,5 +1,6 @@
 import {
     CommonTable,
+    DistinctOn,
     FromClause,
     JoinClause,
     SourceExpression,
@@ -43,8 +44,8 @@ export type ParameterConditionOptimizationInput = string | SelectQuery | SimpleS
  *
  * The optimizer intentionally handles only root top-level AND predicates and one
  * CTE/derived-table hop where the destination output is a direct column reference.
- * Unsupported boundaries such as OR, UNION, DISTINCT, GROUP BY, WINDOW, OUTER
- * JOIN, expression outputs, and function predicates are reported as skipped.
+ * Unsupported boundaries such as OR, DISTINCT ON, WINDOW, OUTER JOIN,
+ * expression outputs, and function predicates are reported as skipped.
  */
 export interface ParameterConditionOptimizationOptions extends SqlComponentFormatOptions {
     dryRun?: boolean;
@@ -619,10 +620,10 @@ export class ParameterConditionPlacementOptimizer {
     }
 
     private findRootQueryBoundary(query: SimpleSelectQuery): SkipDraft | null {
-        if (query.selectClause.distinct) {
+        if (this.hasDistinctOnBoundary(query)) {
             return {
                 code: "DISTINCT_BOUNDARY",
-                reason: "Condition crosses DISTINCT boundary; moving it may change semantics."
+                reason: "Condition crosses DISTINCT ON boundary; moving it may change semantics."
             };
         }
         if (this.hasWindowUsage(query)) {
@@ -635,10 +636,11 @@ export class ParameterConditionPlacementOptimizer {
     }
 
     private resolveTargetPlacement(query: SimpleSelectQuery, targetColumn: ColumnReference): TargetPlacement | SkipDraft {
-        if (query.selectClause.distinct) {
+        const hasOrdinaryDistinct = this.hasOrdinaryDistinct(query);
+        if (this.hasDistinctOnBoundary(query)) {
             return {
                 code: "DISTINCT_BOUNDARY",
-                reason: "Condition crosses DISTINCT boundary; moving it may change semantics."
+                reason: "Condition crosses DISTINCT ON boundary; moving it may change semantics."
             };
         }
         if (this.hasWindowUsage(query)) {
@@ -674,6 +676,11 @@ export class ParameterConditionPlacementOptimizer {
             return {
                 code: "GROUP_BY_BOUNDARY",
                 reason: "Condition crosses HAVING aggregation boundary; moving it may change semantics."
+            };
+        }
+        if (hasOrdinaryDistinct) {
+            return {
+                reason: "Condition references a direct ordinary DISTINCT output column; it is moved into the DISTINCT input WHERE."
             };
         }
         return {
@@ -1106,6 +1113,14 @@ export class ParameterConditionPlacementOptimizer {
             const joinType = join.joinType.value.toLowerCase();
             return joinType.includes("left") || joinType.includes("right") || joinType.includes("full") || joinType.includes("outer");
         });
+    }
+
+    private hasDistinctOnBoundary(query: SimpleSelectQuery): boolean {
+        return query.selectClause.distinct instanceof DistinctOn;
+    }
+
+    private hasOrdinaryDistinct(query: SimpleSelectQuery): boolean {
+        return query.selectClause.distinct !== null && !this.hasDistinctOnBoundary(query);
     }
 
     private getOutputColumnMatchCount(root: SimpleSelectQuery, binding: SourceBinding, columnName: string): number {
