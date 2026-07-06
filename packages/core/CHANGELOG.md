@@ -1,5 +1,15 @@
 # rawsql-ts
 
+## 0.28.0
+
+### Minor Changes
+
+- [#943](https://github.com/mk3008/rawsql-ts/pull/943) [`dce9bfc`](https://github.com/mk3008/rawsql-ts/commit/dce9bfc4ca88a605aab886ba9697b93f1d9431f0) Thanks [@mk3008](https://github.com/mk3008)! - Add `skipDisposition` metadata to condition optimization skipped items so callers can distinguish blocked, unchanged, and ignored skips without parsing reason strings.
+
+  SSSQL optional branch refresh now avoids treating duplicate parameters across UNION branches as a global refresh failure, keeping duplicate local branches unchanged while allowing unrelated branches to be classified independently.
+
+  API output shape review: kept `result.sql` and the existing `applied`/`skipped`/`warnings`/`errors` result shape for compatibility, and added structured skipped-item metadata for downstream processing.
+
 ## 0.27.0
 
 ### Minor Changes

@@ -186,16 +186,16 @@ importers:
         specifier: ^0.0.1
         version: link:../../_shared/binder
       '@rawsql-ts/testkit-core':
-        specifier: ^0.17.6
+        specifier: ^0.17.7
         version: link:../../testkit-core
       '@rawsql-ts/testkit-postgres':
-        specifier: ^0.16.6
+        specifier: ^0.16.7
         version: link:../../testkit-postgres
       pg:
         specifier: ^8.13.1
         version: 8.16.3
       rawsql-ts:
-        specifier: ^0.27.0
+        specifier: ^0.28.0
         version: link:../../core
     devDependencies:
       '@prisma/adapter-pg':
@@ -334,7 +334,7 @@ importers:
   packages/sql-grep-core:
     dependencies:
       rawsql-ts:
-        specifier: ^0.27.0
+        specifier: ^0.28.0
         version: link:../core
     devDependencies:
       typescript:
@@ -369,7 +369,7 @@ importers:
   packages/testkit-core:
     dependencies:
       rawsql-ts:
-        specifier: ^0.27.0
+        specifier: ^0.28.0
         version: link:../core
     devDependencies:
       typescript:
@@ -382,10 +382,10 @@ importers:
   packages/testkit-postgres:
     dependencies:
       '@rawsql-ts/testkit-core':
-        specifier: ^0.17.6
+        specifier: ^0.17.7
         version: link:../testkit-core
       rawsql-ts:
-        specifier: ^0.27.0
+        specifier: ^0.28.0
         version: link:../core
     devDependencies:
       typescript:
@@ -398,10 +398,10 @@ importers:
   packages/testkit-sqlite:
     dependencies:
       '@rawsql-ts/testkit-core':
-        specifier: ^0.17.6
+        specifier: ^0.17.7
         version: link:../testkit-core
       rawsql-ts:
-        specifier: ^0.27.0
+        specifier: ^0.28.0
         version: link:../core
     devDependencies:
       '@types/better-sqlite3':
