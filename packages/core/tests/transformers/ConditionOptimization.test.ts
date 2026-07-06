@@ -425,7 +425,8 @@ describe('ConditionOptimization', () => {
         expect(result.skipped).toEqual(expect.arrayContaining([
             expect.objectContaining({
                 phaseKind: 'static_predicate_placement',
-                code: 'OUTER_JOIN_NULLABLE_SIDE'
+                code: 'OUTER_JOIN_NULLABLE_SIDE',
+                skipDisposition: 'blocked'
             })
         ]));
         expect(normalizeSql(result.sql)).toBe(normalizeSql(`
@@ -443,6 +444,151 @@ describe('ConditionOptimization', () => {
             left join payment_scope ps on ps.customer_id = cs.id
             where ps.is_successful = true
         `));
+    });
+
+    it('classifies SSSQL refresh no-op as unchanged', () => {
+        const sql = `
+            select *
+            from orders o
+            where (:customer_id is null or o.customer_id = :customer_id)
+        `;
+
+        const result = optimizeConditions(sql, {
+            optionalConditionParameters: { customer_id: 'C001' }
+        });
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'sssql_optional_condition',
+                code: 'SSSQL_OPTIONAL_REFRESH_NOOP',
+                parameterName: 'customer_id',
+                skipDisposition: 'unchanged'
+            })
+        ]));
+    });
+
+    it('classifies SSSQL optional branches without parameter input as ignored when unchanged', () => {
+        const sql = `
+            select *
+            from orders o
+            where (:customer_id is null or o.customer_id = :customer_id)
+        `;
+
+        const result = planConditionOptimization(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'sssql_optional_condition',
+                parameterName: 'customer_id',
+                skipDisposition: 'ignored'
+            })
+        ]));
+    });
+
+    it('keeps duplicate SSSQL parameter branches in UNION scopes unchanged without global refresh failure', () => {
+        const sql = `
+            select
+                o.customer_id,
+                o.order_date
+            from orders o
+            where (:customer_id is null or o.customer_id = :customer_id)
+
+            union all
+
+            select
+                r.customer_id,
+                r.refund_date as order_date
+            from refunds r
+            where (:customer_id is null or r.customer_id = :customer_id)
+        `;
+
+        const result = optimizeConditions(sql, {
+            optionalConditionParameters: { customer_id: 'C001' }
+        });
+
+        expect(result.ok).toBe(true);
+        expect(result.errors).toEqual([]);
+        expect(result.skipped.filter(item =>
+            item.phaseKind === 'sssql_optional_condition'
+            && item.parameterName === 'customer_id'
+        )).toHaveLength(2);
+        expect(result.skipped).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'sssql_optional_condition',
+                code: 'SSSQL_OPTIONAL_REFRESH_DUPLICATE_PARAMETER_UNCHANGED',
+                parameterName: 'customer_id',
+                skipDisposition: 'unchanged',
+                reason: expect.stringContaining('duplicate parameter')
+            })
+        ]));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('does not propagate duplicate UNION SSSQL parameter disposition to unrelated branches', () => {
+        const sql = `
+            with union_source as (
+                select
+                    o.customer_id,
+                    o.order_date
+                from orders o
+                where (:customer_id is null or o.customer_id = :customer_id)
+
+                union all
+
+                select
+                    r.customer_id,
+                    r.refund_date as order_date
+                from refunds r
+                where (:customer_id is null or r.customer_id = :customer_id)
+            ),
+            customer_scope as (
+                select c.id, c.name
+                from customers c
+            )
+            select *
+            from union_source u
+            join customer_scope c
+              on c.id = u.customer_id
+            where (:customer_name is null or c.name ilike '%' || :customer_name || '%')
+        `;
+
+        const result = optimizeConditions(sql, {
+            optionalConditionParameters: {
+                customer_id: 'C001',
+                customer_name: 'alice'
+            }
+        });
+
+        const customerIdSkips = result.skipped.filter(item =>
+            item.phaseKind === 'sssql_optional_condition'
+            && item.parameterName === 'customer_id'
+        );
+        const customerNameItems = [
+            ...result.applied.filter(item =>
+                item.phaseKind === 'sssql_optional_condition'
+                && item.parameterName === 'customer_name'
+            ),
+            ...result.skipped.filter(item =>
+                item.phaseKind === 'sssql_optional_condition'
+                && item.parameterName === 'customer_name'
+            )
+        ];
+
+        expect(result.ok).toBe(true);
+        expect(result.errors).toEqual([]);
+        expect(customerIdSkips).toHaveLength(2);
+        expect(customerIdSkips.every(item => item.skipDisposition === 'unchanged')).toBe(true);
+        expect(customerNameItems.length).toBeGreaterThan(0);
+        expect(customerNameItems).not.toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                parameterName: 'customer_name',
+                reason: expect.stringContaining('customer_id')
+            })
+        ]));
     });
 
     it('preserves existing SQL comments across the integrated optimization phases', () => {

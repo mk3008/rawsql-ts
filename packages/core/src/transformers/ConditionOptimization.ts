@@ -52,6 +52,11 @@ export interface ConditionOptimizationPhaseSummary {
     errorCount: number;
 }
 
+export type ConditionOptimizationSkipDisposition =
+    | "blocked"
+    | "unchanged"
+    | "ignored";
+
 export interface SssqlOptionalConditionApplied {
     phaseKind: "sssql_optional_condition";
     kind: "prune_optional_branch" | "refresh_optional_branch";
@@ -68,6 +73,7 @@ export interface SssqlOptionalConditionSkipped {
     parameterName: string;
     code: string;
     reason: string;
+    skipDisposition: ConditionOptimizationSkipDisposition;
 }
 
 export type ConditionOptimizationApplied =
@@ -77,8 +83,14 @@ export type ConditionOptimizationApplied =
 
 export type ConditionOptimizationSkipped =
     | SssqlOptionalConditionSkipped
-    | (ParameterConditionSkipped & { phaseKind: "parameter_condition_placement" })
-    | (StaticPredicateSkipped & { phaseKind: "static_predicate_placement" });
+    | (ParameterConditionSkipped & {
+        phaseKind: "parameter_condition_placement";
+        skipDisposition: ConditionOptimizationSkipDisposition;
+    })
+    | (StaticPredicateSkipped & {
+        phaseKind: "static_predicate_placement";
+        skipDisposition: ConditionOptimizationSkipDisposition;
+    });
 
 export type ConditionOptimizationWarning =
     | (ParameterConditionOptimizationWarning & { phaseKind: ConditionOptimizationPhaseKind })
@@ -232,7 +244,8 @@ const buildSssqlSkipped = (
             : "SSSQL_OPTIONAL_PARAMETER_NOT_PROVIDED",
         reason: parameterProvided
             ? "The optional branch parameter is present, so the branch remains active."
-            : "No optional branch parameter value was provided, so the branch remains unchanged."
+            : "No optional branch parameter value was provided, so the branch remains unchanged.",
+        skipDisposition: parameterProvided ? "unchanged" : "ignored"
     };
 };
 
@@ -240,6 +253,7 @@ const buildSssqlRefreshSkipped = (
     branch: SupportedOptionalConditionBranch,
     code: string,
     reason: string,
+    skipDisposition: ConditionOptimizationSkipDisposition,
     options: SqlComponentFormatOptions
 ): SssqlOptionalConditionSkipped => {
     return {
@@ -248,7 +262,8 @@ const buildSssqlRefreshSkipped = (
         conditionSql: formatSqlComponent(branch.expression, options),
         parameterName: branch.parameterName,
         code,
-        reason
+        reason,
+        skipDisposition
     };
 };
 
@@ -289,33 +304,52 @@ const refreshRemainingSssqlBranches = (
 
     const beforeBranchSql = new WeakMap<ValueComponent, string>();
     const beforeBranchQuery = new WeakMap<ValueComponent, SimpleSelectQuery>();
+    const parameterCounts = new Map<string, number>();
     for (const branch of beforeBranches) {
         beforeBranchSql.set(branch.expression, formatSqlComponent(branch.expression, options));
         beforeBranchQuery.set(branch.expression, branch.query);
+        parameterCounts.set(branch.parameterName, (parameterCounts.get(branch.parameterName) ?? 0) + 1);
     }
 
-    try {
-        new SSSQLFilterBuilder().refresh(query, buildSssqlRefreshFilters(beforeBranches, parameters));
-    } catch (error) {
-        const detail = error instanceof Error ? error.message : String(error);
-        return {
-            query,
-            sql: fallbackSql,
-            applied,
-            skipped: beforeBranches.map(branch => buildSssqlRefreshSkipped(
+    const alreadyReportedExpressions = new WeakSet<ValueComponent>();
+    const refreshableBranches: SupportedOptionalConditionBranch[] = [];
+    for (const branch of beforeBranches) {
+        if ((parameterCounts.get(branch.parameterName) ?? 0) > 1) {
+            skipped.push(buildSssqlRefreshSkipped(
+                branch,
+                "SSSQL_OPTIONAL_REFRESH_DUPLICATE_PARAMETER_UNCHANGED",
+                "SSSQL optional branch refresh left this duplicate parameter branch unchanged so each query scope can keep its existing local predicate.",
+                "unchanged",
+                options
+            ));
+            alreadyReportedExpressions.add(branch.expression);
+            continue;
+        }
+        refreshableBranches.push(branch);
+    }
+
+    for (const branch of refreshableBranches) {
+        try {
+            new SSSQLFilterBuilder().refresh(query, buildSssqlRefreshFilters([branch], parameters));
+        } catch (error) {
+            const detail = error instanceof Error ? error.message : String(error);
+            skipped.push(buildSssqlRefreshSkipped(
                 branch,
                 "SSSQL_OPTIONAL_REFRESH_UNSUPPORTED",
                 `SSSQL optional branch refresh was skipped because safe refresh could not be proven: ${detail}`,
+                "blocked",
                 options
-            )),
-            warnings: [],
-            errors: [],
-            formatterGeneratedSource: false
-        };
+            ));
+            alreadyReportedExpressions.add(branch.expression);
+        }
     }
 
     const afterBranches = collectSupportedOptionalConditionBranches(query);
     for (const branch of afterBranches) {
+        if (alreadyReportedExpressions.has(branch.expression)) {
+            continue;
+        }
+
         const previousSql = beforeBranchSql.get(branch.expression);
         const previousQuery = beforeBranchQuery.get(branch.expression);
         if (!previousSql || !previousQuery) {
@@ -323,6 +357,7 @@ const refreshRemainingSssqlBranches = (
                 branch,
                 "SSSQL_OPTIONAL_REFRESH_UNSUPPORTED",
                 "SSSQL optional branch refresh left an untracked branch unchanged.",
+                "blocked",
                 options
             ));
             continue;
@@ -334,10 +369,16 @@ const refreshRemainingSssqlBranches = (
             continue;
         }
 
+        const parameterProvided = hasOwnParameter(parameters, branch.parameterName);
         skipped.push(buildSssqlRefreshSkipped(
             branch,
-            "SSSQL_OPTIONAL_REFRESH_NOOP",
-            "SSSQL optional branch refresh found no safe placement change to apply.",
+            parameterProvided
+                ? "SSSQL_OPTIONAL_REFRESH_NOOP"
+                : "SSSQL_OPTIONAL_PARAMETER_NOT_PROVIDED",
+            parameterProvided
+                ? "SSSQL optional branch refresh found no safe placement change to apply."
+                : "No optional branch parameter value was provided, so the branch was not a refresh target.",
+            parameterProvided ? "unchanged" : "ignored",
             options
         ));
     }
@@ -486,6 +527,7 @@ const mapParameterSkipped = (
     skipped: readonly ParameterConditionSkipped[]
 ): ConditionOptimizationSkipped[] => skipped.map(item => ({
     phaseKind: "parameter_condition_placement",
+    skipDisposition: "blocked",
     ...item
 }));
 
@@ -514,6 +556,7 @@ const mapStaticSkipped = (
     skipped: readonly StaticPredicateSkipped[]
 ): ConditionOptimizationSkipped[] => skipped.map(item => ({
     phaseKind: "static_predicate_placement",
+    skipDisposition: "blocked",
     ...item
 }));
 
