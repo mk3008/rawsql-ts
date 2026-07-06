@@ -517,13 +517,6 @@ export class StaticPredicatePlacementOptimizer {
 
             const candidate = unwrapParens(value);
             if (candidate instanceof BinaryExpression) {
-                if (candidate.operator.value.trim().toLowerCase() === "or") {
-                    found = {
-                        code: "OR_PREDICATE_UNSUPPORTED",
-                        reason: "Predicate contains OR predicates, which are not moved in the first safe-only implementation."
-                    };
-                    return;
-                }
                 visit(candidate.left);
                 visit(candidate.right);
                 return;
@@ -561,14 +554,6 @@ export class StaticPredicatePlacementOptimizer {
                 found = {
                     code: "SUBQUERY_PREDICATE_UNSUPPORTED",
                     reason: "Array subquery predicates are not moved in the first safe-only implementation."
-                };
-                return;
-            }
-
-            if (candidate instanceof BetweenExpression) {
-                found = {
-                    code: "BETWEEN_PREDICATE_UNSUPPORTED",
-                    reason: "BETWEEN predicates are not moved in the first safe-only implementation."
                 };
                 return;
             }

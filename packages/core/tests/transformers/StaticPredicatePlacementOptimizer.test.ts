@@ -89,6 +89,106 @@ describe('StaticPredicatePlacementOptimizer', () => {
         `));
     });
 
+    it('moves static BETWEEN predicates with literals into the safe upstream CTE', () => {
+        const sql = `
+            with orders_base as (
+                select o.order_id, o.order_date
+                from orders o
+            )
+            select ob.order_id
+            from orders_base ob
+            where ob.order_date between date '2024-01-01' and date '2024-02-01'
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                predicateSql: `"ob"."order_date" between date '2024-01-01' and date '2024-02-01'`,
+                columnReferences: ['ob.order_date']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with orders_base as (
+                select o.order_id, o.order_date
+                from orders o
+                where o.order_date between date '2024-01-01' and date '2024-02-01'
+            )
+            select ob.order_id
+            from orders_base ob
+        `));
+    });
+
+    it('moves a whole static BETWEEN predicate when all column references resolve to the same direct upstream output group', () => {
+        const sql = `
+            with x as (
+                select t.a, t.b, t.c
+                from t
+            )
+            select *
+            from x
+            where a between b and c
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                predicateSql: '"a" between "b" and "c"',
+                columnReferences: ['a', 'b', 'c']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with x as (
+                select t.a, t.b, t.c
+                from t
+                where t.a between t.b and t.c
+            )
+            select *
+            from x
+        `));
+    });
+
+    it('splits only top-level AND terms inside nested parentheses while keeping static OR predicates whole', () => {
+        const sql = `
+            with customer_scope as (
+                select c.id, c.is_active, c.deleted_at, c.region
+                from customers c
+            )
+            select cs.id
+            from customer_scope cs
+            where (((cs.is_active = true or cs.deleted_at is null) and cs.region = 'west'))
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                predicateSql: '("cs"."is_active" = true or "cs"."deleted_at" is null)',
+                columnReferences: ['cs.is_active', 'cs.deleted_at']
+            }),
+            expect.objectContaining({
+                predicateSql: `"cs"."region" = 'west'`,
+                columnReferences: ['cs.region']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with customer_scope as (
+                select c.id, c.is_active, c.deleted_at, c.region
+                from customers c
+                where (c.is_active = true or c.deleted_at is null)
+                  and c.region = 'west'
+            )
+            select cs.id
+            from customer_scope cs
+        `));
+    });
+
     it('is a no-op when the static predicate is already in the upstream CTE', () => {
         const sql = `
             with customer_scope as (
@@ -566,7 +666,7 @@ describe('StaticPredicatePlacementOptimizer', () => {
         `));
     });
 
-    it('skips OR predicates that would require boolean distribution', () => {
+    it('moves a whole static OR predicate when every reference targets the same upstream CTE', () => {
         const sql = `
             with customer_scope as (
                 select c.id, c.is_active, c.deleted_at
@@ -579,12 +679,234 @@ describe('StaticPredicatePlacementOptimizer', () => {
 
         const result = optimizeStaticPredicatePlacement(sql);
 
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                predicateSql: '"cs"."is_active" = true or "cs"."deleted_at" is null',
+                columnReferences: ['cs.is_active', 'cs.deleted_at']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with customer_scope as (
+                select c.id, c.is_active, c.deleted_at
+                from customers c
+                where c.is_active = true or c.deleted_at is null
+            )
+            select cs.id
+            from customer_scope cs
+        `));
+    });
+
+    it('distributes whole static OR predicates into UNION branches by output position', () => {
+        const sql = `
+            with customer_statuses as (
+                select c.id as customer_id, c.status as status_label, c.channel as channel_label
+                from customers c
+                union all
+                select a.legacy_customer_id as ignored_customer_id, a.lifecycle_status as ignored_status, a.source_channel as ignored_channel
+                from archived_customers a
+            )
+            select cs.customer_id
+            from customer_statuses cs
+            where (cs.status_label = 'active' or cs.channel_label = 'web')
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                predicateSql: `("cs"."status_label" = 'active' or "cs"."channel_label" = 'web')`,
+                columnReferences: ['cs.status_label', 'cs.channel_label'],
+                reason: expect.stringMatching(/output column position/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with customer_statuses as (
+                select c.id as customer_id, c.status as status_label, c.channel as channel_label
+                from customers c
+                where (c.status = 'active' or c.channel = 'web')
+                union all
+                select a.legacy_customer_id as ignored_customer_id, a.lifecycle_status as ignored_status, a.source_channel as ignored_channel
+                from archived_customers a
+                where (a.lifecycle_status = 'active' or a.source_channel = 'web')
+            )
+            select cs.customer_id
+            from customer_statuses cs
+        `));
+    });
+
+    it('distributes static BETWEEN predicates with column bounds into branch-local upstream CTEs when safe', () => {
+        const sql = `
+            with current_orders as (
+                select o.id, o.order_date, o.window_start, o.window_end
+                from orders o
+            ),
+            archived_orders_scope as (
+                select a.id, a.ship_date, a.start_date, a.end_date
+                from archived_orders a
+            ),
+            combined_orders as (
+                select co.id as order_id, co.order_date as target_date, co.window_start as lower_bound, co.window_end as upper_bound
+                from current_orders co
+                union all
+                select ao.id as ignored_id, ao.ship_date as ignored_target, ao.start_date as ignored_lower, ao.end_date as ignored_upper
+                from archived_orders_scope ao
+            )
+            select co.order_id
+            from combined_orders co
+            where co.target_date between co.lower_bound and co.upper_bound
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                predicateSql: '"co"."target_date" between "co"."lower_bound" and "co"."upper_bound"',
+                columnReferences: ['co.target_date', 'co.lower_bound', 'co.upper_bound'],
+                reason: expect.stringMatching(/output column position/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with current_orders as (
+                select o.id, o.order_date, o.window_start, o.window_end
+                from orders o
+                where o.order_date between o.window_start and o.window_end
+            ),
+            archived_orders_scope as (
+                select a.id, a.ship_date, a.start_date, a.end_date
+                from archived_orders a
+                where a.ship_date between a.start_date and a.end_date
+            ),
+            combined_orders as (
+                select co.id as order_id, co.order_date as target_date, co.window_start as lower_bound, co.window_end as upper_bound
+                from current_orders co
+                union all
+                select ao.id as ignored_id, ao.ship_date as ignored_target, ao.start_date as ignored_lower, ao.end_date as ignored_upper
+                from archived_orders_scope ao
+            )
+            select co.order_id
+            from combined_orders co
+        `));
+    });
+
+    it('skips whole static OR and BETWEEN predicates whose references span multiple sources', () => {
+        const orSql = `
+            with customer_scope as (
+                select c.id, c.is_active
+                from customers c
+            ),
+            payment_scope as (
+                select p.customer_id, p.is_successful
+                from payments p
+            )
+            select x.id
+            from customer_scope x
+            join payment_scope y on y.customer_id = x.id
+            where x.is_active = true or y.is_successful = true
+        `;
+        const betweenSql = `
+            with x as (
+                select c.id, c.a, c.b
+                from customers c
+            ),
+            y as (
+                select p.customer_id, p.c
+                from payments p
+            )
+            select x.id
+            from x
+            join y on y.customer_id = x.id
+            where x.a between x.b and y.c
+        `;
+
+        const orResult = optimizeStaticPredicatePlacement(orSql);
+        const betweenResult = optimizeStaticPredicatePlacement(betweenSql);
+
+        expect(orResult.applied).toEqual([]);
+        expect(orResult.skipped).toEqual([
+            expect.objectContaining({ code: 'MULTIPLE_SOURCE_REFERENCES' })
+        ]);
+        expect(normalizeSql(orResult.sql)).toBe(normalizeSql(orSql));
+        expect(betweenResult.applied).toEqual([]);
+        expect(betweenResult.skipped).toEqual([
+            expect.objectContaining({ code: 'MULTIPLE_SOURCE_REFERENCES' })
+        ]);
+        expect(normalizeSql(betweenResult.sql)).toBe(normalizeSql(betweenSql));
+    });
+
+    it('skips whole static OR predicates that contain unsafe expressions', () => {
+        const sql = `
+            with customer_scope as (
+                select c.id, c.status, c.is_active
+                from customers c
+            )
+            select cs.id
+            from customer_scope cs
+            where lower(cs.status) = 'active' or cs.is_active = true
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
         expect(result.applied).toEqual([]);
         expect(result.skipped).toEqual([
             expect.objectContaining({
-                code: 'OR_PREDICATE_UNSUPPORTED'
+                code: 'FUNCTION_PREDICATE_UNSUPPORTED'
             })
         ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('skips whole static OR predicates that contain subqueries instead of moving a partial predicate', () => {
+        const sql = `
+            with customer_scope as (
+                select c.id, c.is_active
+                from customers c
+            )
+            select cs.id
+            from customer_scope cs
+            where cs.is_active = true or exists (
+                select 1
+                from customer_favorites cf
+                where cf.customer_id = cs.id
+            )
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                code: 'SUBQUERY_PREDICATE_UNSUPPORTED'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('skips whole static OR predicates when one branch depends on an aggregate expression output', () => {
+        const sql = `
+            with order_totals as (
+                select o.customer_id, sum(o.amount) as total_amount
+                from orders o
+                group by o.customer_id
+            )
+            select ot.customer_id
+            from order_totals ot
+            where ot.customer_id = 10 or ot.total_amount > 100
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                code: 'EXPRESSION_OUTPUT_UNSUPPORTED'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
     });
 
     it('skips reused CTEs, expression outputs, and function predicates', () => {
