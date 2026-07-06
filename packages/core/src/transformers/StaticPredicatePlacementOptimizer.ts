@@ -1,5 +1,6 @@
 import {
     CommonTable,
+    DistinctOn,
     FromClause,
     JoinClause,
     SourceExpression,
@@ -651,10 +652,10 @@ export class StaticPredicatePlacementOptimizer {
     }
 
     private findRootQueryBoundary(query: SimpleSelectQuery): SkipDraft | null {
-        if (query.selectClause.distinct) {
+        if (this.hasDistinctOnBoundary(query)) {
             return {
                 code: "DISTINCT_BOUNDARY",
-                reason: "Predicate crosses DISTINCT boundary; moving it may change semantics."
+                reason: "Predicate crosses DISTINCT ON boundary; moving it may change semantics."
             };
         }
         if (this.hasWindowUsage(query)) {
@@ -670,10 +671,11 @@ export class StaticPredicatePlacementOptimizer {
         query: SimpleSelectQuery,
         targetColumns: readonly TargetColumnResolution[]
     ): TargetPlacement | SkipDraft {
-        if (query.selectClause.distinct) {
+        const hasOrdinaryDistinct = this.hasOrdinaryDistinct(query);
+        if (this.hasDistinctOnBoundary(query)) {
             return {
                 code: "DISTINCT_BOUNDARY",
-                reason: "Predicate crosses DISTINCT boundary; moving it may change semantics."
+                reason: "Predicate crosses DISTINCT ON boundary; moving it may change semantics."
             };
         }
         if (this.hasWindowUsage(query)) {
@@ -712,6 +714,11 @@ export class StaticPredicatePlacementOptimizer {
             return {
                 code: "GROUP_BY_BOUNDARY",
                 reason: "Predicate crosses HAVING aggregation boundary; moving it may change semantics."
+            };
+        }
+        if (hasOrdinaryDistinct) {
+            return {
+                reason: "Predicate references direct ordinary DISTINCT output columns; it is moved into the DISTINCT input WHERE."
             };
         }
         return {
@@ -1279,6 +1286,14 @@ export class StaticPredicatePlacementOptimizer {
             const joinType = join.joinType.value.toLowerCase();
             return joinType.includes("left") || joinType.includes("right") || joinType.includes("full") || joinType.includes("outer");
         });
+    }
+
+    private hasDistinctOnBoundary(query: SimpleSelectQuery): boolean {
+        return query.selectClause.distinct instanceof DistinctOn;
+    }
+
+    private hasOrdinaryDistinct(query: SimpleSelectQuery): boolean {
+        return query.selectClause.distinct !== null && !this.hasDistinctOnBoundary(query);
     }
 
     private getOutputColumnMatchCount(root: SimpleSelectQuery, binding: SourceBinding, columnName: string): number {

@@ -340,17 +340,118 @@ describe('StaticPredicatePlacementOptimizer', () => {
         `));
     });
 
-    it('skips DISTINCT boundaries and unsafe UNION branches', () => {
-
-        const distinctResult = optimizeStaticPredicatePlacement(`
-            with distinct_customers as (
-                select distinct c.id
-                from customers c
+    it('moves static predicates through ordinary DISTINCT direct output columns', () => {
+        const result = optimizeStaticPredicatePlacement(`
+            with distinct_orders as (
+                select distinct o.customer_id, o.status
+                from orders o
             )
-            select dc.id
-            from distinct_customers dc
-            where dc.id = 10
+            select d.customer_id
+            from distinct_orders d
+            where d.status = 'paid'
         `);
+
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                kind: 'move_static_predicate',
+                predicateSql: `"d"."status" = 'paid'`,
+                toScopeId: 'cte:distinct_orders',
+                reason: expect.stringMatching(/DISTINCT output column/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with distinct_orders as (
+                select distinct o.customer_id, o.status
+                from orders o
+                where o.status = 'paid'
+            )
+            select d.customer_id
+            from distinct_orders d
+        `));
+    });
+
+    it('keeps DISTINCT ON static predicates blocked', () => {
+        const sql = `
+            with latest_orders as (
+                select distinct on (o.customer_id) o.customer_id, o.status
+                from orders o
+            )
+            select lo.customer_id
+            from latest_orders lo
+            where lo.status = 'paid'
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                code: 'DISTINCT_BOUNDARY',
+                reason: expect.stringMatching(/DISTINCT ON/i)
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('keeps DISTINCT expression aliases blocked for static predicates', () => {
+        const sql = `
+            with monthly_orders as (
+                select distinct date_trunc('month', o.created_at) as order_month
+                from orders o
+            )
+            select mo.order_month
+            from monthly_orders mo
+            where mo.order_month = '2026-01-01'
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                code: 'EXPRESSION_OUTPUT_UNSUPPORTED'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('moves static predicates through single-source DISTINCT wildcard outputs', () => {
+        const result = optimizeStaticPredicatePlacement(`
+            select d.customer_id
+            from (
+                select distinct *
+                from (
+                    select o.customer_id, o.status
+                    from orders o
+                ) as o
+            ) as d
+            where d.status = 'paid'
+        `);
+
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                kind: 'move_static_predicate',
+                predicateSql: `"d"."status" = 'paid'`,
+                toScopeId: 'subquery:d',
+                reason: expect.stringMatching(/DISTINCT output column/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            select d.customer_id
+            from (
+                select distinct *
+                from (
+                    select o.customer_id, o.status
+                    from orders o
+                ) as o
+                where o.status = 'paid'
+            ) as d
+        `));
+    });
+
+    it('skips unsafe UNION branches', () => {
 
         const unionResult = optimizeStaticPredicatePlacement(`
             with combined_customers as (
@@ -365,9 +466,6 @@ describe('StaticPredicatePlacementOptimizer', () => {
             where cc.id = 10
         `);
 
-        expect(distinctResult.skipped).toEqual([
-            expect.objectContaining({ code: 'DISTINCT_BOUNDARY' })
-        ]);
         expect(unionResult.skipped).toEqual([
             expect.objectContaining({ code: 'EXPRESSION_OUTPUT_UNSUPPORTED' })
         ]);
