@@ -192,7 +192,7 @@ describe('StaticPredicatePlacementOptimizer', () => {
         }
     });
 
-    it('skips GROUP BY, DISTINCT, and UNION boundaries', () => {
+    it('moves constant predicates that reference only grouped upstream keys', () => {
         const groupByResult = optimizeStaticPredicatePlacement(`
             with order_totals as (
                 select o.customer_id, count(*) as order_count
@@ -203,6 +203,144 @@ describe('StaticPredicatePlacementOptimizer', () => {
             from order_totals ot
             where ot.customer_id = 10
         `);
+
+        expect(groupByResult.applied).toEqual([
+            expect.objectContaining({
+                kind: 'move_static_predicate',
+                predicateSql: '"ot"."customer_id" = 10',
+                toScopeId: 'cte:order_totals',
+                reason: expect.stringMatching(/GROUP BY key/i)
+            })
+        ]);
+        expect(groupByResult.skipped).toEqual([]);
+        expect(normalizeSql(groupByResult.sql)).toBe(normalizeSql(`
+            with order_totals as (
+                select o.customer_id, count(*) as order_count
+                from orders o
+                where o.customer_id = 10
+                group by o.customer_id
+            )
+            select ot.customer_id
+            from order_totals ot
+        `));
+    });
+
+    it('moves static predicates through single-source wildcard wrappers up to the aggregate boundary', () => {
+        const result = optimizeStaticPredicatePlacement(`
+            select *
+            from (
+                select *
+                from (
+                    select sum(price) as price
+                    from a
+                ) as a
+            ) as a
+            where price > 100
+        `);
+
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                kind: 'move_static_predicate',
+                predicateSql: '"price" > 100',
+                toScopeId: 'subquery:a'
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            select *
+            from (
+                select *
+                from (
+                    select sum(price) as price
+                    from a
+                ) as a
+                where a.price > 100
+            ) as a
+        `));
+    });
+
+    it('keeps wildcard passthrough predicates blocked when duplicate outputs are possible', () => {
+        const sql = `
+            select *
+            from (
+                select *
+                from (
+                    select a.id, b.id
+                    from a
+                    join b on b.a_id = a.id
+                ) as joined
+            ) as d
+            where id = 1
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                code: 'AMBIGUOUS_COLUMN_REFERENCE',
+                reason: expect.stringMatching(/multiple outputs/i)
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('does not push static aggregate result predicates into grouped upstream WHERE', () => {
+        const result = optimizeStaticPredicatePlacement(`
+            with order_totals as (
+                select o.customer_id, count(*) as order_count
+                from orders o
+                group by o.customer_id
+            )
+            select ot.customer_id, ot.order_count
+            from order_totals ot
+            where ot.order_count >= 3
+        `);
+
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                code: 'EXPRESSION_OUTPUT_UNSUPPORTED'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toContain('from "order_totals" as "ot" where "ot"."order_count" >= 3');
+        expect(normalizeSql(result.sql)).not.toContain('where count(*) >= 3');
+    });
+
+    it('moves static grouped key predicates without moving HAVING predicates', () => {
+        const result = optimizeStaticPredicatePlacement(`
+            with order_totals as (
+                select o.customer_id, count(*) as order_count
+                from orders o
+                group by o.customer_id
+                having count(*) >= 3
+            )
+            select ot.customer_id, ot.order_count
+            from order_totals ot
+            where ot.customer_id = 10
+        `);
+
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                predicateSql: '"ot"."customer_id" = 10',
+                reason: expect.stringMatching(/GROUP BY key/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with order_totals as (
+                select o.customer_id, count(*) as order_count
+                from orders o
+                where o.customer_id = 10
+                group by o.customer_id
+                having count(*) >= 3
+            )
+            select ot.customer_id, ot.order_count
+            from order_totals ot
+        `));
+    });
+
+    it('skips DISTINCT and UNION boundaries', () => {
 
         const distinctResult = optimizeStaticPredicatePlacement(`
             with distinct_customers as (
@@ -227,9 +365,6 @@ describe('StaticPredicatePlacementOptimizer', () => {
             where cc.id = 10
         `);
 
-        expect(groupByResult.skipped).toEqual([
-            expect.objectContaining({ code: 'GROUP_BY_BOUNDARY' })
-        ]);
         expect(distinctResult.skipped).toEqual([
             expect.objectContaining({ code: 'DISTINCT_BOUNDARY' })
         ]);

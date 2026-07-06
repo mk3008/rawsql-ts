@@ -129,6 +129,35 @@ describe('ConditionOptimization', () => {
         `));
     });
 
+    it('prunes same-block optional WHERE branches even when the query groups later', () => {
+        const sql = `
+            select customer_id, count(*) as order_count
+            from orders
+            where (:status is null or status = :status)
+            group by customer_id
+        `;
+
+        const result = optimizeConditions(sql, {
+            optionalConditionParameters: { status: null }
+        });
+
+        expect(result.ok).toBe(true);
+        expect(result.phases[0]).toEqual(expect.objectContaining({
+            kind: 'sssql_optional_condition',
+            appliedCount: 1,
+            skippedCount: 0
+        }));
+        expect(result.phases[1]).toEqual(expect.objectContaining({
+            kind: 'parameter_condition_placement',
+            appliedCount: 0
+        }));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            select customer_id, count(*) as order_count
+            from orders
+            group by customer_id
+        `));
+    });
+
     it('safely combines SSSQL pruning and ordinary parameter placement in phase order', () => {
         const sql = `
             with orders_base as (
@@ -491,7 +520,7 @@ describe('ConditionOptimization', () => {
         expect(result.sql).toContain('Tier projection comment');
     });
 
-    it('keeps unsafe, ambiguous, and unsupported placement skips in the unified result', () => {
+    it('moves grouped key predicates and reports the move in the unified result', () => {
         const sql = `
             with order_totals as (
                 select o.customer_id, count(*) as order_count
@@ -506,24 +535,35 @@ describe('ConditionOptimization', () => {
         const result = optimizeConditions(sql);
 
         expect(result.ok).toBe(true);
-        expect(result.applied).toEqual([]);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                kind: 'move_condition',
+                conditionSql: '"ot"."customer_id" = :customer_id',
+                reason: expect.stringMatching(/GROUP BY key/i)
+            })
+        ]);
         expect(result.phases[1]).toEqual(expect.objectContaining({
             kind: 'parameter_condition_placement',
-            appliedCount: 0,
-            skippedCount: 1
+            appliedCount: 1,
+            skippedCount: 0
         }));
         expect(result.phases[2]).toEqual(expect.objectContaining({
             kind: 'static_predicate_placement',
             appliedCount: 0,
             skippedCount: 0
         }));
-        expect(result.skipped).toEqual([
-            expect.objectContaining({
-                phaseKind: 'parameter_condition_placement',
-                reason: expect.stringMatching(/group by/i)
-            })
-        ]);
-        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with order_totals as (
+                select o.customer_id, count(*) as order_count
+                from orders o
+                where o.customer_id = :customer_id
+                group by o.customer_id
+            )
+            select ot.customer_id, ot.order_count
+            from order_totals ot
+        `));
     });
 
     it('runs the later phase even when the SSSQL phase is a no-op', () => {
@@ -776,7 +816,7 @@ describe('ConditionOptimization', () => {
                     'where "order_count" >= 3 group by',
                     'having count("o"."id") >= 3'
                 ],
-                expectedSkippedCodes: ['GROUP_BY_BOUNDARY']
+                expectedSkippedCodes: ['EXPRESSION_OUTPUT_UNSUPPORTED']
             });
         });
 

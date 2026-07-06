@@ -34,6 +34,7 @@ import {
     hasSqlComponentFormatOverride,
     SqlComponentFormatOptions
 } from "./SqlComponentFormatter";
+import { SelectOutputCollector, SelectOutputColumn } from "./SelectOutputCollector";
 
 export type StaticPredicatePlacementInput = string | SelectQuery | SimpleSelectQuery;
 
@@ -127,6 +128,10 @@ interface UpstreamTarget {
 interface TargetColumnResolution {
     sourceColumn: ColumnReference;
     targetColumn: ColumnReference;
+}
+
+interface TargetPlacement {
+    reason: string;
 }
 
 interface StaticPredicateCandidate {
@@ -276,9 +281,15 @@ export class StaticPredicatePlacementOptimizer {
                 continue;
             }
 
-            const targetColumns = this.resolveTargetColumns(target.query, candidate.references);
+            const targetColumns = this.resolveTargetColumns(query, target.query, candidate.references);
             if ("code" in targetColumns) {
                 skipped.push(this.makeSkipped(term, targetColumns, options));
+                continue;
+            }
+
+            const placement = this.resolveTargetPlacement(target.query, targetColumns);
+            if ("code" in placement) {
+                skipped.push(this.makeSkipped(term, placement, options));
                 continue;
             }
 
@@ -291,7 +302,7 @@ export class StaticPredicatePlacementOptimizer {
                 predicateSql: candidate.predicateSql,
                 fromScopeId: "scope:root",
                 toScopeId: target.scopeId,
-                reason: "All outer references resolve to direct upstream outputs before unsafe query boundaries.",
+                reason: placement.reason,
                 columnReferences: candidate.references.map(columnReferenceText)
             });
         }
@@ -554,7 +565,7 @@ export class StaticPredicatePlacementOptimizer {
     }
 
     private resolveTarget(root: SimpleSelectQuery, candidate: StaticPredicateCandidate): UpstreamTarget | SkipDraft {
-        const boundary = this.findCurrentQueryBoundary(root);
+        const boundary = this.findRootQueryBoundary(root);
         if (boundary) {
             return boundary;
         }
@@ -595,25 +606,14 @@ export class StaticPredicatePlacementOptimizer {
             return upstream;
         }
 
-        const targetBoundary = this.findTargetQueryBoundary(upstream.query);
-        if (targetBoundary) {
-            return targetBoundary;
-        }
-
         return upstream;
     }
 
-    private findCurrentQueryBoundary(query: SimpleSelectQuery): SkipDraft | null {
+    private findRootQueryBoundary(query: SimpleSelectQuery): SkipDraft | null {
         if (query.selectClause.distinct) {
             return {
                 code: "DISTINCT_BOUNDARY",
                 reason: "Predicate crosses DISTINCT boundary; moving it may change semantics."
-            };
-        }
-        if (query.groupByClause || query.havingClause) {
-            return {
-                code: "GROUP_BY_BOUNDARY",
-                reason: "Predicate crosses GROUP BY boundary; moving it may change semantics."
             };
         }
         if (this.hasWindowUsage(query)) {
@@ -625,10 +625,21 @@ export class StaticPredicatePlacementOptimizer {
         return null;
     }
 
-    private findTargetQueryBoundary(query: SimpleSelectQuery): SkipDraft | null {
-        const commonBoundary = this.findCurrentQueryBoundary(query);
-        if (commonBoundary) {
-            return commonBoundary;
+    private resolveTargetPlacement(
+        query: SimpleSelectQuery,
+        targetColumns: readonly TargetColumnResolution[]
+    ): TargetPlacement | SkipDraft {
+        if (query.selectClause.distinct) {
+            return {
+                code: "DISTINCT_BOUNDARY",
+                reason: "Predicate crosses DISTINCT boundary; moving it may change semantics."
+            };
+        }
+        if (this.hasWindowUsage(query)) {
+            return {
+                code: "WINDOW_BOUNDARY",
+                reason: "Predicate crosses WINDOW boundary; moving it may change semantics."
+            };
         }
         if (query.limitClause || query.offsetClause || query.fetchClause) {
             return {
@@ -642,7 +653,29 @@ export class StaticPredicatePlacementOptimizer {
                 reason: "Target query contains an OUTER JOIN boundary that is not moved across in the safe-only implementation."
             };
         }
-        return null;
+        if (query.groupByClause) {
+            const allReferencesAreGroupKeys = targetColumns.every(item =>
+                this.isGroupKeyColumn(query, item.targetColumn)
+            );
+            if (!allReferencesAreGroupKeys) {
+                return {
+                    code: "GROUP_BY_BOUNDARY",
+                    reason: "Predicate references a target column that is not proven to be a GROUP BY key."
+                };
+            }
+            return {
+                reason: "Predicate references only GROUP BY keys; it is moved into pre-aggregation WHERE."
+            };
+        }
+        if (query.havingClause) {
+            return {
+                code: "GROUP_BY_BOUNDARY",
+                reason: "Predicate crosses HAVING aggregation boundary; moving it may change semantics."
+            };
+        }
+        return {
+            reason: "All outer references resolve to direct upstream outputs before unsafe query boundaries."
+        };
     }
 
     private resolveSourceBinding(root: SimpleSelectQuery, column: ColumnReference): SourceBinding | SkipDraft {
@@ -788,11 +821,15 @@ export class StaticPredicatePlacementOptimizer {
         };
     }
 
-    private resolveTargetColumns(query: SimpleSelectQuery, references: readonly ColumnReference[]): TargetColumnResolution[] | SkipDraft {
+    private resolveTargetColumns(
+        root: SimpleSelectQuery,
+        query: SimpleSelectQuery,
+        references: readonly ColumnReference[]
+    ): TargetColumnResolution[] | SkipDraft {
         const resolved: TargetColumnResolution[] = [];
         for (const reference of references) {
-            const matches = query.selectClause.items.filter(item =>
-                normalizeIdentifier(this.getSelectItemOutputName(item) ?? "") === normalizeIdentifier(reference.column.name)
+            const matches = this.collectSelectOutputs(root, query).filter(item =>
+                normalizeIdentifier(item.name) === normalizeIdentifier(reference.column.name)
             );
 
             if (matches.length !== 1) {
@@ -854,6 +891,48 @@ export class StaticPredicatePlacementOptimizer {
             code: "AMBIGUOUS_TARGET_COLUMN",
             reason: `Unqualified target column '${column.column.name}' is ambiguous in a multi-source destination query.`
         };
+    }
+
+    private isGroupKeyColumn(query: SimpleSelectQuery, column: ColumnReference): boolean {
+        const groupBy = query.groupByClause;
+        if (!groupBy || groupBy.mode || groupBy.grouping.length === 0) {
+            return false;
+        }
+
+        return groupBy.grouping.some(grouping => {
+            const candidate = unwrapParens(grouping);
+            return candidate instanceof ColumnReference
+                && this.sameResolvableColumnInQuery(query, candidate, column);
+        });
+    }
+
+    private sameResolvableColumnInQuery(
+        query: SimpleSelectQuery,
+        left: ColumnReference,
+        right: ColumnReference
+    ): boolean {
+        if (sameColumnReference(left, right)) {
+            return true;
+        }
+        if (normalizeIdentifier(left.column.name) !== normalizeIdentifier(right.column.name)) {
+            return false;
+        }
+        const leftSource = this.resolveColumnSourceAlias(query, left);
+        const rightSource = this.resolveColumnSourceAlias(query, right);
+        return leftSource !== null && leftSource === rightSource;
+    }
+
+    private resolveColumnSourceAlias(query: SimpleSelectQuery, column: ColumnReference): string | null {
+        if (!query.fromClause) {
+            return null;
+        }
+        const bindings = this.getSourceBindings(query.fromClause);
+        const namespace = normalizeIdentifier(column.getNamespace());
+        if (namespace) {
+            const matches = bindings.filter(binding => normalizeIdentifier(binding.alias) === namespace);
+            return matches.length === 1 ? normalizeIdentifier(matches[0]!.alias) : null;
+        }
+        return bindings.length === 1 ? normalizeIdentifier(bindings[0]!.alias) : null;
     }
 
     private rebasePredicate(
@@ -1061,9 +1140,18 @@ export class StaticPredicatePlacementOptimizer {
         if (!target || !(target instanceof SimpleSelectQuery)) {
             return 0;
         }
-        return target.selectClause.items.filter(item =>
-            normalizeIdentifier(this.getSelectItemOutputName(item) ?? "") === normalizeIdentifier(columnName)
+        return this.collectSelectOutputs(root, target).filter(item =>
+            normalizeIdentifier(item.name) === normalizeIdentifier(columnName)
         ).length;
+    }
+
+    private collectSelectOutputs(root: SimpleSelectQuery, query: SimpleSelectQuery): SelectOutputColumn[] {
+        const commonTables = [
+            ...(query.withClause?.tables ?? []),
+            ...(root.withClause?.tables ?? [])
+        ];
+        const collector = new SelectOutputCollector(null, commonTables.length > 0 ? commonTables : null);
+        return collector.collect(query);
     }
 
     private resolveSourceQueryForColumns(root: SimpleSelectQuery, source: SourceExpression): SelectQuery | null {
@@ -1075,16 +1163,6 @@ export class StaticPredicatePlacementOptimizer {
             return cteQuery instanceof SimpleSelectQuery || cteQuery instanceof BinarySelectQuery
                 ? cteQuery
                 : null;
-        }
-        return null;
-    }
-
-    private getSelectItemOutputName(item: { value: ValueComponent; identifier: { name: string } | null }): string | null {
-        if (item.identifier) {
-            return item.identifier.name;
-        }
-        if (item.value instanceof ColumnReference) {
-            return item.value.column.name;
         }
         return null;
     }
