@@ -245,7 +245,79 @@ describe('ParameterConditionPlacementOptimizer', () => {
         expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
     });
 
-    it('skips predicates that would cross GROUP BY boundaries', () => {
+    it('moves same-block WHERE predicates even when the root query groups later', () => {
+        const sql = `
+            with orders_base as (
+                select o.customer_id, o.status
+                from orders o
+            )
+            select ob.customer_id, count(*) as order_count
+            from orders_base ob
+            where ob.status = :status
+            group by ob.customer_id
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                kind: 'move_condition',
+                conditionSql: '"ob"."status" = :status',
+                toScopeId: 'cte:orders_base'
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with orders_base as (
+                select o.customer_id, o.status
+                from orders o
+                where o.status = :status
+            )
+            select ob.customer_id, count(*) as order_count
+            from orders_base ob
+            group by ob.customer_id
+        `));
+    });
+
+    it('moves parameter predicates through single-source wildcard wrappers up to the aggregate boundary', () => {
+        const sql = `
+            select *
+            from (
+                select *
+                from (
+                    select sum(price) as price
+                    from a
+                ) as a
+            ) as a
+            where price > :minimum_price
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                kind: 'move_condition',
+                conditionSql: '"price" > :minimum_price',
+                toScopeId: 'subquery:a'
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            select *
+            from (
+                select *
+                from (
+                    select sum(price) as price
+                    from a
+                ) as a
+                where a.price > :minimum_price
+            ) as a
+        `));
+    });
+
+    it('moves outer WHERE predicates that reference only grouped upstream keys', () => {
         const sql = `
             with order_totals as (
                 select o.customer_id, count(*) as order_count
@@ -260,10 +332,189 @@ describe('ParameterConditionPlacementOptimizer', () => {
         const result = optimizeParameterConditionPlacement(sql);
 
         expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                kind: 'move_condition',
+                conditionSql: '"ot"."customer_id" = :customer_id',
+                toScopeId: 'cte:order_totals',
+                reason: expect.stringMatching(/GROUP BY key/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with order_totals as (
+                select o.customer_id, count(*) as order_count
+                from orders o
+                where o.customer_id = :customer_id
+                group by o.customer_id
+            )
+            select ot.customer_id, ot.order_count
+            from order_totals ot
+        `));
+    });
+
+    it('moves grouped key predicates without moving HAVING predicates', () => {
+        const sql = `
+            with order_totals as (
+                select o.customer_id, count(*) as order_count
+                from orders o
+                group by o.customer_id
+                having count(*) >= :minimum_order_count
+            )
+            select ot.customer_id, ot.order_count
+            from order_totals ot
+            where ot.customer_id = :customer_id
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                conditionSql: '"ot"."customer_id" = :customer_id',
+                reason: expect.stringMatching(/GROUP BY key/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with order_totals as (
+                select o.customer_id, count(*) as order_count
+                from orders o
+                where o.customer_id = :customer_id
+                group by o.customer_id
+                having count(*) >= :minimum_order_count
+            )
+            select ot.customer_id, ot.order_count
+            from order_totals ot
+        `));
+    });
+
+    it('does not optimize HAVING predicates as pre-aggregation WHERE predicates', () => {
+        const sql = `
+            select o.customer_id, count(*) as order_count
+            from orders o
+            group by o.customer_id
+            having count(*) >= :minimum_order_count
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('does not push aggregate result predicates into grouped upstream WHERE', () => {
+        const sql = `
+            with order_totals as (
+                select o.customer_id, count(*) as order_count
+                from orders o
+                group by o.customer_id
+            )
+            select ot.customer_id, ot.order_count
+            from order_totals ot
+            where ot.order_count >= :minimum_order_count
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
         expect(result.applied).toEqual([]);
         expect(result.skipped).toEqual([
             expect.objectContaining({
-                reason: expect.stringMatching(/group by/i)
+                code: 'EXPRESSION_OUTPUT_UNSUPPORTED',
+                reason: expect.stringMatching(/expression/i)
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+        expect(normalizeSql(result.sql)).not.toContain('where count(*) >= :minimum_order_count');
+    });
+
+    it('moves only grouped key predicates when outer WHERE also filters aggregate results', () => {
+        const sql = `
+            with order_totals as (
+                select o.customer_id, sum(o.amount) as total_amount
+                from orders o
+                group by o.customer_id
+            )
+            select ot.customer_id, ot.total_amount
+            from order_totals ot
+            where ot.customer_id = :customer_id
+              and ot.total_amount >= :minimum_total_amount
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                conditionSql: '"ot"."customer_id" = :customer_id',
+                reason: expect.stringMatching(/GROUP BY key/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                conditionSql: '"ot"."total_amount" >= :minimum_total_amount',
+                code: 'EXPRESSION_OUTPUT_UNSUPPORTED'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with order_totals as (
+                select o.customer_id, sum(o.amount) as total_amount
+                from orders o
+                where o.customer_id = :customer_id
+                group by o.customer_id
+            )
+            select ot.customer_id, ot.total_amount
+            from order_totals ot
+            where ot.total_amount >= :minimum_total_amount
+        `));
+    });
+
+    it('keeps grouped expression aliases blocked when they cannot be safely mapped to a GROUP BY key', () => {
+        const sql = `
+            with monthly_orders as (
+                select date_trunc('month', o.created_at) as order_month, count(*) as order_count
+                from orders o
+                group by date_trunc('month', o.created_at)
+            )
+            select mo.order_month, mo.order_count
+            from monthly_orders mo
+            where mo.order_month = :order_month
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                code: 'EXPRESSION_OUTPUT_UNSUPPORTED'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('keeps function predicates blocked instead of guessing grouped-key dependencies', () => {
+        const sql = `
+            with regional_orders as (
+                select o.customer_id, o.region, count(*) as order_count
+                from orders o
+                group by o.customer_id, o.region
+            )
+            select ro.customer_id, ro.region, ro.order_count
+            from regional_orders ro
+            where some_unknown_function(ro.region) = :region
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                code: 'FUNCTION_PREDICATE_UNSUPPORTED'
             })
         ]);
         expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
