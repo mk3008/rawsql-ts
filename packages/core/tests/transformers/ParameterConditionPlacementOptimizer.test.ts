@@ -125,6 +125,72 @@ describe('ParameterConditionPlacementOptimizer', () => {
         `));
     });
 
+    it('moves a BETWEEN parameter predicate into the safe upstream CTE as one predicate', () => {
+        const sql = `
+            with orders_base as (
+                select o.order_id, o.order_date
+                from orders o
+            )
+            select ob.order_id
+            from orders_base ob
+            where ob.order_date between :from_date and :to_date
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                conditionSql: '"ob"."order_date" between :from_date and :to_date',
+                parameterNames: ['from_date', 'to_date'],
+                columnReferences: ['ob.order_date']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with orders_base as (
+                select o.order_id, o.order_date
+                from orders o
+                where o.order_date between :from_date and :to_date
+            )
+            select ob.order_id
+            from orders_base ob
+        `));
+    });
+
+    it('moves a whole OR parameter predicate when every reference targets the same upstream CTE', () => {
+        const sql = `
+            with customer_scope as (
+                select c.id, c.a, c.b, c.c
+                from customers c
+            )
+            select x.id
+            from customer_scope x
+            where (x.a = :a or (x.b = :b and x.c = :c))
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                conditionSql: '("x"."a" = :a or ("x"."b" = :b and "x"."c" = :c))',
+                parameterNames: ['a', 'b', 'c'],
+                columnReferences: ['x.a', 'x.b', 'x.c']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with customer_scope as (
+                select c.id, c.a, c.b, c.c
+                from customers c
+                where (c.a = :a or (c.b = :b and c.c = :c))
+            )
+            select x.id
+            from customer_scope x
+        `));
+    });
+
     it('accepts an AST input without mutating the caller-owned query', () => {
         const query = SelectQueryParser.parse(`
             with orders_base as (
@@ -750,15 +816,20 @@ describe('ParameterConditionPlacementOptimizer', () => {
         expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
     });
 
-    it('skips OR predicates in the first safe-only implementation', () => {
+    it('skips whole OR parameter predicates whose references span multiple sources', () => {
         const sql = `
-            with orders_base as (
-                select o.order_id, o.customer_id, o.status
+            with customer_scope as (
+                select c.id, c.a
+                from customers c
+            ),
+            order_scope as (
+                select o.customer_id, o.b
                 from orders o
             )
-            select ob.order_id
-            from orders_base ob
-            where ob.customer_id = :customer_id or ob.status = :status
+            select x.id
+            from customer_scope x
+            join order_scope y on y.customer_id = x.id
+            where (x.a = :a or y.b = :b)
         `;
 
         const result = optimizeParameterConditionPlacement(sql);
@@ -767,7 +838,34 @@ describe('ParameterConditionPlacementOptimizer', () => {
         expect(result.applied).toEqual([]);
         expect(result.skipped).toEqual([
             expect.objectContaining({
-                reason: expect.stringMatching(/or predicates/i)
+                code: 'MULTIPLE_SOURCE_REFERENCES'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('skips whole OR parameter predicates that contain subqueries', () => {
+        const sql = `
+            with customer_scope as (
+                select c.id, c.a
+                from customers c
+            )
+            select x.id
+            from customer_scope x
+            where (x.a = :a or exists (
+                select 1
+                from orders o
+                where o.customer_id = x.id
+            ))
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                code: 'SUBQUERY_PREDICATE_UNSUPPORTED'
             })
         ]);
         expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));

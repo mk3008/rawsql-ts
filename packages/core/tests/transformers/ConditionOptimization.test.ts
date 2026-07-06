@@ -566,6 +566,53 @@ describe('ConditionOptimization', () => {
         `));
     });
 
+    it('reports whole BETWEEN and OR moves through the integrated phases', () => {
+        const sql = `
+            with orders_base as (
+                select o.order_id, o.order_date, o.status, o.channel
+                from orders o
+            )
+            select ob.order_id
+            from orders_base ob
+            where ob.order_date between :from_date and :to_date
+              and (ob.status = 'paid' or ob.channel = 'web')
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.phases[1]).toEqual(expect.objectContaining({
+            kind: 'parameter_condition_placement',
+            appliedCount: 1,
+            skippedCount: 0
+        }));
+        expect(result.phases[2]).toEqual(expect.objectContaining({
+            kind: 'static_predicate_placement',
+            appliedCount: 1,
+            skippedCount: 0
+        }));
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                conditionSql: '"ob"."order_date" between :from_date and :to_date'
+            }),
+            expect.objectContaining({
+                phaseKind: 'static_predicate_placement',
+                predicateSql: `("ob"."status" = 'paid' or "ob"."channel" = 'web')`
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with orders_base as (
+                select o.order_id, o.order_date, o.status, o.channel
+                from orders o
+                where o.order_date between :from_date and :to_date
+                  and (o.status = 'paid' or o.channel = 'web')
+            )
+            select ob.order_id
+            from orders_base ob
+        `));
+    });
+
     it('runs the later phase even when the SSSQL phase is a no-op', () => {
         const sql = `
             with customers_base as (
@@ -876,8 +923,9 @@ describe('ConditionOptimization', () => {
                     with customer_summary as (
                         select
                             customer_id,
-                            total_amount
+                            sum(amount) as total_amount
                         from some_summary
+                        group by customer_id
                     )
                     select *
                     from customer_summary
@@ -889,9 +937,10 @@ describe('ConditionOptimization', () => {
                 ],
                 forbiddenFragments: [
                     'from "some_summary" where "customer_id" = :customer_id',
-                    'from "some_summary" where "total_amount" >= :min_total_amount'
+                    'where sum("amount") >= :min_total_amount',
+                    'having sum("amount") >= :min_total_amount'
                 ],
-                expectedSkippedCodes: ['OR_PREDICATE_UNSUPPORTED']
+                expectedSkippedCodes: ['EXPRESSION_OUTPUT_UNSUPPORTED']
             });
         });
 

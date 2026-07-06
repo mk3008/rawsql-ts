@@ -89,6 +89,70 @@ describe('StaticPredicatePlacementOptimizer', () => {
         `));
     });
 
+    it('moves static BETWEEN predicates with literals into the safe upstream CTE', () => {
+        const sql = `
+            with orders_base as (
+                select o.order_id, o.order_date
+                from orders o
+            )
+            select ob.order_id
+            from orders_base ob
+            where ob.order_date between date '2024-01-01' and date '2024-02-01'
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                predicateSql: `"ob"."order_date" between date '2024-01-01' and date '2024-02-01'`,
+                columnReferences: ['ob.order_date']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with orders_base as (
+                select o.order_id, o.order_date
+                from orders o
+                where o.order_date between date '2024-01-01' and date '2024-02-01'
+            )
+            select ob.order_id
+            from orders_base ob
+        `));
+    });
+
+    it('moves a whole static BETWEEN predicate when all column references resolve to the same direct upstream output group', () => {
+        const sql = `
+            with x as (
+                select t.a, t.b, t.c
+                from t
+            )
+            select *
+            from x
+            where a between b and c
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                predicateSql: '"a" between "b" and "c"',
+                columnReferences: ['a', 'b', 'c']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with x as (
+                select t.a, t.b, t.c
+                from t
+                where t.a between t.b and t.c
+            )
+            select *
+            from x
+        `));
+    });
+
     it('is a no-op when the static predicate is already in the upstream CTE', () => {
         const sql = `
             with customer_scope as (
@@ -468,7 +532,7 @@ describe('StaticPredicatePlacementOptimizer', () => {
         `));
     });
 
-    it('skips OR predicates that would require boolean distribution', () => {
+    it('moves a whole static OR predicate when every reference targets the same upstream CTE', () => {
         const sql = `
             with customer_scope as (
                 select c.id, c.is_active, c.deleted_at
@@ -481,12 +545,89 @@ describe('StaticPredicatePlacementOptimizer', () => {
 
         const result = optimizeStaticPredicatePlacement(sql);
 
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                predicateSql: '"cs"."is_active" = true or "cs"."deleted_at" is null',
+                columnReferences: ['cs.is_active', 'cs.deleted_at']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with customer_scope as (
+                select c.id, c.is_active, c.deleted_at
+                from customers c
+                where c.is_active = true or c.deleted_at is null
+            )
+            select cs.id
+            from customer_scope cs
+        `));
+    });
+
+    it('skips whole static OR and BETWEEN predicates whose references span multiple sources', () => {
+        const orSql = `
+            with customer_scope as (
+                select c.id, c.is_active
+                from customers c
+            ),
+            payment_scope as (
+                select p.customer_id, p.is_successful
+                from payments p
+            )
+            select x.id
+            from customer_scope x
+            join payment_scope y on y.customer_id = x.id
+            where x.is_active = true or y.is_successful = true
+        `;
+        const betweenSql = `
+            with x as (
+                select c.id, c.a, c.b
+                from customers c
+            ),
+            y as (
+                select p.customer_id, p.c
+                from payments p
+            )
+            select x.id
+            from x
+            join y on y.customer_id = x.id
+            where x.a between x.b and y.c
+        `;
+
+        const orResult = optimizeStaticPredicatePlacement(orSql);
+        const betweenResult = optimizeStaticPredicatePlacement(betweenSql);
+
+        expect(orResult.applied).toEqual([]);
+        expect(orResult.skipped).toEqual([
+            expect.objectContaining({ code: 'MULTIPLE_SOURCE_REFERENCES' })
+        ]);
+        expect(normalizeSql(orResult.sql)).toBe(normalizeSql(orSql));
+        expect(betweenResult.applied).toEqual([]);
+        expect(betweenResult.skipped).toEqual([
+            expect.objectContaining({ code: 'MULTIPLE_SOURCE_REFERENCES' })
+        ]);
+        expect(normalizeSql(betweenResult.sql)).toBe(normalizeSql(betweenSql));
+    });
+
+    it('skips whole static OR predicates that contain unsafe expressions', () => {
+        const sql = `
+            with customer_scope as (
+                select c.id, c.status, c.is_active
+                from customers c
+            )
+            select cs.id
+            from customer_scope cs
+            where lower(cs.status) = 'active' or cs.is_active = true
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
         expect(result.applied).toEqual([]);
         expect(result.skipped).toEqual([
             expect.objectContaining({
-                code: 'OR_PREDICATE_UNSUPPORTED'
+                code: 'FUNCTION_PREDICATE_UNSUPPORTED'
             })
         ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
     });
 
     it('skips reused CTEs, expression outputs, and function predicates', () => {
