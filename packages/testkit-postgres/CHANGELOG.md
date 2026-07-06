@@ -1,5 +1,13 @@
 # @rawsql-ts/testkit-postgres
 
+## 0.16.7
+
+### Patch Changes
+
+- Updated dependencies [[`dce9bfc`](https://github.com/mk3008/rawsql-ts/commit/dce9bfc4ca88a605aab886ba9697b93f1d9431f0)]:
+  - rawsql-ts@0.28.0
+  - @rawsql-ts/testkit-core@0.17.7
+
 ## 0.16.6
 
 ### Patch Changes
