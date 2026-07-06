@@ -656,15 +656,49 @@ describe('ParameterConditionPlacementOptimizer', () => {
         expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
     });
 
-    it('skips predicates that would cross DISTINCT boundaries', () => {
+    it('moves parameter predicates through ordinary DISTINCT direct output columns', () => {
         const sql = `
-            with distinct_customers as (
-                select distinct o.customer_id
+            with distinct_orders as (
+                select distinct o.customer_id, o.status
                 from orders o
             )
-            select dc.customer_id
-            from distinct_customers dc
-            where dc.customer_id = :customer_id
+            select d.customer_id
+            from distinct_orders d
+            where d.status = :status
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                kind: 'move_condition',
+                conditionSql: '"d"."status" = :status',
+                toScopeId: 'cte:distinct_orders',
+                reason: expect.stringMatching(/DISTINCT output column/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with distinct_orders as (
+                select distinct o.customer_id, o.status
+                from orders o
+                where o.status = :status
+            )
+            select d.customer_id
+            from distinct_orders d
+        `));
+    });
+
+    it('keeps DISTINCT ON parameter predicates blocked', () => {
+        const sql = `
+            with latest_orders as (
+                select distinct on (o.customer_id) o.customer_id, o.status
+                from orders o
+            )
+            select lo.customer_id
+            from latest_orders lo
+            where lo.status = :status
         `;
 
         const result = optimizeParameterConditionPlacement(sql);
@@ -673,10 +707,72 @@ describe('ParameterConditionPlacementOptimizer', () => {
         expect(result.applied).toEqual([]);
         expect(result.skipped).toEqual([
             expect.objectContaining({
-                reason: expect.stringMatching(/distinct/i)
+                code: 'DISTINCT_BOUNDARY',
+                reason: expect.stringMatching(/DISTINCT ON/i)
             })
         ]);
         expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('keeps DISTINCT expression aliases blocked for parameter predicates', () => {
+        const sql = `
+            with monthly_orders as (
+                select distinct date_trunc('month', o.created_at) as order_month
+                from orders o
+            )
+            select mo.order_month
+            from monthly_orders mo
+            where mo.order_month = :order_month
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                code: 'EXPRESSION_OUTPUT_UNSUPPORTED'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('moves parameter predicates through single-source DISTINCT wildcard outputs', () => {
+        const sql = `
+            select d.customer_id
+            from (
+                select distinct *
+                from (
+                    select o.customer_id, o.status
+                    from orders o
+                ) as o
+            ) as d
+            where d.status = :status
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                kind: 'move_condition',
+                conditionSql: '"d"."status" = :status',
+                toScopeId: 'subquery:d',
+                reason: expect.stringMatching(/DISTINCT output column/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            select d.customer_id
+            from (
+                select distinct *
+                from (
+                    select o.customer_id, o.status
+                    from orders o
+                ) as o
+                where o.status = :status
+            ) as d
+        `));
     });
 
     it('distributes predicates into UNION branches', () => {
