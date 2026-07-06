@@ -1,5 +1,19 @@
 # rawsql-ts
 
+## 0.27.0
+
+### Minor Changes
+
+- [#937](https://github.com/mk3008/rawsql-ts/pull/937) [`61c207a`](https://github.com/mk3008/rawsql-ts/commit/61c207ae364529ab7874107693e935f40b3a9fb7) Thanks [@mk3008](https://github.com/mk3008)! - API output shape review: add optimized `query` model output and caller-controlled SQL formatting options to condition optimization transformers while preserving existing `result.sql` compatibility.
+
+### Patch Changes
+
+- [#941](https://github.com/mk3008/rawsql-ts/pull/941) [`543baf8`](https://github.com/mk3008/rawsql-ts/commit/543baf86ca0b729b4e6edd83aa55e7efc842bae5) Thanks [@mk3008](https://github.com/mk3008)! - Move safe whole `BETWEEN` and `OR` predicates during condition placement when all referenced columns resolve to the same upstream query block.
+
+- [#940](https://github.com/mk3008/rawsql-ts/pull/940) [`02a6a32`](https://github.com/mk3008/rawsql-ts/commit/02a6a3252e30f5febf315e4fd7dccd97272f206d) Thanks [@mk3008](https://github.com/mk3008)! - Allow condition placement to move safe predicates through ordinary DISTINCT outputs while keeping DISTINCT ON blocked.
+
+- [#938](https://github.com/mk3008/rawsql-ts/pull/938) [`4ea3663`](https://github.com/mk3008/rawsql-ts/commit/4ea366342e18e4b05e2836049fc1908a11ac81f3) Thanks [@mk3008](https://github.com/mk3008)! - Allow condition optimization to move safe GROUP BY key predicates into grouped CTEs and derived tables while keeping aggregate-result predicates outside the pre-aggregation WHERE clause. Predicate placement now also reuses select-output wildcard inference so single-source wildcard wrapper queries can receive predicates without crossing aggregate boundaries, and safe UNION/UNION ALL predicates are distributed to every branch by output column position, including safe branch-local upstream CTEs.
+
 ## 0.26.1
 
 ### Patch Changes

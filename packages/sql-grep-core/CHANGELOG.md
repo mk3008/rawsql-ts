@@ -1,5 +1,12 @@
 # @rawsql-ts/sql-grep-core
 
+## 0.1.16
+
+### Patch Changes
+
+- Updated dependencies [[`61c207a`](https://github.com/mk3008/rawsql-ts/commit/61c207ae364529ab7874107693e935f40b3a9fb7), [`543baf8`](https://github.com/mk3008/rawsql-ts/commit/543baf86ca0b729b4e6edd83aa55e7efc842bae5), [`02a6a32`](https://github.com/mk3008/rawsql-ts/commit/02a6a3252e30f5febf315e4fd7dccd97272f206d), [`4ea3663`](https://github.com/mk3008/rawsql-ts/commit/4ea366342e18e4b05e2836049fc1908a11ac81f3)]:
+  - rawsql-ts@0.27.0
+
 ## 0.1.15
 
 ### Patch Changes
