@@ -245,7 +245,7 @@ const buildSssqlSkipped = (
         reason: parameterProvided
             ? "The optional branch parameter is present, so the branch remains active."
             : "No optional branch parameter value was provided, so the branch remains unchanged.",
-        skipDisposition: "ignored"
+        skipDisposition: parameterProvided ? "unchanged" : "ignored"
     };
 };
 

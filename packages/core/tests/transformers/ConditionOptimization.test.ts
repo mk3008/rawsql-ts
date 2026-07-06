@@ -522,7 +522,7 @@ describe('ConditionOptimization', () => {
                 code: 'SSSQL_OPTIONAL_REFRESH_DUPLICATE_PARAMETER_UNCHANGED',
                 parameterName: 'customer_id',
                 skipDisposition: 'unchanged',
-                reason: expect.not.stringContaining('ambiguous')
+                reason: expect.stringContaining('duplicate parameter')
             })
         ]));
         expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
