@@ -945,38 +945,66 @@ describe('ConditionOptimization', () => {
             });
         });
 
-        it('does not push predicates into UNION ALL branches', () => {
-            expectNoUnsafeConditionMove({
-                sql: `
-                    with activities as (
-                        select
-                            customer_id,
-                            created_at,
-                            'order' as activity_type
-                        from orders
+        it('pushes predicates into UNION ALL branches by output position', () => {
+            const result = optimizeConditions(`
+                with activities as (
+                    select
+                        customer_id,
+                        created_at,
+                        'order' as activity_type
+                    from orders
 
-                        union all
+                    union all
 
-                        select
-                            recipient_id as customer_id,
-                            sent_at as created_at,
-                            'email' as activity_type
-                        from emails
-                    )
-                    select *
-                    from activities
+                    select
+                        recipient_id as customer_id,
+                        sent_at as created_at,
+                        'email' as activity_type
+                    from emails
+                )
+                select *
+                from activities
+                where customer_id = :customer_id
+                  and created_at >= :from_date
+            `);
+
+            expect(result.ok).toBe(true);
+            expect(result.applied).toEqual([
+                expect.objectContaining({
+                    kind: 'move_condition',
+                    conditionSql: '"customer_id" = :customer_id',
+                    reason: expect.stringMatching(/output column position/i)
+                }),
+                expect.objectContaining({
+                    kind: 'move_condition',
+                    conditionSql: '"created_at" >= :from_date',
+                    reason: expect.stringMatching(/output column position/i)
+                })
+            ]);
+            expect(result.skipped).toEqual([]);
+            expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+                with activities as (
+                    select
+                        customer_id,
+                        created_at,
+                        'order' as activity_type
+                    from orders
                     where customer_id = :customer_id
                       and created_at >= :from_date
-                `,
-                retainedFragments: [
-                    'from "activities" where "customer_id" = :customer_id and "created_at" >= :from_date'
-                ],
-                forbiddenFragments: [
-                    'from "orders" where',
-                    'from "emails" where'
-                ],
-                expectedSkippedCodes: ['UNION_BOUNDARY']
-            });
+
+                    union all
+
+                    select
+                        recipient_id as customer_id,
+                        sent_at as created_at,
+                        'email' as activity_type
+                    from emails
+                    where recipient_id = :customer_id
+                      and sent_at >= :from_date
+                )
+                select *
+                from activities
+            `));
         });
 
         it('does not push a predicate into recursive CTE anchor or recursive branches', () => {
@@ -1010,7 +1038,7 @@ describe('ConditionOptimization', () => {
                     'where "id" = :root_id and "id" = :target_id',
                     'from "categories" as "c" where "c"."id" = :target_id'
                 ],
-                expectedSkippedCodes: ['UNION_BOUNDARY']
+                expectedSkippedCodes: ['CTE_REUSE_UNSUPPORTED']
             });
         });
 
