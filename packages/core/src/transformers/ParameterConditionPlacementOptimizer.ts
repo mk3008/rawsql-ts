@@ -126,13 +126,27 @@ interface SourceBinding {
     isPrimary: boolean;
 }
 
-interface UpstreamTarget {
+interface SimpleUpstreamTarget {
+    kind: "simple";
     query: SimpleSelectQuery;
     scopeId: string;
     outputColumnName: string;
     sourceBinding: SourceBinding;
     cteName?: string;
 }
+
+interface UnionBranchTarget {
+    query: SimpleSelectQuery;
+    targetColumn: ColumnReference;
+}
+
+interface UnionUpstreamTarget {
+    kind: "union";
+    scopeId: string;
+    branches: UnionBranchTarget[];
+}
+
+type UpstreamTarget = SimpleUpstreamTarget | UnionUpstreamTarget;
 
 interface TargetColumnResolution {
     column: ColumnReference;
@@ -284,20 +298,47 @@ export class ParameterConditionPlacementOptimizer {
                 continue;
             }
 
-            const targetColumn = this.resolveTargetColumn(query, target.query, target.outputColumnName);
-            if ("code" in targetColumn) {
-                skipped.push(this.makeSkipped(term, targetColumn, options));
-                continue;
-            }
+            let appliedReason = "";
+            if (target.kind === "simple") {
+                const targetColumn = this.resolveTargetColumn(query, target.query, target.outputColumnName);
+                if ("code" in targetColumn) {
+                    skipped.push(this.makeSkipped(term, targetColumn, options));
+                    continue;
+                }
 
-            const placement = this.resolveTargetPlacement(target.query, targetColumn.column);
-            if ("code" in placement) {
-                skipped.push(this.makeSkipped(term, placement, options));
-                continue;
-            }
+                const placement = this.resolveTargetPlacement(target.query, targetColumn.column);
+                if ("code" in placement) {
+                    skipped.push(this.makeSkipped(term, placement, options));
+                    continue;
+                }
 
-            const movedCondition = this.rebaseCondition(candidate.expression, candidate.column, targetColumn.column, options);
-            target.query.appendWhere(movedCondition);
+                const movedCondition = this.rebaseCondition(candidate.expression, candidate.column, targetColumn.column, options);
+                target.query.appendWhere(movedCondition);
+                appliedReason = placement.reason;
+            } else {
+                const placements: TargetPlacement[] = [];
+                let skip: SkipDraft | null = null;
+                for (const branch of target.branches) {
+                    const placement = this.resolveTargetPlacement(branch.query, branch.targetColumn);
+                    if ("code" in placement) {
+                        skip = placement;
+                        break;
+                    }
+                    placements.push(placement);
+                }
+                if (skip) {
+                    skipped.push(this.makeSkipped(term, skip, options));
+                    continue;
+                }
+
+                for (const branch of target.branches) {
+                    const movedCondition = this.rebaseCondition(candidate.expression, candidate.column, branch.targetColumn, options);
+                    branch.query.appendWhere(movedCondition);
+                }
+                appliedReason = placements.some(item => /group by/i.test(item.reason))
+                    ? "Condition is distributed to every UNION branch by output column position; grouped branches only receive GROUP BY-key predicates."
+                    : "Condition is distributed to every UNION branch by output column position before unsafe query boundaries.";
+            }
             movedTerms.push(term);
 
             applied.push({
@@ -305,7 +346,7 @@ export class ParameterConditionPlacementOptimizer {
                 conditionSql: candidate.conditionSql,
                 fromScopeId: "scope:root",
                 toScopeId: target.scopeId,
-                reason: placement.reason,
+                reason: appliedReason,
                 parameterNames: candidate.parameterNames,
                 columnReferences: [columnReferenceText(candidate.column)]
             });
@@ -559,7 +600,7 @@ export class ParameterConditionPlacementOptimizer {
             };
         }
 
-        const bindingResult = this.resolveSourceBinding(root, candidate.column);
+        const bindingResult = this.resolveSourceBinding(root, root, candidate.column);
         if ("code" in bindingResult) {
             return bindingResult;
         }
@@ -640,8 +681,12 @@ export class ParameterConditionPlacementOptimizer {
         };
     }
 
-    private resolveSourceBinding(root: SimpleSelectQuery, column: ColumnReference): SourceBinding | SkipDraft {
-        const fromClause = root.fromClause;
+    private resolveSourceBinding(
+        contextRoot: SimpleSelectQuery,
+        query: SimpleSelectQuery,
+        column: ColumnReference
+    ): SourceBinding | SkipDraft {
+        const fromClause = query.fromClause;
         if (!fromClause) {
             return {
                 code: "NO_FROM_CLAUSE",
@@ -662,11 +707,7 @@ export class ParameterConditionPlacementOptimizer {
                 };
             }
 
-            if (this.resolveSourceQueryForColumns(root, matches[0]!.source) instanceof BinarySelectQuery) {
-                return matches[0]!;
-            }
-
-            const matchCount = this.getOutputColumnMatchCount(root, matches[0]!, columnName);
+            const matchCount = this.getOutputColumnMatchCount(contextRoot, matches[0]!, columnName);
             if (matchCount === 0) {
                 return {
                     code: "COLUMN_NOT_AVAILABLE_UPSTREAM",
@@ -683,14 +724,8 @@ export class ParameterConditionPlacementOptimizer {
         }
 
         const matches: SourceBinding[] = [];
-        let unionSource: SourceBinding | null = null;
         for (const binding of bindings) {
-            if (this.resolveSourceQueryForColumns(root, binding.source) instanceof BinarySelectQuery) {
-                unionSource ??= binding;
-                continue;
-            }
-
-            const matchCount = this.getOutputColumnMatchCount(root, binding, columnName);
+            const matchCount = this.getOutputColumnMatchCount(contextRoot, binding, columnName);
             if (matchCount > 1) {
                 return {
                     code: "AMBIGUOUS_COLUMN_REFERENCE",
@@ -700,13 +735,6 @@ export class ParameterConditionPlacementOptimizer {
             if (matchCount === 1) {
                 matches.push(binding);
             }
-        }
-
-        if (matches.length === 0 && unionSource) {
-            return {
-                code: "UNION_BOUNDARY",
-                reason: "Condition would need distribution into a UNION branch, which is unsupported."
-            };
         }
 
         if (matches.length !== 1) {
@@ -730,11 +758,15 @@ export class ParameterConditionPlacementOptimizer {
         if (source instanceof SubQuerySource) {
             if (source.query instanceof SimpleSelectQuery) {
                 return {
+                    kind: "simple",
                     query: source.query,
                     scopeId: `subquery:${binding.alias}`,
                     outputColumnName,
                     sourceBinding: binding
                 };
+            }
+            if (source.query instanceof BinarySelectQuery) {
+                return this.resolveUnionTarget(root, source.query, `subquery:${binding.alias}`, outputColumnName);
             }
             return {
                 code: "UNION_BOUNDARY",
@@ -767,10 +799,12 @@ export class ParameterConditionPlacementOptimizer {
         }
 
         if (commonTable.query instanceof BinarySelectQuery) {
-            return {
-                code: "UNION_BOUNDARY",
-                reason: "Condition would need distribution into a UNION branch, which is unsupported."
-            };
+            return this.resolveUnionTarget(
+                root,
+                commonTable.query,
+                `cte:${commonTable.getSourceAliasName()}`,
+                outputColumnName
+            );
         }
 
         if (!(commonTable.query instanceof SimpleSelectQuery)) {
@@ -781,11 +815,44 @@ export class ParameterConditionPlacementOptimizer {
         }
 
         return {
+            kind: "simple",
             query: commonTable.query,
             scopeId: `cte:${commonTable.getSourceAliasName()}`,
             outputColumnName,
             sourceBinding: binding,
             cteName: commonTable.getSourceAliasName()
+        };
+    }
+
+    private resolveUnionTarget(
+        root: SimpleSelectQuery,
+        query: BinarySelectQuery,
+        scopeId: string,
+        outputColumnName: string
+    ): UnionUpstreamTarget | SkipDraft {
+        const branches = this.collectUnionBranches(query);
+        if ("code" in branches) {
+            return branches;
+        }
+
+        const outputIndex = this.resolveUnionOutputIndex(root, branches[0]!, outputColumnName);
+        if ("code" in outputIndex) {
+            return outputIndex;
+        }
+
+        const branchTargets: UnionBranchTarget[] = [];
+        for (const branch of branches) {
+            const targetColumn = this.resolveTargetColumnByOutputIndex(root, branch, outputIndex.index, outputColumnName);
+            if ("code" in targetColumn) {
+                return targetColumn;
+            }
+            branchTargets.push(this.resolveDeepestBranchTarget(root, branch, targetColumn.column));
+        }
+
+        return {
+            kind: "union",
+            scopeId,
+            branches: branchTargets
         };
     }
 
@@ -821,6 +888,78 @@ export class ParameterConditionPlacementOptimizer {
         }
 
         return { column: value };
+    }
+
+    private resolveTargetColumnByOutputIndex(
+        root: SimpleSelectQuery,
+        query: SimpleSelectQuery,
+        outputIndex: number,
+        externalColumnName: string
+    ): TargetColumnResolution | SkipDraft {
+        const output = this.collectSelectOutputs(root, query)[outputIndex];
+        if (!output) {
+            return {
+                code: "UNION_COLUMN_MISMATCH",
+                reason: `UNION branch does not expose column '${externalColumnName}' at output position ${outputIndex + 1}.`
+            };
+        }
+
+        if (!(output.value instanceof ColumnReference)) {
+            return {
+                code: "EXPRESSION_OUTPUT_UNSUPPORTED",
+                reason: `UNION branch output at position ${outputIndex + 1} for '${externalColumnName}' is an expression, not a direct column reference.`
+            };
+        }
+
+        const sourceResolution = this.verifyColumnResolvableInQuery(query, output.value);
+        if (sourceResolution) {
+            return sourceResolution;
+        }
+
+        return { column: output.value };
+    }
+
+    private resolveDeepestBranchTarget(
+        contextRoot: SimpleSelectQuery,
+        query: SimpleSelectQuery,
+        targetColumn: ColumnReference,
+        visited: ReadonlySet<SimpleSelectQuery> = new Set()
+    ): UnionBranchTarget {
+        if (visited.has(query)) {
+            return { query, targetColumn };
+        }
+
+        const nextVisited = new Set(visited);
+        nextVisited.add(query);
+
+        const binding = this.resolveSourceBinding(contextRoot, query, targetColumn);
+        if ("code" in binding) {
+            return { query, targetColumn };
+        }
+
+        const nullableSide = query.fromClause
+            ? this.findNullableSideBoundary(query.fromClause, binding)
+            : null;
+        if (nullableSide) {
+            return { query, targetColumn };
+        }
+
+        const upstream = this.resolveUpstreamQuery(contextRoot, binding, targetColumn.column.name);
+        if ("code" in upstream || upstream.kind === "union") {
+            return { query, targetColumn };
+        }
+
+        const upstreamColumn = this.resolveTargetColumn(contextRoot, upstream.query, upstream.outputColumnName);
+        if ("code" in upstreamColumn) {
+            return { query, targetColumn };
+        }
+
+        const placement = this.resolveTargetPlacement(upstream.query, upstreamColumn.column);
+        if ("code" in placement) {
+            return { query, targetColumn };
+        }
+
+        return this.resolveDeepestBranchTarget(contextRoot, upstream.query, upstreamColumn.column, nextVisited);
     }
 
     private verifyColumnResolvableInQuery(query: SimpleSelectQuery, column: ColumnReference): SkipDraft | null {
@@ -971,12 +1110,77 @@ export class ParameterConditionPlacementOptimizer {
 
     private getOutputColumnMatchCount(root: SimpleSelectQuery, binding: SourceBinding, columnName: string): number {
         const target = this.resolveSourceQueryForColumns(root, binding.source);
-        if (!target || !(target instanceof SimpleSelectQuery)) {
+        if (!target) {
+            return 0;
+        }
+        if (target instanceof BinarySelectQuery) {
+            const branches = this.collectUnionBranches(target);
+            if ("code" in branches) {
+                return 0;
+            }
+            return this.collectSelectOutputs(root, branches[0]!).filter(item =>
+                normalizeIdentifier(item.name) === normalizeIdentifier(columnName)
+            ).length;
+        }
+        if (!(target instanceof SimpleSelectQuery)) {
             return 0;
         }
         return this.collectSelectOutputs(root, target).filter(item =>
             normalizeIdentifier(item.name) === normalizeIdentifier(columnName)
         ).length;
+    }
+
+    private collectUnionBranches(query: BinarySelectQuery): SimpleSelectQuery[] | SkipDraft {
+        const branches: SimpleSelectQuery[] = [];
+        const visit = (select: SelectQuery): SkipDraft | null => {
+            if (select instanceof SimpleSelectQuery) {
+                branches.push(select);
+                return null;
+            }
+            if (!(select instanceof BinarySelectQuery)) {
+                return {
+                    code: "UNION_BOUNDARY",
+                    reason: "Condition would need distribution into a non-simple UNION branch, which is unsupported."
+                };
+            }
+
+            const operator = select.operator.value.trim().toLowerCase();
+            if (operator !== "union" && operator !== "union all") {
+                return {
+                    code: "UNION_BOUNDARY",
+                    reason: `Condition would need distribution through '${select.operator.value}', which is unsupported.`
+                };
+            }
+
+            return visit(select.left) ?? visit(select.right);
+        };
+
+        const skip = visit(query);
+        return skip ?? branches;
+    }
+
+    private resolveUnionOutputIndex(
+        root: SimpleSelectQuery,
+        firstBranch: SimpleSelectQuery,
+        outputColumnName: string
+    ): { index: number } | SkipDraft {
+        const matches: number[] = [];
+        this.collectSelectOutputs(root, firstBranch).forEach((item, index) => {
+            if (normalizeIdentifier(item.name) === normalizeIdentifier(outputColumnName)) {
+                matches.push(index);
+            }
+        });
+
+        if (matches.length !== 1) {
+            return {
+                code: "AMBIGUOUS_TARGET_COLUMN",
+                reason: matches.length === 0
+                    ? `UNION output does not expose '${outputColumnName}' from its first branch.`
+                    : `UNION first branch exposes multiple '${outputColumnName}' columns.`
+            };
+        }
+
+        return { index: matches[0]! };
     }
 
     private collectSelectOutputs(root: SimpleSelectQuery, query: SimpleSelectQuery): SelectOutputColumn[] {

@@ -543,7 +543,7 @@ describe('ParameterConditionPlacementOptimizer', () => {
         expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
     });
 
-    it('skips predicates that would require UNION branch distribution', () => {
+    it('distributes predicates into UNION branches', () => {
         const sql = `
             with combined_orders as (
                 select o.customer_id
@@ -560,10 +560,143 @@ describe('ParameterConditionPlacementOptimizer', () => {
         const result = optimizeParameterConditionPlacement(sql);
 
         expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                toScopeId: 'cte:combined_orders',
+                reason: expect.stringMatching(/UNION branch by output column position/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with combined_orders as (
+                select o.customer_id
+                from orders o
+                where o.customer_id = :customer_id
+                union all
+                select a.customer_id
+                from archived_orders a
+                where a.customer_id = :customer_id
+            )
+            select co.customer_id
+            from combined_orders co
+        `));
+    });
+
+    it('maps UNION predicates by output position instead of later branch aliases', () => {
+        const sql = `
+            with combined_accounts as (
+                select c.id as account_id, c.status as account_status
+                from customers c
+                union all
+                select a.legacy_customer_id as ignored_id, a.lifecycle_status as ignored_status
+                from archived_customers a
+            )
+            select ca.account_id
+            from combined_accounts ca
+            where ca.account_status = :status
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                conditionSql: '"ca"."account_status" = :status',
+                reason: expect.stringMatching(/output column position/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with combined_accounts as (
+                select c.id as account_id, c.status as account_status
+                from customers c
+                where c.status = :status
+                union all
+                select a.legacy_customer_id as ignored_id, a.lifecycle_status as ignored_status
+                from archived_customers a
+                where a.lifecycle_status = :status
+            )
+            select ca.account_id
+            from combined_accounts ca
+        `));
+    });
+
+    it('moves UNION branch predicates into branch-local upstream CTEs when safe', () => {
+        const sql = `
+            with current_accounts as (
+                select c.id, c.status
+                from customers c
+            ),
+            legacy_accounts as (
+                select a.legacy_customer_id, a.lifecycle_status
+                from archived_customers a
+            ),
+            combined_accounts as (
+                select ca.id as account_id, ca.status as account_status
+                from current_accounts ca
+                union all
+                select la.legacy_customer_id as ignored_id, la.lifecycle_status as ignored_status
+                from legacy_accounts la
+            )
+            select ca.account_id
+            from combined_accounts ca
+            where ca.account_status = :status
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                conditionSql: '"ca"."account_status" = :status',
+                reason: expect.stringMatching(/output column position/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with current_accounts as (
+                select c.id, c.status
+                from customers c
+                where c.status = :status
+            ),
+            legacy_accounts as (
+                select a.legacy_customer_id, a.lifecycle_status
+                from archived_customers a
+                where a.lifecycle_status = :status
+            ),
+            combined_accounts as (
+                select ca.id as account_id, ca.status as account_status
+                from current_accounts ca
+                union all
+                select la.legacy_customer_id as ignored_id, la.lifecycle_status as ignored_status
+                from legacy_accounts la
+            )
+            select ca.account_id
+            from combined_accounts ca
+        `));
+    });
+
+    it('keeps UNION predicates outside when any branch output is not a direct column', () => {
+        const sql = `
+            with combined_orders as (
+                select o.customer_id
+                from orders o
+                union all
+                select coalesce(a.customer_id, 0) as customer_id
+                from archived_orders a
+            )
+            select co.customer_id
+            from combined_orders co
+            where co.customer_id = :customer_id
+        `;
+
+        const result = optimizeParameterConditionPlacement(sql);
+
+        expect(result.ok).toBe(true);
         expect(result.applied).toEqual([]);
         expect(result.skipped).toEqual([
             expect.objectContaining({
-                reason: expect.stringMatching(/union/i)
+                code: 'EXPRESSION_OUTPUT_UNSUPPORTED'
             })
         ]);
         expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));

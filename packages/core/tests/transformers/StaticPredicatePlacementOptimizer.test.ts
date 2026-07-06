@@ -340,7 +340,7 @@ describe('StaticPredicatePlacementOptimizer', () => {
         `));
     });
 
-    it('skips DISTINCT and UNION boundaries', () => {
+    it('skips DISTINCT boundaries and unsafe UNION branches', () => {
 
         const distinctResult = optimizeStaticPredicatePlacement(`
             with distinct_customers as (
@@ -357,7 +357,7 @@ describe('StaticPredicatePlacementOptimizer', () => {
                 select c.id
                 from customers c
                 union all
-                select a.id
+                select coalesce(a.id, 0) as id
                 from archived_customers a
             )
             select cc.id
@@ -369,8 +369,103 @@ describe('StaticPredicatePlacementOptimizer', () => {
             expect.objectContaining({ code: 'DISTINCT_BOUNDARY' })
         ]);
         expect(unionResult.skipped).toEqual([
-            expect.objectContaining({ code: 'UNION_BOUNDARY' })
+            expect.objectContaining({ code: 'EXPRESSION_OUTPUT_UNSUPPORTED' })
         ]);
+    });
+
+    it('distributes static predicates into UNION branches by output position', () => {
+        const sql = `
+            with customer_statuses as (
+                select c.id as customer_id, c.status as status_label
+                from customers c
+                union all
+                select a.legacy_customer_id as ignored_customer_id, a.lifecycle_status as ignored_status
+                from archived_customers a
+            )
+            select cs.customer_id
+            from customer_statuses cs
+            where cs.status_label = 'active'
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                predicateSql: `"cs"."status_label" = 'active'`,
+                toScopeId: 'cte:customer_statuses',
+                reason: expect.stringMatching(/output column position/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with customer_statuses as (
+                select c.id as customer_id, c.status as status_label
+                from customers c
+                where c.status = 'active'
+                union all
+                select a.legacy_customer_id as ignored_customer_id, a.lifecycle_status as ignored_status
+                from archived_customers a
+                where a.lifecycle_status = 'active'
+            )
+            select cs.customer_id
+            from customer_statuses cs
+        `));
+    });
+
+    it('moves UNION branch static predicates into branch-local upstream CTEs when safe', () => {
+        const sql = `
+            with current_accounts as (
+                select c.id, c.status
+                from customers c
+            ),
+            legacy_accounts as (
+                select a.legacy_customer_id, a.lifecycle_status
+                from archived_customers a
+            ),
+            customer_statuses as (
+                select ca.id as customer_id, ca.status as status_label
+                from current_accounts ca
+                union all
+                select la.legacy_customer_id as ignored_customer_id, la.lifecycle_status as ignored_status
+                from legacy_accounts la
+            )
+            select cs.customer_id
+            from customer_statuses cs
+            where cs.status_label = 'active'
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                predicateSql: `"cs"."status_label" = 'active'`,
+                reason: expect.stringMatching(/output column position/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with current_accounts as (
+                select c.id, c.status
+                from customers c
+                where c.status = 'active'
+            ),
+            legacy_accounts as (
+                select a.legacy_customer_id, a.lifecycle_status
+                from archived_customers a
+                where a.lifecycle_status = 'active'
+            ),
+            customer_statuses as (
+                select ca.id as customer_id, ca.status as status_label
+                from current_accounts ca
+                union all
+                select la.legacy_customer_id as ignored_customer_id, la.lifecycle_status as ignored_status
+                from legacy_accounts la
+            )
+            select cs.customer_id
+            from customer_statuses cs
+        `));
     });
 
     it('skips OR predicates that would require boolean distribution', () => {
