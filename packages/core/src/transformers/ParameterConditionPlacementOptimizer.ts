@@ -172,6 +172,14 @@ const SUPPORTED_OPERATORS = new Set(["=", "<>", "!=", "<", "<=", ">", ">=", "lik
 const VOLATILE_OR_UNSUPPORTED_FUNCTION_REASON = "Condition contains a function call; volatile and expression predicates are not moved in the safe-only implementation.";
 
 const normalizeIdentifier = (value: string): string => value.trim().toLowerCase();
+const isCaseSensitiveIdentifier = (value: string): boolean => /[A-Z]/.test(value.trim());
+const identifiersEqual = (left: string, right: string): boolean => {
+    const trimmedLeft = left.trim();
+    const trimmedRight = right.trim();
+    return isCaseSensitiveIdentifier(trimmedLeft) || isCaseSensitiveIdentifier(trimmedRight)
+        ? trimmedLeft === trimmedRight
+        : trimmedLeft.toLowerCase() === trimmedRight.toLowerCase();
+};
 
 const unwrapParens = (expression: ValueComponent): ValueComponent => {
     let candidate = expression;
@@ -237,8 +245,8 @@ const columnReferenceText = (reference: ColumnReference): string => {
 };
 
 const sameColumnReference = (left: ColumnReference, right: ColumnReference): boolean => {
-    return normalizeIdentifier(left.column.name) === normalizeIdentifier(right.column.name)
-        && normalizeIdentifier(left.getNamespace()) === normalizeIdentifier(right.getNamespace());
+    return identifiersEqual(left.column.name, right.column.name)
+        && identifiersEqual(left.getNamespace(), right.getNamespace());
 };
 
 const appendUnique = <T>(items: T[], value: T): void => {
@@ -753,11 +761,11 @@ export class ParameterConditionPlacementOptimizer {
         }
 
         const bindings = this.getSourceBindings(fromClause);
-        const namespace = normalizeIdentifier(column.getNamespace());
+        const namespace = column.getNamespace();
         const columnName = column.column.name;
 
         if (namespace) {
-            const matches = bindings.filter(binding => normalizeIdentifier(binding.alias) === namespace);
+            const matches = bindings.filter(binding => identifiersEqual(binding.alias, namespace));
             if (matches.length !== 1) {
                 return {
                     code: "AMBIGUOUS_COLUMN_SOURCE",
@@ -930,9 +938,7 @@ export class ParameterConditionPlacementOptimizer {
     ): TargetColumnResolution[] | SkipDraft {
         const resolved: TargetColumnResolution[] = [];
         for (const reference of references) {
-            const matches = this.collectSelectOutputs(root, query).filter(item =>
-                normalizeIdentifier(item.name) === normalizeIdentifier(reference.column.name)
-            );
+            const matches = this.collectDirectOutputMatches(root, query, reference.column.name);
 
             if (matches.length !== 1) {
                 return {
@@ -1039,6 +1045,14 @@ export class ParameterConditionPlacementOptimizer {
                 code: "UNION_COLUMN_MISMATCH",
                 reason: `UNION branch does not expose column '${sourceColumn.column.name}' at output position ${outputIndex + 1}.`
             };
+        } else if (identifiersEqual(output.name, sourceColumn.column.name)) {
+            const matches = this.collectDirectOutputMatches(root, query, sourceColumn.column.name);
+            if (matches.length > 1) {
+                return {
+                    code: "AMBIGUOUS_TARGET_COLUMN",
+                    reason: `UNION branch exposes multiple '${sourceColumn.column.name}' columns.`
+                };
+            }
         }
 
         if (!(output.value instanceof ColumnReference)) {
@@ -1138,9 +1152,9 @@ export class ParameterConditionPlacementOptimizer {
         }
 
         const bindings = this.getSourceBindings(query.fromClause);
-        const namespace = normalizeIdentifier(column.getNamespace());
+        const namespace = column.getNamespace();
         if (namespace) {
-            const matches = bindings.filter(binding => normalizeIdentifier(binding.alias) === namespace);
+            const matches = bindings.filter(binding => identifiersEqual(binding.alias, namespace));
             return matches.length === 1
                 ? null
                 : {
@@ -1180,7 +1194,7 @@ export class ParameterConditionPlacementOptimizer {
         if (sameColumnReference(left, right)) {
             return true;
         }
-        if (normalizeIdentifier(left.column.name) !== normalizeIdentifier(right.column.name)) {
+        if (!identifiersEqual(left.column.name, right.column.name)) {
             return false;
         }
         const leftSource = this.resolveColumnSourceAlias(query, left);
@@ -1193,12 +1207,12 @@ export class ParameterConditionPlacementOptimizer {
             return null;
         }
         const bindings = this.getSourceBindings(query.fromClause);
-        const namespace = normalizeIdentifier(column.getNamespace());
+        const namespace = column.getNamespace();
         if (namespace) {
-            const matches = bindings.filter(binding => normalizeIdentifier(binding.alias) === namespace);
-            return matches.length === 1 ? normalizeIdentifier(matches[0]!.alias) : null;
+            const matches = bindings.filter(binding => identifiersEqual(binding.alias, namespace));
+            return matches.length === 1 ? matches[0]!.alias : null;
         }
-        return bindings.length === 1 ? normalizeIdentifier(bindings[0]!.alias) : null;
+        return bindings.length === 1 ? bindings[0]!.alias : null;
     }
 
     private rebaseCondition(
@@ -1322,16 +1336,12 @@ export class ParameterConditionPlacementOptimizer {
             if ("code" in branches) {
                 return 0;
             }
-            return this.collectSelectOutputs(root, branches[0]!).filter(item =>
-                normalizeIdentifier(item.name) === normalizeIdentifier(columnName)
-            ).length;
+            return this.collectDirectOutputMatches(root, branches[0]!, columnName).length;
         }
         if (!(target instanceof SimpleSelectQuery)) {
             return 0;
         }
-        return this.collectSelectOutputs(root, target).filter(item =>
-            normalizeIdentifier(item.name) === normalizeIdentifier(columnName)
-        ).length;
+        return this.collectDirectOutputMatches(root, target, columnName, true).length;
     }
 
     private collectUnionBranches(query: BinarySelectQuery): SimpleSelectQuery[] | SkipDraft {
@@ -1370,7 +1380,7 @@ export class ParameterConditionPlacementOptimizer {
     ): { index: number } | SkipDraft {
         const matches: number[] = [];
         this.collectSelectOutputs(root, firstBranch).forEach((item, index) => {
-            if (normalizeIdentifier(item.name) === normalizeIdentifier(outputColumnName)) {
+            if (identifiersEqual(item.name, outputColumnName)) {
                 matches.push(index);
             }
         });
@@ -1394,6 +1404,144 @@ export class ParameterConditionPlacementOptimizer {
         ];
         const collector = new SelectOutputCollector(null, commonTables.length > 0 ? commonTables : null);
         return collector.collect(query);
+    }
+
+    private collectDirectOutputMatches(
+        root: SimpleSelectQuery,
+        query: SimpleSelectQuery,
+        columnName: string,
+        includeUnprovenPotential: boolean = false
+    ): SelectOutputColumn[] {
+        const collectedMatches = this.collectSelectOutputs(root, query).filter(item =>
+            identifiersEqual(item.name, columnName)
+        );
+        if (collectedMatches.length > 0) {
+            return this.hasExplicitOutputMatch(query, columnName)
+                ? [...collectedMatches, ...this.inferWildcardOutputMatches(root, query, columnName, true)]
+                : collectedMatches;
+        }
+
+        return this.inferWildcardOutputMatches(root, query, columnName, includeUnprovenPotential);
+    }
+
+    private hasExplicitOutputMatch(query: SimpleSelectQuery, columnName: string): boolean {
+        return query.selectClause.items.some(item => {
+            if (item.identifier) {
+                return identifiersEqual(item.identifier.name, columnName);
+            }
+
+            return item.value instanceof ColumnReference
+                && item.value.column.name !== "*"
+                && identifiersEqual(item.value.column.name, columnName);
+        });
+    }
+
+    private inferWildcardOutputMatches(
+        root: SimpleSelectQuery,
+        query: SimpleSelectQuery,
+        columnName: string,
+        includeUnprovenPotential: boolean
+    ): SelectOutputColumn[] {
+        const matches: SelectOutputColumn[] = [];
+        query.selectClause.items.forEach((item, outputIndex) => {
+            if (item.identifier || !(item.value instanceof ColumnReference) || item.value.column.name !== "*") {
+                return;
+            }
+
+            const targetColumn = this.inferWildcardTargetColumn(root, query, item.value, columnName, includeUnprovenPotential);
+            if (!targetColumn) {
+                return;
+            }
+
+            if (targetColumn === "ambiguous") {
+                matches.push(
+                    this.createInferredOutputColumn(columnName, new ColumnReference(null, columnName), outputIndex),
+                    this.createInferredOutputColumn(columnName, new ColumnReference(null, columnName), outputIndex)
+                );
+                return;
+            }
+
+            matches.push(this.createInferredOutputColumn(columnName, targetColumn, outputIndex));
+        });
+        return matches;
+    }
+
+    private inferWildcardTargetColumn(
+        root: SimpleSelectQuery,
+        query: SimpleSelectQuery,
+        wildcard: ColumnReference,
+        columnName: string,
+        includeUnprovenPotential: boolean
+    ): ColumnReference | "ambiguous" | null {
+        if (!query.fromClause) {
+            return null;
+        }
+
+        const bindings = this.getSourceBindings(query.fromClause);
+        if (wildcard.namespaces === null) {
+            if (bindings.length !== 1) {
+                return "ambiguous";
+            }
+            return this.resolveWildcardColumnFromBinding(root, query, bindings[0]!, columnName, includeUnprovenPotential);
+        }
+
+        const namespace = wildcard.getNamespace();
+        const matches = bindings.filter(binding => identifiersEqual(binding.alias, namespace));
+        if (matches.length === 0) {
+            return null;
+        }
+        return matches.length === 1
+            ? this.resolveWildcardColumnFromBinding(root, query, matches[0]!, columnName, includeUnprovenPotential)
+            : "ambiguous";
+    }
+
+    private resolveWildcardColumnFromBinding(
+        root: SimpleSelectQuery,
+        query: SimpleSelectQuery,
+        binding: SourceBinding,
+        columnName: string,
+        includeUnprovenPotential: boolean
+    ): ColumnReference | "ambiguous" | null {
+        const matches = this.collectSourceOutputMatches(root, query, binding.source, columnName);
+        if (matches.length > 1) {
+            return "ambiguous";
+        }
+        if (matches.length === 1) {
+            const value = matches[0]!.value;
+            return value instanceof ColumnReference ? value : null;
+        }
+        return includeUnprovenPotential && binding.source.datasource instanceof TableSource
+            ? this.createColumnForBinding(binding, columnName)
+            : null;
+    }
+
+    private collectSourceOutputMatches(
+        root: SimpleSelectQuery,
+        query: SimpleSelectQuery,
+        source: SourceExpression,
+        columnName: string
+    ): SelectOutputColumn[] {
+        const commonTables = [
+            ...(query.withClause?.tables ?? []),
+            ...(root.withClause?.tables ?? [])
+        ];
+        const collector = new SelectOutputCollector(null, commonTables.length > 0 ? commonTables : null);
+        return collector.collect(source).filter(item => identifiersEqual(item.name, columnName));
+    }
+
+    private createColumnForBinding(binding: SourceBinding, columnName: string): ColumnReference {
+        return new ColumnReference(binding.alias ? [binding.alias] : null, columnName);
+    }
+
+    private createInferredOutputColumn(name: string, value: ColumnReference, outputIndex: number): SelectOutputColumn {
+        return {
+            name,
+            value,
+            outputIndex,
+            sourceAlias: value.getNamespace() || null,
+            sourceName: null,
+            sourceColumnName: name
+        };
     }
 
     private resolveSourceQueryForColumns(root: SimpleSelectQuery, source: SourceExpression): SelectQuery | null {

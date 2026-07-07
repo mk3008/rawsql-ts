@@ -408,6 +408,441 @@ describe('ConditionOptimization', () => {
         ]);
     });
 
+    it('moves parameter conditions through a derived table wildcard output', () => {
+        const sql = `
+            select *
+            from (
+                select *
+                from (
+                    select u.status
+                    from users u
+                ) user_status
+            ) active_users
+            where active_users.status = :status
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                kind: 'move_condition',
+                toScopeId: 'subquery:active_users',
+                columnReferences: ['active_users.status']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            select *
+            from (
+                select *
+                from (
+                    select u.status
+                    from users u
+                ) user_status
+                where user_status.status = :status
+            ) active_users
+        `));
+    });
+
+    it('moves parameter conditions through a CTE wildcard output', () => {
+        const sql = `
+            with active_users as (
+                select *
+                from (
+                    select u.status
+                    from users u
+                ) user_status
+            )
+            select *
+            from active_users
+            where status = :status
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                kind: 'move_condition',
+                toScopeId: 'cte:active_users',
+                columnReferences: ['status']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with active_users as (
+                select *
+                from (
+                    select u.status
+                    from users u
+                ) user_status
+                where user_status.status = :status
+            )
+            select *
+            from active_users
+        `));
+    });
+
+    it('keeps ambiguous wildcard outputs skipped instead of guessing a source column', () => {
+        const sql = `
+            select *
+            from (
+                select *
+                from users u
+                join user_profiles p on p.user_id = u.id
+            ) user_search
+            where status = :status
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement'
+            })
+        ]));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('keeps duplicate explicit output plus wildcard from a single source skipped', () => {
+        const sql = `
+            select *
+            from (
+                select *, u.status as status
+                from users u
+            ) active_users
+            where status = :status
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement'
+            })
+        ]));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('keeps explicit output plus multi-source wildcard ownership skipped', () => {
+        const sql = `
+            select *
+            from (
+                select *, p.status as status
+                from users u
+                join profiles p on p.user_id = u.id
+            ) user_search
+            where status = :status
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement'
+            })
+        ]));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('keeps wildcard UNION CTE branches skipped when output ordinals are not proven', () => {
+        const sql = `
+            with all_users as (
+                select *
+                from users u
+                union all
+                select *
+                from archived_users au
+            )
+            select *
+            from all_users
+            where status = :status
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                code: 'AMBIGUOUS_COLUMN_REFERENCE'
+            })
+        ]));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('keeps wildcard UNION derived-table branches skipped when output ordinals are not proven', () => {
+        const sql = `
+            select *
+            from (
+                select *
+                from users u
+                union all
+                select *
+                from archived_users au
+            ) all_users
+            where all_users.status = :status
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement'
+            })
+        ]));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('does not mix wildcard UNION select-item indexes with explicit branch output ordinals', () => {
+        const sql = `
+            with u as (
+                select *
+                from active_users a
+                union all
+                select r.id, r.state, r.status
+                from archived_users r
+            )
+            select *
+            from u
+            where status = :status
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement'
+            })
+        ]));
+        expect(normalizeForSearch(result.sql)).not.toContain(collapseFragment('where r.id = :status'));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('moves explicit UNION branches by first-branch output name and ordinal', () => {
+        const sql = `
+            with all_users as (
+                select a.status, a.id
+                from active_users a
+                union all
+                select r.state as archived_state, r.id
+                from archived_users r
+            )
+            select *
+            from all_users
+            where status = :status
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                kind: 'move_condition',
+                toScopeId: 'cte:all_users',
+                columnReferences: ['status']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with all_users as (
+                select a.status, a.id
+                from active_users a
+                where a.status = :status
+                union all
+                select r.state as archived_state, r.id
+                from archived_users r
+                where r.state = :status
+            )
+            select *
+            from all_users
+        `));
+    });
+
+    it('keeps wildcard columns skipped when the source output does not prove the column exists', () => {
+        const sql = `
+            select d.customer_id
+            from (
+                select distinct *
+                from (
+                    select o.customer_id
+                    from orders o
+                ) as o
+            ) as d
+            where d.status = :status
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement'
+            })
+        ]));
+        expect(normalizeForSearch(result.sql)).not.toContain(collapseFragment('where o.status = :status'));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('matches quoted source aliases case-sensitively during wildcard placement', () => {
+        const sql = `
+            select *
+            from (
+                select *
+                from (
+                    select "User".status
+                    from users "User"
+                ) "User"
+            ) "UserScope"
+            join (
+                select *
+                from (
+                    select "user".status
+                    from users "user"
+                ) "user"
+            ) "userScope" on true
+            where "UserScope".status = :status
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                kind: 'move_condition',
+                toScopeId: 'subquery:UserScope',
+                columnReferences: ['UserScope.status']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            select *
+            from (
+                select *
+                from (
+                    select "User".status
+                    from users "User"
+                ) "User"
+                where "User".status = :status
+            ) "UserScope"
+            join (
+                select *
+                from (
+                    select "user".status
+                    from users "user"
+                ) "user"
+            ) "userScope" on true
+        `));
+    });
+
+    it('keeps ambiguous wildcard UNION first-branch ownership skipped', () => {
+        const sql = `
+            with all_users as (
+                select *, u.status as status
+                from users u
+                union all
+                select *
+                from archived_users au
+            )
+            select *
+            from all_users
+            where status = :status
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                code: 'AMBIGUOUS_COLUMN_REFERENCE'
+            })
+        ]));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('keeps static predicates on base-table wildcard outputs skipped when column existence is not proven', () => {
+        const sql = `
+            with active_users as (
+                select *
+                from users u
+            )
+            select *
+            from active_users
+            where status = 'active'
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'static_predicate_placement',
+                code: 'AMBIGUOUS_COLUMN_REFERENCE'
+            })
+        ]));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('moves static predicates through syntax-proven CTE wildcard outputs', () => {
+        const sql = `
+            with active_users as (
+                select *
+                from (
+                    select u.status
+                    from users u
+                ) user_status
+            )
+            select *
+            from active_users
+            where status = 'active'
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                phaseKind: 'static_predicate_placement',
+                kind: 'move_static_predicate',
+                toScopeId: 'cte:active_users',
+                columnReferences: ['status']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with active_users as (
+                select *
+                from (
+                    select u.status
+                    from users u
+                ) user_status
+                where user_status.status = 'active'
+            )
+            select *
+            from active_users
+        `));
+    });
+
     it('prunes same-block optional WHERE branches even when the query groups later', () => {
         const sql = `
             select customer_id, count(*) as order_count
