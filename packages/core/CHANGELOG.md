@@ -1,5 +1,21 @@
 # rawsql-ts
 
+## 0.29.0
+
+### Minor Changes
+
+- [#946](https://github.com/mk3008/rawsql-ts/pull/946) [`83598b3`](https://github.com/mk3008/rawsql-ts/commit/83598b3937703d7a0b7bbc40e0d70f0ee74422c1) Thanks [@mk3008](https://github.com/mk3008)! - Add condition optimization diagnostics for joined source filter probe candidates without adding a source-input SQL rewrite.
+
+### Patch Changes
+
+- [#945](https://github.com/mk3008/rawsql-ts/pull/945) [`0dcfe59`](https://github.com/mk3008/rawsql-ts/commit/0dcfe59a5426de84b5bc80e3f5beb930e83355e2) Thanks [@mk3008](https://github.com/mk3008)! - Improve safe condition placement for base-table INNER JOIN predicates and keep joined-source predicates behind later RIGHT/FULL JOIN nullable boundaries.
+
+- [#948](https://github.com/mk3008/rawsql-ts/pull/948) [`439c406`](https://github.com/mk3008/rawsql-ts/commit/439c4060e40391c00fee453521b0c80d03ea11e5) Thanks [@mk3008](https://github.com/mk3008)! - Deduplicate identical top-level AND conditions when condition optimization moves a predicate into a WHERE or JOIN ON clause that already contains the same predicate.
+
+- [#949](https://github.com/mk3008/rawsql-ts/pull/949) [`f485ef5`](https://github.com/mk3008/rawsql-ts/commit/f485ef5ef1c3de27f3e8c4f0b9fa7b0f37637207) Thanks [@mk3008](https://github.com/mk3008)! - Run condition deduplication as a standalone condition optimization phase so identical top-level AND predicates can be removed even when no condition placement move occurs.
+
+- [#947](https://github.com/mk3008/rawsql-ts/pull/947) [`992fa01`](https://github.com/mk3008/rawsql-ts/commit/992fa01b4d6c4e75e63f5a2091fa265867cd3c58) Thanks [@mk3008](https://github.com/mk3008)! - Improve safe condition placement through wildcard CTE and derived-table outputs when the referenced column maps to a single upstream source column, while keeping schema-unknown wildcard UNION ordinals on the safe skip path.
+
 ## 0.28.0
 
 ### Minor Changes
