@@ -3,6 +3,7 @@ import {
     DistinctOn,
     FromClause,
     JoinClause,
+    JoinOnClause,
     SourceExpression,
     SubQuerySource,
     TableSource,
@@ -138,7 +139,14 @@ interface UnionUpstreamTarget {
     branches: UnionBranchTarget[];
 }
 
-type UpstreamTarget = SimpleUpstreamTarget | UnionUpstreamTarget;
+interface JoinOnTarget {
+    kind: "join_on";
+    join: JoinClause;
+    scopeId: string;
+    reason: string;
+}
+
+type UpstreamTarget = SimpleUpstreamTarget | UnionUpstreamTarget | JoinOnTarget;
 
 interface TargetColumnResolution {
     sourceColumn: ColumnReference;
@@ -297,7 +305,10 @@ export class StaticPredicatePlacementOptimizer {
             }
 
             let appliedReason = "";
-            if (target.kind === "simple") {
+            if (target.kind === "join_on") {
+                this.appendJoinOnPredicate(target.join, candidate.expression, options);
+                appliedReason = target.reason;
+            } else if (target.kind === "simple") {
                 const targetColumns = this.resolveTargetColumns(query, target.query, candidate.references);
                 if ("code" in targetColumns) {
                     skipped.push(this.makeSkipped(term, targetColumns, options));
@@ -623,6 +634,12 @@ export class StaticPredicatePlacementOptimizer {
         }
 
         const binding = bindings[0]!;
+        if (binding.join?.lateral) {
+            return {
+                code: "LATERAL_JOIN_BOUNDARY",
+                reason: "Predicate crosses a LATERAL JOIN boundary; moving it may change semantics."
+            };
+        }
         const nullableSide = this.findNullableSideBoundary(root.fromClause, binding);
         if (nullableSide) {
             return nullableSide;
@@ -630,6 +647,13 @@ export class StaticPredicatePlacementOptimizer {
 
         const upstream = this.resolveUpstreamQuery(root, binding, candidate.references);
         if ("code" in upstream) {
+            if (upstream.code === "NO_SAFE_UPSTREAM_QUERY") {
+                const joinOnTarget = this.resolveBaseTableJoinOnTarget(root, binding);
+                if (!("code" in joinOnTarget)) {
+                    return joinOnTarget;
+                }
+                return joinOnTarget;
+            }
             return upstream;
         }
 
@@ -738,6 +762,9 @@ export class StaticPredicatePlacementOptimizer {
             }
 
             const matchCount = this.getOutputColumnMatchCount(contextRoot, matches[0]!, columnName);
+            if (matchCount === 0 && this.isBaseTableBinding(contextRoot, matches[0]!)) {
+                return matches[0]!;
+            }
             if (matchCount === 0) {
                 return {
                     code: "COLUMN_NOT_AVAILABLE_UPSTREAM",
@@ -934,6 +961,68 @@ export class StaticPredicatePlacementOptimizer {
         return resolved;
     }
 
+    private resolveBaseTableJoinOnTarget(root: SimpleSelectQuery, binding: SourceBinding): JoinOnTarget | SkipDraft {
+        if (!root.fromClause || !this.isBaseTableBinding(root, binding)) {
+            return {
+                code: "NO_SAFE_UPSTREAM_QUERY",
+                reason: "The referenced source is a base table, so there is no upstream query block to move into."
+            };
+        }
+
+        if (this.hasOuterJoin(root.fromClause)) {
+            return {
+                code: "OUTER_JOIN_BOUNDARY",
+                reason: "Predicate crosses an OUTER JOIN boundary; moving it into JOIN ON may change semantics."
+            };
+        }
+
+        const join = binding.isPrimary
+            ? root.fromClause.joins?.[0] ?? null
+            : binding.join;
+        if (join?.lateral) {
+            return {
+                code: "LATERAL_JOIN_BOUNDARY",
+                reason: "Predicate crosses a LATERAL JOIN boundary; moving it into JOIN ON may change semantics."
+            };
+        }
+        if (!join || !this.isInnerJoin(join)) {
+            return {
+                code: "NO_SAFE_JOIN_ON_TARGET",
+                reason: "Base-table predicates are moved only into INNER JOIN ON clauses in the safe-only implementation."
+            };
+        }
+        if (!(join.condition instanceof JoinOnClause)) {
+            return {
+                code: "NO_SAFE_JOIN_ON_TARGET",
+                reason: "Base-table predicates are moved only into existing JOIN ON clauses, not USING or conditionless joins."
+            };
+        }
+
+        return {
+            kind: "join_on",
+            join,
+            scopeId: `join_on:${join.source.getAliasName() ?? "unknown"}`,
+            reason: binding.isPrimary
+                ? "Predicate references the primary source of an INNER JOIN; it is moved into the first JOIN ON clause."
+                : "Predicate references the joined source of an INNER JOIN; it is moved into that JOIN ON clause."
+        };
+    }
+
+    private appendJoinOnPredicate(
+        join: JoinClause,
+        expression: ValueComponent,
+        options: SqlComponentFormatOptions
+    ): void {
+        if (!(join.condition instanceof JoinOnClause)) {
+            return;
+        }
+        join.condition.condition = new BinaryExpression(
+            join.condition.condition,
+            "and",
+            cloneValueComponent(expression, options)
+        );
+    }
+
     private resolveDeepestBranchTarget(
         contextRoot: SimpleSelectQuery,
         query: SimpleSelectQuery,
@@ -975,7 +1064,10 @@ export class StaticPredicatePlacementOptimizer {
             binding,
             targetColumns.map(item => item.targetColumn)
         );
-        if ("code" in upstream || upstream.kind === "union") {
+        if ("code" in upstream) {
+            return { query, targetColumns: [...targetColumns] };
+        }
+        if (upstream.kind !== "simple") {
             return { query, targetColumns: [...targetColumns] };
         }
 
@@ -1216,6 +1308,16 @@ export class StaticPredicatePlacementOptimizer {
         }
 
         return bindings;
+    }
+
+    private isBaseTableBinding(root: SimpleSelectQuery, binding: SourceBinding): boolean {
+        const source = binding.source.datasource;
+        return source instanceof TableSource && !this.findCte(root, source.table.name);
+    }
+
+    private isInnerJoin(join: JoinClause): boolean {
+        const joinType = join.joinType.value.trim().toLowerCase();
+        return joinType === "join" || joinType === "inner join";
     }
 
     private findNullableSideBoundary(fromClause: FromClause, binding: SourceBinding): SkipDraft | null {
