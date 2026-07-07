@@ -37,6 +37,10 @@ import {
     SqlComponentFormatOptions
 } from "./SqlComponentFormatter";
 import { SelectOutputCollector, SelectOutputColumn } from "./SelectOutputCollector";
+import {
+    dedupeTopLevelAndConditions,
+    dedupeWhereTopLevelAndConditions
+} from "./TopLevelAndConditionDeduper";
 
 export type StaticPredicatePlacementInput = string | SelectQuery | SimpleSelectQuery;
 
@@ -331,6 +335,7 @@ export class StaticPredicatePlacementOptimizer {
 
                 const movedPredicate = this.rebasePredicate(candidate.expression, targetColumns, options);
                 target.query.appendWhere(movedPredicate);
+                dedupeWhereTopLevelAndConditions(target.query, options);
                 appliedReason = placement.reason;
             } else {
                 const placements: TargetPlacement[] = [];
@@ -351,6 +356,7 @@ export class StaticPredicatePlacementOptimizer {
                 for (const branch of target.branches) {
                     const movedPredicate = this.rebasePredicate(candidate.expression, branch.targetColumns, options);
                     branch.query.appendWhere(movedPredicate);
+                    dedupeWhereTopLevelAndConditions(branch.query, options);
                 }
                 appliedReason = placements.some(item => /group by/i.test(item.reason))
                     ? "Predicate is distributed to every UNION branch by output column position; grouped branches only receive GROUP BY-key predicates."
@@ -1027,6 +1033,7 @@ export class StaticPredicatePlacementOptimizer {
             "and",
             cloneValueComponent(expression, options)
         );
+        join.condition.condition = dedupeTopLevelAndConditions(join.condition.condition, options);
     }
 
     private resolveDeepestBranchTarget(
