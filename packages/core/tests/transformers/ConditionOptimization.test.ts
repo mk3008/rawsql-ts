@@ -129,6 +129,285 @@ describe('ConditionOptimization', () => {
         `));
     });
 
+    it('adds source filter probe diagnostics for table-local joined source predicates without adding a source-input rewrite', () => {
+        const sql = `
+            select *
+            from orders o
+            join users u using (id)
+            where u.status = :status
+        `;
+
+        const result = planConditionOptimization(sql);
+
+        expect(result.ok).toBe(true);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+        expect(result.applied).toEqual([]);
+        expect(result.diagnostics?.probes).toEqual([
+            expect.objectContaining({
+                kind: 'source_filter_probe',
+                source: 'users',
+                sourceAlias: 'u',
+                predicate: '"u"."status" = :status',
+                reason: 'predicate references only this joined table'
+            })
+        ]);
+        expect(normalizeSql(result.diagnostics!.probes[0]!.suggestedSql)).toBe(normalizeSql(`
+            select *
+            from users
+            where status = :status
+        `));
+    });
+
+    it('adds source filter probe diagnostics from the post-SSSQL pre-placement snapshot', () => {
+        const sql = `
+            select *
+            from orders o
+            join users u on u.id = o.user_id
+            where u.status = :status
+        `;
+
+        const result = planConditionOptimization(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                toScopeId: 'join_on:u'
+            })
+        ]);
+        expect(result.diagnostics?.probes).toEqual([
+            expect.objectContaining({
+                source: 'users',
+                sourceAlias: 'u',
+                predicate: '"u"."status" = :status'
+            })
+        ]);
+    });
+
+    it('matches aliasless schema-qualified sources and formats suggested SQL through the SQL formatter', () => {
+        const result = planConditionOptimization(`
+            select *
+            from orders o
+            join app.users on users.id = o.user_id
+            where users.status = :status
+        `);
+
+        expect(result.ok).toBe(true);
+        expect(result.diagnostics?.skippedProbes).toEqual([]);
+        expect(result.diagnostics?.probes).toEqual([
+            expect.objectContaining({
+                source: 'app.users',
+                sourceAlias: 'users',
+                predicate: '"users"."status" = :status'
+            })
+        ]);
+        expect(normalizeSql(result.diagnostics!.probes[0]!.suggestedSql)).toBe(normalizeSql(`
+            select *
+            from app.users
+            where status = :status
+        `));
+        expect(result.diagnostics!.probes[0]!.suggestedSql).toContain('"app"."users"');
+    });
+
+    it('matches aliasless quoted sources and preserves quoted source formatting in suggested SQL', () => {
+        const result = planConditionOptimization(`
+            select *
+            from orders o
+            join "User" on "User".id = o.user_id
+            where "User".status = :status
+        `);
+
+        expect(result.ok).toBe(true);
+        expect(result.diagnostics?.skippedProbes).toEqual([]);
+        expect(result.diagnostics?.probes).toEqual([
+            expect.objectContaining({
+                source: 'User',
+                sourceAlias: 'User',
+                predicate: '"User"."status" = :status'
+            })
+        ]);
+        expect(normalizeSql(result.diagnostics!.probes[0]!.suggestedSql)).toBe(normalizeSql(`
+            select *
+            from "User"
+            where status = :status
+        `));
+        expect(result.diagnostics!.probes[0]!.suggestedSql).toContain('"User"');
+    });
+
+    it('keeps quoted source matching case-sensitive when aliases differ only by case', () => {
+        const result = planConditionOptimization(`
+            select *
+            from orders o
+            join "User" on "User".id = o.user_id
+            join "user" on "user".id = o.backup_user_id
+            where "User".status = :status
+        `);
+
+        expect(result.ok).toBe(true);
+        expect(result.diagnostics?.skippedProbes).toEqual([]);
+        expect(result.diagnostics?.probes).toEqual([
+            expect.objectContaining({
+                source: 'User',
+                sourceAlias: 'User',
+                predicate: '"User"."status" = :status'
+            })
+        ]);
+        expect(normalizeSql(result.diagnostics!.probes[0]!.suggestedSql)).toBe(normalizeSql(`
+            select *
+            from "User"
+            where status = :status
+        `));
+        expect(result.diagnostics!.probes[0]!.suggestedSql).toContain('"User"');
+        expect(result.diagnostics!.probes[0]!.suggestedSql).not.toContain('"user"');
+    });
+
+    it('keeps diagnostics probes stable for SQL and caller-owned AST input before placement mutates the AST', () => {
+        const sql = `
+            select *
+            from orders o
+            join users u on u.id = o.user_id
+            where u.status = :status
+        `;
+        const stringResult = planConditionOptimization(sql);
+        const query = SelectQueryParser.parse(sql);
+        const astResult = planConditionOptimization(query, { cloneInput: false });
+
+        expect(stringResult.ok).toBe(true);
+        expect(astResult.ok).toBe(true);
+        expect(astResult.diagnostics?.probes).toEqual(stringResult.diagnostics?.probes);
+        expect(astResult.diagnostics?.probes).toEqual([
+            expect.objectContaining({
+                source: 'users',
+                sourceAlias: 'u',
+                predicate: '"u"."status" = :status'
+            })
+        ]);
+        expect(normalizeSql(astResult.sql)).toBe(normalizeSql(`
+            select *
+            from orders o
+            join users u on u.id = o.user_id
+                and u.status = :status
+        `));
+    });
+
+    it('collects source filter probes for array index and slice predicates', () => {
+        const result = planConditionOptimization(`
+            select *
+            from orders o
+            join users u on u.id = o.user_id
+            where u.tags[1] = 'vip'
+              and u.tags[1:2] = :tag_window
+        `);
+
+        expect(result.ok).toBe(true);
+        expect(result.diagnostics?.skippedProbes).toEqual([]);
+        expect(result.diagnostics?.probes).toHaveLength(2);
+        expect(result.diagnostics?.probes).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                source: 'users',
+                sourceAlias: 'u',
+                predicate: '"u"."tags"[1] = \'vip\''
+            }),
+            expect.objectContaining({
+                source: 'users',
+                sourceAlias: 'u',
+                predicate: '"u"."tags"[1:2] = :tag_window'
+            })
+        ]));
+        expect(result.diagnostics!.probes[0]!.suggestedSql).toBe('select * from "users" where "tags"[1] = \'vip\'');
+        expect(result.diagnostics!.probes[1]!.suggestedSql).toBe('select * from "users" where "tags"[1:2] = :tag_window');
+    });
+
+    it('keeps multi-source join predicates out of source filter probes with a skip reason', () => {
+        const sql = `
+            select *
+            from orders o
+            join users u on u.id = o.user_id
+            where u.status = :status
+              and u.region = o.region
+        `;
+
+        const result = planConditionOptimization(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.diagnostics?.probes).toEqual([
+            expect.objectContaining({
+                source: 'users',
+                sourceAlias: 'u',
+                predicate: '"u"."status" = :status'
+            })
+        ]);
+        expect(result.diagnostics?.skippedProbes).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                code: 'MULTI_SOURCE_PREDICATE',
+                predicate: '"u"."region" = "o"."region"'
+            })
+        ]));
+    });
+
+    it('skips nullable outer join sources for source filter probes', () => {
+        const sql = `
+            select *
+            from orders o
+            left join users u on u.id = o.user_id
+            where u.status = :status
+        `;
+
+        const result = planConditionOptimization(sql);
+
+        expect(result.ok).toBe(true);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+        expect(result.diagnostics?.probes).toEqual([]);
+        expect(result.diagnostics?.skippedProbes).toEqual([
+            expect.objectContaining({
+                source: 'users',
+                sourceAlias: 'u',
+                code: 'JOIN_TYPE_UNSUPPORTED'
+            })
+        ]);
+    });
+
+    it('skips derived and lateral join sources for source filter probes', () => {
+        const derivedResult = planConditionOptimization(`
+            select *
+            from orders o
+            join (
+                select id, status
+                from users
+            ) u on u.id = o.user_id
+            where u.status = :status
+        `);
+
+        expect(derivedResult.ok).toBe(true);
+        expect(derivedResult.diagnostics?.probes).toEqual([]);
+        expect(derivedResult.diagnostics?.skippedProbes).toEqual([
+            expect.objectContaining({
+                sourceAlias: 'u',
+                code: 'DERIVED_SOURCE_UNSUPPORTED'
+            })
+        ]);
+
+        const lateralResult = planConditionOptimization(`
+            select *
+            from users u
+            join lateral (
+                select *
+                from orders o
+                where o.user_id = u.id
+            ) recent_orders on true
+            where recent_orders.status = :status
+        `);
+
+        expect(lateralResult.ok).toBe(true);
+        expect(lateralResult.diagnostics?.probes).toEqual([]);
+        expect(lateralResult.diagnostics?.skippedProbes).toEqual([
+            expect.objectContaining({
+                sourceAlias: 'recent_orders',
+                code: 'LATERAL_SOURCE_UNSUPPORTED'
+            })
+        ]);
+    });
+
     it('prunes same-block optional WHERE branches even when the query groups later', () => {
         const sql = `
             select customer_id, count(*) as order_count
