@@ -486,6 +486,72 @@ describe('ConditionOptimization', () => {
         `));
     });
 
+    it('deduplicates identical parameter conditions after moving into an existing upstream WHERE', () => {
+        const sql = `
+            with active_users as (
+                select u.id, u.status
+                from users u
+                where u.status = :status
+            )
+            select *
+            from active_users au
+            where au.status = :status
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                kind: 'move_condition',
+                toScopeId: 'cte:active_users',
+                columnReferences: ['au.status']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with active_users as (
+                select u.id, u.status
+                from users u
+                where u.status = :status
+            )
+            select *
+            from active_users au
+        `));
+    });
+
+    it('deduplicates identical parameter conditions after moving into an existing JOIN ON condition', () => {
+        const sql = `
+            select *
+            from orders o
+            join users u
+              on u.id = o.user_id
+             and u.status = :status
+            where u.status = :status
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                kind: 'move_condition',
+                toScopeId: 'join_on:u',
+                columnReferences: ['u.status']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            select *
+            from orders o
+            join users u
+              on u.id = o.user_id
+             and u.status = :status
+        `));
+    });
+
     it('keeps ambiguous wildcard outputs skipped instead of guessing a source column', () => {
         const sql = `
             select *
@@ -840,6 +906,41 @@ describe('ConditionOptimization', () => {
             )
             select *
             from active_users
+        `));
+    });
+
+    it('deduplicates identical static predicates after moving into an existing upstream WHERE', () => {
+        const sql = `
+            with active_users as (
+                select u.id, u.status
+                from users u
+                where u.status = 'active'
+            )
+            select *
+            from active_users au
+            where au.status = 'active'
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                phaseKind: 'static_predicate_placement',
+                kind: 'move_static_predicate',
+                toScopeId: 'cte:active_users',
+                columnReferences: ['au.status']
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with active_users as (
+                select u.id, u.status
+                from users u
+                where u.status = 'active'
+            )
+            select *
+            from active_users au
         `));
     });
 
