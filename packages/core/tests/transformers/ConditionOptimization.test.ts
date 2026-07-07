@@ -759,6 +759,330 @@ describe('ConditionOptimization', () => {
         `));
     });
 
+    it('moves safe base-table AND conjuncts into INNER JOIN ON while keeping OR predicates whole', () => {
+        const sql = `
+            select *
+            from a
+            join b on b.a_id = a.id
+            where a.type = :type
+              and (b.flag = true or b.flag is null)
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.phases[1]).toEqual(expect.objectContaining({
+            kind: 'parameter_condition_placement',
+            appliedCount: 1,
+            skippedCount: 0
+        }));
+        expect(result.phases[2]).toEqual(expect.objectContaining({
+            kind: 'static_predicate_placement',
+            appliedCount: 1,
+            skippedCount: 0
+        }));
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                kind: 'move_condition',
+                conditionSql: '"a"."type" = :type',
+                toScopeId: 'join_on:b'
+            }),
+            expect.objectContaining({
+                phaseKind: 'static_predicate_placement',
+                kind: 'move_static_predicate',
+                predicateSql: '("b"."flag" = true or "b"."flag" is null)',
+                toScopeId: 'join_on:b'
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            select *
+            from a
+            join b on b.a_id = a.id
+                and a.type = :type
+                and (b.flag = true or b.flag is null)
+        `));
+    });
+
+    it('moves a safe base-table conjunct even when another conjunct is unsafe to move', () => {
+        const sql = `
+            select *
+            from a
+            join b on b.a_id = a.id
+            where a.type = :type
+              and (a.status = :status or b.flag = true)
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                conditionSql: '"a"."type" = :type',
+                toScopeId: 'join_on:b'
+            })
+        ]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                code: 'MULTIPLE_SOURCE_REFERENCES',
+                conditionSql: '("a"."status" = :status or "b"."flag" = true)'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            select *
+            from a
+            join b on b.a_id = a.id
+                and a.type = :type
+            where (a.status = :status or b.flag = true)
+        `));
+    });
+
+    it('reports NO_SAFE_JOIN_ON_TARGET for USING joins instead of the generic upstream skip', () => {
+        const sql = `
+            select *
+            from a
+            join b using (id)
+            where b.flag = :flag
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                code: 'NO_SAFE_JOIN_ON_TARGET',
+                conditionSql: '"b"."flag" = :flag'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('reports NO_SAFE_JOIN_ON_TARGET for conditionless CROSS JOIN predicates', () => {
+        const sql = `
+            select *
+            from a
+            cross join b
+            where b.flag = true
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                phaseKind: 'static_predicate_placement',
+                code: 'NO_SAFE_JOIN_ON_TARGET',
+                predicateSql: '"b"."flag" = true'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('reports OUTER_JOIN_BOUNDARY when a later outer join makes JOIN ON relocation unsafe', () => {
+        const sql = `
+            select *
+            from a
+            join b on b.a_id = a.id
+            left join c on c.b_id = b.id
+            where a.type = :type
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                code: 'OUTER_JOIN_BOUNDARY',
+                conditionSql: '"a"."type" = :type'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('does not move joined CTE parameter predicates when a later RIGHT JOIN can null the source', () => {
+        const sql = `
+            with b_scope as (
+                select b.a_id, b.status
+                from b
+            )
+            select a.id
+            from a
+            join b_scope b on b.a_id = a.id
+            right join c on c.a_id = a.id
+            where b.status = :status
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                code: 'OUTER_JOIN_NULLABLE_SIDE',
+                conditionSql: '"b"."status" = :status'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('keeps parameter and static joined-source predicates aligned behind later FULL JOIN nullable boundaries', () => {
+        const sql = `
+            with b_scope as (
+                select b.a_id, b.status, b.is_active
+                from b
+            )
+            select a.id
+            from a
+            join b_scope b on b.a_id = a.id
+            full join c on c.a_id = a.id
+            where b.status = :status
+              and b.is_active = true
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                code: 'OUTER_JOIN_NULLABLE_SIDE',
+                conditionSql: '"b"."status" = :status'
+            }),
+            expect.objectContaining({
+                phaseKind: 'static_predicate_placement',
+                code: 'OUTER_JOIN_NULLABLE_SIDE',
+                predicateSql: '"b"."is_active" = true'
+            })
+        ]));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('keeps lateral join source predicates behind the lateral safety boundary', () => {
+        const sql = `
+            select *
+            from a
+            join lateral (
+                select b.a_id, b.flag
+                from b
+                where b.a_id = a.id
+            ) lb on true
+            where lb.flag = :flag
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                code: 'LATERAL_JOIN_BOUNDARY',
+                conditionSql: '"lb"."flag" = :flag'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('keeps derived expression-output predicates out of JOIN ON relocation', () => {
+        const sql = `
+            select *
+            from a
+            join (
+                select b.a_id, b.flag = true as flag_match
+                from b
+            ) bx on bx.a_id = a.id
+            where bx.flag_match = true
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                phaseKind: 'static_predicate_placement',
+                code: 'EXPRESSION_OUTPUT_UNSUPPORTED',
+                predicateSql: '"bx"."flag_match" = true'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
+    it('moves primary-source predicates to the first INNER JOIN and joined-source predicates to their own INNER JOIN', () => {
+        const sql = `
+            select *
+            from a
+            join b on b.a_id = a.id
+            join c on c.b_id = b.id
+            where a.type = :type
+              and c.kind = :kind
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                conditionSql: '"a"."type" = :type',
+                toScopeId: 'join_on:b'
+            }),
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                conditionSql: '"c"."kind" = :kind',
+                toScopeId: 'join_on:c'
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            select *
+            from a
+            join b on b.a_id = a.id
+                and a.type = :type
+            join c on c.b_id = b.id
+                and c.kind = :kind
+        `));
+    });
+
+    it('moves whole NOT predicates consistently for parameter and static JOIN ON relocation', () => {
+        const sql = `
+            select *
+            from a
+            join b on b.a_id = a.id
+            where (not (a.type = :type))
+              and (not (b.flag = true))
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                phaseKind: 'parameter_condition_placement',
+                conditionSql: '(not ("a"."type" = :type))',
+                toScopeId: 'join_on:b'
+            }),
+            expect.objectContaining({
+                phaseKind: 'static_predicate_placement',
+                predicateSql: '(not ("b"."flag" = true))',
+                toScopeId: 'join_on:b'
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(result.sql).toContain('and (not ("a"."type" = :type))');
+        expect(result.sql).toContain('and (not ("b"."flag" = true))');
+    });
+
     it('runs the later phase even when the SSSQL phase is a no-op', () => {
         const sql = `
             with customers_base as (

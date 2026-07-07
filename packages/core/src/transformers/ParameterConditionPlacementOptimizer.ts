@@ -3,6 +3,7 @@ import {
     DistinctOn,
     FromClause,
     JoinClause,
+    JoinOnClause,
     SourceExpression,
     SubQuerySource,
     TableSource,
@@ -124,6 +125,7 @@ interface SourceBinding {
     source: SourceExpression;
     alias: string;
     join: JoinClause | null;
+    joinIndex: number;
     isPrimary: boolean;
 }
 
@@ -146,7 +148,14 @@ interface UnionUpstreamTarget {
     branches: UnionBranchTarget[];
 }
 
-type UpstreamTarget = SimpleUpstreamTarget | UnionUpstreamTarget;
+interface JoinOnTarget {
+    kind: "join_on";
+    join: JoinClause;
+    scopeId: string;
+    reason: string;
+}
+
+type UpstreamTarget = SimpleUpstreamTarget | UnionUpstreamTarget | JoinOnTarget;
 
 interface TargetColumnResolution {
     sourceColumn: ColumnReference;
@@ -300,7 +309,10 @@ export class ParameterConditionPlacementOptimizer {
             }
 
             let appliedReason = "";
-            if (target.kind === "simple") {
+            if (target.kind === "join_on") {
+                this.appendJoinOnCondition(target.join, candidate.expression, options);
+                appliedReason = target.reason;
+            } else if (target.kind === "simple") {
                 const targetColumns = this.resolveTargetColumns(query, target.query, candidate.references);
                 if ("code" in targetColumns) {
                     skipped.push(this.makeSkipped(term, targetColumns, options));
@@ -562,10 +574,16 @@ export class ParameterConditionPlacementOptimizer {
                 }
                 return null;
             }
+            if (candidate instanceof UnaryExpression) {
+                const operator = candidate.operator.value.trim().toLowerCase();
+                if (operator === "not") {
+                    return visit(candidate.expression);
+                }
+            }
 
             return {
                 code: "UNSUPPORTED_PARAMETER_CONDITION",
-                reason: "Only simple binary, BETWEEN, and whole OR/AND parameter predicates are moved in the safe-only implementation."
+                reason: "Only simple binary, BETWEEN, and whole OR/AND/NOT parameter predicates are moved in the safe-only implementation."
             };
         };
 
@@ -620,6 +638,12 @@ export class ParameterConditionPlacementOptimizer {
         }
 
         const binding = bindings[0]!;
+        if (binding.join?.lateral) {
+            return {
+                code: "LATERAL_JOIN_BOUNDARY",
+                reason: "Condition crosses a LATERAL JOIN boundary; moving it may change semantics."
+            };
+        }
         const nullableSide = this.findNullableSideBoundary(root.fromClause, binding);
         if (nullableSide) {
             return nullableSide;
@@ -627,6 +651,13 @@ export class ParameterConditionPlacementOptimizer {
 
         const upstream = this.resolveUpstreamQuery(root, binding, candidate.references);
         if ("code" in upstream) {
+            if (upstream.code === "NO_SAFE_UPSTREAM_QUERY") {
+                const joinOnTarget = this.resolveBaseTableJoinOnTarget(root, binding);
+                if (!("code" in joinOnTarget)) {
+                    return joinOnTarget;
+                }
+                return joinOnTarget;
+            }
             return upstream;
         }
 
@@ -735,6 +766,9 @@ export class ParameterConditionPlacementOptimizer {
             }
 
             const matchCount = this.getOutputColumnMatchCount(contextRoot, matches[0]!, columnName);
+            if (matchCount === 0 && this.isBaseTableBinding(contextRoot, matches[0]!)) {
+                return matches[0]!;
+            }
             if (matchCount === 0) {
                 return {
                     code: "COLUMN_NOT_AVAILABLE_UPSTREAM",
@@ -931,6 +965,68 @@ export class ParameterConditionPlacementOptimizer {
         return resolved;
     }
 
+    private resolveBaseTableJoinOnTarget(root: SimpleSelectQuery, binding: SourceBinding): JoinOnTarget | SkipDraft {
+        if (!root.fromClause || !this.isBaseTableBinding(root, binding)) {
+            return {
+                code: "NO_SAFE_UPSTREAM_QUERY",
+                reason: "The referenced source is a base table, so there is no upstream query block to move into."
+            };
+        }
+
+        if (this.hasOuterJoin(root.fromClause)) {
+            return {
+                code: "OUTER_JOIN_BOUNDARY",
+                reason: "Condition crosses an OUTER JOIN boundary; moving it into JOIN ON may change semantics."
+            };
+        }
+
+        const join = binding.isPrimary
+            ? root.fromClause.joins?.[0] ?? null
+            : binding.join;
+        if (join?.lateral) {
+            return {
+                code: "LATERAL_JOIN_BOUNDARY",
+                reason: "Condition crosses a LATERAL JOIN boundary; moving it into JOIN ON may change semantics."
+            };
+        }
+        if (!join || !this.isInnerJoin(join)) {
+            return {
+                code: "NO_SAFE_JOIN_ON_TARGET",
+                reason: "Base-table conditions are moved only into INNER JOIN ON clauses in the safe-only implementation."
+            };
+        }
+        if (!(join.condition instanceof JoinOnClause)) {
+            return {
+                code: "NO_SAFE_JOIN_ON_TARGET",
+                reason: "Base-table conditions are moved only into existing JOIN ON clauses, not USING or conditionless joins."
+            };
+        }
+
+        return {
+            kind: "join_on",
+            join,
+            scopeId: `join_on:${join.source.getAliasName() ?? "unknown"}`,
+            reason: binding.isPrimary
+                ? "Condition references the primary source of an INNER JOIN; it is moved into the first JOIN ON clause."
+                : "Condition references the joined source of an INNER JOIN; it is moved into that JOIN ON clause."
+        };
+    }
+
+    private appendJoinOnCondition(
+        join: JoinClause,
+        expression: ValueComponent,
+        options: SqlComponentFormatOptions
+    ): void {
+        if (!(join.condition instanceof JoinOnClause)) {
+            return;
+        }
+        join.condition.condition = new BinaryExpression(
+            join.condition.condition,
+            "and",
+            cloneValueComponent(expression, options)
+        );
+    }
+
     private resolveTargetColumnByOutputIndex(
         root: SimpleSelectQuery,
         query: SimpleSelectQuery,
@@ -1004,7 +1100,10 @@ export class ParameterConditionPlacementOptimizer {
             binding,
             targetColumns.map(item => item.targetColumn)
         );
-        if ("code" in upstream || upstream.kind === "union") {
+        if ("code" in upstream) {
+            return { query, targetColumns: [...targetColumns] };
+        }
+        if (upstream.kind !== "simple") {
             return { query, targetColumns: [...targetColumns] };
         }
 
@@ -1122,14 +1221,17 @@ export class ParameterConditionPlacementOptimizer {
             source: fromClause.source,
             alias: fromClause.source.getAliasName() ?? "",
             join: null,
+            joinIndex: -1,
             isPrimary: true
         }];
 
-        for (const join of fromClause.joins ?? []) {
+        for (let index = 0; index < (fromClause.joins ?? []).length; index += 1) {
+            const join = fromClause.joins![index]!;
             bindings.push({
                 source: join.source,
                 alias: join.source.getAliasName() ?? "",
                 join,
+                joinIndex: index,
                 isPrimary: false
             });
         }
@@ -1137,13 +1239,20 @@ export class ParameterConditionPlacementOptimizer {
         return bindings;
     }
 
+    private isBaseTableBinding(root: SimpleSelectQuery, binding: SourceBinding): boolean {
+        const source = binding.source.datasource;
+        return source instanceof TableSource && !this.findCte(root, source.table.name);
+    }
+
+    private isInnerJoin(join: JoinClause): boolean {
+        const joinType = join.joinType.value.trim().toLowerCase();
+        return joinType === "join" || joinType === "inner join";
+    }
+
     private findNullableSideBoundary(fromClause: FromClause, binding: SourceBinding): SkipDraft | null {
-        if (!binding.join) {
-            const rightOrFull = (fromClause.joins ?? []).some(join => {
-                const joinType = join.joinType.value.toLowerCase();
-                return joinType.includes("right") || joinType.includes("full");
-            });
-            return rightOrFull
+        const joins = fromClause.joins ?? [];
+        if (binding.isPrimary) {
+            return this.hasLaterJoinThatNullsPriorSources(joins, -1)
                 ? {
                     code: "OUTER_JOIN_NULLABLE_SIDE",
                     reason: "Condition crosses OUTER JOIN nullable side; moving it may change semantics."
@@ -1151,7 +1260,12 @@ export class ParameterConditionPlacementOptimizer {
                 : null;
         }
 
-        const joinType = binding.join.joinType.value.toLowerCase();
+        const join = binding.join;
+        if (!join) {
+            return null;
+        }
+
+        const joinType = join.joinType.value.toLowerCase();
         if (joinType.includes("left")) {
             return {
                 code: "OUTER_JOIN_NULLABLE_SIDE",
@@ -1164,8 +1278,23 @@ export class ParameterConditionPlacementOptimizer {
                 reason: "Condition crosses FULL JOIN nullable side; moving it may change semantics."
             };
         }
+        if (this.hasLaterJoinThatNullsPriorSources(joins, binding.joinIndex)) {
+            return {
+                code: "OUTER_JOIN_NULLABLE_SIDE",
+                reason: "Condition crosses later RIGHT/FULL JOIN nullable side; moving it may change semantics."
+            };
+        }
 
         return null;
+    }
+
+    private hasLaterJoinThatNullsPriorSources(joins: readonly JoinClause[], sourceJoinIndex: number): boolean {
+        return joins
+            .slice(sourceJoinIndex + 1)
+            .some(join => {
+                const joinType = join.joinType.value.toLowerCase();
+                return joinType.includes("right") || joinType.includes("full");
+            });
     }
 
     private hasOuterJoin(fromClause: FromClause): boolean {
