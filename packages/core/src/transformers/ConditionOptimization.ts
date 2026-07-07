@@ -1,6 +1,32 @@
 import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
-import { ValueComponent } from "../models/ValueComponent";
+import {
+    ArrayExpression,
+    ArrayIndexExpression,
+    ArrayQueryExpression,
+    ArraySliceExpression,
+    BetweenExpression,
+    BinaryExpression,
+    CaseExpression,
+    CastExpression,
+    ColumnReference,
+    FunctionCall,
+    InlineQuery,
+    JsonPredicateExpression,
+    ParenExpression,
+    TupleExpression,
+    TypeValue,
+    UnaryExpression,
+    ValueComponent,
+    ValueList
+} from "../models/ValueComponent";
+import {
+    JoinClause,
+    SourceExpression,
+    SubQuerySource,
+    TableSource
+} from "../models/Clause";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
+import { rewriteValueComponentWithColumnResolver } from "../utils/ValueComponentRewriter";
 import {
     ParameterConditionPlacementOptimizer,
     ParameterConditionMove,
@@ -28,6 +54,7 @@ import {
     hasSqlComponentFormatOverride,
     SqlComponentFormatOptions
 } from "./SqlComponentFormatter";
+import { SqlFormatter } from "./SqlFormatter";
 
 export type ConditionOptimizationInput = string | SelectQuery | SimpleSelectQuery;
 export type ConditionOptimizationPhaseKind =
@@ -107,6 +134,34 @@ export interface ConditionOptimizationSafety {
     formatterGeneratedSource: boolean;
 }
 
+export interface ConditionOptimizationSourceFilterProbe {
+    kind: "source_filter_probe";
+    source: string;
+    sourceAlias: string;
+    predicate: string;
+    suggestedSql: string;
+    reason: string;
+}
+
+export interface ConditionOptimizationSkippedProbe {
+    kind: "source_filter_probe_skipped";
+    source?: string;
+    sourceAlias?: string;
+    predicate: string;
+    code: string;
+    reason: string;
+}
+
+export interface ConditionOptimizationDiagnostics {
+    /**
+     * Probe diagnostics are collected after SSSQL optional pruning/refresh and
+     * before parameter/static placement phases, so they describe the pre-placement
+     * source-filter debugging snapshot rather than the final rewritten query.
+     */
+    probes: readonly ConditionOptimizationSourceFilterProbe[];
+    skippedProbes: readonly ConditionOptimizationSkippedProbe[];
+}
+
 export interface ConditionOptimizationResult {
     ok: boolean;
     sql: string;
@@ -117,6 +172,8 @@ export interface ConditionOptimizationResult {
     warnings: readonly ConditionOptimizationWarning[];
     errors: readonly ConditionOptimizationError[];
     safety: ConditionOptimizationSafety;
+    /** API output shape review: diagnostics is additive; sql/query keep their existing output shape for callers. */
+    diagnostics?: ConditionOptimizationDiagnostics;
 }
 
 interface ParsedConditionOptimizationInput {
@@ -137,10 +194,414 @@ interface SssqlPhaseResult {
     formatterGeneratedSource: boolean;
 }
 
+interface JoinSourceBinding {
+    source: SourceExpression;
+    alias: string;
+    matchNames: readonly string[];
+    join: JoinClause | null;
+    isPrimary: boolean;
+}
+
+interface PredicateReferenceAnalysis {
+    references: ColumnReference[];
+    hasNestedQuery: boolean;
+}
+
 const hasOwnParameter = (
     parameters: OptionalConditionPruningParameters,
     parameterName: string
 ): boolean => Object.prototype.hasOwnProperty.call(parameters, parameterName);
+
+const normalizeIdentifier = (value: string): string => value.trim().toLowerCase();
+
+const unwrapParens = (expression: ValueComponent): ValueComponent => {
+    let candidate = expression;
+    while (candidate instanceof ParenExpression) {
+        candidate = candidate.expression;
+    }
+    return candidate;
+};
+
+const isBinaryOperator = (expression: ValueComponent, operator: string): expression is BinaryExpression => {
+    const candidate = unwrapParens(expression);
+    return candidate instanceof BinaryExpression
+        && candidate.operator.value.trim().toLowerCase() === operator;
+};
+
+const collectTopLevelAndTerms = (expression: ValueComponent): ValueComponent[] => {
+    const candidate = unwrapParens(expression);
+    if (!isBinaryOperator(candidate, "and")) {
+        return [expression];
+    }
+
+    return [
+        ...collectTopLevelAndTerms(candidate.left),
+        ...collectTopLevelAndTerms(candidate.right)
+    ];
+};
+
+const uniqueMatchNames = (names: readonly string[]): string[] => {
+    const unique: string[] = [];
+    for (const name of names) {
+        if (name && !unique.includes(name)) {
+            unique.push(name);
+        }
+    }
+    return unique;
+};
+
+const getTableSourceTableName = (source: TableSource): string => source.table.name;
+
+const getProbeSourceAlias = (source: SourceExpression): string => {
+    if (source.aliasExpression) {
+        return source.aliasExpression.table.name;
+    }
+    if (source.datasource instanceof TableSource) {
+        return getTableSourceTableName(source.datasource);
+    }
+    return source.getAliasName() ?? "";
+};
+
+const getProbeSourceMatchNames = (source: SourceExpression): string[] => {
+    if (source.aliasExpression) {
+        return uniqueMatchNames([source.aliasExpression.table.name]);
+    }
+    if (source.datasource instanceof TableSource) {
+        return uniqueMatchNames([
+            getTableSourceTableName(source.datasource),
+            source.datasource.getSourceName()
+        ]);
+    }
+    return uniqueMatchNames([source.getAliasName() ?? ""]);
+};
+
+const collectJoinSourceBindings = (query: SimpleSelectQuery): JoinSourceBinding[] => {
+    if (!query.fromClause) {
+        return [];
+    }
+
+    const bindings: JoinSourceBinding[] = [{
+        source: query.fromClause.source,
+        alias: getProbeSourceAlias(query.fromClause.source),
+        matchNames: getProbeSourceMatchNames(query.fromClause.source),
+        join: null,
+        isPrimary: true
+    }];
+
+    for (const join of query.fromClause.joins ?? []) {
+        bindings.push({
+            source: join.source,
+            alias: getProbeSourceAlias(join.source),
+            matchNames: getProbeSourceMatchNames(join.source),
+            join,
+            isPrimary: false
+        });
+    }
+
+    return bindings;
+};
+
+const isProbeSafeJoin = (join: JoinClause): boolean => {
+    const joinType = join.joinType.value.trim().toLowerCase();
+    return joinType === "join" || joinType === "inner join" || joinType === "cross join";
+};
+
+const collectPredicateReferences = (expression: ValueComponent): PredicateReferenceAnalysis => {
+    const references: ColumnReference[] = [];
+    let hasNestedQuery = false;
+
+    const visitSelect = (): void => {
+        hasNestedQuery = true;
+    };
+
+    const visit = (value: ValueComponent): void => {
+        const candidate = unwrapParens(value);
+        if (candidate instanceof ColumnReference) {
+            references.push(candidate);
+            return;
+        }
+        if (candidate instanceof BinaryExpression) {
+            visit(candidate.left);
+            visit(candidate.right);
+            return;
+        }
+        if (candidate instanceof UnaryExpression) {
+            visit(candidate.expression);
+            return;
+        }
+        if (candidate instanceof InlineQuery) {
+            visitSelect();
+            return;
+        }
+        if (candidate instanceof ArrayQueryExpression) {
+            visitSelect();
+            return;
+        }
+        if (candidate instanceof FunctionCall) {
+            if (candidate.argument) {
+                visit(candidate.argument);
+            }
+            if (candidate.filterCondition) {
+                visit(candidate.filterCondition);
+            }
+            return;
+        }
+        if (candidate instanceof CastExpression) {
+            visit(candidate.input);
+            return;
+        }
+        if (candidate instanceof CaseExpression) {
+            if (candidate.condition) {
+                visit(candidate.condition);
+            }
+            for (const pair of candidate.switchCase.cases) {
+                visit(pair.key);
+                visit(pair.value);
+            }
+            if (candidate.switchCase.elseValue) {
+                visit(candidate.switchCase.elseValue);
+            }
+            return;
+        }
+        if (candidate instanceof BetweenExpression) {
+            visit(candidate.expression);
+            visit(candidate.lower);
+            visit(candidate.upper);
+            return;
+        }
+        if (candidate instanceof JsonPredicateExpression) {
+            visit(candidate.expression);
+            return;
+        }
+        if (candidate instanceof ArrayExpression) {
+            visit(candidate.expression);
+            return;
+        }
+        if (candidate instanceof ArrayIndexExpression) {
+            visit(candidate.array);
+            visit(candidate.index);
+            return;
+        }
+        if (candidate instanceof ArraySliceExpression) {
+            visit(candidate.array);
+            if (candidate.startIndex) {
+                visit(candidate.startIndex);
+            }
+            if (candidate.endIndex) {
+                visit(candidate.endIndex);
+            }
+            return;
+        }
+        if (candidate instanceof ValueList) {
+            candidate.values.forEach(visit);
+            return;
+        }
+        if (candidate instanceof TupleExpression) {
+            candidate.values.forEach(visit);
+            return;
+        }
+        if (candidate instanceof TypeValue && candidate.argument) {
+            visit(candidate.argument);
+        }
+    };
+
+    visit(expression);
+    return { references, hasNestedQuery };
+};
+
+const stripAliasFromPredicate = (
+    expression: ValueComponent,
+    sourceMatchNames: readonly string[],
+    options: SqlComponentFormatOptions
+): ValueComponent => {
+    const sourceNames = uniqueMatchNames(sourceMatchNames);
+    return rewriteValueComponentWithColumnResolver(expression, reference =>
+        sourceNames.includes(reference.getNamespace())
+            ? new ColumnReference(null, reference.column.name)
+            : reference
+    );
+};
+
+const addLowercaseBindingFallback = (
+    lowerBindings: Map<string, JoinSourceBinding | null>,
+    name: string,
+    binding: JoinSourceBinding
+): void => {
+    const normalized = normalizeIdentifier(name);
+    const existing = lowerBindings.get(normalized);
+    if (existing === undefined) {
+        lowerBindings.set(normalized, binding);
+        return;
+    }
+    if (existing !== binding) {
+        lowerBindings.set(normalized, null);
+    }
+};
+
+const resolveProbeBinding = (
+    exactBindings: ReadonlyMap<string, JoinSourceBinding>,
+    lowerBindings: ReadonlyMap<string, JoinSourceBinding | null>,
+    namespace: string
+): JoinSourceBinding | null => {
+    const exact = exactBindings.get(namespace);
+    if (exact) {
+        return exact;
+    }
+    return lowerBindings.get(normalizeIdentifier(namespace)) ?? null;
+};
+
+const formatTableSourceForProbe = (
+    source: TableSource,
+    options: SqlComponentFormatOptions
+): string => {
+    return new SqlFormatter({ exportComment: true, ...options.formatOptions }).format(source).formattedSql;
+};
+
+const makeSkippedProbe = (
+    expression: ValueComponent,
+    code: string,
+    reason: string,
+    options: SqlComponentFormatOptions,
+    binding?: JoinSourceBinding
+): ConditionOptimizationSkippedProbe => {
+    const source = binding?.source.datasource instanceof TableSource
+        ? binding.source.datasource.getSourceName()
+        : undefined;
+    return {
+        kind: "source_filter_probe_skipped",
+        source,
+        sourceAlias: binding?.alias || undefined,
+        predicate: formatSqlComponent(expression, options),
+        code,
+        reason
+    };
+};
+
+const collectConditionOptimizationDiagnostics = (
+    query: SelectQuery | null,
+    options: SqlComponentFormatOptions
+): ConditionOptimizationDiagnostics => {
+    const probes: ConditionOptimizationSourceFilterProbe[] = [];
+    const skippedProbes: ConditionOptimizationSkippedProbe[] = [];
+
+    if (!(query instanceof SimpleSelectQuery) || !query.fromClause?.joins || !query.whereClause) {
+        return { probes, skippedProbes };
+    }
+
+    const bindings = collectJoinSourceBindings(query);
+    const bindingsByExactName = new Map<string, JoinSourceBinding>();
+    const bindingsByLowerName = new Map<string, JoinSourceBinding | null>();
+    for (const binding of bindings) {
+        for (const matchName of binding.matchNames) {
+            bindingsByExactName.set(matchName, binding);
+            addLowercaseBindingFallback(bindingsByLowerName, matchName, binding);
+        }
+    }
+
+    for (const term of collectTopLevelAndTerms(query.whereClause.condition)) {
+        const analysis = collectPredicateReferences(term);
+        if (analysis.hasNestedQuery) {
+            skippedProbes.push(makeSkippedProbe(
+                term,
+                "NESTED_QUERY_UNSUPPORTED",
+                "Probe metadata skips predicates containing nested queries because source-local execution cannot be represented safely.",
+                options
+            ));
+            continue;
+        }
+        if (analysis.references.length === 0) {
+            continue;
+        }
+
+        const namespaces = Array.from(new Set(analysis.references.map(reference => reference.getNamespace())));
+        if (namespaces.some(namespace => namespace === "")) {
+            skippedProbes.push(makeSkippedProbe(
+                term,
+                "UNQUALIFIED_COLUMN_REFERENCE",
+                "Probe metadata requires qualified column references so the source table is unambiguous.",
+                options
+            ));
+            continue;
+        }
+        if (namespaces.length !== 1) {
+            skippedProbes.push(makeSkippedProbe(
+                term,
+                "MULTI_SOURCE_PREDICATE",
+                "Probe metadata only suggests source filters when the predicate references one joined table.",
+                options
+            ));
+            continue;
+        }
+
+        const binding = resolveProbeBinding(bindingsByExactName, bindingsByLowerName, namespaces[0]!);
+        if (!binding) {
+            skippedProbes.push(makeSkippedProbe(
+                term,
+                "UNKNOWN_SOURCE_ALIAS",
+                `Probe metadata could not match '${namespaces[0]}' to a source in the root FROM clause.`,
+                options
+            ));
+            continue;
+        }
+        if (binding.isPrimary || !binding.join) {
+            continue;
+        }
+        if (binding.join.lateral) {
+            skippedProbes.push(makeSkippedProbe(
+                term,
+                "LATERAL_SOURCE_UNSUPPORTED",
+                "Probe metadata skips lateral join sources because their input can depend on earlier sources.",
+                options,
+                binding
+            ));
+            continue;
+        }
+        if (!isProbeSafeJoin(binding.join)) {
+            skippedProbes.push(makeSkippedProbe(
+                term,
+                "JOIN_TYPE_UNSUPPORTED",
+                `Probe metadata skips '${binding.join.joinType.value}' sources because probing the nullable side can mislead debugging.`,
+                options,
+                binding
+            ));
+            continue;
+        }
+        if (binding.source.datasource instanceof SubQuerySource) {
+            skippedProbes.push(makeSkippedProbe(
+                term,
+                "DERIVED_SOURCE_UNSUPPORTED",
+                "Probe metadata skips derived table sources until their input query can be represented without implying a rewrite.",
+                options,
+                binding
+            ));
+            continue;
+        }
+        if (!(binding.source.datasource instanceof TableSource)) {
+            skippedProbes.push(makeSkippedProbe(
+                term,
+                "SOURCE_KIND_UNSUPPORTED",
+                "Probe metadata currently supports only base table join sources.",
+                options,
+                binding
+            ));
+            continue;
+        }
+
+        const source = binding.source.datasource.getSourceName();
+        const predicate = formatSqlComponent(term, options);
+        const sourcePredicate = stripAliasFromPredicate(term, binding.matchNames, options);
+        probes.push({
+            kind: "source_filter_probe",
+            source,
+            sourceAlias: binding.alias,
+            predicate,
+            suggestedSql: `select * from ${formatTableSourceForProbe(binding.source.datasource, options)} where ${formatSqlComponent(sourcePredicate, options)}`,
+            reason: "predicate references only this joined table"
+        });
+    }
+
+    return { probes, skippedProbes };
+};
 
 const isAbsentOptionalValue = (
     parameters: OptionalConditionPruningParameters,
@@ -587,6 +1048,7 @@ const runConditionOptimization = (
     // Run semantic SSSQL handling before generic placement phases so optional
     // branches remain owned by SSSQL even if later phases grow broader support.
     const sssqlPhase = runSssqlOptionalConditionPhase(input, { ...options, dryRun });
+    const diagnostics = collectConditionOptimizationDiagnostics(sssqlPhase.query, options);
     const parameterOptimizer = new ParameterConditionPlacementOptimizer();
     const parameterInput = reuseOwnedModel
         ? sssqlPhase.query ?? sssqlPhase.sql
@@ -657,7 +1119,8 @@ const runConditionOptimization = (
             formatterGeneratedSource: sssqlPhase.formatterGeneratedSource
                 || parameterPhase.safety.formatterGeneratedSource
                 || staticPhase.safety.formatterGeneratedSource
-        }
+        },
+        diagnostics
     };
 };
 
