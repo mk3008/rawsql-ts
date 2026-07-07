@@ -43,6 +43,10 @@ import {
     StaticPredicateSkipped
 } from "./StaticPredicatePlacementOptimizer";
 import {
+    ConditionDeduplicationApplied,
+    ConditionDeduplicationOptimizer
+} from "./ConditionDeduplicationOptimizer";
+import {
     collectSupportedOptionalConditionBranches,
     OptionalConditionPruningParameters,
     pruneOptionalConditionBranches,
@@ -60,7 +64,8 @@ export type ConditionOptimizationInput = string | SelectQuery | SimpleSelectQuer
 export type ConditionOptimizationPhaseKind =
     | "sssql_optional_condition"
     | "parameter_condition_placement"
-    | "static_predicate_placement";
+    | "static_predicate_placement"
+    | "condition_deduplication";
 
 export interface ConditionOptimizationOptions extends ParameterConditionOptimizationOptions {
     /**
@@ -106,7 +111,8 @@ export interface SssqlOptionalConditionSkipped {
 export type ConditionOptimizationApplied =
     | SssqlOptionalConditionApplied
     | (ParameterConditionMove & { phaseKind: "parameter_condition_placement" })
-    | (StaticPredicateMove & { phaseKind: "static_predicate_placement" });
+    | (StaticPredicateMove & { phaseKind: "static_predicate_placement" })
+    | (ConditionDeduplicationApplied & { phaseKind: "condition_deduplication" });
 
 export type ConditionOptimizationSkipped =
     | SssqlOptionalConditionSkipped
@@ -1021,6 +1027,13 @@ const mapStaticSkipped = (
     ...item
 }));
 
+const mapConditionDeduplicationApplied = (
+    applied: readonly ConditionDeduplicationApplied[]
+): ConditionOptimizationApplied[] => applied.map(item => ({
+    phaseKind: "condition_deduplication",
+    ...item
+}));
+
 const makePhaseSummary = (
     kind: ConditionOptimizationPhaseKind,
     counts: {
@@ -1083,11 +1096,18 @@ const runConditionOptimization = (
     const staticSkipped = mapStaticSkipped(staticPhase.skipped);
     const warnings = [...sssqlPhase.warnings, ...parameterWarnings, ...staticWarnings];
     const errors = [...sssqlPhase.errors, ...parameterErrors, ...staticErrors];
+    const dedupePhase = errors.length === 0
+        ? new ConditionDeduplicationOptimizer().optimize(staticPhase.query, options)
+        : { query: staticPhase.query, applied: [] };
+    const dedupeApplied = mapConditionDeduplicationApplied(dedupePhase.applied);
+    const finalSql = dedupePhase.applied.length > 0 && dedupePhase.query
+        ? formatSqlComponent(dedupePhase.query, options)
+        : staticPhase.sql;
 
     return {
         ok: errors.length === 0,
-        sql: staticPhase.sql,
-        query: staticPhase.query,
+        sql: finalSql,
+        query: dedupePhase.query,
         phases: [
             makePhaseSummary("sssql_optional_condition", {
                 appliedCount: sssqlPhase.applied.length,
@@ -1106,9 +1126,15 @@ const runConditionOptimization = (
                 skippedCount: staticSkipped.length,
                 warningCount: staticWarnings.length,
                 errorCount: staticErrors.length
+            }),
+            makePhaseSummary("condition_deduplication", {
+                appliedCount: dedupeApplied.length,
+                skippedCount: 0,
+                warningCount: 0,
+                errorCount: 0
             })
         ],
-        applied: [...sssqlPhase.applied, ...parameterApplied, ...staticApplied],
+        applied: [...sssqlPhase.applied, ...parameterApplied, ...staticApplied, ...dedupeApplied],
         skipped: [...sssqlPhase.skipped, ...parameterSkipped, ...staticSkipped],
         warnings,
         errors,

@@ -7,6 +7,11 @@ import {
 } from "../models/ValueComponent";
 import { formatSqlComponent, SqlComponentFormatOptions } from "./SqlComponentFormatter";
 
+export interface TopLevelAndConditionDeduplicationResult {
+    expression: ValueComponent;
+    removedConditionSql: readonly string[];
+}
+
 // API output shape review: this internal helper keeps optimizer result sql/query shape unchanged;
 // formatSqlComponent is used only as a caller-configurable canonical key for exact duplicate detection.
 const unwrapParens = (expression: ValueComponent): ValueComponent => {
@@ -35,20 +40,22 @@ const collectTopLevelAndTerms = (expression: ValueComponent): ValueComponent[] =
     ];
 };
 
-export const dedupeTopLevelAndConditions = (
+export const dedupeTopLevelAndConditionsWithMetadata = (
     expression: ValueComponent,
     options: SqlComponentFormatOptions
-): ValueComponent => {
+): TopLevelAndConditionDeduplicationResult => {
     const terms = collectTopLevelAndTerms(expression);
     if (terms.length < 2) {
-        return expression;
+        return { expression, removedConditionSql: [] };
     }
 
     const seen = new Set<string>();
     const uniqueTerms: ValueComponent[] = [];
+    const removedConditionSql: string[] = [];
     for (const term of terms) {
         const key = formatSqlComponent(unwrapParens(term), options);
         if (seen.has(key)) {
+            removedConditionSql.push(key);
             continue;
         }
         seen.add(key);
@@ -56,14 +63,24 @@ export const dedupeTopLevelAndConditions = (
     }
 
     if (uniqueTerms.length === terms.length) {
-        return expression;
+        return { expression, removedConditionSql: [] };
     }
 
     let rebuilt = uniqueTerms[0]!;
     for (let index = 1; index < uniqueTerms.length; index += 1) {
         rebuilt = new BinaryExpression(rebuilt, "and", uniqueTerms[index]!);
     }
-    return rebuilt;
+    return {
+        expression: rebuilt,
+        removedConditionSql
+    };
+};
+
+export const dedupeTopLevelAndConditions = (
+    expression: ValueComponent,
+    options: SqlComponentFormatOptions
+): ValueComponent => {
+    return dedupeTopLevelAndConditionsWithMetadata(expression, options).expression;
 };
 
 export const dedupeWhereTopLevelAndConditions = (

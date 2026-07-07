@@ -65,6 +65,10 @@ describe('ConditionOptimization', () => {
             expect.objectContaining({
                 kind: 'static_predicate_placement',
                 appliedCount: 0
+            }),
+            expect.objectContaining({
+                kind: 'condition_deduplication',
+                appliedCount: 0
             })
         ]);
         expect(result.applied).toEqual([
@@ -109,6 +113,11 @@ describe('ConditionOptimization', () => {
                 kind: 'static_predicate_placement',
                 appliedCount: 0,
                 skippedCount: 0
+            }),
+            expect.objectContaining({
+                kind: 'condition_deduplication',
+                appliedCount: 0,
+                skippedCount: 0
             })
         ]);
         expect(result.applied).toEqual([
@@ -126,6 +135,152 @@ describe('ConditionOptimization', () => {
             )
             select ob.order_id
             from orders_base ob
+        `));
+    });
+
+    it('deduplicates identical top-level WHERE conditions without condition placement', () => {
+        const sql = `
+            select u.id, u.status
+            from users u
+            where u.status = 'active'
+              and u.status = 'active'
+              and u.deleted_at is null
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.phases).toContainEqual(expect.objectContaining({
+            kind: 'condition_deduplication',
+            appliedCount: 1
+        }));
+        expect(result.applied).toContainEqual(expect.objectContaining({
+            phaseKind: 'condition_deduplication',
+            kind: 'dedupe_condition',
+            scopeId: 'root.where',
+            conditionSql: `"u"."status" = 'active'`
+        }));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            select u.id, u.status
+            from users u
+            where u.status = 'active'
+              and u.deleted_at is null
+        `));
+    });
+
+    it('deduplicates identical top-level JOIN ON conditions without condition placement', () => {
+        const sql = `
+            select u.id, o.id as order_id
+            from users u
+            join orders o
+              on o.user_id = u.id
+             and o.user_id = u.id
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.phases).toContainEqual(expect.objectContaining({
+            kind: 'condition_deduplication',
+            appliedCount: 1
+        }));
+        expect(result.applied).toContainEqual(expect.objectContaining({
+            phaseKind: 'condition_deduplication',
+            kind: 'dedupe_condition',
+            scopeId: 'root.join:o.on',
+            conditionSql: '"o"."user_id" = "u"."id"'
+        }));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            select u.id, o.id as order_id
+            from users u
+            join orders o
+              on o.user_id = u.id
+        `));
+    });
+
+    it('deduplicates identical top-level conditions inside CTE bodies', () => {
+        const sql = `
+            with active_orders as (
+                select o.id, o.customer_id
+                from orders o
+                where o.status = 'open'
+                  and o.status = 'open'
+            )
+            select ao.id
+            from active_orders ao
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toContainEqual(expect.objectContaining({
+            phaseKind: 'condition_deduplication',
+            kind: 'dedupe_condition',
+            scopeId: 'root.cte:active_orders.where',
+            conditionSql: `"o"."status" = 'open'`
+        }));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with active_orders as (
+                select o.id, o.customer_id
+                from orders o
+                where o.status = 'open'
+            )
+            select ao.id
+            from active_orders ao
+        `));
+    });
+
+    it('deduplicates identical top-level HAVING conditions', () => {
+        const sql = `
+            select o.customer_id, count(*) as order_count
+            from orders o
+            group by o.customer_id
+            having count(*) > 1
+               and count(*) > 1
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toContainEqual(expect.objectContaining({
+            phaseKind: 'condition_deduplication',
+            kind: 'dedupe_condition',
+            scopeId: 'root.having',
+            conditionSql: 'count(*) > 1'
+        }));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            select o.customer_id, count(*) as order_count
+            from orders o
+            group by o.customer_id
+            having count(*) > 1
+        `));
+    });
+
+    it('reports standalone deduplication in dry-run plans', () => {
+        const sql = `
+            select u.id
+            from users u
+            where u.status = :status
+              and u.status = :status
+        `;
+
+        const result = planConditionOptimization(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.safety.dryRun).toBe(true);
+        expect(result.phases).toContainEqual(expect.objectContaining({
+            kind: 'condition_deduplication',
+            appliedCount: 1
+        }));
+        expect(result.applied).toContainEqual(expect.objectContaining({
+            phaseKind: 'condition_deduplication',
+            kind: 'dedupe_condition',
+            conditionSql: '"u"."status" = :status'
+        }));
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            select u.id
+            from users u
+            where u.status = :status
         `));
     });
 
@@ -1160,12 +1315,14 @@ describe('ConditionOptimization', () => {
         expect(result.phases.map(phase => phase.kind)).toEqual([
             'sssql_optional_condition',
             'parameter_condition_placement',
-            'static_predicate_placement'
+            'static_predicate_placement',
+            'condition_deduplication'
         ]);
         expect(result.phases).toEqual([
             expect.objectContaining({ kind: 'sssql_optional_condition', appliedCount: 1 }),
             expect.objectContaining({ kind: 'parameter_condition_placement', appliedCount: 1 }),
-            expect.objectContaining({ kind: 'static_predicate_placement', appliedCount: 1 })
+            expect.objectContaining({ kind: 'static_predicate_placement', appliedCount: 1 }),
+            expect.objectContaining({ kind: 'condition_deduplication', appliedCount: 0 })
         ]);
         expect(result.applied.map(item => item.phaseKind)).toEqual([
             'sssql_optional_condition',
