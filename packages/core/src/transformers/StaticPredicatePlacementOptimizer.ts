@@ -169,6 +169,12 @@ interface StaticPredicateCandidate {
 
 type SkipDraft = Omit<StaticPredicateSkipped, "predicateSql" | "scopeId">;
 
+interface ScopeWorkItem {
+    query: SimpleSelectQuery;
+    scopeId: string;
+    pendingTerms?: ValueComponent[];
+}
+
 const VOLATILE_OR_UNSUPPORTED_FUNCTION_REASON = "Predicate contains a function call; volatile and expression predicates are not moved in the safe-only implementation.";
 
 const normalizeIdentifier = (value: string): string => value.trim().toLowerCase();
@@ -297,85 +303,9 @@ export class StaticPredicatePlacementOptimizer {
         const query = parsed.query;
         const applied: StaticPredicateMove[] = [];
         const skipped: StaticPredicateSkipped[] = [];
-        const movedTerms: ValueComponent[] = [];
+        this.placePredicatesInScopes(query, options, applied, skipped);
 
-        for (const term of query.whereClause ? collectTopLevelAndTerms(query.whereClause.condition) : []) {
-            const candidate = this.analyzeCandidate(query, term, options);
-            if (!candidate) {
-                continue;
-            }
-
-            if ("code" in candidate) {
-                skipped.push(this.makeSkipped(term, candidate, options));
-                continue;
-            }
-
-            const target = this.resolveTarget(query, candidate);
-            if ("code" in target) {
-                skipped.push(this.makeSkipped(term, target, options));
-                continue;
-            }
-
-            let appliedReason = "";
-            if (target.kind === "join_on") {
-                this.appendJoinOnPredicate(target.join, candidate.expression, options);
-                appliedReason = target.reason;
-            } else if (target.kind === "simple") {
-                const targetColumns = this.resolveTargetColumns(query, target.query, candidate.references);
-                if ("code" in targetColumns) {
-                    skipped.push(this.makeSkipped(term, targetColumns, options));
-                    continue;
-                }
-
-                const placement = this.resolveTargetPlacement(target.query, targetColumns);
-                if ("code" in placement) {
-                    skipped.push(this.makeSkipped(term, placement, options));
-                    continue;
-                }
-
-                const movedPredicate = this.rebasePredicate(candidate.expression, targetColumns, options);
-                target.query.appendWhere(movedPredicate);
-                dedupeWhereTopLevelAndConditions(target.query, options);
-                appliedReason = placement.reason;
-            } else {
-                const placements: TargetPlacement[] = [];
-                let skip: SkipDraft | null = null;
-                for (const branch of target.branches) {
-                    const placement = this.resolveTargetPlacement(branch.query, branch.targetColumns);
-                    if ("code" in placement) {
-                        skip = placement;
-                        break;
-                    }
-                    placements.push(placement);
-                }
-                if (skip) {
-                    skipped.push(this.makeSkipped(term, skip, options));
-                    continue;
-                }
-
-                for (const branch of target.branches) {
-                    const movedPredicate = this.rebasePredicate(candidate.expression, branch.targetColumns, options);
-                    branch.query.appendWhere(movedPredicate);
-                    dedupeWhereTopLevelAndConditions(branch.query, options);
-                }
-                appliedReason = placements.some(item => /group by/i.test(item.reason))
-                    ? "Predicate is distributed to every UNION branch by output column position; grouped branches only receive GROUP BY-key predicates."
-                    : "Predicate is distributed to every UNION branch by output column position before unsafe query boundaries.";
-            }
-            movedTerms.push(term);
-
-            applied.push({
-                kind: "move_static_predicate",
-                predicateSql: candidate.predicateSql,
-                fromScopeId: "scope:root",
-                toScopeId: target.scopeId,
-                reason: appliedReason,
-                columnReferences: candidate.references.map(columnReferenceText)
-            });
-        }
-
-        rebuildWhereWithoutTerms(query, new Set(movedTerms));
-
+        // API output shape review: keep result.sql/result.query compatibility while expanding scope-aware placement.
         const sql = applied.length > 0 || hasSqlComponentFormatOverride(options)
             ? formatSqlComponent(query, options)
             : parsed.sql;
@@ -389,6 +319,137 @@ export class StaticPredicatePlacementOptimizer {
             dryRun: options.dryRun ?? true,
             formatterGeneratedSource: parsed.formatterGeneratedSource
         });
+    }
+
+    private placePredicatesInScopes(
+        contextRoot: SimpleSelectQuery,
+        options: StaticPredicatePlacementOptions,
+        applied: StaticPredicateMove[],
+        skipped: StaticPredicateSkipped[]
+    ): void {
+        const queue: ScopeWorkItem[] = [{ query: contextRoot, scopeId: "scope:root" }];
+        let processed = 0;
+
+        while (queue.length > 0) {
+            processed += 1;
+            if (processed > 1000) {
+                skipped.push({
+                    predicateSql: "",
+                    scopeId: "scope:root",
+                    code: "RECURSIVE_PLACEMENT_LIMIT",
+                    reason: "Static predicate recursive placement stopped after reaching the safety iteration limit."
+                });
+                return;
+            }
+
+            const work = queue.shift()!;
+            const movedTerms: ValueComponent[] = [];
+            const reportSkipped = work.pendingTerms === undefined;
+            const terms = work.pendingTerms ?? (
+                work.query.whereClause
+                    ? collectTopLevelAndTerms(work.query.whereClause.condition)
+                    : []
+            );
+
+            for (const term of terms) {
+                const candidate = this.analyzeCandidate(work.query, term, options);
+                if (!candidate) {
+                    continue;
+                }
+
+                if ("code" in candidate) {
+                    if (reportSkipped) {
+                        skipped.push(this.makeSkipped(term, work.scopeId, candidate, options));
+                    }
+                    continue;
+                }
+
+                const target = this.resolveTarget(contextRoot, work.query, candidate);
+                if ("code" in target) {
+                    if (reportSkipped) {
+                        skipped.push(this.makeSkipped(term, work.scopeId, target, options));
+                    }
+                    continue;
+                }
+
+                let appliedReason = "";
+                if (target.kind === "join_on") {
+                    this.appendJoinOnPredicate(target.join, candidate.expression, options);
+                    appliedReason = target.reason;
+                } else if (target.kind === "simple") {
+                    const targetColumns = this.resolveTargetColumns(contextRoot, target.query, candidate.references);
+                    if ("code" in targetColumns) {
+                        if (reportSkipped) {
+                            skipped.push(this.makeSkipped(term, work.scopeId, targetColumns, options));
+                        }
+                        continue;
+                    }
+
+                    const placement = this.resolveTargetPlacement(contextRoot, target.query, targetColumns);
+                    if ("code" in placement) {
+                        if (reportSkipped) {
+                            skipped.push(this.makeSkipped(term, work.scopeId, placement, options));
+                        }
+                        continue;
+                    }
+
+                    const movedPredicate = this.rebasePredicate(candidate.expression, targetColumns, options);
+                    target.query.appendWhere(movedPredicate);
+                    dedupeWhereTopLevelAndConditions(target.query, options);
+                    appliedReason = work.scopeId === "scope:root"
+                        ? placement.reason
+                        : `${placement.reason} Predicate was safely rebased from a previously moved predicate.`;
+                    const retainedTerms = target.query.whereClause
+                        ? collectTopLevelAndTerms(target.query.whereClause.condition)
+                        : [];
+                    if (retainedTerms.includes(movedPredicate)) {
+                        queue.push({
+                            query: target.query,
+                            scopeId: target.scopeId,
+                            pendingTerms: [movedPredicate]
+                        });
+                    }
+                } else {
+                    const placements: TargetPlacement[] = [];
+                    let skip: SkipDraft | null = null;
+                    for (const branch of target.branches) {
+                        const placement = this.resolveTargetPlacement(contextRoot, branch.query, branch.targetColumns);
+                        if ("code" in placement) {
+                            skip = placement;
+                            break;
+                        }
+                        placements.push(placement);
+                    }
+                    if (skip) {
+                        if (reportSkipped) {
+                            skipped.push(this.makeSkipped(term, work.scopeId, skip, options));
+                        }
+                        continue;
+                    }
+
+                    for (const branch of target.branches) {
+                        const movedPredicate = this.rebasePredicate(candidate.expression, branch.targetColumns, options);
+                        branch.query.appendWhere(movedPredicate);
+                        dedupeWhereTopLevelAndConditions(branch.query, options);
+                    }
+                    appliedReason = placements.some(item => /group by/i.test(item.reason))
+                        ? "Predicate is distributed to every UNION branch by output column position; grouped branches only receive GROUP BY-key predicates."
+                        : "Predicate is distributed to every UNION branch by output column position before unsafe query boundaries.";
+                }
+                movedTerms.push(term);
+
+                applied.push({
+                    kind: "move_static_predicate",
+                    predicateSql: candidate.predicateSql,
+                    fromScopeId: work.scopeId,
+                    toScopeId: target.scopeId,
+                    reason: appliedReason,
+                    columnReferences: candidate.references.map(columnReferenceText)
+                });
+            }
+
+            rebuildWhereWithoutTerms(work.query, new Set(movedTerms));
+        }
     }
 
     public optimize(
@@ -616,13 +677,17 @@ export class StaticPredicatePlacementOptimizer {
         return found;
     }
 
-    private resolveTarget(root: SimpleSelectQuery, candidate: StaticPredicateCandidate): UpstreamTarget | SkipDraft {
-        const boundary = this.findRootQueryBoundary(root);
+    private resolveTarget(
+        contextRoot: SimpleSelectQuery,
+        currentQuery: SimpleSelectQuery,
+        candidate: StaticPredicateCandidate
+    ): UpstreamTarget | SkipDraft {
+        const boundary = this.findRootQueryBoundary(currentQuery);
         if (boundary) {
             return boundary;
         }
 
-        if (!root.fromClause) {
+        if (!currentQuery.fromClause) {
             return {
                 code: "NO_FROM_CLAUSE",
                 reason: "Predicate has no FROM source that can receive it safely."
@@ -631,7 +696,7 @@ export class StaticPredicatePlacementOptimizer {
 
         const bindings: SourceBinding[] = [];
         for (const reference of candidate.references) {
-            const binding = this.resolveSourceBinding(root, root, reference);
+            const binding = this.resolveSourceBinding(contextRoot, currentQuery, reference);
             if ("code" in binding) {
                 return binding;
             }
@@ -654,15 +719,15 @@ export class StaticPredicatePlacementOptimizer {
                 reason: "Predicate crosses a LATERAL JOIN boundary; moving it may change semantics."
             };
         }
-        const nullableSide = this.findNullableSideBoundary(root.fromClause, binding);
+        const nullableSide = this.findNullableSideBoundary(currentQuery.fromClause, binding);
         if (nullableSide) {
             return nullableSide;
         }
 
-        const upstream = this.resolveUpstreamQuery(root, binding, candidate.references);
+        const upstream = this.resolveUpstreamQuery(contextRoot, binding, candidate.references);
         if ("code" in upstream) {
             if (upstream.code === "NO_SAFE_UPSTREAM_QUERY") {
-                const joinOnTarget = this.resolveBaseTableJoinOnTarget(root, binding);
+                const joinOnTarget = this.resolveBaseTableJoinOnTarget(contextRoot, currentQuery, binding);
                 if (!("code" in joinOnTarget)) {
                     return joinOnTarget;
                 }
@@ -691,6 +756,7 @@ export class StaticPredicatePlacementOptimizer {
     }
 
     private resolveTargetPlacement(
+        contextRoot: SimpleSelectQuery,
         query: SimpleSelectQuery,
         targetColumns: readonly TargetColumnResolution[]
     ): TargetPlacement | SkipDraft {
@@ -713,11 +779,11 @@ export class StaticPredicatePlacementOptimizer {
                 reason: "Predicate crosses LIMIT/OFFSET/FETCH boundary; moving it may change row selection semantics."
             };
         }
-        if (query.fromClause && this.hasOuterJoin(query.fromClause)) {
-            return {
-                code: "OUTER_JOIN_BOUNDARY",
-                reason: "Target query contains an OUTER JOIN boundary that is not moved across in the safe-only implementation."
-            };
+        if (query.fromClause) {
+            const nullableSide = this.findNullableSideBoundaryForTargetColumns(contextRoot, query, targetColumns);
+            if (nullableSide) {
+                return nullableSide;
+            }
         }
         if (query.groupByClause) {
             const allReferencesAreGroupKeys = targetColumns.every(item =>
@@ -747,6 +813,28 @@ export class StaticPredicatePlacementOptimizer {
         return {
             reason: "All outer references resolve to direct upstream outputs before unsafe query boundaries."
         };
+    }
+
+    private findNullableSideBoundaryForTargetColumns(
+        contextRoot: SimpleSelectQuery,
+        query: SimpleSelectQuery,
+        targetColumns: readonly TargetColumnResolution[]
+    ): SkipDraft | null {
+        if (!query.fromClause) {
+            return null;
+        }
+
+        for (const item of targetColumns) {
+            const binding = this.resolveSourceBinding(contextRoot, query, item.targetColumn);
+            if ("code" in binding) {
+                return binding;
+            }
+            const nullableSide = this.findNullableSideBoundary(query.fromClause, binding);
+            if (nullableSide) {
+                return nullableSide;
+            }
+        }
+        return null;
     }
 
     private resolveSourceBinding(
@@ -973,15 +1061,19 @@ export class StaticPredicatePlacementOptimizer {
         return resolved;
     }
 
-    private resolveBaseTableJoinOnTarget(root: SimpleSelectQuery, binding: SourceBinding): JoinOnTarget | SkipDraft {
-        if (!root.fromClause || !this.isBaseTableBinding(root, binding)) {
+    private resolveBaseTableJoinOnTarget(
+        contextRoot: SimpleSelectQuery,
+        currentQuery: SimpleSelectQuery,
+        binding: SourceBinding
+    ): JoinOnTarget | SkipDraft {
+        if (!currentQuery.fromClause || !this.isBaseTableBinding(contextRoot, binding)) {
             return {
                 code: "NO_SAFE_UPSTREAM_QUERY",
                 reason: "The referenced source is a base table, so there is no upstream query block to move into."
             };
         }
 
-        if (this.hasOuterJoin(root.fromClause)) {
+        if (this.hasOuterJoin(currentQuery.fromClause)) {
             return {
                 code: "OUTER_JOIN_BOUNDARY",
                 reason: "Predicate crosses an OUTER JOIN boundary; moving it into JOIN ON may change semantics."
@@ -989,7 +1081,7 @@ export class StaticPredicatePlacementOptimizer {
         }
 
         const join = binding.isPrimary
-            ? root.fromClause.joins?.[0] ?? null
+            ? currentQuery.fromClause.joins?.[0] ?? null
             : binding.join;
         if (join?.lateral) {
             return {
@@ -1093,7 +1185,7 @@ export class StaticPredicatePlacementOptimizer {
             return { query, targetColumns: [...targetColumns] };
         }
 
-        const placement = this.resolveTargetPlacement(upstream.query, upstreamColumns);
+        const placement = this.resolveTargetPlacement(contextRoot, upstream.query, upstreamColumns);
         if ("code" in placement) {
             return { query, targetColumns: [...targetColumns] };
         }
@@ -2022,12 +2114,13 @@ export class StaticPredicatePlacementOptimizer {
 
     private makeSkipped(
         expression: ValueComponent,
+        scopeId: string,
         draft: SkipDraft,
         options: SqlComponentFormatOptions
     ): StaticPredicateSkipped {
         return {
             predicateSql: formatSqlComponent(expression, options),
-            scopeId: "scope:root",
+            scopeId,
             ...draft
         };
     }
