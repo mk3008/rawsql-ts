@@ -1047,6 +1047,13 @@ describe('ConditionOptimization', () => {
                 kind: 'move_static_predicate',
                 toScopeId: 'cte:active_users',
                 columnReferences: ['status']
+            }),
+            expect.objectContaining({
+                phaseKind: 'static_predicate_placement',
+                kind: 'move_static_predicate',
+                fromScopeId: 'cte:active_users',
+                toScopeId: 'subquery:user_status',
+                columnReferences: ['user_status.status']
             })
         ]);
         expect(result.skipped).toEqual([]);
@@ -1056,8 +1063,8 @@ describe('ConditionOptimization', () => {
                 from (
                     select u.status
                     from users u
+                    where u.status = 'active'
                 ) user_status
-                where user_status.status = 'active'
             )
             select *
             from active_users
@@ -2331,7 +2338,7 @@ describe('ConditionOptimization', () => {
                     'on "o"."customer_id" = "c"."id" and "o"."status" = \'paid\'',
                     'from "customers" as "c" left join "orders" as "o" on "o"."customer_id" = "c"."id" where "o"."status" = \'paid\''
                 ],
-                expectedSkippedCodes: ['OUTER_JOIN_BOUNDARY']
+                expectedSkippedCodes: ['OUTER_JOIN_NULLABLE_SIDE']
             });
         });
 
@@ -2355,7 +2362,7 @@ describe('ConditionOptimization', () => {
                 forbiddenFragments: [
                     'on "o"."customer_id" = "c"."id" and "o"."id" is null'
                 ],
-                expectedSkippedCodes: ['OUTER_JOIN_BOUNDARY']
+                expectedSkippedCodes: ['OUTER_JOIN_NULLABLE_SIDE']
             });
         });
 

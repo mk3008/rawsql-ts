@@ -57,6 +57,171 @@ describe('StaticPredicatePlacementOptimizer', () => {
         `));
     });
 
+    it('recursively moves static predicates through grouped CTE keys into direct preserved-side source columns', () => {
+        const sql = `
+            with
+              source_summary as (
+                select
+                  t1.group_id,
+                  t1.org_id,
+                  count(t1.group_id) as item_count
+                from source_table as t1
+                group by
+                  t1.group_id,
+                  t1.org_id
+              ),
+              target_summary as (
+                select
+                  t2.group_id,
+                  m.org_id,
+                  count(t2.group_id) as item_count
+                from target_table as t2
+                inner join master_table as m
+                  on t2.related_id = m.related_id
+                group by
+                  t2.group_id,
+                  m.org_id
+              ),
+              detail_data as (
+                select
+                  o.org_id,
+                  o.org_name,
+                  s.group_id,
+                  s.item_count as source_count,
+                  t.item_count as target_count
+                from organization as o
+                left join source_summary as s
+                  on o.org_id = s.org_id
+                left join target_summary as t
+                  on s.group_id = t.group_id
+                where
+                  o.enabled_flg = true
+              ),
+              report as (
+                select
+                  org_id,
+                  org_name,
+                  sum(source_count) as source_count,
+                  sum(target_count) as target_count
+                from detail_data
+                group by
+                  org_id,
+                  org_name
+              )
+            select
+              org_id,
+              org_name,
+              source_count,
+              target_count
+            from report
+            where org_id in (1)
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([
+            expect.objectContaining({
+                fromScopeId: 'scope:root',
+                toScopeId: 'cte:report',
+                predicateSql: '"org_id" in (1)'
+            }),
+            expect.objectContaining({
+                fromScopeId: 'cte:report',
+                toScopeId: 'cte:detail_data',
+                predicateSql: '"org_id" in (1)',
+                reason: expect.stringMatching(/direct output|rebased|recursive/i)
+            })
+        ]);
+        expect(result.skipped).toEqual([]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with
+              source_summary as (
+                select
+                  t1.group_id,
+                  t1.org_id,
+                  count(t1.group_id) as item_count
+                from source_table as t1
+                group by
+                  t1.group_id,
+                  t1.org_id
+              ),
+              target_summary as (
+                select
+                  t2.group_id,
+                  m.org_id,
+                  count(t2.group_id) as item_count
+                from target_table as t2
+                inner join master_table as m
+                  on t2.related_id = m.related_id
+                group by
+                  t2.group_id,
+                  m.org_id
+              ),
+              detail_data as (
+                select
+                  o.org_id,
+                  o.org_name,
+                  s.group_id,
+                  s.item_count as source_count,
+                  t.item_count as target_count
+                from organization as o
+                left join source_summary as s
+                  on o.org_id = s.org_id
+                left join target_summary as t
+                  on s.group_id = t.group_id
+                where
+                  o.enabled_flg = true
+                  and o.org_id in (1)
+              ),
+              report as (
+                select
+                  org_id,
+                  org_name,
+                  sum(source_count) as source_count,
+                  sum(target_count) as target_count
+                from detail_data
+                group by
+                  org_id,
+                  org_name
+              )
+            select
+              org_id,
+              org_name,
+              source_count,
+              target_count
+            from report
+        `));
+    });
+
+    it('does not recursively push predicates into the nullable side of a LEFT JOIN', () => {
+        const sql = `
+            with
+              detail_data as (
+                select
+                  o.org_id,
+                  s.item_count as source_count
+                from organization as o
+                left join source_summary as s
+                  on o.org_id = s.org_id
+              )
+            select *
+            from detail_data
+            where source_count > 0
+        `;
+
+        const result = optimizeStaticPredicatePlacement(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.applied).toEqual([]);
+        expect(result.skipped).toEqual([
+            expect.objectContaining({
+                code: 'OUTER_JOIN_NULLABLE_SIDE'
+            })
+        ]);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(sql));
+    });
+
     it('moves simple boolean and NULL static predicates into the safe upstream CTE', () => {
         const sql = `
             with customer_scope as (
@@ -535,6 +700,13 @@ describe('StaticPredicatePlacementOptimizer', () => {
                 predicateSql: `"d"."status" = 'paid'`,
                 toScopeId: 'subquery:d',
                 reason: expect.stringMatching(/DISTINCT output column/i)
+            }),
+            expect.objectContaining({
+                kind: 'move_static_predicate',
+                fromScopeId: 'subquery:d',
+                predicateSql: `"o"."status" = 'paid'`,
+                toScopeId: 'subquery:o',
+                reason: expect.stringMatching(/rebased/i)
             })
         ]);
         expect(result.skipped).toEqual([]);
@@ -545,8 +717,8 @@ describe('StaticPredicatePlacementOptimizer', () => {
                 from (
                     select o.customer_id, o.status
                     from orders o
+                    where o.status = 'paid'
                 ) as o
-                where o.status = 'paid'
             ) as d
         `));
     });
