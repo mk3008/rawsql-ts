@@ -88,6 +88,7 @@ export type {
 } from './transformers/SqlComponentFormatter';
 export * from './transformers/ConditionOptimization';
 export * from './transformers/ParameterConditionPlacementOptimizer';
+export * from './transformers/PredicateReachabilityAnalyzer';
 export * from './transformers/StaticPredicatePlacementOptimizer';
 export * from './transformers/PruneOptionalConditionBranches';
 export {
