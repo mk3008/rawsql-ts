@@ -53,6 +53,31 @@ describe('PredicateReachabilityAnalyzer', () => {
             })
         ]);
         expect(result.predicates[0]!.blocked).toEqual([]);
+        expect(result.predicates[0]!.probeTargets).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                scopeId: 'cte:order_scope',
+                relation: 'direct_output',
+                mode: 'rewrite_safe',
+                predicateSql: '"o"."customer_id" = :customer_id',
+                target: {
+                    kind: 'cte',
+                    name: 'order_scope'
+                },
+                probeKinds: ['count', 'sample']
+            }),
+            expect.objectContaining({
+                scopeId: 'table:customers',
+                relation: 'join_equivalence',
+                mode: 'debug_only',
+                predicateSql: '"c"."id" = :customer_id',
+                target: {
+                    kind: 'table',
+                    name: 'customers'
+                },
+                probeKinds: ['count', 'sample'],
+                caution: expect.stringContaining('debug-only')
+            })
+        ]));
         expect(result.query).not.toBeNull();
         expect(normalizeSql(new SqlFormatter().format(result.query!).formattedSql)).toBe(normalizeSql(sql));
     });
@@ -90,5 +115,11 @@ describe('PredicateReachabilityAnalyzer', () => {
                 ]
             })
         ]);
+        expect(result.predicates[0]!.probeTargets).not.toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                scopeId: 'table:customers',
+                relation: 'join_equivalence'
+            })
+        ]));
     });
 });

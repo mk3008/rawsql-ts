@@ -50,6 +50,12 @@ export interface PredicateReachabilityError {
 
 export type PredicateReachabilityMode = "rewrite_safe" | "debug_only";
 export type PredicateReachabilityRelation = "origin" | "direct_output" | "join_equivalence";
+export type PredicateReachabilityProbeKind = "count" | "sample";
+
+export interface PredicateReachabilityScopeTarget {
+    kind: "scope" | "cte" | "table" | "subquery" | "source";
+    name: string;
+}
 
 export interface PredicateReachabilityTarget {
     scopeId: string;
@@ -67,12 +73,23 @@ export interface PredicateReachabilityBlocked {
     via?: readonly string[];
 }
 
+export interface PredicateReachabilityProbeTarget {
+    scopeId: string;
+    relation: PredicateReachabilityRelation;
+    mode: PredicateReachabilityMode;
+    predicateSql: string;
+    target: PredicateReachabilityScopeTarget;
+    probeKinds: readonly PredicateReachabilityProbeKind[];
+    caution?: string;
+}
+
 export interface PredicateReachabilityPredicate {
     predicateSql: string;
     originScopeId: string;
     columnReferences: readonly string[];
     reaches: readonly PredicateReachabilityTarget[];
     blocked: readonly PredicateReachabilityBlocked[];
+    probeTargets: readonly PredicateReachabilityProbeTarget[];
 }
 
 export interface PredicateReachabilitySafety {
@@ -243,9 +260,45 @@ export class PredicateReachabilityAnalyzer {
                 originScopeId: scopeId,
                 columnReferences: references.map(columnReferenceText),
                 reaches,
-                blocked
+                blocked,
+                probeTargets: this.buildProbeTargets(reaches)
             };
         });
+    }
+
+    private buildProbeTargets(
+        reaches: readonly PredicateReachabilityTarget[]
+    ): PredicateReachabilityProbeTarget[] {
+        return reaches.map(reach => ({
+            scopeId: reach.scopeId,
+            relation: reach.relation,
+            mode: reach.mode,
+            predicateSql: reach.predicateSql,
+            target: this.describeScopeTarget(reach.scopeId),
+            probeKinds: ["count", "sample"],
+            ...(reach.mode === "debug_only"
+                ? {
+                    caution: "This target is inferred through a debug-only relationship and is not a safe SQL rewrite target."
+                }
+                : {})
+        }));
+    }
+
+    private describeScopeTarget(scopeId: string): PredicateReachabilityScopeTarget {
+        const [kind, ...rest] = scopeId.split(":");
+        const name = rest.join(":") || scopeId;
+        switch (kind) {
+            case "cte":
+                return { kind: "cte", name };
+            case "table":
+                return { kind: "table", name };
+            case "subquery":
+                return { kind: "subquery", name };
+            case "source":
+                return { kind: "source", name };
+            default:
+                return { kind: "scope", name };
+        }
     }
 
     private resolveDirectOutputReach(
