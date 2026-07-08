@@ -6,8 +6,7 @@ import {
     JoinOnClause,
     SourceExpression,
     SubQuerySource,
-    TableSource,
-    WhereClause
+    TableSource
 } from "../models/Clause";
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import {
@@ -22,7 +21,6 @@ import {
     InlineQuery,
     JsonPredicateExpression,
     ParameterExpression,
-    ParenExpression,
     TupleExpression,
     TypeValue,
     UnaryExpression,
@@ -30,7 +28,6 @@ import {
     ValueList
 } from "../models/ValueComponent";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
-import { ValueParser } from "../parsers/ValueParser";
 import {
     formatSqlComponent,
     hasSqlComponentFormatOverride,
@@ -41,6 +38,19 @@ import {
     dedupeTopLevelAndConditions,
     dedupeWhereTopLevelAndConditions
 } from "./TopLevelAndConditionDeduper";
+import {
+    appendUnique,
+    cloneColumnReference,
+    cloneValueComponent,
+    collectTopLevelAndTerms,
+    columnReferenceText,
+    identifiersEqual,
+    isBinaryOperator,
+    normalizeIdentifier,
+    rebuildWhereWithoutTerms,
+    sameColumnReference,
+    unwrapParens
+} from "./PredicateExpressionUtils";
 
 export type StaticPredicatePlacementInput = string | SelectQuery | SimpleSelectQuery;
 
@@ -176,90 +186,6 @@ interface ScopeWorkItem {
 }
 
 const VOLATILE_OR_UNSUPPORTED_FUNCTION_REASON = "Predicate contains a function call; volatile and expression predicates are not moved in the safe-only implementation.";
-
-const normalizeIdentifier = (value: string): string => value.trim().toLowerCase();
-const isCaseSensitiveIdentifier = (value: string): boolean => /[A-Z]/.test(value.trim());
-const identifiersEqual = (left: string, right: string): boolean => {
-    const trimmedLeft = left.trim();
-    const trimmedRight = right.trim();
-    return isCaseSensitiveIdentifier(trimmedLeft) || isCaseSensitiveIdentifier(trimmedRight)
-        ? trimmedLeft === trimmedRight
-        : trimmedLeft.toLowerCase() === trimmedRight.toLowerCase();
-};
-
-const unwrapParens = (expression: ValueComponent): ValueComponent => {
-    let candidate = expression;
-    while (candidate instanceof ParenExpression) {
-        candidate = candidate.expression;
-    }
-    return candidate;
-};
-
-const isBinaryOperator = (expression: ValueComponent, operator: string): expression is BinaryExpression => {
-    const candidate = unwrapParens(expression);
-    return candidate instanceof BinaryExpression
-        && candidate.operator.value.trim().toLowerCase() === operator;
-};
-
-const collectTopLevelAndTerms = (expression: ValueComponent): ValueComponent[] => {
-    const candidate = unwrapParens(expression);
-    if (!isBinaryOperator(candidate, "and")) {
-        return [expression];
-    }
-
-    return [
-        ...collectTopLevelAndTerms(candidate.left),
-        ...collectTopLevelAndTerms(candidate.right)
-    ];
-};
-
-const rebuildWhereWithoutTerms = (query: SimpleSelectQuery, termsToRemove: ReadonlySet<ValueComponent>): void => {
-    if (!query.whereClause || termsToRemove.size === 0) {
-        return;
-    }
-
-    const remaining = collectTopLevelAndTerms(query.whereClause.condition)
-        .filter(term => !termsToRemove.has(term));
-
-    if (remaining.length === 0) {
-        query.whereClause = null;
-        return;
-    }
-
-    let rebuilt = remaining[0]!;
-    for (let index = 1; index < remaining.length; index += 1) {
-        rebuilt = new BinaryExpression(rebuilt, "and", remaining[index]!);
-    }
-    query.whereClause = new WhereClause(rebuilt);
-};
-
-const cloneValueComponent = (
-    expression: ValueComponent,
-    options: SqlComponentFormatOptions
-): ValueComponent => {
-    return ValueParser.parse(formatSqlComponent(expression, options));
-};
-
-const cloneColumnReference = (reference: ColumnReference): ColumnReference => {
-    const namespaces = reference.namespaces?.map(namespace => namespace.name) ?? null;
-    return new ColumnReference(namespaces, reference.column.name);
-};
-
-const columnReferenceText = (reference: ColumnReference): string => {
-    const namespace = reference.getNamespace();
-    return namespace ? `${namespace}.${reference.column.name}` : reference.column.name;
-};
-
-const sameColumnReference = (left: ColumnReference, right: ColumnReference): boolean => {
-    return identifiersEqual(left.column.name, right.column.name)
-        && identifiersEqual(left.getNamespace(), right.getNamespace());
-};
-
-const appendUnique = <T>(items: T[], value: T): void => {
-    if (!items.includes(value)) {
-        items.push(value);
-    }
-};
 
 export class StaticPredicatePlacementOptimizer {
     public plan(
