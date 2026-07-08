@@ -1,5 +1,17 @@
 # rawsql-ts
 
+## 0.30.0
+
+### Minor Changes
+
+- [#953](https://github.com/mk3008/rawsql-ts/pull/953) [`89c07fe`](https://github.com/mk3008/rawsql-ts/commit/89c07fea40074c0dff1fd3dd3c32d6f5aeb8d3a5) Thanks [@mk3008](https://github.com/mk3008)! - Add probe target metadata to predicate reachability analysis results for count and sample investigation workflows.
+
+- [#952](https://github.com/mk3008/rawsql-ts/pull/952) [`6c1b968`](https://github.com/mk3008/rawsql-ts/commit/6c1b968047fe50b504f382c3337d2f6591323ca5) Thanks [@mk3008](https://github.com/mk3008)! - Add a predicate reachability analysis API for debug-only JOIN equivalence diagnostics without rewriting SQL.
+
+### Patch Changes
+
+- [#951](https://github.com/mk3008/rawsql-ts/pull/951) [`21868da`](https://github.com/mk3008/rawsql-ts/commit/21868da2852d06999334eda58eb0327ad98d4426) Thanks [@mk3008](https://github.com/mk3008)! - Move safe static predicates recursively through direct upstream query outputs while preserving OUTER JOIN nullable-side boundaries.
+
 ## 0.29.0
 
 ### Minor Changes
