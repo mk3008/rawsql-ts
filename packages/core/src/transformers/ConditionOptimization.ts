@@ -26,6 +26,7 @@ import {
     TableSource
 } from "../models/Clause";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
+import { ValueParser } from "../parsers/ValueParser";
 import { rewriteValueComponentWithColumnResolver } from "../utils/ValueComponentRewriter";
 import {
     ParameterConditionPlacementOptimizer,
@@ -46,6 +47,10 @@ import {
     ConditionDeduplicationApplied,
     ConditionDeduplicationOptimizer
 } from "./ConditionDeduplicationOptimizer";
+import {
+    analyzePredicateReachability,
+    PredicateReachabilityResult
+} from "./PredicateReachabilityAnalyzer";
 import {
     collectSupportedOptionalConditionBranches,
     OptionalConditionPruningParameters,
@@ -147,6 +152,12 @@ export interface ConditionOptimizationSourceFilterProbe {
     predicate: string;
     suggestedSql: string;
     reason: string;
+    relation?: "source_filter" | "join_equivalence";
+    targetPredicate?: string;
+    targetScope?: {
+        kind: "scope" | "cte" | "table" | "subquery" | "source";
+        name: string;
+    };
 }
 
 export interface ConditionOptimizationSkippedProbe {
@@ -166,6 +177,16 @@ export interface ConditionOptimizationDiagnostics {
      */
     probes: readonly ConditionOptimizationSourceFilterProbe[];
     skippedProbes: readonly ConditionOptimizationSkippedProbe[];
+    /**
+     * API output shape review: keep result.sql/result.query as the production-safe
+     * rewrite output and expose debugSql/debugQuery only for diagnostic pipelines.
+     *
+     * Debug-only probe SQL is additive: result.sql/result.query remain the safe-only
+     * production rewrite output, while debugSql/debugQuery include investigation
+     * probes that callers can feed into lineage/debug surfaces.
+     */
+    debugSql?: string;
+    debugQuery?: SelectQuery | null;
 }
 
 export interface ConditionOptimizationResult {
@@ -609,6 +630,121 @@ const collectConditionOptimizationDiagnostics = (
     return { probes, skippedProbes };
 };
 
+const makeReachabilityProbeSuggestedSql = (
+    sourceName: string,
+    predicate: string | undefined,
+    options: SqlComponentFormatOptions
+): string => {
+    if (!predicate) {
+        return `select * from ${sourceName}`;
+    }
+
+    const sourceLocalPredicate = rewriteValueComponentWithColumnResolver(
+        ValueParser.parse(predicate),
+        reference => new ColumnReference(null, reference.column.name)
+    );
+    return sourceLocalPredicate
+        ? `select * from ${sourceName} where ${formatSqlComponent(sourceLocalPredicate, options)}`
+        : `select * from ${sourceName}`;
+};
+
+const collectJoinEquivalenceProbeDiagnostics = (
+    reachability: PredicateReachabilityResult,
+    options: SqlComponentFormatOptions
+): Pick<ConditionOptimizationDiagnostics, "probes" | "skippedProbes"> => {
+    const probes: ConditionOptimizationSourceFilterProbe[] = [];
+    const skippedProbes: ConditionOptimizationSkippedProbe[] = [];
+
+    for (const predicate of reachability.predicates) {
+        for (const target of predicate.probeTargets) {
+            if (target.relation !== "join_equivalence") {
+                continue;
+            }
+            probes.push({
+                kind: "source_filter_probe",
+                source: target.target.name,
+                sourceAlias: target.target.name,
+                predicate: target.predicateSql,
+                suggestedSql: makeReachabilityProbeSuggestedSql(target.target.name, target.targetPredicateSql, options),
+                reason: "predicate inferred through JOIN equivalence for debug probing",
+                relation: "join_equivalence",
+                ...(target.targetPredicateSql ? { targetPredicate: target.targetPredicateSql } : {}),
+                targetScope: target.target
+            });
+        }
+
+        for (const blocked of predicate.blocked) {
+            if (blocked.relation !== "join_equivalence") {
+                continue;
+            }
+            const [, ...nameParts] = blocked.scopeId.split(":");
+            const source = nameParts.join(":") || undefined;
+            skippedProbes.push({
+                kind: "source_filter_probe_skipped",
+                source,
+                sourceAlias: source,
+                predicate: predicate.predicateSql,
+                code: blocked.code,
+                reason: blocked.reason
+            });
+        }
+    }
+
+    return { probes, skippedProbes };
+};
+
+const findDebugCte = (
+    query: SimpleSelectQuery,
+    name: string
+) => {
+    const normalized = normalizeIdentifier(name);
+    const matches = (query.withClause?.tables ?? [])
+        .filter(table => normalizeIdentifier(table.getSourceAliasName()) === normalized);
+    return matches.length === 1 ? matches[0]! : null;
+};
+
+const buildDebugProbeQuery = (
+    baseQuery: SelectQuery | null,
+    reachability: PredicateReachabilityResult,
+    options: SqlComponentFormatOptions
+): SelectQuery | null => {
+    if (!(baseQuery instanceof SimpleSelectQuery)) {
+        return null;
+    }
+
+    const applicableTargets = reachability.predicates.flatMap(predicate => predicate.probeTargets)
+        .filter(target =>
+            target.relation === "join_equivalence"
+            && Boolean(target.targetPredicateSql)
+            && target.target.kind === "cte"
+        );
+    if (applicableTargets.length === 0) {
+        return null;
+    }
+
+    const debugQuery = SelectQueryParser.parse(formatSqlComponent(baseQuery, options));
+    if (!(debugQuery instanceof SimpleSelectQuery)) {
+        return null;
+    }
+
+    let applied = false;
+    for (const target of applicableTargets) {
+        const cte = findDebugCte(debugQuery, target.target.name);
+        if (!cte || !(cte.query instanceof SimpleSelectQuery) || !target.targetPredicateSql) {
+            continue;
+        }
+        cte.query.appendWhereRaw(target.targetPredicateSql);
+        applied = true;
+    }
+
+    if (!applied) {
+        return null;
+    }
+
+    const dedupePhase = new ConditionDeduplicationOptimizer().optimize(debugQuery, options);
+    return dedupePhase.query ?? debugQuery;
+};
+
 const isAbsentOptionalValue = (
     parameters: OptionalConditionPruningParameters,
     parameterName: string
@@ -1050,6 +1186,54 @@ const makePhaseSummary = (
     errorCount: counts.errorCount
 });
 
+const getAppliedConditionSql = (applied: ConditionOptimizationApplied): string | undefined => {
+    if ("predicateSql" in applied) {
+        return applied.predicateSql;
+    }
+    if ("conditionSql" in applied) {
+        return applied.conditionSql;
+    }
+    return undefined;
+};
+
+const normalizeDiagnosticPredicate = (
+    predicate: string,
+    options: SqlComponentFormatOptions
+): string => {
+    try {
+        return formatSqlComponent(ValueParser.parse(predicate), options)
+            .replace(/\s+/g, " ")
+            .trim()
+            .toLowerCase();
+    } catch {
+        return predicate
+            .replace(/\s+/g, " ")
+            .trim()
+            .toLowerCase();
+    }
+};
+
+const filterSkippedProbesAlreadyApplied = (
+    skippedProbes: readonly ConditionOptimizationSkippedProbe[],
+    applied: readonly ConditionOptimizationApplied[],
+    options: SqlComponentFormatOptions
+): ConditionOptimizationSkippedProbe[] => {
+    const appliedPredicates = new Set(
+        applied
+            .map(item => getAppliedConditionSql(item))
+            .filter((predicate): predicate is string => Boolean(predicate))
+            .map(predicate => normalizeDiagnosticPredicate(predicate, options))
+    );
+
+    if (appliedPredicates.size === 0) {
+        return [...skippedProbes];
+    }
+
+    return skippedProbes.filter(probe => probe.code !== "NESTED_QUERY_UNSUPPORTED" || !appliedPredicates.has(
+        normalizeDiagnosticPredicate(probe.predicate, options)
+    ));
+};
+
 const runConditionOptimization = (
     input: ConditionOptimizationInput,
     options: ConditionOptimizationOptions,
@@ -1061,7 +1245,13 @@ const runConditionOptimization = (
     // Run semantic SSSQL handling before generic placement phases so optional
     // branches remain owned by SSSQL even if later phases grow broader support.
     const sssqlPhase = runSssqlOptionalConditionPhase(input, { ...options, dryRun });
-    const diagnostics = collectConditionOptimizationDiagnostics(sssqlPhase.query, options);
+    const sourceDiagnostics = collectConditionOptimizationDiagnostics(sssqlPhase.query, options);
+    const reachability = sssqlPhase.query
+        ? analyzePredicateReachability(sssqlPhase.query, { ...options, cloneInput: false })
+        : null;
+    const reachabilityDiagnostics = reachability
+        ? collectJoinEquivalenceProbeDiagnostics(reachability, options)
+        : { probes: [], skippedProbes: [] };
     const parameterOptimizer = new ParameterConditionPlacementOptimizer();
     const parameterInput = reuseOwnedModel
         ? sssqlPhase.query ?? sssqlPhase.sql
@@ -1103,6 +1293,20 @@ const runConditionOptimization = (
     const finalSql = dedupePhase.applied.length > 0 && dedupePhase.query
         ? formatSqlComponent(dedupePhase.query, options)
         : staticPhase.sql;
+    const applied = [...sssqlPhase.applied, ...parameterApplied, ...staticApplied, ...dedupeApplied];
+    const debugQuery = reachability
+        ? buildDebugProbeQuery(dedupePhase.query, reachability, options)
+        : null;
+    const debugSql = debugQuery ? formatSqlComponent(debugQuery, options) : undefined;
+    const diagnostics: ConditionOptimizationDiagnostics = {
+        probes: [...sourceDiagnostics.probes, ...reachabilityDiagnostics.probes],
+        skippedProbes: filterSkippedProbesAlreadyApplied(
+            [...sourceDiagnostics.skippedProbes, ...reachabilityDiagnostics.skippedProbes],
+            applied,
+            options
+        ),
+        ...(debugSql ? { debugSql, debugQuery } : {})
+    };
 
     return {
         ok: errors.length === 0,
@@ -1134,7 +1338,7 @@ const runConditionOptimization = (
                 errorCount: 0
             })
         ],
-        applied: [...sssqlPhase.applied, ...parameterApplied, ...staticApplied, ...dedupeApplied],
+        applied,
         skipped: [...sssqlPhase.skipped, ...parameterSkipped, ...staticSkipped],
         warnings,
         errors,
