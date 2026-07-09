@@ -71,6 +71,7 @@ export interface PredicateReachabilityTarget {
     relation: PredicateReachabilityRelation;
     mode: PredicateReachabilityMode;
     predicateSql: string;
+    targetPredicateSql?: string;
     via?: readonly string[];
 }
 
@@ -87,6 +88,7 @@ export interface PredicateReachabilityProbeTarget {
     relation: PredicateReachabilityRelation;
     mode: PredicateReachabilityMode;
     predicateSql: string;
+    targetPredicateSql?: string;
     target: PredicateReachabilityScopeTarget;
     probeKinds: readonly PredicateReachabilityProbeKind[];
     caution?: string;
@@ -202,7 +204,7 @@ export class PredicateReachabilityAnalyzer {
                 });
             }
 
-            const joinReachability = this.resolveJoinEquivalenceReach(query, references, term, options);
+            const joinReachability = this.resolveJoinEquivalenceReach(contextRoot, query, references, term, options);
             reaches.push(...joinReachability.reaches);
             blocked.push(...joinReachability.blocked);
 
@@ -225,6 +227,7 @@ export class PredicateReachabilityAnalyzer {
             relation: reach.relation,
             mode: reach.mode,
             predicateSql: reach.predicateSql,
+            ...(reach.targetPredicateSql ? { targetPredicateSql: reach.targetPredicateSql } : {}),
             target: this.describeScopeTarget(reach.scopeId),
             probeKinds: ["count", "sample"],
             ...(reach.mode === "debug_only"
@@ -301,6 +304,7 @@ export class PredicateReachabilityAnalyzer {
     }
 
     private resolveJoinEquivalenceReach(
+        contextRoot: SimpleSelectQuery,
         query: SimpleSelectQuery,
         references: readonly ColumnReference[],
         predicate: ValueComponent,
@@ -331,6 +335,10 @@ export class PredicateReachabilityAnalyzer {
                     if (!equivalent) {
                         continue;
                     }
+                    const referenceBinding = this.resolveSourceBindingFromList(bindings, reference);
+                    if (!referenceBinding) {
+                        continue;
+                    }
                     const targetBinding = this.resolveSourceBindingFromList(bindings, equivalent);
                     if (!targetBinding) {
                         continue;
@@ -340,22 +348,32 @@ export class PredicateReachabilityAnalyzer {
                         sourceColumn: reference,
                         targetColumn: equivalent
                     }], options);
-                    const scopeId = this.scopeIdForBinding(null, targetBinding);
-                    if (!this.isInnerJoin(join)) {
+                    const scopeId = this.scopeIdForBinding(contextRoot, targetBinding);
+                    const joinEquivalenceAllowed = this.isInnerJoin(join)
+                        || this.isLeftJoinPreservedToNullableReach(join, referenceBinding, targetBinding);
+                    if (!joinEquivalenceAllowed) {
                         blocked.push({
                             scopeId,
                             relation: "join_equivalence",
                             code: "OUTER_JOIN_EQUIVALENCE_UNSUPPORTED",
-                            reason: "JOIN equivalence debug reachability is reported only for INNER JOIN predicates in this safe diagnostic API.",
+                            reason: "JOIN equivalence debug reachability is reported for INNER JOIN predicates and LEFT JOIN preserved-side predicates only.",
                             via
                         });
                         continue;
                     }
+                    const targetPredicate = this.rebasePredicateToSourceQuery(
+                        contextRoot,
+                        targetBinding,
+                        equivalent,
+                        rebased,
+                        options
+                    );
                     reaches.push({
                         scopeId,
                         relation: "join_equivalence",
                         mode: "debug_only",
                         predicateSql: formatSqlComponent(rebased, options),
+                        ...(targetPredicate ? { targetPredicateSql: formatSqlComponent(targetPredicate, options) } : {}),
                         via
                     });
                 }
@@ -499,6 +517,40 @@ export class PredicateReachabilityAnalyzer {
     private isInnerJoin(join: JoinClause): boolean {
         const joinType = join.joinType.value.trim().toLowerCase();
         return joinType === "join" || joinType === "inner join";
+    }
+
+    private isLeftJoinPreservedToNullableReach(
+        join: JoinClause,
+        referenceBinding: SourceBinding,
+        targetBinding: SourceBinding
+    ): boolean {
+        const joinType = join.joinType.value.trim().toLowerCase();
+        return (joinType === "left join" || joinType === "left outer join")
+            && targetBinding.source === join.source
+            && referenceBinding.source !== join.source;
+    }
+
+    private rebasePredicateToSourceQuery(
+        contextRoot: SimpleSelectQuery,
+        targetBinding: SourceBinding,
+        equivalentColumn: ColumnReference,
+        predicate: ValueComponent,
+        options: SqlComponentFormatOptions
+    ): ValueComponent | null {
+        const target = this.resolveSourceQuery(contextRoot, targetBinding);
+        if (!target) {
+            return null;
+        }
+
+        const output = this.resolveDirectOutputColumn(contextRoot, target.query, equivalentColumn.column.name);
+        if (!output || !(output.value instanceof ColumnReference)) {
+            return null;
+        }
+
+        return this.rebasePredicate(predicate, [{
+            sourceColumn: equivalentColumn,
+            targetColumn: output.value
+        }], options);
     }
 
     private rebasePredicate(

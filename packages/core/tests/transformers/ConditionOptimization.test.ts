@@ -563,6 +563,99 @@ describe('ConditionOptimization', () => {
         ]);
     });
 
+    it('adds JOIN-equivalence debug probes to diagnostics and debug SQL without changing safe SQL', () => {
+        const sql = `
+            with order_totals as (
+                select customer_id, count(*) as order_count
+                from orders
+                group by customer_id
+            )
+            select c.id, ot.order_count
+            from customers c
+            join order_totals ot on ot.customer_id = c.id
+            where c.id = 1000
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(normalizeSql(result.sql)).toBe(normalizeSql(`
+            with order_totals as (
+                select customer_id, count(*) as order_count
+                from orders
+                group by customer_id
+            )
+            select c.id, ot.order_count
+            from customers c
+            join order_totals ot on ot.customer_id = c.id and c.id = 1000
+        `));
+        expect(result.diagnostics?.probes).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                source: 'order_totals',
+                sourceAlias: 'order_totals',
+                predicate: '"ot"."customer_id" = 1000',
+                reason: 'predicate inferred through JOIN equivalence for debug probing'
+            })
+        ]));
+        expect(result.diagnostics?.debugQuery).not.toBeNull();
+        expect(normalizeSql(result.diagnostics!.debugSql!)).toBe(normalizeSql(`
+            with order_totals as (
+                select customer_id, count(*) as order_count
+                from orders
+                where customer_id = 1000
+                group by customer_id
+            )
+            select c.id, ot.order_count
+            from customers c
+            join order_totals ot on ot.customer_id = c.id and c.id = 1000
+        `));
+    });
+
+    it('allows LEFT JOIN preserved-side JOIN-equivalence debug probes into nullable CTE input', () => {
+        const sql = `
+            with customer_scope as (
+                select c.id, c.name
+                from customers c
+            ),
+            payment_summary as (
+                select p.customer_id, sum(p.amount) as paid_amount
+                from payments p
+                group by p.customer_id
+            )
+            select cs.id, ps.paid_amount
+            from customer_scope cs
+            left join payment_summary ps on ps.customer_id = cs.id
+            where cs.id = 1000
+        `;
+
+        const result = optimizeConditions(sql);
+
+        expect(result.ok).toBe(true);
+        expect(result.diagnostics?.skippedProbes).toEqual([]);
+        expect(result.diagnostics?.probes).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                source: 'payment_summary',
+                predicate: '"ps"."customer_id" = 1000'
+            })
+        ]));
+        expect(normalizeSql(result.diagnostics!.debugSql!)).toBe(normalizeSql(`
+            with customer_scope as (
+                select c.id, c.name
+                from customers c
+                where c.id = 1000
+            ),
+            payment_summary as (
+                select p.customer_id, sum(p.amount) as paid_amount
+                from payments p
+                where p.customer_id = 1000
+                group by p.customer_id
+            )
+            select cs.id, ps.paid_amount
+            from customer_scope cs
+            left join payment_summary ps on ps.customer_id = cs.id
+        `));
+    });
+
     it('moves parameter conditions through a derived table wildcard output', () => {
         const sql = `
             select *
@@ -1352,6 +1445,12 @@ describe('ConditionOptimization', () => {
             expect.objectContaining({
                 phaseKind: 'static_predicate_placement',
                 predicateSql: expect.stringContaining(':customer_tier')
+            })
+        ]));
+        expect(result.diagnostics?.skippedProbes).not.toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                code: 'NESTED_QUERY_UNSUPPORTED',
+                predicate: expect.stringContaining('exists')
             })
         ]));
         expect(normalizeSql(result.sql)).toBe(normalizeSql(`
