@@ -1,5 +1,11 @@
 # rawsql-ts
 
+## 0.30.1
+
+### Patch Changes
+
+- [#956](https://github.com/mk3008/rawsql-ts/pull/956) [`c38ae3d`](https://github.com/mk3008/rawsql-ts/commit/c38ae3d4c4e02da862c930a543d34892e5d50942) Thanks [@mk3008](https://github.com/mk3008)! - Add debug-probe SQL output for JOIN-equivalence predicate investigation and allow LEFT JOIN preserved-side predicates to probe nullable-side inputs.
+
 ## 0.30.0
 
 ### Minor Changes
