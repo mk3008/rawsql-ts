@@ -15,9 +15,10 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 
 ## Guidance Routing
 
-- Use the repo-local guidance under `.codex/agents/` and `.agents/skills/` for planning, verification, review, and reporting details.
+- Use the repo-local guidance under `.codex/guidance/` and `.agents/skills/` for planning, verification, review, and reporting details; `.codex/agents/*.toml` exposes that guidance through Codex-native custom agents.
 - Root `AGENTS.md` defines repository-wide policy only; detailed output formats and workflows belong to subagent or skill guidance.
-- Before substantial multi-step work, read the relevant guidance under `.codex/agents/` or `.agents/skills/` instead of relying on root policy alone.
+- Before substantial multi-step work, read the relevant guidance under `.codex/guidance/` or `.agents/skills/` instead of relying on root policy alone.
+- For new rawsql-ts issues, bugs, features, refactors, investigations, CI failures, migrations, or review requests that need impact and execution routing, use `.agents/skills/rawsql-task-orchestrator/SKILL.md` before implementation.
 - For package-level Scope, Test Policy, Authority Model, Technology Policy, review-plan, or generated review view changes, use `.agents/skills/package-spec-review/SKILL.md`.
 - For structured metadata migrations or rule registry changes, use `.agents/skills/structured-metadata-migration-review/SKILL.md` to check schema versioning, canonical enum parity, real fixture parsing, and evidence/display-label integrity.
 - For broad generated or derived diffs that may exceed review-tool limits, use `.agents/skills/broad-generated-diff-review-packet/SKILL.md` to prepare scoped review packets before PR handoff.
@@ -133,6 +134,7 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 ## Review Minimums
 
 - Development has two completion stages: first prove the feature and regression tests, then run a separate finishing review pass before PR handoff.
+- Use this finishing order: verification, conditional dogfooding, draft attainment report, pre-PR retro gate and two-cycle self-review, blocker repair and re-verification, final attainment report, then PR readiness validation.
 - The finishing review pass must use the available self-review workflow or repo-local review skill, and it must look for cross-mode regressions such as direct command versus PR/worktree command behavior.
 - The finishing review pass must include a concept boundary review when the change touches package behavior, generated scaffold output, generated runtime code, docs, or PR wording. Read the owning package concept, package scope, technology policy, or Concept Spec when one exists.
 - Final PR text and final implementation reports must pass self-review before human review.
@@ -161,7 +163,7 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 
 - When a SQL-backed test fails, first determine whether the query is shadowing the intended SQL path or touching a physical table directly.
 - If shadowing is wrong, check in this order:
-  1. DDL and fixture sync
+  1. Generated manifest or explicit table-definition and fixture sync; inspect the DDL fallback only when no generated manifest is active
   2. Fixture selection or specification
   3. Repository bug or rewriter bug
 - Do not use DDL execution as a repair path for ZTD validation failures.

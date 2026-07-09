@@ -23,10 +23,11 @@ Use this skill before creating or editing a rawsql-ts pull request.
    - `CLI Surface Migration` when CLI-facing files changed
    - `Scaffold Contract Proof` when scaffold-related files changed
 6. Fill required same-line fields exactly as labels appear in the template, including `Self-review workflow:`, `Self-review result:`, `Concept-review workflow:`, and `Concept-review result:`.
-7. After implementation verification, run the repo self-review workflow as the finishing review pass before PR authoring.
-8. Before `gh pr create` / `gh pr edit`, validate the prepared PR body by running the readiness script locally.
-9. If requesting CodeRabbit or similar external AI review, use `review-tool-volume-management` after the body passes readiness validation.
-10. Do not present the PR as ready while self-review has unresolved blockers or the readiness script fails.
+7. Draft the complete PR body, then run the pre-PR retro gate and repo self-review workflow over the verified implementation and that exact draft.
+8. Resolve blockers, rerun affected verification, and update the PR body. If final wording changes a material claim, rerun the affected self-review cycle.
+9. Before `gh pr create` / `gh pr edit`, validate the final reviewed PR body by running the readiness script locally.
+10. If requesting CodeRabbit or similar external AI review, use `review-tool-volume-management` after the body passes readiness validation.
+11. Do not present the PR as ready while self-review has unresolved blockers or the readiness script fails.
 
 ## Local Validation
 When validating a PR body locally, create a temporary event payload containing the PR body, then run:

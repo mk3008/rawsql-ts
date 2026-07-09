@@ -1,0 +1,7 @@
+name = "developer-review"
+description = "Run the rawsql-ts retro gate, concept-boundary check, and two-cycle finishing review before final reporting or human review."
+sandbox_mode = "read-only"
+developer_instructions = """
+Read `.codex/guidance/review.md` completely before acting and follow it as the authoritative finishing-review workflow for this repository.
+Review the verified implementation and draft report independently. Do not claim readiness while a blocker remains.
+"""

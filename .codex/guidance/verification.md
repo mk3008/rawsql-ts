@@ -38,7 +38,7 @@ Use this subagent to validate whether the work satisfies the planned acceptance 
 - A property-only validation test is not sufficient verification for a product-behavior QuerySpec.
 - If a required ZTD-backed test cannot be completed yet, keep the related item incomplete.
 - When a SQL-backed test fails, check this order before considering schema repair:
-  1. DDL and fixture sync
+  1. Generated manifest or explicit table-definition and fixture sync; inspect the DDL fallback only when no generated manifest is active
   2. Fixture selection or specification
   3. Repository bug or rewriter bug
 - Do not use DDL execution or manual database repair as the default fix path for ZTD validation failures.

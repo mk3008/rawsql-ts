@@ -1,62 +1,53 @@
 ---
 name: package-spec-review
-description: Review rawsql-ts package-level Scope, Test Policy, Authority Model, Technology Policy, review-plan, and generated review views before package-level implementation or documentation changes.
+description: Review tracked rawsql-ts package-level Scope, Test Policy, Authority Model, Technology Policy, review-plan, and generated review views before package implementation or documentation changes. Use only when those package-owned artifacts exist in the checked-out base.
 ---
 
 # Package Spec Review
 
-Use this skill when work touches package-level Concept Spec harnesses, package scope, verification policy, authority model, technology policy, generated review reports, or review-plan behavior.
+Apply the owning package's tracked policy artifacts without inventing a missing harness or carrying rules forward from removed packages.
 
-## Authority Model
+## Authority
 
-Apply the package review authority model before making review judgments:
+- Human-owned requirements: Concept Specs, DFDs, Process Maps, Scope Specs, issues, and explicit human decisions.
+- AI-led review management: cross-document checks, required-read planning, and findings.
+- Tool-owned derived views: generated reports, metadata checks, and review plans produced by a tracked command.
 
-- Human-owned requirements: Concept Specs, DFDs, Process Maps, Scope Spec, issues, and explicit human requirements.
-- AI-led review management: review skills, cross-document review, review-plan required reads, and semantic findings.
-- CLI-owned review views: Review Report, generated VitePress pages, metadata check output, and `tmp/transfer-review-plan.json`.
+Generated views are evidence and navigation aids, not requirement sources.
 
-Do not treat AI proposals as approved requirements. Do not treat generated review views as source documents.
+## Inputs
 
-## Required Inputs
+Discover tracked inputs in this order:
 
-When available, load these in this order:
+1. root and owning package `AGENTS.md` files;
+2. package concept, scope, and design documentation;
+3. tracked scope, test, authority, and technology rule registries;
+4. a review plan produced by a tracked repository command, when available;
+5. changed source artifacts and their declared required reads.
 
-1. `tmp/transfer-review-plan.json`
-2. Package Scope Spec and `scope-rules.json`
-3. Package Test Policy and `test-rules.json`
-4. Package Review Authority Model and `authority-rules.json`
-5. Package Technology Policy and `tech-rules.json`
-6. Changed artifacts and their `requiredReads`
+If no package-level harness exists, report this skill as not applicable and use the owning `AGENTS.md`, `DESIGN.md`, tests, and public contract. Do not reconstruct deleted files from ignored `dist` or `node_modules` output.
 
-If the review-plan reports diagnostics, unmapped business artifacts, or technology-policy exception warnings, surface those before semantic review.
+Surface diagnostics, unmapped business artifacts, missing source-to-generated traceability, and policy-exception warnings before semantic review.
 
-## Technology Policy Checks
+## Checks
 
-Check whether changed files imply a policy exception:
+- changed behavior remains inside the owning package responsibility;
+- test evidence satisfies the owning Test Policy;
+- human-owned requirements are not replaced by AI or generated prose;
+- technology choices follow the tracked Technology Policy or declare a human-reviewable exception;
+- generated review views trace back to their tracked source and generator;
+- cross-package effects and required verification are explicit.
 
-- non-PostgreSQL primary database assumptions
-- ORM or ORM-like standard data access paths
-- bypassing SQL-first, ztd-cli, or rawsql-ts generation/review paths
-- Web UI as a transfer package front-facing surface
-- generated SQL hidden from human review
+Treat possible exceptions as review triggers, not automatic rejection. Name the policy source, exception reason, scope impact, affected packages, and verification required.
 
-These are review triggers, not automatic rejections. Report the exception reason that must be supplied, the scope impact, affected package specs, and required verification.
+## Output
 
-## Review Output
-
-Use this shape:
-
-- Status: `pass`, `needs-revision`, or `needs-human-decision`
+- Status: `pass`, `needs-revision`, `needs-human-decision`, or `not-applicable`
 - Authority inputs checked
 - Package spec inputs checked
-- CLI/review-plan findings
+- Derived review-plan findings
 - Semantic findings
-- Technology-policy exceptions
+- Policy exceptions
 - Required human decision
 
-## Constraints
-
-- Do not rewrite Concept Specs, Process Maps, or policy text as final authority unless the user explicitly asks for edits.
-- Do not use generated docs as source of truth.
-- Do not silently skip mandatory rules from review-plan.
-- Do not resolve a technology-policy exception by redefining concept/process meaning.
+Do not rewrite human-owned requirements as final authority, use generated output as a source of truth, silently skip a tracked mandatory rule, or resolve a policy exception by redefining concept meaning.

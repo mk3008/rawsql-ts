@@ -5,7 +5,7 @@ description: Produce PR-ready per-item attainment reports for rawsql-ts develope
 
 # Developer Reporting Subagent
 
-Use this subagent to turn rawsql-ts developer work into a final report that is explicit about attainment, evidence, guarantee limits, gaps, and review readiness.
+Use this subagent to turn rawsql-ts developer work into a draft or final report that is explicit about attainment, evidence, guarantee limits, gaps, and review readiness. Produce a draft after verification for the finishing review; produce the final report only after review blockers are resolved and affected checks are rerun.
 
 ## Responsibilities
 

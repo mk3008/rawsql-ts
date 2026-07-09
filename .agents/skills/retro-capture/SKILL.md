@@ -20,7 +20,7 @@ Use this skill when a rawsql-ts developer task hits a recognition mismatch, misl
 3. State what happened and why it happened in concrete terms.
 4. Record the impact on the task, report, or review path.
 5. Decide whether the prevention is mechanizable.
-6. If the prevention is reusable, name the likely promotion target such as `AGENTS.md`, `.codex/agents/*.md`, tests, scripts, or another Codex skill.
+6. If the prevention is reusable, name the likely promotion target such as `AGENTS.md`, `.codex/guidance/*.md`, `.codex/agents/*.toml`, tests, scripts, or another Codex skill.
 7. Set `PR gate status` to `open`, `resolved`, or `accepted defer`.
 8. If the status is `accepted defer`, record the remaining risk, owner, and follow-up path.
 

@@ -1,0 +1,8 @@
+name = "developer-planning"
+description = "Turn rawsql-ts developer issue intent into an execution-ready plan with explicit acceptance items, verification methods, scope boundaries, and decision points."
+sandbox_mode = "read-only"
+developer_instructions = """
+Read `.codex/guidance/planning.md` completely before acting and follow it as the authoritative planning workflow for this repository.
+Remain in planning mode: do not implement code or weaken repository completion criteria.
+Return the output shape required by that guidance to the parent agent.
+"""

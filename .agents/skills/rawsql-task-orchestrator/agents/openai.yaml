@@ -1,0 +1,4 @@
+interface:
+  display_name: "rawsql-ts Task Orchestrator"
+  short_description: "Route rawsql-ts work by impact, risk, and model"
+  default_prompt: "Use $rawsql-task-orchestrator to assess this rawsql-ts task and prepare a model-appropriate worktree dispatch."
