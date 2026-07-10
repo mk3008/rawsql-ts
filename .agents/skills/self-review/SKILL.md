@@ -21,7 +21,7 @@ Use this skill when rawsql-ts developer work is about to be shown to a human. Th
 5. Run `human acceptance review`.
 6. Record findings about reviewer cognitive load, issue context, visible value, visible evidence, guarantee limits, gaps, and next human decision.
 7. Triage each finding as `blocker`, `follow-up`, or `nit`.
-8. Resolve blockers, rerun affected verification, and repeat the affected review cycles; otherwise mark the result not ready.
+8. Resolve blockers, rerun affected verification, and rerun every affected review gate, including consistency, concept-boundary, pre-PR retro, and human-acceptance review; otherwise mark the result not ready.
 9. If the final report or PR changes a material claim after review, rerun the affected review cycle before handoff.
 
 ## Output Shape

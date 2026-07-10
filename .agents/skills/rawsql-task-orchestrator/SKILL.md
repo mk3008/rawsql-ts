@@ -88,7 +88,7 @@ Use this order:
 3. conditional dogfooding when evaluator separation adds value;
 4. draft attainment report;
 5. consistency and concept-boundary review, the pre-PR retro gate, then human-acceptance review;
-6. for any blocker, return to implementation, affected verification, an updated draft report, the retro gate, and the affected review cycles;
+6. for any blocker or material implementation/report change, return to implementation, affected verification, an updated draft report, and every affected review gate;
 7. repeat until no blocker remains, and rerun the affected review cycle whenever post-review wording changes a material claim;
 8. final attainment report;
 9. PR readiness validation and human decision.
