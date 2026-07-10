@@ -65,19 +65,20 @@ Before dispatch, confirm that the destination host supports the selected model a
 
 ## 5. Build the worker packet
 
-Include:
+For an independent parent/child Codex task, read `.codex/guidance/parent-child-orchestration.md` and use the installed `async-orchestration-dispatch`, `orchestration-knowledge-handoff`, and `orchestrator` skills. Keep the complete dispatch record in the parent-owned manifest described there.
 
-- source request and objective;
-- affected packages, contracts, and artifacts;
-- applicable `AGENTS.md`, concepts, and skills;
-- acceptance items and a verification method for each;
-- explicit out-of-scope items;
-- selected model, reasoning effort, and why;
-- target project, `worktree`, default-branch base, and proposed `codex/<task-slug>` branch;
-- required dogfooding or independent review;
-- stop conditions and model-escalation conditions.
+The child-facing brief contains only:
 
-Require the worker to maintain `tmp/PLAN.md` for multi-step work and `tmp/RETRO.md` for meaningful recognition or verification misses.
+- purpose;
+- risk;
+- in-scope and out-of-scope boundaries;
+- acceptance criteria;
+- required verification; and
+- stop conditions.
+
+The parent manifest—not the child brief—records the source request, impact map, applicable `AGENTS.md` and package skills, model/reasoning rationale, target project/worktree/base/branch, required evaluator separation, report path, and escalation conditions. Select the model from purpose, risk, affected surfaces, reversibility, and verification ease, never from the task name or a guessed implementation file.
+
+Require the child to maintain `tmp/PLAN.md` for multi-step work and `tmp/RETRO.md` for meaningful recognition or verification misses, then return the durable report and `[WORKER_REPORT v1]` notification defined by the repository protocol.
 
 ## 6. Close the workflow
 

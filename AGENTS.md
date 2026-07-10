@@ -19,6 +19,7 @@ Deeper `AGENTS.md` files take precedence when they add stricter or narrower rule
 - Root `AGENTS.md` defines repository-wide policy only; detailed output formats and workflows belong to subagent or skill guidance.
 - Before substantial multi-step work, read the relevant guidance under `.codex/guidance/` or `.agents/skills/` instead of relying on root policy alone.
 - For new rawsql-ts issues, bugs, features, refactors, investigations, CI failures, migrations, or review requests that need impact and execution routing, use `.agents/skills/rawsql-task-orchestrator/SKILL.md` before acting on the task.
+- For an independent parent/child Codex worktree task, use `.codex/guidance/parent-child-orchestration.md` with the routed task orchestrator; it connects handoff to existing gates and does not replace package-specific skills.
 - For package-level Scope, Test Policy, Authority Model, Technology Policy, review-plan, or generated review view changes, use `.agents/skills/package-spec-review/SKILL.md`.
 - For structured metadata migrations or rule registry changes, use `.agents/skills/structured-metadata-migration-review/SKILL.md` to check schema versioning, canonical enum parity, real fixture parsing, and evidence/display-label integrity.
 - For broad generated or derived diffs that may exceed review-tool limits, use `.agents/skills/broad-generated-diff-review-packet/SKILL.md` to prepare scoped review packets before PR handoff.
