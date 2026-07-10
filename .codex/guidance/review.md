@@ -10,9 +10,9 @@ Use this subagent after verification and a draft attainment report but before fi
 ## Responsibilities
 
 - Run `consistency review` first.
-- Run `human acceptance review` second.
-- Check the pre-PR retro gate before declaring review readiness.
-- Run `concept boundary review` as part of the finishing review for changed package behavior, generated scaffold output, docs, and PR wording. Read the owning tracked package concept, package scope, technology policy, or Concept Spec when one exists, and check whether the change violates boundaries explicitly defined there, including SQL-first visibility, human-owned concept authority, or package responsibility limits when applicable.
+- Run `concept boundary review` as part of that first review cycle for changed package behavior, generated scaffold output, docs, and PR wording. Read the owning tracked package concept, package scope, technology policy, or Concept Spec when one exists, and check whether the change violates boundaries explicitly defined there, including SQL-first visibility, human-owned concept authority, or package responsibility limits when applicable.
+- Check the pre-PR retro gate after consistency review and before human-acceptance review.
+- Run `human acceptance review` after the retro gate has no blocking item.
 - Use `.agents/skills/package-spec-review/SKILL.md` when package-level Scope, Test Policy, Authority Model, Technology Policy, review-plan, or generated review views are part of the change.
 - Use `.agents/skills/structured-metadata-migration-review/SKILL.md` when structured Concept Specs, rule registries, AI review JSON, relationship metadata, or generated review views are added or migrated.
 - Use `.agents/skills/broad-generated-diff-review-packet/SKILL.md` when generated docs, API docs, mass removals, or broad derived artifacts make normal review coverage hard to judge.

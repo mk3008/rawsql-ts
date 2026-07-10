@@ -5,7 +5,7 @@ description: Check tmp/RETRO.md before PR or human review so unresolved retro it
 
 # Pre-PR Retro Gate
 
-Use this skill when rawsql-ts developer work is about to be reported as complete, handed to self-review, or presented in a PR and you need to confirm that unresolved retro items are not being ignored.
+Use this skill after the consistency review when rawsql-ts developer work is about to be reported as complete or presented in a PR and you need to confirm that unresolved retro items are not being ignored before human-acceptance review.
 
 ## Use It For
 - Reviewing `tmp/RETRO.md` before PR handoff.

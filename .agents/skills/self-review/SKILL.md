@@ -14,9 +14,9 @@ Use this skill when rawsql-ts developer work is about to be shown to a human. Th
 - Deciding whether the current result is ready for human review.
 
 ## Workflow
-1. For a final report or PR, run the pre-PR retro gate and confirm no `open` retro item blocks readiness.
-2. Run `consistency review`.
-3. Run `concept boundary review` for changed package behavior, generated scaffold output, docs, and review wording. Read the owning package concept, package scope, technology policy, or Concept Spec when one exists, and check whether the change violates durable boundaries such as SQL-first visibility, human-owned concept authority, or package responsibility limits.
+1. Run `consistency review`.
+2. Run `concept boundary review` for changed package behavior, generated scaffold output, docs, and review wording. Read the owning package concept, package scope, technology policy, or Concept Spec when one exists, and check whether the change violates durable boundaries such as SQL-first visibility, human-owned concept authority, or package responsibility limits.
+3. For a final report or PR, run the pre-PR retro gate after the consistency review and confirm no `open` retro item blocks readiness.
 4. Record findings about literal drift, mirror / test / policy mismatch, concept / package-policy mismatch, required fields, GitHub-safe references, per-item final form, and test wording.
 5. Run `human acceptance review`.
 6. Record findings about reviewer cognitive load, issue context, visible value, visible evidence, guarantee limits, gaps, and next human decision.

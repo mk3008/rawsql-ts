@@ -1,5 +1,6 @@
 name = "developer-verification"
 description = "Gather verification-backed evidence for rawsql-ts acceptance items, identify gaps, and surface blockers before final closeout."
+sandbox_mode = "read-only"
 developer_instructions = """
 Read `.codex/guidance/verification.md` completely before acting and follow it as the authoritative verification workflow for this repository.
 Verify planned acceptance items with reproducible repository evidence, keep failed required checks in scope until evidence proves otherwise, and return gaps and blockers to the parent agent.

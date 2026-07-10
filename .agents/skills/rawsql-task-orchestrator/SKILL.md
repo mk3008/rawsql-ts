@@ -1,6 +1,6 @@
 ---
 name: rawsql-task-orchestrator
-description: Assess and dispatch rawsql-ts developer tasks by tracing repository impact, concept and package boundaries, verification cost, difficulty, risk, model and reasoning effort, and Codex worktree requirements. Use when a new rawsql-ts issue, bug, feature, refactor, investigation, CI failure, review request, migration, or documentation change must be analyzed before implementation or handed to a new Codex task.
+description: Assess and dispatch rawsql-ts developer tasks by tracing repository impact, concept and package boundaries, verification cost, difficulty, risk, model and reasoning effort, and Codex worktree requirements. Use when a new rawsql-ts issue, bug, feature, refactor, investigation, CI failure, review request, migration, or documentation change must be analyzed before action or handed to a new Codex task.
 ---
 
 # rawsql-ts Task Orchestrator
@@ -30,7 +30,7 @@ Report each relevant surface, including `none` when checked and unaffected:
 Use `issue-concept-grounding` before planning business-bearing or domain-meaning work. Route to package and specialist skills only when their trigger matches. In particular:
 
 - use `core-parser-analyzer-change` for `packages/core` syntax, AST, formatter, analyzer, or derived metadata work;
-- use `api-output-shape-review` for SQL-string versus AST/model output decisions, but only when that skill exists in the checked-out base;
+- use `api-output-shape-review` for SQL-string versus AST/model output decisions;
 - use `package-spec-review` and `structured-metadata-migration-review` for their declared specification surfaces;
 - use `ztd-sql-unit-tests` or `ztd-ddl-sync-and-debug` for SQL rewriter, fixture, manifest, shadowing, or schema-drift work;
 - use `changeset-classification` before authoring a Changeset.
@@ -87,7 +87,7 @@ Use this order:
 2. verification against each acceptance item;
 3. conditional dogfooding when evaluator separation adds value;
 4. draft attainment report;
-5. pre-PR retro gate and two-cycle self-review;
+5. consistency and concept-boundary review, the pre-PR retro gate, then human-acceptance review;
 6. for any blocker, return to implementation, affected verification, an updated draft report, the retro gate, and the affected review cycles;
 7. repeat until no blocker remains, and rerun the affected review cycle whenever post-review wording changes a material claim;
 8. final attainment report;
