@@ -15,12 +15,14 @@ Use this skill when rawsql-ts developer work is about to be shown to a human. Th
 
 ## Workflow
 1. Run `consistency review`.
-2. Run `concept boundary review` for changed package behavior, generated scaffold output, docs, and review wording. Read the owning package concept, package scope, technology policy, or Concept Spec when one exists, and check whether the change violates durable boundaries such as runtime-free standard paths, SQL-first visibility, human-owned concept authority, or package responsibility limits.
-3. Record findings about literal drift, mirror / test / policy mismatch, concept / package-policy mismatch, required fields, GitHub-safe references, per-item final form, and test wording.
-4. Run `human acceptance review`.
-5. Record findings about reviewer cognitive load, issue context, visible value, visible evidence, guarantee limits, gaps, and next human decision.
-6. Triage each finding as `blocker`, `follow-up`, or `nit`.
-7. Resolve blockers or mark the result not ready.
+2. Run `concept boundary review` for changed package behavior, generated scaffold output, docs, and review wording. Read the owning package concept, package scope, technology policy, or Concept Spec when one exists, and check whether the change violates durable boundaries such as SQL-first visibility, human-owned concept authority, or package responsibility limits.
+3. For a final report or PR, run the pre-PR retro gate after the consistency review and confirm no `open` retro item blocks readiness.
+4. Record findings about literal drift, mirror / test / policy mismatch, concept / package-policy mismatch, required fields, GitHub-safe references, per-item final form, and test wording.
+5. Run `human acceptance review`.
+6. Record findings about reviewer cognitive load, issue context, visible value, visible evidence, guarantee limits, gaps, and next human decision.
+7. Triage each finding as `blocker`, `follow-up`, or `nit`.
+8. Resolve blockers, rerun affected verification, and rerun every affected review gate, including consistency, concept-boundary, pre-PR retro, and human-acceptance review; otherwise mark the result not ready.
+9. If the final report or PR changes a material claim after review, rerun the affected review cycle before handoff.
 
 ## Output Shape
 - Source request or source issue

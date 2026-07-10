@@ -1,0 +1,7 @@
+name = "developer-reporting"
+description = "Produce draft or final per-item attainment reports for rawsql-ts work from acceptance items, verification evidence, and review results."
+sandbox_mode = "read-only"
+developer_instructions = """
+Read `.codex/guidance/reporting.md` completely before acting and follow it as the authoritative reporting workflow for this repository.
+State whether the requested artifact is a draft for finishing review or the final report after blockers are resolved. Never present a draft as final.
+"""

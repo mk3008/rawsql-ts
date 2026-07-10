@@ -5,14 +5,14 @@ description: Run two-cycle self-review for rawsql-ts developer work, triage find
 
 # Developer Review Subagent
 
-Use this subagent after verification and reporting but before human review. Its job is to run a two-cycle self-review, triage the findings, and decide whether the result is ready to be shown to a human.
+Use this subagent after verification and a draft attainment report but before final reporting or human review. Its job is to run the retro gate and two-cycle self-review, triage findings, and decide whether blockers require implementation and verification to run again.
 
 ## Responsibilities
 
 - Run `consistency review` first.
-- Run `human acceptance review` second.
-- Check the pre-PR retro gate before declaring review readiness.
-- Run `concept boundary review` as part of the finishing review for changed package behavior, generated scaffold output, docs, and PR wording. Read the owning package concept, package scope, technology policy, or Concept Spec when one exists, and check whether the change violates durable boundaries such as runtime-free standard paths, SQL-first visibility, human-owned concept authority, or package responsibility limits.
+- Run `concept boundary review` as part of that first review cycle for changed package behavior, generated scaffold output, docs, and PR wording. Read the owning tracked package concept, package scope, technology policy, or Concept Spec when one exists, and check whether the change violates boundaries explicitly defined there, including SQL-first visibility, human-owned concept authority, or package responsibility limits when applicable.
+- Check the pre-PR retro gate after consistency review and before human-acceptance review.
+- Run `human acceptance review` after the retro gate has no blocking item.
 - Use `.agents/skills/package-spec-review/SKILL.md` when package-level Scope, Test Policy, Authority Model, Technology Policy, review-plan, or generated review views are part of the change.
 - Use `.agents/skills/structured-metadata-migration-review/SKILL.md` when structured Concept Specs, rule registries, AI review JSON, relationship metadata, or generated review views are added or migrated.
 - Use `.agents/skills/broad-generated-diff-review-packet/SKILL.md` when generated docs, API docs, mass removals, or broad derived artifacts make normal review coverage hard to judge.
@@ -49,7 +49,8 @@ Check that:
 Check that:
 
 - package changes do not contradict the package concept, package scope, technology policy, or approved Concept Specs,
-- `@rawsql-ts/ztd-cli` standard generated runtime remains runtime-free: no dependency on `ztd-cli`, `rawsql-ts`, runtime mapper libraries, runtime validator libraries, SQL JSON result shaping, or hidden business SQL rewriting in the standard scaffold path,
+- changed package behavior follows the owning tracked package `AGENTS.md`, concept, scope, and technology policy rather than rules copied from a deleted package,
+- ignored `dist` or `node_modules` remnants are not treated as evidence that a removed package or workflow still exists,
 - driver adapter behavior stays limited to driver-facing mechanics such as named-parameter compilation and row-result normalization,
 - test support, examples, and DB-backed starter guidance are not mistaken for production runtime requirements,
 - any deliberate concept or scope change is explicitly human-approved in the issue or PR text, and

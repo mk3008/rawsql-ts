@@ -1,20 +1,17 @@
-# Repo-local Codex guidance
+# Repo-local Codex configuration
 
-This directory holds repo-local workflow guidance for rawsql-ts.
+This directory connects rawsql-ts workflow guidance to Codex-native custom agents.
 
 ## What lives here
 
-- `.codex/agents/` contains role-oriented guidance for planning, verification, review, and reporting.
-- `.codex/config.toml` records the routing for those workflow guides.
+- `.codex/guidance/` contains the authoritative planning, verification, review, and reporting workflows.
+- `.codex/agents/*.toml` defines narrow custom-agent adapters. Each adapter points to its authoritative guidance instead of duplicating it.
+- `.codex/config.toml` sets project-scoped subagent concurrency and depth.
 
-## What does not live here
+## Related surfaces
 
 - Stable user-level defaults belong in `~/.codex/AGENTS.md`.
-- Reusable repo workflows belong in `.agents/skills/`.
-- Repository-wide policy should stay short and should not be duplicated across every workflow guide unless it affects that workflow directly.
+- Reusable repo workflows and task routing belong in `.agents/skills/`.
+- Repository-wide policy belongs in the root `AGENTS.md`; nested guidance may narrow it but must not weaken completion criteria.
 
-## Current design choice
-
-The previous root `AGENTS.md` mixed repo-wide policy, routing, and output templates.
-This `.codex` folder now keeps only workflow guidance.
-Rules that directly affect planning or verification in rawsql-ts, such as QuerySpec plus ZTD-backed test expectations, are embedded only in the guides that need them.
+Keep custom-agent configuration, workflow sources, and reusable skills separate so each rule has one authoritative home.

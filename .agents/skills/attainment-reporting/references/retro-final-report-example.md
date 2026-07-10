@@ -33,7 +33,7 @@ Verification basis
 
 Repository evidence
 - Updated `AGENTS.md`
-- Updated `.codex/agents/*.md`
+- Updated `.codex/guidance/*.md` or its `.codex/agents/*.toml` adapter
 - Added `.agents/skills/retro-capture`
 - Added `.agents/skills/pre-pr-retro-gate`
 
@@ -86,7 +86,7 @@ Verification basis
 
 Repository evidence
 - Updated `AGENTS.md`
-- Updated `.codex/agents/reporting.md`
+- Updated `.codex/guidance/reporting.md`
 
 Supplementary evidence
 - Local review confirmed the defer rationale is written in the retro ledger.
