@@ -55,6 +55,7 @@ export interface CandidateManifest {
         scenario: ScenarioName;
         minimumAbsoluteMeanDeltaMs: number;
     }>;
+    screenRunId?: string;
 }
 
 export interface P0Reference {
@@ -62,6 +63,7 @@ export interface P0Reference {
     p0Commit: string;
     profile: 'pr';
     sourceDocument: string;
+    p0SourceDocumentSha256: string;
     protocolDocumentSha256: string;
     pairedBenchmarkSourceSha256: string;
     unit: 'mean milliseconds';
@@ -96,7 +98,18 @@ interface RawBenchmarkReport {
     results: Array<{
         phase: PhaseName;
         scenario: ScenarioName;
-        stats: { meanMs: number; [key: string]: unknown };
+        warmupSamples: number;
+        measuredSamples: number;
+        invocationsPerSample: number;
+        rawSamplesMs: number[];
+        stats: {
+            meanMs: number;
+            p95Ms: number;
+            stddevMs: number;
+            minMs: number;
+            maxMs: number;
+            sampleCount: number;
+        };
         semanticSink: Record<string, unknown>;
         [key: string]: unknown;
     }>;
@@ -142,6 +155,7 @@ interface ProcessRun {
     args: string[];
     exitCode: number | null;
     report?: RawBenchmarkReport;
+    reportReadError?: string;
 }
 
 interface ValidatedAdmission {
@@ -158,6 +172,24 @@ interface ValidatedAdmission {
     outputRoot: string;
     benchmarkSourceSha256: string;
     protocolDocumentSha256: string;
+    p0SourceDocumentSha256: string;
+    tsNodeCliPath: string;
+}
+
+export interface PriorCandidateRecord {
+    runId: string;
+    stage: Stage;
+    status: PerformanceStatus;
+    candidate: CandidateManifest['candidate'];
+    phaseScope: PhaseName[];
+    scopeRationale: string;
+    practicalThresholds: CandidateManifest['practicalThresholds'];
+    protocol: {
+        p0Commit: string;
+        protocolDocumentSha256: string;
+        benchmarkSourceSha256: string;
+    };
+    failures: unknown[];
 }
 
 const DEFAULT_P0_REFERENCE = 'docs/bench/ast-analysis-phase-p0-reference.json';
@@ -220,6 +252,7 @@ export function validateP0Reference(reference: P0Reference): void {
         || reference.p0Commit !== P0_COMMIT
         || reference.sourceDocument !== 'docs/bench/ast-analysis-phase-benchmark.md'
         || reference.unit !== 'mean milliseconds'
+        || !/^[0-9a-f]{64}$/.test(reference.p0SourceDocumentSha256)
         || !/^[0-9a-f]{64}$/.test(reference.protocolDocumentSha256)
         || !/^[0-9a-f]{64}$/.test(reference.pairedBenchmarkSourceSha256)) {
         throw new Error('The P0 reference must use schemaVersion 1 and the pr profile.');
@@ -233,7 +266,12 @@ export function validateP0Reference(reference: P0Reference): void {
             throw new Error(`The P0 reference has an invalid or duplicate row: ${key}.`);
         }
         const computedRange = round9(row.maximumMeanMs - row.minimumMeanMs);
-        if (computedRange !== round9(row.betweenProcessMeanRangeMs)) {
+        if (![row.minimumMeanMs, row.maximumMeanMs, row.betweenProcessMeanRangeMs]
+            .every((value) => Number.isFinite(value))
+            || row.minimumMeanMs < 0
+            || row.maximumMeanMs < row.minimumMeanMs
+            || row.betweenProcessMeanRangeMs < 0
+            || computedRange !== round9(row.betweenProcessMeanRangeMs)) {
             throw new Error(`The P0 range does not match min/max for ${key}.`);
         }
         actual.add(key);
@@ -249,6 +287,12 @@ export function validateManifestShape(manifest: CandidateManifest, reference: P0
     }
     if (manifest.stage !== 'screen' && manifest.stage !== 'confirmation') {
         throw new Error('stage must be screen or confirmation.');
+    }
+    if (manifest.stage === 'confirmation' && !manifest.screenRunId?.trim()) {
+        throw new Error('A confirmation manifest must reference its admitted screenRunId.');
+    }
+    if (manifest.stage === 'screen' && manifest.screenRunId !== undefined) {
+        throw new Error('A screen manifest must not reference a prior screenRunId.');
     }
     if (!/^[a-z0-9][a-z0-9._-]*$/.test(manifest.candidate?.id ?? '')) {
         throw new Error('candidate.id must be a stable lowercase identifier.');
@@ -334,8 +378,8 @@ function validateAdmission(manifestPath: string, runnerRoot: string): ValidatedA
 
     const baselineBenchmarkPath = path.join(baselineDirectory, BENCHMARK_SOURCE);
     const candidateBenchmarkPath = path.join(candidateDirectory, BENCHMARK_SOURCE);
-    const baselineBenchmarkSha = hashFile(baselineBenchmarkPath);
-    const candidateBenchmarkSha = hashFile(candidateBenchmarkPath);
+    const baselineBenchmarkSha = normalizedFileSha256(baselineBenchmarkPath);
+    const candidateBenchmarkSha = normalizedFileSha256(candidateBenchmarkPath);
     if (baselineBenchmarkSha !== candidateBenchmarkSha) {
         throw new Error('Baseline and candidate benchmark sources differ; paired evidence would not share one protocol.');
     }
@@ -343,9 +387,15 @@ function validateAdmission(manifestPath: string, runnerRoot: string): ValidatedA
         throw new Error('The benchmark source does not match the admitted paired-protocol fingerprint.');
     }
 
-    const protocolDocumentSha256 = hashFile(path.resolve(runnerRoot, PROTOCOL_DOCUMENT));
+    const protocolDocumentSha256 = normalizedFileSha256(path.resolve(runnerRoot, PROTOCOL_DOCUMENT));
     if (protocolDocumentSha256 !== p0Reference.protocolDocumentSha256) {
         throw new Error('The accepted protocol document does not match the P0 reference fingerprint.');
+    }
+    const p0SourceDocumentSha256 = normalizedFileSha256(
+        path.resolve(runnerRoot, p0Reference.sourceDocument),
+    );
+    if (p0SourceDocumentSha256 !== p0Reference.p0SourceDocumentSha256) {
+        throw new Error('The P0 source document does not match the machine-readable reference.');
     }
 
     const phaseScope = PHASE_NAMES.filter((phase) => manifest.phaseScope.includes(phase));
@@ -356,6 +406,16 @@ function validateAdmission(manifestPath: string, runnerRoot: string): ValidatedA
         ]),
     );
     const p0ByRow = new Map(p0Reference.rows.map((row) => [rowKey(row.phase, row.scenario), row]));
+    const recordPath = path.resolve(runnerRoot, DEFAULT_RECORD_PATH);
+    if (manifest.stage === 'confirmation') {
+        validateConfirmationLink(
+            manifest,
+            recordPath,
+            phaseScope,
+            protocolDocumentSha256,
+            baselineBenchmarkSha,
+        );
+    }
 
     return {
         manifest,
@@ -367,11 +427,65 @@ function validateAdmission(manifestPath: string, runnerRoot: string): ValidatedA
         p0ByRow,
         baselineDirectory,
         candidateDirectory,
-        recordPath: path.resolve(runnerRoot, DEFAULT_RECORD_PATH),
+        recordPath,
         outputRoot: path.resolve(runnerRoot, DEFAULT_OUTPUT_ROOT),
         benchmarkSourceSha256: baselineBenchmarkSha,
         protocolDocumentSha256,
+        p0SourceDocumentSha256,
+        tsNodeCliPath: require.resolve('ts-node/dist/bin.js'),
     };
+}
+
+function validateConfirmationLink(
+    manifest: CandidateManifest,
+    recordPath: string,
+    phaseScope: PhaseName[],
+    protocolDocumentSha256: string,
+    benchmarkSourceSha256: string,
+): void {
+    if (!fs.existsSync(recordPath)) {
+        throw new Error('Confirmation requires the tracked append-only screen record.');
+    }
+    const records = fs.readFileSync(recordPath, 'utf8')
+        .split(/\r?\n/)
+        .filter((line) => line.trim().length > 0)
+        .map((line) => JSON.parse(line) as PriorCandidateRecord);
+    const screen = records.find((record) => record.runId === manifest.screenRunId);
+    if (!screen) {
+        throw new Error(`No screen record was found for ${manifest.screenRunId}.`);
+    }
+    validateConfirmationRecord(
+        manifest,
+        screen,
+        phaseScope,
+        protocolDocumentSha256,
+        benchmarkSourceSha256,
+    );
+}
+
+export function validateConfirmationRecord(
+    manifest: CandidateManifest,
+    screen: PriorCandidateRecord,
+    phaseScope: PhaseName[],
+    protocolDocumentSha256: string,
+    benchmarkSourceSha256: string,
+): void {
+    const candidateMatches = stableSerialize(screen.candidate) === stableSerialize(manifest.candidate);
+    const thresholdsMatch = stableSerialize(screen.practicalThresholds)
+        === stableSerialize(normalizeThresholds(manifest));
+    const protocolMatches = screen.protocol?.p0Commit === P0_COMMIT
+        && screen.protocol.protocolDocumentSha256 === protocolDocumentSha256
+        && screen.protocol.benchmarkSourceSha256 === benchmarkSourceSha256;
+    if (screen.stage !== 'screen'
+        || screen.status !== 'neutral_or_inconclusive'
+        || screen.failures?.length !== 0
+        || !candidateMatches
+        || stableSerialize(screen.phaseScope) !== stableSerialize(phaseScope)
+        || screen.scopeRationale !== manifest.scopeRationale
+        || !thresholdsMatch
+        || !protocolMatches) {
+        throw new Error('Confirmation must exactly inherit a successful screen candidate, scope, thresholds, rationale, and protocol.');
+    }
 }
 
 function assertCleanCommit(directory: string, expectedCommit: string, label: string): void {
@@ -401,11 +515,10 @@ function executeCondition(
     const stem = `${String(sequence).padStart(2, '0')}-pair-${pairIndex}-${condition}`;
     const reportPath = path.join(outputDirectory, `${stem}.json`);
     const processPath = path.join(outputDirectory, `${stem}.process.json`);
-    const command = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+    const command = process.execPath;
     const args = [
-        'exec',
-        'ts-node',
-        BENCHMARK_SOURCE,
+        admission.tsNodeCliPath,
+        path.join(cwd, BENCHMARK_SOURCE),
         '--profile=pr',
         `--phases=${admission.phaseScope.join(',')}`,
         `--condition=${condition}`,
@@ -440,9 +553,15 @@ function executeCondition(
     };
     writeJson(processPath, processArtifact);
 
-    const report = fs.existsSync(reportPath)
-        ? readJson<RawBenchmarkReport>(reportPath)
-        : undefined;
+    let report: RawBenchmarkReport | undefined;
+    let reportReadError: string | undefined;
+    if (fs.existsSync(reportPath)) {
+        try {
+            report = readJson<RawBenchmarkReport>(reportPath);
+        } catch (error) {
+            reportReadError = error instanceof Error ? error.message : String(error);
+        }
+    }
     return {
         pairIndex,
         condition,
@@ -453,6 +572,7 @@ function executeCondition(
         args,
         exitCode: result.status,
         report,
+        reportReadError,
     };
 }
 
@@ -461,6 +581,9 @@ function validateRawReport(
     admission: ValidatedAdmission,
 ): void {
     const report = run.report;
+    if (run.reportReadError) {
+        throw new Error(`Process ${run.sequence} wrote invalid JSON: ${run.reportReadError}`);
+    }
     if (!report) {
         throw new Error(`Process ${run.sequence} did not write its raw benchmark report.`);
     }
@@ -493,6 +616,30 @@ function validateRawReport(
     if (stableSerialize(report.phases.map((row) => row.name)) !== stableSerialize(PHASE_NAMES)) {
         throw new Error(`Process ${run.sequence} did not retain the six P0 phase definitions.`);
     }
+    for (const row of report.results) {
+        const sink = row.semanticSink as { kind?: unknown; signatureSha256?: unknown; summary?: unknown };
+        const stats = [
+            row.stats.meanMs,
+            row.stats.p95Ms,
+            row.stats.stddevMs,
+            row.stats.minMs,
+            row.stats.maxMs,
+        ];
+        if (row.warmupSamples !== 4
+            || row.measuredSamples !== 20
+            || row.invocationsPerSample !== 8
+            || row.rawSamplesMs.length !== 20
+            || !row.rawSamplesMs.every((sample) => Number.isFinite(sample) && sample >= 0)
+            || row.stats.sampleCount !== 20
+            || !stats.every((value) => Number.isFinite(value) && value >= 0)
+            || typeof sink.kind !== 'string'
+            || typeof sink.signatureSha256 !== 'string'
+            || !/^[0-9a-f]{64}$/.test(sink.signatureSha256)
+            || !sink.summary
+            || typeof sink.summary !== 'object') {
+            throw new Error(`Process ${run.sequence} has invalid raw samples, stats, or semantic sink data.`);
+        }
+    }
     if (!report.failure) {
         const expectedRows = new Set(
             admission.phaseScope.flatMap((phase) => SCENARIO_NAMES.map((scenario) => rowKey(phase, scenario))),
@@ -514,13 +661,13 @@ function comparePair(
     deltas: Map<string, PairDelta>;
     mismatches: Map<string, NonNullable<OutcomeRow['semanticMismatchDetails']>[number]>;
 } {
+    if (stableSerialize(stableEnvironment(baseline.environment))
+        !== stableSerialize(stableEnvironment(candidate.environment))) {
+        throw new Error(`Baseline/candidate environment drifted in pair ${pairIndex}.`);
+    }
     for (const field of ['method', 'formatterOptions', 'corpus', 'phases'] as const) {
-        const baselineValue = field === 'method'
-            ? omitPairIndependentMethodFields(baseline.method)
-            : baseline[field];
-        const candidateValue = field === 'method'
-            ? omitPairIndependentMethodFields(candidate.method)
-            : candidate[field];
+        const baselineValue = baseline[field];
+        const candidateValue = candidate[field];
         if (stableSerialize(baselineValue) !== stableSerialize(candidateValue)) {
             throw new Error(`Baseline/candidate ${field} drifted in pair ${pairIndex}.`);
         }
@@ -564,8 +711,18 @@ function comparePair(
     return { deltas, mismatches };
 }
 
-function omitPairIndependentMethodFields(method: RawBenchmarkReport['method']): RawBenchmarkReport['method'] {
-    return method;
+function stableEnvironment(environment: Record<string, unknown>): Record<string, unknown> {
+    const keys = [
+        'node',
+        'pnpm',
+        'platform',
+        'release',
+        'architecture',
+        'cpu',
+        'logicalCores',
+        'launcher',
+    ];
+    return Object.fromEntries(keys.map((key) => [key, environment[key]]));
 }
 
 function buildOutcomeRows(
@@ -719,11 +876,21 @@ function appendMismatchDetail(
     }
 }
 
-function run(manifestPath: string): void {
-    const runnerRoot = process.cwd();
+export interface PairedRunResult {
+    status: PerformanceStatus;
+    executionFailed: boolean;
+    summaryPath: string;
+    recordPath: string;
+}
+
+export function runPairedBenchmark(
+    manifestPath: string,
+    runnerRoot = process.cwd(),
+): PairedRunResult {
     const admission = validateAdmission(manifestPath, runnerRoot);
     const runId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${admission.manifest.candidate.id}`;
     const outputDirectory = path.join(admission.outputRoot, runId);
+    fs.mkdirSync(admission.outputRoot, { recursive: true });
     fs.mkdirSync(outputDirectory, { recursive: false });
 
     const order = runOrderForStage(admission.manifest.stage);
@@ -753,31 +920,40 @@ function run(manifestPath: string): void {
     >();
     const internalMismatchRows = new Set<string>();
     const referenceSinks = new Map<string, Record<string, unknown>>();
+    let referenceEnvironment: Record<string, unknown> | null = null;
     let executionFailed = false;
+    let orchestrationFailure: string | null = null;
 
-    for (const item of order) {
-        if (mismatchRows.size > 0 || internalMismatchRows.size > 0 || executionFailed) {
-            break;
-        }
-        const processRun = executeCondition(
-            admission,
-            outputDirectory,
-            item.pairIndex,
-            item.condition,
-            runs.length + 1,
-        );
-        runs.push(processRun);
-        if (processRun.report) {
+    try {
+        for (const item of order) {
+            if (mismatchRows.size > 0 || internalMismatchRows.size > 0 || executionFailed) {
+                break;
+            }
+            const processRun = executeCondition(
+                admission,
+                outputDirectory,
+                item.pairIndex,
+                item.condition,
+                runs.length + 1,
+            );
+            runs.push(processRun);
             validateRawReport(processRun, admission);
-            if (processRun.report.failure?.kind === 'semantic_mismatch') {
+            const report = processRun.report as RawBenchmarkReport;
+            const environment = stableEnvironment(report.environment);
+            if (!referenceEnvironment) {
+                referenceEnvironment = environment;
+            } else if (stableSerialize(referenceEnvironment) !== stableSerialize(environment)) {
+                throw new Error(`Stable environment drifted in process ${processRun.sequence}.`);
+            }
+            if (report.failure?.kind === 'semantic_mismatch') {
                 internalMismatchRows.add(rowKey(
-                    processRun.report.failure.phase,
-                    processRun.report.failure.scenario,
+                    report.failure.phase,
+                    report.failure.scenario,
                 ));
-            } else if (processRun.report.failure) {
+            } else if (report.failure) {
                 executionFailed = true;
             } else {
-                for (const row of processRun.report.results) {
+                for (const row of report.results) {
                     const key = rowKey(row.phase, row.scenario);
                     const referenceSink = referenceSinks.get(key);
                     if (!referenceSink) {
@@ -793,24 +969,27 @@ function run(manifestPath: string): void {
                     }
                 }
             }
-        }
-        if (processRun.exitCode !== 0 && internalMismatchRows.size === 0) {
-            executionFailed = true;
-        }
+            if (processRun.exitCode !== 0 && internalMismatchRows.size === 0) {
+                executionFailed = true;
+            }
 
-        const pairRuns = runs.filter((run) => run.pairIndex === item.pairIndex);
-        const baseline = pairRuns.find((candidate) => candidate.condition === 'baseline')?.report;
-        const candidate = pairRuns.find((candidate) => candidate.condition === 'candidate')?.report;
-        if (baseline && candidate && !baseline.failure && !candidate.failure) {
-            const comparison = comparePair(baseline, candidate, item.pairIndex);
-            for (const [mismatch, detail] of comparison.mismatches) {
-                mismatchRows.add(mismatch);
-                appendMismatchDetail(mismatchDetails, mismatch, detail);
-            }
-            for (const [key, delta] of comparison.deltas) {
-                pairDeltas.set(key, [...(pairDeltas.get(key) ?? []), delta]);
+            const pairRuns = runs.filter((run) => run.pairIndex === item.pairIndex);
+            const baseline = pairRuns.find((candidate) => candidate.condition === 'baseline')?.report;
+            const candidate = pairRuns.find((candidate) => candidate.condition === 'candidate')?.report;
+            if (baseline && candidate && !baseline.failure && !candidate.failure) {
+                const comparison = comparePair(baseline, candidate, item.pairIndex);
+                for (const [mismatch, detail] of comparison.mismatches) {
+                    mismatchRows.add(mismatch);
+                    appendMismatchDetail(mismatchDetails, mismatch, detail);
+                }
+                for (const [key, delta] of comparison.deltas) {
+                    pairDeltas.set(key, [...(pairDeltas.get(key) ?? []), delta]);
+                }
             }
         }
+    } catch (error) {
+        executionFailed = true;
+        orchestrationFailure = error instanceof Error ? error.message : String(error);
     }
 
     const rows = buildOutcomeRows(
@@ -826,13 +1005,21 @@ function run(manifestPath: string): void {
         sequence: processRun.sequence,
         pairIndex: processRun.pairIndex,
         condition: processRun.condition,
-        command: processRun.command,
-        args: processRun.args.map((arg) => arg.startsWith('--output-file=')
-            ? `--output-file=${relativeToRoot(runnerRoot, processRun.reportPath)}`
-            : arg),
+        command: 'node',
+        args: processRun.args.map((arg, index) => {
+            if (index === 0) {
+                return '<ts-node-cli>';
+            }
+            if (index === 1) {
+                return BENCHMARK_SOURCE;
+            }
+            return arg.startsWith('--output-file=')
+                ? `--output-file=${relativeToRoot(runnerRoot, processRun.reportPath)}`
+                : arg;
+        }),
         cwdRole: processRun.condition,
         exitCode: processRun.exitCode,
-        reportPath: processRun.report
+        reportPath: fs.existsSync(processRun.reportPath)
             ? relativeToRoot(runnerRoot, processRun.reportPath)
             : null,
         processPath: relativeToRoot(runnerRoot, processRun.processPath),
@@ -842,11 +1029,15 @@ function run(manifestPath: string): void {
     const rawArtifacts = [
         relativeToRoot(runnerRoot, admissionPath),
         ...runs.flatMap((processRun) => [
-            ...(processRun.report ? [relativeToRoot(runnerRoot, processRun.reportPath)] : []),
+            ...(fs.existsSync(processRun.reportPath)
+                ? [relativeToRoot(runnerRoot, processRun.reportPath)]
+                : []),
             relativeToRoot(runnerRoot, processRun.processPath),
         ]),
     ];
-    const escalationDecision = status === 'semantic_mismatch'
+    const escalationDecision = executionFailed
+        ? 'repair_runner_or_environment_then_rerun'
+        : status === 'semantic_mismatch'
         ? 'reject_or_repair_candidate'
         : admission.manifest.candidate.kind === 'self_comparison'
             ? 'demonstration_only'
@@ -855,6 +1046,27 @@ function run(manifestPath: string): void {
                 : status === 'repeatable_signal'
                     ? 'full_profile_required_before_adoption'
                     : 'reject_defer_or_human_directed_escalation';
+    const summaryPath = path.join(outputDirectory, 'paired-summary.json');
+    const failureRecords = [
+        ...runs
+            .filter((processRun) => processRun.exitCode !== 0 || processRun.report?.failure)
+            .map((processRun) => ({
+                sequence: processRun.sequence,
+                pairIndex: processRun.pairIndex,
+                condition: processRun.condition,
+                exitCode: processRun.exitCode,
+                failure: processRun.report?.failure ?? null,
+                processPath: relativeToRoot(runnerRoot, processRun.processPath),
+            })),
+        ...(orchestrationFailure ? [{
+            sequence: null,
+            pairIndex: null,
+            condition: null,
+            exitCode: null,
+            failure: { kind: 'runner_failure', message: orchestrationFailure },
+            processPath: null,
+        }] : []),
+    ];
     const record = {
         recordVersion: 1,
         runId,
@@ -865,6 +1077,8 @@ function run(manifestPath: string): void {
         escalationDecision,
         phaseScope: admission.phaseScope,
         scopeRationale: admission.manifest.scopeRationale,
+        practicalThresholds: normalizeThresholds(admission.manifest),
+        screenRunId: admission.manifest.screenRunId ?? null,
         protocol: {
             p0Commit: admission.p0Reference.p0Commit,
             protocolDocumentSha256: admission.protocolDocumentSha256,
@@ -872,35 +1086,25 @@ function run(manifestPath: string): void {
             manifestSha256: admission.manifestSha256,
         },
         commands: completedOrder,
-        rawArtifacts,
-        failures: runs
-            .filter((processRun) => processRun.exitCode !== 0 || processRun.report?.failure)
-            .map((processRun) => ({
-                sequence: processRun.sequence,
-                pairIndex: processRun.pairIndex,
-                condition: processRun.condition,
-                exitCode: processRun.exitCode,
-                failure: processRun.report?.failure ?? null,
-                processPath: relativeToRoot(runnerRoot, processRun.processPath),
-            })),
+        rawArtifacts: [...rawArtifacts, relativeToRoot(runnerRoot, summaryPath)],
+        failures: failureRecords,
         scenarioRows: rows,
         limitation: admission.manifest.candidate.limitation,
     };
-    const summaryPath = path.join(outputDirectory, 'paired-summary.json');
     writeJson(summaryPath, record);
     fs.mkdirSync(path.dirname(admission.recordPath), { recursive: true });
-    fs.appendFileSync(admission.recordPath, `${JSON.stringify({
-        ...record,
-        rawArtifacts: [...record.rawArtifacts, relativeToRoot(runnerRoot, summaryPath)],
-    })}\n`, 'utf8');
+    fs.appendFileSync(admission.recordPath, `${JSON.stringify(record)}\n`, 'utf8');
 
     console.log(`Paired status: ${status}`);
     console.log(`Escalation: ${escalationDecision}`);
     console.log(`Summary saved to ${relativeToRoot(runnerRoot, summaryPath)}`);
     console.log(`Candidate record appended to ${relativeToRoot(runnerRoot, admission.recordPath)}`);
-    if (status === 'semantic_mismatch' || executionFailed) {
-        process.exitCode = 1;
-    }
+    return {
+        status,
+        executionFailed,
+        summaryPath,
+        recordPath: admission.recordPath,
+    };
 }
 
 function parseManifestArg(): string {
@@ -923,6 +1127,22 @@ function collectEnvironment(): Record<string, unknown> {
     };
 }
 
+function normalizeThresholds(manifest: CandidateManifest): CandidateManifest['practicalThresholds'] {
+    const byRow = new Map(manifest.practicalThresholds.map((threshold) => [
+        rowKey(threshold.phase, threshold.scenario),
+        threshold,
+    ]));
+    return PHASE_NAMES
+        .filter((phase) => manifest.phaseScope.includes(phase))
+        .flatMap((phase) => SCENARIO_NAMES.map((scenario) => {
+            const threshold = byRow.get(rowKey(phase, scenario));
+            if (!threshold) {
+                throw new Error(`Missing practical threshold for ${phase}/${scenario}.`);
+            }
+            return threshold;
+        }));
+}
+
 function allRowKeys(): string[] {
     return PHASE_NAMES.flatMap((phase) => SCENARIO_NAMES.map((scenario) => rowKey(phase, scenario)));
 }
@@ -940,7 +1160,7 @@ function round9(value: number): number {
     return Math.round(value * 1_000_000_000) / 1_000_000_000;
 }
 
-function hashFile(filePath: string): string {
+export function normalizedFileSha256(filePath: string): string {
     const normalizedText = fs.readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n');
     return sha256(normalizedText);
 }
@@ -950,7 +1170,26 @@ function sha256(value: string | Buffer): string {
 }
 
 function git(directory: string, args: string[]): string {
-    return execFileSync('git', ['-C', directory, ...args], { encoding: 'utf8' }).trim();
+    return execFileSync('git', ['-C', directory, ...args], {
+        encoding: 'utf8',
+        env: sanitizedGitEnvironment(),
+    }).trim();
+}
+
+export function sanitizedGitEnvironment(): NodeJS.ProcessEnv {
+    const environment = { ...process.env };
+    for (const key of [
+        'GIT_DIR',
+        'GIT_WORK_TREE',
+        'GIT_INDEX_FILE',
+        'GIT_COMMON_DIR',
+        'GIT_OBJECT_DIRECTORY',
+        'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+        'GIT_PREFIX',
+    ]) {
+        delete environment[key];
+    }
+    return environment;
 }
 
 function readJson<T>(filePath: string): T {
@@ -985,7 +1224,10 @@ function stableSerialize(value: unknown): string {
 
 if (require.main === module) {
     try {
-        run(parseManifestArg());
+        const result = runPairedBenchmark(parseManifestArg());
+        if (result.status === 'semantic_mismatch' || result.executionFailed) {
+            process.exitCode = 1;
+        }
     } catch (error) {
         console.error(error instanceof Error ? error.message : String(error));
         process.exitCode = 1;

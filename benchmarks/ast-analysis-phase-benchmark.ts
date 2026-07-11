@@ -100,6 +100,19 @@ interface SemanticSink {
     summary: Record<string, string | number | boolean>;
 }
 
+class SemanticSinkMismatchError extends Error {
+    constructor(
+        message: string,
+        readonly sampleIndex: number,
+        readonly invocation: number,
+        readonly expectedSink: SemanticSink,
+        readonly actualSink: SemanticSink,
+    ) {
+        super(message);
+        this.name = 'SemanticSinkMismatchError';
+    }
+}
+
 interface BenchmarkReport {
     schemaVersion: 1;
     profile: ProfileName;
@@ -141,6 +154,10 @@ interface BenchmarkReport {
         phase: PhaseName;
         scenario: string;
         message: string;
+        sampleIndex?: number;
+        invocation?: number;
+        expectedSink?: SemanticSink;
+        actualSink?: SemanticSink;
     };
     formatterOptions: SqlFormatterOptions;
     corpus: CorpusRecord[];
@@ -714,10 +731,14 @@ function assertSemanticSink(
     actual: SemanticSink,
 ): void {
     if (stableSerialize(expected) !== stableSerialize(actual)) {
-        throw new Error(
+        throw new SemanticSinkMismatchError(
             `Semantic sink mismatch for ${phase}/${scenario} at sample ${sampleIndex}: `
             + `invocation ${invocation}: `
             + `expected ${expected.signatureSha256}, received ${actual.signatureSha256}.`,
+            sampleIndex,
+            invocation,
+            expected,
+            actual,
         );
     }
 }
@@ -922,12 +943,18 @@ function main(): void {
                 const message = error instanceof Error ? error.message : String(error);
                 const report = createReport(config, corpus, phases, results, pairRun);
                 report.failure = {
-                    kind: message.startsWith('Semantic sink mismatch')
+                    kind: error instanceof SemanticSinkMismatchError
                         ? 'semantic_mismatch'
                         : 'execution_failure',
                     phase: phase.name,
                     scenario: scenario.name,
                     message,
+                    ...(error instanceof SemanticSinkMismatchError ? {
+                        sampleIndex: error.sampleIndex,
+                        invocation: error.invocation,
+                        expectedSink: error.expectedSink,
+                        actualSink: error.actualSink,
+                    } : {}),
                 };
                 const reportPath = writeReport(report);
                 console.error(message);

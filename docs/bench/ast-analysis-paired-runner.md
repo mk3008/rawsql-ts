@@ -75,16 +75,27 @@ narrowly. Scenario filtering is intentionally unavailable.
 
 ## Commands
 
+Install the locked workspace dependencies in the controller, baseline, and
+candidate worktrees before admission:
+
+```powershell
+pnpm install --frozen-lockfile
+```
+
 Run the declared screen:
 
 ```powershell
 pnpm benchmark:ast-paired -- --manifest=tmp/ast-candidate-screen.json
 ```
 
-If a decision is still wanted after the retained screen, create a new manifest
-with `"stage": "confirmation"` and run the same command. Do not edit the
-screen record. Confirmation repeats the same declared phase set, thresholds,
-and candidate identity in three pairs.
+If a decision is still wanted after the retained screen, first commit its
+appended candidate-record line or use a separate clean baseline/candidate
+worktree. Create a new manifest with `"stage": "confirmation"` and
+`"screenRunId": "<the-screen-run-id>"`, then run the same command. Do not edit
+the screen record. Before timing, confirmation resolves that tracked screen
+line and requires the exact same candidate metadata, commits, phase scope,
+scope rationale, practical thresholds, and protocol fingerprints. A failed or
+semantically invalid screen cannot admit confirmation.
 
 The runner writes an admission snapshot, one raw benchmark JSON and one process
 log per condition, and a paired summary under:
@@ -182,4 +193,3 @@ A favorable confirmation is not an adoption decision. The accepted protocol
 still requires the full six-phase profile when its escalation conditions apply.
 This runner deliberately does not invoke that profile, change product code,
 or perform causal profiling.
-
