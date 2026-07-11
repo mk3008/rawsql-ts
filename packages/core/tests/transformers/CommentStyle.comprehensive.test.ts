@@ -472,6 +472,27 @@ describe('CommentStyle - Comprehensive TDD Test', () => {
             ].join('\n'));
         });
 
+        test('should reject non-logical print tokens before scanning comment descendants', () => {
+            const printer = new SqlPrinter();
+            const printerInternals = printer as unknown as {
+                isLogicalOperatorWithComment(token: SqlPrintToken): boolean;
+            };
+            const nonLogicalTokens = [
+                new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.BinaryExpression),
+                new SqlPrintToken(SqlPrintTokenType.operator, '+'),
+            ];
+
+            for (const token of nonLogicalTokens) {
+                Object.defineProperty(token, 'innerTokens', {
+                    get: () => {
+                        throw new Error('non-logical token descendants must not be scanned');
+                    },
+                });
+
+                expect(printerInternals.isLogicalOperatorWithComment(token)).toBe(false);
+            }
+        });
+
         test('should indent predicates after AND and OR comments', () => {
             const formatter = new SqlFormatter({
                 exportComment: true,
