@@ -105,7 +105,14 @@ line and requires the exact same candidate metadata, commits, phase scope,
 scope rationale, practical thresholds, P0 range-reference fingerprint, and
 protocol fingerprints. The runner reads the screen from committed `HEAD` and
 rejects an untracked or modified candidate record. A failed or semantically
-invalid screen cannot admit confirmation.
+invalid screen cannot admit confirmation. It also requires complete
+runner-generated screen evidence: two successful planned commands, the complete
+six-entry raw-artifact index, all 42 unique P0 rows with matched one-pair
+evidence and declared thresholds in scope, `not_measured` rows outside scope,
+no failures, and a lowercase SHA-256 manifest fingerprint. Admission validates
+the tracked index only; it does not read or re-hash ignored raw artifacts.
+Historical lines remain append-only; only the referenced screen must satisfy
+this admission shape.
 
 For Stage 3, commit the appended confirmation record first. Create a manifest
 with `"stage": "full_profile"` and

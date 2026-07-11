@@ -208,7 +208,9 @@ export interface PriorCandidateRecord {
         sequence: number;
         pairIndex: number;
         condition: Condition;
+        command?: string;
         args: string[];
+        cwdRole?: Condition;
         exitCode: number | null;
         reportPath: string | null;
         processPath: string;
@@ -530,6 +532,7 @@ function validateConfirmationLink(
     if (!screen) {
         throw new Error(`No screen record was found for ${manifest.screenRunId}.`);
     }
+    validateCompleteScreenEvidence(screen, manifest, phaseScope);
     validateConfirmationRecord(
         manifest,
         screen,
@@ -600,6 +603,134 @@ function readCommittedRecords(
         .split(/\r?\n/)
         .filter((line) => line.trim().length > 0)
         .map((line) => JSON.parse(line) as PriorCandidateRecord);
+}
+
+function validateCompleteScreenEvidence(
+    screen: PriorCandidateRecord,
+    manifest: CandidateManifest,
+    phaseScope: PhaseName[],
+): void {
+    if (!Array.isArray(screen.failures) || screen.failures.length !== 0) {
+        throw new Error('Confirmation requires an empty screen failures array.');
+    }
+    if (!/^[0-9a-f]{64}$/.test(screen.protocol?.manifestSha256 ?? '')) {
+        throw new Error('Confirmation requires a lowercase 64-hex screen manifest SHA-256.');
+    }
+
+    const expectedOrder = runOrderForStage('screen');
+    const expectedPhaseArg = `--phases=${phaseScope.join(',')}`;
+    const commands = screen.commands;
+    const commandRecords = Array.isArray(commands) ? commands : [];
+    const commandsComplete = commandRecords.length === expectedOrder.length
+        && commandRecords.every((command, index) => {
+            if (command === null || typeof command !== 'object') {
+                return false;
+            }
+            const expected = expectedOrder[index];
+            const expectedCommit = command.condition === 'baseline'
+                ? manifest.candidate.baseCommit
+                : manifest.candidate.candidateCommit;
+            const reportPath = command.reportPath;
+            return command.sequence === index + 1
+                && command.pairIndex === expected.pairIndex
+                && command.condition === expected.condition
+                && command.command === 'node'
+                && command.cwdRole === expected.condition
+                && typeof reportPath === 'string'
+                && reportPath.length > 0
+                && typeof command.processPath === 'string'
+                && command.processPath.length > 0
+                && stableSerialize(command.args) === stableSerialize([
+                    '<ts-node-cli>',
+                    BENCHMARK_SOURCE,
+                    '--profile=pr',
+                    expectedPhaseArg,
+                    `--condition=${expected.condition}`,
+                    `--candidate-id=${manifest.candidate.id}`,
+                    '--pair-index=1',
+                    `--output-file=${reportPath}`,
+                ])
+                && command.exitCode === 0
+                && command.commit?.sha === expectedCommit
+                && command.commit.dirty === false
+                && command.environment !== null
+                && typeof command.environment === 'object'
+                && !Array.isArray(command.environment);
+        });
+    if (!commandsComplete) {
+        throw new Error('Confirmation requires exactly two successful screen command records in planned order.');
+    }
+
+    const artifacts = screen.rawArtifacts;
+    const artifactValues = Array.isArray(artifacts) ? artifacts : [];
+    const artifactSet = new Set(artifactValues);
+    const artifactIndexComplete = artifactValues.length === 6
+        && artifactValues.every((artifact) => typeof artifact === 'string' && artifact.length > 0)
+        && artifactSet.size === 6
+        && [...artifactSet].some((artifact) => artifact.endsWith('/admission.json'))
+        && [...artifactSet].some((artifact) => artifact.endsWith('/paired-summary.json'))
+        && commandRecords.every((command) => command.reportPath !== null
+            && artifactSet.has(command.reportPath)
+            && artifactSet.has(command.processPath));
+    if (!artifactIndexComplete) {
+        throw new Error('Confirmation requires the complete six-entry screen raw-artifact index.');
+    }
+
+    const scenarioRows = screen.scenarioRows;
+    const expectedRowKeys = allRowKeys();
+    if (!Array.isArray(scenarioRows)
+        || scenarioRows.length !== expectedRowKeys.length
+        || !scenarioRows.every((row) => row !== null && typeof row === 'object')) {
+        throw new Error('Confirmation requires exactly 42 unique screen scenario rows.');
+    }
+    const scenarioKeys = new Set(scenarioRows.map((row) => rowKey(row.phase, row.scenario)));
+    if (scenarioKeys.size !== expectedRowKeys.length
+        || !expectedRowKeys.every((key) => scenarioKeys.has(key))) {
+        throw new Error('Confirmation requires exactly 42 unique screen scenario rows.');
+    }
+
+    const thresholdByRow = new Map(normalizeThresholds(manifest).map((threshold) => [
+        rowKey(threshold.phase, threshold.scenario),
+        threshold.minimumAbsoluteMeanDeltaMs,
+    ]));
+    const inScopeEvidenceComplete = scenarioRows
+        .filter((row) => phaseScope.includes(row.phase))
+        .every((row) => {
+            const threshold = thresholdByRow.get(rowKey(row.phase, row.scenario));
+            const pair = row.pairs?.[0];
+            return row.status === 'neutral_or_inconclusive'
+                && row.sinkComparison === 'matched'
+                && row.practicalThresholdMs === threshold
+                && Number.isFinite(row.p0BetweenProcessMeanRangeMs)
+                && row.p0BetweenProcessMeanRangeMs >= 0
+                && Array.isArray(row.pairs)
+                && row.pairs.length === 1
+                && pair?.pairIndex === 1
+                && [
+                    pair?.baselineMeanMs,
+                    pair?.candidateMeanMs,
+                    pair?.candidateMinusBaselineMeanMs,
+                ].every(Number.isFinite)
+                && (pair?.direction === 'favorable'
+                    || pair?.direction === 'adverse'
+                    || pair?.direction === 'equal');
+        });
+    if (!inScopeEvidenceComplete) {
+        throw new Error('Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.');
+    }
+
+    const outOfScopeEvidenceComplete = scenarioRows
+        .filter((row) => !phaseScope.includes(row.phase))
+        .every((row) => row.status === 'not_measured'
+            && row.sinkComparison === 'not_measured'
+            && row.practicalThresholdMs === null
+            && Number.isFinite(row.p0BetweenProcessMeanRangeMs)
+            && row.p0BetweenProcessMeanRangeMs >= 0
+            && Array.isArray(row.pairs)
+            && row.pairs.length === 0);
+    if (!outOfScopeEvidenceComplete) {
+        throw new Error('Confirmation requires not_measured screen rows outside the declared scope.');
+    }
 }
 
 export function validateConfirmationRecord(
