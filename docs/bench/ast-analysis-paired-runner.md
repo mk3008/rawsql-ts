@@ -4,21 +4,27 @@ Status: benchmark protocol tooling. No product optimization is approved or
 implemented.
 
 This runner makes the accepted staged protocol executable for one future AST
-candidate. It keeps the P0 PR sampling, seven-scenario corpus, direct phase
-boundaries, distinct-input policy, semantic projections, and raw samples. It
-does not run the full profile or produce an adoption decision.
+candidate. It keeps the P0 sampling profiles, seven-scenario corpus, direct
+phase boundaries, distinct-input policy, semantic projections, and raw
+samples. It can collect the Stage 3 full profile, but it does not produce an
+automatic adoption decision.
 
 ## What It Runs
 
-The runner has two fixed stages:
+The runner has three fixed stages:
 
 - `screen`: one adjacent baseline/candidate pair;
 - `confirmation`: three adjacent pairs ordered baseline/candidate,
-  candidate/baseline, baseline/candidate.
+  candidate/baseline, baseline/candidate;
+- `full_profile`: three adjacent pairs with the same counterbalanced order,
+  using all six phases and the P0 full sampling parameters.
 
-Each condition is a separate Node.js process. Every process uses four warmup
-samples, 20 measured samples, and eight invocations per sample. Phase scope can
-be narrowed, but every declared phase always runs all seven P0 scenarios.
+Each condition is a separate Node.js process. Screen and confirmation use four
+warmup samples, 20 measured samples, and eight invocations per sample. Full
+profile uses eight warmup samples, 50 measured samples, and 16 invocations per
+sample. Phase scope can be narrowed for screen and confirmation, but every
+declared phase always runs all seven P0 scenarios. Full profile always executes
+all six phases and all seven scenarios.
 
 Before the first timed process, the runner requires and records:
 
@@ -29,7 +35,8 @@ Before the first timed process, the runner requires and records:
 - one positive practical threshold in mean milliseconds for every declared
   phase/scenario row;
 - the accepted protocol fingerprint, P0 range reference, benchmark source
-  fingerprint, environment, PR sampling, and planned condition order.
+  fingerprint, environment, selected sampling profile, and planned condition
+  order.
 
 Admission failure starts no benchmark process. Baseline and candidate must use
 the same benchmark source so a candidate cannot change its own measurement
@@ -100,6 +107,25 @@ protocol fingerprints. The runner reads the screen from committed `HEAD` and
 rejects an untracked or modified candidate record. A failed or semantically
 invalid screen cannot admit confirmation.
 
+For Stage 3, commit the appended confirmation record first. Create a manifest
+with `"stage": "full_profile"` and
+`"confirmationRunId": "<the-confirmation-run-id>"`. Keep the candidate
+metadata, commits, declared phase scope, scope rationale, and practical
+thresholds equivalent after normalization. Before timing, the runner resolves
+the confirmation from committed `HEAD`, requires the candidate record to be
+tracked and unmodified, and validates the same P0, protocol, benchmark-source,
+and reference fingerprints. A failed or semantically invalid confirmation
+cannot admit the full profile. Adverse and inconclusive confirmations remain
+eligible for human-directed Stage 3 because the accepted protocol allows
+full-profile evidence to support rejection or defer decisions; their prior
+result is never removed or relabeled.
+
+The Stage 3 manifest retains the inherited declared effect scope and its
+thresholds. Execution scope is separately fixed to all six phases. This
+prevents a narrow confirmation from being rewritten as an all-phase effect
+claim while still collecting the required cross-phase timing and semantic
+evidence.
+
 The runner writes an admission snapshot, one raw benchmark JSON and one process
 log per condition, and a paired summary under:
 
@@ -107,7 +133,10 @@ log per condition, and a paired summary under:
 tmp/ast-analysis-paired-runs/<timestamp>-<candidate-id>/
 ```
 
-These ignored raw artifacts are evidence and must be retained even when the
+The admission snapshot and candidate record identify the selected `pr` or
+`full` profile, inherited declared phase scope, executed phase scope, planned
+order, sampling, and predecessor run ID. These ignored raw artifacts are
+evidence and must be retained even when the
 candidate is adverse, neutral, inconclusive, semantically invalid, or stopped
 early.
 
@@ -147,6 +176,16 @@ predeclared practical threshold and its retained P0 between-process mean range.
 `adverse_signal` uses the symmetric adverse rule. Every other completed row is
 `neutral_or_inconclusive`.
 
+The accepted protocol does not define a separate automatic effect formula for
+the larger Stage 3 synthetic inputs. A completed real-candidate full profile
+therefore retains all three paired observations for the inherited declared
+scope as `neutral_or_inconclusive` and routes the complete evidence to a human
+adoption, rejection, or defer decision. Rows outside the inherited declared
+scope retain their raw full-profile timings and semantic comparisons but stay
+`not_measured` for performance-effect purposes. Semantic mismatches and
+execution failures still suppress every speed interpretation and stop later
+pairs.
+
 The machine-readable P0 ranges are tracked in
 `docs/bench/ast-analysis-phase-p0-reference.json`. They reproduce the min/max
 ranges in the P0 report and are pinned to the P0 commit and accepted protocol
@@ -178,7 +217,7 @@ Raw artifacts are ignored local evidence; the JSONL line is the tracked index
 that makes their existence and outcome visible. Reviewers must treat a missing
 raw artifact as an evidence gap, not reconstruct or relabel the result.
 
-## Self-Comparison Demonstration
+## Self-Comparison Demonstrations
 
 The tracked first candidate record is a one-phase, one-pair
 `self_comparison`. Its baseline and candidate conditions use the same clean
@@ -190,9 +229,22 @@ All self-comparison performance rows are `not_measured` even though raw timing
 deltas are retained. The demonstration does not claim a speedup, regression,
 neutral effect, or no-material-effect conclusion.
 
+A separate `full_profile` self-comparison validates Stage 3 mechanics without
+running an optimization candidate. It is an explicit demonstration-only
+exception to predecessor inheritance: baseline and candidate must be the same
+clean non-candidate commit and directory, the manifest must declare all six
+phases and all 42 threshold rows, and no `confirmationRunId` is allowed. To
+keep the mechanics check minimal it runs one adjacent baseline/candidate pair,
+while real candidates always run the three counterbalanced pairs. All 42
+performance rows remain `not_measured` even though full-profile raw timings and
+sink comparisons are retained. This exception cannot admit a real candidate or
+support an adoption, rejection, regression, neutral-effect, or
+no-material-effect claim.
+
 ## Decision Limit
 
 A favorable confirmation is not an adoption decision. The accepted protocol
 still requires the full six-phase profile when its escalation conditions apply.
-This runner deliberately does not invoke that profile, change product code,
-or perform causal profiling.
+The runner can retain that profile for human review, but deliberately does not
+change product code, decide adoption automatically, or perform causal
+profiling.

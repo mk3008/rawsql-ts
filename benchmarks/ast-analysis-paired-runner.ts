@@ -26,7 +26,8 @@ export const SCENARIO_NAMES = [
 type PhaseName = typeof PHASE_NAMES[number];
 type ScenarioName = typeof SCENARIO_NAMES[number];
 type Condition = 'baseline' | 'candidate';
-type Stage = 'screen' | 'confirmation';
+export type Stage = 'screen' | 'confirmation' | 'full_profile';
+type ProfileName = 'pr' | 'full';
 export type PerformanceStatus =
     | 'repeatable_signal'
     | 'adverse_signal'
@@ -56,6 +57,7 @@ export interface CandidateManifest {
         minimumAbsoluteMeanDeltaMs: number;
     }>;
     screenRunId?: string;
+    confirmationRunId?: string;
 }
 
 export interface P0Reference {
@@ -129,7 +131,7 @@ interface PairDelta {
     direction: 'favorable' | 'adverse' | 'equal';
 }
 
-interface OutcomeRow {
+export interface OutcomeRow {
     phase: PhaseName;
     scenario: ScenarioName;
     status: PerformanceStatus;
@@ -158,7 +160,7 @@ interface ProcessRun {
     reportReadError?: string;
 }
 
-interface ValidatedAdmission {
+export interface ValidatedAdmission {
     manifest: CandidateManifest;
     manifestPath: string;
     manifestSha256: string;
@@ -175,6 +177,13 @@ interface ValidatedAdmission {
     p0SourceDocumentSha256: string;
     p0ReferenceSha256: string;
     tsNodeCliPath: string;
+    executionPhaseScope: PhaseName[];
+    profile: ProfileName;
+    sampling: {
+        warmupSamples: number;
+        measuredSamples: number;
+        invocationsPerSample: number;
+    };
 }
 
 export interface PriorCandidateRecord {
@@ -190,8 +199,24 @@ export interface PriorCandidateRecord {
         protocolDocumentSha256: string;
         benchmarkSourceSha256: string;
         p0ReferenceSha256: string;
+        manifestSha256?: string;
     };
     failures: unknown[];
+    screenRunId?: string | null;
+    escalationDecision?: string;
+    commands?: Array<{
+        sequence: number;
+        pairIndex: number;
+        condition: Condition;
+        args: string[];
+        exitCode: number | null;
+        reportPath: string | null;
+        processPath: string;
+        commit: { sha: string; dirty: boolean } | null;
+        environment: Record<string, unknown> | null;
+    }>;
+    rawArtifacts?: string[];
+    scenarioRows?: OutcomeRow[];
 }
 
 const DEFAULT_P0_REFERENCE = 'docs/bench/ast-analysis-phase-p0-reference.json';
@@ -217,6 +242,15 @@ export function runOrderForStage(stage: Stage): Array<{ pairIndex: number; condi
         { pairIndex: 3, condition: 'baseline' },
         { pairIndex: 3, condition: 'candidate' },
     ];
+}
+
+export function runOrderForManifest(
+    manifest: Pick<CandidateManifest, 'stage' | 'candidate'>,
+): Array<{ pairIndex: number; condition: Condition }> {
+    if (manifest.stage === 'full_profile' && manifest.candidate.kind === 'self_comparison') {
+        return runOrderForStage('screen');
+    }
+    return runOrderForStage(manifest.stage);
 }
 
 export function classifyConfirmationRow(
@@ -287,14 +321,29 @@ export function validateManifestShape(manifest: CandidateManifest, reference: P0
     if (manifest.schemaVersion !== 1) {
         throw new Error('The candidate manifest must use schemaVersion 1.');
     }
-    if (manifest.stage !== 'screen' && manifest.stage !== 'confirmation') {
-        throw new Error('stage must be screen or confirmation.');
+    if (manifest.stage !== 'screen'
+        && manifest.stage !== 'confirmation'
+        && manifest.stage !== 'full_profile') {
+        throw new Error('stage must be screen, confirmation, or full_profile.');
     }
     if (manifest.stage === 'confirmation' && !manifest.screenRunId?.trim()) {
         throw new Error('A confirmation manifest must reference its admitted screenRunId.');
     }
-    if (manifest.stage === 'screen' && manifest.screenRunId !== undefined) {
-        throw new Error('A screen manifest must not reference a prior screenRunId.');
+    if (manifest.stage !== 'confirmation' && manifest.screenRunId !== undefined) {
+        throw new Error('Only a confirmation manifest may reference a prior screenRunId.');
+    }
+    if (manifest.stage === 'full_profile'
+        && manifest.candidate?.kind === 'candidate'
+        && !manifest.confirmationRunId?.trim()) {
+        throw new Error('A candidate full_profile manifest must reference its committed confirmationRunId.');
+    }
+    if (manifest.stage !== 'full_profile' && manifest.confirmationRunId !== undefined) {
+        throw new Error('Only a full_profile manifest may reference a prior confirmationRunId.');
+    }
+    if (manifest.stage === 'full_profile'
+        && manifest.candidate?.kind === 'self_comparison'
+        && manifest.confirmationRunId !== undefined) {
+        throw new Error('A full-profile self_comparison must not inherit a real candidate confirmation.');
     }
     if (!/^[a-z0-9][a-z0-9._-]*$/.test(manifest.candidate?.id ?? '')) {
         throw new Error('candidate.id must be a stable lowercase identifier.');
@@ -314,8 +363,8 @@ export function validateManifestShape(manifest: CandidateManifest, reference: P0
         }
     }
     if (manifest.candidate.kind === 'self_comparison') {
-        if (manifest.stage !== 'screen') {
-            throw new Error('A self_comparison demonstration must use the screen stage.');
+        if (manifest.stage !== 'screen' && manifest.stage !== 'full_profile') {
+            throw new Error('A self_comparison demonstration must use the screen or full_profile stage.');
         }
         if (manifest.candidate.baseCommit !== manifest.candidate.candidateCommit) {
             throw new Error('A self_comparison must use the same base and candidate commit.');
@@ -338,6 +387,11 @@ export function validateManifestShape(manifest: CandidateManifest, reference: P0
     if (uniquePhases.size !== manifest.phaseScope.length
         || manifest.phaseScope.some((phase) => !allowedPhases.has(phase))) {
         throw new Error('phaseScope contains an unsupported or duplicate phase.');
+    }
+    if (manifest.stage === 'full_profile'
+        && manifest.candidate.kind === 'self_comparison'
+        && stableSerialize(PHASE_NAMES) !== stableSerialize(manifest.phaseScope)) {
+        throw new Error('A full-profile self_comparison must declare all six P0 phases.');
     }
 
     const requiredThresholds = new Set(
@@ -402,6 +456,13 @@ function validateAdmission(manifestPath: string, runnerRoot: string): ValidatedA
     }
 
     const phaseScope = PHASE_NAMES.filter((phase) => manifest.phaseScope.includes(phase));
+    const executionPhaseScope = manifest.stage === 'full_profile'
+        ? [...PHASE_NAMES]
+        : phaseScope;
+    const profile: ProfileName = manifest.stage === 'full_profile' ? 'full' : 'pr';
+    const sampling = profile === 'full'
+        ? { warmupSamples: 8, measuredSamples: 50, invocationsPerSample: 16 }
+        : { warmupSamples: 4, measuredSamples: 20, invocationsPerSample: 8 };
     const thresholdByRow = new Map(
         manifest.practicalThresholds.map((row) => [
             rowKey(row.phase, row.scenario),
@@ -412,6 +473,16 @@ function validateAdmission(manifestPath: string, runnerRoot: string): ValidatedA
     const recordPath = path.resolve(runnerRoot, DEFAULT_RECORD_PATH);
     if (manifest.stage === 'confirmation') {
         validateConfirmationLink(
+            manifest,
+            recordPath,
+            runnerRoot,
+            phaseScope,
+            protocolDocumentSha256,
+            baselineBenchmarkSha,
+            p0ReferenceSha256,
+        );
+    } else if (manifest.stage === 'full_profile' && manifest.candidate.kind === 'candidate') {
+        validateFullProfileLink(
             manifest,
             recordPath,
             runnerRoot,
@@ -439,6 +510,9 @@ function validateAdmission(manifestPath: string, runnerRoot: string): ValidatedA
         p0SourceDocumentSha256,
         p0ReferenceSha256,
         tsNodeCliPath: require.resolve('ts-node/dist/bin.js'),
+        executionPhaseScope,
+        profile,
+        sampling,
     };
 }
 
@@ -451,26 +525,7 @@ function validateConfirmationLink(
     benchmarkSourceSha256: string,
     p0ReferenceSha256: string,
 ): void {
-    if (!fs.existsSync(recordPath)) {
-        throw new Error('Confirmation requires the tracked append-only screen record.');
-    }
-    const recordRelativePath = relativeToRoot(runnerRoot, recordPath);
-    if (recordRelativePath.startsWith('../') || path.isAbsolute(recordRelativePath)) {
-        throw new Error('The candidate record must be inside the controller repository.');
-    }
-    try {
-        git(runnerRoot, ['ls-files', '--error-unmatch', '--', recordRelativePath]);
-    } catch {
-        throw new Error('Confirmation requires a Git-tracked candidate record.');
-    }
-    if (git(runnerRoot, ['status', '--porcelain', '--', recordRelativePath]).length > 0) {
-        throw new Error('Confirmation requires the candidate record to match committed HEAD content.');
-    }
-    const committedRecord = git(runnerRoot, ['show', `HEAD:${recordRelativePath}`]);
-    const records = committedRecord
-        .split(/\r?\n/)
-        .filter((line) => line.trim().length > 0)
-        .map((line) => JSON.parse(line) as PriorCandidateRecord);
+    const records = readCommittedRecords(recordPath, runnerRoot, 'Confirmation');
     const screen = records.find((record) => record.runId === manifest.screenRunId);
     if (!screen) {
         throw new Error(`No screen record was found for ${manifest.screenRunId}.`);
@@ -483,6 +538,68 @@ function validateConfirmationLink(
         benchmarkSourceSha256,
         p0ReferenceSha256,
     );
+}
+
+function validateFullProfileLink(
+    manifest: CandidateManifest,
+    recordPath: string,
+    runnerRoot: string,
+    phaseScope: PhaseName[],
+    protocolDocumentSha256: string,
+    benchmarkSourceSha256: string,
+    p0ReferenceSha256: string,
+): void {
+    const records = readCommittedRecords(recordPath, runnerRoot, 'Full profile');
+    const confirmation = records.find((record) => record.runId === manifest.confirmationRunId);
+    if (!confirmation) {
+        throw new Error(`No confirmation record was found for ${manifest.confirmationRunId}.`);
+    }
+    const screen = records.find((record) => record.runId === confirmation.screenRunId);
+    if (!screen) {
+        throw new Error(`No predecessor screen record was found for ${confirmation.screenRunId}.`);
+    }
+    validateConfirmationRecord(
+        manifest,
+        screen,
+        phaseScope,
+        protocolDocumentSha256,
+        benchmarkSourceSha256,
+        p0ReferenceSha256,
+    );
+    validateFullProfileRecord(
+        manifest,
+        confirmation,
+        phaseScope,
+        protocolDocumentSha256,
+        benchmarkSourceSha256,
+        p0ReferenceSha256,
+    );
+}
+
+function readCommittedRecords(
+    recordPath: string,
+    runnerRoot: string,
+    stageLabel: string,
+): PriorCandidateRecord[] {
+    if (!fs.existsSync(recordPath)) {
+        throw new Error(`${stageLabel} requires the tracked append-only candidate record.`);
+    }
+    const recordRelativePath = relativeToRoot(runnerRoot, recordPath);
+    if (recordRelativePath.startsWith('../') || path.isAbsolute(recordRelativePath)) {
+        throw new Error('The candidate record must be inside the controller repository.');
+    }
+    try {
+        git(runnerRoot, ['ls-files', '--error-unmatch', '--', recordRelativePath]);
+    } catch {
+        throw new Error(`${stageLabel} requires a Git-tracked candidate record.`);
+    }
+    if (git(runnerRoot, ['status', '--porcelain', '--', recordRelativePath]).length > 0) {
+        throw new Error(`${stageLabel} requires the candidate record to match committed HEAD content.`);
+    }
+    return git(runnerRoot, ['show', `HEAD:${recordRelativePath}`])
+        .split(/\r?\n/)
+        .filter((line) => line.trim().length > 0)
+        .map((line) => JSON.parse(line) as PriorCandidateRecord);
 }
 
 export function validateConfirmationRecord(
@@ -510,6 +627,127 @@ export function validateConfirmationRecord(
         || !protocolMatches) {
         throw new Error('Confirmation must exactly inherit a successful screen candidate, scope, thresholds, rationale, and protocol.');
     }
+}
+
+export function validateFullProfileRecord(
+    manifest: CandidateManifest,
+    confirmation: PriorCandidateRecord,
+    phaseScope: PhaseName[],
+    protocolDocumentSha256: string,
+    benchmarkSourceSha256: string,
+    p0ReferenceSha256: string,
+): void {
+    const candidateMatches = stableSerialize(confirmation.candidate)
+        === stableSerialize(manifest.candidate);
+    const thresholdsMatch = stableSerialize(confirmation.practicalThresholds)
+        === stableSerialize(normalizeThresholds(manifest));
+    const protocolMatches = confirmation.protocol?.p0Commit === P0_COMMIT
+        && confirmation.protocol.protocolDocumentSha256 === protocolDocumentSha256
+        && confirmation.protocol.benchmarkSourceSha256 === benchmarkSourceSha256
+        && confirmation.protocol.p0ReferenceSha256 === p0ReferenceSha256;
+    const eligibleStatus = confirmation.status === 'repeatable_signal'
+        || confirmation.status === 'adverse_signal'
+        || confirmation.status === 'neutral_or_inconclusive';
+    const completeEvidence = hasCompleteConfirmationEvidence(confirmation, phaseScope);
+    if (confirmation.stage !== 'confirmation'
+        || !eligibleStatus
+        || confirmation.failures?.length !== 0
+        || !completeEvidence
+        || !candidateMatches
+        || stableSerialize(confirmation.phaseScope) !== stableSerialize(phaseScope)
+        || confirmation.scopeRationale !== manifest.scopeRationale
+        || !thresholdsMatch
+        || !protocolMatches) {
+        throw new Error('Full profile must exactly inherit an admissible committed confirmation candidate, scope, thresholds, rationale, and protocol.');
+    }
+}
+
+function hasCompleteConfirmationEvidence(
+    confirmation: PriorCandidateRecord,
+    phaseScope: PhaseName[],
+): boolean {
+    const expectedOrder = runOrderForStage('confirmation');
+    const expectedPhaseArg = `--phases=${phaseScope.join(',')}`;
+    const commands = confirmation.commands ?? [];
+    const commandsComplete = commands.length === expectedOrder.length
+        && commands.every((command, index) => {
+            const expected = expectedOrder[index];
+            const expectedCommit = command.condition === 'baseline'
+                ? confirmation.candidate.baseCommit
+                : confirmation.candidate.candidateCommit;
+            return command.sequence === index + 1
+                && command.pairIndex === expected.pairIndex
+                && command.condition === expected.condition
+                && command.args.includes('--profile=pr')
+                && command.args.includes(expectedPhaseArg)
+                && command.exitCode === 0
+                && typeof command.reportPath === 'string'
+                && command.reportPath.length > 0
+                && typeof command.processPath === 'string'
+                && command.processPath.length > 0
+                && command.commit?.sha === expectedCommit
+                && command.commit.dirty === false
+                && command.environment !== null;
+        });
+
+    const artifacts = new Set(confirmation.rawArtifacts ?? []);
+    const artifactIndexComplete = artifacts.size === 14
+        && [...artifacts].some((artifact) => artifact.endsWith('/admission.json'))
+        && [...artifacts].some((artifact) => artifact.endsWith('/paired-summary.json'))
+        && commands.every((command) => command.reportPath !== null
+            && artifacts.has(command.reportPath)
+            && artifacts.has(command.processPath));
+
+    const scenarioRows = confirmation.scenarioRows ?? [];
+    const scenarioKeys = new Set(scenarioRows.map((row) => rowKey(row.phase, row.scenario)));
+    const allowedStatuses = new Set<PerformanceStatus>([
+        'repeatable_signal',
+        'adverse_signal',
+        'neutral_or_inconclusive',
+        'not_measured',
+    ]);
+    const thresholdByRow = new Map(confirmation.practicalThresholds.map((threshold) => [
+        rowKey(threshold.phase, threshold.scenario),
+        threshold.minimumAbsoluteMeanDeltaMs,
+    ]));
+    const rowsComplete = scenarioRows.length === allRowKeys().length
+        && scenarioKeys.size === allRowKeys().length
+        && allRowKeys().every((key) => scenarioKeys.has(key))
+        && scenarioRows.every((row) => {
+            const declared = phaseScope.includes(row.phase);
+            if (!allowedStatuses.has(row.status)
+                || !Number.isFinite(row.p0BetweenProcessMeanRangeMs)
+                || row.p0BetweenProcessMeanRangeMs < 0) {
+                return false;
+            }
+            if (!declared) {
+                return row.status === 'not_measured'
+                    && row.sinkComparison === 'not_measured'
+                    && row.practicalThresholdMs === null
+                    && row.pairs.length === 0;
+            }
+            const threshold = thresholdByRow.get(rowKey(row.phase, row.scenario));
+            return row.status !== 'not_measured'
+                && row.sinkComparison === 'matched'
+                && row.practicalThresholdMs === threshold
+                && row.pairs.length === 3
+                && row.pairs.every((pair, index) => pair.pairIndex === index + 1
+                    && [
+                        pair.baselineMeanMs,
+                        pair.candidateMeanMs,
+                        pair.candidateMinusBaselineMeanMs,
+                    ].every(Number.isFinite));
+        })
+        && aggregateStatus(scenarioRows) === confirmation.status;
+
+    return typeof confirmation.screenRunId === 'string'
+        && confirmation.screenRunId.length > 0
+        && typeof confirmation.escalationDecision === 'string'
+        && confirmation.escalationDecision.length > 0
+        && /^[0-9a-f]{64}$/.test(confirmation.protocol?.manifestSha256 ?? '')
+        && commandsComplete
+        && artifactIndexComplete
+        && rowsComplete;
 }
 
 function assertCleanCommit(directory: string, expectedCommit: string, label: string): void {
@@ -543,8 +781,8 @@ function executeCondition(
     const args = [
         admission.tsNodeCliPath,
         path.join(cwd, BENCHMARK_SOURCE),
-        '--profile=pr',
-        `--phases=${admission.phaseScope.join(',')}`,
+        `--profile=${admission.profile}`,
+        `--phases=${admission.executionPhaseScope.join(',')}`,
         `--condition=${condition}`,
         `--candidate-id=${admission.manifest.candidate.id}`,
         `--pair-index=${pairIndex}`,
@@ -615,17 +853,18 @@ function validateRawReport(
     const expectedCommit = run.condition === 'baseline'
         ? admission.manifest.candidate.baseCommit
         : admission.manifest.candidate.candidateCommit;
-    if (report.profile !== 'pr'
+    if (report.profile !== admission.profile
         || report.commit.sha !== expectedCommit
         || report.commit.dirty
-        || report.method.warmupSamples !== 4
-        || report.method.measuredSamples !== 20
-        || report.method.invocationsPerSample !== 8
+        || report.method.warmupSamples !== admission.sampling.warmupSamples
+        || report.method.measuredSamples !== admission.sampling.measuredSamples
+        || report.method.invocationsPerSample !== admission.sampling.invocationsPerSample
         || report.method.corpusSeed !== 'rawsql-ts-ast-phase-v1') {
-        throw new Error(`Process ${run.sequence} did not preserve the predeclared P0 PR method.`);
+        throw new Error(`Process ${run.sequence} did not preserve the predeclared ${admission.profile} method.`);
     }
-    if (stableSerialize(report.method.phaseScope) !== stableSerialize(admission.phaseScope)) {
-        throw new Error(`Process ${run.sequence} did not preserve the predeclared phase scope.`);
+    if (stableSerialize(report.method.phaseScope)
+        !== stableSerialize(admission.executionPhaseScope)) {
+        throw new Error(`Process ${run.sequence} did not preserve the executed phase scope.`);
     }
     const pairRun = report.pairRun;
     if (!pairRun
@@ -650,12 +889,12 @@ function validateRawReport(
             row.stats.minMs,
             row.stats.maxMs,
         ];
-        if (row.warmupSamples !== 4
-            || row.measuredSamples !== 20
-            || row.invocationsPerSample !== 8
-            || row.rawSamplesMs.length !== 20
+        if (row.warmupSamples !== admission.sampling.warmupSamples
+            || row.measuredSamples !== admission.sampling.measuredSamples
+            || row.invocationsPerSample !== admission.sampling.invocationsPerSample
+            || row.rawSamplesMs.length !== admission.sampling.measuredSamples
             || !row.rawSamplesMs.every((sample) => Number.isFinite(sample) && sample >= 0)
-            || row.stats.sampleCount !== 20
+            || row.stats.sampleCount !== admission.sampling.measuredSamples
             || !stats.every((value) => Number.isFinite(value) && value >= 0)
             || typeof sink.kind !== 'string'
             || typeof sink.signatureSha256 !== 'string'
@@ -667,7 +906,9 @@ function validateRawReport(
     }
     if (!report.failure) {
         const expectedRows = new Set(
-            admission.phaseScope.flatMap((phase) => SCENARIO_NAMES.map((scenario) => rowKey(phase, scenario))),
+            admission.executionPhaseScope.flatMap(
+                (phase) => SCENARIO_NAMES.map((scenario) => rowKey(phase, scenario)),
+            ),
         );
         const actualRows = new Set(report.results.map((row) => rowKey(row.phase, row.scenario)));
         if (actualRows.size !== expectedRows.size
@@ -750,7 +991,7 @@ function stableEnvironment(environment: Record<string, unknown>): Record<string,
     return Object.fromEntries(keys.map((key) => [key, environment[key]]));
 }
 
-function buildOutcomeRows(
+export function buildOutcomeRows(
     admission: ValidatedAdmission,
     pairDeltas: Map<string, PairDelta[]>,
     mismatchRows: Set<string>,
@@ -768,19 +1009,19 @@ function buildOutcomeRows(
         if (p0Range === undefined) {
             throw new Error(`Missing P0 reference row ${key}.`);
         }
-        if (!admission.phaseScope.includes(phase)) {
+        if (!admission.executionPhaseScope.includes(phase)) {
             return {
                 phase,
                 scenario,
                 status: 'not_measured' as const,
-                reason: 'Phase was outside the predeclared scope.',
+                reason: 'Phase was outside the executed scope.',
                 practicalThresholdMs: null,
                 p0BetweenProcessMeanRangeMs: p0Range,
                 sinkComparison: 'not_measured' as const,
                 pairs: [],
             };
         }
-        const threshold = admission.thresholdByRow.get(key) as number;
+        const threshold = admission.thresholdByRow.get(key) ?? null;
         const pairs = pairDeltas.get(key) ?? [];
         if (mismatchRows.has(key) || internalMismatchRows.has(key)) {
             return {
@@ -831,6 +1072,18 @@ function buildOutcomeRows(
                 pairs,
             };
         }
+        if (!admission.phaseScope.includes(phase)) {
+            return {
+                phase,
+                scenario,
+                status: 'not_measured' as const,
+                reason: 'The full profile retained timing and semantic evidence, but this phase was outside the inherited declared effect scope.',
+                practicalThresholdMs: null,
+                p0BetweenProcessMeanRangeMs: p0Range,
+                sinkComparison: 'matched' as const,
+                pairs,
+            };
+        }
         if (admission.manifest.stage === 'screen') {
             return {
                 phase,
@@ -843,10 +1096,22 @@ function buildOutcomeRows(
                 pairs,
             };
         }
+        if (admission.manifest.stage === 'full_profile') {
+            return {
+                phase,
+                scenario,
+                status: 'neutral_or_inconclusive' as const,
+                reason: 'The full profile retained three paired observations for human adoption or rejection review; the accepted protocol defines no automatic full-profile verdict.',
+                practicalThresholdMs: threshold,
+                p0BetweenProcessMeanRangeMs: p0Range,
+                sinkComparison: 'matched' as const,
+                pairs,
+            };
+        }
 
         const status = classifyConfirmationRow(
             pairs.map((pair) => pair.candidateMinusBaselineMeanMs),
-            threshold,
+            threshold as number,
             p0Range,
         );
         return {
@@ -918,7 +1183,7 @@ export function runPairedBenchmark(
     fs.mkdirSync(admission.outputRoot, { recursive: true });
     fs.mkdirSync(outputDirectory, { recursive: false });
 
-    const order = runOrderForStage(admission.manifest.stage);
+    const order = runOrderForManifest(admission.manifest);
     const admissionPath = path.join(outputDirectory, 'admission.json');
     writeJson(admissionPath, {
         schemaVersion: 1,
@@ -933,8 +1198,9 @@ export function runPairedBenchmark(
         protocolDocumentSha256: admission.protocolDocumentSha256,
         benchmarkSourceSha256: admission.benchmarkSourceSha256,
         normalizedPhaseScope: admission.phaseScope,
+        executedPhaseScope: admission.executionPhaseScope,
         plannedOrder: order,
-        sampling: { profile: 'pr', warmupSamples: 4, measuredSamples: 20, invocationsPerSample: 8 },
+        sampling: { profile: admission.profile, ...admission.sampling },
     });
 
     const runs: ProcessRun[] = [];
@@ -1069,6 +1335,8 @@ export function runPairedBenchmark(
             ? 'demonstration_only'
             : admission.manifest.stage === 'screen'
                 ? 'human_decision_required_before_confirmation'
+                : admission.manifest.stage === 'full_profile'
+                    ? 'human_adoption_rejection_or_defer_decision'
                 : status === 'repeatable_signal'
                     ? 'full_profile_required_before_adoption'
                     : 'reject_defer_or_human_directed_escalation';
@@ -1099,12 +1367,17 @@ export function runPairedBenchmark(
         recordedAt: new Date().toISOString(),
         candidate: admission.manifest.candidate,
         stage: admission.manifest.stage,
+        profile: admission.profile,
         status,
         escalationDecision,
         phaseScope: admission.phaseScope,
+        executionPhaseScope: admission.executionPhaseScope,
         scopeRationale: admission.manifest.scopeRationale,
         practicalThresholds: normalizeThresholds(admission.manifest),
         screenRunId: admission.manifest.screenRunId ?? null,
+        confirmationRunId: admission.manifest.confirmationRunId ?? null,
+        plannedOrder: order,
+        sampling: { profile: admission.profile, ...admission.sampling },
         protocol: {
             p0Commit: admission.p0Reference.p0Commit,
             p0ReferenceSha256: admission.p0ReferenceSha256,
