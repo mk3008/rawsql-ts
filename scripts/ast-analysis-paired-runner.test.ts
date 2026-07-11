@@ -531,21 +531,122 @@ describe('AST analysis paired runner screen-evidence admission', () => {
         mutate: (screen: PriorCandidateRecord) => void;
     }> = [
         {
-            name: 'planned command records',
+            name: 'command order',
             message: 'Confirmation requires exactly two successful screen command records in planned order.',
             mutate: (screen) => {
-                screen.commands?.pop();
+                [screen.commands![0], screen.commands![1]] = [
+                    screen.commands![1],
+                    screen.commands![0],
+                ];
             },
         },
         {
-            name: 'raw-artifact index',
+            name: 'command exit code',
+            message: 'Confirmation requires exactly two successful screen command records in planned order.',
+            mutate: (screen) => {
+                screen.commands![0].exitCode = 1;
+            },
+        },
+        {
+            name: 'command commit',
+            message: 'Confirmation requires exactly two successful screen command records in planned order.',
+            mutate: (screen) => {
+                screen.commands![0].commit!.sha = '0'.repeat(40);
+            },
+        },
+        {
+            name: 'command dirty state',
+            message: 'Confirmation requires exactly two successful screen command records in planned order.',
+            mutate: (screen) => {
+                screen.commands![0].commit!.dirty = true;
+            },
+        },
+        {
+            name: 'command cwd role',
+            message: 'Confirmation requires exactly two successful screen command records in planned order.',
+            mutate: (screen) => {
+                screen.commands![0].cwdRole = 'candidate';
+            },
+        },
+        {
+            name: 'command args',
+            message: 'Confirmation requires exactly two successful screen command records in planned order.',
+            mutate: (screen) => {
+                screen.commands![0].args[2] = '--profile=full';
+            },
+        },
+        {
+            name: 'command report path',
+            message: 'Confirmation requires exactly two successful screen command records in planned order.',
+            mutate: (screen) => {
+                screen.commands![0].reportPath = '';
+            },
+        },
+        {
+            name: 'command process path',
+            message: 'Confirmation requires exactly two successful screen command records in planned order.',
+            mutate: (screen) => {
+                screen.commands![0].processPath = '';
+            },
+        },
+        {
+            name: 'missing raw-artifact index',
             message: 'Confirmation requires the complete six-entry screen raw-artifact index.',
             mutate: (screen) => {
                 screen.rawArtifacts?.pop();
             },
         },
         {
-            name: 'unique scenario rows',
+            name: 'short raw-artifact index',
+            message: 'Confirmation requires the complete six-entry screen raw-artifact index.',
+            mutate: (screen) => {
+                screen.rawArtifacts = screen.rawArtifacts!.slice(0, 5);
+            },
+        },
+        {
+            name: 'extra raw-artifact index entry',
+            message: 'Confirmation requires the complete six-entry screen raw-artifact index.',
+            mutate: (screen) => {
+                screen.rawArtifacts?.push('tmp/prior/extra.json');
+            },
+        },
+        {
+            name: 'duplicate raw-artifact index entry',
+            message: 'Confirmation requires the complete six-entry screen raw-artifact index.',
+            mutate: (screen) => {
+                screen.rawArtifacts![4] = screen.rawArtifacts![3];
+            },
+        },
+        {
+            name: 'raw-artifact admission entry',
+            message: 'Confirmation requires the complete six-entry screen raw-artifact index.',
+            mutate: (screen) => {
+                screen.rawArtifacts![0] = 'tmp/prior/unrelated.json';
+            },
+        },
+        {
+            name: 'raw-artifact summary entry',
+            message: 'Confirmation requires the complete six-entry screen raw-artifact index.',
+            mutate: (screen) => {
+                screen.rawArtifacts![5] = 'tmp/prior/unrelated.json';
+            },
+        },
+        {
+            name: 'raw-artifact command report reference',
+            message: 'Confirmation requires the complete six-entry screen raw-artifact index.',
+            mutate: (screen) => {
+                screen.rawArtifacts![1] = 'tmp/prior/unrelated.json';
+            },
+        },
+        {
+            name: 'raw-artifact command process reference',
+            message: 'Confirmation requires the complete six-entry screen raw-artifact index.',
+            mutate: (screen) => {
+                screen.rawArtifacts![2] = 'tmp/prior/unrelated.json';
+            },
+        },
+        {
+            name: 'missing scenario row',
             message: 'Confirmation requires exactly 42 unique screen scenario rows.',
             mutate: (screen) => {
                 screen.scenarioRows![screen.scenarioRows!.length - 1] = {
@@ -554,18 +655,46 @@ describe('AST analysis paired runner screen-evidence admission', () => {
             },
         },
         {
-            name: 'in-scope pair comparison',
-            message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
+            name: 'short scenario row count',
+            message: 'Confirmation requires exactly 42 unique screen scenario rows.',
             mutate: (screen) => {
-                screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!.pairs = [];
+                screen.scenarioRows?.pop();
             },
         },
         {
-            name: 'in-scope sink comparison',
+            name: 'duplicate scenario row',
+            message: 'Confirmation requires exactly 42 unique screen scenario rows.',
+            mutate: (screen) => {
+                screen.scenarioRows![1] = { ...screen.scenarioRows![0] };
+            },
+        },
+        {
+            name: 'unknown scenario row',
+            message: 'Confirmation requires exactly 42 unique screen scenario rows.',
+            mutate: (screen) => {
+                screen.scenarioRows![0].scenario = 'unknown-scenario' as typeof SCENARIO_NAMES[number];
+            },
+        },
+        {
+            name: 'in-scope semantic sink',
             message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
             mutate: (screen) => {
                 screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
                     .sinkComparison = 'not_measured';
+            },
+        },
+        {
+            name: 'out-of-scope status',
+            message: 'Confirmation requires not_measured screen rows outside the declared scope.',
+            mutate: (screen) => {
+                screen.scenarioRows![0].status = 'neutral_or_inconclusive';
+            },
+        },
+        {
+            name: 'in-scope pair comparison',
+            message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
+            mutate: (screen) => {
+                screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!.pairs = [];
             },
         },
         {
@@ -577,10 +706,19 @@ describe('AST analysis paired runner screen-evidence admission', () => {
             },
         },
         {
-            name: 'out-of-scope not-measured row',
-            message: 'Confirmation requires not_measured screen rows outside the declared scope.',
+            name: 'in-scope pair direction',
+            message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
             mutate: (screen) => {
-                screen.scenarioRows![0].status = 'neutral_or_inconclusive';
+                screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
+                    .pairs[0].direction = 'invalid' as 'favorable';
+            },
+        },
+        {
+            name: 'in-scope pair timing',
+            message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
+            mutate: (screen) => {
+                screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
+                    .pairs[0].candidateMeanMs = Number.NaN;
             },
         },
         {
@@ -597,7 +735,81 @@ describe('AST analysis paired runner screen-evidence admission', () => {
                 screen.protocol.manifestSha256 = 'F'.repeat(64);
             },
         },
+        {
+            name: 'missing manifest SHA-256',
+            message: 'Confirmation requires a lowercase 64-hex screen manifest SHA-256.',
+            mutate: (screen) => {
+                delete screen.protocol.manifestSha256;
+            },
+        },
+        {
+            name: 'empty manifest SHA-256',
+            message: 'Confirmation requires a lowercase 64-hex screen manifest SHA-256.',
+            mutate: (screen) => {
+                screen.protocol.manifestSha256 = '';
+            },
+        },
+        {
+            name: 'mixed-case manifest SHA-256',
+            message: 'Confirmation requires a lowercase 64-hex screen manifest SHA-256.',
+            mutate: (screen) => {
+                screen.protocol.manifestSha256 = `A${'f'.repeat(63)}`;
+            },
+        },
+        {
+            name: 'non-hex manifest SHA-256',
+            message: 'Confirmation requires a lowercase 64-hex screen manifest SHA-256.',
+            mutate: (screen) => {
+                screen.protocol.manifestSha256 = 'g'.repeat(64);
+            },
+        },
+        {
+            name: 'short manifest SHA-256',
+            message: 'Confirmation requires a lowercase 64-hex screen manifest SHA-256.',
+            mutate: (screen) => {
+                screen.protocol.manifestSha256 = 'f'.repeat(63);
+            },
+        },
+        {
+            name: 'long manifest SHA-256',
+            message: 'Confirmation requires a lowercase 64-hex screen manifest SHA-256.',
+            mutate: (screen) => {
+                screen.protocol.manifestSha256 = 'f'.repeat(65);
+            },
+        },
+        {
+            name: 'numeric manifest SHA-256',
+            message: 'Confirmation requires a lowercase 64-hex screen manifest SHA-256.',
+            mutate: (screen) => {
+                screen.protocol.manifestSha256 = 1 as never;
+            },
+        },
+        {
+            name: 'null manifest SHA-256',
+            message: 'Confirmation requires a lowercase 64-hex screen manifest SHA-256.',
+            mutate: (screen) => {
+                screen.protocol.manifestSha256 = null as never;
+            },
+        },
+        {
+            name: 'array manifest SHA-256',
+            message: 'Confirmation requires a lowercase 64-hex screen manifest SHA-256.',
+            mutate: (screen) => {
+                screen.protocol.manifestSha256 = ['f'.repeat(64)] as never;
+            },
+        },
+        {
+            name: 'object manifest SHA-256',
+            message: 'Confirmation requires a lowercase 64-hex screen manifest SHA-256.',
+            mutate: (screen) => {
+                screen.protocol.manifestSha256 = { value: 'f'.repeat(64) } as never;
+            },
+        },
     ];
+
+    it('covers every independent malformed screen-evidence guard', () => {
+        expect(malformedScreenCases).toHaveLength(38);
+    });
 
     for (const malformed of malformedScreenCases) {
         it(`rejects malformed ${malformed.name} before spawning confirmation`, () => {

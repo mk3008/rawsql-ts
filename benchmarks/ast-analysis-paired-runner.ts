@@ -613,7 +613,8 @@ function validateCompleteScreenEvidence(
     if (!Array.isArray(screen.failures) || screen.failures.length !== 0) {
         throw new Error('Confirmation requires an empty screen failures array.');
     }
-    if (!/^[0-9a-f]{64}$/.test(screen.protocol?.manifestSha256 ?? '')) {
+    const manifestSha256 = screen.protocol?.manifestSha256;
+    if (typeof manifestSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(manifestSha256)) {
         throw new Error('Confirmation requires a lowercase 64-hex screen manifest SHA-256.');
     }
 
