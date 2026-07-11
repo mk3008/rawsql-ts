@@ -112,6 +112,7 @@ describe('AST analysis paired runner admission', () => {
                 p0Commit: 'c6f28dbbf4594e99a8e1b1ab662334c010bd7281',
                 protocolDocumentSha256: 'c'.repeat(64),
                 benchmarkSourceSha256: 'd'.repeat(64),
+                p0ReferenceSha256: 'e'.repeat(64),
             },
             failures: [],
         };
@@ -121,6 +122,7 @@ describe('AST analysis paired runner admission', () => {
             ['renderer.print'],
             'c'.repeat(64),
             'd'.repeat(64),
+            'e'.repeat(64),
         )).not.toThrow();
 
         manifest.practicalThresholds[0].minimumAbsoluteMeanDeltaMs = 0.001;
@@ -130,6 +132,7 @@ describe('AST analysis paired runner admission', () => {
             ['renderer.print'],
             'c'.repeat(64),
             'd'.repeat(64),
+            'e'.repeat(64),
         )).toThrow('Confirmation must exactly inherit');
     });
 });

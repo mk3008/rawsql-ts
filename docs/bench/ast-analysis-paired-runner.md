@@ -88,14 +88,17 @@ Run the declared screen:
 pnpm benchmark:ast-paired -- --manifest=tmp/ast-candidate-screen.json
 ```
 
-If a decision is still wanted after the retained screen, first commit its
-appended candidate-record line or use a separate clean baseline/candidate
-worktree. Create a new manifest with `"stage": "confirmation"` and
+If a decision is still wanted after the retained screen, commit its appended
+candidate-record line in a controller worktree that is separate from the
+commit-pinned baseline and candidate worktrees. Create a new manifest with
+`"stage": "confirmation"` and
 `"screenRunId": "<the-screen-run-id>"`, then run the same command. Do not edit
 the screen record. Before timing, confirmation resolves that tracked screen
 line and requires the exact same candidate metadata, commits, phase scope,
-scope rationale, practical thresholds, and protocol fingerprints. A failed or
-semantically invalid screen cannot admit confirmation.
+scope rationale, practical thresholds, P0 range-reference fingerprint, and
+protocol fingerprints. The runner reads the screen from committed `HEAD` and
+rejects an untracked or modified candidate record. A failed or semantically
+invalid screen cannot admit confirmation.
 
 The runner writes an admission snapshot, one raw benchmark JSON and one process
 log per condition, and a paired summary under:

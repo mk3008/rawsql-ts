@@ -173,6 +173,7 @@ interface ValidatedAdmission {
     benchmarkSourceSha256: string;
     protocolDocumentSha256: string;
     p0SourceDocumentSha256: string;
+    p0ReferenceSha256: string;
     tsNodeCliPath: string;
 }
 
@@ -188,6 +189,7 @@ export interface PriorCandidateRecord {
         p0Commit: string;
         protocolDocumentSha256: string;
         benchmarkSourceSha256: string;
+        p0ReferenceSha256: string;
     };
     failures: unknown[];
 }
@@ -366,6 +368,7 @@ function validateAdmission(manifestPath: string, runnerRoot: string): ValidatedA
     const manifest = JSON.parse(manifestText) as CandidateManifest;
     const p0ReferencePath = path.resolve(runnerRoot, DEFAULT_P0_REFERENCE);
     const p0Reference = readJson<P0Reference>(p0ReferencePath);
+    const p0ReferenceSha256 = normalizedFileSha256(p0ReferencePath);
     validateManifestShape(manifest, p0Reference);
 
     const baselineDirectory = path.resolve(manifest.baselineDirectory);
@@ -411,9 +414,11 @@ function validateAdmission(manifestPath: string, runnerRoot: string): ValidatedA
         validateConfirmationLink(
             manifest,
             recordPath,
+            runnerRoot,
             phaseScope,
             protocolDocumentSha256,
             baselineBenchmarkSha,
+            p0ReferenceSha256,
         );
     }
 
@@ -432,6 +437,7 @@ function validateAdmission(manifestPath: string, runnerRoot: string): ValidatedA
         benchmarkSourceSha256: baselineBenchmarkSha,
         protocolDocumentSha256,
         p0SourceDocumentSha256,
+        p0ReferenceSha256,
         tsNodeCliPath: require.resolve('ts-node/dist/bin.js'),
     };
 }
@@ -439,14 +445,29 @@ function validateAdmission(manifestPath: string, runnerRoot: string): ValidatedA
 function validateConfirmationLink(
     manifest: CandidateManifest,
     recordPath: string,
+    runnerRoot: string,
     phaseScope: PhaseName[],
     protocolDocumentSha256: string,
     benchmarkSourceSha256: string,
+    p0ReferenceSha256: string,
 ): void {
     if (!fs.existsSync(recordPath)) {
         throw new Error('Confirmation requires the tracked append-only screen record.');
     }
-    const records = fs.readFileSync(recordPath, 'utf8')
+    const recordRelativePath = relativeToRoot(runnerRoot, recordPath);
+    if (recordRelativePath.startsWith('../') || path.isAbsolute(recordRelativePath)) {
+        throw new Error('The candidate record must be inside the controller repository.');
+    }
+    try {
+        git(runnerRoot, ['ls-files', '--error-unmatch', '--', recordRelativePath]);
+    } catch {
+        throw new Error('Confirmation requires a Git-tracked candidate record.');
+    }
+    if (git(runnerRoot, ['status', '--porcelain', '--', recordRelativePath]).length > 0) {
+        throw new Error('Confirmation requires the candidate record to match committed HEAD content.');
+    }
+    const committedRecord = git(runnerRoot, ['show', `HEAD:${recordRelativePath}`]);
+    const records = committedRecord
         .split(/\r?\n/)
         .filter((line) => line.trim().length > 0)
         .map((line) => JSON.parse(line) as PriorCandidateRecord);
@@ -460,6 +481,7 @@ function validateConfirmationLink(
         phaseScope,
         protocolDocumentSha256,
         benchmarkSourceSha256,
+        p0ReferenceSha256,
     );
 }
 
@@ -469,13 +491,15 @@ export function validateConfirmationRecord(
     phaseScope: PhaseName[],
     protocolDocumentSha256: string,
     benchmarkSourceSha256: string,
+    p0ReferenceSha256: string,
 ): void {
     const candidateMatches = stableSerialize(screen.candidate) === stableSerialize(manifest.candidate);
     const thresholdsMatch = stableSerialize(screen.practicalThresholds)
         === stableSerialize(normalizeThresholds(manifest));
     const protocolMatches = screen.protocol?.p0Commit === P0_COMMIT
         && screen.protocol.protocolDocumentSha256 === protocolDocumentSha256
-        && screen.protocol.benchmarkSourceSha256 === benchmarkSourceSha256;
+        && screen.protocol.benchmarkSourceSha256 === benchmarkSourceSha256
+        && screen.protocol.p0ReferenceSha256 === p0ReferenceSha256;
     if (screen.stage !== 'screen'
         || screen.status !== 'neutral_or_inconclusive'
         || screen.failures?.length !== 0
@@ -532,6 +556,7 @@ function executeCondition(
         encoding: 'utf8',
         maxBuffer: 16 * 1024 * 1024,
         windowsHide: true,
+        env: sanitizedGitEnvironment(),
     });
     const endedAt = new Date().toISOString();
     const processArtifact = {
@@ -904,6 +929,7 @@ export function runPairedBenchmark(
         manifest: admission.manifest,
         environment: collectEnvironment(),
         p0Commit: admission.p0Reference.p0Commit,
+        p0ReferenceSha256: admission.p0ReferenceSha256,
         protocolDocumentSha256: admission.protocolDocumentSha256,
         benchmarkSourceSha256: admission.benchmarkSourceSha256,
         normalizedPhaseScope: admission.phaseScope,
@@ -1081,6 +1107,7 @@ export function runPairedBenchmark(
         screenRunId: admission.manifest.screenRunId ?? null,
         protocol: {
             p0Commit: admission.p0Reference.p0Commit,
+            p0ReferenceSha256: admission.p0ReferenceSha256,
             protocolDocumentSha256: admission.protocolDocumentSha256,
             benchmarkSourceSha256: admission.benchmarkSourceSha256,
             manifestSha256: admission.manifestSha256,
