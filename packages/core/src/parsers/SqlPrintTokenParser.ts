@@ -36,7 +36,6 @@ import {
     WindowFrameBoundStatic,
     WindowFrameBoundaryValue
 } from "../models/ValueComponent";
-import { ParameterCollector } from "../transformers/ParameterCollector";
 import { IdentifierDecorator } from "./IdentifierDecorator";
 import { ParameterDecorator } from "./ParameterDecorator";
 import { InsertQuery } from "../models/InsertQuery";
@@ -268,6 +267,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     parameterDecorator: ParameterDecorator;
     identifierDecorator: IdentifierDecorator;
     index: number = 1;
+    private parameters: ParameterExpression[] = [];
     private castStyle: CastStyle;
     private constraintStyle: ConstraintStyle;
     private sourceAliasStyle: SourceAliasStyle;
@@ -603,10 +603,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     public parse(arg: SqlComponent): { token: SqlPrintToken, params: any[] | Record<string, any>[] | Record<string, any> } {
         // reset parameter index before parsing
         this.index = 1;
+        this.parameters = [];
 
 
         const token = this.visit(arg);
-        const paramsRaw = ParameterCollector.collect(arg).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+        const paramsRaw = this.parameters.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
 
         const style = this.parameterDecorator.style;
         if (style === ParameterStyle.Named || style === ParameterStyle.Original) {
@@ -1366,6 +1367,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitParameterExpression(arg: ParameterExpression): SqlPrintToken {
         // Create a parameter token and decorate it using the parameterDecorator
         arg.index = this.index;
+        this.parameters.push(arg);
         const text = this.parameterDecorator.style === ParameterStyle.Original && arg.sourceText
             ? arg.sourceText
             : this.parameterDecorator.decorate(arg.name.value, arg.index);
