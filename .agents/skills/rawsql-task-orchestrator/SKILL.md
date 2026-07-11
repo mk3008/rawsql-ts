@@ -7,6 +7,12 @@ description: Assess and dispatch rawsql-ts developer tasks by tracing repository
 
 Keep the orchestration task focused on decisions and evidence. Delegate implementation to a user-owned Codex task; use internal subagents only for bounded exploration, verification, or independent review.
 
+For parent-worker lifecycle control, use the globally installed
+`$minimal-orchestration` skill. This skill owns role identity, ledger state,
+progress rendering, recovery, stale handling, and Runtime Adjudicator packets;
+this rawsql-ts skill owns only repository impact, routing, and verification
+selection.
+
 For broad or uncertain blast-radius analysis, delegate fact gathering to the read-only `impact-explorer` custom agent and keep final classification and dispatch decisions in the parent orchestration task.
 
 ## 1. Establish the base
