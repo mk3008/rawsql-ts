@@ -30,6 +30,7 @@ import { productRankingSql } from './ztd-bench-vs-raw/sql/product_ranking';
 import { salesSummarySql } from './ztd-bench-vs-raw/sql/sales_summary';
 
 type ProfileName = 'pr' | 'full';
+type PairCondition = 'baseline' | 'candidate';
 type PhaseName =
     | 'analyzer.select-output-collection'
     | 'analyzer.integrated-condition-optimization'
@@ -128,6 +129,18 @@ interface BenchmarkReport {
         objectIdentityPolicy: string;
         semanticValidation: string;
         candidateComparison: 'absent';
+        phaseScope: PhaseName[];
+    };
+    pairRun?: {
+        candidateId: string;
+        condition: PairCondition;
+        pairIndex: number;
+    };
+    failure?: {
+        kind: 'semantic_mismatch' | 'execution_failure';
+        phase: PhaseName;
+        scenario: string;
+        message: string;
     };
     formatterOptions: SqlFormatterOptions;
     corpus: CorpusRecord[];
@@ -247,6 +260,63 @@ function parseProfileArg(): ProfileName {
     }
 
     throw new Error(`Unsupported profile: ${value}. Expected --profile=pr or --profile=full.`);
+}
+
+function parsePhaseScopeArg(): PhaseDefinition[] {
+    const phasesArg = process.argv.find((arg) => arg.startsWith('--phases='));
+    if (!phasesArg) {
+        return PHASES;
+    }
+
+    const requestedNames = phasesArg.split('=')[1]
+        .split(',')
+        .filter((name) => name.length > 0);
+    if (requestedNames.length === 0 || new Set(requestedNames).size !== requestedNames.length) {
+        throw new Error('--phases must contain one or more unique comma-separated phase names.');
+    }
+
+    const requested = new Set(requestedNames);
+    const unknown = requestedNames.filter((name) => !PHASES.some((phase) => phase.name === name));
+    if (unknown.length > 0) {
+        throw new Error(`Unsupported phases: ${unknown.join(', ')}.`);
+    }
+
+    return PHASES.filter((phase) => requested.has(phase.name));
+}
+
+function parsePairRunArg(): BenchmarkReport['pairRun'] {
+    const condition = parseOptionalArg('--condition');
+    const candidateId = parseOptionalArg('--candidate-id');
+    const pairIndexText = parseOptionalArg('--pair-index');
+    const suppliedCount = [condition, candidateId, pairIndexText]
+        .filter((value) => value !== undefined).length;
+
+    if (suppliedCount === 0) {
+        return undefined;
+    }
+    if (suppliedCount !== 3) {
+        throw new Error('--condition, --candidate-id, and --pair-index must be supplied together.');
+    }
+    if (condition !== 'baseline' && condition !== 'candidate') {
+        throw new Error('--condition must be baseline or candidate.');
+    }
+
+    const pairIndex = Number.parseInt(pairIndexText as string, 10);
+    if (!Number.isSafeInteger(pairIndex) || pairIndex < 1) {
+        throw new Error('--pair-index must be a positive integer.');
+    }
+
+    return {
+        candidateId: candidateId as string,
+        condition,
+        pairIndex,
+    };
+}
+
+function parseOptionalArg(name: string): string | undefined {
+    const prefix = `${name}=`;
+    const arg = process.argv.find((candidate) => candidate.startsWith(prefix));
+    return arg?.slice(prefix.length);
 }
 
 function getProfileConfig(profile: ProfileName): ProfileConfig {
@@ -715,7 +785,9 @@ function collectCommit(): BenchmarkReport['commit'] {
 function createReport(
     config: ProfileConfig,
     corpus: CorpusDefinition[],
+    phases: PhaseDefinition[],
     results: PhaseScenarioResult[],
+    pairRun: BenchmarkReport['pairRun'],
 ): BenchmarkReport {
     return {
         schemaVersion: 1,
@@ -733,7 +805,9 @@ function createReport(
             objectIdentityPolicy: 'Every warmup and measured invocation consumes a distinct AST parsed before its timed region.',
             semanticValidation: 'Every invocation result is retained, then projected, hashed, and deep-compared with an expected signature after timing.',
             candidateComparison: 'absent',
+            phaseScope: phases.map((phase) => phase.name),
         },
+        pairRun,
         formatterOptions: FORMATTER_OPTIONS,
         corpus: corpus.map((scenario) => ({
             name: scenario.name,
@@ -756,14 +830,14 @@ function createReport(
     };
 }
 
-function printResults(report: BenchmarkReport): void {
+function printResults(report: BenchmarkReport, phases: PhaseDefinition[]): void {
     console.log(`Profile: ${report.profile}`);
     console.log(`Commit: ${report.commit.sha} (${report.commit.dirty ? 'dirty' : 'clean'})`);
     console.log(`Node: ${report.environment.node}`);
     console.log(`Process: ${report.environment.processId}`);
     console.log('');
 
-    for (const phase of PHASES) {
+    for (const phase of phases) {
         console.log(`Phase: ${phase.name}`);
         console.log('| Scenario | mean(ms) | p95(ms) | stddev(ms) | sink |');
         console.log('|---|---:|---:|---:|---|');
@@ -778,6 +852,14 @@ function printResults(report: BenchmarkReport): void {
 }
 
 function writeReport(report: BenchmarkReport): string {
+    const explicitOutputFile = parseOptionalArg('--output-file');
+    if (explicitOutputFile) {
+        const outputPath = path.resolve(explicitOutputFile);
+        fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+        fs.writeFileSync(outputPath, JSON.stringify(report, null, 2), { encoding: 'utf8', flag: 'wx' });
+        return outputPath;
+    }
+
     const tmpDir = path.resolve(__dirname, '../tmp');
     fs.mkdirSync(tmpDir, { recursive: true });
     const timestamp = report.timestamp.replace(/[:]/g, '-');
@@ -827,17 +909,37 @@ function assertNever(value: never): never {
 function main(): void {
     const profile = parseProfileArg();
     const config = getProfileConfig(profile);
+    const phases = parsePhaseScopeArg();
+    const pairRun = parsePairRunArg();
     const corpus = createCorpus(config);
     const results: PhaseScenarioResult[] = [];
 
-    for (const phase of PHASES) {
+    for (const phase of phases) {
         for (const scenario of corpus) {
-            results.push(measurePhaseScenario(phase, scenario, config));
+            try {
+                results.push(measurePhaseScenario(phase, scenario, config));
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                const report = createReport(config, corpus, phases, results, pairRun);
+                report.failure = {
+                    kind: message.startsWith('Semantic sink mismatch')
+                        ? 'semantic_mismatch'
+                        : 'execution_failure',
+                    phase: phase.name,
+                    scenario: scenario.name,
+                    message,
+                };
+                const reportPath = writeReport(report);
+                console.error(message);
+                console.error(`Partial report saved to ${path.relative(process.cwd(), reportPath)}`);
+                process.exitCode = 1;
+                return;
+            }
         }
     }
 
-    const report = createReport(config, corpus, results);
-    printResults(report);
+    const report = createReport(config, corpus, phases, results, pairRun);
+    printResults(report, phases);
     const reportPath = writeReport(report);
     console.log(`Observable sink: ${observableSink >>> 0}`);
     console.log(`Report saved to ${path.relative(process.cwd(), reportPath)}`);

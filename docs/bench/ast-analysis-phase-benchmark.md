@@ -233,3 +233,9 @@ No phase supports `effect` or `no material effect` because this foundation compa
 4. Retain raw process artifacts and report every scenario independently.
 5. Reject the candidate when its effect does not exceed run-to-run noise or any semantic sink changes.
 6. Profile only after a material phase is repeatable.
+
+The executable Stage 1/2 path, admission manifest, fixed status vocabulary,
+machine-readable P0 range reference, artifact rules, and append-only candidate
+record are documented in
+[AST Analysis Paired Runner](./ast-analysis-paired-runner.md). Use that runner
+before changing or measuring a future optimization candidate.
