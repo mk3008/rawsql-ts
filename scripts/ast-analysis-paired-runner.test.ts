@@ -548,10 +548,17 @@ describe('AST analysis paired runner screen-evidence admission', () => {
             },
         },
         {
-            name: 'command commit',
+            name: 'baseline command commit',
             message: 'Confirmation requires exactly two successful screen command records in planned order.',
             mutate: (screen) => {
                 screen.commands![0].commit!.sha = '0'.repeat(40);
+            },
+        },
+        {
+            name: 'candidate command commit',
+            message: 'Confirmation requires exactly two successful screen command records in planned order.',
+            mutate: (screen) => {
+                screen.commands![1].commit!.sha = '0'.repeat(40);
             },
         },
         {
@@ -576,24 +583,45 @@ describe('AST analysis paired runner screen-evidence admission', () => {
             },
         },
         {
-            name: 'command report path',
+            name: 'empty command report path',
             message: 'Confirmation requires exactly two successful screen command records in planned order.',
             mutate: (screen) => {
                 screen.commands![0].reportPath = '';
             },
         },
         {
-            name: 'command process path',
+            name: 'null command report path',
+            message: 'Confirmation requires exactly two successful screen command records in planned order.',
+            mutate: (screen) => {
+                screen.commands![0].reportPath = null;
+            },
+        },
+        {
+            name: 'empty command process path',
             message: 'Confirmation requires exactly two successful screen command records in planned order.',
             mutate: (screen) => {
                 screen.commands![0].processPath = '';
             },
         },
         {
-            name: 'missing raw-artifact index',
+            name: 'null command process path',
+            message: 'Confirmation requires exactly two successful screen command records in planned order.',
+            mutate: (screen) => {
+                screen.commands![0].processPath = null as never;
+            },
+        },
+        {
+            name: 'missing raw-artifact entry',
             message: 'Confirmation requires the complete six-entry screen raw-artifact index.',
             mutate: (screen) => {
                 screen.rawArtifacts?.pop();
+            },
+        },
+        {
+            name: 'absent raw-artifact index',
+            message: 'Confirmation requires the complete six-entry screen raw-artifact index.',
+            mutate: (screen) => {
+                delete (screen as Partial<PriorCandidateRecord>).rawArtifacts;
             },
         },
         {
@@ -662,6 +690,13 @@ describe('AST analysis paired runner screen-evidence admission', () => {
             },
         },
         {
+            name: 'extra 43rd scenario row',
+            message: 'Confirmation requires exactly 42 unique screen scenario rows.',
+            mutate: (screen) => {
+                screen.scenarioRows?.push({ ...screen.scenarioRows![0] });
+            },
+        },
+        {
             name: 'duplicate scenario row',
             message: 'Confirmation requires exactly 42 unique screen scenario rows.',
             mutate: (screen) => {
@@ -676,11 +711,26 @@ describe('AST analysis paired runner screen-evidence admission', () => {
             },
         },
         {
+            name: 'unknown phase row',
+            message: 'Confirmation requires exactly 42 unique screen scenario rows.',
+            mutate: (screen) => {
+                screen.scenarioRows![0].phase = 'unknown-phase' as typeof PHASE_NAMES[number];
+            },
+        },
+        {
+            name: 'in-scope semantic mismatch status',
+            message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
+            mutate: (screen) => {
+                screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
+                    .status = 'semantic_mismatch';
+            },
+        },
+        {
             name: 'in-scope semantic sink',
             message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
             mutate: (screen) => {
                 screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
-                    .sinkComparison = 'not_measured';
+                    .sinkComparison = 'mismatch';
             },
         },
         {
@@ -691,10 +741,34 @@ describe('AST analysis paired runner screen-evidence admission', () => {
             },
         },
         {
-            name: 'in-scope pair comparison',
+            name: 'zero in-scope pair count',
             message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
             mutate: (screen) => {
                 screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!.pairs = [];
+            },
+        },
+        {
+            name: 'two in-scope pair count',
+            message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
+            mutate: (screen) => {
+                const row = screen.scenarioRows!.find((candidate) => candidate.phase === 'renderer.print')!;
+                row.pairs.push({ ...row.pairs[0] });
+            },
+        },
+        {
+            name: 'zero in-scope pair index',
+            message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
+            mutate: (screen) => {
+                screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
+                    .pairs[0].pairIndex = 0;
+            },
+        },
+        {
+            name: 'two in-scope pair index',
+            message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
+            mutate: (screen) => {
+                screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
+                    .pairs[0].pairIndex = 2;
             },
         },
         {
@@ -706,6 +780,14 @@ describe('AST analysis paired runner screen-evidence admission', () => {
             },
         },
         {
+            name: 'mismatched in-scope practical threshold',
+            message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
+            mutate: (screen) => {
+                screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
+                    .practicalThresholdMs = 0.02;
+            },
+        },
+        {
             name: 'in-scope pair direction',
             message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
             mutate: (screen) => {
@@ -714,7 +796,7 @@ describe('AST analysis paired runner screen-evidence admission', () => {
             },
         },
         {
-            name: 'in-scope pair timing',
+            name: 'NaN in-scope pair timing',
             message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
             mutate: (screen) => {
                 screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
@@ -722,10 +804,60 @@ describe('AST analysis paired runner screen-evidence admission', () => {
             },
         },
         {
+            name: 'Infinity in-scope pair timing',
+            message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
+            mutate: (screen) => {
+                screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
+                    .pairs[0].baselineMeanMs = Number.POSITIVE_INFINITY;
+            },
+        },
+        {
+            name: 'non-number in-scope pair timing',
+            message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
+            mutate: (screen) => {
+                screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
+                    .pairs[0].candidateMinusBaselineMeanMs = 'invalid' as never;
+            },
+        },
+        {
+            name: 'out-of-scope pair evidence',
+            message: 'Confirmation requires not_measured screen rows outside the declared scope.',
+            mutate: (screen) => {
+                screen.scenarioRows![0].pairs = [{
+                    pairIndex: 1,
+                    baselineMeanMs: 1,
+                    candidateMeanMs: 0.9,
+                    candidateMinusBaselineMeanMs: -0.1,
+                    direction: 'favorable',
+                }];
+            },
+        },
+        {
+            name: 'out-of-scope practical threshold',
+            message: 'Confirmation requires not_measured screen rows outside the declared scope.',
+            mutate: (screen) => {
+                screen.scenarioRows![0].practicalThresholdMs = 0.01;
+            },
+        },
+        {
+            name: 'out-of-scope semantic sink',
+            message: 'Confirmation requires not_measured screen rows outside the declared scope.',
+            mutate: (screen) => {
+                screen.scenarioRows![0].sinkComparison = 'matched';
+            },
+        },
+        {
             name: 'failures array',
             message: 'Confirmation requires an empty screen failures array.',
             mutate: (screen) => {
                 screen.failures = [{ kind: 'execution_failure' }];
+            },
+        },
+        {
+            name: 'absent failures array',
+            message: 'Confirmation requires an empty screen failures array.',
+            mutate: (screen) => {
+                delete (screen as Partial<PriorCandidateRecord>).failures;
             },
         },
         {
@@ -806,10 +938,6 @@ describe('AST analysis paired runner screen-evidence admission', () => {
             },
         },
     ];
-
-    it('covers every independent malformed screen-evidence guard', () => {
-        expect(malformedScreenCases).toHaveLength(38);
-    });
 
     for (const malformed of malformedScreenCases) {
         it(`rejects malformed ${malformed.name} before spawning confirmation`, () => {
