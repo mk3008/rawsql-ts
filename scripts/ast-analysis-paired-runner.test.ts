@@ -683,6 +683,13 @@ describe('AST analysis paired runner screen-evidence admission', () => {
             },
         },
         {
+            name: 'absent scenario rows',
+            message: 'Confirmation requires exactly 42 unique screen scenario rows.',
+            mutate: (screen) => {
+                delete (screen as Partial<PriorCandidateRecord>).scenarioRows;
+            },
+        },
+        {
             name: 'short scenario row count',
             message: 'Confirmation requires exactly 42 unique screen scenario rows.',
             mutate: (screen) => {
@@ -723,6 +730,14 @@ describe('AST analysis paired runner screen-evidence admission', () => {
             mutate: (screen) => {
                 screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
                     .status = 'semantic_mismatch';
+            },
+        },
+        {
+            name: 'in-scope not-measured status',
+            message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
+            mutate: (screen) => {
+                screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
+                    .status = 'not_measured';
             },
         },
         {
@@ -804,6 +819,30 @@ describe('AST analysis paired runner screen-evidence admission', () => {
             },
         },
         {
+            name: 'NaN in-scope P0 range',
+            message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
+            mutate: (screen) => {
+                screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
+                    .p0BetweenProcessMeanRangeMs = Number.NaN;
+            },
+        },
+        {
+            name: 'Infinity in-scope P0 range',
+            message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
+            mutate: (screen) => {
+                screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
+                    .p0BetweenProcessMeanRangeMs = Number.POSITIVE_INFINITY;
+            },
+        },
+        {
+            name: 'negative in-scope P0 range',
+            message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
+            mutate: (screen) => {
+                screen.scenarioRows!.find((row) => row.phase === 'renderer.print')!
+                    .p0BetweenProcessMeanRangeMs = -0.01;
+            },
+        },
+        {
             name: 'Infinity in-scope pair timing',
             message: 'Confirmation requires complete in-scope screen comparison, sink, and threshold evidence.',
             mutate: (screen) => {
@@ -844,6 +883,27 @@ describe('AST analysis paired runner screen-evidence admission', () => {
             message: 'Confirmation requires not_measured screen rows outside the declared scope.',
             mutate: (screen) => {
                 screen.scenarioRows![0].sinkComparison = 'matched';
+            },
+        },
+        {
+            name: 'NaN out-of-scope P0 range',
+            message: 'Confirmation requires not_measured screen rows outside the declared scope.',
+            mutate: (screen) => {
+                screen.scenarioRows![0].p0BetweenProcessMeanRangeMs = Number.NaN;
+            },
+        },
+        {
+            name: 'Infinity out-of-scope P0 range',
+            message: 'Confirmation requires not_measured screen rows outside the declared scope.',
+            mutate: (screen) => {
+                screen.scenarioRows![0].p0BetweenProcessMeanRangeMs = Number.POSITIVE_INFINITY;
+            },
+        },
+        {
+            name: 'negative out-of-scope P0 range',
+            message: 'Confirmation requires not_measured screen rows outside the declared scope.',
+            mutate: (screen) => {
+                screen.scenarioRows![0].p0BetweenProcessMeanRangeMs = -0.01;
             },
         },
         {
