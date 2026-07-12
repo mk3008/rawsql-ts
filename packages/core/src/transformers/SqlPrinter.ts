@@ -755,9 +755,9 @@ export class SqlPrinter {
     }
 
     private isLogicalOperatorWithComment(token: SqlPrintToken): boolean {
-        return this.containsCommentBlock(token) &&
-            token.type === SqlPrintTokenType.operator &&
-            ['and', 'or'].includes(token.text.toLowerCase());
+        return token.type === SqlPrintTokenType.operator &&
+            ['and', 'or'].includes(token.text.toLowerCase()) &&
+            this.containsCommentBlock(token);
     }
 
     private currentLineEndsWithLogicalOperator(): boolean {
