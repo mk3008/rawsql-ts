@@ -5,7 +5,7 @@
   "sourceDocument": "docs/bench/ast-analysis-phase-benchmark.md",
   "p0SourceDocumentSha256": "a59db869461e8328b71ae49224abed85e58bbaa79123eadd8ee74af56f824571",
   "protocolDocumentSha256": "cfffe676e0dc809800c1d5a9f689a44e2b0f047e31ea391b22d8b9de15d2bc7f",
-  "pairedBenchmarkSourceSha256": "526b87b598d53f87db5bc8c278e592e461a9d89a82a712baa71eb4118e421d50",
+  "pairedBenchmarkSourceSha256": "1289dffab4be072538cd2593579287b4d99ff8545714cbb5b06279385e2588aa",
   "unit": "mean milliseconds",
   "rows": [
     { "phase": "analyzer.select-output-collection", "scenario": "tracked.customer-summary", "minimumMeanMs": 0.023324, "maximumMeanMs": 0.033502, "betweenProcessMeanRangeMs": 0.010178 },

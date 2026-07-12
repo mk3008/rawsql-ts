@@ -50,6 +50,24 @@ function commitFixture(directory: string, message: string): string {
     }).trim();
 }
 
+function commitExistingFixture(directory: string, message: string): string {
+    const options = { cwd: directory, env: sanitizedGitEnvironment() };
+    execFileSync('git', ['add', '.'], options);
+    execFileSync('git', [
+        '-c',
+        'user.name=Paired Runner Test',
+        '-c',
+        'user.email=paired-runner@example.invalid',
+        'commit',
+        '-m',
+        message,
+    ], options);
+    return execFileSync('git', ['rev-parse', 'HEAD'], {
+        ...options,
+        encoding: 'utf8',
+    }).trim();
+}
+
 function readReference(): P0Reference {
     const referencePath = path.resolve(
         process.cwd(),
@@ -227,22 +245,36 @@ function createConfirmationRecord(
         failures: [],
         screenRunId: 'screen-1',
         escalationDecision: 'full_profile_required_before_adoption',
-        commands: runOrderForStage('confirmation').map((item, index) => ({
-            sequence: index + 1,
-            pairIndex: item.pairIndex,
-            condition: item.condition,
-            args: ['--profile=pr', `--phases=${manifest.phaseScope.join(',')}`],
-            exitCode: 0,
-            reportPath: `tmp/prior/${index + 1}.json`,
-            processPath: `tmp/prior/${index + 1}.process.json`,
-            commit: {
-                sha: item.condition === 'baseline'
-                    ? manifest.candidate.baseCommit
-                    : manifest.candidate.candidateCommit,
-                dirty: false,
-            },
-            environment: { node: 'test' },
-        })),
+        commands: runOrderForStage('confirmation').map((item, index) => {
+            const reportPath = `tmp/prior/${index + 1}.json`;
+            return {
+                sequence: index + 1,
+                pairIndex: item.pairIndex,
+                condition: item.condition,
+                command: 'node',
+                args: [
+                    '<ts-node-cli>',
+                    'benchmarks/ast-analysis-phase-benchmark.ts',
+                    '--profile=pr',
+                    `--phases=${manifest.phaseScope.join(',')}`,
+                    `--condition=${item.condition}`,
+                    `--candidate-id=${manifest.candidate.id}`,
+                    `--pair-index=${item.pairIndex}`,
+                    `--output-file=${reportPath}`,
+                ],
+                cwdRole: item.condition,
+                exitCode: 0,
+                reportPath,
+                processPath: `tmp/prior/${index + 1}.process.json`,
+                commit: {
+                    sha: item.condition === 'baseline'
+                        ? manifest.candidate.baseCommit
+                        : manifest.candidate.candidateCommit,
+                    dirty: false,
+                },
+                environment: { node: 'test' },
+            };
+        }),
         rawArtifacts: [
             'tmp/prior/admission.json',
             ...runOrderForStage('confirmation').flatMap((_, index) => [
@@ -285,6 +317,9 @@ function createConfirmationAdmissionFixture(
 ): {
     temporaryRoot: string;
     controllerRoot: string;
+    baselineRoot: string;
+    candidateRoot: string;
+    manifest: CandidateManifest;
     manifestPath: string;
     recordPath: string;
 } {
@@ -348,7 +383,15 @@ function createConfirmationAdmissionFixture(
     commitFixture(controllerRoot, 'committed screen fixture');
     const manifestPath = path.join(temporaryRoot, 'confirmation-manifest.json');
     fs.writeFileSync(manifestPath, JSON.stringify(manifest), 'utf8');
-    return { temporaryRoot, controllerRoot, manifestPath, recordPath };
+    return {
+        temporaryRoot,
+        controllerRoot,
+        baselineRoot,
+        candidateRoot,
+        manifest,
+        manifestPath,
+        recordPath,
+    };
 }
 
 function createOutcomeAdmission(): ValidatedAdmission {
@@ -467,6 +510,17 @@ describe('AST analysis paired runner admission', () => {
         manifest.candidate.summary = confirmation.candidate.summary;
         confirmation.scenarioRows?.pop();
         expect(validate).toThrow('Full profile must exactly inherit');
+
+        const alteredCommand = createConfirmationRecord(manifest);
+        alteredCommand.commands![0].args[2] = '--profile=full';
+        expect(() => validateFullProfileRecord(
+            manifest,
+            alteredCommand,
+            ['renderer.print'],
+            'c'.repeat(64),
+            'd'.repeat(64),
+            'e'.repeat(64),
+        )).toThrow('Full profile must exactly inherit');
     });
 
     it('retains non-positive confirmation eligibility but rejects failed or invalid lineage', () => {
@@ -1025,6 +1079,21 @@ describe('AST analysis paired runner screen-evidence admission', () => {
 });
 
 describe('AST analysis paired runner ordering and outcomes', () => {
+    it('uses exclusive writes for automatic phase benchmark reports', () => {
+        const source = fs.readFileSync(path.resolve(
+            process.cwd(),
+            'benchmarks/ast-analysis-phase-benchmark.ts',
+        ), 'utf8');
+        const automaticWrite = source.slice(
+            source.indexOf("const tmpDir = path.resolve(__dirname, '../tmp');"),
+            source.indexOf('function stableSerialize'),
+        );
+
+        expect(automaticWrite).toContain(
+            "fs.writeFileSync(outputPath, JSON.stringify(report, null, 2), { encoding: 'utf8', flag: 'wx' });",
+        );
+    });
+
     it('alternates each pair and counterbalances the middle confirmation pair', () => {
         expect(runOrderForStage('screen')).toEqual([
             { pairIndex: 1, condition: 'baseline' },
@@ -1117,6 +1186,86 @@ describe('AST analysis paired runner ordering and outcomes', () => {
 });
 
 describe('AST analysis paired runner failure retention', () => {
+    it('rejects Stage 3 before spawning when its predecessor screen is incomplete', () => {
+        const fixture = createConfirmationAdmissionFixture();
+        const benchmarkSpawn = vi.mocked(spawnSync);
+        try {
+            const screen = JSON.parse(fs.readFileSync(fixture.recordPath, 'utf8')) as PriorCandidateRecord;
+            screen.commands?.pop();
+            const manifest = createFullProfileCandidateManifest();
+            manifest.candidate = { ...fixture.manifest.candidate };
+            manifest.phaseScope = [...fixture.manifest.phaseScope];
+            manifest.scopeRationale = fixture.manifest.scopeRationale;
+            manifest.practicalThresholds = fixture.manifest.practicalThresholds.map(
+                (threshold) => ({ ...threshold }),
+            );
+            manifest.baselineDirectory = fixture.baselineRoot;
+            manifest.candidateDirectory = fixture.candidateRoot;
+            const confirmation = createConfirmationRecord(manifest);
+            confirmation.protocol = { ...screen.protocol };
+            fs.writeFileSync(
+                fixture.recordPath,
+                `${JSON.stringify(screen)}\n${JSON.stringify(confirmation)}\n`,
+                'utf8',
+            );
+            commitExistingFixture(fixture.controllerRoot, 'malformed Stage 3 screen fixture');
+            const manifestPath = path.join(fixture.temporaryRoot, 'full-profile-manifest.json');
+            fs.writeFileSync(manifestPath, JSON.stringify(manifest), 'utf8');
+            const recordBefore = fs.readFileSync(fixture.recordPath, 'utf8');
+            benchmarkSpawn.mockClear();
+
+            expect(() => runPairedBenchmark(manifestPath, fixture.controllerRoot))
+                .toThrow('Confirmation requires exactly two successful screen command records in planned order.');
+
+            expect(benchmarkSpawn).not.toHaveBeenCalled();
+            expect(fs.readFileSync(fixture.recordPath, 'utf8')).toBe(recordBefore);
+            expect(fs.existsSync(path.join(
+                fixture.controllerRoot,
+                'tmp',
+                'ast-analysis-paired-runs',
+            ))).toBe(false);
+        } finally {
+            fs.rmSync(fixture.temporaryRoot, { recursive: true, force: true });
+        }
+    });
+
+    it('retains a timeout failure and stops confirmation after its first process', () => {
+        const fixture = createConfirmationAdmissionFixture();
+        const benchmarkSpawn = vi.mocked(spawnSync);
+        try {
+            benchmarkSpawn.mockClear();
+            benchmarkSpawn.mockImplementationOnce(() => ({
+                status: null,
+                signal: 'SIGTERM',
+                error: Object.assign(new Error('benchmark timed out'), { code: 'ETIMEDOUT' }),
+                stdout: '',
+                stderr: '',
+            }) as ReturnType<typeof spawnSync>);
+
+            const result = runPairedBenchmark(fixture.manifestPath, fixture.controllerRoot);
+            const records = fs.readFileSync(fixture.recordPath, 'utf8').trim().split(/\r?\n/);
+            const record = JSON.parse(records[1]) as {
+                commands: Array<{ exitCode: number | null }>;
+                failures: Array<{ signal: string | null; error: string | null }>;
+                rawArtifacts: string[];
+            };
+
+            expect(result.executionFailed).toBe(true);
+            expect(benchmarkSpawn).toHaveBeenCalledTimes(1);
+            expect(benchmarkSpawn.mock.calls[0][2]).toMatchObject({ timeout: 60_000 });
+            expect(records).toHaveLength(2);
+            expect(record.commands).toHaveLength(1);
+            expect(record.commands[0].exitCode).toBeNull();
+            expect(record.failures).toEqual(expect.arrayContaining([
+                expect.objectContaining({ signal: 'SIGTERM', error: 'benchmark timed out' }),
+            ]));
+            expect(record.rawArtifacts.some((artifact) => artifact.endsWith('.process.json'))).toBe(true);
+            expect(fs.existsSync(result.summaryPath)).toBe(true);
+        } finally {
+            fs.rmSync(fixture.temporaryRoot, { recursive: true, force: true });
+        }
+    });
+
     it('preserves Stage 1 failure retention and its 42-row append', () => {
         const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rawsql-screen-runner-'));
         try {
@@ -1147,6 +1296,15 @@ describe('AST analysis paired runner failure retention', () => {
             const manifestPath = path.join(controllerRoot, 'manifest.json');
             fs.writeFileSync(manifestPath, JSON.stringify(manifest), 'utf8');
 
+            const benchmarkSpawn = vi.mocked(spawnSync);
+            benchmarkSpawn.mockClear();
+            benchmarkSpawn.mockImplementationOnce(() => ({
+                status: 1,
+                signal: null,
+                error: undefined,
+                stdout: '',
+                stderr: 'synthetic subprocess failure',
+            }) as ReturnType<typeof spawnSync>);
             const result = runPairedBenchmark(manifestPath, controllerRoot);
             const recordPath = path.join(
                 controllerRoot,
@@ -1163,6 +1321,7 @@ describe('AST analysis paired runner failure retention', () => {
             };
 
             expect(result.executionFailed).toBe(true);
+            expect(benchmarkSpawn).toHaveBeenCalledTimes(1);
             expect(record.profile).toBe('pr');
             expect(record.status).toBe('not_measured');
             expect(record.commands[0].args).toContain('--profile=pr');
@@ -1321,14 +1480,17 @@ describe('AST analysis paired runner failure retention', () => {
                 'bench',
                 'ast-analysis-phase-p0-reference.json',
             ));
-            const screen = {
-                ...confirmation,
-                runId: 'screen-1',
-                stage: 'screen' as const,
-                status: 'neutral_or_inconclusive' as const,
-                screenRunId: null,
-                failures: [],
-            };
+            const screenManifest = createConfirmationManifest();
+            screenManifest.candidate = { ...manifest.candidate };
+            screenManifest.phaseScope = [...manifest.phaseScope];
+            screenManifest.scopeRationale = manifest.scopeRationale;
+            screenManifest.practicalThresholds = manifest.practicalThresholds.map(
+                (threshold) => ({ ...threshold }),
+            );
+            screenManifest.baselineDirectory = baselineRoot;
+            screenManifest.candidateDirectory = candidateRoot;
+            const screen = createScreenRecord(screenManifest);
+            screen.protocol = { ...confirmation.protocol };
             const recordPath = path.join(
                 controllerRoot,
                 'docs',
@@ -1341,6 +1503,15 @@ describe('AST analysis paired runner failure retention', () => {
 
             const manifestPath = path.join(temporaryRoot, 'manifest.json');
             fs.writeFileSync(manifestPath, JSON.stringify(manifest), 'utf8');
+            const benchmarkSpawn = vi.mocked(spawnSync);
+            benchmarkSpawn.mockClear();
+            benchmarkSpawn.mockImplementationOnce(() => ({
+                status: null,
+                signal: 'SIGTERM',
+                error: Object.assign(new Error('benchmark timed out'), { code: 'ETIMEDOUT' }),
+                stdout: '',
+                stderr: '',
+            }) as ReturnType<typeof spawnSync>);
             const result = runPairedBenchmark(manifestPath, controllerRoot);
             const recordText = fs.readFileSync(recordPath, 'utf8');
             const appended = JSON.parse(recordText.trim().split(/\r?\n/)[2]) as {
@@ -1352,6 +1523,8 @@ describe('AST analysis paired runner failure retention', () => {
             };
 
             expect(result.executionFailed).toBe(true);
+            expect(benchmarkSpawn).toHaveBeenCalledTimes(1);
+            expect(benchmarkSpawn.mock.calls[0][2]).toMatchObject({ timeout: 300_000 });
             expect(recordText.startsWith(committedPrefix)).toBe(true);
             expect(appended.stage).toBe('full_profile');
             expect(appended.profile).toBe('full');

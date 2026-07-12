@@ -888,7 +888,7 @@ function writeReport(report: BenchmarkReport): string {
         tmpDir,
         `ast-analysis-phase-benchmark-${report.profile}-${timestamp}-pid${process.pid}.json`,
     );
-    fs.writeFileSync(outputPath, JSON.stringify(report, null, 2), 'utf8');
+    fs.writeFileSync(outputPath, JSON.stringify(report, null, 2), { encoding: 'utf8', flag: 'wx' });
     return outputPath;
 }
 

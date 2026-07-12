@@ -156,6 +156,8 @@ interface ProcessRun {
     command: string;
     args: string[];
     exitCode: number | null;
+    signal: NodeJS.Signals | null;
+    error: string | null;
     report?: RawBenchmarkReport;
     reportReadError?: string;
 }
@@ -227,6 +229,30 @@ const DEFAULT_OUTPUT_ROOT = 'tmp/ast-analysis-paired-runs';
 const BENCHMARK_SOURCE = 'benchmarks/ast-analysis-phase-benchmark.ts';
 const PROTOCOL_DOCUMENT = 'docs/bench/ast-analysis-benchmark-measurement-efficiency.md';
 const P0_COMMIT = 'c6f28dbbf4594e99a8e1b1ab662334c010bd7281';
+const PROCESS_TIMEOUT_MS: Record<ProfileName, number> = {
+    pr: 60_000,
+    full: 300_000,
+};
+
+function normalizedCommandArgs(
+    profile: ProfileName,
+    phaseScope: PhaseName[],
+    condition: Condition,
+    candidateId: string,
+    pairIndex: number,
+    reportPath: string,
+): string[] {
+    return [
+        '<ts-node-cli>',
+        BENCHMARK_SOURCE,
+        `--profile=${profile}`,
+        `--phases=${phaseScope.join(',')}`,
+        `--condition=${condition}`,
+        `--candidate-id=${candidateId}`,
+        `--pair-index=${pairIndex}`,
+        `--output-file=${reportPath}`,
+    ];
+}
 
 export function runOrderForStage(stage: Stage): Array<{ pairIndex: number; condition: Condition }> {
     if (stage === 'screen') {
@@ -561,6 +587,7 @@ function validateFullProfileLink(
     if (!screen) {
         throw new Error(`No predecessor screen record was found for ${confirmation.screenRunId}.`);
     }
+    validateCompleteScreenEvidence(screen, manifest, phaseScope);
     validateConfirmationRecord(
         manifest,
         screen,
@@ -619,7 +646,6 @@ function validateCompleteScreenEvidence(
     }
 
     const expectedOrder = runOrderForStage('screen');
-    const expectedPhaseArg = `--phases=${phaseScope.join(',')}`;
     const commands = screen.commands;
     const commandRecords = Array.isArray(commands) ? commands : [];
     const commandsComplete = commandRecords.length === expectedOrder.length
@@ -641,16 +667,14 @@ function validateCompleteScreenEvidence(
                 && reportPath.length > 0
                 && typeof command.processPath === 'string'
                 && command.processPath.length > 0
-                && stableSerialize(command.args) === stableSerialize([
-                    '<ts-node-cli>',
-                    BENCHMARK_SOURCE,
-                    '--profile=pr',
-                    expectedPhaseArg,
-                    `--condition=${expected.condition}`,
-                    `--candidate-id=${manifest.candidate.id}`,
-                    '--pair-index=1',
-                    `--output-file=${reportPath}`,
-                ])
+                && stableSerialize(command.args) === stableSerialize(normalizedCommandArgs(
+                    'pr',
+                    phaseScope,
+                    expected.condition,
+                    manifest.candidate.id,
+                    expected.pairIndex,
+                    reportPath,
+                ))
                 && command.exitCode === 0
                 && command.commit?.sha === expectedCommit
                 && command.commit.dirty === false
@@ -799,7 +823,6 @@ function hasCompleteConfirmationEvidence(
     phaseScope: PhaseName[],
 ): boolean {
     const expectedOrder = runOrderForStage('confirmation');
-    const expectedPhaseArg = `--phases=${phaseScope.join(',')}`;
     const commands = confirmation.commands ?? [];
     const commandsComplete = commands.length === expectedOrder.length
         && commands.every((command, index) => {
@@ -810,16 +833,26 @@ function hasCompleteConfirmationEvidence(
             return command.sequence === index + 1
                 && command.pairIndex === expected.pairIndex
                 && command.condition === expected.condition
-                && command.args.includes('--profile=pr')
-                && command.args.includes(expectedPhaseArg)
-                && command.exitCode === 0
+                && command.command === 'node'
+                && command.cwdRole === expected.condition
                 && typeof command.reportPath === 'string'
+                && stableSerialize(command.args) === stableSerialize(normalizedCommandArgs(
+                    'pr',
+                    phaseScope,
+                    expected.condition,
+                    confirmation.candidate.id,
+                    expected.pairIndex,
+                    command.reportPath,
+                ))
+                && command.exitCode === 0
                 && command.reportPath.length > 0
                 && typeof command.processPath === 'string'
                 && command.processPath.length > 0
                 && command.commit?.sha === expectedCommit
                 && command.commit.dirty === false
-                && command.environment !== null;
+                && command.environment !== null
+                && typeof command.environment === 'object'
+                && !Array.isArray(command.environment);
         });
 
     const artifacts = new Set(confirmation.rawArtifacts ?? []);
@@ -925,6 +958,7 @@ function executeCondition(
         cwd,
         encoding: 'utf8',
         maxBuffer: 16 * 1024 * 1024,
+        timeout: PROCESS_TIMEOUT_MS[admission.profile],
         windowsHide: true,
         env: sanitizedGitEnvironment(),
     });
@@ -966,6 +1000,8 @@ function executeCondition(
         command,
         args,
         exitCode: result.status,
+        signal: result.signal,
+        error: result.error?.message ?? null,
         report,
         reportReadError,
     };
@@ -1481,6 +1517,8 @@ export function runPairedBenchmark(
                 pairIndex: processRun.pairIndex,
                 condition: processRun.condition,
                 exitCode: processRun.exitCode,
+                signal: processRun.signal,
+                error: processRun.error,
                 failure: processRun.report?.failure ?? null,
                 processPath: relativeToRoot(runnerRoot, processRun.processPath),
             })),

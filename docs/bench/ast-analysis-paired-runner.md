@@ -26,6 +26,11 @@ sample. Phase scope can be narrowed for screen and confirmation, but every
 declared phase always runs all seven P0 scenarios. Full profile always executes
 all six phases and all seven scenarios.
 
+Each condition has a profile-aware process timeout: 60 seconds for `pr` and
+300 seconds for `full`. A timeout retains its process artifact and failure
+record, then stops later pairs rather than treating incomplete timing as
+evidence.
+
 Before the first timed process, the runner requires and records:
 
 - one candidate ID, kind, summary, hypothesis, base commit, candidate commit,
@@ -121,8 +126,9 @@ metadata, commits, declared phase scope, scope rationale, and practical
 thresholds equivalent after normalization. Before timing, the runner resolves
 the confirmation from committed `HEAD`, requires the candidate record to be
 tracked and unmodified, and validates the same P0, protocol, benchmark-source,
-and reference fingerprints. A failed or semantically invalid confirmation
-cannot admit the full profile. Adverse and inconclusive confirmations remain
+and reference fingerprints. It also revalidates the referenced screen's
+complete runner-generated evidence before admitting Stage 3. A failed or
+semantically invalid confirmation cannot admit the full profile. Adverse and inconclusive confirmations remain
 eligible for human-directed Stage 3 because the accepted protocol allows
 full-profile evidence to support rejection or defer decisions; their prior
 result is never removed or relabeled.
