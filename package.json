@@ -100,6 +100,7 @@
     "typedoc-plugin-markdown": "^4.9.0",
     "typedoc-vitepress-theme": "^1.1.2",
     "typescript": "^5.8.2",
+    "vite": "7.3.5",
     "vitepress": "^1.6.4",
     "vitest": "^4.1.8"
   },
@@ -110,30 +111,34 @@
   "packageManager": "pnpm@10.17.0+sha512.fce8a3dd29a4ed2ec566fb53efbb04d8c44a0f05bc6f24a73046910fb9c3ce7afa35a0980500668fa3573345bd644644fa98338fa168235c80f4aa17aa17fbef",
   "pnpm": {
     "overrides": {
-      "@eslint/eslintrc>js-yaml": "4.1.1",
+      "@eslint/eslintrc>js-yaml": "4.3.0",
+      "@changesets/parse>js-yaml": "4.3.0",
+      "read-yaml-file>js-yaml": "3.15.0",
+      "vitest": "4.1.8",
+      "@vitest/coverage-v8": "4.1.8",
       "mdast-util-to-hast": "13.2.1",
       "vite>esbuild": "0.28.1",
-      "vitepress>vite": "6.4.2",
-      "vitest>vite": "7.3.2",
+      "vitepress>vite": "6.4.3",
       "preact": "10.27.3",
       "ajv": "6.14.0",
       "minimatch": "10.2.3",
       "rollup": "4.59.0",
       "diff": "8.0.3",
       "lodash": "4.18.0",
-      "undici": "7.24.5",
+      "undici": "7.29.0",
       "protobufjs": "7.5.6",
       "@protobufjs/utf8": "1.1.1",
       "effect": "3.21.1",
       "defu": "6.1.5",
       "flatted": "3.4.2",
-      "brace-expansion": "5.0.5",
+      "brace-expansion": "5.0.7",
       "micromatch>picomatch": "2.3.2",
       "tinyglobby>picomatch": "4.0.4",
       "vitest>picomatch": "4.0.4",
       "vite>picomatch": "4.0.4",
-      "markdown-it": "14.1.1",
-      "postcss": "8.5.10"
+      "markdown-it": "14.2.0",
+      "linkify-it": "5.0.2",
+      "postcss": "8.5.23"
     }
   }
 }
