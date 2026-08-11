@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { ColumnLineageAnalysisV1 } from '../index';
 import { analyzeColumnLineage } from './columnLineageAnalysis';
 
 describe('analyzeColumnLineage', () => {
@@ -7,6 +8,8 @@ describe('analyzeColumnLineage', () => {
       sql: 'select sum(o.amount) as total_amount from orders o where o.status = :status',
       targetColumn: 'total_amount',
     });
+    const typedResult: ColumnLineageAnalysisV1 = result;
+    const version: 1 = typedResult.version;
 
     expect(result).toMatchObject({
       analysisMode: 'original',
@@ -14,6 +17,7 @@ describe('analyzeColumnLineage', () => {
       target: { columnName: 'total_amount', nodeId: 'main_output' },
       investigationPlan: { kind: 'investigation-plan', target: { columnName: 'total_amount', nodeId: 'main_output' } },
     });
+    expect(version).toBe(1);
     expect(result.columnLineage.sourceLeaves).toEqual(expect.arrayContaining([
       expect.objectContaining({ columnName: 'amount', nodeId: 'table_orders' }),
     ]));

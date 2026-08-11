@@ -33,7 +33,7 @@ export class ColumnLineageAnalysisInputError extends Error {
  * A column-focused result with both lineage evidence and a static investigation plan.
  * Candidate concerns and suggested probes remain unconfirmed until a caller evaluates them.
  */
-export interface ColumnLineageAnalysisV1 extends Omit<ColumnDiagnosticPacket, 'kind' | 'version'> {
+export interface ColumnLineageAnalysisV1 extends Omit<ColumnDiagnosticPacket, 'kind'> {
   analysisMode: 'original';
   investigationPlan: InvestigationPlanV1;
   kind: 'column-lineage-analysis';
