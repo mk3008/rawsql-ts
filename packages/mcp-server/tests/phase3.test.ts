@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -276,6 +276,76 @@ describe('MCP Phase 3 analysis tools', () => {
       await close();
     }
   });
+
+  it('formats one requested SQL statement with defaults and common option precedence without file mutation', async () => {
+    const workspace = temporaryWorkspace();
+    const originalFileSql = 'select customer_id,amount from public.orders';
+    writeFileSync(resolve(workspace, 'query.sql'), originalFileSql);
+    writeFileSync(resolve(workspace, 'upper.json'), JSON.stringify({ indentSize: 2, keywordCase: 'upper' }));
+    writeFileSync(resolve(workspace, 'invalid.json'), '{ invalid');
+    writeFileSync(resolve(workspace, 'unknown.json'), JSON.stringify({ inventedOption: true }));
+    writeFileSync(resolve(workspace, 'invalid-option.json'), JSON.stringify({ keywordCase: 'sideways' }));
+    const { client, close } = await connectedClient(workspace);
+    const sql = 'select customer_id,amount from public.orders where customer_id=:customer_id';
+    try {
+      const defaultResult = await client.callTool({ name: 'format_sql', arguments: { sql } });
+      expect(defaultResult.structuredContent).toMatchObject({
+        kind: 'sql-format',
+        version: 1,
+        sql: expect.stringContaining('"customer_id"'),
+      });
+      expect(formattedSql(defaultResult)).not.toBe(sql);
+
+      const configResult = await client.callTool({
+        name: 'format_sql',
+        arguments: { format: { configPath: 'upper.json' }, sql },
+      });
+      expect(formattedSql(configResult)).toContain('SELECT');
+
+      const inlineResult = await client.callTool({
+        name: 'format_sql',
+        arguments: { format: { options: { keywordCase: 'lower' } }, sql },
+      });
+      expect(formattedSql(inlineResult)).toContain('select');
+
+      const precedence = await client.callTool({
+        name: 'format_sql',
+        arguments: { format: { configPath: 'upper.json', options: { keywordCase: 'lower' } }, sql },
+      });
+      expect(formattedSql(precedence)).toContain('select');
+      expect(formattedSql(precedence)).not.toContain('SELECT');
+
+      const deterministic = await client.callTool({ name: 'format_sql', arguments: { sql } });
+      expect(deterministic.structuredContent).toEqual(defaultResult.structuredContent);
+      expect(readFileSync(resolve(workspace, 'query.sql'), 'utf8')).toBe(originalFileSql);
+
+      const invalidSql = await client.callTool({ name: 'format_sql', arguments: { sql: 'select from' } });
+      expect(invalidSql.isError).toBe(true);
+      expect(toolFailure(invalidSql)).toMatchObject({ code: 'SQL_FORMAT_FAILED', kind: 'invalid_input' });
+
+      const invalidJson = await client.callTool({
+        name: 'format_sql', arguments: { format: { configPath: 'invalid.json' }, sql },
+      });
+      expect(toolFailure(invalidJson)).toMatchObject({ code: 'FORMAT_CONFIG_INVALID_JSON' });
+
+      const unknownOption = await client.callTool({
+        name: 'format_sql', arguments: { format: { configPath: 'unknown.json' }, sql },
+      });
+      expect(toolFailure(unknownOption)).toMatchObject({ code: 'FORMAT_OPTION_UNKNOWN' });
+
+      const invalidOption = await client.callTool({
+        name: 'format_sql', arguments: { format: { configPath: 'invalid-option.json' }, sql },
+      });
+      expect(toolFailure(invalidOption)).toMatchObject({ code: 'FORMAT_OPTIONS_INVALID' });
+
+      const escaped = await client.callTool({
+        name: 'format_sql', arguments: { format: { configPath: '../formatter.json' }, sql },
+      });
+      expect(toolFailure(escaped)).toMatchObject({ code: 'WORKSPACE_PATH_TRAVERSAL' });
+    } finally {
+      await close();
+    }
+  });
 });
 
 async function connectedClient(workspace: string): Promise<{ client: Client; close: () => Promise<void> }> {
@@ -297,4 +367,14 @@ function temporaryWorkspace(): string {
   const directory = mkdtempSync(resolve(tmpdir(), 'rawsql-ts-mcp-phase3-'));
   temporaryDirectories.push(directory);
   return directory;
+}
+
+function toolFailure(response: unknown): Record<string, unknown> {
+  const result = response as { content: Array<{ text: string }> };
+  return JSON.parse(result.content[0].text) as Record<string, unknown>;
+}
+
+function formattedSql(response: unknown): string {
+  const result = response as { structuredContent?: { sql?: unknown } };
+  return String(result.structuredContent?.sql);
 }

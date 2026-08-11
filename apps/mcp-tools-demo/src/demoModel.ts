@@ -17,6 +17,8 @@ import {
   optimizeConditions,
   SelectQueryParser,
   SimpleSelectQuery,
+  SqlFormatter,
+  SqlParser,
 } from 'rawsql-ts';
 
 export const demoToolIds = [
@@ -28,6 +30,7 @@ export const demoToolIds = [
   'find_query_usage',
   'extract_cte_query',
   'optimize_sql_conditions',
+  'format_sql',
 ] as const;
 
 export type DemoToolId = typeof demoToolIds[number];
@@ -48,7 +51,7 @@ export const demoTools: readonly DemoTool[] = [
   {
     id: 'inspect_query_contract',
     label: 'Inspect query contract',
-    summary: 'Lists input parameter occurrences, ordered output columns, and physical tables, adding type and nullability only when optional DDL proves them.',
+    summary: 'Lists input parameter occurrences, ordered output columns, and physical tables, adding DDL-proven types and query-proven output nullability.',
   },
   {
     id: 'analyze_query_structure',
@@ -80,6 +83,11 @@ export const demoTools: readonly DemoTool[] = [
     id: 'optimize_sql_conditions',
     label: 'Optimize SQL conditions',
     summary: 'Moves conditions, prunes optional branches, and removes duplicate predicates only where proven safe, with optional generated-SQL formatting.',
+  },
+  {
+    id: 'format_sql',
+    label: 'Format SQL',
+    summary: 'Formats one user-supplied SQL statement with rawsql-ts defaults without changing files.',
   },
 ];
 
@@ -120,11 +128,19 @@ where customer_id = :customer_id
   and customer_id = :customer_id
   and (:amount is null or amount = :amount);`,
   },
+  format_sql: commonInput(),
 };
 
 export function runDemoTool(toolId: DemoToolId, input: DemoInput): object {
   if (toolId === 'find_query_usage') return findUsage(input);
   if (!input.sql.trim()) throw new Error('Enter SQL.');
+  if (toolId === 'format_sql') {
+    return {
+      kind: 'sql-format',
+      version: 1,
+      sql: new SqlFormatter().format(SqlParser.parse(input.sql)).formattedSql,
+    };
+  }
   const ddl = toDdl(input.ddl);
   const staticInput = { sql: input.sql, ...(ddl ? { ddl } : {}) };
   if (toolId === 'validate_sql') return validateSql(staticInput);

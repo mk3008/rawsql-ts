@@ -22,6 +22,7 @@ import { resolveDdlSources } from './ddlSources';
 import { McpInputError } from './inputError';
 import {
   formatGeneratedSqlArtifact,
+  formatRequestedSql,
   generatedSqlArtifact,
   resolveSqlFormatting,
   type SqlFormatInput,
@@ -225,6 +226,26 @@ export function createRawsqlMcpServer(workspace: string): McpServer {
         version: 1,
         query: undefined,
         diagnostics,
+      };
+    }),
+  );
+
+  server.registerTool(
+    'format_sql',
+    {
+      description: 'Format one SQL statement with rawsql-ts defaults or optional workspace-confined config and inline formatter options. It does not execute SQL or change files.',
+      inputSchema: z.object({
+        format: formatSchema,
+        sql: z.string().min(1).describe('One SQL statement to format without executing it.'),
+      }).strict(),
+    },
+    async (request) => runTool(() => {
+      ensureInlineSize(request.sql, 'sql');
+      const formatting = resolveSqlFormatting(workspaceRoot, (request.format ?? {}) as SqlFormatInput);
+      return {
+        kind: 'sql-format',
+        version: 1,
+        sql: formatRequestedSql(request.sql, formatting),
       };
     }),
   );

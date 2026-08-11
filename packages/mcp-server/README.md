@@ -1,6 +1,6 @@
 # @rawsql-ts/mcp-server
 
-A local Model Context Protocol server exposing eight deterministic rawsql-ts
+A local Model Context Protocol server exposing nine deterministic rawsql-ts
 analysis and transformation tools.
 
 The npm package is `@rawsql-ts/mcp-server`. Installing it provides the
@@ -16,6 +16,7 @@ The npm package is `@rawsql-ts/mcp-server`. Installing it provides the
 - `find_query_usage`
 - `extract_cte_query`
 - `optimize_sql_conditions`
+- `format_sql`
 
 The server does not connect to a database, execute SQL, inspect rows, or write
 rewritten SQL back to project files.
@@ -56,6 +57,8 @@ paths.
   `format`; it does not accept `ddl`.
 - `optimize_sql_conditions` accepts `sql` and optional absent parameter names;
   it also accepts optional generated-SQL `format` and does not accept `ddl`.
+- `format_sql` accepts one `sql` statement plus optional `format`. Omitting
+  `format` uses rawsql-ts formatter defaults. It does not accept `ddl`.
 
 `ddlPaths` accepts one workspace-relative `.sql` file or directory, or an array
 of them. Directories are scanned recursively with deterministic ordering and
@@ -76,11 +79,11 @@ The optional formatter input has this shape:
 ```
 
 Formatter defaults are overridden by `configPath`, then by inline `options`.
-Options are strictly validated by rawsql-ts core. Formatting applies only to
-explicit generated artifacts: CTE executable SQL, safe condition rewrites and
-their generated probes, fixture capture SQL, and lineage investigation probes.
-Original SQL, expressions, predicates, snippets, and other evidence are never
-formatted.
+Options are strictly validated by rawsql-ts core. Outside the explicit
+`format_sql` request, formatting applies only to generated artifacts: CTE
+executable SQL, safe condition rewrites and their generated probes, fixture
+capture SQL, and lineage investigation probes. Original SQL, expressions,
+predicates, snippets, and other evidence are never formatted.
 
 `find_query_usage` recursively scans project `.sql` files beneath its optional
 `scopeDir` argument. `scopeDir` is relative to the configured workspace and
@@ -113,6 +116,13 @@ query source is not null-extended by an outer join.
 SQL-producing tools return both structured evidence and clearly labeled SQL
 strings. MCP serialization removes AST instances so callers do not receive
 formatter-dependent SQL as an undocumented intermediate model.
+
+`format_sql` is the explicit exception to the generated-artifact boundary: its
+input SQL is formatted because the caller requested formatting directly, not
+because another tool generated it. It reuses the same workspace-confined JSON
+config and core-owned option validation, with precedence defaults < config <
+inline options. It supports one statement and returns `SQL_FORMAT_FAILED` for
+parse or formatting failures.
 
 When `view` is omitted, structure and lineage tools return their existing full
 result. Their compact views are explicit transport DTOs that retain summaries,

@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 describe('@rawsql-ts/mcp-server', () => {
-  it('registers exactly eight task-oriented tools with minimal argument schemas', async () => {
+  it('registers exactly nine task-oriented tools with minimal argument schemas', async () => {
     const { client, close } = await connectedClient(temporaryWorkspace());
     try {
       const listed = await client.listTools();
@@ -28,6 +28,7 @@ describe('@rawsql-ts/mcp-server', () => {
         'find_query_usage',
         'extract_cte_query',
         'optimize_sql_conditions',
+        'format_sql',
       ]);
       expect(Object.keys(tool(listed.tools, 'validate_sql').inputSchema.properties ?? {}).sort()).toEqual(['ddl', 'ddlPaths', 'sql']);
       expect(Object.keys(tool(listed.tools, 'inspect_query_contract').inputSchema.properties ?? {}).sort()).toEqual(['ddl', 'ddlPaths', 'sql']);
@@ -39,6 +40,7 @@ describe('@rawsql-ts/mcp-server', () => {
       ]);
       expect(Object.keys(tool(listed.tools, 'extract_cte_query').inputSchema.properties ?? {}).sort()).toEqual(['cteName', 'format', 'sql']);
       expect(Object.keys(tool(listed.tools, 'optimize_sql_conditions').inputSchema.properties ?? {}).sort()).toEqual(['absentParameterNames', 'format', 'sql']);
+      expect(Object.keys(tool(listed.tools, 'format_sql').inputSchema.properties ?? {}).sort()).toEqual(['format', 'sql']);
     } finally {
       await close();
     }
