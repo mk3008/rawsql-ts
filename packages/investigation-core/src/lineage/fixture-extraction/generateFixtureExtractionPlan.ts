@@ -104,6 +104,7 @@ interface OccurrenceEdge {
 
 interface OccurrenceGraph {
   edges: OccurrenceEdge[];
+  hasRecursiveCte: boolean;
   hasSetOperation: boolean;
   occurrences: Occurrence[];
 }
@@ -234,6 +235,15 @@ export function generateFixtureExtractionPlan(input: FixtureExtractionInput): Fi
     }]);
   }
 
+  const graph = collectOccurrenceGraph(safety.statement);
+  if (graph.hasRecursiveCte) {
+    return blockedBeforeRoot(input, source, 'RECURSIVE_CTE_UNSUPPORTED', 'blocked', [{
+      kind: 'parser_ast',
+      sourceId: 'query:recursive-cte-dependency',
+      sourcePath: 'statement.with',
+    }]);
+  }
+
   const schemaFacts = input.schemaFacts ?? (input.ddl ? parseSchemaFactsFromDdl([...input.ddl]) : undefined);
   try {
     analyzeSql(input.sql, { analysisMode: 'original', optimizeConditions: false, schemaFacts });
@@ -253,7 +263,6 @@ export function generateFixtureExtractionPlan(input: FixtureExtractionInput): Fi
     }]);
   }
 
-  const graph = collectOccurrenceGraph(safety.statement);
   if (graph.occurrences.length > MAX_RELATION_OCCURRENCES) {
     return blockedBeforeRoot(input, source, 'ANALYSIS_RESOURCE_LIMIT', 'blocked', [{
       kind: 'parser_ast',
@@ -498,8 +507,13 @@ function assertAllowedKeys(value: Record<string, unknown>, allowed: readonly str
 }
 
 function collectOccurrenceGraph(statement: SimpleSelectQuery | BinarySelectQuery): OccurrenceGraph {
-  const graph: OccurrenceGraph = { edges: [], hasSetOperation: statement instanceof BinarySelectQuery, occurrences: [] };
-  collectSelect(statement, 'query', new Map(), new Map(), graph);
+  const graph: OccurrenceGraph = {
+    edges: [],
+    hasRecursiveCte: false,
+    hasSetOperation: statement instanceof BinarySelectQuery,
+    occurrences: [],
+  };
+  collectSelect(statement, 'query', new Map(), new Map(), new Set(), graph);
   return graph;
 }
 
@@ -508,13 +522,14 @@ function collectSelect(
   path: string,
   outerAliases: Map<string, Occurrence>,
   inheritedCtes: Map<string, SimpleSelectQuery | BinarySelectQuery>,
+  activeCteQueries: ReadonlySet<SimpleSelectQuery | BinarySelectQuery>,
   graph: OccurrenceGraph,
 ): Occurrence[] {
   if (query instanceof BinarySelectQuery) {
     graph.hasSetOperation = true;
     return [
-      ...collectSelect(query.left as SimpleSelectQuery | BinarySelectQuery, `${path}.left`, outerAliases, inheritedCtes, graph),
-      ...collectSelect(query.right as SimpleSelectQuery | BinarySelectQuery, `${path}.right`, outerAliases, inheritedCtes, graph),
+      ...collectSelect(query.left as SimpleSelectQuery | BinarySelectQuery, `${path}.left`, outerAliases, inheritedCtes, activeCteQueries, graph),
+      ...collectSelect(query.right as SimpleSelectQuery | BinarySelectQuery, `${path}.right`, outerAliases, inheritedCtes, activeCteQueries, graph),
     ];
   }
   const ctes = new Map(inheritedCtes);
@@ -529,7 +544,7 @@ function collectSelect(
   const sources = query.fromClause?.getSources() ?? [];
   for (const [sourceIndex, source] of sources.entries()) {
     const sourcePath = `${path}.from[${String(sourceIndex).padStart(4, '0')}]`;
-    const collected = collectSource(source, sourcePath, allAliases(), ctes, graph);
+    const collected = collectSource(source, sourcePath, allAliases(), ctes, activeCteQueries, graph);
     collected.forEach((occurrence) => {
       localOccurrences.push(occurrence);
       localAliases.set(normalizeIdentifier(occurrence.alias), occurrence);
@@ -542,7 +557,7 @@ function collectSelect(
     }
   }
   if (query.whereClause) {
-    collectWhere(query.whereClause.condition, `${path}.where`, localOccurrences, allAliases(), ctes, graph);
+    collectWhere(query.whereClause.condition, `${path}.where`, localOccurrences, allAliases(), ctes, activeCteQueries, graph);
   }
   return localOccurrences;
 }
@@ -552,13 +567,20 @@ function collectSource(
   path: string,
   outerAliases: Map<string, Occurrence>,
   ctes: Map<string, SimpleSelectQuery | BinarySelectQuery>,
+  activeCteQueries: ReadonlySet<SimpleSelectQuery | BinarySelectQuery>,
   graph: OccurrenceGraph,
 ): Occurrence[] {
   const datasource = unwrapSource(source.datasource);
   if (datasource instanceof TableSource) {
     const relationName = tableSourceName(datasource);
     const cte = ctes.get(normalizeIdentifier(relationName));
-    if (cte) return collectSelect(cte, `${path}.cte`, outerAliases, ctes, graph);
+    if (cte) {
+      if (activeCteQueries.has(cte)) {
+        graph.hasRecursiveCte = true;
+        return [];
+      }
+      return collectSelect(cte, `${path}.cte`, outerAliases, ctes, new Set([...activeCteQueries, cte]), graph);
+    }
     const occurrence: Occurrence = {
       alias: source.getAliasName() ?? baseRelationName(relationName),
       caseSensitiveIdentityUnproven: tableSourceSegments(datasource).some((segment) => segment !== segment.toLowerCase()),
@@ -574,7 +596,7 @@ function collectSource(
     return [occurrence];
   }
   if (datasource instanceof SubQuerySource) {
-    return collectSelect(datasource.query as SimpleSelectQuery | BinarySelectQuery, `${path}.subquery`, outerAliases, ctes, graph);
+    return collectSelect(datasource.query as SimpleSelectQuery | BinarySelectQuery, `${path}.subquery`, outerAliases, ctes, activeCteQueries, graph);
   }
   return [];
 }
@@ -660,6 +682,7 @@ function collectWhere(
   localOccurrences: Occurrence[],
   aliases: Map<string, Occurrence>,
   ctes: Map<string, SimpleSelectQuery | BinarySelectQuery>,
+  activeCteQueries: ReadonlySet<SimpleSelectQuery | BinarySelectQuery>,
   graph: OccurrenceGraph,
 ): void {
   const localSet = new Set(localOccurrences);
@@ -668,7 +691,7 @@ function collectWhere(
     const exists = unwrapExists(term);
     if (exists) {
       const before = new Set(graph.occurrences);
-      const relatedOccurrences = collectSelect(exists.query, `${termPath}.exists`, aliases, ctes, graph)
+      const relatedOccurrences = collectSelect(exists.query, `${termPath}.exists`, aliases, ctes, activeCteQueries, graph)
         .filter((occurrence) => !before.has(occurrence));
       const related = relatedOccurrences.length === 1 ? relatedOccurrences[0] : undefined;
       if (!related) continue;
@@ -1463,6 +1486,9 @@ function createStrictSchemaIndex(schemaFacts: SchemaFacts | undefined): StrictSc
 }
 
 function findBlockingSchemaDiagnostics(schemaFacts: SchemaFacts | undefined): SchemaFactsDiagnostic[] {
+  // Fixture extraction requires complete, attributable schema evidence. Even an
+  // informational diagnostic means some DDL evidence was not fully incorporated,
+  // so the planner cannot prove a bounded capture boundary and must fail closed.
   const diagnostics = schemaFacts?.diagnostics ?? [];
   return [...diagnostics].sort((left, right) => compareCodeUnits(left.code, right.code)
     || compareCodeUnits(left.filePath ?? '', right.filePath ?? '')

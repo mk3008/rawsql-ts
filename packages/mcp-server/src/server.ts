@@ -119,7 +119,7 @@ export function createRawsqlMcpServer(workspace: string): McpServer {
         throw new McpInputError('CTE_ROOT_UNSUPPORTED', 'CTE extraction requires a simple SELECT root.');
       }
       const result = new CTEQueryDecomposer().extractCTE(query, request.cteName);
-      return { kind: 'cte-query-extraction', version: 1, ...result };
+      return { ...result, kind: 'cte-query-extraction', version: 1 };
     }),
   );
 

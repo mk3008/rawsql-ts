@@ -22,9 +22,11 @@ describe('analyzeQueryStructure', () => {
       kind: 'query-structure-analysis',
       summary: {
         cteCount: 1,
-        maximumNestingDepth: expect.any(Number),
+        derivedQueryCount: 0,
+        maximumNestingDepth: 1,
         outputColumnCount: 2,
         physicalTableCount: 1,
+        scopeCount: 2,
       },
     });
     expect(result.components).toEqual(expect.arrayContaining([

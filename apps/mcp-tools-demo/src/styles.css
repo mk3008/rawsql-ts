@@ -3,7 +3,7 @@
 body { margin: 0; min-width: 320px; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
-button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #f2a900; outline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #a65300; outline-offset: 2px; }
 .catalog-shell { margin: 0 auto; max-width: 1440px; padding: 0 28px 44px; }
 .catalog-header { align-items: baseline; display: flex; gap: 10px; min-height: 70px; padding-top: 22px; }
 .catalog-header strong { font-size: 18px; }

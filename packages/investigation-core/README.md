@@ -2,6 +2,10 @@
 
 Deterministic static SQL investigation operations built on rawsql-ts.
 
+```sh
+pnpm add @rawsql-ts/investigation-core
+```
+
 ## Capabilities
 
 - Analyze query structure, including physical tables, CTEs, derived queries,
@@ -23,6 +27,7 @@ const result = analyzeQueryStructure({
 });
 ```
 
-API output shape review: public operations return structured models. Generated
-SQL remains an explicitly labeled artifact inside those models rather than the
-only transformation result.
+Public operations return structured models. Generated SQL remains an explicitly
+labeled artifact inside those models rather than the only transformation
+result. To expose these operations through MCP, see
+[`@rawsql-ts/mcp-server`](https://github.com/mk3008/rawsql-ts/tree/main/packages/mcp-server).

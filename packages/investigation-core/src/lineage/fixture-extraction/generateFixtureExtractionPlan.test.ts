@@ -908,6 +908,24 @@ describe('generateFixtureExtractionPlan', () => {
     expect([recursive.status, recursive.reproductionKey.status, recursive.blockedReasons.map((item) => item.code)])
       .toEqual(['blocked', 'blocked', ['RECURSIVE_CTE_UNSUPPORTED']]);
 
+    const selfReferencingCte = generateFixtureExtractionPlan(input(
+      'with chain as (select node_id from chain) select node_id from chain where node_id = :node_id;',
+      undefined,
+      'chain',
+      'node_id',
+    ));
+    expect([selfReferencingCte.status, selfReferencingCte.reproductionKey.status, selfReferencingCte.blockedReasons.map((item) => item.code)])
+      .toEqual(['blocked', 'blocked', ['RECURSIVE_CTE_UNSUPPORTED']]);
+
+    const mutuallyReferencingCtes = generateFixtureExtractionPlan(input(
+      'with first_cte as (select node_id from second_cte), second_cte as (select node_id from first_cte) select node_id from first_cte where node_id = :node_id;',
+      undefined,
+      'first_cte',
+      'node_id',
+    ));
+    expect([mutuallyReferencingCtes.status, mutuallyReferencingCtes.reproductionKey.status, mutuallyReferencingCtes.blockedReasons.map((item) => item.code)])
+      .toEqual(['blocked', 'blocked', ['RECURSIVE_CTE_UNSUPPORTED']]);
+
     const unbounded = generateFixtureExtractionPlan(input(
       'select e.event_id, e.event_kind from synthetic_event as e where e.event_kind = :event_kind;',
       'create table synthetic_event (event_id integer primary key, event_kind text not null);',
@@ -971,8 +989,6 @@ describe('generateFixtureExtractionPlan', () => {
     ));
     expect(plan.status).toBe('blocked');
     expect(plan.steps).toEqual([]);
-    expect(plan.steps.flatMap((step) => step.parameterNames).every((name) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name))).toBe(true);
-    expect(plan.steps.some((step) => step.sql?.includes(':1'))).toBe(false);
     expect(plan.blockedReasons.map((reason) => reason.code)).toEqual(['PARAMETER_PROPAGATION_UNPROVEN']);
   });
 
@@ -1009,6 +1025,25 @@ describe('generateFixtureExtractionPlan', () => {
     expect(directFacts.status).toBe('blocked');
     expect(directFacts.steps).toEqual([]);
     expect(directFacts.blockedReasons.map((reason) => reason.code)).toEqual(['SCHEMA_FACTS_REQUIRED']);
+
+    const informationalFacts = generateFixtureExtractionPlan({
+      sql: 'select t.ticket_id from support_ticket t where t.ticket_id = :ticket_id;',
+      schemaFacts: {
+        kind: 'schema-facts',
+        version: 1,
+        tables: {
+          support_ticket: {
+            name: 'support_ticket',
+            columns: { ticket_id: { name: 'ticket_id', type: 'integer' } },
+            primaryKey: ['ticket_id'],
+          },
+        },
+        diagnostics: [{ code: 'ddl_parse_info', message: 'DDL evidence was omitted.', severity: 'info' }],
+      },
+      reproductionKey: { parameterNames: ['ticket_id'], rootRelation: 'support_ticket', rootColumns: ['ticket_id'] },
+    });
+    expect(informationalFacts.status).toBe('blocked');
+    expect(informationalFacts.blockedReasons.map((reason) => reason.code)).toEqual(['SCHEMA_FACTS_REQUIRED']);
 
     const unrelated = generateFixtureExtractionPlan({
       sql: 'select t.ticket_id from support_ticket t where t.ticket_id = :ticket_id;',

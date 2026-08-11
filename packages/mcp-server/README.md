@@ -21,12 +21,21 @@ rewritten SQL back to project files.
 ## Start
 
 ```sh
-npx @rawsql-ts/mcp-server --workspace /absolute/path/to/project
+pnpm dlx @rawsql-ts/mcp-server --workspace /absolute/path/to/project
 ```
 
 `--workspace` may be omitted to use the current working directory. The
-workspace is used only by `find_query_usage`; the other five tools accept SQL
-and optional DDL directly.
+workspace is used only by `find_query_usage`.
+
+- `analyze_query_structure` accepts `sql` and optional `ddl`.
+- `analyze_column_lineage` accepts `sql`, required `targetColumn`, and optional
+  `ddl`.
+- `create_fixture_extraction_plan` accepts `sql` and optional `ddl`.
+- `find_query_usage` accepts a target and an optional workspace-relative
+  `scopeDir`; it does not accept `ddl`.
+- `extract_cte_query` accepts `sql` and `cteName`; it does not accept `ddl`.
+- `optimize_sql_conditions` accepts `sql` and optional absent parameter names;
+  it does not accept `ddl`.
 
 `find_query_usage` recursively scans project `.sql` files beneath its optional
 `scopeDir` argument. `scopeDir` is relative to the configured workspace and
@@ -40,7 +49,8 @@ Each tool accepts only the arguments shown in its MCP schema. Parameter values,
 database credentials, file mutation requests, and SQL execution requests are
 not part of the contract.
 
-API output shape review: SQL-producing tools return both structured evidence
-and clearly labeled SQL strings. MCP serialization removes AST instances so
-callers do not receive formatter-dependent SQL as an undocumented intermediate
-model.
+## Output shape
+
+SQL-producing tools return both structured evidence and clearly labeled SQL
+strings. MCP serialization removes AST instances so callers do not receive
+formatter-dependent SQL as an undocumented intermediate model.

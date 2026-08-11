@@ -8,10 +8,10 @@
     "sourceMap": true,
     "composite": false,
     "paths": {
-      "rawsql-ts": ["../core/dist/src/index.d.ts"],
-      "rawsql-ts/*": ["../core/dist/src/*"],
-      "@rawsql-ts/investigation-core": ["../investigation-core/dist/index.d.ts"],
-      "@rawsql-ts/sql-grep-core": ["../sql-grep-core/dist/index.d.ts"]
+      "rawsql-ts": ["packages/core/dist/src/index.d.ts"],
+      "rawsql-ts/*": ["packages/core/dist/src/*"],
+      "@rawsql-ts/investigation-core": ["packages/investigation-core/dist/index.d.ts"],
+      "@rawsql-ts/sql-grep-core": ["packages/sql-grep-core/dist/index.d.ts"]
     },
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },

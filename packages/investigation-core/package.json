@@ -13,10 +13,11 @@
   "scripts": {
     "prepack": "pnpm run build",
     "build": "pnpm --filter rawsql-ts build && tsc -p tsconfig.json",
-    "test": "vitest run --config vitest.config.ts",
+    "test": "pnpm run typecheck:test && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
+    "typecheck:test": "tsc --noEmit -p tsconfig.tests.json",
     "lint": "eslint src --ext .ts --ignore-pattern \"*.d.ts\" --ignore-pattern \"**/*.test.ts\"",
-    "release": "npm run lint && npm run test && npm run build && node -e \"require('fs').mkdirSync('../../tmp', { recursive: true })\" && pnpm pack --out ../../tmp/rawsql-ts-investigation-core.tgz && pnpm publish --access public"
+    "release": "pnpm run lint && pnpm run test && pnpm run build && node -e \"require('fs').mkdirSync('../../tmp', { recursive: true })\" && pnpm pack --out ../../tmp/rawsql-ts-investigation-core.tgz && pnpm publish --access public"
   },
   "keywords": [
     "rawsql-ts",

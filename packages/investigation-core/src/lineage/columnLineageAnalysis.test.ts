@@ -32,4 +32,34 @@ describe('analyzeColumnLineage', () => {
       targetColumn: 'repeated',
     })).toThrow(expect.objectContaining({ code: 'DUPLICATE_OUTPUT_COLUMN' }));
   });
+
+  it('rejects an output-column name that the final select does not expose', () => {
+    expect(() => analyzeColumnLineage({
+      sql: 'select 1 as total_amount',
+      targetColumn: 'missing_column',
+    })).toThrow(expect.objectContaining({ code: 'TARGET_COLUMN_NOT_FOUND' }));
+  });
+
+  it('does not resolve unqualified inline-query columns against outer sources', () => {
+    const result = analyzeColumnLineage({
+      sql: 'select o.customer_id from orders o order by (select max(amount) from payments)',
+      targetColumn: 'customer_id',
+    });
+
+    const orderBy = result.rowLineage.influences.find((influence) => influence.kind === 'order_by');
+    expect(orderBy?.references).not.toContainEqual(expect.objectContaining({
+      columnName: 'amount',
+      nodeId: 'table_orders',
+    }));
+  });
+
+  it('splits parenthesized top-level AND conditions into individual influences', () => {
+    const result = analyzeColumnLineage({
+      sql: 'select o.id from orders o where (o.a = :a and o.b = :b) and o.c = :c',
+      targetColumn: 'id',
+    });
+
+    expect(result.rowLineage.influences.filter((influence) => influence.kind === 'where').map((influence) => influence.expressionSql))
+      .toEqual(['o.a = :a', 'o.b = :b', 'o.c = :c']);
+  });
 });

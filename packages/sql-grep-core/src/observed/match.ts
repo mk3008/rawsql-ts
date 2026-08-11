@@ -75,6 +75,7 @@ interface ScoredPair {
 
 export interface DiscoverObservedSqlAssetFilesOptions {
   ignoredDirectories?: Iterable<string>;
+  maxFiles?: number;
 }
 
 /**
@@ -91,7 +92,7 @@ export function discoverObservedSqlAssetFiles(
   const files: string[] = [];
   const stack = [absoluteRoot];
 
-  while (stack.length > 0) {
+  while (stack.length > 0 && files.length < (options.maxFiles ?? Number.POSITIVE_INFINITY)) {
     const current = stack.pop()!;
     const entries = readdirSync(current, { withFileTypes: true }).sort((left, right) =>
       left.name.localeCompare(right.name)
@@ -109,6 +110,9 @@ export function discoverObservedSqlAssetFiles(
 
       if (entry.isFile() && path.extname(entry.name).toLowerCase() === '.sql') {
         files.push(absolute);
+        if (files.length >= (options.maxFiles ?? Number.POSITIVE_INFINITY)) {
+          break;
+        }
       }
     }
   }

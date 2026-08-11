@@ -1,4 +1,4 @@
-import { DistinctOn, InlineQuery, ParenExpression, SimpleSelectQuery, UnaryExpression } from 'rawsql-ts';
+import { BinaryExpression, DistinctOn, InlineQuery, ParenExpression, SimpleSelectQuery, UnaryExpression } from 'rawsql-ts';
 import type { JoinClause } from 'rawsql-ts';
 import type {
   LineageColumn,
@@ -215,7 +215,10 @@ function collectOrderByInfluences(
     const expression = orderItem && typeof orderItem === 'object' && 'value' in orderItem ? (orderItem as { value?: unknown }).value : orderItem;
     const expressionSql = deps.formatExpressionSql(orderItem) ?? deps.formatExpressionSql(expression);
     const outputRefs = resolveOutputColumnReferences(expression, targetId, outputColumns);
-    const sourceRefs = outputRefs.length > 0 ? [] : resolveColumnReferences(expression, toSourceReferenceTargets(sources));
+    const sourceRefs = outputRefs.length > 0 ? [] : resolveColumnReferences(expression, toSourceReferenceTargets(sources), {
+      getInlineQueryShadowedAliases: deps.getInlineQueryShadowedAliases,
+      skipUnqualifiedInInlineQueries: true,
+    });
     const references = toSourceReferences(mergeColumnRefs(sourceRefs, outputRefs), scopeId, 'row_lineage');
     if (!expressionSql && references.length === 0) {
       return [];
@@ -279,7 +282,10 @@ function collectExpressionInfluences(
 ): LineageExpressionInfluence[] {
   return expressions.flatMap((expression, index) => {
     const expressionSql = deps.formatExpressionSql(expression);
-    const references = toSourceReferences(resolveColumnReferences(expression, toSourceReferenceTargets(sources)), scopeId, 'row_lineage');
+    const references = toSourceReferences(resolveColumnReferences(expression, toSourceReferenceTargets(sources), {
+      getInlineQueryShadowedAliases: deps.getInlineQueryShadowedAliases,
+      skipUnqualifiedInInlineQueries: true,
+    }), scopeId, 'row_lineage');
     if (!expressionSql && references.length === 0) {
       return [];
     }
@@ -357,20 +363,9 @@ function normalizePopulationJoinType(join: JoinClause): 'inner' | 'left' | 'righ
 }
 
 function splitAndConditions(condition: unknown): unknown[] {
-  if (isAndExpressionLike(condition)) {
-    return [...splitAndConditions(condition.left), ...splitAndConditions(condition.right)];
+  const unwrapped = unwrapParenthesized(condition);
+  if (unwrapped instanceof BinaryExpression && unwrapped.operator.value.toLowerCase() === 'and') {
+    return [...splitAndConditions(unwrapped.left), ...splitAndConditions(unwrapped.right)];
   }
   return condition ? [condition] : [];
-}
-
-function isAndExpressionLike(value: unknown): value is { left: unknown; operator: { value: string }; right: unknown } {
-  return (
-    value != null &&
-    typeof value === 'object' &&
-    'left' in value &&
-    'right' in value &&
-    'operator' in value &&
-    typeof (value as { operator?: { value?: unknown } }).operator?.value === 'string' &&
-    (value as { operator: { value: string } }).operator.value.toLowerCase() === 'and'
-  );
 }

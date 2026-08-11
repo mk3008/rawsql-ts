@@ -29,6 +29,9 @@ export const QUERY_USES_REPORT_SPANS = {
   impactAggregation: 'impact-aggregation',
 } as const;
 
+const DEFAULT_SQL_FILE_SCAN_LIMIT = 5_000;
+const DEFAULT_SQL_FILE_BYTE_LIMIT = 50 * 1024 * 1024;
+
 export interface QueryUsageSpanRunner {
   <T>(name: string, run: () => T, attrs?: Record<string, unknown>): T;
 }
@@ -245,7 +248,7 @@ Hint: run "ashiba init" or place feature-local specs under your project tree. Us
  * `.git` and `node_modules` directories are skipped.
  */
 export function buildSqlFileUsageReport(params: BuildSqlFileUsageReportParams): QueryUsageReport {
-  const rootDir = path.resolve(params.rootDir ?? process.cwd());
+  const rootDir = realpathSync(path.resolve(params.rootDir ?? process.cwd()));
   const scopeRoot = resolveWorkspaceScope(rootDir, params.scopeDir ?? '.');
   const normalizedScope = normalizePath(path.relative(rootDir, scopeRoot) || '.');
   const view = params.view ?? 'impact';
@@ -257,10 +260,22 @@ export function buildSqlFileUsageReport(params: BuildSqlFileUsageReportParams): 
   });
   const warnings: QueryUsageReport['warnings'] = [];
   const detailMatches: QueryUsageMatchDetail[] = [];
-  const sqlFiles = discoverObservedSqlAssetFiles(scopeRoot, {
+  const maxFiles = positiveScanLimit(params.maxFiles, DEFAULT_SQL_FILE_SCAN_LIMIT, 'maxFiles');
+  const maxTotalBytes = positiveScanLimit(params.maxTotalBytes, DEFAULT_SQL_FILE_BYTE_LIMIT, 'maxTotalBytes');
+  const discoveredSqlFiles = discoverObservedSqlAssetFiles(scopeRoot, {
     ignoredDirectories: ['.git', 'node_modules'],
+    maxFiles: maxFiles + 1,
   });
+  const sqlFiles = discoveredSqlFiles.slice(0, maxFiles);
+  if (discoveredSqlFiles.length > maxFiles) {
+    warnings.push({
+      code: 'sql-file-scan-limit',
+      message: `SQL file scanning stopped at the configured limit of ${maxFiles} files. Results are partial.`,
+    });
+  }
   let statementsScanned = 0;
+  let sqlFilesScanned = 0;
+  let totalBytesScanned = 0;
   let parseWarnings = 0;
   let fallbackMatches = 0;
   let unresolvedSqlFiles = 0;
@@ -270,6 +285,17 @@ export function buildSqlFileUsageReport(params: BuildSqlFileUsageReportParams): 
     const normalizedSqlFile = normalizePath(path.relative(rootDir, sqlFile));
     let sqlText: string;
     try {
+      const fileBytes = statSync(sqlFile).size;
+      if (totalBytesScanned + fileBytes > maxTotalBytes) {
+        warnings.push({
+          sql_file: normalizedSqlFile,
+          code: 'sql-file-byte-limit',
+          message: `SQL file scanning stopped before exceeding the configured limit of ${maxTotalBytes} bytes. Results are partial.`,
+        });
+        break;
+      }
+      totalBytesScanned += fileBytes;
+      sqlFilesScanned += 1;
       sqlText = readFileSync(sqlFile, 'utf8');
     } catch (error) {
       unresolvedSqlFiles += 1;
@@ -328,7 +354,7 @@ export function buildSqlFileUsageReport(params: BuildSqlFileUsageReportParams): 
     target: parsedTarget.target,
     summary: {
       catalogsScanned: 0,
-      sqlFilesScanned: sqlFiles.length,
+      sqlFilesScanned,
       statementsScanned,
       matches: matches.length,
       fallbackMatches,
@@ -609,18 +635,30 @@ export interface BuildSqlFileUsageReportParams {
   scopeDir?: string;
   anySchema?: boolean;
   anyTable?: boolean;
+  /** Maximum number of SQL files to inspect before returning a partial report. */
+  maxFiles?: number;
+  /** Maximum aggregate SQL file size to inspect before returning a partial report. */
+  maxTotalBytes?: number;
   view?: QueryUsageView;
 }
 
 function isAllowedCatalogFile(rootDir: string, candidate: string, confineToRoot = false): boolean {
-  if (!existsSync(candidate)) return false;
-  if (!confineToRoot) return true;
   try {
+    if (!statSync(candidate).isFile()) return false;
+    if (!confineToRoot) return true;
     const relative = path.relative(realpathSync(rootDir), realpathSync(candidate));
     return relative === '' || (!path.isAbsolute(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`));
   } catch {
     return false;
   }
+}
+
+function positiveScanLimit(value: number | undefined, fallback: number, name: string): number {
+  const resolved = value ?? fallback;
+  if (!Number.isSafeInteger(resolved) || resolved <= 0) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  return resolved;
 }
 
 function escapeRegex(value: string): string {

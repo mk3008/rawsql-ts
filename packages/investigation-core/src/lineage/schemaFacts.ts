@@ -12,6 +12,7 @@ import {
 import type {
   ColumnConstraintDefinition,
   QualifiedName,
+  SqlFormatterOptions,
   TableColumnDefinition,
   TableConstraintDefinition,
 } from 'rawsql-ts';
@@ -67,13 +68,14 @@ export interface DdlInput {
   sql: string;
 }
 
-const ddlFormatter = new SqlFormatter({
+const ddlFormatterOptions: SqlFormatterOptions = {
   exportComment: 'none',
   identifierEscape: 'none',
   identifierEscapeTarget: 'minimal',
   keywordCase: 'lower',
   newline: 'lf',
-} as unknown as ConstructorParameters<typeof SqlFormatter>[0]);
+};
+const ddlFormatter = new SqlFormatter(ddlFormatterOptions);
 
 export function parseSchemaFactsFromDdl(inputs: DdlInput[]): SchemaFacts {
   const facts: SchemaFacts = { diagnostics: [], kind: 'schema-facts', tables: {}, version: 1 };

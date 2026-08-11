@@ -121,7 +121,7 @@ export function runDemoTool(toolId: DemoToolId, input: DemoInput): object {
     if (!input.cteName.trim()) throw new Error('Enter a CTE name.');
     const query = SelectQueryParser.parse(input.sql);
     if (!(query instanceof SimpleSelectQuery)) throw new Error('Enter a simple SELECT query.');
-    return { kind: 'cte-query-extraction', version: 1, ...new CTEQueryDecomposer().extractCTE(query, input.cteName) };
+    return { ...new CTEQueryDecomposer().extractCTE(query, input.cteName), kind: 'cte-query-extraction', version: 1 };
   }
   const absentParameterNames = splitNames(input.absentParameterNames);
   const result = optimizeConditions(input.sql, {

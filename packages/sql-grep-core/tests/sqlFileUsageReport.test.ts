@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildSqlFileUsageReport } from '../src';
+import { buildQueryUsageReport, buildSqlFileUsageReport } from '../src';
 
 const temporaryDirectories: string[] = [];
 
@@ -52,6 +52,67 @@ describe('buildSqlFileUsageReport', () => {
       rootDir: workspace,
       scopeDir: path.relative(workspace, outside),
     })).toThrow('scopeDir must stay inside the configured workspace');
+  });
+
+  it('reports paths relative to the canonical workspace when rootDir is a junction', () => {
+    const workspace = temporaryWorkspace();
+    const linkParent = temporaryWorkspace();
+    const workspaceLink = path.join(linkParent, 'workspace-link');
+    symlinkSync(workspace, workspaceLink, 'junction');
+    writeSql(workspace, 'queries/orders.sql', 'select order_id from public.orders');
+
+    const report = buildSqlFileUsageReport({
+      kind: 'table',
+      rawTarget: 'public.orders',
+      rootDir: workspaceLink,
+      scopeDir: 'queries',
+      view: 'detail',
+    });
+
+    expect(report.source).toEqual({ kind: 'sql-files', scopeDir: 'queries' });
+    expect(report.matches[0]).toMatchObject({ sql_file: 'queries/orders.sql' });
+  });
+
+  it('returns an explicit partial report when the SQL file scan budget is exhausted', () => {
+    const workspace = temporaryWorkspace();
+    writeSql(workspace, 'queries/first.sql', 'select order_id from public.orders');
+    writeSql(workspace, 'queries/second.sql', 'select order_id from public.orders');
+
+    const fileLimited = buildSqlFileUsageReport({
+      kind: 'table',
+      rawTarget: 'public.orders',
+      rootDir: workspace,
+      scopeDir: 'queries',
+      maxFiles: 1,
+    });
+    expect(fileLimited.summary.sqlFilesScanned).toBe(1);
+    expect(fileLimited.warnings.map((warning) => warning.code)).toContain('sql-file-scan-limit');
+
+    const byteLimited = buildSqlFileUsageReport({
+      kind: 'table',
+      rawTarget: 'public.orders',
+      rootDir: workspace,
+      scopeDir: 'queries',
+      maxTotalBytes: 1,
+    });
+    expect(byteLimited.summary.sqlFilesScanned).toBe(0);
+    expect(byteLimited.warnings.map((warning) => warning.code)).toContain('sql-file-byte-limit');
+  });
+
+  it('does not accept a directory where a QuerySpec SQL file is required', () => {
+    const workspace = temporaryWorkspace();
+    mkdirSync(path.join(workspace, 'query.sql'));
+    writeFileSync(path.join(workspace, 'query-spec.json'), JSON.stringify({ id: 'directory-target', sqlFile: './query.sql' }));
+
+    const report = buildQueryUsageReport({
+      kind: 'table',
+      rawTarget: 'public.orders',
+      rootDir: workspace,
+      specsDir: '.',
+    });
+
+    expect(report.summary.unresolvedSqlFiles).toBe(1);
+    expect(report.warnings.map((warning) => warning.code)).toContain('unresolved-sql-file');
   });
 });
 

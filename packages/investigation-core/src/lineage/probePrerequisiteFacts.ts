@@ -16,7 +16,8 @@ import { collectColumnReferences } from './source-references/resolveColumnRefere
 
 export type PrerequisiteFactStatusV1 = 'available' | 'ambiguous' | 'blocked' | 'unsupported';
 
-interface TargetReachability {
+/** @internal Test seam for deterministic graph traversal. */
+export interface TargetReachability {
   ambiguousNodeIds: Set<string>;
   nodeIds: Set<string>;
   traversedEdgeIds: Set<string>;
@@ -131,6 +132,24 @@ export interface ProbePrerequisiteFactsV1 {
 }
 
 const aggregateNames = new Set(['avg', 'count', 'max', 'min', 'sum']);
+
+const issueClassification = {
+  aggregate_input_ambiguous: { factStatus: 'ambiguous', issueStatus: 'ambiguous' },
+  aggregate_input_multi_relation: { factStatus: 'ambiguous', issueStatus: 'ambiguous' },
+  aggregate_input_scalar_subquery: { factStatus: 'unsupported', issueStatus: 'blocked' },
+  aggregate_operation_unsupported: { factStatus: 'unsupported', issueStatus: 'blocked' },
+  aggregate_window_unsupported: { factStatus: 'unsupported', issueStatus: 'blocked' },
+  dialect_aggregate_unsupported: { factStatus: 'unsupported', issueStatus: 'blocked' },
+  group_alias_unresolved: { factStatus: 'blocked', issueStatus: 'blocked' },
+  group_ordinal_unresolved: { factStatus: 'blocked', issueStatus: 'blocked' },
+  observation_prerequisite_missing: { factStatus: 'ambiguous', issueStatus: 'ambiguous' },
+  source_provenance_unreconstructable: { factStatus: 'ambiguous', issueStatus: 'ambiguous' },
+  target_scope_unavailable: { factStatus: 'blocked', issueStatus: 'blocked' },
+  wildcard_reference_ambiguous: { factStatus: 'ambiguous', issueStatus: 'ambiguous' },
+} as const satisfies Record<PrerequisiteIssueCodeV1, {
+  factStatus: Exclude<PrerequisiteFactStatusV1, 'available'>;
+  issueStatus: ProbePrerequisiteIssueV1['status'];
+}>;
 
 export function buildProbePrerequisiteFactsV1(input: {
   candidateConcernIds?: string[];
@@ -263,13 +282,19 @@ function collectSources(lineage: LineageModel, references: ProbePrerequisiteRefe
     });
 }
 
-function collectReachableSources(lineage: LineageModel, selectedTargetNodeId: string): TargetReachability {
+/** @internal Test seam for deterministic graph traversal. */
+export function collectReachableSources(lineage: LineageModel, selectedTargetNodeId: string): TargetReachability {
   const nodeIds = new Set<string>();
   const ambiguousNodeIds = new Set<string>();
   const traversedEdgeIds = new Set<string>();
+  const expandedNodeIds = new Set<string>();
+  const incomingEdgesByTarget = new Map<string, LineageModel['edges']>();
+  for (const edge of lineage.edges) {
+    incomingEdgesByTarget.set(edge.target, [...(incomingEdgesByTarget.get(edge.target) ?? []), edge]);
+  }
   let cycleDetected = false;
   const walk = (ownerNodeId: string, path: ReadonlySet<string>): void => {
-    const incomingEdges = lineage.edges.filter((edge) => edge.target === ownerNodeId);
+    const incomingEdges = incomingEdgesByTarget.get(ownerNodeId) ?? [];
     for (const edge of incomingEdges) traversedEdgeIds.add(edge.id);
     const sourceNodeIds = sortedUnique(incomingEdges.map((edge) => edge.source));
     for (const sourceNodeId of sourceNodeIds) {
@@ -280,6 +305,8 @@ function collectReachableSources(lineage: LineageModel, selectedTargetNodeId: st
         ambiguousNodeIds.add(ownerNodeId);
         continue;
       }
+      if (expandedNodeIds.has(sourceNodeId)) continue;
+      expandedNodeIds.add(sourceNodeId);
       walk(sourceNodeId, new Set([...path, sourceNodeId]));
     }
   };
@@ -336,7 +363,10 @@ function collectAggregates(query: SimpleSelectQuery, input: Parameters<typeof bu
       if (containsInlineQuery(call.argument)) issueCodes.push('aggregate_input_scalar_subquery');
       if (sourceIds.length > 1) issueCodes.push('aggregate_input_multi_relation');
       if (resolvedInput.ambiguous) issueCodes.push('aggregate_input_ambiguous');
-      const status: PrerequisiteFactStatusV1 = issueCodes.some((code) => code.includes('unsupported') || code === 'aggregate_input_scalar_subquery') ? 'unsupported' : issueCodes.length ? 'ambiguous' : 'available';
+      const issueStatuses = issueCodes.map((code) => issueClassification[code].factStatus);
+      const status: PrerequisiteFactStatusV1 = issueStatuses.includes('blocked')
+        ? 'blocked'
+        : issueStatuses.includes('unsupported') ? 'unsupported' : issueStatuses.length ? 'ambiguous' : 'available';
       const distinct = isDistinctArgument(call.argument) ? 'distinct' : call.argument ? 'not_distinct' : 'unknown';
       return {
         distinct, groupingKeyIds: groupingKeys.map((key) => key.id), id: `aggregate:${String(outputIndex + 1).padStart(3, '0')}:${String(callIndex + 1).padStart(2, '0')}`,
@@ -390,7 +420,12 @@ function collectIssues(aggregates: AggregateOperationFactV1[], groupingKeys: Gro
   const byCode = new Map<PrerequisiteIssueCodeV1, string[]>();
   for (const fact of [...aggregates, ...groupingKeys]) for (const code of fact.issueCodes) byCode.set(code, [...(byCode.get(code) ?? []), fact.id]);
   for (const source of sources.filter((source) => source.status === 'ambiguous')) byCode.set('source_provenance_unreconstructable', [...(byCode.get('source_provenance_unreconstructable') ?? []), source.id]);
-  return [...byCode.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([code, factIds]) => ({ code, factIds, message: issueMessage(code), status: code.includes('unsupported') || code === 'aggregate_input_scalar_subquery' || code.startsWith('group_') ? 'blocked' : 'ambiguous' }));
+  return [...byCode.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([code, factIds]) => ({
+    code,
+    factIds,
+    message: issueMessage(code),
+    status: issueClassification[code].issueStatus,
+  }));
 }
 
 function findFunctionCalls(value: unknown): FunctionCall[] {

@@ -58,7 +58,7 @@ export const investigationInputParameterOrigins = [
 
 export type InvestigationInputParameterOriginV1 = (typeof investigationInputParameterOrigins)[number];
 
-export type InvestigationParameterStatusV1 = 'provided' | 'required' | 'unresolved';
+export type InvestigationParameterStatusV1 = 'optional' | 'provided' | 'required' | 'unresolved';
 
 export type InvestigationParameterUseV1 =
   | { analysisMode: InvestigationAnalysisModeV1; kind: 'original_analysis' }
@@ -302,7 +302,9 @@ export function createInvestigationPlan(input: InvestigationPlanInputV1): Invest
   const schemaFacts = input.schemaFacts ?? (input.ddl ? parseSchemaFactsFromDdl(input.ddl) : undefined);
   const symptom = input.symptom ?? DEFAULT_INVESTIGATION_SYMPTOM;
   const { lineage } = analyzeSql(input.sql, { analysisMode: 'original', optimizeConditions: false, schemaFacts });
-  const packet = buildColumnDiagnosticPacket(lineage, input.target, { schemaFacts, symptom });
+  // Planning needs every concern. Symptom ranking is presentation metadata and
+  // must not truncate the evidence used to build probes.
+  const packet = buildColumnDiagnosticPacket(lineage, input.target, { schemaFacts });
   return {
     ...createInvestigationPlanFromDiagnosticPacket(packet, parameters, symptom, lineage),
     originalQuery: { artifactKind: 'original_query', sql: input.sql },
@@ -761,7 +763,9 @@ function buildParameters(inputs: InvestigationPlannerParametersV1): Map<string, 
       name: input.name,
       origin,
       required: input.required ?? false,
-      status: origin === 'unresolved_parameter' ? 'unresolved' : bindingProvided ? 'provided' : 'required',
+      status: origin === 'unresolved_parameter'
+        ? 'unresolved'
+        : bindingProvided ? 'provided' : input.required ? 'required' : 'optional',
       ...(input.typeHint ? { typeHint: input.typeHint } : {}),
       usedBy: input.origin === 'original_query_parameter' ? [{ analysisMode: 'original', kind: 'original_analysis' }] : [],
     });

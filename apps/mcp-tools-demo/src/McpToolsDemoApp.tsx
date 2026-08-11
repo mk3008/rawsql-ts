@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   demoTools,
   initialInputs,
@@ -85,7 +85,14 @@ export function McpToolsDemoApp() {
           ) : null}
           {toolId === 'extract_cte_query' ? <TextInput label="CTE name" help="Required. Enter the CTE to extract." value={input.cteName} onChange={(cteName) => update({ cteName })} /> : null}
           {toolId === 'analyze_column_lineage' ? <TextInput label="Output column" help="Required. Enter one unique final output column name." value={input.targetColumn} onChange={(targetColumn) => update({ targetColumn })} /> : null}
-          {toolId === 'optimize_sql_conditions' ? <TextInput label="Parameters for optional filters to remove (SSSQL)" help="Optional. Enter the parameter names used by those filters, separated by commas." value={input.absentParameterNames} onChange={(absentParameterNames) => update({ absentParameterNames })} /> : null}
+          {toolId === 'optimize_sql_conditions' ? (
+            <TextInput
+              label="Optional search conditions"
+              help={<>Optional. Enter the parameter names for conditions to remove, separated by commas. <a href="https://mk3008.github.io/rawsql-ts/guide/sssql-for-humans" rel="noreferrer" target="_blank">Learn about the SSSQL convention.</a></>}
+              value={input.absentParameterNames}
+              onChange={(absentParameterNames) => update({ absentParameterNames })}
+            />
+          ) : null}
           {toolId !== 'find_query_usage' ? (
             <label><span>SQL <small>Required. Enter the SQL to analyze or transform.</small></span>
               <textarea value={input.sql} onChange={(event) => update({ sql: event.target.value })} spellCheck={false} />
@@ -109,6 +116,6 @@ export function McpToolsDemoApp() {
   );
 }
 
-function TextInput(props: { help: string; label: string; onChange: (value: string) => void; value: string }) {
+function TextInput(props: { help: ReactNode; label: string; onChange: (value: string) => void; value: string }) {
   return <label><span>{props.label} <small>{props.help}</small></span><input value={props.value} onChange={(event) => props.onChange(event.target.value)} /></label>;
 }
