@@ -1,7 +1,7 @@
 {
   "name": "@rawsql-ts/mcp-server",
   "version": "0.1.0",
-  "description": "Seven deterministic static SQL tools exposed as a local MCP server for rawsql-ts.",
+  "description": "Eight deterministic static SQL tools exposed as a local MCP server for rawsql-ts.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {

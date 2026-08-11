@@ -144,6 +144,65 @@ describe('MCP Phase 3 analysis tools', () => {
       await close();
     }
   });
+
+  it('inspects caller-facing query contracts from inline and path DDL without exposing AST', async () => {
+    const workspace = temporaryWorkspace();
+    mkdirSync(resolve(workspace, 'ddl'));
+    writeFileSync(resolve(workspace, 'ddl', 'orders.sql'), 'create table public.orders (order_id bigint not null, customer_id bigint not null);');
+    const { client, close } = await connectedClient(workspace);
+    try {
+      const response = await client.callTool({
+        name: 'inspect_query_contract',
+        arguments: {
+          ddl: 'create table public.customers (customer_id bigint not null);',
+          ddlPaths: 'ddl',
+          sql: `with selected as (
+            select o.order_id, o.customer_id from public.orders o
+            join public.customers c on c.customer_id = o.customer_id
+            where o.customer_id = :customer_id
+          )
+          select order_id as id, customer_id from selected where customer_id = :customer_id`,
+        },
+      });
+
+      expect(response.isError).not.toBe(true);
+      expect(response.structuredContent).toMatchObject({
+        kind: 'query-contract-inspection',
+        parameters: [
+          { name: 'customer_id', occurrenceIndex: 0, sourceText: ':customer_id', style: 'named' },
+          { name: 'customer_id', occurrenceIndex: 1, sourceText: ':customer_id', style: 'named' },
+        ],
+        outputColumns: [
+          { name: 'id', outputIndex: 0 },
+          { name: 'customer_id', outputIndex: 1 },
+        ],
+        referencedTables: [
+          { qualifiedName: 'public.customers' },
+          { qualifiedName: 'public.orders' },
+        ],
+      });
+      expect(JSON.stringify(response.structuredContent)).not.toContain('selectClause');
+
+      const wildcard = await client.callTool({
+        name: 'inspect_query_contract',
+        arguments: { ddlPaths: 'ddl/orders.sql', sql: 'select * from public.orders' },
+      });
+      expect(wildcard.structuredContent).toMatchObject({
+        outputColumns: [
+          { name: 'order_id', nullable: false, outputIndex: 0, type: 'bigint' },
+          { name: 'customer_id', nullable: false, outputIndex: 1, type: 'bigint' },
+        ],
+      });
+
+      const invalid = await client.callTool({ name: 'inspect_query_contract', arguments: { sql: 'select from' } });
+      expect(invalid.isError).not.toBe(true);
+      expect(invalid.structuredContent).toMatchObject({
+        diagnostics: [expect.objectContaining({ code: 'QUERY_CONTRACT_PARSE_ERROR' })],
+      });
+    } finally {
+      await close();
+    }
+  });
 });
 
 async function connectedClient(workspace: string): Promise<{ client: Client; close: () => Promise<void> }> {

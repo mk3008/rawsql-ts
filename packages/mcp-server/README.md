@@ -1,6 +1,6 @@
 # @rawsql-ts/mcp-server
 
-A local Model Context Protocol server exposing seven deterministic rawsql-ts
+A local Model Context Protocol server exposing eight deterministic rawsql-ts
 analysis and transformation tools.
 
 The npm package is `@rawsql-ts/mcp-server`. Installing it provides the
@@ -9,6 +9,7 @@ The npm package is `@rawsql-ts/mcp-server`. Installing it provides the
 ## Tools
 
 - `validate_sql`
+- `inspect_query_contract`
 - `analyze_query_structure`
 - `analyze_column_lineage`
 - `create_fixture_extraction_plan`
@@ -32,6 +33,9 @@ paths.
 - `validate_sql` accepts one SELECT statement plus optional inline `ddl` and
   workspace-relative `ddlPaths`. Invalid SQL is returned as structured syntax
   or schema diagnostics rather than a transport error.
+- `inspect_query_contract` accepts the same static SQL and optional DDL inputs.
+  It returns parameter occurrences, ordered output columns, physical tables,
+  DDL-proven types, and query-proven output nullability metadata.
 - `analyze_query_structure` accepts `sql`, optional inline `ddl`, optional
   workspace-relative `ddlPaths`, and optional `view: "compact" | "full"`.
 - `analyze_column_lineage` accepts `sql`, required `targetColumn`, and optional
@@ -88,8 +92,16 @@ not part of the contract.
 `validate_sql` returns `valid` plus structured diagnostics. Without DDL it
 performs syntax validation and reports that schema validation was skipped.
 With DDL it also checks known table and column references. Validation is
-single-statement and static; it does not prove ownership of unqualified columns
-across multiple sources.
+single-statement and static. It resolves unqualified columns only when all
+direct physical-source columns are known, reports multiple proven candidates
+as ambiguous, and otherwise returns a non-failing unresolved limitation.
+
+`inspect_query_contract` returns a small DTO rather than parser AST. Duplicate
+parameter occurrences and original placeholder spelling are preserved. CTEs
+and derived queries are excluded from `referencedTables`; their underlying
+physical tables remain visible. Unproven type and nullability fields are
+omitted. A DDL `NOT NULL` fact is returned as `nullable: false` only when the
+query source is not null-extended by an outer join.
 
 SQL-producing tools return both structured evidence and clearly labeled SQL
 strings. MCP serialization removes AST instances so callers do not receive

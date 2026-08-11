@@ -6,6 +6,7 @@ import {
   ColumnLineageAnalysisInputError,
   FixtureExtractionInputError,
   generateFixtureExtractionPlan,
+  inspectQueryContract,
   validateSql,
   type DdlInput,
 } from '@rawsql-ts/investigation-core';
@@ -67,6 +68,15 @@ export function createRawsqlMcpServer(workspace: string): McpServer {
       inputSchema: z.object(staticSqlSchema).strict(),
     },
     async (request) => runTool(() => validateSql(normalizeStaticInput(request, workspaceRoot))),
+  );
+
+  server.registerTool(
+    'inspect_query_contract',
+    {
+      description: 'Inspect parameters, ordered output columns, and referenced physical tables for one SELECT statement. DDL-proven types and query-proven output nullability are included without executing SQL.',
+      inputSchema: z.object(staticSqlSchema).strict(),
+    },
+    async (request) => runTool(() => inspectQueryContract(normalizeStaticInput(request, workspaceRoot))),
   );
 
   server.registerTool(

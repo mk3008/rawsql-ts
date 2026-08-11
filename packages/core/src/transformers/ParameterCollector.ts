@@ -1,4 +1,5 @@
 import { ParameterExpression } from "../models/ValueComponent";
+import { SqlComponent } from "../models/SqlComponent";
 
 /**
  * Utility class to collect all ParameterExpression nodes from an AST.
@@ -9,7 +10,7 @@ export class ParameterCollector {
      * @param node AST root
      * @returns ParameterExpression[]
      */
-    static collect(node: any): ParameterExpression[] {
+    static collect(node: SqlComponent): ParameterExpression[] {
         const result: ParameterExpression[] = [];
         function walk(n: any) {
             if (!n || typeof n !== 'object') return;

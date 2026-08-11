@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { demoToolIds, demoTools, initialInputs, runDemoTool } from './demoModel';
 
 describe('MCP tool catalog demo', () => {
-  it('contains and runs all seven catalog tools', () => {
-    expect(demoToolIds).toHaveLength(7);
+  it('contains and runs all eight catalog tools', () => {
+    expect(demoToolIds).toHaveLength(8);
     for (const toolId of demoToolIds) {
       expect(runDemoTool(toolId, initialInputs[toolId])).toBeTypeOf('object');
     }
