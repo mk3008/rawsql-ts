@@ -59,6 +59,7 @@ export * from './transformers/ColumnReferenceCollector';
 export * from './transformers/ClauseScopedColumnReferenceCollector';
 export * from './transformers/Formatter';
 export * from './transformers/SqlFormatter';
+export * from './transformers/SqlFormatterOptionsParser';
 export * from './transformers/QueryBuilder'; // old name:QueryConverter
 export * from './transformers/InsertQuerySelectValuesConverter';
 export * from './transformers/InsertResultSelectConverter';
