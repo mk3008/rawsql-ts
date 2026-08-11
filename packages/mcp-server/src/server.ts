@@ -1,5 +1,3 @@
-import { realpathSync, statSync } from 'node:fs';
-import { isAbsolute } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -18,6 +16,10 @@ import {
   SimpleSelectQuery,
 } from 'rawsql-ts';
 import { z } from 'zod';
+import { McpInputError } from './inputError';
+import { normalizeWorkspaceRoot } from './workspacePaths';
+
+export { McpInputError } from './inputError';
 
 const MAX_INLINE_BYTES = 1024 * 1024;
 
@@ -27,18 +29,8 @@ const staticSqlSchema = {
   sql: z.string().min(1).describe('SQL text to analyze without executing it.'),
 };
 
-export class McpInputError extends Error {
-  readonly code: string;
-
-  constructor(code: string, message: string) {
-    super(message);
-    this.name = 'McpInputError';
-    this.code = code;
-  }
-}
-
 export function createRawsqlMcpServer(workspace: string): McpServer {
-  const workspaceRoot = normalizeWorkspace(workspace);
+  const workspaceRoot = normalizeWorkspaceRoot(workspace);
   const server = new McpServer({ name: '@rawsql-ts/mcp-server', version: '0.1.0' });
 
   server.registerTool(
@@ -176,19 +168,6 @@ function ensureInlineSize(text: string, field: string): void {
   if (text.includes('\0')) throw new McpInputError('BINARY_INPUT', `${field} contains a NUL byte.`);
   if (Buffer.byteLength(text) > MAX_INLINE_BYTES) {
     throw new McpInputError('INPUT_SIZE_LIMIT', `${field} exceeds ${MAX_INLINE_BYTES} bytes.`);
-  }
-}
-
-function normalizeWorkspace(workspace: string): string {
-  if (!workspace || !isAbsolute(workspace)) {
-    throw new McpInputError('WORKSPACE_REQUIRED', 'The workspace must be an absolute directory path.');
-  }
-  try {
-    const resolved = realpathSync(workspace);
-    if (!statSync(resolved).isDirectory()) throw new Error('not a directory');
-    return resolved;
-  } catch {
-    throw new McpInputError('WORKSPACE_INVALID', 'The workspace must be an existing directory.');
   }
 }
 
