@@ -28,3 +28,18 @@ export type {
   SchemaFacts,
   SchemaFactsDiagnostic,
 } from './lineage/schemaFacts';
+export { validateSql } from './query/sqlValidation';
+export type {
+  SqlValidationDiagnosticV1,
+  SqlValidationInputV1,
+  SqlValidationResultV1,
+} from './query/sqlValidation';
+export { inspectQueryContract } from './query/queryContractInspection';
+export type {
+  QueryContractDiagnosticV1,
+  QueryContractInspectionInputV1,
+  QueryContractInspectionV1,
+  QueryContractOutputColumnV1,
+  QueryContractParameterV1,
+  QueryContractReferencedTableV1,
+} from './query/queryContractInspection';

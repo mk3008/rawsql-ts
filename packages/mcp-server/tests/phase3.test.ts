@@ -1,0 +1,380 @@
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { resolve } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { createRawsqlMcpServer } from '../src/server';
+
+const temporaryDirectories: string[] = [];
+
+afterEach(() => {
+  for (const directory of temporaryDirectories.splice(0)) {
+    rmSync(directory, { force: true, recursive: true });
+  }
+});
+
+describe('MCP Phase 3 analysis tools', () => {
+  it('returns validation failures as domain results and accepts all common DDL inputs', async () => {
+    const workspace = temporaryWorkspace();
+    mkdirSync(resolve(workspace, 'ddl'));
+    writeFileSync(resolve(workspace, 'ddl', 'customers.sql'), 'create table public.customers (customer_id bigint not null);');
+    const { client, close } = await connectedClient(workspace);
+    try {
+      const parseOnly = await client.callTool({ name: 'validate_sql', arguments: { sql: 'select 1 as value' } });
+      expect(parseOnly.isError).not.toBe(true);
+      expect(parseOnly.structuredContent).toMatchObject({ valid: true, kind: 'sql-validation' });
+
+      for (const arguments_ of [
+        { sql: 'values (1), (2)' },
+        { ddl: 'create table public.orders (order_id bigint not null);', sql: 'values (1), (2)' },
+      ]) {
+        const values = await client.callTool({ name: 'validate_sql', arguments: arguments_ });
+        expect(values.isError).not.toBe(true);
+        expect(values.structuredContent).toMatchObject({
+          valid: true,
+          diagnostics: expect.arrayContaining([expect.objectContaining({
+            code: 'SCHEMA_VALIDATION_UNSUPPORTED_QUERY_ROOT',
+            severity: 'warning',
+          })]),
+        });
+      }
+
+      const inline = await client.callTool({
+        name: 'validate_sql',
+        arguments: {
+          ddl: 'create table public.orders (order_id bigint not null);',
+          sql: 'select order_id from public.orders',
+        },
+      });
+      expect(inline.structuredContent).toMatchObject({ valid: true });
+
+      const path = await client.callTool({
+        name: 'validate_sql',
+        arguments: { ddlPaths: 'ddl', sql: 'select customer_id from public.customers' },
+      });
+      expect(path.structuredContent).toMatchObject({ valid: true });
+
+      const combined = await client.callTool({
+        name: 'validate_sql',
+        arguments: {
+          ddl: 'create table public.orders (customer_id bigint not null);',
+          ddlPaths: 'ddl',
+          sql: 'select o.customer_id from public.orders o join public.customers c on c.customer_id = o.customer_id',
+        },
+      });
+      expect(combined.structuredContent).toMatchObject({ valid: true });
+
+      const syntax = await client.callTool({ name: 'validate_sql', arguments: { sql: 'select from' } });
+      expect(syntax.isError).not.toBe(true);
+      expect(syntax.structuredContent).toMatchObject({
+        valid: false,
+        diagnostics: [expect.objectContaining({ code: 'SQL_PARSE_ERROR' })],
+      });
+
+      const unknownTable = await client.callTool({
+        name: 'validate_sql',
+        arguments: {
+          ddl: 'create table public.orders (order_id bigint not null);',
+          sql: 'select order_id from public.missing',
+        },
+      });
+      expect(unknownTable.isError).not.toBe(true);
+      expect(unknownTable.structuredContent).toMatchObject({
+        valid: false,
+        diagnostics: expect.arrayContaining([expect.objectContaining({ code: 'TABLE_NOT_DEFINED' })]),
+      });
+
+      const unknownColumn = await client.callTool({
+        name: 'validate_sql',
+        arguments: {
+          ddl: 'create table public.orders (order_id bigint not null);',
+          sql: 'select missing from public.orders',
+        },
+      });
+      expect(unknownColumn.isError).not.toBe(true);
+      expect(unknownColumn.structuredContent).toMatchObject({
+        valid: false,
+        diagnostics: expect.arrayContaining([expect.objectContaining({ code: 'COLUMN_NOT_DEFINED' })]),
+      });
+
+      const ambiguousColumn = await client.callTool({
+        name: 'validate_sql',
+        arguments: {
+          ddl: [
+            'create table users (id bigint);',
+            'create table accounts (id bigint, user_id bigint);',
+          ],
+          sql: 'select id from users join accounts on users.id = accounts.user_id',
+        },
+      });
+      expect(ambiguousColumn.isError).not.toBe(true);
+      expect(ambiguousColumn.structuredContent).toMatchObject({
+        valid: false,
+        diagnostics: expect.arrayContaining([expect.objectContaining({ code: 'COLUMN_REFERENCE_AMBIGUOUS' })]),
+      });
+
+      const uniqueColumn = await client.callTool({
+        name: 'validate_sql',
+        arguments: {
+          ddl: [
+            'create table users (id bigint);',
+            'create table accounts (user_id bigint);',
+          ],
+          sql: 'select id from users join accounts on users.id = accounts.user_id',
+        },
+      });
+      expect(uniqueColumn.isError).not.toBe(true);
+      expect(uniqueColumn.structuredContent).toMatchObject({ valid: true, diagnostics: [] });
+    } finally {
+      await close();
+    }
+  });
+
+  it('keeps invalid DDL paths in the MCP input-error contract', async () => {
+    const { client, close } = await connectedClient(temporaryWorkspace());
+    try {
+      const response = await client.callTool({
+        name: 'validate_sql',
+        arguments: { ddlPaths: '../outside.sql', sql: 'select 1' },
+      });
+      expect(response.isError).toBe(true);
+      expect(JSON.parse((response.content as Array<{ text: string }>)[0].text)).toMatchObject({ kind: 'invalid_input' });
+    } finally {
+      await close();
+    }
+  });
+
+  it('inspects caller-facing query contracts from inline and path DDL without exposing AST', async () => {
+    const workspace = temporaryWorkspace();
+    mkdirSync(resolve(workspace, 'ddl'));
+    writeFileSync(resolve(workspace, 'ddl', 'orders.sql'), 'create table public.orders (order_id bigint not null, customer_id bigint not null);');
+    const { client, close } = await connectedClient(workspace);
+    try {
+      const response = await client.callTool({
+        name: 'inspect_query_contract',
+        arguments: {
+          ddl: 'create table public.customers (customer_id bigint not null);',
+          ddlPaths: 'ddl',
+          sql: `with selected as (
+            select o.order_id, o.customer_id from public.orders o
+            join public.customers c on c.customer_id = o.customer_id
+            where o.customer_id = :customer_id
+          )
+          select order_id as id, customer_id from selected where customer_id = :customer_id`,
+        },
+      });
+
+      expect(response.isError).not.toBe(true);
+      expect(response.structuredContent).toMatchObject({
+        kind: 'query-contract-inspection',
+        parameters: [
+          { name: 'customer_id', occurrenceIndex: 0, sourceText: ':customer_id', style: 'named' },
+          { name: 'customer_id', occurrenceIndex: 1, sourceText: ':customer_id', style: 'named' },
+        ],
+        outputColumns: [
+          { name: 'id', outputIndex: 0 },
+          { name: 'customer_id', outputIndex: 1 },
+        ],
+        referencedTables: [
+          { qualifiedName: 'public.customers' },
+          { qualifiedName: 'public.orders' },
+        ],
+      });
+      expect(JSON.stringify(response.structuredContent)).not.toContain('selectClause');
+
+      const wildcard = await client.callTool({
+        name: 'inspect_query_contract',
+        arguments: { ddlPaths: 'ddl/orders.sql', sql: 'select * from public.orders' },
+      });
+      expect(wildcard.structuredContent).toMatchObject({
+        outputColumns: [
+          { name: 'order_id', nullable: false, outputIndex: 0, type: 'bigint' },
+          { name: 'customer_id', nullable: false, outputIndex: 1, type: 'bigint' },
+        ],
+      });
+
+      const invalid = await client.callTool({ name: 'inspect_query_contract', arguments: { sql: 'select from' } });
+      expect(invalid.isError).not.toBe(true);
+      expect(invalid.structuredContent).toMatchObject({
+        diagnostics: [expect.objectContaining({ code: 'QUERY_CONTRACT_PARSE_ERROR' })],
+      });
+    } finally {
+      await close();
+    }
+  });
+
+  it('filters query usage before output controls using canonical syntax contexts', async () => {
+    const workspace = temporaryWorkspace();
+    mkdirSync(resolve(workspace, 'queries'));
+    writeFileSync(resolve(workspace, 'queries', 'one.sql'), `select o.customer_id
+      from public.orders o
+      join public.customers c on c.customer_id = o.customer_id
+      where o.customer_id = :customer_id`);
+    writeFileSync(resolve(workspace, 'queries', 'two.sql'), 'select customer_id from public.orders');
+    const { client, close } = await connectedClient(workspace);
+    const columnArguments = {
+      kind: 'column',
+      scopeDir: 'queries',
+      target: 'public.orders.customer_id',
+      view: 'detail',
+    };
+    try {
+      const omitted = await client.callTool({ name: 'find_query_usage', arguments: columnArguments });
+      expect(omitted.structuredContent).toMatchObject({ report: { summary: { matches: 4 } } });
+
+      const whereOnly = await client.callTool({
+        name: 'find_query_usage',
+        arguments: { ...columnArguments, limit: 1, usageKinds: ['where'] },
+      });
+      expect(whereOnly.structuredContent).toMatchObject({
+        report: {
+          matches: [expect.objectContaining({ usage_kind: 'where' })],
+          display: { totalMatches: 1, returnedMatches: 1, truncated: false },
+          summary: { matches: 1 },
+        },
+      });
+
+      const multiple = await client.callTool({
+        name: 'find_query_usage',
+        arguments: { ...columnArguments, usageKinds: ['select', 'where'] },
+      });
+      expect(multiple.structuredContent).toMatchObject({ report: { summary: { matches: 3 } } });
+
+      const summaryOnly = await client.callTool({
+        name: 'find_query_usage',
+        arguments: { ...columnArguments, summaryOnly: true, usageKinds: ['where'] },
+      });
+      expect(summaryOnly.structuredContent).toMatchObject({
+        report: {
+          matches: [],
+          display: { totalMatches: 1, returnedMatches: 0, truncated: true },
+          summary: { matches: 1 },
+        },
+      });
+
+      const tableJoin = await client.callTool({
+        name: 'find_query_usage',
+        arguments: { kind: 'table', scopeDir: 'queries', target: 'public.customers', usageKinds: ['join'], view: 'detail' },
+      });
+      expect(tableJoin.structuredContent).toMatchObject({
+        report: { matches: [expect.objectContaining({ usage_kind: 'join' })] },
+      });
+
+      const noMatches = await client.callTool({
+        name: 'find_query_usage',
+        arguments: { ...columnArguments, usageKinds: ['group-by'] },
+      });
+      expect(noMatches.structuredContent).toMatchObject({ report: { matches: [], summary: { matches: 0 } } });
+
+      const invalid = await client.callTool({
+        name: 'find_query_usage',
+        arguments: { ...columnArguments, usageKinds: ['not-a-kind'] },
+      });
+      expect(invalid.isError).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  it('formats one requested SQL statement with defaults and common option precedence without file mutation', async () => {
+    const workspace = temporaryWorkspace();
+    const originalFileSql = 'select customer_id,amount from public.orders';
+    writeFileSync(resolve(workspace, 'query.sql'), originalFileSql);
+    writeFileSync(resolve(workspace, 'upper.json'), JSON.stringify({ indentSize: 2, keywordCase: 'upper' }));
+    writeFileSync(resolve(workspace, 'invalid.json'), '{ invalid');
+    writeFileSync(resolve(workspace, 'unknown.json'), JSON.stringify({ inventedOption: true }));
+    writeFileSync(resolve(workspace, 'invalid-option.json'), JSON.stringify({ keywordCase: 'sideways' }));
+    const { client, close } = await connectedClient(workspace);
+    const sql = 'select customer_id,amount from public.orders where customer_id=:customer_id';
+    try {
+      const defaultResult = await client.callTool({ name: 'format_sql', arguments: { sql } });
+      expect(defaultResult.structuredContent).toMatchObject({
+        kind: 'sql-format',
+        version: 1,
+        sql: expect.stringContaining('"customer_id"'),
+      });
+      expect(formattedSql(defaultResult)).not.toBe(sql);
+
+      const configResult = await client.callTool({
+        name: 'format_sql',
+        arguments: { format: { configPath: 'upper.json' }, sql },
+      });
+      expect(formattedSql(configResult)).toContain('SELECT');
+
+      const inlineResult = await client.callTool({
+        name: 'format_sql',
+        arguments: { format: { options: { keywordCase: 'lower' } }, sql },
+      });
+      expect(formattedSql(inlineResult)).toContain('select');
+
+      const precedence = await client.callTool({
+        name: 'format_sql',
+        arguments: { format: { configPath: 'upper.json', options: { keywordCase: 'lower' } }, sql },
+      });
+      expect(formattedSql(precedence)).toContain('select');
+      expect(formattedSql(precedence)).not.toContain('SELECT');
+
+      const deterministic = await client.callTool({ name: 'format_sql', arguments: { sql } });
+      expect(deterministic.structuredContent).toEqual(defaultResult.structuredContent);
+      expect(readFileSync(resolve(workspace, 'query.sql'), 'utf8')).toBe(originalFileSql);
+
+      const invalidSql = await client.callTool({ name: 'format_sql', arguments: { sql: 'select from' } });
+      expect(invalidSql.isError).toBe(true);
+      expect(toolFailure(invalidSql)).toMatchObject({ code: 'SQL_FORMAT_FAILED', kind: 'invalid_input' });
+
+      const invalidJson = await client.callTool({
+        name: 'format_sql', arguments: { format: { configPath: 'invalid.json' }, sql },
+      });
+      expect(toolFailure(invalidJson)).toMatchObject({ code: 'FORMAT_CONFIG_INVALID_JSON' });
+
+      const unknownOption = await client.callTool({
+        name: 'format_sql', arguments: { format: { configPath: 'unknown.json' }, sql },
+      });
+      expect(toolFailure(unknownOption)).toMatchObject({ code: 'FORMAT_OPTION_UNKNOWN' });
+
+      const invalidOption = await client.callTool({
+        name: 'format_sql', arguments: { format: { configPath: 'invalid-option.json' }, sql },
+      });
+      expect(toolFailure(invalidOption)).toMatchObject({ code: 'FORMAT_OPTIONS_INVALID' });
+
+      const escaped = await client.callTool({
+        name: 'format_sql', arguments: { format: { configPath: '../formatter.json' }, sql },
+      });
+      expect(toolFailure(escaped)).toMatchObject({ code: 'WORKSPACE_PATH_TRAVERSAL' });
+    } finally {
+      await close();
+    }
+  });
+});
+
+async function connectedClient(workspace: string): Promise<{ client: Client; close: () => Promise<void> }> {
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const server = createRawsqlMcpServer(workspace);
+  const client = new Client({ name: 'rawsql-mcp-phase3-test', version: '1.0.0' });
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  return {
+    client,
+    close: async () => {
+      await client.close();
+      await server.close();
+    },
+  };
+}
+
+function temporaryWorkspace(): string {
+  const directory = mkdtempSync(resolve(tmpdir(), 'rawsql-ts-mcp-phase3-'));
+  temporaryDirectories.push(directory);
+  return directory;
+}
+
+function toolFailure(response: unknown): Record<string, unknown> {
+  const result = response as { content: Array<{ text: string }> };
+  return JSON.parse(result.content[0].text) as Record<string, unknown>;
+}
+
+function formattedSql(response: unknown): string {
+  const result = response as { structuredContent?: { sql?: unknown } };
+  return String(result.structuredContent?.sql);
+}

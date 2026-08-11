@@ -2,6 +2,8 @@ import {
   analyzeColumnLineage,
   analyzeQueryStructure,
   generateFixtureExtractionPlan,
+  inspectQueryContract,
+  validateSql,
   type DdlInput,
 } from '@rawsql-ts/investigation-core';
 import {
@@ -15,15 +17,20 @@ import {
   optimizeConditions,
   SelectQueryParser,
   SimpleSelectQuery,
+  SqlFormatter,
+  SqlParser,
 } from 'rawsql-ts';
 
 export const demoToolIds = [
+  'validate_sql',
+  'inspect_query_contract',
   'analyze_query_structure',
   'analyze_column_lineage',
   'create_fixture_extraction_plan',
   'find_query_usage',
   'extract_cte_query',
   'optimize_sql_conditions',
+  'format_sql',
 ] as const;
 
 export type DemoToolId = typeof demoToolIds[number];
@@ -36,6 +43,16 @@ export interface DemoTool {
 }
 
 export const demoTools: readonly DemoTool[] = [
+  {
+    id: 'validate_sql',
+    label: 'Validate SQL',
+    summary: 'Checks one SELECT statement for syntax and, when optional DDL is supplied, known table and column references without executing SQL.',
+  },
+  {
+    id: 'inspect_query_contract',
+    label: 'Inspect query contract',
+    summary: 'Lists input parameter occurrences, ordered output columns, and physical tables, adding DDL-proven types and query-proven output nullability.',
+  },
   {
     id: 'analyze_query_structure',
     label: 'Analyze query structure',
@@ -55,7 +72,7 @@ export const demoTools: readonly DemoTool[] = [
   {
     id: 'find_query_usage',
     label: 'Find table and column usage',
-    summary: 'Recursively searches .sql files for table or column usage, with optional result limits and summary-only output.',
+    summary: 'Recursively searches .sql files for table or column usage, with optional syntax-context filters, result limits, and summary-only output.',
   },
   {
     id: 'extract_cte_query',
@@ -66,6 +83,11 @@ export const demoTools: readonly DemoTool[] = [
     id: 'optimize_sql_conditions',
     label: 'Optimize SQL conditions',
     summary: 'Moves conditions, prunes optional branches, and removes duplicate predicates only where proven safe, with optional generated-SQL formatting.',
+  },
+  {
+    id: 'format_sql',
+    label: 'Format SQL',
+    summary: 'Formats one user-supplied SQL statement with rawsql-ts defaults without changing files.',
   },
 ];
 
@@ -81,6 +103,8 @@ export interface DemoInput {
 }
 
 export const initialInputs: Record<DemoToolId, DemoInput> = {
+  validate_sql: commonInput(),
+  inspect_query_contract: commonInput(),
   analyze_query_structure: commonInput(),
   analyze_column_lineage: commonInput(),
   create_fixture_extraction_plan: commonInput(),
@@ -104,13 +128,23 @@ where customer_id = :customer_id
   and customer_id = :customer_id
   and (:amount is null or amount = :amount);`,
   },
+  format_sql: commonInput(),
 };
 
 export function runDemoTool(toolId: DemoToolId, input: DemoInput): object {
   if (toolId === 'find_query_usage') return findUsage(input);
   if (!input.sql.trim()) throw new Error('Enter SQL.');
+  if (toolId === 'format_sql') {
+    return {
+      kind: 'sql-format',
+      version: 1,
+      sql: new SqlFormatter().format(SqlParser.parse(input.sql)).formattedSql,
+    };
+  }
   const ddl = toDdl(input.ddl);
   const staticInput = { sql: input.sql, ...(ddl ? { ddl } : {}) };
+  if (toolId === 'validate_sql') return validateSql(staticInput);
+  if (toolId === 'inspect_query_contract') return inspectQueryContract(staticInput);
   if (toolId === 'analyze_query_structure') return analyzeQueryStructure(staticInput);
   if (toolId === 'analyze_column_lineage') {
     if (!input.targetColumn.trim()) throw new Error('Enter an output column name.');

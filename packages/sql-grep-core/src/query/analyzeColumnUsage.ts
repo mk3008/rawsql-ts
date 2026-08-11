@@ -44,6 +44,7 @@ import type {
   QueryUsageAnalyzerResult,
   QueryUsageClauseAnchor,
   QueryUsageConfidence,
+  QueryUsageKind,
   QueryUsageMatchDetail,
   QueryUsageMode,
   QueryUsageTarget
@@ -55,7 +56,7 @@ interface ScopeState {
 }
 
 interface ColumnOccurrence {
-  usageKind: string;
+  usageKind: QueryUsageKind;
   searchTerms: string[];
   confidence: QueryUsageConfidence;
   notes: string[];
@@ -281,7 +282,7 @@ function collectSelectItemMatches(
   mode: QueryUsageMode,
   scope: ScopeState,
   context: { inSubquery?: boolean; inCte?: boolean },
-  rootUsageKind = 'select'
+  rootUsageKind: QueryUsageKind = 'select'
 ): ColumnOccurrence[] {
   return collectExpressionMatches(item.value, target, mode, scope, context, rootUsageKind, ['projection']);
 }
@@ -333,7 +334,7 @@ function collectExpressionMatches(
   mode: QueryUsageMode,
   scope: ScopeState,
   context: { inSubquery?: boolean; inCte?: boolean },
-  rootUsageKind: string,
+  rootUsageKind: QueryUsageKind,
   exprHints: string[]
 ): ColumnOccurrence[] {
   if (value instanceof ColumnReference) {
@@ -439,7 +440,7 @@ function collectColumnReferenceMatch(
   mode: QueryUsageMode,
   scope: ScopeState,
   context: { inSubquery?: boolean; inCte?: boolean },
-  rootUsageKind: string,
+  rootUsageKind: QueryUsageKind,
   exprHints: string[]
 ): ColumnOccurrence[] {
   const usageKind = context.inCte ? 'cte' : context.inSubquery ? 'subquery' : rootUsageKind;
@@ -530,7 +531,7 @@ function collectColumnReferenceMatch(
 function buildExplicitOccurrence(
   columnName: string,
   mode: QueryUsageMode,
-  usageKind: string,
+  usageKind: QueryUsageKind,
   exprHints: string[],
   context: { inSubquery?: boolean; inCte?: boolean }
 ): ColumnOccurrence {
@@ -586,7 +587,7 @@ function toColumnMatch(statement: CatalogStatement, occurrence: ColumnOccurrence
   };
 }
 
-function resolveClauseAnchor(usageKind: string): QueryUsageClauseAnchor {
+function resolveClauseAnchor(usageKind: QueryUsageKind): QueryUsageClauseAnchor {
   switch (usageKind) {
     case 'where':
       return { kind: usageKind, tokens: ['WHERE'] };
@@ -609,7 +610,6 @@ function resolveClauseAnchor(usageKind: string): QueryUsageClauseAnchor {
     case 'select':
     case 'subquery':
     case 'cte':
-    case 'unknown':
     default:
       return { kind: usageKind, tokens: ['SELECT'] };
   }

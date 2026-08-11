@@ -6,9 +6,11 @@ import {
   ColumnLineageAnalysisInputError,
   FixtureExtractionInputError,
   generateFixtureExtractionPlan,
+  inspectQueryContract,
+  validateSql,
   type DdlInput,
 } from '@rawsql-ts/investigation-core';
-import { applyQueryOutputControls, buildSqlFileUsageReport } from '@rawsql-ts/sql-grep-core';
+import { applyQueryOutputControls, buildSqlFileUsageReport, QUERY_USAGE_KINDS } from '@rawsql-ts/sql-grep-core';
 import {
   CTEQueryDecomposer,
   optimizeConditions,
@@ -20,6 +22,7 @@ import { resolveDdlSources } from './ddlSources';
 import { McpInputError } from './inputError';
 import {
   formatGeneratedSqlArtifact,
+  formatRequestedSql,
   generatedSqlArtifact,
   resolveSqlFormatting,
   type SqlFormatInput,
@@ -58,6 +61,24 @@ const formatSchema = z.object({
 export function createRawsqlMcpServer(workspace: string): McpServer {
   const workspaceRoot = normalizeWorkspaceRoot(workspace);
   const server = new McpServer({ name: '@rawsql-ts/mcp-server', version: '0.1.0' });
+
+  server.registerTool(
+    'validate_sql',
+    {
+      description: 'Validate one SELECT statement statically. Syntax and schema problems are returned as structured diagnostics; the tool never connects to a database or executes SQL.',
+      inputSchema: z.object(staticSqlSchema).strict(),
+    },
+    async (request) => runTool(() => validateSql(normalizeStaticInput(request, workspaceRoot))),
+  );
+
+  server.registerTool(
+    'inspect_query_contract',
+    {
+      description: 'Inspect parameters, ordered output columns, and referenced physical tables for one SELECT statement. DDL-proven types and query-proven output nullability are included without executing SQL.',
+      inputSchema: z.object(staticSqlSchema).strict(),
+    },
+    async (request) => runTool(() => inspectQueryContract(normalizeStaticInput(request, workspaceRoot))),
+  );
 
   server.registerTool(
     'analyze_query_structure',
@@ -122,6 +143,8 @@ export function createRawsqlMcpServer(workspace: string): McpServer {
           .describe('Workspace-relative directory to scan recursively for .sql files. Defaults to the workspace root.'),
         summaryOnly: z.boolean().optional().describe('Return report summary and display totals without match or warning bodies.'),
         target: z.string().min(1).describe('Qualified table or column selector, such as public.orders or public.orders.customer_id.'),
+        usageKinds: z.array(z.enum(QUERY_USAGE_KINDS)).min(1).optional()
+          .describe('Optional syntax contexts to retain. Canonical values are defined by sql-grep-core.'),
         view: z.enum(['impact', 'detail']).optional().describe('Impact aggregates per statement; detail returns each usage location.'),
       }).strict(),
     },
@@ -134,6 +157,7 @@ export function createRawsqlMcpServer(workspace: string): McpServer {
         scopeDir: request.scopeDir,
         anySchema: request.anySchema,
         anyTable: request.anyTable,
+        usageKinds: request.usageKinds,
         view: request.view ?? 'impact',
       });
       return {
@@ -202,6 +226,26 @@ export function createRawsqlMcpServer(workspace: string): McpServer {
         version: 1,
         query: undefined,
         diagnostics,
+      };
+    }),
+  );
+
+  server.registerTool(
+    'format_sql',
+    {
+      description: 'Format one SQL statement with rawsql-ts defaults or optional workspace-confined config and inline formatter options. It does not execute SQL or change files.',
+      inputSchema: z.object({
+        format: formatSchema,
+        sql: z.string().min(1).describe('One SQL statement to format without executing it.'),
+      }).strict(),
+    },
+    async (request) => runTool(() => {
+      ensureInlineSize(request.sql, 'sql');
+      const formatting = resolveSqlFormatting(workspaceRoot, (request.format ?? {}) as SqlFormatInput);
+      return {
+        kind: 'sql-format',
+        version: 1,
+        sql: formatRequestedSql(request.sql, formatting),
       };
     }),
   );

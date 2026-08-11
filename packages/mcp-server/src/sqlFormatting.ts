@@ -87,6 +87,23 @@ export function formatGeneratedSqlArtifact<Artifact extends GeneratedSqlArtifact
   }
 }
 
+/**
+ * Format SQL supplied explicitly for formatting. Unlike generated artifacts,
+ * this path represents the caller's formatting intent and never traverses or
+ * rewrites analysis evidence.
+ *
+ * API output shape review: the caller supplies one SQL string and receives only
+ * its formatted replacement; no original or evidence SQL fields are added.
+ */
+export function formatRequestedSql(sql: string, formatting: ResolvedSqlFormatting): string {
+  try {
+    const statement = SqlParser.parse(sql);
+    return new SqlFormatter(formatting.options).format(statement).formattedSql;
+  } catch (error) {
+    throw new McpInputError('SQL_FORMAT_FAILED', error instanceof Error ? error.message : String(error));
+  }
+}
+
 function readFormatterConfig(workspaceRoot: string, configPath: string): SqlFormatterOptions {
   if (path.extname(configPath).toLowerCase() !== '.json') {
     throw new McpInputError('FORMAT_CONFIG_EXTENSION', 'Formatter configPath must identify a JSON file.');

@@ -14,6 +14,7 @@ import { clearStatementCache, locateUsageText } from './location';
 import { parseQueryTarget } from './targets';
 import type {
   QueryUsageConfidence,
+  QueryUsageKind,
   QueryUsageMatch,
   QueryUsageMatchDetail,
   QueryUsageMatchImpact,
@@ -46,6 +47,8 @@ export interface BuildQueryUsageReportParams {
   anySchema?: boolean;
   anyTable?: boolean;
   view?: QueryUsageView;
+  /** Include only syntax-classified matches with one of these canonical usage kinds. */
+  usageKinds?: readonly QueryUsageKind[];
   withSpanSync?: QueryUsageSpanRunner;
   /** Reject SQL catalog files whose resolved real path is outside rootDir. */
   confineToRoot?: boolean;
@@ -214,10 +217,11 @@ Hint: run "ashiba init" or place feature-local specs under your project tree. Us
       }
     }
 
+    const selectedDetailMatches = selectUsageKinds(detailMatches, params.usageKinds);
     const matches: QueryUsageMatch[] = view === 'detail'
-      ? detailMatches
-      : runSpan(params.withSpanSync, QUERY_USES_REPORT_SPANS.impactAggregation, () => aggregateImpactMatches(detailMatches), {
-        detailMatchCount: detailMatches.length,
+      ? selectedDetailMatches
+      : runSpan(params.withSpanSync, QUERY_USES_REPORT_SPANS.impactAggregation, () => aggregateImpactMatches(selectedDetailMatches), {
+        detailMatchCount: selectedDetailMatches.length,
       });
 
     return {
@@ -229,7 +233,9 @@ Hint: run "ashiba init" or place feature-local specs under your project tree. Us
         catalogsScanned: discovery.loadedSpecs.length,
         statementsScanned,
         matches: matches.length,
-        fallbackMatches,
+        fallbackMatches: params.usageKinds === undefined
+          ? fallbackMatches
+          : selectedDetailMatches.filter((match) => match.source === 'fallback').length,
         unresolvedSqlFiles,
         parseWarnings,
       },
@@ -342,9 +348,10 @@ export function buildSqlFileUsageReport(params: BuildSqlFileUsageReportParams): 
     }
   }
 
+  const selectedDetailMatches = selectUsageKinds(detailMatches, params.usageKinds);
   const matches: QueryUsageMatch[] = view === 'detail'
-    ? detailMatches
-    : aggregateImpactMatches(detailMatches);
+    ? selectedDetailMatches
+    : aggregateImpactMatches(selectedDetailMatches);
 
   return {
     schemaVersion: 2,
@@ -357,7 +364,9 @@ export function buildSqlFileUsageReport(params: BuildSqlFileUsageReportParams): 
       sqlFilesScanned,
       statementsScanned,
       matches: matches.length,
-      fallbackMatches,
+      fallbackMatches: params.usageKinds === undefined
+        ? fallbackMatches
+        : selectedDetailMatches.filter((match) => match.source === 'fallback').length,
       unresolvedSqlFiles,
       parseWarnings,
     },
@@ -373,6 +382,15 @@ export function writeQueryUsageOutput(outPath: string, contents: string): void {
   const absolute = path.resolve(process.cwd(), outPath);
   mkdirSync(path.dirname(absolute), { recursive: true });
   writeFileSync(absolute, contents, 'utf8');
+}
+
+function selectUsageKinds(
+  matches: QueryUsageMatchDetail[],
+  usageKinds: readonly QueryUsageKind[] | undefined,
+): QueryUsageMatchDetail[] {
+  if (usageKinds === undefined) return matches;
+  const selected = new Set<QueryUsageKind>(usageKinds);
+  return matches.filter((match) => selected.has(match.usage_kind));
 }
 
 function aggregateImpactMatches(matches: QueryUsageMatchDetail[]): QueryUsageMatchImpact[] {
@@ -508,7 +526,7 @@ function buildTableFallbackMatch(
   };
 }
 
-function resolveFallbackClauseAnchor(usageKind: string): { kind: string; tokens: string[] } {
+function resolveFallbackClauseAnchor(usageKind: QueryUsageKind): { kind: QueryUsageKind; tokens: string[] } {
   switch (usageKind) {
     case 'update-target':
       return { kind: usageKind, tokens: ['UPDATE'] };
@@ -526,13 +544,13 @@ function resolveFallbackClauseAnchor(usageKind: string): { kind: string; tokens:
   }
 }
 
-function inferTableFallbackUsageKind(sql: string, target: QueryUsageTarget): string | null {
+function inferTableFallbackUsageKind(sql: string, target: QueryUsageTarget): QueryUsageKind | null {
   const tablePattern = target.schema && target.table ? `${escapeRegex(target.schema)}\\s*\\.\\s*${escapeRegex(target.table)}` : target.table ? escapeRegex(target.table) : '';
   if (!tablePattern) {
     return null;
   }
 
-  const candidates: Array<[string, RegExp]> = [
+  const candidates: Array<[QueryUsageKind, RegExp]> = [
     ['update-target', new RegExp(`\\bupdate\\s+${tablePattern}\\b`, 'i')],
     ['delete-target', new RegExp(`\\bdelete\\s+from\\s+${tablePattern}\\b`, 'i')],
     ['insert-target', new RegExp(`\\binsert\\s+into\\s+${tablePattern}\\b`, 'i')],
@@ -640,7 +658,12 @@ export interface BuildSqlFileUsageReportParams {
   /** Maximum aggregate SQL file size to inspect before returning a partial report. */
   maxTotalBytes?: number;
   view?: QueryUsageView;
+  /** Include only syntax-classified matches with one of these canonical usage kinds. */
+  usageKinds?: readonly QueryUsageKind[];
 }
+
+// API output shape review: usageKinds selects existing match DTOs before
+// aggregation; it does not add SQL-bearing fields or change the report shape.
 
 function isAllowedCatalogFile(rootDir: string, candidate: string, confineToRoot = false): boolean {
   try {

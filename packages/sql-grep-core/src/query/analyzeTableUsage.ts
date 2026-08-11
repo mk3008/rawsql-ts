@@ -39,13 +39,14 @@ import type {
   QueryUsageAnalyzerResult,
   QueryUsageClauseAnchor,
   QueryUsageConfidence,
+  QueryUsageKind,
   QueryUsageMatchDetail,
   QueryUsageMode,
   QueryUsageTarget
 } from './types';
 
 interface TableOccurrence {
-  usageKind: string;
+  usageKind: QueryUsageKind;
   searchTerms: string[];
   confidence: QueryUsageConfidence;
   notes: string[];
@@ -304,7 +305,7 @@ function collectSourceExpressionOccurrences(
   target: QueryUsageTarget,
   mode: QueryUsageMode,
   context: { inSubquery?: boolean; inCte?: boolean },
-  usageKind: string
+  usageKind: QueryUsageKind
 ): TableOccurrence[] {
   if (source.datasource instanceof TableSourceModel) {
     const qualified = getQualifiedTable(source.datasource);
@@ -398,7 +399,7 @@ function toTableMatch(statement: CatalogStatement, occurrence: TableOccurrence):
   };
 }
 
-function resolveClauseAnchor(usageKind: string): QueryUsageClauseAnchor {
+function resolveClauseAnchor(usageKind: QueryUsageKind): QueryUsageClauseAnchor {
   switch (usageKind) {
     case 'from':
     case 'subquery-from':

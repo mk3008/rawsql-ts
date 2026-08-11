@@ -12,6 +12,7 @@ import { DEFAULT_DDL_SOURCE_LIMITS, resolveDdlSources } from '../src/ddlSources'
 import { McpInputError } from '../src/inputError';
 import {
   formatGeneratedSqlArtifact,
+  formatRequestedSql,
   generatedSqlArtifact,
   resolveSqlFormatting,
 } from '../src/sqlFormatting';
@@ -226,6 +227,21 @@ describe('SQL formatting resolution', () => {
 
     expect(formatting).toEqual({ enabled: false, options: {} });
     expect(formatGeneratedSqlArtifact(artifact, formatting)).toBe(artifact);
+  });
+
+  it('formats explicitly requested SQL without a generated-artifact wrapper', () => {
+    const workspace = temporaryDirectory('format-workspace-');
+    const formatting = resolveSqlFormatting(workspace, {});
+
+    expect(formatRequestedSql('select customer_id,amount from orders', formatting))
+      .toBe('select "customer_id", "amount" from "orders"');
+  });
+
+  it('maps requested SQL parse failures to a dedicated stable error', () => {
+    const workspace = temporaryDirectory('format-workspace-');
+    const formatting = resolveSqlFormatting(workspace, {});
+
+    expectInputError(() => formatRequestedSql('select 1; select 2', formatting), 'SQL_FORMAT_FAILED');
   });
 
   it('resolves a configPath-only formatter configuration', () => {

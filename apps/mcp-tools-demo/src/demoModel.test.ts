@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { demoToolIds, demoTools, initialInputs, runDemoTool } from './demoModel';
 
 describe('MCP tool catalog demo', () => {
-  it('contains and runs all six catalog tools', () => {
-    expect(demoToolIds).toHaveLength(6);
+  it('contains and runs all nine catalog tools', () => {
+    expect(demoToolIds).toHaveLength(9);
     for (const toolId of demoToolIds) {
       expect(runDemoTool(toolId, initialInputs[toolId])).toBeTypeOf('object');
     }
@@ -43,5 +43,11 @@ describe('MCP tool catalog demo', () => {
       ...initialInputs.optimize_sql_conditions,
       sql: '',
     })).toThrow('Enter SQL.');
+  });
+
+  it('describes the browser format demo as defaults-only', () => {
+    const summary = demoTools.find((tool) => tool.id === 'format_sql')?.summary;
+
+    expect(summary).toBe('Formats one user-supplied SQL statement with rawsql-ts defaults without changing files.');
   });
 });
