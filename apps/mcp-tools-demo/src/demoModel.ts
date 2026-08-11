@@ -49,7 +49,7 @@ export const demoTools: readonly DemoTool[] = [
   {
     id: 'create_fixture_extraction_plan',
     label: 'Create fixture extraction plan',
-    summary: 'Finds a bounded predicate from inline or workspace DDL and produces optionally formatted capture SELECT statements only where the boundary is proven.',
+    summary: 'Uses optional inline or workspace DDL to prove a bounded predicate and produces optionally formatted capture SELECT statements only where the boundary is proven.',
     experimental: true,
   },
   {

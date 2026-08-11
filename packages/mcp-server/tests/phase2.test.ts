@@ -125,8 +125,16 @@ describe('MCP Phase 2 common I/O integration', () => {
         name: 'extract_cte_query',
         arguments: { ...cteArguments, format: { options: { keywordCase: 'lower' } } },
       }));
+      const ctePrecedence = result(await client.callTool({
+        name: 'extract_cte_query',
+        arguments: {
+          ...cteArguments,
+          format: { configPath: 'upper.json', options: { keywordCase: 'lower' } },
+        },
+      }));
       expect(cteConfig.executableSql).toContain('SELECT');
       expect(cteInline.executableSql).toContain('select');
+      expect(ctePrecedence.executableSql).toContain('select');
       expect(cteDefault).toMatchObject({ kind: 'cte-query-extraction', version: 1 });
 
       const fixtureArguments = {
@@ -225,11 +233,36 @@ describe('MCP Phase 2 common I/O integration', () => {
     }
   });
 
+  it('preserves failed condition-optimization diagnostics when formatting is requested', async () => {
+    const { client, close } = await connectedClient(temporaryWorkspace());
+    const sql = 'select * from';
+    try {
+      const withoutFormatResponse = await client.callTool({
+        name: 'optimize_sql_conditions',
+        arguments: { sql },
+      });
+      const withFormatResponse = await client.callTool({
+        name: 'optimize_sql_conditions',
+        arguments: { format: { options: { keywordCase: 'upper' } }, sql },
+      });
+      expect(withoutFormatResponse.isError).not.toBe(true);
+      expect(withFormatResponse.isError).not.toBe(true);
+
+      const withoutFormat = result(withoutFormatResponse);
+      const withFormat = result(withFormatResponse);
+      expect(withoutFormat).toMatchObject({ ok: false, sql, errors: expect.any(Array) });
+      expect(withFormat).toMatchObject({ ok: false, sql, errors: withoutFormat.errors });
+      expect((withFormat.errors as unknown[]).length).toBeGreaterThan(0);
+    } finally {
+      await close();
+    }
+  });
+
   it('returns explicit compact DTOs while omitted and full preserve complete analysis output', async () => {
     const { client, close } = await connectedClient(temporaryWorkspace());
     const sql = `with order_totals as (
       select customer_id, sum(amount) as total from orders group by customer_id
-    ) select total from (select total from order_totals) nested where total > 0`;
+    ) select total from (select total from order_totals) nested where total > 0 order by total`;
     try {
       const structureDefault = result(await client.callTool({ name: 'analyze_query_structure', arguments: { sql } }));
       const structureFull = result(await client.callTool({ name: 'analyze_query_structure', arguments: { sql, view: 'full' } }));
@@ -242,6 +275,12 @@ describe('MCP Phase 2 common I/O integration', () => {
         physicalTableNames: ['orders'],
         summary: expect.any(Object),
       });
+      expect(structureCompact.operationSummaries).toContainEqual({
+        count: 1,
+        effects: ['may_change_order'],
+        kind: 'order_by',
+      });
+      expect(structureCompact).not.toHaveProperty('rowSetChangingOperations');
       expect(structureCompact).not.toHaveProperty('components');
       expect(structureCompact).not.toHaveProperty('operations');
       expect(structureCompact).not.toHaveProperty('scopes');
@@ -273,6 +312,27 @@ describe('MCP Phase 2 common I/O integration', () => {
       expect(lineageCompact).not.toHaveProperty('investigationPlan');
       expect((lineageCompact.columnLineage as Record<string, unknown>)).not.toHaveProperty('expressionChain');
       expect(JSON.stringify(lineageCompact)).not.toContain('investigation_probe');
+
+      const mixedProbeSql = 'select sum(amount) as total from orders where customer_id = :customer_id';
+      const mixedProbeFull = result(await client.callTool({
+        name: 'analyze_column_lineage',
+        arguments: { sql: mixedProbeSql, targetColumn: 'total' },
+      }));
+      const mixedProbeCompact = result(await client.callTool({
+        name: 'analyze_column_lineage',
+        arguments: { sql: mixedProbeSql, targetColumn: 'total', view: 'compact' },
+      }));
+      const fullPlan = mixedProbeFull.investigationPlan as Record<string, unknown[]>;
+      expect(fullPlan.blockedProbes.length).toBeGreaterThan(0);
+      expect(fullPlan.recommendedProbes.length).toBeGreaterThan(0);
+      expect(mixedProbeCompact.investigationSummary).toMatchObject({
+        blockedProbeCount: fullPlan.blockedProbes.length,
+        deferredProbeCount: fullPlan.deferredProbes.length,
+        recommendedProbeCount: fullPlan.recommendedProbes.length,
+        unresolvedParameterCount: fullPlan.unresolvedParameters.length,
+      });
+      expect(mixedProbeCompact).not.toHaveProperty('status');
+      expect(JSON.stringify(mixedProbeCompact)).not.toContain('investigation_probe');
     } finally {
       await close();
     }

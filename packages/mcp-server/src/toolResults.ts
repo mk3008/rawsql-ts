@@ -17,13 +17,13 @@ export interface QueryStructureCompactViewV1 {
   cteNames: string[];
   derivedQueryCount: number;
   kind: 'query-structure-analysis-compact';
-  parserVersion: string;
-  physicalTableNames: string[];
-  rowSetChangingOperations: Array<{
+  operationSummaries: Array<{
     count: number;
     effects: string[];
     kind: string;
   }>;
+  parserVersion: string;
+  physicalTableNames: string[];
   scalarSubqueryCount: number;
   summary: QueryStructureAnalysisV1['summary'];
   version: 1;
@@ -53,7 +53,6 @@ export interface ColumnLineageCompactViewV1 {
     nodeImpactCount: number;
     summary: string;
   };
-  status: 'blocked' | 'ready' | 'unresolved';
   target: ColumnLineageAnalysisV1['target'];
   version: 1;
   view: 'compact';
@@ -73,15 +72,15 @@ export function toQueryStructureCompactView(result: QueryStructureAnalysisV1): Q
     cteNames: componentLabels(result, 'cte'),
     derivedQueryCount: result.summary.derivedQueryCount,
     kind: 'query-structure-analysis-compact',
-    parserVersion: result.parserVersion,
-    physicalTableNames: componentLabels(result, 'table'),
-    rowSetChangingOperations: [...operationSummaries.entries()]
+    operationSummaries: [...operationSummaries.entries()]
       .sort(([left], [right]) => compareCodeUnits(left, right))
       .map(([kind, summary]) => ({
         count: summary.count,
         effects: [...summary.effects].sort(compareCodeUnits),
         kind,
       })),
+    parserVersion: result.parserVersion,
+    physicalTableNames: componentLabels(result, 'table'),
     scalarSubqueryCount: result.summary.scalarSubqueryCount,
     summary: result.summary,
     version: 1,
@@ -91,11 +90,6 @@ export function toQueryStructureCompactView(result: QueryStructureAnalysisV1): Q
 
 export function toColumnLineageCompactView(result: ColumnLineageAnalysisV1): ColumnLineageCompactViewV1 {
   const plan = result.investigationPlan;
-  const status = plan.blockedProbes.length > 0
-    ? 'blocked'
-    : plan.unresolvedParameters.length > 0
-      ? 'unresolved'
-      : 'ready';
   return {
     analysisMode: result.analysisMode,
     candidateConcerns: result.candidateConcerns,
@@ -118,7 +112,6 @@ export function toColumnLineageCompactView(result: ColumnLineageAnalysisV1): Col
       nodeImpactCount: result.rowLineage.nodeImpacts.length,
       summary: result.rowLineage.summary,
     },
-    status,
     target: result.target,
     version: 1,
     view: 'compact',
@@ -169,10 +162,12 @@ export function formatConditionOptimizationResult(
   result: ConditionOptimizationResult,
   formatting: ResolvedSqlFormatting,
 ): ConditionOptimizationResult {
-  const sql = formatGeneratedSqlArtifact(
-    generatedSqlArtifact('condition_optimization_rewrite', result.sql),
-    formatting,
-  ).sql;
+  const sql = result.ok && result.query !== null
+    ? formatGeneratedSqlArtifact(
+        generatedSqlArtifact('condition_optimization_rewrite', result.sql),
+        formatting,
+      ).sql
+    : result.sql;
   const diagnostics = result.diagnostics
     ? {
         ...result.diagnostics,
