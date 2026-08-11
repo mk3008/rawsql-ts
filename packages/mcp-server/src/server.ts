@@ -10,7 +10,7 @@ import {
   validateSql,
   type DdlInput,
 } from '@rawsql-ts/investigation-core';
-import { applyQueryOutputControls, buildSqlFileUsageReport } from '@rawsql-ts/sql-grep-core';
+import { applyQueryOutputControls, buildSqlFileUsageReport, QUERY_USAGE_KINDS } from '@rawsql-ts/sql-grep-core';
 import {
   CTEQueryDecomposer,
   optimizeConditions,
@@ -142,6 +142,8 @@ export function createRawsqlMcpServer(workspace: string): McpServer {
           .describe('Workspace-relative directory to scan recursively for .sql files. Defaults to the workspace root.'),
         summaryOnly: z.boolean().optional().describe('Return report summary and display totals without match or warning bodies.'),
         target: z.string().min(1).describe('Qualified table or column selector, such as public.orders or public.orders.customer_id.'),
+        usageKinds: z.array(z.enum(QUERY_USAGE_KINDS)).min(1).optional()
+          .describe('Optional syntax contexts to retain. Canonical values are defined by sql-grep-core.'),
         view: z.enum(['impact', 'detail']).optional().describe('Impact aggregates per statement; detail returns each usage location.'),
       }).strict(),
     },
@@ -154,6 +156,7 @@ export function createRawsqlMcpServer(workspace: string): McpServer {
         scopeDir: request.scopeDir,
         anySchema: request.anySchema,
         anyTable: request.anyTable,
+        usageKinds: request.usageKinds,
         view: request.view ?? 'impact',
       });
       return {

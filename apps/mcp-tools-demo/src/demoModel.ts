@@ -69,7 +69,7 @@ export const demoTools: readonly DemoTool[] = [
   {
     id: 'find_query_usage',
     label: 'Find table and column usage',
-    summary: 'Recursively searches .sql files for table or column usage, with optional result limits and summary-only output.',
+    summary: 'Recursively searches .sql files for table or column usage, with optional syntax-context filters, result limits, and summary-only output.',
   },
   {
     id: 'extract_cte_query',

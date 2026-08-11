@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildQueryUsageReport, buildSqlFileUsageReport } from '../src';
+import { buildQueryUsageReport, buildSqlFileUsageReport, isQueryUsageKind, QUERY_USAGE_KINDS } from '../src';
 
 const temporaryDirectories: string[] = [];
 
@@ -97,6 +97,53 @@ describe('buildSqlFileUsageReport', () => {
     });
     expect(byteLimited.summary.sqlFilesScanned).toBe(0);
     expect(byteLimited.warnings.map((warning) => warning.code)).toContain('sql-file-byte-limit');
+  });
+
+  it('filters syntax-classified detail matches before impact aggregation', () => {
+    const workspace = temporaryWorkspace();
+    writeSql(workspace, 'queries/orders.sql', `select o.customer_id
+      from public.orders o
+      join public.customers c on c.customer_id = o.customer_id
+      where o.customer_id = :customer_id`);
+
+    const omitted = buildSqlFileUsageReport({
+      kind: 'column', rawTarget: 'public.orders.customer_id', rootDir: workspace, scopeDir: 'queries', view: 'detail',
+    });
+    const whereOnly = buildSqlFileUsageReport({
+      kind: 'column', rawTarget: 'public.orders.customer_id', rootDir: workspace, scopeDir: 'queries',
+      usageKinds: ['where'], view: 'detail',
+    });
+    const projectionAndPredicate = buildSqlFileUsageReport({
+      kind: 'column', rawTarget: 'public.orders.customer_id', rootDir: workspace, scopeDir: 'queries',
+      usageKinds: ['select', 'where'], view: 'impact',
+    });
+    const noMatches = buildSqlFileUsageReport({
+      kind: 'column', rawTarget: 'public.orders.customer_id', rootDir: workspace, scopeDir: 'queries',
+      usageKinds: ['group-by'], view: 'detail',
+    });
+
+    expect(omitted.matches.map((match) => match.kind === 'detail' ? match.usage_kind : null))
+      .toEqual(expect.arrayContaining(['select', 'join-on', 'where']));
+    expect(whereOnly.matches).toEqual([expect.objectContaining({ usage_kind: 'where' })]);
+    expect(projectionAndPredicate).toMatchObject({
+      summary: { matches: 1 },
+      matches: [{ kind: 'impact', usageKindCounts: { select: 1, where: 1 } }],
+    });
+    expect(noMatches).toMatchObject({ summary: { matches: 0 }, matches: [] });
+  });
+
+  it('uses the exported canonical runtime usage-kind list for table contexts', () => {
+    const workspace = temporaryWorkspace();
+    writeSql(workspace, 'queries/orders.sql', 'select o.order_id from public.orders o join public.customers c on c.customer_id = o.customer_id');
+
+    const report = buildSqlFileUsageReport({
+      kind: 'table', rawTarget: 'public.customers', rootDir: workspace, scopeDir: 'queries',
+      usageKinds: ['join'], view: 'detail',
+    });
+
+    expect(report.matches).toEqual([expect.objectContaining({ usage_kind: 'join' })]);
+    expect(QUERY_USAGE_KINDS.every(isQueryUsageKind)).toBe(true);
+    expect(isQueryUsageKind('not-a-kind')).toBe(false);
   });
 
   it('does not accept a directory where a QuerySpec SQL file is required', () => {

@@ -35,7 +35,7 @@ describe('@rawsql-ts/mcp-server', () => {
       expect(Object.keys(tool(listed.tools, 'analyze_column_lineage').inputSchema.properties ?? {}).sort()).toEqual(['ddl', 'ddlPaths', 'format', 'sql', 'targetColumn', 'view']);
       expect(Object.keys(tool(listed.tools, 'create_fixture_extraction_plan').inputSchema.properties ?? {}).sort()).toEqual(['ddl', 'ddlPaths', 'format', 'sql']);
       expect(Object.keys(tool(listed.tools, 'find_query_usage').inputSchema.properties ?? {}).sort()).toEqual([
-        'anySchema', 'anyTable', 'kind', 'limit', 'scopeDir', 'summaryOnly', 'target', 'view',
+        'anySchema', 'anyTable', 'kind', 'limit', 'scopeDir', 'summaryOnly', 'target', 'usageKinds', 'view',
       ]);
       expect(Object.keys(tool(listed.tools, 'extract_cte_query').inputSchema.properties ?? {}).sort()).toEqual(['cteName', 'format', 'sql']);
       expect(Object.keys(tool(listed.tools, 'optimize_sql_conditions').inputSchema.properties ?? {}).sort()).toEqual(['absentParameterNames', 'format', 'sql']);

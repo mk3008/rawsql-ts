@@ -1,3 +1,6 @@
+import type { QueryUsageKind } from './usageKinds';
+export type { QueryUsageKind } from './usageKinds';
+
 export type QueryUsageMode = 'exact' | 'any-schema' | 'any-schema-any-table';
 export type QueryUsageView = 'impact' | 'detail';
 export type QueryUsageConfidence = 'high' | 'medium' | 'low';
@@ -24,7 +27,7 @@ export interface QueryUsageLocation {
 }
 
 export interface QueryUsageRepresentative {
-  usage_kind: string;
+  usage_kind: QueryUsageKind;
   location: QueryUsageLocation | null;
   snippet: string;
   exprHints?: string[];
@@ -38,7 +41,7 @@ export interface QueryUsageMatchDetail {
   query_id: string;
   statement_fingerprint: string;
   sql_file: string;
-  usage_kind: string;
+  usage_kind: QueryUsageKind;
   exprHints?: string[];
   location: QueryUsageLocation | null;
   snippet: string;
@@ -107,6 +110,6 @@ export interface QueryUsageAnalyzerResult {
 }
 
 export interface QueryUsageClauseAnchor {
-  kind: string;
+  kind: QueryUsageKind;
   tokens: string[];
 }

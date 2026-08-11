@@ -203,6 +203,79 @@ describe('MCP Phase 3 analysis tools', () => {
       await close();
     }
   });
+
+  it('filters query usage before output controls using canonical syntax contexts', async () => {
+    const workspace = temporaryWorkspace();
+    mkdirSync(resolve(workspace, 'queries'));
+    writeFileSync(resolve(workspace, 'queries', 'one.sql'), `select o.customer_id
+      from public.orders o
+      join public.customers c on c.customer_id = o.customer_id
+      where o.customer_id = :customer_id`);
+    writeFileSync(resolve(workspace, 'queries', 'two.sql'), 'select customer_id from public.orders');
+    const { client, close } = await connectedClient(workspace);
+    const columnArguments = {
+      kind: 'column',
+      scopeDir: 'queries',
+      target: 'public.orders.customer_id',
+      view: 'detail',
+    };
+    try {
+      const omitted = await client.callTool({ name: 'find_query_usage', arguments: columnArguments });
+      expect(omitted.structuredContent).toMatchObject({ report: { summary: { matches: 4 } } });
+
+      const whereOnly = await client.callTool({
+        name: 'find_query_usage',
+        arguments: { ...columnArguments, limit: 1, usageKinds: ['where'] },
+      });
+      expect(whereOnly.structuredContent).toMatchObject({
+        report: {
+          matches: [expect.objectContaining({ usage_kind: 'where' })],
+          display: { totalMatches: 1, returnedMatches: 1, truncated: false },
+          summary: { matches: 1 },
+        },
+      });
+
+      const multiple = await client.callTool({
+        name: 'find_query_usage',
+        arguments: { ...columnArguments, usageKinds: ['select', 'where'] },
+      });
+      expect(multiple.structuredContent).toMatchObject({ report: { summary: { matches: 3 } } });
+
+      const summaryOnly = await client.callTool({
+        name: 'find_query_usage',
+        arguments: { ...columnArguments, summaryOnly: true, usageKinds: ['where'] },
+      });
+      expect(summaryOnly.structuredContent).toMatchObject({
+        report: {
+          matches: [],
+          display: { totalMatches: 1, returnedMatches: 0, truncated: true },
+          summary: { matches: 1 },
+        },
+      });
+
+      const tableJoin = await client.callTool({
+        name: 'find_query_usage',
+        arguments: { kind: 'table', scopeDir: 'queries', target: 'public.customers', usageKinds: ['join'], view: 'detail' },
+      });
+      expect(tableJoin.structuredContent).toMatchObject({
+        report: { matches: [expect.objectContaining({ usage_kind: 'join' })] },
+      });
+
+      const noMatches = await client.callTool({
+        name: 'find_query_usage',
+        arguments: { ...columnArguments, usageKinds: ['group-by'] },
+      });
+      expect(noMatches.structuredContent).toMatchObject({ report: { matches: [], summary: { matches: 0 } } });
+
+      const invalid = await client.callTool({
+        name: 'find_query_usage',
+        arguments: { ...columnArguments, usageKinds: ['not-a-kind'] },
+      });
+      expect(invalid.isError).toBe(true);
+    } finally {
+      await close();
+    }
+  });
 });
 
 async function connectedClient(workspace: string): Promise<{ client: Client; close: () => Promise<void> }> {

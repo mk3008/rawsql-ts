@@ -43,8 +43,15 @@ paths.
   `view: "compact" | "full"`.
 - `create_fixture_extraction_plan` accepts `sql`, optional inline `ddl`,
   workspace-relative `ddlPaths`, and generated-SQL `format`.
-- `find_query_usage` accepts a target and an optional workspace-relative
-  `scopeDir`, `limit`, and `summaryOnly`; it does not accept `ddl`.
+- `find_query_usage` accepts a target and optional workspace-relative
+  `scopeDir`, canonical `usageKinds`, `limit`, and `summaryOnly`; it does not
+  accept `ddl`.
+  Allowed `usageKinds` are `from`, `subquery-from`, `cte-body-from`, `join`,
+  `using`, `insert-target`, `update-target`, `delete-target`, `select`, `where`,
+  `group-by`, `having`, `order-by`, `join-on`, `join-using`, `update-set`,
+  `returning`, `insert-column`, `subquery`, and `cte`; the
+  [`QUERY_USAGE_KINDS`](../sql-grep-core/src/query/usageKinds.ts) export is the
+  canonical definition.
 - `extract_cte_query` accepts `sql`, `cteName`, and optional generated-SQL
   `format`; it does not accept `ddl`.
 - `optimize_sql_conditions` accepts `sql` and optional absent parameter names;
@@ -112,7 +119,9 @@ result. Their compact views are explicit transport DTOs that retain summaries,
 warnings, source leaves, concerns, diagnostics, and investigation counts while
 omitting detailed scopes, lineage trees, expression chains, and probe bodies.
 
-Usage output controls are applied after the workspace scan by sql-grep-core.
-`limit` restricts returned matches and warnings; `summaryOnly: true` omits their
-bodies. The report's existing `display` metadata states totals, returned counts,
-and truncation. Omitting both controls preserves the existing report shape.
+Usage-kind filtering and output controls are applied after the workspace scan by
+sql-grep-core. `usageKinds` filters classified matches before impact aggregation;
+then `limit` restricts returned matches and warnings, while `summaryOnly: true`
+omits their bodies. The report's existing `display` metadata states filtered
+totals, returned counts, and truncation. Omitting these controls preserves the
+existing report shape.
