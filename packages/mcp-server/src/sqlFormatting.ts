@@ -1,9 +1,10 @@
 import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import {
+  parseSqlFormatterOptions,
   SqlFormatter,
+  SqlFormatterOptionsValidationError,
   SqlParser,
-  VALID_PRESETS,
   type SqlFormatterOptions,
 } from 'rawsql-ts';
 import { McpInputError } from './inputError';
@@ -29,49 +30,6 @@ export interface GeneratedSqlArtifact<Kind extends string = string> {
   sql: string;
 }
 
-type FormatterOptionValidators = {
-  [Key in keyof Required<SqlFormatterOptions>]: (value: unknown) => boolean;
-};
-
-const formatterOptionValidators = {
-  andBreak: oneOf('none', 'before', 'after'),
-  betweenOneLine: isBoolean,
-  caseOneLine: isBoolean,
-  castStyle: oneOf('postgres', 'standard'),
-  columnAliasStyle: oneOf('explicit', 'omit', 'as', 'implicit'),
-  commaBreak: oneOf('none', 'before', 'after'),
-  commentStyle: oneOf('block', 'smart'),
-  constraintStyle: oneOf('postgres', 'mysql'),
-  cteCommaBreak: oneOf('none', 'before', 'after'),
-  exportComment: (value) => isBoolean(value) || oneOf('none', 'full', 'header-only', 'top-header-only')(value),
-  identifierEscape: isIdentifierEscape,
-  identifierEscapeTarget: oneOf('all', 'minimal'),
-  inOneLine: isBoolean,
-  indentChar: isString,
-  indentNestedParentheses: isBoolean,
-  indentSize: isNonNegativeInteger,
-  insertColumnsOneLine: isBoolean,
-  joinConditionContinuationIndent: isBoolean,
-  joinConditionOrderByDeclaration: isBoolean,
-  joinOnBreak: oneOf('none', 'before', 'after'),
-  joinOneLine: isBoolean,
-  keywordCase: oneOf('none', 'upper', 'lower', 'preserve'),
-  newline: oneOf('lf', 'crlf', 'cr', 'space', '\n', '\r\n', '\r', ' '),
-  oneLineMaxLength: (value) => value === null || isNonNegativeInteger(value),
-  orBreak: oneOf('none', 'before', 'after'),
-  orderByDefaultDirectionStyle: oneOf('omit', 'explicit'),
-  parameterStyle: oneOf('anonymous', 'indexed', 'named', 'original'),
-  parameterSymbol: (value) => isString(value) || isDelimiterPair(value),
-  parenthesesOneLine: isBoolean,
-  preset: (value) => isString(value) && (VALID_PRESETS as readonly string[]).includes(value),
-  sourceAliasStyle: oneOf('explicit', 'omit', 'as', 'implicit'),
-  subqueryOneLine: isBoolean,
-  valuesCommaBreak: oneOf('none', 'before', 'after'),
-  valuesOneLine: isBoolean,
-  whenOneLine: isBoolean,
-  withClauseStyle: oneOf('standard', 'cte-oneline', 'full-oneline'),
-} satisfies FormatterOptionValidators;
-
 /** Resolve formatter defaults < JSON config < inline options. */
 export function resolveSqlFormatting(
   workspaceRoot: string,
@@ -94,15 +52,8 @@ export function resolveSqlFormatting(
   const configOptions = format.configPath === undefined
     ? {}
     : readFormatterConfig(root, format.configPath);
-  const inlineOptions = validateFormatterOptions(format.options ?? {}, 'format.options');
-  const options = validateFormatterOptions({ ...configOptions, ...inlineOptions }, 'resolved formatter options');
-
-  // Let rawsql-ts perform its own formatter construction checks as the final authority.
-  try {
-    new SqlFormatter(options);
-  } catch (error) {
-    throw new McpInputError('FORMAT_OPTIONS_INVALID', error instanceof Error ? error.message : String(error));
-  }
+  const inlineOptions = parseFormatterOptions(format.options ?? {}, 'format.options');
+  const options = parseFormatterOptions({ ...configOptions, ...inlineOptions }, 'resolved formatter options');
   return { enabled: true, options };
 }
 
@@ -150,56 +101,24 @@ function readFormatterConfig(workspaceRoot: string, configPath: string): SqlForm
   } catch (error) {
     throw new McpInputError('FORMAT_CONFIG_INVALID_JSON', `Formatter config is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
   }
-  return validateFormatterOptions(parsed, `formatter config ${resolved.relativePath}`);
+  return parseFormatterOptions(parsed, `formatter config ${resolved.relativePath}`);
 }
 
-function validateFormatterOptions(value: unknown, source: string): SqlFormatterOptions {
-  if (!isPlainRecord(value)) {
-    throw new McpInputError('FORMAT_OPTIONS_INVALID', `${source} must be a JSON object.`);
-  }
-  const result: Record<string, unknown> = {};
-  for (const [key, option] of Object.entries(value)) {
-    const validator = formatterOptionValidators[key as keyof typeof formatterOptionValidators];
-    if (!validator) {
-      throw new McpInputError('FORMAT_OPTION_UNKNOWN', `Unknown formatter option in ${source}: ${key}`);
+function parseFormatterOptions(value: unknown, source: string): SqlFormatterOptions {
+  try {
+    return parseSqlFormatterOptions(value);
+  } catch (error) {
+    if (error instanceof SqlFormatterOptionsValidationError) {
+      const code = error.code === 'SQL_FORMATTER_OPTION_UNKNOWN'
+        ? 'FORMAT_OPTION_UNKNOWN'
+        : 'FORMAT_OPTIONS_INVALID';
+      throw new McpInputError(code, `${source}: ${error.message}`);
     }
-    if (option === undefined) continue;
-    if (!validator(option)) {
-      throw new McpInputError('FORMAT_OPTIONS_INVALID', `Invalid value for formatter option ${key} in ${source}.`);
-    }
-    result[key] = option;
+    throw error;
   }
-  return result as SqlFormatterOptions;
-}
-
-function isIdentifierEscape(value: unknown): boolean {
-  return oneOf('quote', 'backtick', 'bracket', 'none')(value) || isDelimiterPair(value);
-}
-
-function isDelimiterPair(value: unknown): boolean {
-  return isPlainRecord(value)
-    && Object.keys(value).sort().join(',') === 'end,start'
-    && isString(value.start)
-    && isString(value.end);
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
-}
-
-function isBoolean(value: unknown): value is boolean {
-  return typeof value === 'boolean';
-}
-
-function isString(value: unknown): value is string {
-  return typeof value === 'string';
-}
-
-function isNonNegativeInteger(value: unknown): value is number {
-  return Number.isSafeInteger(value) && Number(value) >= 0;
-}
-
-function oneOf<const Values extends readonly string[]>(...values: Values): (value: unknown) => value is Values[number] {
-  return (value: unknown): value is Values[number] => typeof value === 'string' && values.includes(value);
 }

@@ -23,7 +23,7 @@ export interface ResolveDdlSourcesInput {
 
 /** Default limits aligned with the existing workspace SQL scan policy. */
 export const DEFAULT_DDL_SOURCE_LIMITS: Readonly<DdlSourceLimits> = {
-  maxFileBytes: 1024 * 1024,
+  maxFileBytes: 50 * 1024 * 1024,
   maxFiles: 5_000,
   maxInlineBytes: 1024 * 1024,
   maxTotalBytes: 50 * 1024 * 1024,

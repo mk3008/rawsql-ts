@@ -8,7 +8,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { resolveDdlSources } from '../src/ddlSources';
+import { DEFAULT_DDL_SOURCE_LIMITS, resolveDdlSources } from '../src/ddlSources';
 import { McpInputError } from '../src/inputError';
 import {
   formatGeneratedSqlArtifact,
@@ -200,6 +200,22 @@ describe('DDL source resolution', () => {
       'DDL_FILE_SIZE_LIMIT',
     );
   });
+
+  it('accepts path-backed DDL above the inline limit while keeping inline DDL bounded', () => {
+    const workspace = temporaryDirectory('ddl-workspace-');
+    const sql = 'x'.repeat(DEFAULT_DDL_SOURCE_LIMITS.maxInlineBytes + 1);
+    writeSql(workspace, 'schema/pg-dump.sql', sql);
+
+    expect(DEFAULT_DDL_SOURCE_LIMITS.maxFileBytes).toBe(50 * 1024 * 1024);
+    expect(resolveDdlSources({
+      paths: 'schema/pg-dump.sql',
+      workspaceRoot: workspace,
+    })[0].sql).toHaveLength(sql.length);
+    expectInputError(
+      () => resolveDdlSources({ inlineDdl: sql, workspaceRoot: workspace }),
+      'DDL_FILE_SIZE_LIMIT',
+    );
+  });
 });
 
 describe('SQL formatting resolution', () => {
@@ -243,6 +259,7 @@ describe('SQL formatting resolution', () => {
 
   it.each([
     ['invalid JSON', 'FORMAT_CONFIG_INVALID_JSON', () => '{ invalid'],
+    ['non-object config', 'FORMAT_OPTIONS_INVALID', () => JSON.stringify([])],
     ['invalid option value', 'FORMAT_OPTIONS_INVALID', () => JSON.stringify({ keywordCase: 'sideways' })],
     ['unknown option', 'FORMAT_OPTION_UNKNOWN', () => JSON.stringify({ inventedOption: true })],
   ])('fails fast for %s', (_label, code, content) => {
@@ -252,6 +269,35 @@ describe('SQL formatting resolution', () => {
     expectInputError(
       () => resolveSqlFormatting(workspace, { configPath: 'formatter.json' }),
       code,
+    );
+  });
+
+  it('maps invalid inline options to the existing MCP input error contract', () => {
+    const workspace = temporaryDirectory('format-workspace-');
+
+    expectInputError(
+      () => resolveSqlFormatting(workspace, { options: { keywordCase: 'sideways' } as never }),
+      'FORMAT_OPTIONS_INVALID',
+    );
+  });
+
+  it.each(['toString', 'constructor', '__proto__'])('rejects prototype key %s from formatter config', (key) => {
+    const workspace = temporaryDirectory('format-workspace-');
+    writeJson(workspace, 'formatter.json', { [key]: true });
+
+    expectInputError(
+      () => resolveSqlFormatting(workspace, { configPath: 'formatter.json' }),
+      'FORMAT_OPTION_UNKNOWN',
+    );
+  });
+
+  it.each(['toString', 'constructor', '__proto__'])('rejects prototype key %s from inline options', (key) => {
+    const workspace = temporaryDirectory('format-workspace-');
+    const options = JSON.parse(`{"${key}":true}`) as never;
+
+    expectInputError(
+      () => resolveSqlFormatting(workspace, { options }),
+      'FORMAT_OPTION_UNKNOWN',
     );
   });
 

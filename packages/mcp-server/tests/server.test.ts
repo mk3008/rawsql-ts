@@ -109,7 +109,7 @@ describe('@rawsql-ts/mcp-server', () => {
         name: 'filtered',
         dependencies: ['base'],
       });
-      expect(String(cte.structuredContent?.executableSql)).toContain('base');
+      expect(String((cte.structuredContent as Record<string, unknown> | undefined)?.executableSql)).toContain('base');
 
       const optimized = await client.callTool({
         name: 'optimize_sql_conditions',
