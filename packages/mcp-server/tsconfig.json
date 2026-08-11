@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": true,
+    "composite": false,
+    "paths": {
+      "rawsql-ts": ["../core/dist/src/index.d.ts"],
+      "rawsql-ts/*": ["../core/dist/src/*"],
+      "@rawsql-ts/investigation-core": ["../investigation-core/dist/index.d.ts"],
+      "@rawsql-ts/sql-grep-core": ["../sql-grep-core/dist/index.d.ts"]
+    },
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist", "node_modules"]
+}

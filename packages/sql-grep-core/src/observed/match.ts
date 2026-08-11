@@ -73,11 +73,21 @@ interface ScoredPair {
   differences: string[];
 }
 
+export interface DiscoverObservedSqlAssetFilesOptions {
+  ignoredDirectories?: Iterable<string>;
+}
+
 /**
  * Discover `.sql` assets beneath a project root.
  */
-export function discoverObservedSqlAssetFiles(rootDir: string): string[] {
+export function discoverObservedSqlAssetFiles(
+  rootDir: string,
+  options: DiscoverObservedSqlAssetFilesOptions = {},
+): string[] {
   const absoluteRoot = path.resolve(rootDir);
+  const ignoredDirectories = new Set(
+    Array.from(options.ignoredDirectories ?? IGNORED_DIRECTORIES, (name) => name.toLowerCase()),
+  );
   const files: string[] = [];
   const stack = [absoluteRoot];
 
@@ -90,7 +100,7 @@ export function discoverObservedSqlAssetFiles(rootDir: string): string[] {
     for (const entry of entries) {
       const absolute = path.join(current, entry.name);
       if (entry.isDirectory()) {
-        if (IGNORED_DIRECTORIES.has(entry.name.toLowerCase())) {
+        if (ignoredDirectories.has(entry.name.toLowerCase())) {
           continue;
         }
         stack.push(absolute);

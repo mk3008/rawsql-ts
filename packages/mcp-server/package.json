@@ -1,0 +1,60 @@
+{
+  "name": "@rawsql-ts/mcp-server",
+  "version": "0.1.0",
+  "description": "Six deterministic static SQL tools exposed as a local MCP server for rawsql-ts.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "rawsql-ts-mcp": "./dist/cli.js"
+  },
+  "scripts": {
+    "prepack": "pnpm run build",
+    "build": "pnpm --filter rawsql-ts build && pnpm --filter @rawsql-ts/investigation-core build && pnpm --filter @rawsql-ts/sql-grep-core build && tsc -p tsconfig.json",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "lint": "eslint src --ext .ts --ignore-pattern \"*.d.ts\"",
+    "release": "npm run lint && npm run test && npm run build && node -e \"require('fs').mkdirSync('../../tmp', { recursive: true })\" && pnpm pack --out ../../tmp/rawsql-ts-mcp-server.tgz && pnpm publish --access public"
+  },
+  "keywords": [
+    "rawsql-ts",
+    "sql",
+    "mcp",
+    "lineage",
+    "analysis"
+  ],
+  "license": "MIT",
+  "author": "msugiura",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mk3008/rawsql-ts.git",
+    "directory": "packages/mcp-server"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@rawsql-ts/investigation-core": "^0.1.0",
+    "@rawsql-ts/sql-grep-core": "^0.1.19",
+    "rawsql-ts": "^0.30.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vite": "7.3.5",
+    "vitest": "^4.1.8"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}

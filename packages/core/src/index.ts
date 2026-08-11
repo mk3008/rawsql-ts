@@ -2,7 +2,7 @@
 export * from './parsers/SqlParser';
 export * from './parsers/SqlTokenizer';
 export * from './parsers/SelectQueryParser';
-export { ParseAnalysisResult } from './parsers/SelectQueryParser';
+export type { ParseAnalysisResult } from './parsers/SelectQueryParser';
 export * from './parsers/InsertQueryParser';
 export * from './parsers/UpdateQueryParser';
 export * from './parsers/DeleteQueryParser';
@@ -78,7 +78,8 @@ export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
 export { DuplicateDetectionMode } from './transformers/SelectableColumnCollector';
 export * from './transformers/FilterableItemCollector';
-export { FixtureCteBuilder, FixtureTableDefinition, FixtureColumnDefinition } from './transformers/FixtureCteBuilder';
+export { FixtureCteBuilder } from './transformers/FixtureCteBuilder';
+export type { FixtureTableDefinition, FixtureColumnDefinition } from './transformers/FixtureCteBuilder';
 export * from './transformers/DynamicQueryBuilder';
 export * from './transformers/SSSQLFilterBuilder';
 export type {
@@ -92,20 +93,22 @@ export * from './transformers/PredicateReachabilityAnalyzer';
 export * from './transformers/StaticPredicatePlacementOptimizer';
 export * from './transformers/PruneOptionalConditionBranches';
 export {
-    SchemaInfo,
     optimizeUnusedLeftJoins,
     optimizeUnusedLeftJoinsToFixedPoint,
     optimizeUnusedCtes,
     optimizeUnusedCtesToFixedPoint
 } from './transformers/OptimizeUnusedLeftJoins';
+export type { SchemaInfo } from './transformers/OptimizeUnusedLeftJoins';
 export * from './transformers/TableColumnResolver';
 export * from './transformers/TableSourceCollector';
 export * from './transformers/UpstreamSelectQueryFinder';
 
 export * from './transformers/SchemaCollector';
-export { TableSchema, SchemaAnalysisResult } from './transformers/SchemaCollector';
+export { TableSchema } from './transformers/SchemaCollector';
+export type { SchemaAnalysisResult } from './transformers/SchemaCollector';
 export * from './transformers/FilterableItemCollector';
-export { FilterableItem, FilterableItemCollectorOptions } from './transformers/FilterableItemCollector';
+export { FilterableItem } from './transformers/FilterableItemCollector';
+export type { FilterableItemCollectorOptions } from './transformers/FilterableItemCollector';
 export * from './transformers/QueryFlowDiagramGenerator';
 export * from './transformers/SqlParamInjector';
 export * from './transformers/SqlSortInjector';

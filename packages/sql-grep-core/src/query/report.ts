@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   discoverProjectSqlCatalogSpecFiles,
@@ -6,6 +6,7 @@ import {
   walkSqlCatalogSpecFiles,
 } from '../utils/sqlCatalogDiscovery';
 import { buildCatalogStatements } from '../utils/sqlCatalogStatements';
+import { discoverObservedSqlAssetFiles } from '../observed/match';
 import { analyzeColumnUsage } from './analyzeColumnUsage';
 import { analyzeTableUsage } from './analyzeTableUsage';
 import { sortQueryUsageMatches, sortQueryUsageWarnings } from './format';
@@ -43,6 +44,8 @@ export interface BuildQueryUsageReportParams {
   anyTable?: boolean;
   view?: QueryUsageView;
   withSpanSync?: QueryUsageSpanRunner;
+  /** Reject SQL catalog files whose resolved real path is outside rootDir. */
+  confineToRoot?: boolean;
 }
 
 function runSpan<T>(withSpanSync: QueryUsageSpanRunner | undefined, name: string, run: () => T, attrs?: Record<string, unknown>): T {
@@ -146,6 +149,7 @@ Hint: run "ashiba init" or place feature-local specs under your project tree. Us
       }
 
       const resolvedSqlFile = resolveCatalogSqlFile({
+        confineToRoot: params.confineToRoot,
         rootDir,
         sqlRoot,
         legacySqlRoot,
@@ -233,6 +237,107 @@ Hint: run "ashiba init" or place feature-local specs under your project tree. Us
     kind: params.kind,
     view,
   });
+}
+
+/**
+ * Search project `.sql` files beneath one workspace-relative directory.
+ * Version-control metadata and installed dependencies are not project SQL, so
+ * `.git` and `node_modules` directories are skipped.
+ */
+export function buildSqlFileUsageReport(params: BuildSqlFileUsageReportParams): QueryUsageReport {
+  const rootDir = path.resolve(params.rootDir ?? process.cwd());
+  const scopeRoot = resolveWorkspaceScope(rootDir, params.scopeDir ?? '.');
+  const normalizedScope = normalizePath(path.relative(rootDir, scopeRoot) || '.');
+  const view = params.view ?? 'impact';
+  const parsedTarget = parseQueryTarget({
+    kind: params.kind,
+    raw: params.rawTarget,
+    anySchema: params.anySchema,
+    anyTable: params.anyTable,
+  });
+  const warnings: QueryUsageReport['warnings'] = [];
+  const detailMatches: QueryUsageMatchDetail[] = [];
+  const sqlFiles = discoverObservedSqlAssetFiles(scopeRoot, {
+    ignoredDirectories: ['.git', 'node_modules'],
+  });
+  let statementsScanned = 0;
+  let parseWarnings = 0;
+  let fallbackMatches = 0;
+  let unresolvedSqlFiles = 0;
+
+  clearStatementCache();
+  for (const sqlFile of sqlFiles) {
+    const normalizedSqlFile = normalizePath(path.relative(rootDir, sqlFile));
+    let sqlText: string;
+    try {
+      sqlText = readFileSync(sqlFile, 'utf8');
+    } catch (error) {
+      unresolvedSqlFiles += 1;
+      warnings.push({
+        sql_file: normalizedSqlFile,
+        code: 'sql-file-read-failed',
+        message: error instanceof Error ? error.message : String(error),
+      });
+      continue;
+    }
+
+    const catalogId = `file:${normalizedSqlFile}`;
+    let statements: ReturnType<typeof buildCatalogStatements>;
+    try {
+      statements = buildCatalogStatements({ catalogId, sqlFile: normalizedSqlFile, sqlText });
+    } catch (error) {
+      unresolvedSqlFiles += 1;
+      warnings.push({
+        catalog_id: catalogId,
+        sql_file: normalizedSqlFile,
+        code: 'sql-file-scan-failed',
+        message: error instanceof Error ? error.message : String(error),
+      });
+      continue;
+    }
+    statementsScanned += statements.length;
+
+    for (const statement of statements) {
+      const result = params.kind === 'table'
+        ? analyzeTableUsage({ statement, target: parsedTarget.target, mode: parsedTarget.mode })
+        : analyzeColumnUsage({ statement, target: parsedTarget.target, mode: parsedTarget.mode });
+      detailMatches.push(...result.matches);
+      warnings.push(...result.warnings);
+
+      const statementParseWarnings = result.warnings.filter((warning) => warning.code === 'parse-failed').length;
+      parseWarnings += statementParseWarnings;
+      if (params.kind === 'table' && statementParseWarnings > 0) {
+        const fallback = buildTableFallbackMatch(statement, parsedTarget.target, parsedTarget.mode);
+        if (fallback) {
+          detailMatches.push(fallback);
+          fallbackMatches += 1;
+        }
+      }
+    }
+  }
+
+  const matches: QueryUsageMatch[] = view === 'detail'
+    ? detailMatches
+    : aggregateImpactMatches(detailMatches);
+
+  return {
+    schemaVersion: 2,
+    source: { kind: 'sql-files', scopeDir: normalizedScope },
+    mode: parsedTarget.mode,
+    view,
+    target: parsedTarget.target,
+    summary: {
+      catalogsScanned: 0,
+      sqlFilesScanned: sqlFiles.length,
+      statementsScanned,
+      matches: matches.length,
+      fallbackMatches,
+      unresolvedSqlFiles,
+      parseWarnings,
+    },
+    matches: sortQueryUsageMatches(matches),
+    warnings: sortQueryUsageWarnings(warnings),
+  };
 }
 
 /**
@@ -443,7 +548,25 @@ function normalizePath(input: string): string {
   return input.split(path.sep).join('/');
 }
 
+function resolveWorkspaceScope(rootDir: string, scopeDir: string): string {
+  if (!scopeDir.trim() || path.isAbsolute(scopeDir)) {
+    throw new Error('scopeDir must be a non-empty workspace-relative directory.');
+  }
+  const candidate = path.resolve(rootDir, scopeDir);
+  if (!existsSync(candidate) || !statSync(candidate).isDirectory()) {
+    throw new Error(`scopeDir does not identify an existing directory: ${scopeDir}`);
+  }
+  const realRoot = realpathSync(rootDir);
+  const realScope = realpathSync(candidate);
+  const relative = path.relative(realRoot, realScope);
+  if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new Error('scopeDir must stay inside the configured workspace.');
+  }
+  return realScope;
+}
+
 function resolveCatalogSqlFile(params: {
+  confineToRoot?: boolean;
   rootDir: string;
   sqlRoot: string | null;
   legacySqlRoot: string;
@@ -452,31 +575,52 @@ function resolveCatalogSqlFile(params: {
 }): string | null {
   // Prefer spec-local ownership so feature-first projects do not need one shared SQL root.
   const specRelativeCandidate = path.resolve(path.dirname(params.specFilePath), params.sqlFile);
-  if (existsSync(specRelativeCandidate)) {
+  if (isAllowedCatalogFile(params.rootDir, specRelativeCandidate, params.confineToRoot)) {
     return specRelativeCandidate;
   }
 
   // Allow project-relative sqlFile values for repos that keep specs and SQL in separate trees.
   const projectRelativeCandidate = path.resolve(params.rootDir, params.sqlFile);
-  if (existsSync(projectRelativeCandidate)) {
+  if (isAllowedCatalogFile(params.rootDir, projectRelativeCandidate, params.confineToRoot)) {
     return projectRelativeCandidate;
   }
 
   // Preserve the older shared-root escape hatch when callers opt into --sql-root explicitly.
   if (params.sqlRoot) {
     const sharedRootCandidate = path.resolve(params.sqlRoot, params.sqlFile);
-    if (existsSync(sharedRootCandidate)) {
+    if (isAllowedCatalogFile(params.rootDir, sharedRootCandidate, params.confineToRoot)) {
       return sharedRootCandidate;
     }
   }
 
   // Keep older src/sql-based projects working while spec-relative layouts become the preferred contract.
   const legacySharedRootCandidate = path.resolve(params.legacySqlRoot, params.sqlFile);
-  if (existsSync(legacySharedRootCandidate)) {
+  if (isAllowedCatalogFile(params.rootDir, legacySharedRootCandidate, params.confineToRoot)) {
     return legacySharedRootCandidate;
   }
 
   return null;
+}
+
+export interface BuildSqlFileUsageReportParams {
+  kind: QueryUsageTargetKind;
+  rawTarget: string;
+  rootDir?: string;
+  scopeDir?: string;
+  anySchema?: boolean;
+  anyTable?: boolean;
+  view?: QueryUsageView;
+}
+
+function isAllowedCatalogFile(rootDir: string, candidate: string, confineToRoot = false): boolean {
+  if (!existsSync(candidate)) return false;
+  if (!confineToRoot) return true;
+  try {
+    const relative = path.relative(realpathSync(rootDir), realpathSync(candidate));
+    return relative === '' || (!path.isAbsolute(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`));
+  } catch {
+    return false;
+  }
 }
 
 function escapeRegex(value: string): string {

@@ -120,7 +120,6 @@
       "vite>esbuild": "0.28.1",
       "vitepress>vite": "6.4.3",
       "preact": "10.27.3",
-      "ajv": "6.14.0",
       "minimatch": "10.2.3",
       "rollup": "4.59.0",
       "diff": "8.0.3",
