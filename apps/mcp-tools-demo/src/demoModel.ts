@@ -39,33 +39,33 @@ export const demoTools: readonly DemoTool[] = [
   {
     id: 'analyze_query_structure',
     label: 'Analyze query structure',
-    summary: 'Summarizes tables, CTEs, nesting, joins, filters, grouping, and other structural features of a query.',
+    summary: 'Summarizes tables, CTEs, nesting, joins, filters, grouping, and other structural features, with full and compact MCP views.',
   },
   {
     id: 'analyze_column_lineage',
     label: 'Analyze column lineage',
-    summary: 'Traces one final output column to its value sources and the filters, joins, and aggregates that may affect it.',
+    summary: 'Traces one final output column to its value sources and row influences, with full and compact MCP views and optional probe formatting.',
   },
   {
     id: 'create_fixture_extraction_plan',
     label: 'Create fixture extraction plan',
-    summary: 'Finds a bounded predicate from SQL and DDL and produces capture SELECT statements only where the boundary can be proven statically.',
+    summary: 'Finds a bounded predicate from inline or workspace DDL and produces optionally formatted capture SELECT statements only where the boundary is proven.',
     experimental: true,
   },
   {
     id: 'find_query_usage',
     label: 'Find table and column usage',
-    summary: 'Recursively searches .sql files in a directory for table or column usage and reports the SQL clause for each match.',
+    summary: 'Recursively searches .sql files for table or column usage, with optional result limits and summary-only output.',
   },
   {
     id: 'extract_cte_query',
     label: 'Create a CTE inspection query',
-    summary: 'Extracts one CTE with its required dependencies and expands it into SQL that can be inspected independently.',
+    summary: 'Extracts one CTE with its required dependencies into independently inspectable SQL with optional formatting.',
   },
   {
     id: 'optimize_sql_conditions',
     label: 'Optimize SQL conditions',
-    summary: 'Moves conditions, prunes optional branches, and removes duplicate predicates only where the rewrite is statically proven safe.',
+    summary: 'Moves conditions, prunes optional branches, and removes duplicate predicates only where proven safe, with optional generated-SQL formatting.',
   },
 ];
 

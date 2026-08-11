@@ -27,14 +27,14 @@ describe('@rawsql-ts/mcp-server', () => {
         'extract_cte_query',
         'optimize_sql_conditions',
       ]);
-      expect(Object.keys(tool(listed.tools, 'analyze_query_structure').inputSchema.properties ?? {}).sort()).toEqual(['ddl', 'sql']);
-      expect(Object.keys(tool(listed.tools, 'analyze_column_lineage').inputSchema.properties ?? {}).sort()).toEqual(['ddl', 'sql', 'targetColumn']);
-      expect(Object.keys(tool(listed.tools, 'create_fixture_extraction_plan').inputSchema.properties ?? {}).sort()).toEqual(['ddl', 'sql']);
+      expect(Object.keys(tool(listed.tools, 'analyze_query_structure').inputSchema.properties ?? {}).sort()).toEqual(['ddl', 'ddlPaths', 'sql', 'view']);
+      expect(Object.keys(tool(listed.tools, 'analyze_column_lineage').inputSchema.properties ?? {}).sort()).toEqual(['ddl', 'ddlPaths', 'format', 'sql', 'targetColumn', 'view']);
+      expect(Object.keys(tool(listed.tools, 'create_fixture_extraction_plan').inputSchema.properties ?? {}).sort()).toEqual(['ddl', 'ddlPaths', 'format', 'sql']);
       expect(Object.keys(tool(listed.tools, 'find_query_usage').inputSchema.properties ?? {}).sort()).toEqual([
-        'anySchema', 'anyTable', 'kind', 'scopeDir', 'target', 'view',
+        'anySchema', 'anyTable', 'kind', 'limit', 'scopeDir', 'summaryOnly', 'target', 'view',
       ]);
-      expect(Object.keys(tool(listed.tools, 'extract_cte_query').inputSchema.properties ?? {}).sort()).toEqual(['cteName', 'sql']);
-      expect(Object.keys(tool(listed.tools, 'optimize_sql_conditions').inputSchema.properties ?? {}).sort()).toEqual(['absentParameterNames', 'sql']);
+      expect(Object.keys(tool(listed.tools, 'extract_cte_query').inputSchema.properties ?? {}).sort()).toEqual(['cteName', 'format', 'sql']);
+      expect(Object.keys(tool(listed.tools, 'optimize_sql_conditions').inputSchema.properties ?? {}).sort()).toEqual(['absentParameterNames', 'format', 'sql']);
     } finally {
       await close();
     }
