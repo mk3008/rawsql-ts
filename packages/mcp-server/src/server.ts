@@ -6,6 +6,7 @@ import {
   ColumnLineageAnalysisInputError,
   FixtureExtractionInputError,
   generateFixtureExtractionPlan,
+  validateSql,
   type DdlInput,
 } from '@rawsql-ts/investigation-core';
 import { applyQueryOutputControls, buildSqlFileUsageReport } from '@rawsql-ts/sql-grep-core';
@@ -58,6 +59,15 @@ const formatSchema = z.object({
 export function createRawsqlMcpServer(workspace: string): McpServer {
   const workspaceRoot = normalizeWorkspaceRoot(workspace);
   const server = new McpServer({ name: '@rawsql-ts/mcp-server', version: '0.1.0' });
+
+  server.registerTool(
+    'validate_sql',
+    {
+      description: 'Validate one SELECT statement statically. Syntax and schema problems are returned as structured diagnostics; the tool never connects to a database or executes SQL.',
+      inputSchema: z.object(staticSqlSchema).strict(),
+    },
+    async (request) => runTool(() => validateSql(normalizeStaticInput(request, workspaceRoot))),
+  );
 
   server.registerTool(
     'analyze_query_structure',

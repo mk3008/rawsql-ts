@@ -1,6 +1,6 @@
 # @rawsql-ts/mcp-server
 
-A local Model Context Protocol server exposing six deterministic rawsql-ts
+A local Model Context Protocol server exposing seven deterministic rawsql-ts
 analysis and transformation tools.
 
 The npm package is `@rawsql-ts/mcp-server`. Installing it provides the
@@ -8,6 +8,7 @@ The npm package is `@rawsql-ts/mcp-server`. Installing it provides the
 
 ## Tools
 
+- `validate_sql`
 - `analyze_query_structure`
 - `analyze_column_lineage`
 - `create_fixture_extraction_plan`
@@ -28,6 +29,9 @@ pnpm dlx @rawsql-ts/mcp-server --workspace /absolute/path/to/project
 workspace confines SQL usage scans, DDL paths, and formatter configuration
 paths.
 
+- `validate_sql` accepts one SELECT statement plus optional inline `ddl` and
+  workspace-relative `ddlPaths`. Invalid SQL is returned as structured syntax
+  or schema diagnostics rather than a transport error.
 - `analyze_query_structure` accepts `sql`, optional inline `ddl`, optional
   workspace-relative `ddlPaths`, and optional `view: "compact" | "full"`.
 - `analyze_column_lineage` accepts `sql`, required `targetColumn`, and optional
@@ -80,6 +84,12 @@ database credentials, file mutation requests, and SQL execution requests are
 not part of the contract.
 
 ## Output shape
+
+`validate_sql` returns `valid` plus structured diagnostics. Without DDL it
+performs syntax validation and reports that schema validation was skipped.
+With DDL it also checks known table and column references. Validation is
+single-statement and static; it does not prove ownership of unqualified columns
+across multiple sources.
 
 SQL-producing tools return both structured evidence and clearly labeled SQL
 strings. MCP serialization removes AST instances so callers do not receive

@@ -2,6 +2,7 @@ import {
   analyzeColumnLineage,
   analyzeQueryStructure,
   generateFixtureExtractionPlan,
+  validateSql,
   type DdlInput,
 } from '@rawsql-ts/investigation-core';
 import {
@@ -18,6 +19,7 @@ import {
 } from 'rawsql-ts';
 
 export const demoToolIds = [
+  'validate_sql',
   'analyze_query_structure',
   'analyze_column_lineage',
   'create_fixture_extraction_plan',
@@ -36,6 +38,11 @@ export interface DemoTool {
 }
 
 export const demoTools: readonly DemoTool[] = [
+  {
+    id: 'validate_sql',
+    label: 'Validate SQL',
+    summary: 'Checks one SELECT statement for syntax and, when optional DDL is supplied, known table and column references without executing SQL.',
+  },
   {
     id: 'analyze_query_structure',
     label: 'Analyze query structure',
@@ -81,6 +88,7 @@ export interface DemoInput {
 }
 
 export const initialInputs: Record<DemoToolId, DemoInput> = {
+  validate_sql: commonInput(),
   analyze_query_structure: commonInput(),
   analyze_column_lineage: commonInput(),
   create_fixture_extraction_plan: commonInput(),
@@ -111,6 +119,7 @@ export function runDemoTool(toolId: DemoToolId, input: DemoInput): object {
   if (!input.sql.trim()) throw new Error('Enter SQL.');
   const ddl = toDdl(input.ddl);
   const staticInput = { sql: input.sql, ...(ddl ? { ddl } : {}) };
+  if (toolId === 'validate_sql') return validateSql(staticInput);
   if (toolId === 'analyze_query_structure') return analyzeQueryStructure(staticInput);
   if (toolId === 'analyze_column_lineage') {
     if (!input.targetColumn.trim()) throw new Error('Enter an output column name.');

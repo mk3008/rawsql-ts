@@ -28,3 +28,9 @@ export type {
   SchemaFacts,
   SchemaFactsDiagnostic,
 } from './lineage/schemaFacts';
+export { validateSql } from './query/sqlValidation';
+export type {
+  SqlValidationDiagnosticV1,
+  SqlValidationInputV1,
+  SqlValidationResultV1,
+} from './query/sqlValidation';
