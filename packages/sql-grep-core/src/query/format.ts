@@ -39,6 +39,7 @@ export function formatQueryUsageReport(report: QueryUsageReport, format: 'text' 
     `view: ${report.view}`,
     `target: ${report.target.kind} ${report.target.raw}`,
     `catalogs: ${report.summary.catalogsScanned}`,
+    ...(report.summary.sqlFilesScanned !== undefined ? [`sql files: ${report.summary.sqlFilesScanned}`] : []),
     `statements: ${report.summary.statementsScanned}`,
     `matches: ${report.summary.matches}`,
     `fallback matches: ${report.summary.fallbackMatches}`,

@@ -10,8 +10,11 @@ if (existsSync(testsConfigFile)) {
     tsProjectFiles.add(testsConfigFile);
 }
 
-const packagesDir = resolve(process.cwd(), 'packages');
-if (existsSync(packagesDir)) {
+for (const workspaceDirectory of ['packages', 'apps']) {
+    const packagesDir = resolve(process.cwd(), workspaceDirectory);
+    if (!existsSync(packagesDir)) {
+        continue;
+    }
     for (const entry of readdirSync(packagesDir, { withFileTypes: true })) {
         if (!entry.isDirectory()) {
             continue;
@@ -43,12 +46,14 @@ export default [
             'dist',
             'packages/*/node_modules',
             'packages/*/dist',
+            'apps/*/node_modules',
+            'apps/*/dist',
             '**/tests/generated/**',
             'packages/sql-contract/src/**/*.d.ts',
         ],
     },
     {
-        files: ['**/*.ts'],
+        files: ['**/*.ts', '**/*.tsx'],
         languageOptions: {
             parser: typescriptParser,
             parserOptions: sharedParserOptions,
@@ -66,6 +71,26 @@ export default [
                 {
                     selector: 'function',
                     format: ['camelCase'],
+                },
+                {
+                    selector: 'method',
+                    format: ['camelCase'],
+                },
+            ],
+        },
+    },
+    {
+        files: ['**/*.tsx'],
+        rules: {
+            '@typescript-eslint/naming-convention': [
+                'error',
+                {
+                    selector: 'class',
+                    format: ['PascalCase'],
+                },
+                {
+                    selector: 'function',
+                    format: ['camelCase', 'PascalCase'],
                 },
                 {
                     selector: 'method',

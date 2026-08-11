@@ -73,15 +73,26 @@ interface ScoredPair {
   differences: string[];
 }
 
+export interface DiscoverObservedSqlAssetFilesOptions {
+  ignoredDirectories?: Iterable<string>;
+  maxFiles?: number;
+}
+
 /**
  * Discover `.sql` assets beneath a project root.
  */
-export function discoverObservedSqlAssetFiles(rootDir: string): string[] {
+export function discoverObservedSqlAssetFiles(
+  rootDir: string,
+  options: DiscoverObservedSqlAssetFilesOptions = {},
+): string[] {
   const absoluteRoot = path.resolve(rootDir);
+  const ignoredDirectories = new Set(
+    Array.from(options.ignoredDirectories ?? IGNORED_DIRECTORIES, (name) => name.toLowerCase()),
+  );
   const files: string[] = [];
   const stack = [absoluteRoot];
 
-  while (stack.length > 0) {
+  while (stack.length > 0 && files.length < (options.maxFiles ?? Number.POSITIVE_INFINITY)) {
     const current = stack.pop()!;
     const entries = readdirSync(current, { withFileTypes: true }).sort((left, right) =>
       left.name.localeCompare(right.name)
@@ -90,7 +101,7 @@ export function discoverObservedSqlAssetFiles(rootDir: string): string[] {
     for (const entry of entries) {
       const absolute = path.join(current, entry.name);
       if (entry.isDirectory()) {
-        if (IGNORED_DIRECTORIES.has(entry.name.toLowerCase())) {
+        if (ignoredDirectories.has(entry.name.toLowerCase())) {
           continue;
         }
         stack.push(absolute);
@@ -99,6 +110,9 @@ export function discoverObservedSqlAssetFiles(rootDir: string): string[] {
 
       if (entry.isFile() && path.extname(entry.name).toLowerCase() === '.sql') {
         files.push(absolute);
+        if (files.length >= (options.maxFiles ?? Number.POSITIVE_INFINITY)) {
+          break;
+        }
       }
     }
   }

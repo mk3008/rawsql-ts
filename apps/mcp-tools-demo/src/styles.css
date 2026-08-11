@@ -1,0 +1,38 @@
+:root { color: #182033; background: #f6f8fc; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #a65300; outline-offset: 2px; }
+.catalog-shell { margin: 0 auto; max-width: 1440px; padding: 0 28px 44px; }
+.catalog-header { align-items: baseline; display: flex; gap: 10px; min-height: 70px; padding-top: 22px; }
+.catalog-header strong { font-size: 18px; }
+.catalog-header span { color: #687792; font-size: 13px; }
+.tool-section { margin: 30px 0 24px; }
+.tool-section h1 { font-size: clamp(30px, 4vw, 44px); letter-spacing: -.035em; margin: 0 0 20px; }
+.tool-list { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tool-list button { background: #fff; border: 1px solid #dfe5f1; border-radius: 12px; color: #23304a; font-weight: 800; min-height: 62px; padding: 16px; text-align: left; }
+.tool-list button.active { background: #17254c; border-color: #17254c; color: #fff; }
+.tool-list small { color: #a66200; display: block; font-size: 10px; margin-top: 5px; }
+.tool-list button.active small { color: #ffcf69; }
+.tool-overview { border-top: 1px solid #dfe5f1; margin-top: 20px; max-width: 820px; padding-top: 20px; }
+.tool-overview h2 { font-size: 23px; margin: 0; }
+.tool-overview p { color: #52627e; line-height: 1.55; margin: 8px 0; }
+.tool-overview code { color: #687792; font-size: 12px; }
+.tool-identity { align-items: baseline; display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 0; }
+.tool-identity dt { color: #52627e; font-size: 12px; font-weight: 700; }
+.tool-identity dd { margin: 0; }
+.workbench { display: grid; gap: 20px; grid-template-columns: minmax(390px, 1fr) minmax(400px, 1fr); }
+.panel { background: #fff; border: 1px solid #dfe5f1; border-radius: 16px; min-width: 0; padding: 24px; }
+.panel-heading { align-items: center; display: flex; justify-content: space-between; margin-bottom: 18px; }
+.panel-heading h2 { font-size: 20px; margin: 0; }
+.run { background: #2853d4; border: 0; border-radius: 8px; color: #fff; font-weight: 750; padding: 10px 16px; }
+label { display: block; margin-top: 16px; }
+label > span { display: block; font-size: 13px; font-weight: 760; margin-bottom: 7px; }
+label small { color: #6e7c96; font-size: 11px; font-weight: 500; }
+input, select { border: 1px solid #cfd8e8; border-radius: 7px; padding: 9px; width: 100%; }
+textarea { background: #101827; border: 1px solid #27344f; border-radius: 8px; color: #edf3ff; font-family: Consolas, monospace; font-size: 12px; line-height: 1.55; min-height: 160px; padding: 12px; resize: vertical; width: 100%; }
+.output pre { background: #0d1424; border-radius: 10px; color: #dce7ff; font-family: Consolas, monospace; font-size: 11px; line-height: 1.55; margin: 0; max-height: 650px; overflow: auto; padding: 15px; }
+.error { background: #fde8e8; border-radius: 8px; color: #9d2b2b; padding: 11px; }
+@media (max-width: 900px) { .workbench { grid-template-columns: 1fr; } }
+@media (max-width: 680px) { .catalog-shell { padding: 0 15px 28px; } .tool-list { grid-template-columns: 1fr; } .panel { padding: 16px; } }

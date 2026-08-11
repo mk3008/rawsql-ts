@@ -72,11 +72,16 @@ export interface QueryUsageWarning {
 
 export interface QueryUsageReport {
   schemaVersion: 2;
+  source?: {
+    kind: 'queryspec-catalogs' | 'sql-files';
+    scopeDir: string;
+  };
   mode: QueryUsageMode;
   view: QueryUsageView;
   target: QueryUsageTarget;
   summary: {
     catalogsScanned: number;
+    sqlFilesScanned?: number;
     statementsScanned: number;
     matches: number;
     fallbackMatches: number;

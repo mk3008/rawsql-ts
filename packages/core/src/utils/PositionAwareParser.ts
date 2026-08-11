@@ -1,5 +1,5 @@
 import { SelectQuery, SimpleSelectQuery } from '../models/SelectQuery';
-import { SelectQueryParser, ParseAnalysisResult } from '../parsers/SelectQueryParser';
+import { SelectQueryParser, type ParseAnalysisResult } from '../parsers/SelectQueryParser';
 import { SqlTokenizer } from '../parsers/SqlTokenizer';
 import { Lexeme } from '../models/Lexeme';
 import { LineColumn, LexemeCursor } from './LexemeCursor';
