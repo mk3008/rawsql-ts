@@ -244,10 +244,63 @@ group by customer_id;`,
 function parseSelector(value: string): QueryScopeSelectorV1 {
   if (!value.trim()) throw new Error('Enter a query scope selector.');
   try {
-    return JSON.parse(value) as QueryScopeSelectorV1;
+    const parsed: unknown = JSON.parse(value);
+    if (!isQueryScopeSelector(parsed)) throw new Error();
+    return parsed;
   } catch {
     throw new Error('Enter a valid JSON query scope selector.');
   }
+}
+
+function isQueryScopeSelector(value: unknown): value is QueryScopeSelectorV1 {
+  if (!isRecord(value) || !hasExactKeys(value, ['path', 'version']) || value.version !== 1) return false;
+  if (!Array.isArray(value.path) || value.path.length === 0) return false;
+  const [root, ...children] = value.path;
+  if (!isRecord(root) || !hasExactKeys(root, ['kind']) || root.kind !== 'root') return false;
+  return children.every(isQueryScopeChildSegment);
+}
+
+function isQueryScopeChildSegment(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  switch (value.kind) {
+    case 'cte':
+      return hasExactKeys(value, ['index', 'kind', 'name'])
+        && isNonnegativeInteger(value.index)
+        && typeof value.name === 'string'
+        && value.name.length > 0;
+    case 'source_subquery':
+      return hasExactKeys(value, ['index', 'kind', 'source'])
+        && isNonnegativeInteger(value.index)
+        && (value.source === 'from' || value.source === 'join');
+    case 'expression_subquery':
+      return hasExactKeys(value, ['clause', 'index', 'kind', 'subqueryKind'])
+        && queryScopeExpressionClauses.has(value.clause)
+        && isNonnegativeInteger(value.index)
+        && (value.subqueryKind === 'scalar_subquery' || value.subqueryKind === 'exists' || value.subqueryKind === 'in_subquery');
+    case 'set_branch':
+      return hasExactKeys(value, ['kind', 'side']) && (value.side === 'left' || value.side === 'right');
+    default:
+      return false;
+  }
+}
+
+const queryScopeExpressionClauses = new Set<unknown>([
+  'fetch', 'from', 'group_by', 'having', 'join', 'limit', 'offset',
+  'order_by', 'select', 'values', 'where', 'window',
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasExactKeys(value: Record<string, unknown>, expected: string[]): boolean {
+  const actual = Object.keys(value).sort();
+  const sortedExpected = [...expected].sort();
+  return actual.length === sortedExpected.length && actual.every((key, index) => key === sortedExpected[index]);
+}
+
+function isNonnegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
 function normalizeDemoScope(value: string): string {

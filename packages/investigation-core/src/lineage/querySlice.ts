@@ -195,7 +195,8 @@ export function sliceQueryScope(input: QuerySliceInputV1): QuerySliceResultV1 {
 
 // API output shape review: kept the existing ready-only result.sql contract
 // and generated-artifact formatter boundary. Canonical parsed queries, AST
-// identities, and candidate SQL for blocked results remain internal.
+// identities, and candidate SQL for blocked results remain internal. CTE proof
+// compares dependency membership while preserving decomposer output order.
 
 function proveStandaloneBoundary(query: SelectQuery, schemaFacts?: SchemaFacts): QuerySliceDiagnosticV1 | null {
   const boundaryScopes = collectScopes(query);
@@ -265,7 +266,7 @@ function sliceCteScope(
   if (contextCheck.context.owner !== owner) {
     return diagnostic('MULTIPLE_CTE_CONTEXTS_UNSUPPORTED', 'The selected CTE requires a different lexical WITH context.');
   }
-  if (!sameNames(contextCheck.requiredCteNames, result.dependencies)) {
+  if (!sameNameSet(contextCheck.requiredCteNames, result.dependencies)) {
     return diagnostic('CTE_CONTEXT_UNRESOLVED', 'The selected CTE dependency closure does not match the existing decomposer.');
   }
   const unsafeDefinition = unsafeCteDefinition(withClause, [location.name, ...result.dependencies]);
@@ -431,8 +432,10 @@ function collectDependencyClosure(names: string[], analyzer: CTEDependencyAnalyz
   return required;
 }
 
-function sameNames(left: string[], right: string[]): boolean {
-  return left.length === right.length && left.every((name, index) => name === right[index]);
+function sameNameSet(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) return false;
+  const expected = new Set(right);
+  return expected.size === new Set(left).size && left.every((name) => expected.has(name));
 }
 
 function findCteScope(

@@ -22,6 +22,21 @@ describe('MCP tool catalog demo', () => {
     })).toThrow('Enter a query scope selector.');
   });
 
+  it.each([
+    ['an empty object', '{}'],
+    ['a non-root path', JSON.stringify({ path: [{ kind: 'set_branch', side: 'left' }], version: 1 })],
+    ['an unsupported version', JSON.stringify({ path: [{ kind: 'root' }], version: 2 })],
+    ['a malformed child segment', JSON.stringify({
+      path: [{ kind: 'root' }, { index: '0', kind: 'source_subquery', source: 'from' }],
+      version: 1,
+    })],
+  ])('rejects %s as a query-slice selector', (_case, selector) => {
+    expect(() => runDemoTool('slice_query', {
+      ...initialInputs.slice_query,
+      selector,
+    })).toThrow('Enter a valid JSON query scope selector.');
+  });
+
   it('models recursive SQL-file search without requiring inline SQL', () => {
     const input = { ...initialInputs.find_query_usage, sql: '', scopeDir: 'queries' };
     const result = runDemoTool('find_query_usage', input) as {
