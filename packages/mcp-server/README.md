@@ -1,6 +1,6 @@
 # @rawsql-ts/mcp-server
 
-A local Model Context Protocol server exposing nine deterministic rawsql-ts
+A local Model Context Protocol server exposing ten deterministic rawsql-ts
 analysis and transformation tools.
 
 The npm package is `@rawsql-ts/mcp-server`. Installing it provides the
@@ -12,6 +12,7 @@ The npm package is `@rawsql-ts/mcp-server`. Installing it provides the
 - `inspect_query_contract`
 - `analyze_query_structure`
 - `analyze_column_lineage`
+- `slice_query`
 - `create_fixture_extraction_plan`
 - `find_query_usage`
 - `extract_cte_query`
@@ -48,6 +49,11 @@ paths.
 - `analyze_column_lineage` accepts `sql`, required `targetColumn`, and optional
   inline `ddl`, workspace-relative `ddlPaths`, generated-SQL `format`, and
   `view: "compact" | "full"`.
+- `slice_query` accepts `sql`, a required V1 structural `selector`, optional
+  inline `ddl`, workspace-relative `ddlPaths`, and generated-SQL `format`.
+  Callers pass a selector from `analyze_query_structure` full output for the
+  same SQL. The tool does not select a scope by CTE name or choose one
+  implicitly.
 - `create_fixture_extraction_plan` accepts `sql`, optional inline `ddl`,
   workspace-relative `ddlPaths`, and generated-SQL `format`.
 - `find_query_usage` accepts a target and optional workspace-relative
@@ -88,8 +94,10 @@ Formatter defaults are overridden by `configPath`, then by inline `options`.
 Options are strictly validated by rawsql-ts core. Outside the explicit
 `format_sql` request, formatting applies only to generated artifacts: CTE
 executable SQL, safe condition rewrites and their generated probes, fixture
-capture SQL, and lineage investigation probes. Original SQL, expressions,
-predicates, snippets, and other evidence are never formatted.
+capture SQL, lineage investigation probes, and ready query-slice SQL. Original
+SQL, selectors, diagnostics, expressions, predicates, snippets, and other
+evidence are never formatted. A blocked query slice has no SQL artifact to
+format.
 
 `find_query_usage` recursively scans project `.sql` files beneath its optional
 `scopeDir` argument. `scopeDir` is relative to the configured workspace and
@@ -122,6 +130,26 @@ query source is not null-extended by an outer join.
 SQL-producing tools return both structured evidence and clearly labeled SQL
 strings. MCP serialization removes AST instances so callers do not receive
 formatter-dependent SQL as an undocumented intermediate model.
+
+`slice_query` returns `kind: "query-slice"`, `version: 1`, and an explicit
+`status`. A `ready` result contains the resolved selector, scope kind,
+`outerReferenceStatus: "none"`, direct and included CTE names, diagnostics,
+and one generated `sql` string. A `blocked` result contains the same evidence
+without `sql`, `partialSql`, or another candidate. Invalid source SQL and
+selectors that are malformed, stale, absent, or ambiguous are input errors,
+not blocked results.
+
+The tool supports root, CTE, derived, scalar-subquery, EXISTS, IN-subquery, and
+set-operation scopes. It re-resolves the selector on the supplied SQL, applies
+the fail-closed `unresolved > correlated > none` outer-reference classification,
+uses optional DDL facts only to improve ownership proof, reconstructs required
+external CTEs from the core dependency analyzer, and reparses generated SQL
+before returning it. Recursive CTEs, unresolved lexical ownership, multiple
+lexical CTE contexts, and unsupported nested-WITH composition remain blocked.
+The SQL is a standalone representation of the selected scope body; it is not a
+claim that the slice is equivalent to the complete source query or that the
+source query was minimized. Projection, predicate, join, grouping, ordering,
+and output-column pruning are outside this contract.
 
 `format_sql` is the explicit exception to the generated-artifact boundary: its
 input SQL is formatted because the caller requested formatting directly, not

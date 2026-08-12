@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 describe('@rawsql-ts/mcp-server', () => {
-  it('registers exactly nine task-oriented tools with minimal argument schemas', async () => {
+  it('registers exactly ten task-oriented tools with minimal argument schemas', async () => {
     const { client, close } = await connectedClient(temporaryWorkspace());
     try {
       const listed = await client.listTools();
@@ -24,6 +24,7 @@ describe('@rawsql-ts/mcp-server', () => {
         'inspect_query_contract',
         'analyze_query_structure',
         'analyze_column_lineage',
+        'slice_query',
         'create_fixture_extraction_plan',
         'find_query_usage',
         'extract_cte_query',
@@ -34,6 +35,7 @@ describe('@rawsql-ts/mcp-server', () => {
       expect(Object.keys(tool(listed.tools, 'inspect_query_contract').inputSchema.properties ?? {}).sort()).toEqual(['ddl', 'ddlPaths', 'sql']);
       expect(Object.keys(tool(listed.tools, 'analyze_query_structure').inputSchema.properties ?? {}).sort()).toEqual(['ddl', 'ddlPaths', 'sql', 'view']);
       expect(Object.keys(tool(listed.tools, 'analyze_column_lineage').inputSchema.properties ?? {}).sort()).toEqual(['ddl', 'ddlPaths', 'format', 'sql', 'targetColumn', 'view']);
+      expect(Object.keys(tool(listed.tools, 'slice_query').inputSchema.properties ?? {}).sort()).toEqual(['ddl', 'ddlPaths', 'format', 'selector', 'sql']);
       expect(Object.keys(tool(listed.tools, 'create_fixture_extraction_plan').inputSchema.properties ?? {}).sort()).toEqual(['ddl', 'ddlPaths', 'format', 'sql']);
       expect(Object.keys(tool(listed.tools, 'find_query_usage').inputSchema.properties ?? {}).sort()).toEqual([
         'anySchema', 'anyTable', 'kind', 'limit', 'scopeDir', 'summaryOnly', 'target', 'usageKinds', 'view',

@@ -21,6 +21,19 @@ export type {
   OuterReferenceStatusV1,
   QueryScopeMetadataV1,
 } from './lineage/queryScopeAnalysis';
+export {
+  QuerySliceInputError,
+  sliceQueryScope,
+} from './lineage/querySlice';
+export type {
+  QuerySliceBlockedV1,
+  QuerySliceDiagnosticCodeV1,
+  QuerySliceDiagnosticV1,
+  QuerySliceInputErrorCode,
+  QuerySliceInputV1,
+  QuerySliceReadyV1,
+  QuerySliceResultV1,
+} from './lineage/querySlice';
 export { generateFixtureExtractionPlan } from './lineage/fixture-extraction/generateFixtureExtractionPlan';
 export {
   FIXTURE_EXTRACTION_PLAN_SCHEMA_VERSION,

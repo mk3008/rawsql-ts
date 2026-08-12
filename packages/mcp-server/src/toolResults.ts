@@ -1,6 +1,7 @@
 import type {
   ColumnLineageAnalysisV1,
   FixtureExtractionPlan,
+  QuerySliceResultV1,
   QueryStructureAnalysisV1,
 } from '@rawsql-ts/investigation-core';
 import type { ConditionOptimizationResult } from 'rawsql-ts';
@@ -133,6 +134,19 @@ export function formatFixtureExtractionPlan(
       return { ...step, sql: artifact.sql };
     }),
   };
+}
+
+/** Formats only the explicit generated SQL artifact of a ready query slice. */
+export function formatQuerySliceResult(
+  result: QuerySliceResultV1,
+  formatting: ResolvedSqlFormatting,
+): QuerySliceResultV1 {
+  if (result.status === 'blocked') return result;
+  const artifact = formatGeneratedSqlArtifact(
+    generatedSqlArtifact('query_slice_sql', result.sql),
+    formatting,
+  );
+  return { ...result, sql: artifact.sql };
 }
 
 export function formatColumnLineageAnalysis(
