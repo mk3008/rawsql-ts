@@ -269,7 +269,7 @@ function classifyOuterReferences(
     }
   }
 
-  return correlated ? 'correlated' : unresolved ? 'unresolved' : 'none';
+  return unresolved ? 'unresolved' : correlated ? 'correlated' : 'none';
 }
 
 function resolveUnqualified(

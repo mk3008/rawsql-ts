@@ -41,7 +41,10 @@ paths.
   workspace-relative `ddlPaths`, and optional `view: "compact" | "full"`.
   Full results include AST-free V1 structural scope selectors, parent selectors,
   direct CTE names, and fail-closed outer-reference status. Compact results do
-  not include scopes or selectors.
+  not include scopes or selectors. In full results, `scopeKind` is the exact
+  structural kind; `kind` remains compatible with the pre-existing lineage
+  scope values. `scopeCount` counts the complete structural inventory, and
+  `maximumNestingDepth` follows structural parents with the root at depth 1.
 - `analyze_column_lineage` accepts `sql`, required `targetColumn`, and optional
   inline `ddl`, workspace-relative `ddlPaths`, generated-SQL `format`, and
   `view: "compact" | "full"`.

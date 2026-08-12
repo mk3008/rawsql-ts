@@ -58,7 +58,7 @@ export interface QueryStructureOperationV1 {
 export interface QueryStructureScopeV1 {
   directCteNames: string[];
   id: string;
-  kind: LineageScope['kind'] | QueryScopeKind;
+  kind: LineageScope['kind'];
   label?: string;
   nodeId: string;
   outerReferenceStatus: OuterReferenceStatusV1;
@@ -125,13 +125,7 @@ function buildStructureScopes(
 ): QueryStructureScopeV1[] {
   const astScopes = new QueryScopeCollector().collect(query);
   const metadata = analyzeCollectedQueryScopes(astScopes, schemaFacts);
-  const legacyByQuery = new Map<SelectQuery, LineageScope>();
-  for (const scope of lineageScopes) {
-    const scopeQuery = scopeQueries.get(scope.id);
-    if (scopeQuery) {
-      legacyByQuery.set(scopeQuery, scope);
-    }
-  }
+  const legacyByQuery = mapLegacyScopesByQuery(lineageScopes, scopeQueries);
 
   const idBySelector = new Map<string, string>();
   const nodeIdBySelector = new Map<string, string>();
@@ -152,13 +146,13 @@ function buildStructureScopes(
     const structureScope: QueryStructureScopeV1 = {
       directCteNames: scopeMetadata.directCteNames,
       id,
-      kind: legacy?.kind ?? ast.kind,
+      kind: legacy?.kind ?? legacyCompatibleScopeKind(ast.kind),
       ...(legacy?.label ? { label: legacy.label } : {}),
       nodeId,
       outerReferenceStatus: scopeMetadata.outerReferenceStatus,
       ...(legacy?.parentScopeId
         ? { parentScopeId: legacy.parentScopeId }
-        : !legacy && parentKey && idBySelector.get(parentKey)
+        : parentKey && idBySelector.get(parentKey)
           ? { parentScopeId: idBySelector.get(parentKey) }
           : {}),
       ...(scopeMetadata.parentSelector ? { parentSelector: scopeMetadata.parentSelector } : {}),
@@ -182,6 +176,40 @@ function buildStructureScopes(
   });
   const newScopes = structuralOrder.filter((scope) => !lineageScopes.some((legacy) => legacy.id === scope.id));
   return [...existingOrder, ...newScopes];
+}
+
+function mapLegacyScopesByQuery(
+  lineageScopes: LineageScope[],
+  scopeQueries: ReadonlyMap<string, SelectQuery>,
+): Map<SelectQuery, LineageScope> {
+  const legacyByQuery = new Map<SelectQuery, LineageScope>();
+  for (const scope of lineageScopes) {
+    const scopeQuery = scopeQueries.get(scope.id);
+    if (!scopeQuery) {
+      throw new Error(`Lineage scope is missing its parsed query identity: ${scope.id}`);
+    }
+    const existing = legacyByQuery.get(scopeQuery);
+    if (existing) {
+      throw new Error(`Lineage scopes share one parsed query identity: ${existing.id}, ${scope.id}`);
+    }
+    legacyByQuery.set(scopeQuery, scope);
+  }
+  return legacyByQuery;
+}
+
+function legacyCompatibleScopeKind(kind: QueryScopeKind): LineageScope['kind'] {
+  switch (kind) {
+    case 'root':
+      return 'select';
+    case 'exists':
+    case 'in_subquery':
+      return 'subquery';
+    case 'cte':
+    case 'derived':
+    case 'scalar_subquery':
+    case 'set_operation':
+      return kind;
+  }
 }
 
 function syntheticScopeId(selectorKey: string): string {

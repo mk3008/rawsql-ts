@@ -44,11 +44,13 @@ describe('analyzeQueryStructure', () => {
     expect(result.scopes).toEqual(expect.arrayContaining([
       expect.objectContaining({
         directCteNames: ['active_orders'],
+        kind: 'select',
         outerReferenceStatus: 'none',
         scopeKind: 'root',
         selector: { path: [{ kind: 'root' }], version: 1 },
       }),
       expect.objectContaining({
+        kind: 'cte',
         scopeKind: 'cte',
         selector: {
           path: [{ kind: 'root' }, { index: 0, kind: 'cte', name: 'active_orders' }],
@@ -56,6 +58,10 @@ describe('analyzeQueryStructure', () => {
         },
       }),
     ]));
+    const root = result.scopes.find((scope) => scope.scopeKind === 'root');
+    const cte = result.scopes.find((scope) => scope.scopeKind === 'cte');
+    expect(cte?.parentScopeId).toBe(root?.id);
+    expect(cte?.parentSelector).toEqual(root?.selector);
   });
 
   it('includes correlated predicate scopes in the full structural inventory', () => {
@@ -71,6 +77,7 @@ describe('analyzeQueryStructure', () => {
     const exists = result.scopes.find((scope) => scope.scopeKind === 'exists');
 
     expect(exists).toMatchObject({
+      kind: 'subquery',
       outerReferenceStatus: 'correlated',
       parentSelector: { path: [{ kind: 'root' }], version: 1 },
       scopeKind: 'exists',
@@ -103,5 +110,16 @@ describe('analyzeQueryStructure', () => {
 
     expect(structureIds.filter((id) => legacyIds.includes(id))).toEqual(legacyIds);
     expect(new Set(structureIds).size).toBe(structureIds.length);
+  });
+
+  it('records one parsed query identity for every lineage scope', () => {
+    const result = analyzeSql(`with base as (select id from orders)
+      select (select max(amount) from payments) as amount
+      from (select id from base) nested
+      union all
+      select 0 from archived_orders`, { analysisMode: 'original', optimizeConditions: false });
+
+    expect([...result.scopeQueries.keys()].sort()).toEqual(result.lineage.scopes.map((scope) => scope.id).sort());
+    expect(new Set(result.scopeQueries.values()).size).toBe(result.scopeQueries.size);
   });
 });

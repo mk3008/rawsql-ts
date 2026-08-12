@@ -81,6 +81,20 @@ describe('analyzeQueryScopes', () => {
     expect(scopes.find((scope) => scope.kind === 'scalar_subquery')?.outerReferenceStatus).toBe('unresolved');
   });
 
+  it('fails closed when one outer reference is correlated and another is unresolved', () => {
+    const scopes = analyzeQueryScopes(SelectQueryParser.parse(`
+      select (
+        select p.amount
+        from payments p
+        where p.order_id = o.order_id
+          and missing.tenant_id = o.tenant_id
+      )
+      from orders o
+    `));
+
+    expect(scopes.find((scope) => scope.kind === 'scalar_subquery')?.outerReferenceStatus).toBe('unresolved');
+  });
+
   it('uses DDL facts to prove an unqualified outer reference', () => {
     const query = SelectQueryParser.parse(`
       select (

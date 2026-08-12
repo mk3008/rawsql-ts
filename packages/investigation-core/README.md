@@ -41,4 +41,9 @@ analysis DTO; callers that need AST resolution can use rawsql-ts
 
 API output shape review: query-structure DTOs expose only versioned selectors
 and static metadata, while the reusable core resolver retains AST identity and
-does not introduce an AST-to-SQL-to-AST round trip.
+does not introduce an AST-to-SQL-to-AST round trip. The lineage-scope-to-AST
+identity map remains internal and non-serialized; it does not change existing
+SQL-bearing result fields or add generated SQL.
+
+API output shape review: this contract hardening preserves every existing SQL
+output and keeps parsed query identities internal.
