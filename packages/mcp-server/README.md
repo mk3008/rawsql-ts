@@ -143,8 +143,11 @@ The tool supports root, CTE, derived, scalar-subquery, EXISTS, IN-subquery, and
 set-operation scopes. It re-resolves the selector on the supplied SQL, applies
 the fail-closed `unresolved > correlated > none` outer-reference classification,
 uses optional DDL facts only to improve ownership proof, reconstructs required
-external CTEs from the core dependency analyzer, and reparses generated SQL
-before returning it. Recursive CTEs, unresolved lexical ownership, multiple
+external CTEs found anywhere in the selected subtree from the core dependency
+analyzer, and reparses generated SQL before returning it. Descendant scopes are
+re-analyzed against the selected scope as a standalone boundary, so correlations
+resolved inside that boundary remain valid while references escaping it are
+blocked. Recursive CTEs, unresolved lexical ownership, multiple
 lexical CTE contexts, and unsupported nested-WITH composition remain blocked.
 The SQL is a standalone representation of the selected scope body; it is not a
 claim that the slice is equivalent to the complete source query or that the

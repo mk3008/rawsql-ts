@@ -6,6 +6,7 @@ import {
   type QueryScopeSelectorV1,
 } from 'rawsql-ts';
 import { describe, expect, it } from 'vitest';
+import { analyzeQueryStructure } from './queryStructureAnalysis';
 import { QuerySliceInputError, sliceQueryScope } from './querySlice';
 
 describe('sliceQueryScope', () => {
@@ -96,6 +97,83 @@ describe('sliceQueryScope', () => {
     expect(withDdl).toMatchObject({ outerReferenceStatus: 'none', status: 'ready' });
   });
 
+  it('treats an empty DDL array exactly like omitted DDL', () => {
+    const input = {
+      sql: 'select (select amount from payments p) from orders o',
+      selector: selector({ clause: 'select', index: 0, kind: 'expression_subquery', subqueryKind: 'scalar_subquery' }),
+    } as const;
+
+    expect(sliceQueryScope({ ...input, ddl: [] })).toEqual(sliceQueryScope(input));
+  });
+
+  it.each([
+    {
+      kind: 'scalar',
+      sql: `select * from orders o join lateral (
+        select (select max(p.amount) from payments p where p.order_id = o.id) as amount
+      ) x on true`,
+    },
+    {
+      kind: 'exists',
+      sql: `select * from orders o join lateral (
+        select p.id from payments p where exists (
+          select 1 from refunds r where r.order_id = o.id
+        )
+      ) x on true`,
+    },
+  ])('blocks a selected derived scope whose nested $kind escapes the selected boundary', ({ sql }) => {
+    const result = sliceQueryScope({
+      sql,
+      selector: derivedSelector(sql),
+    });
+
+    expect(result).toMatchObject({
+      diagnostics: [{ code: 'SCOPE_REFERENCE_UNRESOLVED' }],
+      status: 'blocked',
+    });
+    expect(result).not.toHaveProperty('sql');
+  });
+
+  it.each([
+    {
+      kind: 'scalar',
+      sql: `select * from (
+        select p.id, (
+          select max(x.amount) from payments x where x.order_id = p.id
+        ) as max_amount from purchases p
+      ) picked`,
+    },
+    {
+      kind: 'exists',
+      sql: `select * from (
+        select p.id from purchases p where exists (
+          select 1 from payments x where x.order_id = p.id
+        )
+      ) picked`,
+    },
+  ])('allows a selected derived scope whose nested $kind correlation stays inside the boundary', ({ sql }) => {
+    const result = sliceQueryScope({
+      sql,
+      selector: selector({ index: 0, kind: 'source_subquery', source: 'from' }),
+    });
+
+    expect(result).toMatchObject({ status: 'ready' });
+    if (result.status === 'ready') expect(() => SelectQueryParser.parse(result.sql)).not.toThrow();
+  });
+
+  it('blocks a selected scope with an unresolved descendant', () => {
+    const result = sliceQueryScope({
+      sql: 'select * from (select (select missing.id) as id) picked',
+      selector: selector({ index: 0, kind: 'source_subquery', source: 'from' }),
+    });
+
+    expect(result).toMatchObject({
+      diagnostics: [{ code: 'SCOPE_REFERENCE_UNRESOLVED' }],
+      status: 'blocked',
+    });
+    expect(result).not.toHaveProperty('sql');
+  });
+
   it('restores a CTE dependency chain in analyzer order and excludes unused CTEs', () => {
     const sql = `with base as (select o.id from orders o),
       filtered as (select b.id from base b where b.id > 0),
@@ -149,6 +227,44 @@ describe('sliceQueryScope', () => {
     }
   });
 
+  it('uses the decomposer for a set-operation CTE whose dependency is visible only in a branch scope', () => {
+    const sql = `with base as (select id from orders),
+      target as (
+        select id from base
+        union all
+        select id from archived_orders
+      )
+      select * from target`;
+    const result = sliceQueryScope({ sql, selector: selector({ index: 1, kind: 'cte', name: 'target' }) });
+
+    expect(result).toMatchObject({ includedCteNames: ['base'], status: 'ready' });
+    if (result.status === 'ready') {
+      expect(result.sql).toMatch(/\bwith\s+"?base"?\s+as\b/i);
+      expect(() => SelectQueryParser.parse(result.sql)).not.toThrow();
+    }
+  });
+
+  it.each([
+    {
+      kind: 'scalar subquery',
+      target: 'select (select max(id) from base) as max_id',
+    },
+    {
+      kind: 'EXISTS subquery',
+      target: `select o.id from orders o where exists (
+        select 1 from base b where b.id = o.id
+      )`,
+    },
+  ])('restores a CTE referenced only by a nested $kind', ({ target }) => {
+    const sql = `with base as (select id from orders),
+      target as (${target})
+      select * from target`;
+    const result = sliceQueryScope({ sql, selector: selector({ index: 1, kind: 'cte', name: 'target' }) });
+
+    expect(result).toMatchObject({ includedCteNames: ['base'], status: 'ready' });
+    if (result.status === 'ready') expect(result.sql).toMatch(/\bwith\s+"?base"?\s+as\b/i);
+  });
+
   it('composes external CTE closure for an arbitrary derived scope', () => {
     const sql = `with base as (select o.id from orders o),
       filtered as (select b.id from base b where b.id > 0),
@@ -165,6 +281,20 @@ describe('sliceQueryScope', () => {
       status: 'ready',
     });
     if (result.status === 'ready') expect(result.sql).not.toContain('unused');
+  });
+
+  it('composes an external CTE referenced only by a nested subquery in an arbitrary scope', () => {
+    const sql = `with base as (select id from orders)
+      select * from (
+        select (select max(id) from base) as max_id
+      ) picked`;
+    const result = sliceQueryScope({
+      sql,
+      selector: selector({ index: 0, kind: 'source_subquery', source: 'from' }),
+    });
+
+    expect(result).toMatchObject({ includedCteNames: ['base'], status: 'ready' });
+    if (result.status === 'ready') expect(result.sql).toMatch(/\bwith\s+"?base"?\s+as\b/i);
   });
 
   it('keeps a scope-owned WITH clause intact without injecting its CTEs again', () => {
@@ -230,6 +360,23 @@ describe('sliceQueryScope', () => {
     expect(multipleContexts).not.toHaveProperty('sql');
   });
 
+  it('blocks an own WITH whose nested CTE depends on a CTE outside the selected boundary', () => {
+    const result = sliceQueryScope({
+      sql: `with outer_cte as (select id from orders)
+        select * from (
+          with local as (select * from outer_cte)
+          select * from local
+        ) picked`,
+      selector: selector({ index: 0, kind: 'source_subquery', source: 'from' }),
+    });
+
+    expect(result).toMatchObject({
+      diagnostics: [{ code: 'MULTIPLE_CTE_CONTEXTS_UNSUPPORTED' }],
+      status: 'blocked',
+    });
+    expect(result).not.toHaveProperty('sql');
+  });
+
   it('blocks an external CTE closure whose own outer-reference status is unresolved', () => {
     const result = sliceQueryScope({
       sql: `with bad as (select missing.id),
@@ -258,6 +405,22 @@ describe('sliceQueryScope', () => {
     expect(result).toMatchObject({ diagnostics: [{ code: 'RECURSIVE_CTE_SLICE_UNSUPPORTED' }], status: 'blocked' });
     expect(result).not.toHaveProperty('sql');
   });
+
+  it.each([
+    ['select', 'select * from (select id from orders) picked'],
+    ['create table as', 'create table picked_orders as select * from (select id from orders) picked'],
+    ['create view as', 'create view picked_orders as select * from (select id from orders) picked'],
+    ['insert select', 'insert into picked_orders (id) select * from (select id from orders) picked'],
+  ])('reuses the query-structure source extraction contract for %s', (_kind, sql) => {
+    const analysis = analyzeQueryStructure({ sql });
+    const derived = analysis.scopes.find((scope) => scope.scopeKind === 'derived');
+    expect(derived).toBeDefined();
+
+    const result = sliceQueryScope({ sql, selector: derived!.selector });
+
+    expect(result).toMatchObject({ scopeKind: 'derived', status: 'ready' });
+    if (result.status === 'ready') expect(() => SelectQueryParser.parse(result.sql)).not.toThrow();
+  });
 });
 
 function rootSelector(): QueryScopeSelectorV1 {
@@ -266,6 +429,12 @@ function rootSelector(): QueryScopeSelectorV1 {
 
 function selector(...path: QueryScopeSelectorV1['path'] extends Array<infer Segment> ? Segment[] : never): QueryScopeSelectorV1 {
   return { path: [{ kind: 'root' }, ...path], version: 1 };
+}
+
+function derivedSelector(sql: string): QueryScopeSelectorV1 {
+  const scope = analyzeQueryStructure({ sql }).scopes.find((candidate) => candidate.scopeKind === 'derived');
+  if (!scope) throw new Error('Expected one derived scope in the test SQL.');
+  return scope.selector;
 }
 
 function normalizeSql(sql: string): string {

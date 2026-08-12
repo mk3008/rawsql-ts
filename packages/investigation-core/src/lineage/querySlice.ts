@@ -21,6 +21,7 @@ import type {
   WithClause,
 } from 'rawsql-ts';
 import { analyzeCollectedQueryScopes, type OuterReferenceStatusV1, type QueryScopeMetadataV1 } from './queryScopeAnalysis';
+import { extractAnalysisSelectQuery } from './rawsqlAdapter';
 import { parseSchemaFactsFromDdl, type DdlInput, type SchemaFacts } from './schemaFacts';
 
 /** Inputs for statically slicing one parser-backed query scope. */
@@ -100,9 +101,15 @@ interface LexicalCteContext {
   withClause: WithClause;
 }
 
+interface ExternalCteReference {
+  context: LexicalCteContext;
+  name: string;
+}
+
 interface SliceAnalysisContext {
   astScopes: QueryScopeAstV1[];
   metadataBySelector: Map<string, QueryScopeMetadataV1>;
+  schemaFacts?: SchemaFacts;
   scopeBySelector: Map<string, QueryScopeAstV1>;
 }
 
@@ -111,7 +118,7 @@ interface SliceAnalysisContext {
  * Blocked results intentionally contain no candidate SQL.
  */
 export function sliceQueryScope(input: QuerySliceInputV1): QuerySliceResultV1 {
-  const schemaFacts = input.schemaFacts ?? (input.ddl ? parseSchemaFactsFromDdl(input.ddl) : undefined);
+  const schemaFacts = input.schemaFacts ?? (input.ddl && input.ddl.length > 0 ? parseSchemaFactsFromDdl(input.ddl) : undefined);
   const query = parseSourceSql(input.sql);
   const astScopes = collectScopes(query);
   const resolution = resolveQueryScope(astScopes, input.selector);
@@ -147,18 +154,23 @@ export function sliceQueryScope(input: QuerySliceInputV1): QuerySliceResultV1 {
     return blocked(base, 'SCOPE_REFERENCE_UNRESOLVED', 'Column ownership in the selected scope is not statically proven.');
   }
 
-  const analysis: SliceAnalysisContext = { astScopes, metadataBySelector, scopeBySelector };
+  const analysis: SliceAnalysisContext = { astScopes, metadataBySelector, schemaFacts, scopeBySelector };
+  const boundaryCheck = proveStandaloneBoundary(resolution.scope.query, schemaFacts);
+  if (boundaryCheck) return blocked(base, boundaryCheck.code, boundaryCheck.message);
+  const externalCteReferences = collectExternalCteReferences(resolution.scope, analysis);
+  if ('diagnostic' in externalCteReferences) {
+    return blocked(base, externalCteReferences.diagnostic.code, externalCteReferences.diagnostic.message);
+  }
   const ownCteNames = declaredCteNames(resolution.scope.query);
-  const externalDirectCteNames = selectedMetadata.directCteNames.filter((name) => !ownCteNames.includes(name));
 
   try {
     if (selectedMetadata.kind === 'cte') {
-      const cteResult = sliceCteScope(resolution.scope, externalDirectCteNames, analysis);
+      const cteResult = sliceCteScope(resolution.scope, externalCteReferences, analysis);
       if ('diagnostic' in cteResult) return blocked(base, cteResult.diagnostic.code, cteResult.diagnostic.message);
       return ready(base, cteResult.sql, cteResult.includedCteNames);
     }
 
-    if (externalDirectCteNames.length === 0) {
+    if (externalCteReferences.length === 0) {
       return ready(base, serializeAndValidate(resolution.scope.query), []);
     }
     if (ownCteNames.length > 0) {
@@ -169,7 +181,7 @@ export function sliceQueryScope(input: QuerySliceInputV1): QuerySliceResultV1 {
       );
     }
 
-    const composed = composeExternalCtes(resolution.scope, externalDirectCteNames, analysis);
+    const composed = composeExternalCtes(resolution.scope, externalCteReferences, analysis);
     if ('diagnostic' in composed) return blocked(base, composed.diagnostic.code, composed.diagnostic.message);
     return ready(base, composed.sql, composed.includedCteNames);
   } catch (error) {
@@ -181,14 +193,53 @@ export function sliceQueryScope(input: QuerySliceInputV1): QuerySliceResultV1 {
   }
 }
 
-// API output shape review: this public V1 result contains only structural
-// selector evidence, CTE-name evidence, diagnostics, and (for ready results)
-// one explicit generated SQL artifact. AST identities and candidate SQL for
-// blocked results remain internal.
+// API output shape review: kept the existing ready-only result.sql contract
+// and generated-artifact formatter boundary. Canonical parsed queries, AST
+// identities, and candidate SQL for blocked results remain internal.
+
+function proveStandaloneBoundary(query: SelectQuery, schemaFacts?: SchemaFacts): QuerySliceDiagnosticV1 | null {
+  const boundaryScopes = collectScopes(query);
+  const boundaryMetadata = analyzeCollectedQueryScopes(boundaryScopes, schemaFacts);
+  const unresolvedDescendant = boundaryMetadata.find((metadata) =>
+    metadata.parentSelector && metadata.outerReferenceStatus === 'unresolved');
+  return unresolvedDescendant
+    ? {
+        code: 'SCOPE_REFERENCE_UNRESOLVED',
+        message: 'A descendant scope references a name that is not resolved inside the selected boundary.',
+      }
+    : null;
+}
+
+function collectExternalCteReferences(
+  selected: QueryScopeAstV1,
+  analysis: SliceAnalysisContext,
+): ExternalCteReference[] | { diagnostic: QuerySliceDiagnosticV1 } {
+  const references: ExternalCteReference[] = [];
+  const seen = new Set<string>();
+  const subtree = analysis.astScopes.filter((scope) => selectorContains(scope.selector, selected.selector));
+  for (const scope of subtree) {
+    const metadata = analysis.metadataBySelector.get(queryScopeSelectorKey(scope.selector));
+    for (const name of metadata?.directCteNames ?? []) {
+      const context = resolveCteReferenceContext(scope, name, analysis.scopeBySelector);
+      if (!context) {
+        return diagnostic('CTE_CONTEXT_UNRESOLVED', 'A CTE name in the selected subtree has no unique visible lexical definition.');
+      }
+      if (selectorContains(context.owner.selector, selected.selector)) {
+        continue;
+      }
+      const key = `${queryScopeSelectorKey(context.owner.selector)}\u0000${name}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        references.push({ context, name });
+      }
+    }
+  }
+  return references;
+}
 
 function sliceCteScope(
   selected: QueryScopeAstV1,
-  externalDirectCteNames: string[],
+  externalCteReferences: ExternalCteReference[],
   analysis: SliceAnalysisContext,
 ): { includedCteNames: string[]; sql: string } | { diagnostic: QuerySliceDiagnosticV1 } {
   const owner = selected.parentSelector
@@ -202,21 +253,24 @@ function sliceCteScope(
   if (withClause.recursive) {
     return diagnostic('RECURSIVE_CTE_SLICE_UNSUPPORTED', 'Recursive WITH contexts are not sliced in V1.');
   }
-  if (externalDirectCteNames.length === 0) {
-    return { includedCteNames: [], sql: serializeAndValidate(selected.query) };
-  }
   if (!(owner.query instanceof SimpleSelectQuery) || !isSingleDirectWithContext(owner.query, withClause)) {
     return diagnostic('CTE_CONTEXT_UNRESOLVED', 'The selected CTE does not have one analyzer-safe lexical WITH context.');
   }
-  const contextCheck = proveSingleContext(selected, externalDirectCteNames, analysis);
+  const result = new CTEQueryDecomposer().extractCTE(owner.query, location.name);
+  const context = { owner, withClause };
+  const contextCheck = externalCteReferences.length > 0
+    ? proveSingleContext(externalCteReferences, analysis)
+    : proveContextDependencies(context, result.dependencies, analysis);
   if ('diagnostic' in contextCheck) return contextCheck;
   if (contextCheck.context.owner !== owner) {
     return diagnostic('MULTIPLE_CTE_CONTEXTS_UNSUPPORTED', 'The selected CTE requires a different lexical WITH context.');
   }
-  const unsafeDefinition = unsafeCteDefinition(contextCheck.context.withClause, contextCheck.requiredCteNames);
+  if (!sameNames(contextCheck.requiredCteNames, result.dependencies)) {
+    return diagnostic('CTE_CONTEXT_UNRESOLVED', 'The selected CTE dependency closure does not match the existing decomposer.');
+  }
+  const unsafeDefinition = unsafeCteDefinition(withClause, [location.name, ...result.dependencies]);
   if (unsafeDefinition) return { diagnostic: unsafeDefinition };
 
-  const result = new CTEQueryDecomposer().extractCTE(owner.query, location.name);
   return {
     includedCteNames: result.dependencies,
     sql: validateGeneratedSql(result.executableSql),
@@ -225,13 +279,13 @@ function sliceCteScope(
 
 function composeExternalCtes(
   selected: QueryScopeAstV1,
-  externalDirectCteNames: string[],
+  externalCteReferences: ExternalCteReference[],
   analysis: SliceAnalysisContext,
 ): { includedCteNames: string[]; sql: string } | { diagnostic: QuerySliceDiagnosticV1 } {
   if (!(selected.query instanceof SimpleSelectQuery)) {
     return diagnostic('CTE_CONTEXT_UNRESOLVED', 'External CTE composition currently requires a simple SELECT scope body.');
   }
-  const contextCheck = proveSingleContext(selected, externalDirectCteNames, analysis);
+  const contextCheck = proveSingleContext(externalCteReferences, analysis);
   if ('diagnostic' in contextCheck) return contextCheck;
   const { context, requiredCteNames } = contextCheck;
   if (!(context.owner.query instanceof SimpleSelectQuery)
@@ -252,20 +306,22 @@ function composeExternalCtes(
 }
 
 function proveSingleContext(
-  selected: QueryScopeAstV1,
-  externalDirectCteNames: string[],
+  references: ExternalCteReference[],
   analysis: SliceAnalysisContext,
 ): { context: LexicalCteContext; requiredCteNames: string[] } | { diagnostic: QuerySliceDiagnosticV1 } {
-  const contexts = externalDirectCteNames.map((name) => resolveLexicalCteContext(selected, name, analysis.scopeBySelector));
-  if (contexts.some((context) => context === null)) {
-    return diagnostic('CTE_CONTEXT_UNRESOLVED', 'An external CTE name cannot be resolved to one visible lexical definition.');
-  }
-  const resolved = contexts as LexicalCteContext[];
-  const contextKeys = new Set(resolved.map((context) => queryScopeSelectorKey(context.owner.selector)));
+  const contextKeys = new Set(references.map((reference) => queryScopeSelectorKey(reference.context.owner.selector)));
   if (contextKeys.size !== 1) {
     return diagnostic('MULTIPLE_CTE_CONTEXTS_UNSUPPORTED', 'The selected scope depends on more than one lexical WITH context.');
   }
-  const context = resolved[0];
+  const context = references[0].context;
+  return proveContextDependencies(context, [...new Set(references.map((reference) => reference.name))], analysis);
+}
+
+function proveContextDependencies(
+  context: LexicalCteContext,
+  directCteNames: string[],
+  analysis: SliceAnalysisContext,
+): { context: LexicalCteContext; requiredCteNames: string[] } | { diagnostic: QuerySliceDiagnosticV1 } {
   if (context.withClause.recursive) {
     return diagnostic('RECURSIVE_CTE_SLICE_UNSUPPORTED', 'Recursive WITH contexts are not sliced in V1.');
   }
@@ -278,7 +334,7 @@ function proveSingleContext(
   if (analyzer.hasCircularDependency()) {
     return diagnostic('RECURSIVE_CTE_SLICE_UNSUPPORTED', 'Circular CTE dependencies are not sliced in V1.');
   }
-  const required = collectDependencyClosure(externalDirectCteNames, analyzer);
+  const required = collectDependencyClosure(directCteNames, analyzer);
   const executionOrder = analyzer.getExecutionOrder().filter((name) => required.has(name));
   if (executionOrder.length !== required.size) {
     return diagnostic('CTE_CONTEXT_UNRESOLVED', 'The existing CTE analyzer could not prove the complete dependency closure.');
@@ -296,11 +352,13 @@ function proveSingleContext(
     if (!cteMetadata || cteMetadata.outerReferenceStatus === 'unresolved') {
       return diagnostic('SCOPE_REFERENCE_UNRESOLVED', `Column ownership in required CTE ${requiredName} is not statically proven.`);
     }
+    const boundaryDiagnostic = proveStandaloneBoundary(cteScope.query, analysis.schemaFacts);
+    if (boundaryDiagnostic) return { diagnostic: boundaryDiagnostic };
     const nestedScopes = analysis.astScopes.filter((scope) => selectorContains(scope.selector, cteScope.selector));
     for (const nestedScope of nestedScopes) {
       const nestedMetadata = analysis.metadataBySelector.get(queryScopeSelectorKey(nestedScope.selector));
       for (const dependencyName of nestedMetadata?.directCteNames ?? []) {
-        const dependencyContext = resolveLexicalCteContext(nestedScope, dependencyName, analysis.scopeBySelector);
+        const dependencyContext = resolveCteReferenceContext(nestedScope, dependencyName, analysis.scopeBySelector);
         if (!dependencyContext) {
           return diagnostic('CTE_CONTEXT_UNRESOLVED', `CTE ${requiredName} has an unresolved lexical dependency.`);
         }
@@ -336,6 +394,20 @@ function resolveLexicalCteContext(
   return null;
 }
 
+function resolveCteReferenceContext(
+  scope: QueryScopeAstV1,
+  name: string,
+  scopeBySelector: Map<string, QueryScopeAstV1>,
+): LexicalCteContext | null {
+  const ownWithClause = leadingWithClause(scope.query);
+  if (ownWithClause) {
+    const matches = ownWithClause.tables.filter((table) => table.getSourceAliasName() === name);
+    if (matches.length > 1) return null;
+    if (matches.length === 1) return { owner: scope, withClause: ownWithClause };
+  }
+  return resolveLexicalCteContext(scope, name, scopeBySelector);
+}
+
 function visibleTablesForChild(
   withClause: WithClause,
   ownerSelector: QueryScopeSelectorV1,
@@ -357,6 +429,10 @@ function collectDependencyClosure(names: string[], analyzer: CTEDependencyAnalyz
   };
   names.forEach(visit);
   return required;
+}
+
+function sameNames(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((name, index) => name === right[index]);
 }
 
 function findCteScope(
@@ -421,7 +497,7 @@ function validateGeneratedSql(sql: string): string {
 
 function parseSourceSql(sql: string): SelectQuery {
   try {
-    return SelectQueryParser.parse(sql);
+    return extractAnalysisSelectQuery(sql);
   } catch (error) {
     throw new QuerySliceInputError(
       'SOURCE_SQL_INVALID',

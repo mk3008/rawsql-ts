@@ -58,6 +58,33 @@ describe('MCP Phase 4B safe query slicing', () => {
     }
   });
 
+  it.each([
+    ['SELECT', 'select * from (select id from orders) picked'],
+    ['CREATE TABLE AS SELECT', 'create table picked_orders as select * from (select id from orders) picked'],
+    ['CREATE VIEW AS SELECT', 'create view picked_orders as select * from (select id from orders) picked'],
+    ['INSERT SELECT', 'insert into picked_orders (id) select * from (select id from orders) picked'],
+  ])('round-trips a full-analysis selector through slice_query for %s', async (_kind, sql) => {
+    const { client, close } = await connectedClient(temporaryWorkspace());
+    try {
+      const structure = result(await client.callTool({
+        name: 'analyze_query_structure',
+        arguments: { sql },
+      })) as { scopes: Array<{ scopeKind: string; selector: object }> };
+      const derived = structure.scopes.find((scope) => scope.scopeKind === 'derived');
+      expect(derived).toBeDefined();
+
+      const sliced = result(await client.callTool({
+        name: 'slice_query',
+        arguments: { selector: derived!.selector, sql },
+      }));
+
+      expect(sliced).toMatchObject({ scopeKind: 'derived', status: 'ready' });
+      expect(sliced.sql).toEqual(expect.any(String));
+    } finally {
+      await close();
+    }
+  });
+
   it('separates malformed and stale selectors from domain blocked results', async () => {
     const { client, close } = await connectedClient(temporaryWorkspace());
     const derived = selector({ index: 0, kind: 'source_subquery', source: 'from' });
@@ -133,6 +160,24 @@ describe('MCP Phase 4B safe query slicing', () => {
         status: 'blocked',
       });
       expect(unresolved).not.toHaveProperty('sql');
+
+      const unsafeSql = `select * from orders o join lateral (
+        select (select max(p.amount) from payments p where p.order_id = o.id) as amount
+      ) picked on true`;
+      const structure = result(await client.callTool({
+        name: 'analyze_query_structure',
+        arguments: { sql: unsafeSql },
+      })) as { scopes: Array<{ scopeKind: string; selector: object }> };
+      const derived = structure.scopes.find((scope) => scope.scopeKind === 'derived');
+      const descendantEscape = result(await client.callTool({
+        name: 'slice_query',
+        arguments: { selector: derived!.selector, sql: unsafeSql },
+      }));
+      expect(descendantEscape).toMatchObject({
+        diagnostics: [{ code: 'SCOPE_REFERENCE_UNRESOLVED' }],
+        status: 'blocked',
+      });
+      expect(descendantEscape).not.toHaveProperty('sql');
     } finally {
       await close();
     }
