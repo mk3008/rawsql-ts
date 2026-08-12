@@ -50,6 +50,10 @@ export interface ParserAdapterResult {
   conditionOptimization: ConditionOptimizationReport;
   lineage: LineageModel;
   parserVersion: string;
+  /** Internal parsed query identity used by structural analysis; never serialized. */
+  query: SelectQuery;
+  /** Internal one-to-one lineage-scope-to-AST identity map; never serialized. */
+  scopeQueries: ReadonlyMap<string, SelectQuery>;
 }
 
 export interface AnalyzeSqlOptions {
@@ -710,6 +714,7 @@ export function analyzeSql(sql: string, options: AnalyzeSqlOptions = {}): Parser
   const nodes = new Map<string, LineageNode>();
   const edges: LineageEdge[] = [];
   const scopes: LineageScope[] = [];
+  const scopeQueries = new Map<string, SelectQuery>();
   const derivedCounter = { value: 0 };
   const scalarSubqueryCounter = { value: 0 };
   const scopeCounter = { value: 0 };
@@ -768,6 +773,7 @@ export function analyzeSql(sql: string, options: AnalyzeSqlOptions = {}): Parser
       nodes,
       edges,
       scopes,
+      scopeQueries,
       warnings,
       derivedCounter,
       scalarSubqueryCounter,
@@ -784,6 +790,7 @@ export function analyzeSql(sql: string, options: AnalyzeSqlOptions = {}): Parser
     nodes,
     edges,
     scopes,
+    scopeQueries,
     warnings,
     derivedCounter,
     scalarSubqueryCounter,
@@ -813,6 +820,8 @@ export function analyzeSql(sql: string, options: AnalyzeSqlOptions = {}): Parser
     conditionOptimization,
     lineage,
     parserVersion,
+    query,
+    scopeQueries,
   };
 }
 
@@ -911,6 +920,7 @@ interface CollectQueryEdgesOptions {
   nodes: Map<string, LineageNode>;
   edges: LineageEdge[];
   scopes: LineageScope[];
+  scopeQueries: Map<string, SelectQuery>;
   warnings: AnalysisWarning[];
   derivedCounter: { value: number };
   scalarSubqueryCounter: { value: number };
@@ -961,7 +971,7 @@ function collectQueryEdges(options: CollectQueryEdgesOptions): void {
     const scopeId = nextScopeId(options, targetId);
     if (!fromClause) {
       const outputColumns = collectOutputColumns(query, [], createOutputColumnDeps(options), scopeId);
-      scopes.push(collectPopulationScope({
+      const scope = collectPopulationScope({
         deps: createPopulationOriginDeps(options),
         joins: [],
         outputColumns,
@@ -971,7 +981,8 @@ function collectQueryEdges(options: CollectQueryEdgesOptions): void {
         sources: [],
         targetId,
         targetLabel,
-      }));
+      });
+      recordScopeQuery(options, scope, query);
       setNodeColumns(nodes, targetId, outputColumns);
       if (nodes.get(targetId)?.type !== 'parameter_table') {
         const parameterSource = createParameterTableNode('parameters', nodes);
@@ -988,7 +999,7 @@ function collectQueryEdges(options: CollectQueryEdgesOptions): void {
     }
 
     const sources = [
-      resolveSourceExpression(fromClause.source, cteNames, nodes, edges, scopes, warnings, derivedCounter, options.scalarSubqueryCounter, options.scopeCounter, recursiveRootId, options.schemaFacts),
+      resolveSourceExpression(fromClause.source, cteNames, nodes, edges, scopes, options.scopeQueries, warnings, derivedCounter, options.scalarSubqueryCounter, options.scopeCounter, recursiveRootId, options.schemaFacts),
     ];
     const joins = fromClause.joins ?? [];
 
@@ -1005,7 +1016,7 @@ function collectQueryEdges(options: CollectQueryEdgesOptions): void {
     }
 
     for (const join of joins) {
-      const joinedSource = resolveSourceExpression(join.source, cteNames, nodes, edges, scopes, warnings, derivedCounter, options.scalarSubqueryCounter, options.scopeCounter, recursiveRootId, options.schemaFacts);
+      const joinedSource = resolveSourceExpression(join.source, cteNames, nodes, edges, scopes, options.scopeQueries, warnings, derivedCounter, options.scalarSubqueryCounter, options.scopeCounter, recursiveRootId, options.schemaFacts);
       const joinType = normalizeJoinType(join);
       sources.push(joinedSource);
 
@@ -1023,7 +1034,7 @@ function collectQueryEdges(options: CollectQueryEdgesOptions): void {
     }
 
     const outputColumns = collectOutputColumns(query, sources, createOutputColumnDeps(options), scopeId);
-    scopes.push(collectPopulationScope({
+    const scope = collectPopulationScope({
       deps: createPopulationOriginDeps(options),
       joins,
       outputColumns,
@@ -1033,7 +1044,8 @@ function collectQueryEdges(options: CollectQueryEdgesOptions): void {
       sources,
       targetId,
       targetLabel,
-    }));
+    });
+    recordScopeQuery(options, scope, query);
     setNodeColumns(nodes, targetId, outputColumns);
     setValueSourceColumns(outputColumns, nodes);
     setReferencedSourceColumns(query, sources, warnings, scopeId);
@@ -1084,6 +1096,14 @@ function collectQueryEdges(options: CollectQueryEdgesOptions): void {
     code: 'unsupported-query-kind',
     message: `${targetLabel} uses a query kind that the MVP lineage adapter does not support yet.`,
   });
+}
+
+function recordScopeQuery(options: CollectQueryEdgesOptions, scope: LineageScope, query: SelectQuery): void {
+  if (options.scopeQueries.has(scope.id)) {
+    throw new Error(`Lineage scope query identity was recorded more than once: ${scope.id}`);
+  }
+  options.scopes.push(scope);
+  options.scopeQueries.set(scope.id, query);
 }
 
 function collectBinaryPart(query: unknown, side: string, operator: string, options: CollectQueryEdgesOptions): string {
@@ -1347,6 +1367,7 @@ function resolveSourceExpression(
   nodes: Map<string, LineageNode>,
   edges: LineageEdge[],
   scopes: LineageScope[],
+  scopeQueries: Map<string, SelectQuery>,
   warnings: AnalysisWarning[],
   derivedCounter: { value: number },
   scalarSubqueryCounter: { value: number },
@@ -1404,6 +1425,7 @@ function resolveSourceExpression(
         nodes,
         edges,
         scopes,
+        scopeQueries,
         warnings,
         derivedCounter,
         scalarSubqueryCounter,
@@ -1436,6 +1458,7 @@ function resolveSourceExpression(
         nodes,
         edges,
         scopes,
+        scopeQueries,
         warnings,
         derivedCounter,
         scalarSubqueryCounter,
@@ -1463,6 +1486,7 @@ function resolveSourceExpression(
       nodes,
       edges,
       scopes,
+      scopeQueries,
       warnings,
       derivedCounter,
       scalarSubqueryCounter,
@@ -1605,6 +1629,7 @@ function collectQueryLocalReferences(query: SimpleSelectQuery, options: CollectQ
       options.nodes,
       localEdges,
       options.scopes,
+      options.scopeQueries,
       options.warnings,
       options.derivedCounter,
       options.scalarSubqueryCounter,
@@ -1620,6 +1645,7 @@ function collectQueryLocalReferences(query: SimpleSelectQuery, options: CollectQ
       options.nodes,
       localEdges,
       options.scopes,
+      options.scopeQueries,
       options.warnings,
       options.derivedCounter,
       options.scalarSubqueryCounter,
@@ -1992,6 +2018,7 @@ function collectQuerySourcesForReferenceResolution(
       options.nodes,
       localEdges,
       options.scopes,
+      options.scopeQueries,
       options.warnings,
       options.derivedCounter,
       options.scalarSubqueryCounter,
@@ -2007,6 +2034,7 @@ function collectQuerySourcesForReferenceResolution(
       options.nodes,
       localEdges,
       options.scopes,
+      options.scopeQueries,
       options.warnings,
       options.derivedCounter,
       options.scalarSubqueryCounter,
@@ -2410,7 +2438,7 @@ function collectNestedQueryLineage(
   }
   const nestedEdgeKind = getNestedQueryEdgeKind(usageReason);
 
-  const sources = [resolveSourceExpression(fromClause.source, cteNames, nodes, edges, options.scopes, warnings, derivedCounter, options.scalarSubqueryCounter, options.scopeCounter, recursiveRootId, options.schemaFacts)];
+  const sources = [resolveSourceExpression(fromClause.source, cteNames, nodes, edges, options.scopes, options.scopeQueries, warnings, derivedCounter, options.scalarSubqueryCounter, options.scopeCounter, recursiveRootId, options.schemaFacts)];
   addLineageEdge(edges, {
     source: sources[0].node.id,
     target: targetId,
@@ -2422,7 +2450,7 @@ function collectNestedQueryLineage(
   });
 
   for (const join of fromClause.joins ?? []) {
-    const joinedSource = resolveSourceExpression(join.source, cteNames, nodes, edges, options.scopes, warnings, derivedCounter, options.scalarSubqueryCounter, options.scopeCounter, recursiveRootId, options.schemaFacts);
+    const joinedSource = resolveSourceExpression(join.source, cteNames, nodes, edges, options.scopes, options.scopeQueries, warnings, derivedCounter, options.scalarSubqueryCounter, options.scopeCounter, recursiveRootId, options.schemaFacts);
     sources.push(joinedSource);
     addLineageEdge(edges, {
       source: joinedSource.node.id,

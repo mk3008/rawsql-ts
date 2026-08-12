@@ -268,6 +268,12 @@ describe('MCP Phase 2 common I/O integration', () => {
       const structureFull = result(await client.callTool({ name: 'analyze_query_structure', arguments: { sql, view: 'full' } }));
       const structureCompact = result(await client.callTool({ name: 'analyze_query_structure', arguments: { sql, view: 'compact' } }));
       expect(structureFull).toEqual(structureDefault);
+      expect(structureFull.scopes).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          scopeKind: 'root',
+          selector: { path: [{ kind: 'root' }], version: 1 },
+        }),
+      ]));
       expect(structureCompact).toMatchObject({
         kind: 'query-structure-analysis-compact',
         view: 'compact',
@@ -284,6 +290,7 @@ describe('MCP Phase 2 common I/O integration', () => {
       expect(structureCompact).not.toHaveProperty('components');
       expect(structureCompact).not.toHaveProperty('operations');
       expect(structureCompact).not.toHaveProperty('scopes');
+      expect(JSON.stringify(structureCompact)).not.toContain('selector');
 
       const lineageDefault = result(await client.callTool({
         name: 'analyze_column_lineage',

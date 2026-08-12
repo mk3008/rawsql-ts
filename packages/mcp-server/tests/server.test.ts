@@ -79,6 +79,32 @@ describe('@rawsql-ts/mcp-server', () => {
     }
   });
 
+  it('returns an AST-free selector for a correlated predicate scope', async () => {
+    const { client, close } = await connectedClient(temporaryWorkspace());
+    try {
+      const response = await client.callTool({
+        name: 'analyze_query_structure',
+        arguments: {
+          sql: `select * from orders o where exists (
+            select 1 from payments p where p.order_id = o.order_id
+          )`,
+        },
+      });
+      const content = response.structuredContent as { scopes: Array<Record<string, unknown>> };
+      expect(content.scopes).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          outerReferenceStatus: 'correlated',
+          scopeKind: 'exists',
+          selector: expect.objectContaining({ version: 1 }),
+        }),
+      ]));
+      expect(JSON.stringify(content)).not.toContain('selectQuery');
+      expect(JSON.stringify(content)).not.toContain('positionedComments');
+    } finally {
+      await close();
+    }
+  });
+
   it('finds recursive SQL-file usage, extracts a CTE, and returns safe-only condition optimization evidence', async () => {
     const workspace = temporaryWorkspace();
     mkdirSync(resolve(workspace, 'queries'));

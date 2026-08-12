@@ -16,6 +16,11 @@ export type {
   QueryStructureScopeV1,
   QueryStructureSummaryV1,
 } from './lineage/queryStructureAnalysis';
+export { analyzeQueryScopes } from './lineage/queryScopeAnalysis';
+export type {
+  OuterReferenceStatusV1,
+  QueryScopeMetadataV1,
+} from './lineage/queryScopeAnalysis';
 export { generateFixtureExtractionPlan } from './lineage/fixture-extraction/generateFixtureExtractionPlan';
 export {
   FIXTURE_EXTRACTION_PLAN_SCHEMA_VERSION,

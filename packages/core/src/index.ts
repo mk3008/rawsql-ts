@@ -104,6 +104,7 @@ export type { SchemaInfo } from './transformers/OptimizeUnusedLeftJoins';
 export * from './transformers/TableColumnResolver';
 export * from './transformers/TableSourceCollector';
 export * from './transformers/UpstreamSelectQueryFinder';
+export * from './transformers/QueryScopeCollector';
 
 export * from './transformers/SchemaCollector';
 export { TableSchema } from './transformers/SchemaCollector';

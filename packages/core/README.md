@@ -141,6 +141,13 @@ Read more:
 | `SelectableColumnCollector` | Extract column references for dependency analysis     | [API](../../docs/api/classes/SelectableColumnCollector.md) |
 | `SqlSchemaValidator`        | Validate queries against a database schema definition | [API](../../docs/api/classes/SqlSchemaValidator.md)        |
 | `QueryFlowDiagramGenerator` | Generate Mermaid flow diagrams from SQL queries       | [API](../../docs/api/classes/QueryFlowDiagramGenerator.md) |
+| `QueryScopeCollector`       | Enumerate SELECT scopes with versioned structural paths and retain their parsed AST identity | Public TypeScript API |
+
+`QueryScopeCollector` assigns semantic V1 paths for roots, CTE bodies, derived
+sources, expression subqueries, and set-operation branches. Re-parsing the same
+SQL with the same AST model produces the same selector; selectors are not
+guaranteed to survive SQL edits. `resolveQueryScope` returns an explicit
+`found`, `not_found`, or `ambiguous` result and never chooses a first match.
 
 ### Schema & CTE
 
