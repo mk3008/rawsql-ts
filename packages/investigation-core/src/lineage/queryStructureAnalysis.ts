@@ -9,7 +9,10 @@ import type {
   LineageScope,
   LineageSourceReference,
 } from '../domain/lineage';
+import { QueryScopeCollector, queryScopeSelectorKey } from 'rawsql-ts';
+import type { QueryScopeKind, QueryScopeSelectorV1, SelectQuery } from 'rawsql-ts';
 import { analyzeSql } from './rawsqlAdapter';
+import { analyzeCollectedQueryScopes, type OuterReferenceStatusV1 } from './queryScopeAnalysis';
 import { parseSchemaFactsFromDdl, type DdlInput, type SchemaFacts } from './schemaFacts';
 
 export interface QueryStructureAnalysisInputV1 {
@@ -53,11 +56,16 @@ export interface QueryStructureOperationV1 {
 }
 
 export interface QueryStructureScopeV1 {
+  directCteNames: string[];
   id: string;
-  kind: LineageScope['kind'];
+  kind: LineageScope['kind'] | QueryScopeKind;
   label?: string;
   nodeId: string;
+  outerReferenceStatus: OuterReferenceStatusV1;
   parentScopeId?: string;
+  parentSelector?: QueryScopeSelectorV1;
+  scopeKind: QueryScopeKind;
+  selector: QueryScopeSelectorV1;
 }
 
 export interface QueryStructureAnalysisV1 {
@@ -78,18 +86,12 @@ export interface QueryStructureAnalysisV1 {
  */
 export function analyzeQueryStructure(input: QueryStructureAnalysisInputV1): QueryStructureAnalysisV1 {
   const schemaFacts = input.schemaFacts ?? (input.ddl ? parseSchemaFactsFromDdl(input.ddl) : undefined);
-  const { lineage, parserVersion } = analyzeSql(input.sql, {
+  const { lineage, parserVersion, query, scopeQueries } = analyzeSql(input.sql, {
     analysisMode: 'original',
     optimizeConditions: false,
     schemaFacts,
   });
-  const scopes = lineage.scopes.map((scope) => ({
-    id: scope.id,
-    kind: scope.kind,
-    ...(scope.label ? { label: scope.label } : {}),
-    nodeId: scope.nodeId,
-    ...(scope.parentScopeId ? { parentScopeId: scope.parentScopeId } : {}),
-  }));
+  const scopes = buildStructureScopes(query, lineage.scopes, scopeQueries, lineage.nodes, schemaFacts);
   const outputNode = lineage.nodes.find((node) => node.id === 'main_output');
   return {
     analysisMode: 'original',
@@ -103,15 +105,95 @@ export function analyzeQueryStructure(input: QueryStructureAnalysisInputV1): Que
       cteCount: lineage.nodes.filter((node) => node.type === 'cte').length,
       derivedQueryCount: lineage.nodes.filter((node) => node.type === 'derived').length,
       kind: 'query-structure-summary',
-      maximumNestingDepth: maximumNestingDepth(lineage.scopes),
+      maximumNestingDepth: maximumNestingDepth(scopes),
       outputColumnCount: outputNode?.columns.filter((column) => column.usage?.role !== 'filter').length ?? 0,
       physicalTableCount: lineage.nodes.filter((node) => node.type === 'table').length,
       scalarSubqueryCount: lineage.nodes.filter((node) => node.type === 'scalar_subquery').length,
-      scopeCount: lineage.scopes.length,
+      scopeCount: scopes.length,
       version: 1,
     },
     version: 1,
   };
+}
+
+function buildStructureScopes(
+  query: SelectQuery,
+  lineageScopes: LineageScope[],
+  scopeQueries: ReadonlyMap<string, SelectQuery>,
+  nodes: LineageNode[],
+  schemaFacts?: SchemaFacts,
+): QueryStructureScopeV1[] {
+  const astScopes = new QueryScopeCollector().collect(query);
+  const metadata = analyzeCollectedQueryScopes(astScopes, schemaFacts);
+  const legacyByQuery = new Map<SelectQuery, LineageScope>();
+  for (const scope of lineageScopes) {
+    const scopeQuery = scopeQueries.get(scope.id);
+    if (scopeQuery) {
+      legacyByQuery.set(scopeQuery, scope);
+    }
+  }
+
+  const idBySelector = new Map<string, string>();
+  const nodeIdBySelector = new Map<string, string>();
+  const selectorKeyByLegacyId = new Map<string, string>();
+  const scopeBySelector = new Map<string, QueryStructureScopeV1>();
+  const structuralOrder = astScopes.map((ast, index) => {
+    const scopeMetadata = metadata[index];
+    const legacy = legacyByQuery.get(ast.query);
+    const selectorKey = queryScopeSelectorKey(ast.selector);
+    const parentKey = ast.parentSelector ? queryScopeSelectorKey(ast.parentSelector) : undefined;
+    const id = legacy?.id ?? syntheticScopeId(selectorKey);
+    const nodeId = legacy?.nodeId
+      ?? cteNodeId(ast.selector, nodes)
+      ?? (parentKey ? nodeIdBySelector.get(parentKey) : undefined)
+      ?? 'main_output';
+    idBySelector.set(selectorKey, id);
+    nodeIdBySelector.set(selectorKey, nodeId);
+    const structureScope: QueryStructureScopeV1 = {
+      directCteNames: scopeMetadata.directCteNames,
+      id,
+      kind: legacy?.kind ?? ast.kind,
+      ...(legacy?.label ? { label: legacy.label } : {}),
+      nodeId,
+      outerReferenceStatus: scopeMetadata.outerReferenceStatus,
+      ...(legacy?.parentScopeId
+        ? { parentScopeId: legacy.parentScopeId }
+        : !legacy && parentKey && idBySelector.get(parentKey)
+          ? { parentScopeId: idBySelector.get(parentKey) }
+          : {}),
+      ...(scopeMetadata.parentSelector ? { parentSelector: scopeMetadata.parentSelector } : {}),
+      scopeKind: scopeMetadata.kind,
+      selector: scopeMetadata.selector,
+    };
+    scopeBySelector.set(selectorKey, structureScope);
+    if (legacy) {
+      selectorKeyByLegacyId.set(legacy.id, selectorKey);
+    }
+    return structureScope;
+  });
+
+  const existingOrder = lineageScopes.map((scope) => {
+    const selectorKey = selectorKeyByLegacyId.get(scope.id);
+    const structureScope = selectorKey ? scopeBySelector.get(selectorKey) : undefined;
+    if (!structureScope) {
+      throw new Error(`Unable to attach a structural selector to lineage scope: ${scope.id}`);
+    }
+    return structureScope;
+  });
+  const newScopes = structuralOrder.filter((scope) => !lineageScopes.some((legacy) => legacy.id === scope.id));
+  return [...existingOrder, ...newScopes];
+}
+
+function syntheticScopeId(selectorKey: string): string {
+  return `query_scope:${selectorKey}`;
+}
+
+function cteNodeId(selector: QueryScopeSelectorV1, nodes: LineageNode[]): string | undefined {
+  const segment = selector.path.at(-1);
+  if (segment?.kind !== 'cte') {
+    return undefined;
+  }
+  return nodes.find((node) => (node.type === 'cte' || node.type === 'parameter_table') && node.label === segment.name)?.id;
 }
 
 function toComponent(node: LineageNode): QueryStructureComponentV1 {
@@ -171,8 +253,10 @@ function expressionOperations(kind: string, influences: LineageExpressionInfluen
   }));
 }
 
-function maximumNestingDepth(scopes: LineageScope[]): number {
-  const parentById = new Map(scopes.map((scope) => [scope.id, scope.parentScopeId]));
+function maximumNestingDepth(scopes: QueryStructureScopeV1[]): number {
+  const parentById = new Map(scopes.map((scope) => [scope.id, scope.parentSelector
+    ? scopes.find((candidate) => queryScopeSelectorKey(candidate.selector) === queryScopeSelectorKey(scope.parentSelector!))?.id
+    : undefined]));
   const depthFor = (scopeId: string, seen = new Set<string>()): number => {
     if (seen.has(scopeId)) return 0;
     seen.add(scopeId);

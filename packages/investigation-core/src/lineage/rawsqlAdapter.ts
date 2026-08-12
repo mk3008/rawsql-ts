@@ -50,6 +50,10 @@ export interface ParserAdapterResult {
   conditionOptimization: ConditionOptimizationReport;
   lineage: LineageModel;
   parserVersion: string;
+  /** Internal parsed query identity used by structural analysis; never serialized. */
+  query: SelectQuery;
+  /** Internal legacy-scope-to-AST identity map; never serialized. */
+  scopeQueries: ReadonlyMap<string, SelectQuery>;
 }
 
 export interface AnalyzeSqlOptions {
@@ -128,6 +132,7 @@ interface ParsedLineageSelectQuery {
 }
 
 const parserVersion = 'rawsql-ts';
+const scopeQueryMaps = new WeakMap<LineageScope[], Map<string, SelectQuery>>();
 const appSqlFormatterOptions = {
   indentSize: 2,
   indentChar: 'space',
@@ -710,6 +715,8 @@ export function analyzeSql(sql: string, options: AnalyzeSqlOptions = {}): Parser
   const nodes = new Map<string, LineageNode>();
   const edges: LineageEdge[] = [];
   const scopes: LineageScope[] = [];
+  const scopeQueries = new Map<string, SelectQuery>();
+  scopeQueryMaps.set(scopes, scopeQueries);
   const derivedCounter = { value: 0 };
   const scalarSubqueryCounter = { value: 0 };
   const scopeCounter = { value: 0 };
@@ -813,6 +820,8 @@ export function analyzeSql(sql: string, options: AnalyzeSqlOptions = {}): Parser
     conditionOptimization,
     lineage,
     parserVersion,
+    query,
+    scopeQueries,
   };
 }
 
@@ -961,7 +970,7 @@ function collectQueryEdges(options: CollectQueryEdgesOptions): void {
     const scopeId = nextScopeId(options, targetId);
     if (!fromClause) {
       const outputColumns = collectOutputColumns(query, [], createOutputColumnDeps(options), scopeId);
-      scopes.push(collectPopulationScope({
+      const scope = collectPopulationScope({
         deps: createPopulationOriginDeps(options),
         joins: [],
         outputColumns,
@@ -971,7 +980,9 @@ function collectQueryEdges(options: CollectQueryEdgesOptions): void {
         sources: [],
         targetId,
         targetLabel,
-      }));
+      });
+      scopes.push(scope);
+      scopeQueryMaps.get(scopes)?.set(scope.id, query);
       setNodeColumns(nodes, targetId, outputColumns);
       if (nodes.get(targetId)?.type !== 'parameter_table') {
         const parameterSource = createParameterTableNode('parameters', nodes);
@@ -1023,7 +1034,7 @@ function collectQueryEdges(options: CollectQueryEdgesOptions): void {
     }
 
     const outputColumns = collectOutputColumns(query, sources, createOutputColumnDeps(options), scopeId);
-    scopes.push(collectPopulationScope({
+    const scope = collectPopulationScope({
       deps: createPopulationOriginDeps(options),
       joins,
       outputColumns,
@@ -1033,7 +1044,9 @@ function collectQueryEdges(options: CollectQueryEdgesOptions): void {
       sources,
       targetId,
       targetLabel,
-    }));
+    });
+    scopes.push(scope);
+    scopeQueryMaps.get(scopes)?.set(scope.id, query);
     setNodeColumns(nodes, targetId, outputColumns);
     setValueSourceColumns(outputColumns, nodes);
     setReferencedSourceColumns(query, sources, warnings, scopeId);
