@@ -183,6 +183,53 @@ describe('MCP Phase 4B safe query slicing', () => {
     }
   });
 
+  it('keeps the Product Gate compound EXISTS selector semantic and fail-closed', async () => {
+    const { client, close } = await connectedClient(temporaryWorkspace());
+    const sql = `select *
+      from orders o
+      where exists (
+        select 1
+        from payments p
+        where p.order_id = o.order_id
+      )
+      and o.customer_id = :customer_id`;
+    try {
+      const structureResponse = await client.callTool({
+        name: 'analyze_query_structure',
+        arguments: { sql, view: 'full' },
+      });
+      expect(structureResponse.isError).not.toBe(true);
+      const structure = result(structureResponse) as {
+        scopes: Array<{ scopeKind: string; selector: { path: Array<Record<string, unknown>>; version: number } }>;
+      };
+      const existsScopes = structure.scopes.filter((scope) => scope.scopeKind === 'exists');
+
+      expect(existsScopes).toHaveLength(1);
+      expect(existsScopes[0].selector).toEqual(selector({
+        clause: 'where',
+        index: 0,
+        kind: 'expression_subquery',
+        subqueryKind: 'exists',
+      }));
+
+      const sliceResponse = await client.callTool({
+        name: 'slice_query',
+        arguments: { selector: existsScopes[0].selector, sql },
+      });
+      expect(sliceResponse.isError).not.toBe(true);
+      const sliced = result(sliceResponse);
+      expect(sliced).toMatchObject({
+        diagnostics: [{ code: 'SCOPE_CORRELATED' }],
+        outerReferenceStatus: 'correlated',
+        scopeKind: 'exists',
+        status: 'blocked',
+      });
+      expect(sliced).not.toHaveProperty('sql');
+    } finally {
+      await close();
+    }
+  });
+
   it('uses the common DDL resolver to turn a provable scope from blocked to ready', async () => {
     const workspace = temporaryWorkspace();
     mkdirSync(resolve(workspace, 'schema'));

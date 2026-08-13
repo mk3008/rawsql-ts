@@ -146,7 +146,10 @@ describe('analyzeQueryScopes', () => {
     expect(nested?.directCteNames).toEqual(['records']);
   });
 
-  it('keeps predicate EXISTS inventory, selector, parent, and correlation together', () => {
+  it.each([
+    ['standalone', ''],
+    ['with a boolean sibling', 'and o.customer_id = :customer_id'],
+  ])('keeps %s predicate EXISTS inventory, selector, parent, and correlation together', (_name, sibling) => {
     const scopes = analyzeQueryScopes(SelectQueryParser.parse(`
       select *
       from orders o
@@ -155,9 +158,11 @@ describe('analyzeQueryScopes', () => {
         from payments p
         where p.order_id = o.order_id
       )
+      ${sibling}
     `));
     const exists = scopes.find((scope) => scope.kind === 'exists');
 
+    expect(scopes).toHaveLength(2);
     expect(exists).toMatchObject({
       outerReferenceStatus: 'correlated',
       parentSelector: { path: [{ kind: 'root' }], version: 1 },
