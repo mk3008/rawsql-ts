@@ -271,7 +271,7 @@ export class QueryScopeCollector {
             visited.add(current);
 
             if (current instanceof InlineQuery) {
-                const kind = classifyInlineQuery(ancestors);
+                const kind = classifyInlineQuery(current, ancestors);
                 const counterKey = `${clause}:${kind}`;
                 const index = counters.get(counterKey) ?? 0;
                 counters.set(counterKey, index + 1);
@@ -375,19 +375,41 @@ export function queryScopeSelectorKey(selector: QueryScopeSelectorV1): string {
     return `v${selector.version}/${segments.join("/")}`;
 }
 
-function classifyInlineQuery(ancestors: SqlComponent[]): "scalar_subquery" | "exists" | "in_subquery" {
+// API output shape review: selector shape, key format, and collected scope DTOs
+// remain unchanged; only private classification follows structural operands.
+function classifyInlineQuery(
+    query: InlineQuery,
+    ancestors: SqlComponent[],
+): "scalar_subquery" | "exists" | "in_subquery" {
+    let operand: SqlComponent = query;
     for (let index = ancestors.length - 1; index >= 0; index -= 1) {
         const ancestor = ancestors[index];
         if (ancestor instanceof ParenExpression) {
+            if (ancestor.expression !== operand) {
+                return "scalar_subquery";
+            }
+            operand = ancestor;
             continue;
         }
         if (ancestor instanceof UnaryExpression) {
+            if (ancestor.expression !== operand) {
+                return "scalar_subquery";
+            }
             const operator = normalizeOperator(ancestor.operator.value);
             return operator === "exists" || operator === "not exists" ? "exists" : "scalar_subquery";
         }
         if (ancestor instanceof BinaryExpression) {
             const operator = normalizeOperator(ancestor.operator.value);
-            return operator === "in" || operator === "not in" ? "in_subquery" : "scalar_subquery";
+            if ((operator === "in" || operator === "not in") && ancestor.right === operand) {
+                return "in_subquery";
+            }
+            // A leading EXISTS may wrap the parser's following boolean chain. Only
+            // follow its left operand so sibling subqueries cannot inherit EXISTS.
+            if ((operator === "and" || operator === "or") && ancestor.left === operand) {
+                operand = ancestor;
+                continue;
+            }
+            return "scalar_subquery";
         }
         return "scalar_subquery";
     }
