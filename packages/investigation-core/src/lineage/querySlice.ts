@@ -260,8 +260,8 @@ function sliceCteScope(
   const result = new CTEQueryDecomposer().extractCTE(owner.query, location.name);
   const context = { owner, withClause };
   const contextCheck = externalCteReferences.length > 0
-    ? proveSingleContext(externalCteReferences, analysis)
-    : proveContextDependencies(context, result.dependencies, analysis);
+    ? proveSingleContext(externalCteReferences, analysis, [location.name])
+    : proveContextDependencies(context, result.dependencies, analysis, [location.name]);
   if ('diagnostic' in contextCheck) return contextCheck;
   if (contextCheck.context.owner !== owner) {
     return diagnostic('MULTIPLE_CTE_CONTEXTS_UNSUPPORTED', 'The selected CTE requires a different lexical WITH context.');
@@ -309,19 +309,26 @@ function composeExternalCtes(
 function proveSingleContext(
   references: ExternalCteReference[],
   analysis: SliceAnalysisContext,
+  lexicalSourceCteNames: string[] = [],
 ): { context: LexicalCteContext; requiredCteNames: string[] } | { diagnostic: QuerySliceDiagnosticV1 } {
   const contextKeys = new Set(references.map((reference) => queryScopeSelectorKey(reference.context.owner.selector)));
   if (contextKeys.size !== 1) {
     return diagnostic('MULTIPLE_CTE_CONTEXTS_UNSUPPORTED', 'The selected scope depends on more than one lexical WITH context.');
   }
   const context = references[0].context;
-  return proveContextDependencies(context, [...new Set(references.map((reference) => reference.name))], analysis);
+  return proveContextDependencies(
+    context,
+    [...new Set(references.map((reference) => reference.name))],
+    analysis,
+    lexicalSourceCteNames,
+  );
 }
 
 function proveContextDependencies(
   context: LexicalCteContext,
   directCteNames: string[],
   analysis: SliceAnalysisContext,
+  lexicalSourceCteNames: string[] = [],
 ): { context: LexicalCteContext; requiredCteNames: string[] } | { diagnostic: QuerySliceDiagnosticV1 } {
   if (context.withClause.recursive) {
     return diagnostic('RECURSIVE_CTE_SLICE_UNSUPPORTED', 'Recursive WITH contexts are not sliced in V1.');
@@ -340,6 +347,13 @@ function proveContextDependencies(
   if (executionOrder.length !== required.size) {
     return diagnostic('CTE_CONTEXT_UNRESOLVED', 'The existing CTE analyzer could not prove the complete dependency closure.');
   }
+  const lexicalVisibilityDiagnostic = validateCteDependencyVisibility(
+    context,
+    [...new Set([...lexicalSourceCteNames, ...required])],
+    analyzer,
+    analysis,
+  );
+  if (lexicalVisibilityDiagnostic) return { diagnostic: lexicalVisibilityDiagnostic };
 
   for (const requiredName of executionOrder) {
     const cteScope = findCteScope(context.owner.selector, requiredName, analysis.astScopes);
@@ -370,6 +384,34 @@ function proveContextDependencies(
     }
   }
   return { context, requiredCteNames: executionOrder };
+}
+
+function validateCteDependencyVisibility(
+  context: LexicalCteContext,
+  sourceCteNames: string[],
+  analyzer: CTEDependencyAnalyzer,
+  analysis: SliceAnalysisContext,
+): QuerySliceDiagnosticV1 | null {
+  for (const sourceName of sourceCteNames) {
+    const sourceScope = findCteScope(context.owner.selector, sourceName, analysis.astScopes);
+    if (!sourceScope) {
+      return {
+        code: 'CTE_CONTEXT_UNRESOLVED',
+        message: `The parser-backed scope for CTE ${sourceName} is unavailable.`,
+      };
+    }
+    for (const dependencyName of analyzer.getDependencies(sourceName)) {
+      const dependencyContext = resolveLexicalCteContext(sourceScope, dependencyName, analysis.scopeBySelector);
+      if (!dependencyContext
+        || queryScopeSelectorKey(dependencyContext.owner.selector) !== queryScopeSelectorKey(context.owner.selector)) {
+        return {
+          code: 'CTE_CONTEXT_UNRESOLVED',
+          message: `CTE ${sourceName} depends on ${dependencyName}, which is not visible from its non-recursive WITH position.`,
+        };
+      }
+    }
+  }
+  return null;
 }
 
 function resolveLexicalCteContext(

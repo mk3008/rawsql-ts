@@ -198,6 +198,40 @@ describe('sliceQueryScope', () => {
     }
   });
 
+  it.each([
+    {
+      kind: 'direct',
+      sql: `with target as (
+        select * from later
+      ), later as (
+        select id from orders
+      ) select * from target`,
+      targetIndex: 0,
+    },
+    {
+      kind: 'transitive',
+      sql: `with a as (
+        select * from b
+      ), b as (
+        select id from orders
+      ), target as (
+        select * from a
+      ) select * from target`,
+      targetIndex: 2,
+    },
+  ])('blocks a $kind forward CTE reference in the required dependency closure', ({ sql, targetIndex }) => {
+    const result = sliceQueryScope({
+      sql,
+      selector: selector({ index: targetIndex, kind: 'cte', name: 'target' }),
+    });
+
+    expect(result).toMatchObject({
+      diagnostics: [{ code: 'CTE_CONTEXT_UNRESOLVED' }],
+      status: 'blocked',
+    });
+    expect(result).not.toHaveProperty('sql');
+  });
+
   it('includes one directly required CTE without inventing transitive dependencies', () => {
     const result = sliceQueryScope({
       sql: 'with base as (select o.id from orders o), filtered as (select b.id from base b) select * from filtered',
