@@ -22,6 +22,21 @@ The npm package is `@rawsql-ts/mcp-server`. Installing it provides the
 The server does not connect to a database, execute SQL, inspect rows, or write
 rewritten SQL back to project files.
 
+## Suggested workflows
+
+- Start with a compact structure or lineage view, and request full output only
+  when selectors or detailed evidence are needed.
+- For a query scope, call `analyze_query_structure` with `view: "full"`, then
+  pass its selector unchanged to `slice_query`.
+- When a CTE name is already known, use `extract_cte_query` directly.
+- For a wrong output value, start with `inspect_query_contract`, continue with
+  `analyze_column_lineage`, and add structure or slicing only when needed.
+
+`slice_query` returns a safe standalone scope representation, not a minimized
+query or a target-output projection. The current catalog decision and its
+evidence are documented in the
+[August 2026 MCP Product Decision](../../docs/dogfooding/mcp-product-decision-2026-08.md).
+
 ## Start
 
 ```sh
