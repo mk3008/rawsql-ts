@@ -231,6 +231,11 @@ function parseLineageSelectQuery(sql: string, analysisMode: SqlAnalysisMode): Pa
   throw new Error('Only SELECT, CREATE TABLE AS SELECT, CREATE VIEW AS SELECT, and INSERT SELECT statements are supported.');
 }
 
+/** Internal canonical source-SQL extraction shared by structural analysis consumers. */
+export function extractAnalysisSelectQuery(sql: string): SelectQuery {
+  return parseLineageSelectQuery(sql, 'original').query;
+}
+
 function optimizeLineageSelectSql(sql: string, analysisMode: SqlAnalysisMode): { report: ConditionOptimizationReport; sql: string } {
   if (analysisMode === 'original') {
     return { report: createDisabledConditionOptimizationReport(sql), sql };

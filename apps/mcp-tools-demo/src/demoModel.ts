@@ -3,6 +3,7 @@ import {
   analyzeQueryStructure,
   generateFixtureExtractionPlan,
   inspectQueryContract,
+  sliceQueryScope,
   validateSql,
   type DdlInput,
 } from '@rawsql-ts/investigation-core';
@@ -19,6 +20,7 @@ import {
   SimpleSelectQuery,
   SqlFormatter,
   SqlParser,
+  type QueryScopeSelectorV1,
 } from 'rawsql-ts';
 
 export const demoToolIds = [
@@ -26,6 +28,7 @@ export const demoToolIds = [
   'inspect_query_contract',
   'analyze_query_structure',
   'analyze_column_lineage',
+  'slice_query',
   'create_fixture_extraction_plan',
   'find_query_usage',
   'extract_cte_query',
@@ -64,6 +67,11 @@ export const demoTools: readonly DemoTool[] = [
     summary: 'Traces one final output column to its value sources and row influences, with full and compact MCP views and optional probe formatting.',
   },
   {
+    id: 'slice_query',
+    label: 'Slice a query scope',
+    summary: 'Uses an explicit structural selector to produce a standalone representation only when the chosen query scope is statically proven safe; otherwise it returns a blocked result without SQL.',
+  },
+  {
     id: 'create_fixture_extraction_plan',
     label: 'Create fixture extraction plan',
     summary: 'Uses optional inline or workspace DDL to prove a bounded predicate and produces optionally formatted capture SELECT statements only where the boundary is proven.',
@@ -96,6 +104,7 @@ export interface DemoInput {
   cteName: string;
   ddl: string;
   scopeDir: string;
+  selector: string;
   sql: string;
   targetColumn: string;
   usageKind: 'table' | 'column';
@@ -107,6 +116,22 @@ export const initialInputs: Record<DemoToolId, DemoInput> = {
   inspect_query_contract: commonInput(),
   analyze_query_structure: commonInput(),
   analyze_column_lineage: commonInput(),
+  slice_query: {
+    ...commonInput(),
+    selector: JSON.stringify({
+      path: [
+        { kind: 'root' },
+        { index: 0, kind: 'source_subquery', source: 'from' },
+      ],
+      version: 1,
+    }, null, 2),
+    sql: `select picked.customer_id
+from (
+  select customer_id
+  from public.orders
+  where amount > 0
+) picked;`,
+  },
   create_fixture_extraction_plan: commonInput(),
   find_query_usage: { ...commonInput(), scopeDir: 'queries', usageKind: 'table', usageTarget: 'public.orders' },
   extract_cte_query: {
@@ -149,6 +174,9 @@ export function runDemoTool(toolId: DemoToolId, input: DemoInput): object {
   if (toolId === 'analyze_column_lineage') {
     if (!input.targetColumn.trim()) throw new Error('Enter an output column name.');
     return analyzeColumnLineage({ ...staticInput, targetColumn: input.targetColumn });
+  }
+  if (toolId === 'slice_query') {
+    return sliceQueryScope({ ...staticInput, selector: parseSelector(input.selector) });
   }
   if (toolId === 'create_fixture_extraction_plan') return generateFixtureExtractionPlan(staticInput);
   if (toolId === 'extract_cte_query') {
@@ -202,6 +230,7 @@ function commonInput(): DemoInput {
   amount numeric not null
 );`,
     scopeDir: '.',
+    selector: JSON.stringify({ path: [{ kind: 'root' }], version: 1 }, null, 2),
     sql: `select customer_id, sum(amount) as total_amount
 from public.orders
 where customer_id = :customer_id
@@ -210,6 +239,68 @@ group by customer_id;`,
     usageKind: 'table',
     usageTarget: 'public.orders',
   };
+}
+
+function parseSelector(value: string): QueryScopeSelectorV1 {
+  if (!value.trim()) throw new Error('Enter a query scope selector.');
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!isQueryScopeSelector(parsed)) throw new Error();
+    return parsed;
+  } catch {
+    throw new Error('Enter a valid JSON query scope selector.');
+  }
+}
+
+function isQueryScopeSelector(value: unknown): value is QueryScopeSelectorV1 {
+  if (!isRecord(value) || !hasExactKeys(value, ['path', 'version']) || value.version !== 1) return false;
+  if (!Array.isArray(value.path) || value.path.length === 0) return false;
+  const [root, ...children] = value.path;
+  if (!isRecord(root) || !hasExactKeys(root, ['kind']) || root.kind !== 'root') return false;
+  return children.every(isQueryScopeChildSegment);
+}
+
+function isQueryScopeChildSegment(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  switch (value.kind) {
+    case 'cte':
+      return hasExactKeys(value, ['index', 'kind', 'name'])
+        && isNonnegativeInteger(value.index)
+        && typeof value.name === 'string'
+        && value.name.length > 0;
+    case 'source_subquery':
+      return hasExactKeys(value, ['index', 'kind', 'source'])
+        && isNonnegativeInteger(value.index)
+        && (value.source === 'from' || value.source === 'join');
+    case 'expression_subquery':
+      return hasExactKeys(value, ['clause', 'index', 'kind', 'subqueryKind'])
+        && queryScopeExpressionClauses.has(value.clause)
+        && isNonnegativeInteger(value.index)
+        && (value.subqueryKind === 'scalar_subquery' || value.subqueryKind === 'exists' || value.subqueryKind === 'in_subquery');
+    case 'set_branch':
+      return hasExactKeys(value, ['kind', 'side']) && (value.side === 'left' || value.side === 'right');
+    default:
+      return false;
+  }
+}
+
+const queryScopeExpressionClauses = new Set<unknown>([
+  'fetch', 'from', 'group_by', 'having', 'join', 'limit', 'offset',
+  'order_by', 'select', 'values', 'where', 'window',
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasExactKeys(value: Record<string, unknown>, expected: string[]): boolean {
+  const actual = Object.keys(value).sort();
+  const sortedExpected = [...expected].sort();
+  return actual.length === sortedExpected.length && actual.every((key, index) => key === sortedExpected[index]);
+}
+
+function isNonnegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
 function normalizeDemoScope(value: string): string {

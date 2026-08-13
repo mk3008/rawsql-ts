@@ -85,6 +85,11 @@ export function McpToolsDemoApp() {
           ) : null}
           {toolId === 'extract_cte_query' ? <TextInput label="CTE name" help="Required. Enter the CTE to extract." value={input.cteName} onChange={(cteName) => update({ cteName })} /> : null}
           {toolId === 'analyze_column_lineage' ? <TextInput label="Output column" help="Required. Enter one unique final output column name." value={input.targetColumn} onChange={(targetColumn) => update({ targetColumn })} /> : null}
+          {toolId === 'slice_query' ? (
+            <label><span>Query scope selector <small>Required. Paste a V1 selector from the full query-structure result for the same SQL.</small></span>
+              <textarea value={input.selector} onChange={(event) => update({ selector: event.target.value })} spellCheck={false} />
+            </label>
+          ) : null}
           {toolId === 'optimize_sql_conditions' ? (
             <TextInput
               label="Optional search conditions"
@@ -98,7 +103,7 @@ export function McpToolsDemoApp() {
               <textarea value={input.sql} onChange={(event) => update({ sql: event.target.value })} spellCheck={false} />
             </label>
           ) : null}
-          {(['analyze_query_structure', 'analyze_column_lineage', 'create_fixture_extraction_plan'] as DemoToolId[]).includes(toolId) ? (
+          {(['analyze_query_structure', 'analyze_column_lineage', 'slice_query', 'create_fixture_extraction_plan'] as DemoToolId[]).includes(toolId) ? (
             <label><span>DDL <small>Optional. Enter DDL to resolve tables, columns, and keys.</small></span>
               <textarea value={input.ddl} onChange={(event) => update({ ddl: event.target.value })} spellCheck={false} />
             </label>

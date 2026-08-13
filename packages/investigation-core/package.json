@@ -1,7 +1,7 @@
 {
   "name": "@rawsql-ts/investigation-core",
   "version": "0.1.0",
-  "description": "Deterministic query structure, column lineage, and fixture extraction analysis for rawsql-ts.",
+  "description": "Deterministic query structure, safe scope slicing, column lineage, and fixture extraction analysis for rawsql-ts.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {

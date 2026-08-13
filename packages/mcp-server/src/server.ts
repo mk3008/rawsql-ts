@@ -7,6 +7,8 @@ import {
   FixtureExtractionInputError,
   generateFixtureExtractionPlan,
   inspectQueryContract,
+  QuerySliceInputError,
+  sliceQueryScope,
   validateSql,
   type DdlInput,
 } from '@rawsql-ts/investigation-core';
@@ -16,6 +18,9 @@ import {
   optimizeConditions,
   SelectQueryParser,
   SimpleSelectQuery,
+  type QueryScopeExpressionClause,
+  type QueryScopePathSegmentV1,
+  type QueryScopeSelectorV1,
 } from 'rawsql-ts';
 import { z } from 'zod';
 import { resolveDdlSources } from './ddlSources';
@@ -31,6 +36,7 @@ import {
   formatColumnLineageAnalysis,
   formatConditionOptimizationResult,
   formatFixtureExtractionPlan,
+  formatQuerySliceResult,
   toColumnLineageCompactView,
   toQueryStructureCompactView,
 } from './toolResults';
@@ -57,6 +63,69 @@ const formatSchema = z.object({
   options: z.record(z.string(), z.unknown()).optional()
     .describe('Optional rawsql-ts SqlFormatterOptions object. Keys and values are strictly validated by rawsql-ts core.'),
 }).strict().optional();
+
+type QueryScopeChildSegmentV1 = Exclude<QueryScopePathSegmentV1, { kind: 'root' }>;
+type QueryScopeExpressionSegmentV1 = Extract<QueryScopePathSegmentV1, { kind: 'expression_subquery' }>;
+type QueryScopeSetBranchSegmentV1 = Extract<QueryScopePathSegmentV1, { kind: 'set_branch' }>;
+type QueryScopeSourceSegmentV1 = Extract<QueryScopePathSegmentV1, { kind: 'source_subquery' }>;
+
+const queryScopeExpressionClauses = {
+  fetch: 'fetch',
+  from: 'from',
+  group_by: 'group_by',
+  having: 'having',
+  join: 'join',
+  limit: 'limit',
+  offset: 'offset',
+  order_by: 'order_by',
+  select: 'select',
+  values: 'values',
+  where: 'where',
+  window: 'window',
+} as const satisfies { [Clause in QueryScopeExpressionClause]: Clause };
+const queryScopeChildKinds = {
+  cte: 'cte',
+  expression_subquery: 'expression_subquery',
+  set_branch: 'set_branch',
+  source_subquery: 'source_subquery',
+} as const satisfies { [Kind in QueryScopeChildSegmentV1['kind']]: Kind };
+const queryScopeSubqueryKinds = {
+  exists: 'exists',
+  in_subquery: 'in_subquery',
+  scalar_subquery: 'scalar_subquery',
+} as const satisfies { [Kind in QueryScopeExpressionSegmentV1['subqueryKind']]: Kind };
+const queryScopeSetBranchSides = {
+  left: 'left',
+  right: 'right',
+} as const satisfies { [Side in QueryScopeSetBranchSegmentV1['side']]: Side };
+const queryScopeSources = {
+  from: 'from',
+  join: 'join',
+} as const satisfies { [Source in QueryScopeSourceSegmentV1['source']]: Source };
+const queryScopeExpressionClauseSchema = z.enum(Object.values(queryScopeExpressionClauses));
+const queryScopeRootSegmentSchema = z.object({ kind: z.literal('root') }).strict();
+const queryScopeChildSegmentSchema = z.discriminatedUnion('kind', [
+  z.object({ index: z.number().int().nonnegative(), kind: z.literal(queryScopeChildKinds.cte), name: z.string().min(1) }).strict(),
+  z.object({
+    index: z.number().int().nonnegative(),
+    kind: z.literal(queryScopeChildKinds.source_subquery),
+    source: z.enum(Object.values(queryScopeSources)),
+  }).strict(),
+  z.object({
+    clause: queryScopeExpressionClauseSchema,
+    index: z.number().int().nonnegative(),
+    kind: z.literal(queryScopeChildKinds.expression_subquery),
+    subqueryKind: z.enum(Object.values(queryScopeSubqueryKinds)),
+  }).strict(),
+  z.object({
+    kind: z.literal(queryScopeChildKinds.set_branch),
+    side: z.enum(Object.values(queryScopeSetBranchSides)),
+  }).strict(),
+]);
+const queryScopeSelectorSchema: z.ZodType<QueryScopeSelectorV1> = z.object({
+  path: z.tuple([queryScopeRootSegmentSchema]).rest(queryScopeChildSegmentSchema),
+  version: z.literal(1),
+}).strict();
 
 export function createRawsqlMcpServer(workspace: string): McpServer {
   const workspaceRoot = normalizeWorkspaceRoot(workspace);
@@ -114,6 +183,26 @@ export function createRawsqlMcpServer(workspace: string): McpServer {
       });
       if (request.view === 'compact') return toColumnLineageCompactView(result);
       return formatColumnLineageAnalysis(result, formatting);
+    }),
+  );
+
+  server.registerTool(
+    'slice_query',
+    {
+      description: 'Generate a standalone representation of one parser-backed query scope only when static analysis proves it safe. Correlated, unresolved, or unsafe CTE contexts return a blocked result without SQL.',
+      inputSchema: z.object({
+        ...staticSqlSchema,
+        format: formatSchema,
+        selector: queryScopeSelectorSchema.describe('V1 structural selector returned by analyze_query_structure(full) for the same SQL.'),
+      }).strict(),
+    },
+    async (request) => runTool(() => {
+      const formatting = resolveSqlFormatting(workspaceRoot, request.format as SqlFormatInput | undefined);
+      const result = sliceQueryScope({
+        ...normalizeStaticInput(request, workspaceRoot),
+        selector: request.selector,
+      });
+      return formatQuerySliceResult(result, formatting);
     }),
   );
 
@@ -306,7 +395,8 @@ async function runTool(operation: () => object): Promise<{
   } catch (error) {
     const known = error instanceof McpInputError
       || error instanceof ColumnLineageAnalysisInputError
-      || error instanceof FixtureExtractionInputError;
+      || error instanceof FixtureExtractionInputError
+      || error instanceof QuerySliceInputError;
     const failure = {
       code: known && 'code' in error ? String(error.code) : 'INVALID_INPUT',
       kind: 'invalid_input',

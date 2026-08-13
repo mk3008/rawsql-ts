@@ -2,11 +2,39 @@ import { describe, expect, it } from 'vitest';
 import { demoToolIds, demoTools, initialInputs, runDemoTool } from './demoModel';
 
 describe('MCP tool catalog demo', () => {
-  it('contains and runs all nine catalog tools', () => {
-    expect(demoToolIds).toHaveLength(9);
+  it('contains and runs all ten catalog tools', () => {
+    expect(demoToolIds).toHaveLength(10);
     for (const toolId of demoToolIds) {
       expect(runDemoTool(toolId, initialInputs[toolId])).toBeTypeOf('object');
     }
+  });
+
+  it('requires the query-slice selector to be supplied explicitly', () => {
+    const result = runDemoTool('slice_query', initialInputs.slice_query) as {
+      scopeKind: string;
+      status: string;
+    };
+
+    expect(result).toMatchObject({ scopeKind: 'derived', status: 'ready' });
+    expect(() => runDemoTool('slice_query', {
+      ...initialInputs.slice_query,
+      selector: '',
+    })).toThrow('Enter a query scope selector.');
+  });
+
+  it.each([
+    ['an empty object', '{}'],
+    ['a non-root path', JSON.stringify({ path: [{ kind: 'set_branch', side: 'left' }], version: 1 })],
+    ['an unsupported version', JSON.stringify({ path: [{ kind: 'root' }], version: 2 })],
+    ['a malformed child segment', JSON.stringify({
+      path: [{ kind: 'root' }, { index: '0', kind: 'source_subquery', source: 'from' }],
+      version: 1,
+    })],
+  ])('rejects %s as a query-slice selector', (_case, selector) => {
+    expect(() => runDemoTool('slice_query', {
+      ...initialInputs.slice_query,
+      selector,
+    })).toThrow('Enter a valid JSON query scope selector.');
   });
 
   it('models recursive SQL-file search without requiring inline SQL', () => {
