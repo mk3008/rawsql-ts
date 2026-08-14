@@ -49,6 +49,11 @@ describe('MCP Phase 4B safe query slicing', () => {
 
       const listed = await client.listTools();
       const schema = listed.tools.find((tool) => tool.name === 'slice_query')?.inputSchema;
+      const pathSchema = propertySchema(schema, 'selector', 'path');
+      expect(pathSchema).toBeDefined();
+      expect(pathSchema?.items).toEqual(expect.any(Object));
+      expect(pathSchema?.items).not.toBeInstanceOf(Array);
+      expect(pathSchema).not.toHaveProperty('additionalItems');
       expect(enumValuesForProperty(schema, 'clause')).toEqual([
         'fetch', 'from', 'group_by', 'having', 'join', 'limit', 'offset',
         'order_by', 'select', 'values', 'where', 'window',
@@ -97,6 +102,14 @@ describe('MCP Phase 4B safe query slicing', () => {
         name: 'slice_query',
         arguments: { selector: { path: [{ kind: 'root' }], version: 2 }, sql: 'select 1' },
       });
+      const rootNotFirst = await client.callTool({
+        name: 'slice_query',
+        arguments: { selector: { path: [{ index: 0, kind: 'cte', name: 'picked' }], version: 1 }, sql: 'select 1' },
+      });
+      const repeatedRoot = await client.callTool({
+        name: 'slice_query',
+        arguments: { selector: { path: [{ kind: 'root' }, { kind: 'root' }], version: 1 }, sql: 'select 1' },
+      });
       const stale = await client.callTool({
         name: 'slice_query',
         arguments: { selector: derived, sql: 'select id from orders' },
@@ -108,6 +121,8 @@ describe('MCP Phase 4B safe query slicing', () => {
 
       expect(malformed.isError).toBe(true);
       expect(unsupportedVersion.isError).toBe(true);
+      expect(rootNotFirst.isError).toBe(true);
+      expect(repeatedRoot.isError).toBe(true);
       expect(failure(stale)).toMatchObject({ code: 'SCOPE_SELECTOR_NOT_FOUND', kind: 'invalid_input' });
       expect(failure(invalidSql)).toMatchObject({ code: 'SOURCE_SQL_INVALID', kind: 'invalid_input' });
     } finally {
@@ -367,4 +382,15 @@ function enumValuesForProperty(value: unknown, propertyName: string): string[] {
   };
   visit(value);
   return [...found].sort();
+}
+
+function propertySchema(value: unknown, ...path: string[]): Record<string, unknown> | undefined {
+  let current = value;
+  for (const segment of path) {
+    if (!current || typeof current !== 'object') return undefined;
+    const properties = (current as Record<string, unknown>).properties;
+    if (!properties || typeof properties !== 'object') return undefined;
+    current = (properties as Record<string, unknown>)[segment];
+  }
+  return current && typeof current === 'object' ? current as Record<string, unknown> : undefined;
 }

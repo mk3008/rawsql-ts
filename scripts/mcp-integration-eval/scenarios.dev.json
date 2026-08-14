@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "set": "dev",
+  "scenarios": [
+    {
+      "id": "dev-semantic-impact",
+      "category": "semantic-impact",
+      "prompt": "We plan to change public.orders.customer_id from bigint to uuid. Inspect SQL below sql/ and list only the files whose semantics or call contract can be affected. Explain why each one matters and exclude same-named columns owned by other tables.",
+      "files": [
+        { "path": "sql/orders_filter.sql", "content": "select id, customer_id from public.orders where customer_id = :customer_id;\n" },
+        { "path": "sql/orders_join.sql", "content": "select o.id, c.email from public.orders o join public.customers c on c.id = o.customer_id;\n" },
+        { "path": "sql/orders_group.sql", "content": "select customer_id, count(*) from public.orders group by customer_id;\n" },
+        { "path": "sql/tickets.sql", "content": "select customer_id from public.support_tickets where customer_id = :customer_id;\n" },
+        { "path": "sql/unrelated.sql", "content": "select id, name from public.categories order by name;\n" }
+      ],
+      "toolPolicy": {
+        "requiredAnyOf": [["find_query_usage"]],
+        "allowed": ["find_query_usage"],
+        "maxCalls": 2
+      },
+      "answerEvidence": ["orders_filter.sql", "orders_join.sql", "orders_group.sql", "tickets.sql"]
+    },
+    {
+      "id": "dev-ddl-ownership",
+      "category": "ddl-ownership",
+      "prompt": "Inspect sql/report.sql together with schema/. Determine which physical columns contribute to the output column gross_amount. Distinguish proven lineage from unresolved ownership and do not claim anything about live data.",
+      "files": [
+        { "path": "schema/orders.sql", "content": "create table public.orders (id bigint primary key, discount numeric not null);\n" },
+        { "path": "schema/order_items.sql", "content": "create table public.order_items (id bigint primary key, order_id bigint not null, quantity integer not null, unit_price numeric not null);\n" },
+        { "path": "sql/report.sql", "content": "with item_totals as (\n  select order_id, sum(quantity * unit_price) as subtotal\n  from public.order_items\n  group by order_id\n)\nselect o.id, i.subtotal + o.discount as gross_amount\nfrom public.orders o\njoin item_totals i on i.order_id = o.id;\n" }
+      ],
+      "toolPolicy": {
+        "requiredAnyOf": [["analyze_column_lineage"]],
+        "allowed": ["analyze_column_lineage", "analyze_query_structure"],
+        "maxCalls": 2
+      },
+      "answerEvidence": ["order_items.quantity", "order_items.unit_price", "orders.discount"]
+    },
+    {
+      "id": "dev-safe-transform",
+      "category": "safe-transform",
+      "prompt": "Explain sql/late_customers.sql and provide a standalone executable SQL form of the derived table named paid_orders only if its query boundary is statically safe. If the boundary is not proven, stop instead of guessing.",
+      "files": [
+        { "path": "sql/late_customers.sql", "content": "select x.customer_id, x.last_order_at\nfrom (\n  select paid_orders.customer_id, max(paid_orders.created_at) as last_order_at\n  from (\n    select o.id, o.customer_id, o.created_at\n    from public.orders o\n    where o.status = 'paid'\n  ) paid_orders\n  join public.payments p on p.order_id = paid_orders.id\n  group by paid_orders.customer_id\n) x\nwhere x.last_order_at < current_date - interval '30 days';\n" }
+      ],
+      "toolPolicy": {
+        "requiredAnyOf": [["analyze_query_structure", "slice_query"]],
+        "allowed": ["analyze_query_structure", "slice_query"],
+        "maxCalls": 3
+      },
+      "answerEvidence": ["select o.id", "from public.orders", "o.status = 'paid'"]
+    },
+    {
+      "id": "dev-fixture-plan",
+      "category": "fixture-plan",
+      "prompt": "Prepare a static extraction plan for reproducing the customer-specific result of sql/customer_orders.sql using schema/. I need bounded SELECT statements and dependency/load order, not database execution. Report if a safe boundary cannot be proven.",
+      "files": [
+        { "path": "schema/orders.sql", "content": "create table public.orders (id bigint primary key, customer_id bigint not null);\n" },
+        { "path": "schema/order_items.sql", "content": "create table public.order_items (id bigint primary key, order_id bigint not null references public.orders(id), amount numeric not null);\n" },
+        { "path": "sql/customer_orders.sql", "content": "select o.id, sum(i.amount) as total_amount\nfrom public.orders o\njoin public.order_items i on i.order_id = o.id\nwhere o.customer_id = :customer_id\ngroup by o.id;\n" }
+      ],
+      "toolPolicy": {
+        "requiredAnyOf": [["create_fixture_extraction_plan"]],
+        "allowed": ["create_fixture_extraction_plan"],
+        "maxCalls": 1
+      },
+      "answerEvidence": ["customer_id", "orders", "order_items"]
+    },
+    {
+      "id": "dev-simple-negative",
+      "category": "simple-negative",
+      "prompt": "What does sql/categories.sql do? Give a one-sentence answer.",
+      "files": [
+        { "path": "sql/categories.sql", "content": "select id, name from public.categories order by name;\n" }
+      ],
+      "toolPolicy": {
+        "requiredAnyOf": [],
+        "allowed": [],
+        "maxCalls": 0
+      },
+      "answerEvidence": ["categories", "name"]
+    }
+  ]
+}
