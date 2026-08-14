@@ -288,9 +288,34 @@ host warningは0、negative false-selectionも0だった。一方、positive raw
 
 次の変更は想像で始めない。実利用で、既存10 toolsが必要なのに選ばれない具体的workflowとtraceが再び得られたときだけ調査する。
 
+## 2026-08-14 — Phase: 明示利用のend-to-end評価
+
+**Hypothesis**
+
+自然選択の問題を切り離し、ユーザーまたはpolicyがrawsql MCPの利用を明示すれば、exhaustiveまたはfail-closedなworkflowでengineの価値がend-to-endにも現れる。
+
+**Action**
+
+MCPなしと固定の明示利用文を加えたMCPありを、同一model、fresh session、3 repetitionsで比較した。semantic grep 30/300/1500 files、DDL ownership 10/100/500 tables、safe transform、safe extraction、fixture planning、negative controlsを66 scored runsで評価した。
+
+**Observed**
+
+semantic grepは両条件でrecall/precision 100%だったが、MCP条件は全3規模でwall timeとinput tokensを削減した。fixture planは物理FK不足を一貫してpartialに保ち、safe extractionはcorrelated/unresolvedなboundaryでSQLを返さなかった。一方、DDL ownershipはnativeも全件正しく、agentが平均8〜10.7回のrawsql callを行ったMCP条件は約2倍遅くcontextも増えた。2件のnegative controlsでもMCP overheadが上回った。
+
+最初のextraction inputはselectorを公開しており、要求された`analyze_query_structure`からのworkflowを評価できなかった。6 runsを証拠として残したまま採点から除外し、selectorなしのinputで同一promptを再実行した。MCP engine totalはBの25.1分中9.69秒で、遅いworkflowの主因はengineではなくagent orchestrationとresult consumptionだった。
+
+**Changed belief / Interpretation**
+
+明示利用には条件付きの価値がある。large semantic searchやfail-closed safetyでは「この仕事ではMCPを使え」と指示する根拠がある。しかしtool利用自体を目的にすると、simple SQL、既知の小さなCTE、nativeで十分なDDL reviewでは逆効果になる。自然選択の未解決を成功に読み替える結論でも、全SQLをMCPへrouteする結論でもない。
+
+**Next question**
+
+新機能には進まない。今後は実利用でexplicit routingを適用した具体的なworkflowから、call duplicationやresult consumptionが実際に作業を阻害した場合だけ再調査する。
+
 ## Evidence links
 
 - [MCP Product Gate Evidence](../dogfooding/mcp-product-gate-2026-08.md)
 - [MCP Product Decision](../dogfooding/mcp-product-decision-2026-08.md)
 - [MCP Agent Dogfooding](../dogfooding/mcp-agent-dogfooding-2026-08.md)
 - [MCP Durable Value Evaluation](../dogfooding/mcp-durable-value-evaluation-2026-08.md)
+- [MCP Explicit-Use Value Evaluation](../dogfooding/mcp-explicit-use-value-evaluation-2026-08.md)
