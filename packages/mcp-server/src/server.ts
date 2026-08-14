@@ -122,8 +122,25 @@ const queryScopeChildSegmentSchema = z.discriminatedUnion('kind', [
     side: z.enum(Object.values(queryScopeSetBranchSides)),
   }).strict(),
 ]);
-const queryScopeSelectorSchema: z.ZodType<QueryScopeSelectorV1> = z.object({
-  path: z.tuple([queryScopeRootSegmentSchema]).rest(queryScopeChildSegmentSchema),
+const queryScopePathSchema = z.array(z.union([queryScopeRootSegmentSchema, queryScopeChildSegmentSchema]))
+  .min(1)
+  .superRefine((path, context) => {
+    if (path[0]?.kind !== 'root') {
+      context.addIssue({ code: 'custom', message: 'The selector path must start with the root segment.' });
+    }
+    path.slice(1).forEach((segment, index) => {
+      if (segment.kind === 'root') {
+        context.addIssue({
+          code: 'custom',
+          message: 'The root segment may appear only at the start of the selector path.',
+          path: [index + 1],
+        });
+      }
+    });
+  })
+  .transform((path): QueryScopeSelectorV1['path'] => path as QueryScopeSelectorV1['path']);
+const queryScopeSelectorSchema = z.object({
+  path: queryScopePathSchema,
   version: z.literal(1),
 }).strict();
 
