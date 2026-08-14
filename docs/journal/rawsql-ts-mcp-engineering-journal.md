@@ -4,6 +4,8 @@ rawsql-tsには、SQLをASTとして解析し、構造、列の由来、条件�
 
 この文章は完成した10個のtoolを紹介する仕様書ではない。何を作ったかより、何を期待し、どこで予想が外れ、問いがどう変わったかを残すための開発記である。事実関係の詳細は[Product Gate](../dogfooding/mcp-product-gate-2026-08.md)、[Product Decision](../dogfooding/mcp-product-decision-2026-08.md)、[Agent Dogfooding](../dogfooding/mcp-agent-dogfooding-2026-08.md)、[Durable Value Evaluation](../dogfooding/mcp-durable-value-evaluation-2026-08.md)、[Explicit-Use Value Evaluation](../dogfooding/mcp-explicit-use-value-evaluation-2026-08.md)に譲る。ここでは、そこで観測したことと、そこから考えたことを混同しないように書きたい。
 
+この取り組みを起案者側から振り返った補足は、[起案者コメント](./rawsql-ts-mcp-initiator-commentary.md)に別文書として残している。
+
 ## 1. 使われるであろう機能をMCPにした
 
 最初の仮説は単純だった。LLMはSQLを扱える。しかし、query structureやcolumn lineageのような解析結果を確実に渡せば、複雑な調査はもっと正確になる。複数ファイルからtableやcolumnの使用箇所を探せれば、migrationの影響調査も速くなる。CTEを単独実行可能なSQLへ切り出したり、安全な範囲だけqueryをsliceしたりできれば、デバッグも進めやすい。fixture extraction planまで作れれば、再現環境の準備にも使える。
