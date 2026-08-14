@@ -1,13 +1,10 @@
 import { readFile, readdir, writeFile } from 'node:fs/promises';
-import { basename, dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 
 const runRoot = resolve(process.argv[2] ?? '');
 if (!process.argv[2]) throw new Error('Usage: node summarize-runs.mjs <run-root>');
 const manifest = JSON.parse(await readFile(resolve(runRoot, 'manifest.json'), 'utf8'));
-const repoRoot = resolve(dirname(new URL(import.meta.url).pathname.replace(/^\/(.:)/, '$1')), '..', '..');
-const scenarioPath = manifest.scenarioSet === 'dev'
-  ? resolve(repoRoot, 'scripts/mcp-integration-eval/scenarios.dev.json')
-  : resolve(repoRoot, 'tmp/mcp-integration-eval/holdout/scenarios.json');
+const scenarioPath = resolve(runRoot, 'scenarios.json');
 const packet = JSON.parse(await readFile(scenarioPath, 'utf8'));
 
 const runs = [];

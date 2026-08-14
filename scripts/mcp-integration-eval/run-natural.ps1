@@ -17,10 +17,25 @@ $scenarioPath = if ($ScenarioSet -eq 'dev') {
 $runRoot = Join-Path $repoRoot "tmp\mcp-integration-eval\runs\$Iteration"
 $workspaceRoot = Join-Path ([System.IO.Path]::GetTempPath()) "rawsql-mcp-integration-$Iteration"
 $serverPath = Join-Path $repoRoot 'packages\mcp-server\dist\cli.js'
+$freezePath = Join-Path $repoRoot 'tmp\mcp-integration-eval\ground-truth-freeze.json'
 if ((Test-Path -LiteralPath $runRoot) -and -not $Resume) { throw "Run output already exists: $runRoot" }
 if (-not (Test-Path -LiteralPath $serverPath)) { throw "Build MCP server first: $serverPath" }
+if (-not (Test-Path -LiteralPath $freezePath)) { throw "Freeze ground truth first: $freezePath" }
+$freeze = Get-Content -Raw -LiteralPath $freezePath | ConvertFrom-Json -Depth 100
+$expectedHash = if ($ScenarioSet -eq 'dev') { $freeze.dev.sha256 } else { $freeze.holdout.sha256 }
+$actualHash = (Get-FileHash -Algorithm SHA256 $scenarioPath).Hash.ToLowerInvariant()
+if ($actualHash -ne $expectedHash) {
+  throw "Scenario hash does not match the frozen ground truth: expected=$expectedHash actual=$actualHash path=$scenarioPath"
+}
 New-Item -ItemType Directory -Force -Path $runRoot,$workspaceRoot | Out-Null
-$packet = Get-Content -Raw -LiteralPath $scenarioPath | ConvertFrom-Json -Depth 100
+$savedScenarioPath = Join-Path $runRoot 'scenarios.json'
+if ($Resume -and (Test-Path -LiteralPath $savedScenarioPath)) {
+  $savedHash = (Get-FileHash -Algorithm SHA256 $savedScenarioPath).Hash.ToLowerInvariant()
+  if ($savedHash -ne $expectedHash) { throw "Saved scenario packet does not match the frozen ground truth: $savedScenarioPath" }
+} else {
+  [System.IO.File]::WriteAllBytes($savedScenarioPath, [System.IO.File]::ReadAllBytes($scenarioPath))
+}
+$packet = Get-Content -Raw -LiteralPath $savedScenarioPath | ConvertFrom-Json -Depth 100
 
 $guidance = @'
 You are investigating a SQL-related engineering request.
@@ -31,6 +46,17 @@ Give a concise evidence-based answer. Do not claim database runtime facts that s
 function Write-Utf8([string]$Path, [string]$Content) {
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Path) | Out-Null
   [System.IO.File]::WriteAllText($Path, $Content, [System.Text.UTF8Encoding]::new($false))
+}
+
+$manifestPath = Join-Path $runRoot 'manifest.json'
+$manifest = [ordered]@{ schemaVersion=1; scenarioSet=$ScenarioSet; iteration=$Iteration; repetitions=$Repetitions; model=$Model; reasoningEffort=$ReasoningEffort; scenarioHash=$actualHash; gitHead=(git -C $repoRoot rev-parse HEAD).Trim() }
+if ($Resume -and (Test-Path -LiteralPath $manifestPath)) {
+  $savedManifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json -Depth 100
+  foreach ($field in @('scenarioSet','iteration','repetitions','model','reasoningEffort','scenarioHash')) {
+    if ($savedManifest.$field -ne $manifest.$field) { throw "Resume manifest mismatch for ${field}: $manifestPath" }
+  }
+} else {
+  Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 10)
 }
 
 foreach ($scenario in $packet.scenarios) {
@@ -66,6 +92,3 @@ foreach ($scenario in $packet.scenarios) {
     Write-Output ("DONE {0} r{1} {2}ms exit={3}" -f $scenario.id,$rep,$timer.ElapsedMilliseconds,$exitCode)
   }
 }
-
-$manifest = [ordered]@{ schemaVersion=1; scenarioSet=$ScenarioSet; iteration=$Iteration; repetitions=$Repetitions; model=$Model; reasoningEffort=$ReasoningEffort; scenarioHash=(Get-FileHash -Algorithm SHA256 $scenarioPath).Hash.ToLowerInvariant(); gitHead=(git -C $repoRoot rev-parse HEAD).Trim() }
-Write-Utf8 (Join-Path $runRoot 'manifest.json') ($manifest | ConvertTo-Json -Depth 10)

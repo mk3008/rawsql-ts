@@ -16,6 +16,10 @@ The evaluation has two layers:
 Development scenarios are visible in `scenarios.dev.json`. Holdout scenarios are
 deterministically generated and frozen by hash before the first source change.
 They must be executed only once after the final development candidate is chosen.
+`answerEvidence` is lexical coverage only: it may include an explicitly named
+decoy when the user request requires the answer to identify and exclude it. It
+must not be interpreted as the expected impacted-file set or as a correctness
+score by itself.
 
 ```powershell
 node scripts/mcp-integration-eval/generate-holdout.mjs
@@ -28,3 +32,8 @@ The runner deliberately uses only generic guidance: use available tools when
 helpful, avoid runtime claims unsupported by static evidence, and answer the user.
 Changing that guidance to mention rawsql tool names, argument names, or a preferred
 tool sequence invalidates comparison with earlier iterations.
+
+Before a run, the runner verifies the selected scenario packet against
+`tmp/mcp-integration-eval/ground-truth-freeze.json` and saves the validated packet
+inside the immutable run directory. The summarizer reads only that saved packet,
+so later edits to scenario sources cannot change historical results.
