@@ -22,6 +22,34 @@ The npm package is `@rawsql-ts/mcp-server`. Installing it provides the
 The server does not connect to a database, execute SQL, inspect rows, or write
 rewritten SQL back to project files.
 
+## When to use rawsql-ts MCP
+
+Use rawsql-ts MCP when the investigation benefits from deterministic,
+exhaustive, or fail-closed computation rather than another prose reading of the
+SQL. Making the server available does not guarantee that an agent will select
+it automatically; route the task to the relevant tool when the mechanical
+evidence is important.
+
+| Use case | Why use the MCP tool | Recommendation |
+| --- | --- | --- |
+| Cross-file impact over many SQL files | `find_query_usage` performs one workspace-wide AST-backed search and excludes same-name decoys | Conditional; one complete call was effective, repeated confirmations were not |
+| DDL-backed ownership or nullability | `analyze_column_lineage` ties conclusions to schema and join evidence | Conditional when mechanical evidence is required; use compact first when detailed lineage is unnecessary |
+| Safe-only optional-condition rewriting | `optimize_sql_conditions` applies supported rewrites consistently and leaves unsupported shapes unchanged | Conditional on the supported predicate forms |
+| Standalone scope extraction | `analyze_query_structure` plus `slice_query` returns SQL only for a proven boundary and otherwise blocks without a candidate | Strong when fail-closed behavior matters |
+| Fixture planning with incomplete relationships | `create_fixture_extraction_plan` keeps unproven propagation explicit instead of inferring foreign keys from join columns | Conditional; it improves calibration but may return a partial plan that still needs facts |
+
+Do not route every SQL request through MCP. A simple SQL explanation, a tiny
+known CTE, or a quick reading of one small query usually costs less with native
+file reading. In the tested DDL ownership tasks, manual answers were already
+correct and repeated full-lineage calls added substantial context; deterministic
+evidence, not query size alone, is the reason to use that workflow.
+
+These are workload-scoped findings, not claims that MCP is always faster,
+cheaper, or more accurate than an LLM. See the
+[August 2026 explicit-use evaluation](../../docs/dogfooding/mcp-explicit-use-value-evaluation-2026-08.md)
+for the A/B protocol, quality scores, latency and token results, payload costs,
+and negative controls.
+
 ## Suggested workflows
 
 - Start with a compact structure or lineage view, and request full output only

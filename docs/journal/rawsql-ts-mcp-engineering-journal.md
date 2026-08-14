@@ -2,7 +2,7 @@
 
 rawsql-tsには、SQLをASTとして解析し、構造、列の由来、条件、CTE、依存関係を取り出す能力がすでにあった。これをMCPとしてLLMから使えるようにしたら、SQL調査がかなり強くなるのではないか。当初の出発点は、その素朴な仮説だった。
 
-この文章は完成した10個のtoolを紹介する仕様書ではない。何を作ったかより、何を期待し、どこで予想が外れ、問いがどう変わったかを残すための開発記である。事実関係の詳細は[Product Gate](../dogfooding/mcp-product-gate-2026-08.md)、[Product Decision](../dogfooding/mcp-product-decision-2026-08.md)、[Agent Dogfooding](../dogfooding/mcp-agent-dogfooding-2026-08.md)、[Durable Value Evaluation](../dogfooding/mcp-durable-value-evaluation-2026-08.md)に譲る。ここでは、そこで観測したことと、そこから考えたことを混同しないように書きたい。
+この文章は完成した10個のtoolを紹介する仕様書ではない。何を作ったかより、何を期待し、どこで予想が外れ、問いがどう変わったかを残すための開発記である。事実関係の詳細は[Product Gate](../dogfooding/mcp-product-gate-2026-08.md)、[Product Decision](../dogfooding/mcp-product-decision-2026-08.md)、[Agent Dogfooding](../dogfooding/mcp-agent-dogfooding-2026-08.md)、[Durable Value Evaluation](../dogfooding/mcp-durable-value-evaluation-2026-08.md)、[Explicit-Use Value Evaluation](../dogfooding/mcp-explicit-use-value-evaluation-2026-08.md)に譲る。ここでは、そこで観測したことと、そこから考えたことを混同しないように書きたい。
 
 ## 1. 使われるであろう機能をMCPにした
 
@@ -109,6 +109,20 @@ promptで再実装できることと、毎回そうするのが合理的であ�
 それでも残ったものがある。large corpusに対する正確で高速な検索、DDL-backed ownership、byte-stable transform、unsafe SQLを返さないslice、証拠不足で止まるfixture planである。そして、自然利用で価値が出ていないなら新toolを増やさない、というProduct Gateの判断も残った。
 
 現在の次の一手は、新しいfeatureを想像して作ることではない。実利用で既存10 toolsでは解けない具体的な問題、あるいは必要なtoolが選ばれずworkflowが止まる具体的なtraceが現れたとき、そのevidenceから最小の変更を考えることである。
+
+## 10. 「使わせた場合」の価値を分けて測った
+
+自然には使われない。それでも、使うべき仕事だと人間またはpolicyが判断し、明示した場合には価値が出るのか。この問いはdiscoverability改善とは別である。そこで、MCPなしと、全runで同じ一文だけを足したMCPありを比較した。
+
+ここでも評価装置は最初から正しくなかった。Stage 0ではMCP callがcancelされ、promptを変える前にhostのapproval modeを確認する必要があった。さらに、最初のsafe extraction datasetは`cases.json`にselectorを含めていた。最終的なready/blockedは漏れていなくても、`analyze_query_structure`でselectorを得る工程を飛ばせる。完了済み6 runsを捨てたことにせずraw evidenceへ残し、採点から除外し、selectorを公開しないdatasetでやり直した。実験でも、入力が途中答えを教えていないかを確認しなければならない。
+
+Observedは一枚岩ではなかった。semantic grepは30、300、1500 filesのすべてでnativeとMCPが正しい集合へ到達し、MCPはwall timeとinput tokensを減らした。fixture planningでは、nativeがjoin columnsから具体的なfixtureやcomplete planを補うことがある一方、MCPは物理FKがない関係をpartialのまま残した。safe extractionでは両者とも4 casesを正しく判定したが、MCPにはunsafe boundaryでSQLを返さない機械的な契約があった。
+
+しかしDDL ownershipではnativeも全件正しく、MCP条件のagentは列ごとにfull lineageを繰り返した。engineは1秒未満でも、end-to-endは約2倍遅くなり、最終回答のごく一部にしか使わないdetailを大量に受け取った。simple SQLと小さな既知CTEでも、engineは数msで終わるのにcatalogとagent orchestrationのcostが勝った。MCP engineの速さと、MCPを使うagent workflowの速さは別だった。
+
+最終判定は`done / explicit-use-value-conditional`である。これは自然選択の問題を解決したという意味ではない。large corpusのexhaustive search、fail-closed extraction、証拠のないfixture relationを推測しない仕事では、明示して使わせる価値がある。一方、単にSQLを説明する、短い既知CTEを読む、nativeで十分に根拠を確認できる仕事では、使わせない方がよい。
+
+この結果から新toolやPhase 4Cには進まない。残った課題は、toolを増やすことではなく、使うと決めたworkflowで1回の完全なcallを何度も確認しないこと、full detailが本当に必要かを判断することである。これも具体的な実利用阻害が出た場合だけ再調査する。
 
 ## Key lessons
 
