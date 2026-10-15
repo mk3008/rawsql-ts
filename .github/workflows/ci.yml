@@ -83,6 +83,9 @@ jobs:
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
 
+    - name: Test publish utility process exits
+      run: pnpm exec vitest run scripts/publish-workspace-utils.test.js
+
     - name: Run npm primary-path and first test quality gate
       run: pnpm verify:customer-consumers
 
