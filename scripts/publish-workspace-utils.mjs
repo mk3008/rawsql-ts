@@ -87,12 +87,15 @@ export function runWithOutput(command, args, options = {}) {
   if (result.stderr) process.stderr.write(result.stderr);
 
   if (result.error) throw result.error;
-  if (typeof result.status === "number" && result.status !== 0) {
+  if (result.status !== 0) {
+    const termination = result.signal
+      ? `signal ${result.signal}`
+      : `exit code ${result.status ?? "unknown"}`;
     const combined = `${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim();
     const snippet = combined ? combined.split(/\r?\n/).slice(-60).join("\n") : "";
     throw new Error(
       [
-        `${command} ${args.join(" ")} failed with exit code ${result.status}`,
+        `${command} ${args.join(" ")} failed with ${termination}`,
         snippet ? `---\n${snippet}` : "",
       ]
         .filter(Boolean)
