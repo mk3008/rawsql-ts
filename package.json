@@ -86,7 +86,7 @@
     "husky": "^9.1.7",
     "microtime": "^3.1.1",
     "mssql": "^12.5.5",
-    "mysql2": "^3.16.0",
+    "mysql2": "^3.23.1",
     "node-sql-parser": "^5.3.8",
     "pg": "^8.11.1",
     "prettier-plugin-sql": "^0.19.2",
@@ -102,7 +102,7 @@
     "typescript": "^5.8.2",
     "vite": "7.3.5",
     "vitepress": "^1.6.4",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.11"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "^4.44.0",
@@ -111,11 +111,11 @@
   "packageManager": "pnpm@10.17.0+sha512.fce8a3dd29a4ed2ec566fb53efbb04d8c44a0f05bc6f24a73046910fb9c3ce7afa35a0980500668fa3573345bd644644fa98338fa168235c80f4aa17aa17fbef",
   "pnpm": {
     "overrides": {
-      "@eslint/eslintrc>js-yaml": "4.3.0",
-      "@changesets/parse>js-yaml": "4.3.0",
-      "read-yaml-file>js-yaml": "3.15.0",
-      "vitest": "4.1.8",
-      "@vitest/coverage-v8": "4.1.8",
+      "@eslint/eslintrc>js-yaml": "4.3.2",
+      "@changesets/parse>js-yaml": "4.3.2",
+      "read-yaml-file>js-yaml": "3.15.2",
+      "vitest": "4.1.11",
+      "@vitest/coverage-v8": "4.1.11",
       "mdast-util-to-hast": "13.2.1",
       "vite>esbuild": "0.28.1",
       "vitepress>vite": "6.4.3",
@@ -124,20 +124,30 @@
       "rollup": "4.59.0",
       "diff": "8.0.3",
       "lodash": "4.18.0",
-      "undici": "7.29.0",
-      "protobufjs": "7.5.6",
-      "@protobufjs/utf8": "1.1.1",
+      "undici": "7.29.1",
+      "protobufjs": "7.6.6",
+      "@protobufjs/utf8": "1.1.2",
       "effect": "3.21.1",
       "defu": "6.1.5",
       "flatted": "3.4.2",
-      "brace-expansion": "5.0.7",
+      "brace-expansion": "5.0.12",
       "micromatch>picomatch": "2.3.2",
       "tinyglobby>picomatch": "4.0.4",
       "vitest>picomatch": "4.0.4",
       "vite>picomatch": "4.0.4",
-      "markdown-it": "14.2.0",
+      "markdown-it": "14.3.1",
       "linkify-it": "5.0.2",
-      "postcss": "8.5.23"
+      "postcss": "8.5.23",
+      "hono": "4.13.13",
+      "qs": "6.16.1",
+      "fast-uri": "3.1.8",
+      "ip-address": "10.7.4",
+      "@grpc/grpc-js": "1.14.6",
+      "nanoid": "3.3.18",
+      "@humanfs/node": "0.16.8",
+      "source-map-js": "1.2.2",
+      "proxy-addr": "2.0.8",
+      "vue": "3.5.44"
     }
   }
 }
