@@ -6,9 +6,8 @@ browser demo, SDK dependency, stdio adapter, server tests, and package verificat
 have been removed.
 
 The SQL analysis engines remain available as `rawsql-ts`,
-`@rawsql-ts/investigation-core`, and `@rawsql-ts/sql-grep-core`. Existing CLI
-workflows remain unchanged; see [Ashiba](https://github.com/mk3008/ashiba) for the
-independently maintained CLI. This retirement does not introduce replacement CLI
+`@rawsql-ts/investigation-core`, and `@rawsql-ts/sql-grep-core`. Existing independent CLI
+workflows remain unchanged. This retirement does not introduce replacement CLI
 commands or promise one command for every former MCP tool.
 
 ## Existing MCP installations
