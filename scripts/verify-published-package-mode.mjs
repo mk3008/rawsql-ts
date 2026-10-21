@@ -3,7 +3,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { verifyMcpPackage } from "./verify-mcp-package.mjs";
 import {
   IS_WINDOWS,
   NPM,
@@ -366,7 +365,6 @@ async function main() {
         return packPublishedPackages();
       })();
   const packedInstallApp = verifyPackedTarballInstall(packedPackages);
-  const mcp = await verifyMcpPackage(packedPackages);
   const coreGettingStartedApp = verifyCoreGettingStarted(packedPackages);
 
   writeJson(path.join(outputRoot, "summary.json"), {
@@ -375,7 +373,6 @@ async function main() {
     platform: os.platform(),
     verificationMode: options.publishManifestProvided ? "publish-manifest" : "workspace-pack",
     packedInstallApp,
-    mcp,
     coreGettingStartedApp,
     packages: packedPackages.map((pkg) => ({
       name: pkg.name,

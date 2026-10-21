@@ -52,8 +52,7 @@ const slice = sliceQueryScope({
 
 Public operations return structured models. Generated SQL remains an explicitly
 labeled artifact inside those models rather than the only transformation
-result. To expose these operations through MCP, see
-[`@rawsql-ts/mcp-server`](https://github.com/mk3008/rawsql-ts/tree/main/packages/mcp-server).
+result.
 
 Scope selectors identify a semantic location in the same parsed SQL, not a
 persistent identity across SQL edits. Parsed AST objects remain internal to the

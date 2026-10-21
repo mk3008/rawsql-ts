@@ -1,4 +1,9 @@
-# MCP integration evaluation harness
+# MCP integration evaluation harness (historical)
+
+Archived evaluation tooling for the August 2026 research. The MCP integration is
+retired; these scripts are retained as historical evidence and are not part of
+current build, CI, or release checks. Reproduction requires the MCP implementation
+from the original research revision. See [the retirement notice](../../docs/guide/mcp-retirement.md).
 
 This harness measures whether a generic Codex agent can discover and use the
 existing rawsql-ts MCP tools without being told tool names or a rawsql-specific
