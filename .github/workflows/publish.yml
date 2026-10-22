@@ -57,7 +57,7 @@ jobs:
       - name: Setup publish readiness runtime
         uses: ./.github/actions/setup-publish-runtime
         with:
-          node-version: "24"
+          node-version: "24.22.1"
           use-pnpm: "true"
           use-pnpm-cache: "false"
           install-dependencies: "true"
@@ -106,7 +106,7 @@ jobs:
       - name: Setup artifact build runtime
         uses: ./.github/actions/setup-publish-runtime
         with:
-          node-version: "24"
+          node-version: "24.22.1"
           use-pnpm: "true"
           use-pnpm-cache: "false"
           install-dependencies: "true"
@@ -163,7 +163,7 @@ jobs:
       - name: Setup artifact verification runtime
         uses: ./.github/actions/setup-publish-runtime
         with:
-          node-version: "24"
+          node-version: "24.22.1"
           use-pnpm: "true"
           use-pnpm-cache: "false"
           install-dependencies: "true"
@@ -218,7 +218,7 @@ jobs:
       - name: Setup actual publish runtime
         uses: ./.github/actions/setup-publish-runtime
         with:
-          node-version: "24"
+          node-version: "24.22.1"
           use-pnpm: "false"
           install-dependencies: "false"
           update-npm: "false"
