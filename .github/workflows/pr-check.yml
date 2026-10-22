@@ -30,16 +30,16 @@ jobs:
       with:
         run_install: false
 
-    - name: Setup Node.js 20.x
+    - name: Setup Node.js 22.23.4
       uses: actions/setup-node@v4
       with:
-        node-version: 20.x
+        node-version: 22.23.4
         cache: 'pnpm'
 
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
 
-    # PR checks stay on the main Node 20 lane so reviewers get one fast fail-fast signal.
+    # PR checks stay on the main Node 22 lane so reviewers get one fast fail-fast signal.
     - name: Lint core package
       run: pnpm --filter "./packages/core" run lint
 

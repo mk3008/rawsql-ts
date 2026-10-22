@@ -41,7 +41,7 @@ jobs:
       if: steps.detect.outputs.release_affecting == 'true' && steps.detect.outputs.changeset_guardrail_ok == 'true'
       uses: ./.github/actions/setup-publish-runtime
       with:
-        node-version: "24"
+        node-version: "24.22.1"
         use-pnpm: "true"
         install-dependencies: "true"
         update-npm: "false"
