@@ -42,7 +42,7 @@
   },
   "devDependencies": {
     "typescript": "^5.8.2",
-    "vite": "7.3.5",
+    "vite": "7.3.7",
     "vitest": "^4.1.11"
   },
   "files": [

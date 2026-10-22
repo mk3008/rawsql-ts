@@ -156,14 +156,14 @@ importers:
         specifier: ^5.8.2
         version: 5.9.2
       vite:
-        specifier: 7.3.5
-        version: 7.3.5(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0)
+        specifier: 7.3.7
+        version: 7.3.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0)
       vitepress:
         specifier: ^1.6.4
         version: 1.6.4(@algolia/client-search@5.39.0)(@types/node@22.18.7)(jiti@2.6.1)(postcss@8.5.23)(search-insights@2.17.3)(typescript@5.9.2)(yaml@2.9.0)
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(@types/node@22.18.7)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0))
+        version: 4.1.11(@types/node@22.18.7)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0))
     optionalDependencies:
       '@rollup/rollup-linux-x64-gnu':
         specifier: ^4.44.0
@@ -198,16 +198,16 @@ importers:
         version: 19.2.4(@types/react@19.2.18)
       '@vitejs/plugin-react':
         specifier: ^5.1.1
-        version: 5.2.0(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+        version: 5.2.0(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
       typescript:
         specifier: ^5.8.2
         version: 5.9.2
       vite:
-        specifier: 7.3.5
-        version: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+        specifier: 7.3.7
+        version: 7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
 
   benchmarks/sql-unit-test:
     devDependencies:
@@ -260,11 +260,11 @@ importers:
         specifier: ^5.8.2
         version: 5.9.2
       vite:
-        specifier: 7.3.5
-        version: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+        specifier: 7.3.7
+        version: 7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
 
   packages/advanced-runtime:
     devDependencies:
@@ -272,11 +272,11 @@ importers:
         specifier: ^5.8.2
         version: 5.9.2
       vite:
-        specifier: 7.3.5
-        version: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+        specifier: 7.3.7
+        version: 7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
 
   packages/core:
     devDependencies:
@@ -353,11 +353,11 @@ importers:
         specifier: ^5.8.2
         version: 5.9.2
       vite:
-        specifier: 7.3.5
-        version: 7.3.5(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0)
+        specifier: 7.3.7
+        version: 7.3.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0)
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(@types/node@22.18.7)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0))
+        version: 4.1.11(@types/node@22.18.7)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0))
 
   packages/drivers/driver-adapter-core:
     dependencies:
@@ -371,11 +371,11 @@ importers:
         specifier: ^5.8.2
         version: 5.9.2
       vite:
-        specifier: 7.3.5
-        version: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+        specifier: 7.3.7
+        version: 7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
 
   packages/investigation-core:
     dependencies:
@@ -387,11 +387,11 @@ importers:
         specifier: ^5.8.2
         version: 5.9.2
       vite:
-        specifier: 7.3.5
-        version: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+        specifier: 7.3.7
+        version: 7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
 
   packages/mcp-server:
     dependencies:
@@ -415,11 +415,11 @@ importers:
         specifier: ^5.8.2
         version: 5.9.2
       vite:
-        specifier: 7.3.5
-        version: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+        specifier: 7.3.7
+        version: 7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
 
   packages/sql-grep-core:
     dependencies:
@@ -431,11 +431,11 @@ importers:
         specifier: ^5.8.2
         version: 5.9.2
       vite:
-        specifier: 7.3.5
-        version: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+        specifier: 7.3.7
+        version: 7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
 
   packages/test-evidence-core:
     devDependencies:
@@ -443,11 +443,11 @@ importers:
         specifier: ^5.8.2
         version: 5.9.2
       vite:
-        specifier: 7.3.5
-        version: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+        specifier: 7.3.7
+        version: 7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
 
   packages/test-evidence-renderer-md:
     dependencies:
@@ -459,11 +459,11 @@ importers:
         specifier: ^5.8.2
         version: 5.9.2
       vite:
-        specifier: 7.3.5
-        version: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+        specifier: 7.3.7
+        version: 7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
 
   packages/testkit-core:
     dependencies:
@@ -475,11 +475,11 @@ importers:
         specifier: ^5.8.2
         version: 5.9.2
       vite:
-        specifier: 7.3.5
-        version: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+        specifier: 7.3.7
+        version: 7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
 
   packages/testkit-postgres:
     dependencies:
@@ -494,11 +494,11 @@ importers:
         specifier: ^5.8.2
         version: 5.9.2
       vite:
-        specifier: 7.3.5
-        version: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+        specifier: 7.3.7
+        version: 7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+        version: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
 
   packages/testkit-sqlite:
     dependencies:
@@ -520,16 +520,16 @@ importers:
         version: 16.6.1
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@types/node@22.19.17)(typescript@5.9.2)
+        version: 10.9.2(@types/node@22.20.5)(typescript@5.9.2)
       typescript:
         specifier: ^5.8.2
         version: 5.9.2
       vite:
-        specifier: 7.3.5
-        version: 7.3.5(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.9.0)
+        specifier: 7.3.7
+        version: 7.3.7(@types/node@22.20.5)(jiti@2.6.1)(yaml@2.9.0)
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(@types/node@22.19.17)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.9.0))
+        version: 4.1.11(@types/node@22.20.5)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@22.20.5)(jiti@2.6.1)(yaml@2.9.0))
 
 packages:
 
@@ -1284,66 +1284,79 @@ packages:
     resolution: {integrity: sha512-t4ONHboXi/3E0rT6OZl1pKbl2Vgxf9vJfWgmUoCEVQVxhW6Cw/c8I6hbbu7DAvgp82RKiH7TpLwxnJeKv2pbsw==}
     cpu: [arm]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-arm-musleabihf@4.59.0':
     resolution: {integrity: sha512-CikFT7aYPA2ufMD086cVORBYGHffBo4K8MQ4uPS/ZnY54GKj36i196u8U+aDVT2LX4eSMbyHtyOh7D7Zvk2VvA==}
     cpu: [arm]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-arm64-gnu@4.59.0':
     resolution: {integrity: sha512-jYgUGk5aLd1nUb1CtQ8E+t5JhLc9x5WdBKew9ZgAXg7DBk0ZHErLHdXM24rfX+bKrFe+Xp5YuJo54I5HFjGDAA==}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-arm64-musl@4.59.0':
     resolution: {integrity: sha512-peZRVEdnFWZ5Bh2KeumKG9ty7aCXzzEsHShOZEFiCQlDEepP1dpUl/SrUNXNg13UmZl+gzVDPsiCwnV1uI0RUA==}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-loong64-gnu@4.59.0':
     resolution: {integrity: sha512-gbUSW/97f7+r4gHy3Jlup8zDG190AuodsWnNiXErp9mT90iCy9NKKU0Xwx5k8VlRAIV2uU9CsMnEFg/xXaOfXg==}
     cpu: [loong64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-loong64-musl@4.59.0':
     resolution: {integrity: sha512-yTRONe79E+o0FWFijasoTjtzG9EBedFXJMl888NBEDCDV9I2wGbFFfJQQe63OijbFCUZqxpHz1GzpbtSFikJ4Q==}
     cpu: [loong64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-ppc64-gnu@4.59.0':
     resolution: {integrity: sha512-sw1o3tfyk12k3OEpRddF68a1unZ5VCN7zoTNtSn2KndUE+ea3m3ROOKRCZxEpmT9nsGnogpFP9x6mnLTCaoLkA==}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-ppc64-musl@4.59.0':
     resolution: {integrity: sha512-+2kLtQ4xT3AiIxkzFVFXfsmlZiG5FXYW7ZyIIvGA7Bdeuh9Z0aN4hVyXS/G1E9bTP/vqszNIN/pUKCk/BTHsKA==}
     cpu: [ppc64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-riscv64-gnu@4.59.0':
     resolution: {integrity: sha512-NDYMpsXYJJaj+I7UdwIuHHNxXZ/b/N2hR15NyH3m2qAtb/hHPA4g4SuuvrdxetTdndfj9b1WOmy73kcPRoERUg==}
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-riscv64-musl@4.59.0':
     resolution: {integrity: sha512-nLckB8WOqHIf1bhymk+oHxvM9D3tyPndZH8i8+35p/1YiVoVswPid2yLzgX7ZJP0KQvnkhM4H6QZ5m0LzbyIAg==}
     cpu: [riscv64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-s390x-gnu@4.59.0':
     resolution: {integrity: sha512-oF87Ie3uAIvORFBpwnCvUzdeYUqi2wY6jRFWJAy1qus/udHFYIkplYRW+wo+GRUP4sKzYdmE1Y3+rY5Gc4ZO+w==}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-x64-gnu@4.59.0':
     resolution: {integrity: sha512-3AHmtQq/ppNuUspKAlvA8HtLybkDflkMuLK4DPo77DfthRb71V84/c4MlWJXixZz4uruIH4uaa07IqoAkG64fg==}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-x64-musl@4.59.0':
     resolution: {integrity: sha512-2UdiwS/9cTAx7qIUZB/fWtToJwvt0Vbo0zmnYt7ED35KPg13Q0ym1g442THLC7VyI6JfYTP4PiSOWyoMdV2/xg==}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-openbsd-x64@4.59.0':
     resolution: {integrity: sha512-M3bLRAVk6GOwFlPTIxVBSYKUaqfLrn8l0psKinkCFxl4lQvOSz8ZrKDz2gxcBwHFpci0B6rttydI4IpS4IS/jQ==}
@@ -1503,6 +1516,9 @@ packages:
 
   '@types/node@22.19.6':
     resolution: {integrity: sha512-qm+G8HuG6hOHQigsi7VGuLjUVu6TtBo/F05zvX04Mw2uCg9Dv0Qxy3Qw7j41SidlTcl5D/5yg0SEZqOB+EqZnQ==}
+
+  '@types/node@22.20.5':
+    resolution: {integrity: sha512-U2+DNr+wSjpsTS/wZGYHq7GcwfuSmKiKvoPvK22zwTlRhU91yOniN4qRR5KhIjvif7ysw/dz/hKmfDH0Ris4aA==}
 
   '@types/node@25.9.1':
     resolution: {integrity: sha512-xfrlY7UD5rMJk3ZVJP8BNzS28J36YJg+xp+LPXV1TdWxr8uMH5A860QNxYDGQe/ylDSgjxE52Q9VnO7p75tJxg==}
@@ -3977,8 +3993,8 @@ packages:
       yaml:
         optional: true
 
-  vite@7.3.5:
-    resolution: {integrity: sha512-KuOaNhcnGFN2zIPGA7wRmzF+lJA1sea7rHq17aiJ++9lzY1WWG6Jpwqwe1KNbRVPIqHmr8GLYx7jbrQcN/7/ww==}
+  vite@7.3.7:
+    resolution: {integrity: sha512-AHEzTORMbi7/7aXp7w7KZ5+DCUdSeLsJz0grY8xHpc9DHdYb0vQu6DqJfm2tOw3gDExNgPgnJTXxM6syYFHaCA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -5319,6 +5335,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/node@22.20.5':
+    dependencies:
+      undici-types: 6.21.0
+
   '@types/node@25.9.1':
     dependencies:
       undici-types: 7.24.6
@@ -5515,7 +5535,7 @@ snapshots:
 
   '@ungap/structured-clone@1.3.0': {}
 
-  '@vitejs/plugin-react@5.2.0(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))':
+  '@vitejs/plugin-react@5.2.0(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))':
     dependencies:
       '@babel/core': 7.29.7
       '@babel/plugin-transform-react-jsx-self': 7.29.7(@babel/core@7.29.7)
@@ -5523,7 +5543,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-rc.3
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+      vite: 7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -5544,7 +5564,7 @@ snapshots:
       obug: 2.1.4
       std-env: 4.2.0
       tinyrainbow: 3.1.1
-      vitest: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+      vitest: 4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
 
   '@vitest/expect@4.1.11':
     dependencies:
@@ -5555,29 +5575,29 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.1
 
-  '@vitest/mocker@4.1.11(vite@7.3.5(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0))':
+  '@vitest/mocker@4.1.11(vite@7.3.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 4.1.11
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.5(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0)
+      vite: 7.3.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0)
 
-  '@vitest/mocker@4.1.11(vite@7.3.5(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.9.0))':
+  '@vitest/mocker@4.1.11(vite@7.3.7(@types/node@22.20.5)(jiti@2.6.1)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 4.1.11
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.5(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.9.0)
+      vite: 7.3.7(@types/node@22.20.5)(jiti@2.6.1)(yaml@2.9.0)
 
-  '@vitest/mocker@4.1.11(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))':
+  '@vitest/mocker@4.1.11(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 4.1.11
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+      vite: 7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
 
   '@vitest/pretty-format@4.1.11':
     dependencies:
@@ -7906,14 +7926,14 @@ snapshots:
       v8-compile-cache-lib: 3.0.1
       yn: 3.1.1
 
-  ts-node@10.9.2(@types/node@22.19.17)(typescript@5.9.2):
+  ts-node@10.9.2(@types/node@22.20.5)(typescript@5.9.2):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.11
       '@tsconfig/node12': 1.0.11
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
-      '@types/node': 22.19.17
+      '@types/node': 22.20.5
       acorn: 8.15.0
       acorn-walk: 8.3.4
       arg: 4.1.3
@@ -8044,7 +8064,7 @@ snapshots:
       jiti: 2.6.1
       yaml: 2.9.0
 
-  vite@7.3.5(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0):
+  vite@7.3.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0):
     dependencies:
       esbuild: 0.28.1
       fdir: 6.5.0(picomatch@4.0.4)
@@ -8058,7 +8078,7 @@ snapshots:
       jiti: 2.6.1
       yaml: 2.9.0
 
-  vite@7.3.5(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.9.0):
+  vite@7.3.7(@types/node@22.20.5)(jiti@2.6.1)(yaml@2.9.0):
     dependencies:
       esbuild: 0.28.1
       fdir: 6.5.0(picomatch@4.0.4)
@@ -8067,12 +8087,12 @@ snapshots:
       rollup: 4.59.0
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 22.19.17
+      '@types/node': 22.20.5
       fsevents: 2.3.3
       jiti: 2.6.1
       yaml: 2.9.0
 
-  vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0):
+  vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0):
     dependencies:
       esbuild: 0.28.1
       fdir: 6.5.0(picomatch@4.0.4)
@@ -8138,10 +8158,10 @@ snapshots:
       - universal-cookie
       - yaml
 
-  vitest@4.1.11(@types/node@22.18.7)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0)):
+  vitest@4.1.11(@types/node@22.18.7)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0)):
     dependencies:
       '@vitest/expect': 4.1.11
-      '@vitest/mocker': 4.1.11(vite@7.3.5(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0))
+      '@vitest/mocker': 4.1.11(vite@7.3.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0))
       '@vitest/pretty-format': 4.1.11
       '@vitest/runner': 4.1.11
       '@vitest/snapshot': 4.1.11
@@ -8158,7 +8178,7 @@ snapshots:
       tinyexec: 1.3.0
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.1
-      vite: 7.3.5(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0)
+      vite: 7.3.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.9.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 22.18.7
@@ -8166,10 +8186,10 @@ snapshots:
     transitivePeerDependencies:
       - msw
 
-  vitest@4.1.11(@types/node@22.19.17)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.9.0)):
+  vitest@4.1.11(@types/node@22.20.5)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@22.20.5)(jiti@2.6.1)(yaml@2.9.0)):
     dependencies:
       '@vitest/expect': 4.1.11
-      '@vitest/mocker': 4.1.11(vite@7.3.5(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.9.0))
+      '@vitest/mocker': 4.1.11(vite@7.3.7(@types/node@22.20.5)(jiti@2.6.1)(yaml@2.9.0))
       '@vitest/pretty-format': 4.1.11
       '@vitest/runner': 4.1.11
       '@vitest/snapshot': 4.1.11
@@ -8186,18 +8206,18 @@ snapshots:
       tinyexec: 1.3.0
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.1
-      vite: 7.3.5(@types/node@22.19.17)(jiti@2.6.1)(yaml@2.9.0)
+      vite: 7.3.7(@types/node@22.20.5)(jiti@2.6.1)(yaml@2.9.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 22.19.17
+      '@types/node': 22.20.5
       '@vitest/coverage-v8': 4.1.11(vitest@4.1.11)
     transitivePeerDependencies:
       - msw
 
-  vitest@4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)):
+  vitest@4.1.11(@types/node@25.9.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)):
     dependencies:
       '@vitest/expect': 4.1.11
-      '@vitest/mocker': 4.1.11(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+      '@vitest/mocker': 4.1.11(vite@7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
       '@vitest/pretty-format': 4.1.11
       '@vitest/runner': 4.1.11
       '@vitest/snapshot': 4.1.11
@@ -8214,7 +8234,7 @@ snapshots:
       tinyexec: 1.3.0
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.1
-      vite: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+      vite: 7.3.7(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 25.9.1
