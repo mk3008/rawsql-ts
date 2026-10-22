@@ -5,7 +5,7 @@ inputs:
   node-version:
     description: "Node.js version to install"
     required: false
-    default: "22"
+    default: "22.23.4"
   use-pnpm:
     description: "Whether this job needs pnpm on PATH"
     required: false
