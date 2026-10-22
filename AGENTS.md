@@ -20,8 +20,8 @@ directory-specific rules.
 - Use the repository's specialist skills only when their documented trigger
   matches; do not duplicate their procedures here.
 - For delegated, recoverable, or multi-worker work, read
-  `docs/codex-orchestration.md` and use `$minimal-orchestration` for lifecycle
-  control.
+  `docs/codex-orchestration.md` for task tracking and handoff requirements.
+  `minimal-orchestration` is not a prerequisite for starting or continuing work.
 
 Keep detailed planning, verification, review, reporting, package policy, and
 documentation-mode procedures in their routed guidance or skills, not here.
