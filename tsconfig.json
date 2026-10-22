@@ -43,8 +43,6 @@
         "@rawsql-ts/sql-grep-core/*": ["packages/sql-grep-core/src/*"],
         "@rawsql-ts/investigation-core": ["packages/investigation-core/src"],
         "@rawsql-ts/investigation-core/*": ["packages/investigation-core/src/*"],
-        "@rawsql-ts/mcp-server": ["packages/mcp-server/src"],
-        "@rawsql-ts/mcp-server/*": ["packages/mcp-server/src/*"],
         "@rawsql-ts/testkit-sqlite": ["packages/testkit-sqlite/src"],
         "@rawsql-ts/adapter-node-pg": ["packages/adapters/adapter-node-pg/src"],
         "@rawsql-ts/driver-adapter-core": ["packages/drivers/driver-adapter-core/src"],
@@ -146,9 +144,6 @@
         },
         {
             "path": "./packages/investigation-core"
-        },
-        {
-            "path": "./packages/mcp-server"
         }
     ]
 }

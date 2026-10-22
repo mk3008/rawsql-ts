@@ -8,6 +8,8 @@ By parsing SQL into abstract syntax trees, rawsql-ts enables type-safe query bui
 
 The former `@rawsql-ts/ztd-cli` package has moved to the Ashiba project as `@ashiba-ts/cli`. Use [mk3008/ashiba](https://github.com/mk3008/ashiba) for SQL-first scaffolding, command-line inspection, optional-condition maintenance, and project lifecycle workflows.
 
+The local MCP integration has been retired. Existing SQL libraries and CLI workflows remain available; see the [MCP retirement notice](./docs/guide/mcp-retirement.md).
+
 > [!Note]
 > This project is currently in beta. APIs may change until the v1.0 release.
 
@@ -22,7 +24,6 @@ Use this section as the shortest repo-level map. It is intentionally brief: pack
 | SQL parsing and AST rewriting | `rawsql-ts` | [packages/core](./packages/core) |
 | SQL impact analysis / grep | `@rawsql-ts/sql-grep-core` | [packages/sql-grep-core](./packages/sql-grep-core) |
 | Static query investigations | `@rawsql-ts/investigation-core` | [packages/investigation-core](./packages/investigation-core) |
-| Local MCP tools | `@rawsql-ts/mcp-server` | [packages/mcp-server](./packages/mcp-server) |
 | Execution helpers | `@rawsql-ts/executor` | [packages/executor](./packages/executor) |
 | Production SQL driver adapter primitives | `@rawsql-ts/driver-adapter-core` | [packages/drivers/driver-adapter-core](./packages/drivers/driver-adapter-core) |
 | ZTD fixture rewriting and testkits | `@rawsql-ts/testkit-*` | [packages/testkit-core](./packages/testkit-core) |
@@ -48,7 +49,6 @@ These workflows are now owned by Ashiba. rawsql-ts keeps the reusable parser, fo
 | [rawsql-ts](./packages/core) | ![npm](https://img.shields.io/npm/v/rawsql-ts) | SQL parser and AST transformer. Zero dependencies, browser-ready. |
 | [@rawsql-ts/sql-grep-core](./packages/sql-grep-core) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/sql-grep-core) | Low-dependency SQL usage analysis engine for AST-based schema impact checks. |
 | [@rawsql-ts/investigation-core](./packages/investigation-core) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/investigation-core) | Static query-structure, column-lineage, and bounded fixture-extraction analysis. |
-| [@rawsql-ts/mcp-server](./packages/mcp-server) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/mcp-server) | Six local MCP tools for SQL investigation and safe transformation. |
 
 ### Production Driver Adapters
 
@@ -93,7 +93,6 @@ The planned rename path is to add a non-breaking alias such as `@rawsql-ts/testk
 rawsql-ts (core)
 ├─ @rawsql-ts/sql-grep-core
 ├─ @rawsql-ts/investigation-core
-│  └─ @rawsql-ts/mcp-server (also consumes sql-grep-core)
 ├─ @rawsql-ts/executor
 ├─ @rawsql-ts/driver-adapter-core
 ├─ @rawsql-ts/testkit-core
