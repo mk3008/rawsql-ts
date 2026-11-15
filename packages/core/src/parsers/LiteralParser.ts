@@ -30,8 +30,8 @@ export class LiteralParser {
                 // For dollar-quoted strings, store the entire string including tags
                 parsedValue = valueText;
             } else if (valueText.startsWith("'") && valueText.endsWith("'")) {
-                // Remove single quotes if enclosed
-                parsedValue = valueText.slice(1, -1);
+                // Decode doubled apostrophes inside the literal delimiters.
+                parsedValue = valueText.slice(1, -1).replace(/''/g, "'");
             } else {
                 parsedValue = valueText;
             }
