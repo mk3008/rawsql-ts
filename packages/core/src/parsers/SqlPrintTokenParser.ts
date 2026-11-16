@@ -1338,8 +1338,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (arg.value === null) {
             text = "null";
         } else if (arg.isStringLiteral) {
-            // For originally quoted string literals, preserve quotes
-            text = `'${(arg.value as string).replace(/'/g, "''")}'`;
+            const sourceText = arg.sourceText;
+            if (sourceText !== undefined && sourceText.slice(1, -1) === arg.value) {
+                text = sourceText;
+            } else {
+                text = `'${(arg.value as string).replace(/'/g, "''")}'`;
+            }
         } else if (typeof arg.value === "string") {
             // For dollar-quoted strings or other string values, use as-is
             text = arg.value;

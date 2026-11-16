@@ -30,8 +30,8 @@ export class LiteralParser {
                 // For dollar-quoted strings, store the entire string including tags
                 parsedValue = valueText;
             } else if (valueText.startsWith("'") && valueText.endsWith("'")) {
-                // Decode doubled apostrophes inside the literal delimiters.
-                parsedValue = valueText.slice(1, -1).replace(/''/g, "'");
+                // Remove single quotes if enclosed
+                parsedValue = valueText.slice(1, -1);
             } else {
                 parsedValue = valueText;
             }
@@ -40,7 +40,12 @@ export class LiteralParser {
             const isStringLiteral = valueText.startsWith("'") && valueText.endsWith("'");
             
             idx++
-            const value = new LiteralValue(parsedValue, undefined, isStringLiteral);
+            const value = new LiteralValue(
+                parsedValue,
+                undefined,
+                isStringLiteral,
+                isStringLiteral ? valueText : undefined,
+            );
             return { value, newIndex: idx };
         }
     }

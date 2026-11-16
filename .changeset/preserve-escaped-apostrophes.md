@@ -2,4 +2,4 @@
 "rawsql-ts": patch
 ---
 
-Preserve escaped apostrophes in single-quoted SQL literals across parsing and formatting. AST values now contain the decoded apostrophes.
+Preserve the source spelling of single-quoted SQL strings when formatting parsed queries to avoid escaping apostrophes a second time.

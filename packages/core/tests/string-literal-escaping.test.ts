@@ -25,17 +25,32 @@ describe('SQL string literal escaping', () => {
     });
 
     test.each([
-        { literal: "'it''s'", value: "it's" },
-        { literal: "'a''''b''c'", value: "a''b'c" },
-        { literal: "''''", value: "'" },
+        { literal: "'it''s'", value: "it''s" },
+        { literal: "'a''''b''c'", value: "a''''b''c" },
+        { literal: "''''", value: "''" },
         { literal: "''", value: '' },
-    ])('stores the decoded value of $literal in the AST', ({ literal, value }) => {
+        { literal: String.raw`'it\'s'`, value: String.raw`it\'s` },
+    ])('preserves the source spelling of $literal in the AST and output', ({ literal, value }) => {
         const query = SelectQueryParser.parse(`SELECT ${literal} AS v`) as SimpleSelectQuery;
         const expression = query.selectClause.items[0].value;
 
         expect(expression).toBeInstanceOf(LiteralValue);
         expect((expression as LiteralValue).value).toBe(value);
         expect(formatter.format(query).formattedSql).toBe(`select ${literal} as "v"`);
+    });
+
+    test('escapes apostrophes when generating a string literal from a value', () => {
+        const literal = new LiteralValue("O''Brien", undefined, true);
+
+        expect(formatter.format(literal).formattedSql).toBe("'O''''Brien'");
+    });
+
+    test('escapes the new value when a parsed string literal is edited', () => {
+        const query = SelectQueryParser.parse("SELECT 'O''Brien' AS v") as SimpleSelectQuery;
+        const expression = query.selectClause.items[0].value as LiteralValue;
+        expression.value = "O'Neill";
+
+        expect(formatter.format(query).formattedSql).toBe(`select 'O''Neill' as "v"`);
     });
 
     test('preserves apostrophe pairs inside dollar-quoted strings', () => {
