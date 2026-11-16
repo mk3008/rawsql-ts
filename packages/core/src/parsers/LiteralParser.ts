@@ -40,12 +40,9 @@ export class LiteralParser {
             const isStringLiteral = valueText.startsWith("'") && valueText.endsWith("'");
             
             idx++
-            const value = new LiteralValue(
-                parsedValue,
-                undefined,
-                isStringLiteral,
-                isStringLiteral ? valueText : undefined,
-            );
+            const value = isStringLiteral
+                ? new LiteralValue(parsedValue, undefined, true, { isEscaped: true })
+                : new LiteralValue(parsedValue, undefined, false);
             return { value, newIndex: idx };
         }
     }

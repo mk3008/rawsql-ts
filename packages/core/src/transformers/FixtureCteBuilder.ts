@@ -185,8 +185,8 @@ export class FixtureCteBuilder {
         if (typeof value === 'string') {
             // Store the raw string value WITHOUT quotes or escaping
             // The SqlPrinter will handle escaping when printing
-            return new LiteralValue(value, undefined, true);
+            return new LiteralValue(value, undefined, true, { isEscaped: false });
         }
-        return new LiteralValue(String(value), undefined, true);
+        return new LiteralValue(String(value), undefined, true, { isEscaped: false });
     }
 }

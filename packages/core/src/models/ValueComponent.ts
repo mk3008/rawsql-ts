@@ -215,26 +215,47 @@ export class BinaryExpression extends SqlComponent {
     }
 }
 
+type StringLiteralOptions = { isEscaped: boolean };
+
 export class LiteralValue extends SqlComponent {
     static kind = Symbol("LiteralExpression");
-    // Use the string type instead of the RawString type because it has its own escaping process.
     value: string | number | boolean | null;
-    isStringLiteral?: boolean; // Indicates a single-quoted string literal.
-    /** @internal The original SQL token for a parsed single-quoted literal. */
-    readonly sourceText?: string;
+    readonly isStringLiteral?: boolean;
+    /** Escape state of the text inside the quotes, for single-quoted literals. */
+    readonly isEscaped?: boolean;
 
-    constructor(
-        value: string | number | boolean | null,
-        _deprecated?: boolean,
-        isStringLiteral?: boolean,
-        sourceText?: string,
-    ) {
+    constructor(value: string, _deprecated: boolean | undefined, isStringLiteral: true, options: StringLiteralOptions);
+    constructor(value: LiteralValue["value"], _deprecated?: boolean, isStringLiteral?: false);
+    constructor(value: LiteralValue["value"], _deprecated?: boolean, isStringLiteral?: boolean, options?: StringLiteralOptions) {
         super();
         this.value = value;
         this.isStringLiteral = isStringLiteral;
-        if (sourceText !== undefined) {
-            this.sourceText = sourceText;
+        if (isStringLiteral) {
+            this.assignStringValue(value, options);
         }
+    }
+
+    setStringValue(value: string, options: StringLiteralOptions): void {
+        this.assignStringValue(value, options);
+    }
+
+    private assignStringValue(value: LiteralValue["value"], options?: StringLiteralOptions): void {
+        if (!this.isStringLiteral || typeof value !== "string" || typeof options?.isEscaped !== "boolean") {
+            throw new TypeError("Quoted string literals require a string value and an explicit isEscaped option.");
+        }
+
+        // Keep the AST value enumerable and require edits to provide the escape state.
+        Object.defineProperties(this, {
+            value: {
+                configurable: true,
+                enumerable: true,
+                get: () => value,
+                set: () => {
+                    throw new TypeError("Use setStringValue with an explicit isEscaped option.");
+                },
+            },
+            isEscaped: { configurable: true, enumerable: true, value: options.isEscaped },
+        });
     }
 }
 

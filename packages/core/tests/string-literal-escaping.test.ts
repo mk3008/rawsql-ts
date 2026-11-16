@@ -36,21 +36,53 @@ describe('SQL string literal escaping', () => {
 
         expect(expression).toBeInstanceOf(LiteralValue);
         expect((expression as LiteralValue).value).toBe(value);
+        expect((expression as LiteralValue).isEscaped).toBe(true);
         expect(formatter.format(query).formattedSql).toBe(`select ${literal} as "v"`);
     });
 
-    test('escapes apostrophes when generating a string literal from a value', () => {
-        const literal = new LiteralValue("O''Brien", undefined, true);
+    test.each([
+        { isEscaped: false, expected: "'O''''Brien'" },
+        { isEscaped: true, expected: "'O''Brien'" },
+    ])('formats a new quoted value with isEscaped=$isEscaped', ({ isEscaped, expected }) => {
+        const literal = new LiteralValue("O''Brien", undefined, true, { isEscaped });
 
-        expect(formatter.format(literal).formattedSql).toBe("'O''''Brien'");
+        expect(formatter.format(literal).formattedSql).toBe(expected);
     });
 
-    test('escapes the new value when a parsed string literal is edited', () => {
+    test('requires the escape state when constructing a quoted value', () => {
+        expect(() => Reflect.construct(LiteralValue, ["O'Neill", undefined, true]))
+            .toThrow(TypeError);
+    });
+
+    test('uses the supplied escape state when editing a quoted value', () => {
         const query = SelectQueryParser.parse("SELECT 'O''Brien' AS v") as SimpleSelectQuery;
         const expression = query.selectClause.items[0].value as LiteralValue;
-        expression.value = "O'Neill";
 
+        expression.setStringValue("O''Brien", { isEscaped: false });
+        expect(formatter.format(query).formattedSql).toBe(`select 'O''''Brien' as "v"`);
+
+        expression.setStringValue("O''Neill", { isEscaped: true });
         expect(formatter.format(query).formattedSql).toBe(`select 'O''Neill' as "v"`);
+
+        expression.setStringValue("O'Neill", { isEscaped: false });
+        expect(formatter.format(query).formattedSql).toBe(`select 'O''Neill' as "v"`);
+    });
+
+    test('rejects edits of a quoted value without an explicit escape state', () => {
+        const query = SelectQueryParser.parse("SELECT 'O''Brien' AS v") as SimpleSelectQuery;
+        const expression = query.selectClause.items[0].value as LiteralValue;
+
+        expect(() => { expression.value = "O'Neill"; }).toThrow("Use setStringValue");
+        expect(() => Reflect.apply(expression.setStringValue, expression, ["O'Neill"]))
+            .toThrow(TypeError);
+        expect(formatter.format(query).formattedSql).toBe(`select 'O''Brien' as "v"`);
+    });
+
+    test('keeps direct assignment available for numeric values', () => {
+        const literal = new LiteralValue(1);
+        literal.value = 2;
+
+        expect(formatter.format(literal).formattedSql).toBe("2");
     });
 
     test('preserves apostrophe pairs inside dollar-quoted strings', () => {

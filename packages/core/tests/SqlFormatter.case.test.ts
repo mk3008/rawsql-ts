@@ -7,11 +7,11 @@ test('CASE expression formatting with custom indentation', () => {
     // Arrange
     const switchCase = new SwitchCaseArgument([
         new CaseKeyValuePair(
-            new LiteralValue('active', undefined, true),
+            new LiteralValue('active', undefined, true, { isEscaped: false }),
             new LiteralValue(1)
         ),
         new CaseKeyValuePair(
-            new LiteralValue('pending', undefined, true),
+            new LiteralValue('pending', undefined, true, { isEscaped: false }),
             new LiteralValue(2)
         )
     ], new LiteralValue(0));
@@ -50,11 +50,11 @@ test('CASE WHEN expression (without condition) formatting', () => {
     // Arrange
     const switchCase = new SwitchCaseArgument([
         new CaseKeyValuePair(
-            new LiteralValue('active', undefined, true),
+            new LiteralValue('active', undefined, true, { isEscaped: false }),
             new LiteralValue(1)
         ),
         new CaseKeyValuePair(
-            new LiteralValue('pending', undefined, true),
+            new LiteralValue('pending', undefined, true, { isEscaped: false }),
             new LiteralValue(2)
         )
     ], new LiteralValue(0));
