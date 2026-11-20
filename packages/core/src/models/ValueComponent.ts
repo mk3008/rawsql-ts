@@ -216,7 +216,7 @@ export class BinaryExpression extends SqlComponent {
 }
 
 type StringLiteralOptions = {
-    /** Use true for SQL literal text and false for plain string data. */
+    /** Use true to write SQL literal text as supplied or false to double apostrophes. Backslashes are left as supplied. */
     isEscaped: boolean;
 };
 
@@ -227,12 +227,12 @@ export class LiteralValue extends SqlComponent {
     value: string | number | boolean | null;
     /** Indicates that the formatter should enclose the value in single quotes. */
     readonly isStringLiteral?: boolean;
-    /** True for SQL literal text and false for plain string data. Parsed single-quoted strings have this set to true. */
+    /** False doubles apostrophes in the literal text. Backslashes are left as supplied. Parsed single-quoted strings have this set to true. */
     readonly isEscaped?: boolean;
 
     /**
      * Creates a single-quoted string literal. The escape state must be explicit.
-     * @param options Use isEscaped: false for plain data or isEscaped: true for SQL literal text.
+     * @param options Use isEscaped: false to double apostrophes or isEscaped: true to write SQL literal text as supplied.
      */
     constructor(value: string, _deprecated: boolean | undefined, isStringLiteral: true, options: StringLiteralOptions);
     /** Creates a literal that does not use single-quoted string formatting. */
@@ -249,7 +249,7 @@ export class LiteralValue extends SqlComponent {
     /**
      * Replaces the text and escape state of an existing single-quoted string literal.
      * @param value The text to store inside the quotes.
-     * @param options Use isEscaped: false for plain data or isEscaped: true for SQL literal text.
+     * @param options Use isEscaped: false to double apostrophes or isEscaped: true to write SQL literal text as supplied.
      * @throws TypeError if the literal is not single-quoted or the escape state is missing.
      */
     setStringValue(value: string, options: StringLiteralOptions): void {
