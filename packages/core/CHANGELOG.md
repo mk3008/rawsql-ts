@@ -1,5 +1,31 @@
 # rawsql-ts
 
+## 0.31.0
+
+### Minor Changes
+
+- [#967](https://github.com/mk3008/rawsql-ts/pull/967) [`186e038`](https://github.com/mk3008/rawsql-ts/commit/186e0383c9277594160fb694ef1fdbe649f54d6d) Thanks [@mk3008](https://github.com/mk3008)! - Expose parameter collection and add `inspectQueryContract` for static parameter, output-column, physical-table, DDL-proven type, and query-output nullability inspection.
+
+- [#988](https://github.com/mk3008/rawsql-ts/pull/988) [`1cd1afd`](https://github.com/mk3008/rawsql-ts/commit/1cd1afd8218a871909126b4212a2e025f9f09b70) Thanks [@mk3008](https://github.com/mk3008)! - Preserve the spelling of parsed single-quoted strings when formatting SQL. When constructing a quoted `LiteralValue`, pass an explicit `{ isEscaped: boolean }` option. To edit a quoted value, call `setStringValue(value, { isEscaped })` in place of direct assignment. Pass `false` for plain text and `true` for text already escaped for the target SQL.
+
+- [#967](https://github.com/mk3008/rawsql-ts/pull/967) [`186e038`](https://github.com/mk3008/rawsql-ts/commit/186e0383c9277594160fb694ef1fdbe649f54d6d) Thanks [@mk3008](https://github.com/mk3008)! - Add structured static schema diagnostics in core that distinguish proven ambiguous columns from unresolved ownership and return unsupported query roots as domain limitations.
+
+- [#968](https://github.com/mk3008/rawsql-ts/pull/968) [`376fdf1`](https://github.com/mk3008/rawsql-ts/commit/376fdf1869c53edb9b3cb1ee5c5dc166333aa2b7) Thanks [@mk3008](https://github.com/mk3008)! - Add versioned structural selectors for parser-backed query scopes, explicit AST resolution outcomes, and full query-structure metadata for parent scopes, direct CTE references, and fail-closed outer-reference classification. Existing lineage scope IDs and legacy-compatible `kind` values remain unchanged; consumers should use the new `scopeKind` field when switching over the exact structural kinds `root`, `exists`, and `in_subquery`.
+
+  `QueryStructureSummaryV1.scopeCount` now counts the complete parser-backed structural scope inventory, including the root, predicate subqueries, and set-operation scopes. `maximumNestingDepth` now follows structural parent selectors and counts the root as depth 1, so both summary values can change for the same SQL compared with the previous lineage-only inventory.
+
+- [#965](https://github.com/mk3008/rawsql-ts/pull/965) [`b5a0c2b`](https://github.com/mk3008/rawsql-ts/commit/b5a0c2b933f40050707d711d0f881bf8a83d968b) Thanks [@mk3008](https://github.com/mk3008)! - Add `parseSqlFormatterOptions` as a strict validation boundary for external formatter configuration while preserving the existing typed `SqlFormatter` constructor behavior.
+
+### Patch Changes
+
+- [#964](https://github.com/mk3008/rawsql-ts/pull/964) [`c2f3458`](https://github.com/mk3008/rawsql-ts/commit/c2f3458ea4b4d3ce580942b508cd9f6265a8bc23) Thanks [@mk3008](https://github.com/mk3008)! - Add reusable query-structure analysis, column lineage, and bounded fixture extraction in the investigation engine within the rawsql-ts monorepo; SQL usage scans can be confined to a workspace-relative directory without QuerySpec metadata, and browser bundling correctly omits type-only runtime exports.
+
+- [#960](https://github.com/mk3008/rawsql-ts/pull/960) [`99d0050`](https://github.com/mk3008/rawsql-ts/commit/99d0050bae48e22ec4522d306dd5c5e1f89b4de9) Thanks [@mk3008](https://github.com/mk3008)! - Reduce redundant formatter work when collecting SQL parameters while preserving formatted SQL and parameter result compatibility, including ordering, indexes, names, conflicts, and original placeholder spelling.
+
+- [#960](https://github.com/mk3008/rawsql-ts/pull/960) [`99d0050`](https://github.com/mk3008/rawsql-ts/commit/99d0050bae48e22ec4522d306dd5c5e1f89b4de9) Thanks [@mk3008](https://github.com/mk3008)! - Reduce avoidable SQL rendering traversal work while preserving existing formatted SQL and comment layout.
+
+- [#970](https://github.com/mk3008/rawsql-ts/pull/970) [`d7e02be`](https://github.com/mk3008/rawsql-ts/commit/d7e02be4fbe81b2df6bb0d55064ad30ef6d91e65) Thanks [@mk3008](https://github.com/mk3008)! - Keep EXISTS, NOT EXISTS, IN, and NOT IN query-scope selectors stable when their predicates have boolean siblings.
+
 ## 0.30.1
 
 ### Patch Changes
