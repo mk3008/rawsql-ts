@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/investigation-core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Deterministic query structure, safe scope slicing, column lineage, and fixture extraction analysis for rawsql-ts.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -40,7 +40,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "rawsql-ts": "^0.30.1"
+    "rawsql-ts": "^0.31.0"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

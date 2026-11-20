@@ -1,5 +1,13 @@
 # @rawsql-ts/testkit-postgres
 
+## 0.16.10
+
+### Patch Changes
+
+- Updated dependencies [[`c2f3458`](https://github.com/mk3008/rawsql-ts/commit/c2f3458ea4b4d3ce580942b508cd9f6265a8bc23), [`99d0050`](https://github.com/mk3008/rawsql-ts/commit/99d0050bae48e22ec4522d306dd5c5e1f89b4de9), [`186e038`](https://github.com/mk3008/rawsql-ts/commit/186e0383c9277594160fb694ef1fdbe649f54d6d), [`1cd1afd`](https://github.com/mk3008/rawsql-ts/commit/1cd1afd8218a871909126b4212a2e025f9f09b70), [`186e038`](https://github.com/mk3008/rawsql-ts/commit/186e0383c9277594160fb694ef1fdbe649f54d6d), [`99d0050`](https://github.com/mk3008/rawsql-ts/commit/99d0050bae48e22ec4522d306dd5c5e1f89b4de9), [`d7e02be`](https://github.com/mk3008/rawsql-ts/commit/d7e02be4fbe81b2df6bb0d55064ad30ef6d91e65), [`376fdf1`](https://github.com/mk3008/rawsql-ts/commit/376fdf1869c53edb9b3cb1ee5c5dc166333aa2b7), [`b5a0c2b`](https://github.com/mk3008/rawsql-ts/commit/b5a0c2b933f40050707d711d0f881bf8a83d968b)]:
+  - rawsql-ts@0.31.0
+  - @rawsql-ts/testkit-core@0.17.10
+
 ## 0.16.9
 
 ### Patch Changes
