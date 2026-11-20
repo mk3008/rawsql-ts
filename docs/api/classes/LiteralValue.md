@@ -91,7 +91,9 @@ Defined in: [ValueComponent.ts:223](https://github.com/mk3008/rawsql-ts/blob/94c
 
 > `readonly` `optional` **isEscaped**: `boolean`
 
-For single-quoted strings, `true` means the formatter uses the text as supplied between the quotes. `false` means the formatter escapes the plain string data before adding the quotes.
+For single-quoted strings, `true` writes the text as supplied between the quotes. `false` doubles apostrophes in plain string data.
+
+Backslashes are left as supplied. Their interpretation depends on the database and its settings. A value ending in a single backslash can cause the parser to read the closing quote as escaped when you parse the generated SQL again. Use bound parameters for values passed to a database. When you need a literal, provide the text between the quotes already escaped for the target SQL with `isEscaped: true`.
 
 Defined in: [ValueComponent.ts:225](https://github.com/mk3008/rawsql-ts/blob/94cee17f2e322fec77f0341a44d81e1aa22fceb1/packages/core/src/models/ValueComponent.ts#L225)
 

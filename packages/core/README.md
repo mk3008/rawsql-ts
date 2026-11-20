@@ -141,7 +141,9 @@ const literal = new LiteralValue("O'Brien", undefined, true, { isEscaped: false 
 literal.setStringValue("O''Neill", { isEscaped: true });
 ```
 
-Use `false` for plain string data and `true` for text already escaped for the target SQL. For existing quoted literals, replace direct `.value` assignment with `setStringValue`.
+Use `false` to double apostrophes in plain string data. Use `true` to write already escaped SQL literal text as supplied. For existing quoted literals, replace direct `.value` assignment with `setStringValue`.
+
+Backslashes are left as supplied. Their interpretation depends on the database and its settings. A value ending in a single backslash can cause the parser to read the closing quote as escaped when you parse the generated SQL again. Use bound parameters for values passed to a database. When you need a literal, provide the text between the quotes already escaped for the target SQL with `isEscaped: true`.
 
 ### Analysis
 
