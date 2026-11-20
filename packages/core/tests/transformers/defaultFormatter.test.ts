@@ -12,13 +12,13 @@ test('ColumnReference', () => {
 
 test('LiteralExpression escape', () => {
     const formatter = new Formatter();
-    const sql = formatter.format(new LiteralValue("O'Reilly", undefined, true));
+    const sql = formatter.format(new LiteralValue("O'Reilly", undefined, true, { isEscaped: false }));
     expect(sql).toBe("'O''Reilly'");
 });
 
 test('LiteralExpression num?', () => {
     const formatter = new Formatter();
-    const sql = formatter.format(new LiteralValue('1', undefined, true));
+    const sql = formatter.format(new LiteralValue('1', undefined, true, { isEscaped: false }));
     expect(sql).toBe("'1'");
 });
 

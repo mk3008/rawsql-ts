@@ -215,15 +215,64 @@ export class BinaryExpression extends SqlComponent {
     }
 }
 
+type StringLiteralOptions = {
+    /** Use true for SQL literal text and false for plain string data. */
+    isEscaped: boolean;
+};
+
+/** Represents a literal expression in the SQL AST. */
 export class LiteralValue extends SqlComponent {
     static kind = Symbol("LiteralExpression");
-    // Use the string type instead of the RawString type because it has its own escaping process.
+    /** For a single-quoted string, the text inside the quotes. Edit it with setStringValue. */
     value: string | number | boolean | null;
-    isStringLiteral?: boolean; // Flag to indicate this was originally a quoted string literal
-    constructor(value: string | number | boolean | null, _deprecated?: boolean, isStringLiteral?: boolean) {
+    /** Indicates that the formatter should enclose the value in single quotes. */
+    readonly isStringLiteral?: boolean;
+    /** True for SQL literal text and false for plain string data. Parsed single-quoted strings have this set to true. */
+    readonly isEscaped?: boolean;
+
+    /**
+     * Creates a single-quoted string literal. The escape state must be explicit.
+     * @param options Use isEscaped: false for plain data or isEscaped: true for SQL literal text.
+     */
+    constructor(value: string, _deprecated: boolean | undefined, isStringLiteral: true, options: StringLiteralOptions);
+    /** Creates a literal that does not use single-quoted string formatting. */
+    constructor(value: LiteralValue["value"], _deprecated?: boolean, isStringLiteral?: false);
+    constructor(value: LiteralValue["value"], _deprecated?: boolean, isStringLiteral?: boolean, options?: StringLiteralOptions) {
         super();
         this.value = value;
         this.isStringLiteral = isStringLiteral;
+        if (isStringLiteral) {
+            this.assignStringValue(value, options);
+        }
+    }
+
+    /**
+     * Replaces the text and escape state of an existing single-quoted string literal.
+     * @param value The text to store inside the quotes.
+     * @param options Use isEscaped: false for plain data or isEscaped: true for SQL literal text.
+     * @throws TypeError if the literal is not single-quoted or the escape state is missing.
+     */
+    setStringValue(value: string, options: StringLiteralOptions): void {
+        this.assignStringValue(value, options);
+    }
+
+    private assignStringValue(value: LiteralValue["value"], options?: StringLiteralOptions): void {
+        if (!this.isStringLiteral || typeof value !== "string" || typeof options?.isEscaped !== "boolean") {
+            throw new TypeError("Quoted string literals require a string value and an explicit isEscaped option.");
+        }
+
+        // Keep the AST value enumerable and require edits to provide the escape state.
+        Object.defineProperties(this, {
+            value: {
+                configurable: true,
+                enumerable: true,
+                get: () => value,
+                set: () => {
+                    throw new TypeError("Use setStringValue with an explicit isEscaped option.");
+                },
+            },
+            isEscaped: { configurable: true, enumerable: true, value: options.isEscaped },
+        });
     }
 }
 

@@ -134,6 +134,15 @@ Read more:
 | -------------- | --------------------------------------------------------------------- | ----------------------------------------------- |
 | `SqlFormatter` | SQL formatting with indentation, keyword casing, and comment handling | [Guide](../../docs/guide/formatting-recipes.md) |
 
+When working with a single-quoted string, `LiteralValue.value` holds the text inside the SQL quotes. A parsed string has `isEscaped: true`. To construct or edit one, specify the representation explicitly.
+
+```ts
+const literal = new LiteralValue("O'Brien", undefined, true, { isEscaped: false });
+literal.setStringValue("O''Neill", { isEscaped: true });
+```
+
+Use `false` for plain string data and `true` for text already escaped for the target SQL. For existing quoted literals, replace direct `.value` assignment with `setStringValue`.
+
 ### Analysis
 
 | Class                       | Description                                           | Docs                                                       |

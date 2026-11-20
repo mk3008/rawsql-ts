@@ -1,7 +1,9 @@
 <div v-pre>
 # Class: LiteralValue
 
-Defined in: [packages/core/src/models/ValueComponent.ts:214](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/ValueComponent.ts#L214)
+Defined in: [ValueComponent.ts:220](https://github.com/mk3008/rawsql-ts/blob/94cee17f2e322fec77f0341a44d81e1aa22fceb1/packages/core/src/models/ValueComponent.ts#L220)
+
+Parsed single-quoted strings store the original text inside the quotes and set `isEscaped` to `true`.
 
 ## Extends
 
@@ -9,33 +11,23 @@ Defined in: [packages/core/src/models/ValueComponent.ts:214](https://github.com/
 
 ## Constructors
 
-### Constructor
+### Single-quoted string
 
-> **new LiteralValue**(`value`, `_deprecated?`, `isStringLiteral?`): `LiteralValue`
+```ts
+new LiteralValue(value: string, _deprecated: boolean | undefined, isStringLiteral: true, options: { isEscaped: boolean })
+```
 
-Defined in: [packages/core/src/models/ValueComponent.ts:219](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/ValueComponent.ts#L219)
+Defined in: [ValueComponent.ts:227](https://github.com/mk3008/rawsql-ts/blob/94cee17f2e322fec77f0341a44d81e1aa22fceb1/packages/core/src/models/ValueComponent.ts#L227)
 
-#### Parameters
+Pass `{ isEscaped: false }` for plain string data or `{ isEscaped: true }` for text already escaped for the target SQL. Provide the value without the surrounding quotes.
 
-##### value
+### Other literals
 
-`string` | `number` | `boolean` | `null`
+```ts
+new LiteralValue(value: string | number | boolean | null, _deprecated?: boolean, isStringLiteral?: false)
+```
 
-##### \_deprecated?
-
-`boolean`
-
-##### isStringLiteral?
-
-`boolean`
-
-#### Returns
-
-`LiteralValue`
-
-#### Overrides
-
-[`SqlComponent`](SqlComponent.md).[`constructor`](SqlComponent.md#constructor)
+Defined in: [ValueComponent.ts:228](https://github.com/mk3008/rawsql-ts/blob/94cee17f2e322fec77f0341a44d81e1aa22fceb1/packages/core/src/models/ValueComponent.ts#L228)
 
 ## Properties
 
@@ -79,17 +71,48 @@ Defined in: [packages/core/src/models/ValueComponent.ts:215](https://github.com/
 
 > **value**: `string` \| `number` \| `boolean` \| `null`
 
-Defined in: [packages/core/src/models/ValueComponent.ts:217](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/ValueComponent.ts#L217)
+For a single-quoted string, this holds the text inside the quotes. Use [`setStringValue`](#setstringvalue) to update it.
+
+Defined in: [ValueComponent.ts:222](https://github.com/mk3008/rawsql-ts/blob/94cee17f2e322fec77f0341a44d81e1aa22fceb1/packages/core/src/models/ValueComponent.ts#L222)
 
 ***
 
 ### isStringLiteral?
 
-> `optional` **isStringLiteral**: `boolean`
+> `readonly` `optional` **isStringLiteral**: `boolean`
 
-Defined in: [packages/core/src/models/ValueComponent.ts:218](https://github.com/mk3008/rawsql-ts/blob/27a71e4abe1d7d16d81359d10b4cec1a45e5d027/packages/core/src/models/ValueComponent.ts#L218)
+Indicates that the formatter should enclose the value in single quotes.
+
+Defined in: [ValueComponent.ts:223](https://github.com/mk3008/rawsql-ts/blob/94cee17f2e322fec77f0341a44d81e1aa22fceb1/packages/core/src/models/ValueComponent.ts#L223)
+
+***
+
+### isEscaped?
+
+> `readonly` `optional` **isEscaped**: `boolean`
+
+For single-quoted strings, `true` means the formatter uses the text as supplied between the quotes. `false` means the formatter escapes the plain string data before adding the quotes.
+
+Defined in: [ValueComponent.ts:225](https://github.com/mk3008/rawsql-ts/blob/94cee17f2e322fec77f0341a44d81e1aa22fceb1/packages/core/src/models/ValueComponent.ts#L225)
 
 ## Methods
+
+### setStringValue()
+
+```ts
+setStringValue(value: string, options: { isEscaped: boolean }): void
+```
+
+Updates the text and escape state of an existing single-quoted string literal.
+
+Defined in: [ValueComponent.ts:238](https://github.com/mk3008/rawsql-ts/blob/94cee17f2e322fec77f0341a44d81e1aa22fceb1/packages/core/src/models/ValueComponent.ts#L238)
+
+```ts
+const literal = new LiteralValue("O'Brien", undefined, true, { isEscaped: false });
+literal.setStringValue("O''Neill", { isEscaped: true });
+```
+
+***
 
 ### getKind()
 
