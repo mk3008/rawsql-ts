@@ -215,16 +215,27 @@ export class BinaryExpression extends SqlComponent {
     }
 }
 
-type StringLiteralOptions = { isEscaped: boolean };
+type StringLiteralOptions = {
+    /** Use true for SQL literal text and false for plain string data. */
+    isEscaped: boolean;
+};
 
+/** Represents a literal expression in the SQL AST. */
 export class LiteralValue extends SqlComponent {
     static kind = Symbol("LiteralExpression");
+    /** For a single-quoted string, the text inside the quotes. Edit it with setStringValue. */
     value: string | number | boolean | null;
+    /** Indicates that the formatter should enclose the value in single quotes. */
     readonly isStringLiteral?: boolean;
-    /** Escape state of the text inside the quotes, for single-quoted literals. */
+    /** True for SQL literal text and false for plain string data. Parsed single-quoted strings have this set to true. */
     readonly isEscaped?: boolean;
 
+    /**
+     * Creates a single-quoted string literal. The escape state must be explicit.
+     * @param options Use isEscaped: false for plain data or isEscaped: true for SQL literal text.
+     */
     constructor(value: string, _deprecated: boolean | undefined, isStringLiteral: true, options: StringLiteralOptions);
+    /** Creates a literal that does not use single-quoted string formatting. */
     constructor(value: LiteralValue["value"], _deprecated?: boolean, isStringLiteral?: false);
     constructor(value: LiteralValue["value"], _deprecated?: boolean, isStringLiteral?: boolean, options?: StringLiteralOptions) {
         super();
@@ -235,6 +246,12 @@ export class LiteralValue extends SqlComponent {
         }
     }
 
+    /**
+     * Replaces the text and escape state of an existing single-quoted string literal.
+     * @param value The text to store inside the quotes.
+     * @param options Use isEscaped: false for plain data or isEscaped: true for SQL literal text.
+     * @throws TypeError if the literal is not single-quoted or the escape state is missing.
+     */
     setStringValue(value: string, options: StringLiteralOptions): void {
         this.assignStringValue(value, options);
     }

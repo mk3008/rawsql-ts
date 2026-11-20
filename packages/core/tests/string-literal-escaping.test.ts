@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { SimpleSelectQuery } from '../src/models/SimpleSelectQuery';
+import { ValuesQuery } from '../src/models/ValuesQuery';
 import { LiteralValue } from '../src/models/ValueComponent';
 import { InsertQueryParser } from '../src/parsers/InsertQueryParser';
 import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
@@ -18,10 +19,16 @@ describe('SQL string literal escaping', () => {
         expect(secondPass).toBe(expected);
     });
 
-    test('preserves escaped apostrophes in INSERT values', () => {
+    test('preserves escaped apostrophes when formatted INSERT values are parsed again', () => {
         const query = InsertQueryParser.parse("INSERT INTO users (last_name) VALUES ('don''t')");
+        const formattedSql = formatter.format(query).formattedSql;
+        const values = InsertQueryParser.parse(formattedSql).selectQuery;
 
-        expect(formatter.format(query).formattedSql).toBe(`insert into "users"("last_name") values ('don''t')`);
+        expect(formattedSql).toBe(`insert into "users"("last_name") values ('don''t')`);
+        expect(values).toBeInstanceOf(ValuesQuery);
+        const literal = (values as ValuesQuery).tuples[0].values[0];
+        expect(literal).toBeInstanceOf(LiteralValue);
+        expect(literal).toMatchObject({ value: "don''t", isStringLiteral: true, isEscaped: true });
     });
 
     test.each([
@@ -29,15 +36,20 @@ describe('SQL string literal escaping', () => {
         { literal: "'a''''b''c'", value: "a''''b''c" },
         { literal: "''''", value: "''" },
         { literal: "''", value: '' },
+        { literal: "' O''Brien  Jr. '", value: " O''Brien  Jr. " },
         { literal: String.raw`'it\'s'`, value: String.raw`it\'s` },
-    ])('preserves the source spelling of $literal in the AST and output', ({ literal, value }) => {
+    ])('preserves the AST literal $literal across parse, format, and parse', ({ literal, value }) => {
         const query = SelectQueryParser.parse(`SELECT ${literal} AS v`) as SimpleSelectQuery;
-        const expression = query.selectClause.items[0].value;
+        const formattedSql = formatter.format(query).formattedSql;
+        const reparsed = SelectQueryParser.parse(formattedSql) as SimpleSelectQuery;
+        const expected = { value, isStringLiteral: true, isEscaped: true };
 
-        expect(expression).toBeInstanceOf(LiteralValue);
-        expect((expression as LiteralValue).value).toBe(value);
-        expect((expression as LiteralValue).isEscaped).toBe(true);
-        expect(formatter.format(query).formattedSql).toBe(`select ${literal} as "v"`);
+        const before = query.selectClause.items[0].value;
+        const after = reparsed.selectClause.items[0].value;
+        expect(before).toBeInstanceOf(LiteralValue);
+        expect(before).toMatchObject(expected);
+        expect(after).toBeInstanceOf(LiteralValue);
+        expect(after).toMatchObject(expected);
     });
 
     test.each([
